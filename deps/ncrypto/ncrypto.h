@@ -64,10 +64,22 @@
 // OpenSSL 4 makes ASN1_STRING opaque and provides a checked BIT STRING length
 // accessor. Earlier OpenSSL releases and pinned BoringSSL expose the decoded
 // unused-bit count through ASN1_STRING::flags.
-#if !NCRYPTO_USE_BORINGSSL && OPENSSL_VERSION_PREREQ(4, 0)
+#if NCRYPTO_USE_OPENSSL_PROVIDER && OPENSSL_VERSION_PREREQ(4, 0)
 #define NCRYPTO_HAS_ASN1_BIT_STRING_GET_LENGTH 1
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER || NCRYPTO_USE_BORINGSSL
 #define NCRYPTO_HAS_ASN1_BIT_STRING_GET_LENGTH 0
+#else
+#error "Unsupported crypto backend"
+#endif
+
+// BoringSSL's X.509 signer can encode only its restricted RSA-PSS parameter
+// profile. Other supported backends accept the full runtime signing profile.
+#if NCRYPTO_USE_BORINGSSL
+#define NCRYPTO_HAS_X509_RSA_PSS_FLEXIBLE_PARAMETERS 0
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
+#define NCRYPTO_HAS_X509_RSA_PSS_FLEXIBLE_PARAMETERS 1
+#else
+#error "Unsupported crypto backend"
 #endif
 
 #if NCRYPTO_USE_OPENSSL_PROVIDER
@@ -1683,8 +1695,18 @@ struct X509RawExtension final {
   std::vector<unsigned char> value;
 };
 
+std::optional<std::vector<X509RawExtension>> inspectX509Extensions(
+    const STACK_OF(X509_EXTENSION) * extensions);
+
 class X509View final {
  public:
+  enum class CheckKeyResult {
+    MATCH,                  // The requested comparison passed.
+    NO_MATCH,               // It completed and produced an ordinary mismatch.
+    UNSUPPORTED_OPERATION,  // The backend cannot compare these keys.
+    OPERATION_FAILED,       // The backend failed for another reason.
+  };
+
   static X509View From(const SSLPointer& ssl);
   static X509View From(const SSLCtxPointer& ctx);
 
@@ -1727,7 +1749,7 @@ class X509View final {
 
   bool isCA() const;
   bool isIssuedBy(const X509View& other) const;
-  bool checkPrivateKey(const EVPKeyPointer& pkey) const;
+  CheckKeyResult checkPrivateKey(const EVPKeyPointer& pkey) const;
   bool checkPublicKey(const EVPKeyPointer& pkey) const;
 
   std::optional<std::string> getFingerprint(const Digest& method) const;

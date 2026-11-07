@@ -5249,6 +5249,262 @@ minimal control over our ability to interrupt the generation process,
 it is not recommended to generate overly large primes, as doing so may make
 the process unresponsive.
 
+### `crypto.generateX509Certificate(options, callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `options` {Object}
+  * `csr` {string|ArrayBuffer|Buffer|TypedArray|DataView} A PEM string, or a
+    PEM- or DER-encoded PKCS#10 certificate signing request. It cannot be
+    combined with `subject` or `publicKey`.
+  * `subject`
+    {Array\<Object|Object\[]>|ArrayBuffer|Buffer|TypedArray|DataView}
+    A distinguished name in structured or DER form. Required unless `csr` is
+    supplied. See [Distinguished name inputs][].
+  * `publicKey` {KeyObject|string|ArrayBuffer|Buffer|TypedArray|DataView|Object}
+    The public key input accepted by [`crypto.createPublicKey()`][]. Required
+    unless `csr` is supplied.
+  * `issuer` {X509Certificate} The issuer certificate. When omitted, the
+    certificate is self-signed.
+  * `serialNumber` {bigint} A positive serial number from `1n` through
+    `(1n << 159n) - 1n`.
+  * `notBefore` {Date} The start of the certificate's validity period.
+  * `notAfter` {Date} The end of the certificate's validity period.
+  * `signature` {Object} The signing configuration.
+    * `key` {KeyObject|string|URL|ArrayBuffer|Buffer|TypedArray|DataView|Object}
+      A private key input accepted by [`crypto.sign()`][]. Its `padding` and
+      `saltLength` RSA options apply to certificate signing; signature encoding
+      and context options do not apply.
+    * `digest` {string|null} An explicit digest name. `null` is accepted
+      only by signature algorithms with an intrinsic digest, such as Ed25519.
+  * `extensions` {Object\[]} An ordered list of extensions. It cannot be used
+    with `csr`. **Default:** `[]`. See [Extension inputs][].
+  * `selectExtensions` {Function} A synchronous policy callback that receives
+    the requested extensions and returns the extensions to include. It is
+    required when `csr` is supplied and cannot otherwise be used.
+    * `requestedExtensions` {Object\[]}
+    * Returns: {Object\[]}
+* `callback` {Function}
+  * `err` {Error}
+  * `certificate` {X509Certificate}
+
+Generates and signs an X.509 v3 certificate. Validation errors are thrown
+synchronously, and mutable input data is copied before asynchronous work.
+Certificate request signature verification and signing errors are passed to
+`callback`. The function is compatible with [`util.promisify()`][]. Supported
+key and digest combinations depend on the configured crypto backend.
+
+Dates are accepted from 1950 through 9999 and truncated to whole seconds.
+After truncation, `notAfter` must be later than `notBefore`. No extensions are
+added implicitly.
+
+For a self-signed certificate, the subject must not be empty and
+`signature.key` must match the certificate public key. With an `issuer`, the
+issuer subject must not be empty and its public key must match `signature.key`.
+If the backend cannot compare the keys, the caller must ensure they match.
+The returned certificate is standalone; the supplied issuer and its certificate
+chain are not attached to the result through `issuerCertificate`.
+
+This function does not validate a certification path or determine whether the
+certificate is trusted.
+
+When `csr` is supplied, the request supplies the certificate subject and public
+key. The configured crypto backend parses the request, after which Node.js
+invokes `options.selectExtensions` synchronously before verifying the request
+signature. The callback therefore receives unauthenticated request data and
+must apply the issuer's policy. A thrown exception propagates synchronously,
+and returning a `Promise` is not supported. The request signature is verified
+before the certificate is signed, so an invalid proof of possession cannot
+produce a certificate.
+
+Requested extensions are never copied implicitly. The policy callback receives
+fresh raw extension objects in request order. Each object has `type: 'raw'`, a
+canonical dotted `oid` {string}, `critical` {boolean}, and `value` {Buffer}
+containing the `extnValue` bytes. It may return those objects, filter them, or
+replace them with any forms described in [Extension inputs][]. The returned
+list is validated in the same way as `options.extensions`. For an
+empty-subject request, the returned list must contain a typed,
+critical, nonempty Subject Alternative Name. Echoing a raw Subject Alternative
+Name does not satisfy this certificate construction check.
+
+```mjs
+import {
+  generateX509Certificate,
+  X509Certificate,
+} from 'node:crypto';
+import { readFileSync } from 'node:fs';
+
+const allowedExtensionOids = new Set([
+  '2.5.29.15', // Key Usage
+  '2.5.29.17', // Subject Alternative Name
+]);
+
+generateX509Certificate({
+  csr: readFileSync('request.csr'),
+  issuer: new X509Certificate(readFileSync('issuer-cert.pem')),
+  serialNumber: 1n,
+  notBefore: new Date('2026-01-01T00:00:00Z'),
+  notAfter: new Date('2027-01-01T00:00:00Z'),
+  signature: {
+    key: readFileSync('issuer-key.pem'),
+    digest: 'sha256',
+  },
+  selectExtensions(requestedExtensions) {
+    return requestedExtensions.filter(({ oid }) =>
+      allowedExtensionOids.has(oid));
+  },
+}, (err, certificate) => {
+  if (err) throw err;
+  console.log(certificate.toString());
+});
+```
+
+#### Distinguished name inputs
+
+In its structured form, `subject` {Array\<Object|Object\[]>} is an ordered array
+whose entries are attribute objects or nonempty arrays of attribute objects.
+Each entry in the outer array forms one relative distinguished name (RDN). An
+attribute has `name` {string} and `value` {string}. `name` is a canonical dotted
+OID or one of `commonName`/`CN`,
+`countryName`/`C`, `localityName`/`L`, `stateOrProvinceName`/`ST`,
+`organizationName`/`O`, `organizationalUnitName`/`OU`, `serialNumber`,
+`streetAddress`, `postalCode`, `domainComponent`/`DC`, `userId`/`UID`,
+`emailAddress`/`E`, `title`, `surname`/`SN`, or `givenName`/`GN`.
+
+```js
+const subject = [
+  { name: 'countryName', value: 'US' },
+  { name: 'organizationName', value: 'Example Inc.' },
+  [
+    { name: 'commonName', value: 'example.com' },
+    { name: 'serialNumber', value: '1234' },
+  ],
+];
+```
+
+The final nested array places `commonName` and `serialNumber` in the same RDN.
+
+RDN sequence and grouping are preserved. DER canonical ordering applies inside
+a multi-valued RDN. The crypto backend selects and validates each attribute's
+ASN.1 string type according to its OID.
+
+Alternatively, `subject` may be an
+{ArrayBuffer|Buffer|TypedArray|DataView} containing the complete DER encoding
+of exactly one X.509 `Name`, including its outer `SEQUENCE` tag and length.
+The input is copied synchronously. If accepted by
+the configured crypto backend, the encoded name is preserved byte-for-byte,
+including its RDN grouping, attribute order, and ASN.1 string types. This form
+can reproduce an existing name exactly, for example by using
+`subject: certificate.subjectName.raw`. The `subjectName.rdns` view is not a
+generation input format and does not include ASN.1 value types. The caller is
+responsible for ensuring that the supplied encoding is canonical DER.
+
+#### Extension inputs
+
+`options.extensions` and the value returned by `options.selectExtensions` are
+ordered arrays of extension objects. Each extension object has one of the
+following forms. Except where noted, all forms accept an optional `critical`
+{boolean}, which defaults to `false`.
+
+```js
+const extensions = [
+  {
+    type: 'keyUsage',
+    critical: true,
+    usages: ['digitalSignature'],
+  },
+  {
+    type: 'subjectAltName',
+    names: [
+      { type: 'dns', value: 'example.com' },
+      { type: 'ip', value: '192.0.2.1' },
+    ],
+  },
+];
+```
+
+* Basic Constraints: `type: 'basicConstraints'`, `ca` {boolean}, and optional
+  `pathLength` {number}, which must be a non-negative integer.
+* Key Usage: `type: 'keyUsage'` and nonempty `usages` {string\[]}. A usage is
+  `digitalSignature`, `contentCommitment`, `keyEncipherment`,
+  `dataEncipherment`, `keyAgreement`, `keyCertSign`, `crlSign`, `encipherOnly`,
+  or `decipherOnly`.
+* Extended Key Usage: `type: 'extendedKeyUsage'` and nonempty `usages`
+  {string\[]}. A usage is a canonical dotted OID or `serverAuth`, `clientAuth`,
+  `codeSigning`, `emailProtection`, `timeStamping`, `ocspSigning`, or
+  `anyExtendedKeyUsage`.
+* Subject Alternative Name: `type: 'subjectAltName'` and nonempty `names`
+  {Object\[]}. Each name has `type` set to `'dns'`, `'ip'`, `'email'`, or
+  `'uri'`, and a string `value`. IP values must be IPv4 or IPv6 addresses and
+  must not contain an IPv6 zone identifier. The other values must be nonempty
+  ASCII strings without NUL and are not otherwise validated.
+* Subject Key Identifier: `type: 'subjectKeyIdentifier'` and `value: 'auto'` or
+  `value` {ArrayBuffer|TypedArray|Buffer|DataView}. A binary value contains the
+  key identifier bytes, not DER. `'auto'` uses [RFC 7093][] method 1: the
+  leftmost 160 bits of the SHA-256 digest of the `subjectPublicKey` BIT STRING
+  contents. This typed form is always noncritical.
+* Authority Key Identifier: `type: 'authorityKeyIdentifier'` and
+  `value: 'auto'` or `value`
+  {ArrayBuffer|TypedArray|Buffer|DataView}. A binary value contains the key
+  identifier bytes and populates only the extension's `keyIdentifier` field.
+  When `options.issuer` is supplied, `'auto'` asks the configured crypto backend
+  to decode and copy its Subject Key Identifier. If the extension is absent,
+  the identifier is instead derived from the issuer public key using
+  [RFC 7093][] method 1. The operation fails if the backend cannot decode a
+  single Subject Key Identifier. When `options.issuer` is omitted, `'auto'`
+  copies an explicit typed Subject Key Identifier in the same extension list,
+  or derives the identifier from the certificate public key. This typed form
+  is always noncritical.
+* Raw: `type: 'raw'`, `oid` {string}, and `value`
+  {ArrayBuffer|TypedArray|Buffer|DataView}. `value` is copied into `extnValue`.
+  Raw values are not parsed or semantically validated and may use an OID that
+  also has a typed form. The caller is responsible for their DER syntax and
+  semantics. The selected crypto backend may reject a raw encoding. If it
+  reports success without retaining the extension, generation throws
+  `ERR_CRYPTO_UNSUPPORTED_OPERATION` instead of returning an altered
+  certificate.
+
+Duplicate extension OIDs are rejected. Structural checks use only typed forms:
+a Key Usage containing `keyCertSign` requires CA Basic Constraints, and
+`pathLength` requires CA Basic Constraints and a Key Usage that includes
+`keyCertSign`. An empty subject is permitted only for an issuer-signed
+certificate and requires an explicitly critical, nonempty typed Subject
+Alternative Name extension.
+
+For an existing certificate `source`, the following fields can be included in
+generation options to copy its encoded subject and raw extension contents:
+
+```js
+const copiedFields = {
+  subject: source.subjectName.raw,
+  extensions: source.extensions.map((extension) => ({
+    type: 'raw',
+    ...extension,
+  })),
+};
+```
+
+This copies the name encoding and extension values, not the original
+certificate as a whole. Generation validation still applies, including the
+rejection of duplicate extension OIDs exposed by inspection.
+
+### `crypto.generateX509CertificateSync(options)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `options` {Object} See [`crypto.generateX509Certificate()`][].
+* Returns: {X509Certificate}
+
+Synchronous version of [`crypto.generateX509Certificate()`][].
+
 ### `crypto.getCipherInfo(nameOrNid[, options])`
 
 <!-- YAML
@@ -7734,6 +7990,8 @@ See the [list of SSL OP Flags][] for details.
 [CVE-2021-44532]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44532
 [Caveats]: #support-for-weak-or-compromised-algorithms
 [Crypto constants]: #crypto-constants
+[Distinguished name inputs]: #distinguished-name-inputs
+[Extension inputs]: #extension-inputs
 [FIPS mode]: #fips-mode
 [FIPS module configuration file]: https://docs.openssl.org/3.0/man5/fips_config/
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
@@ -7755,6 +8013,7 @@ See the [list of SSL OP Flags][] for details.
 [RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
 [RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
 [RFC 5280]: https://www.rfc-editor.org/rfc/rfc5280.txt
+[RFC 7093]: https://www.rfc-editor.org/rfc/rfc7093.txt
 [RFC 7517]: https://www.rfc-editor.org/rfc/rfc7517.txt
 [RFC 8032]: https://www.rfc-editor.org/rfc/rfc8032.txt
 [RFC 9562]: https://www.rfc-editor.org/rfc/rfc9562.txt
@@ -7793,6 +8052,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.createVerify()`]: #cryptocreateverifyalgorithm-options
 [`crypto.generateKey()`]: #cryptogeneratekeytype-options-callback
 [`crypto.generateKeyPair()`]: #cryptogeneratekeypairtype-options-callback
+[`crypto.generateX509Certificate()`]: #cryptogeneratex509certificateoptions-callback
 [`crypto.getCiphers()`]: #cryptogetciphers
 [`crypto.getCurves()`]: #cryptogetcurves
 [`crypto.getDiffieHellman()`]: #cryptogetdiffiehellmangroupname

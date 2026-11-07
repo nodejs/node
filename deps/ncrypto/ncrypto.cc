@@ -1730,16 +1730,13 @@ std::optional<X509NameInspection> InspectName(const X509_NAME* name) {
   return output;
 }
 
+template <typename GetExtension>
 std::optional<std::vector<X509RawExtension>> InspectExtensions(
-    const X509* certificate) {
-  if (certificate == nullptr) return std::nullopt;
-  const int count = X509_get_ext_count(certificate);
-  if (count < 0) return std::nullopt;
-
+    OPENSSL_SIZE_T count, GetExtension get_extension) {
   std::vector<X509RawExtension> output;
   output.reserve(static_cast<size_t>(count));
-  for (int i = 0; i < count; i++) {
-    const X509_EXTENSION* extension = X509_get_ext(certificate, i);
+  for (OPENSSL_SIZE_T i = 0; i < count; i++) {
+    const X509_EXTENSION* extension = get_extension(i);
     if (extension == nullptr) return std::nullopt;
 
     auto* mutable_extension = const_cast<X509_EXTENSION*>(extension);
@@ -1757,6 +1754,15 @@ std::optional<std::vector<X509RawExtension>> InspectExtensions(
   return output;
 }
 }  // namespace
+
+std::optional<std::vector<X509RawExtension>> inspectX509Extensions(
+    const STACK_OF(X509_EXTENSION) * extensions) {
+  if (extensions == nullptr) return std::nullopt;
+  return InspectExtensions(sk_X509_EXTENSION_num(extensions),
+                           [extensions](OPENSSL_SIZE_T index) {
+                             return sk_X509_EXTENSION_value(extensions, index);
+                           });
+}
 
 std::optional<int64_t> X509View::getVersion() const {
   MarkPopErrorOnReturn mark_pop_error_on_return;
@@ -1781,7 +1787,13 @@ std::optional<X509NameInspection> X509View::inspectIssuerName() const {
 std::optional<std::vector<X509RawExtension>> X509View::inspectExtensions()
     const {
   MarkPopErrorOnReturn mark_pop_error_on_return;
-  return InspectExtensions(cert_);
+  if (cert_ == nullptr) return std::nullopt;
+  const int count = X509_get_ext_count(cert_);
+  if (count < 0) return std::nullopt;
+  return InspectExtensions(
+      static_cast<OPENSSL_SIZE_T>(count), [this](OPENSSL_SIZE_T index) {
+        return X509_get_ext(cert_, static_cast<int>(index));
+      });
 }
 
 bool X509View::isIssuedBy(const X509View& issuer) const {
@@ -1791,10 +1803,39 @@ bool X509View::isIssuedBy(const X509View& issuer) const {
                            const_cast<X509*>(cert_)) == X509_V_OK;
 }
 
-bool X509View::checkPrivateKey(const EVPKeyPointer& pkey) const {
-  ClearErrorOnReturn clearErrorOnReturn;
-  if (cert_ == nullptr || pkey == nullptr) return false;
-  return X509_check_private_key(const_cast<X509*>(cert_), pkey.get()) == 1;
+X509View::CheckKeyResult X509View::checkPrivateKey(
+    const EVPKeyPointer& pkey) const {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (cert_ == nullptr || pkey == nullptr) {
+    return CheckKeyResult::OPERATION_FAILED;
+  }
+
+  EVPKeyPointer certificate_key(X509_get_pubkey(const_cast<X509*>(cert_)));
+  if (!certificate_key) return CheckKeyResult::OPERATION_FAILED;
+#if NCRYPTO_USE_BORINGSSL
+  if (EVP_PKEY_is_opaque(certificate_key.get()) ||
+      EVP_PKEY_is_opaque(pkey.get())) {
+    return CheckKeyResult::UNSUPPORTED_OPERATION;
+  }
+#endif
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  const int result = EVP_PKEY_eq(certificate_key.get(), pkey.get());
+#elif NCRYPTO_USE_BORINGSSL
+  const int result = EVP_PKEY_cmp(certificate_key.get(), pkey.get());
+#else
+#error "Unsupported crypto backend"
+#endif
+  switch (result) {
+    case 1:
+      return CheckKeyResult::MATCH;
+    case 0:
+    case -1:
+      return CheckKeyResult::NO_MATCH;
+    case -2:
+      return CheckKeyResult::UNSUPPORTED_OPERATION;
+    default:
+      return CheckKeyResult::OPERATION_FAILED;
+  }
 }
 
 bool X509View::checkPublicKey(const EVPKeyPointer& pkey) const {
