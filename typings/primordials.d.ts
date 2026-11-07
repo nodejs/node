@@ -40,7 +40,11 @@ type TypedArrayContentType<T extends TypedArrayConstructor> = InstanceType<T>[nu
  */
 declare namespace primordials {
   export function uncurryThis<T extends (...args: unknown[]) => unknown>(fn: T): UncurryThis<T>;
-  export function makeSafe<T extends NewableFunction>(unsafe: NewableFunction, safe: T, next?: Function): T;
+  export function makeSafe<T extends NewableFunction>(unsafe: NewableFunction, safe: T, next?: Function, options?: {
+    readonly iteratorMethods?: ReadonlyArray<string | symbol> | null;
+    readonly constructorProperties?: (PropertyDescriptorMap & ThisType<T>) | null;
+    readonly prototypeProperties?: (PropertyDescriptorMap & ThisType<T["prototype"]>) | null;
+  }): T;
 
   export import decodeURI = globalThis.decodeURI;
   export import decodeURIComponent = globalThis.decodeURIComponent;
