@@ -116,23 +116,26 @@ static void Drop(const FunctionCallbackInfo<Value>& args) {
         "owns the process state");
   }
 
-  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+  if (args.Length() > 1 && !args[1]->IsNullOrUndefined()) {
     // BufferValue copies raw bytes out of a Buffer/TypedArray as-is instead
     // of forcing a (potentially lossy) UTF-8 string conversion, since paths
     // are not guaranteed to be valid UTF-8.
     BufferValue resource(env->isolate(), args[1]);
-    if (resource.length() > 0) {
-      // A wildcard would drop more than one variable at once. Dropping the
-      // whole scope, without a reference, is the only way to do that.
-      if (scope == PermissionScope::kEnv &&
-          resource.ToStringView().back() == '*') {
-        return THROW_ERR_INVALID_ARG_VALUE(
-            env,
-            "Wildcards are not supported when dropping environment variables");
-      }
-      env->permission()->Drop(env, scope, resource.ToStringView());
-      return;
+    if (resource.length() == 0) {
+      // An empty reference must not fall through to dropping the whole scope.
+      return THROW_ERR_INVALID_ARG_VALUE(
+          env, "The \"reference\" argument must not be empty");
     }
+    // A wildcard would drop more than one variable at once. Dropping the
+    // whole scope, without a reference, is the only way to do that.
+    if (scope == PermissionScope::kEnv &&
+        resource.ToStringView().back() == '*') {
+      return THROW_ERR_INVALID_ARG_VALUE(
+          env,
+          "Wildcards are not supported when dropping environment variables");
+    }
+    env->permission()->Drop(env, scope, resource.ToStringView());
+    return;
   }
 
   env->permission()->Drop(env, scope, "");
