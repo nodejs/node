@@ -3,7 +3,7 @@
 // This tests NODE_COMPILE_CACHE works for WebAssembly modules imported as ESM.
 
 require('../common');
-const { spawnSyncAndAssert } = require('../common/child_process');
+const { spawnSyncAndAssert } = require('../common/compile-cache');
 const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');

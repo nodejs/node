@@ -47,7 +47,7 @@ struct CompileCacheEntry {
   V(FAILED)          /* Failed to enable the cache */                          \
   V(ENABLED)         /* Was not enabled before, and now enabled. */            \
   V(ALREADY_ENABLED) /* Was already enabled. */                                \
-  V(DISABLED)        /* Has been disabled by NODE_DISABLE_COMPILE_CACHE. */
+  V(DISABLED)        /* Disabled by the environment or by V8 coverage. */
 
 enum class CompileCacheEnableStatus : uint8_t {
 #define V(status) status,
