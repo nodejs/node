@@ -372,7 +372,17 @@ Increases indentation of subsequent lines by spaces for `groupIndentation`
 length.
 
 If one or more `label`s are provided, those are printed first without the
-additional indentation.
+additional indentation. Use [`console.groupEnd()`][] to decrease indentation.
+
+```js
+console.group('abc');
+// Prints: abc
+console.log('inside group');
+// Prints:   inside group, with 2 leading spaces
+console.groupEnd();
+console.log('outside group');
+// Prints: outside group
+```
 
 ### `console.groupCollapsed()`
 
@@ -620,6 +630,7 @@ This method does not display anything unless used in the inspector. The
 
 [`console.error()`]: #consoleerrordata-args
 [`console.group()`]: #consolegrouplabel
+[`console.groupEnd()`]: #consolegroupend
 [`console.log()`]: #consolelogdata-args
 [`console.profile()`]: #consoleprofilelabel
 [`console.profileEnd()`]: #consoleprofileendlabel
