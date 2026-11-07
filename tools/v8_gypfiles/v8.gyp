@@ -9,6 +9,7 @@
     'v8_vector_stores%': 0,
     'v8_embed_script%': "",
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
+    'mksnapshot_wxneeded_prefix%': [],
     'v8_os_page_size%': 0,
     'generate_bytecode_output_root': '<(SHARED_INTERMEDIATE_DIR)/generate-bytecode-output-root',
     'generate_bytecode_builtins_list_output': '<(generate_bytecode_output_root)/builtins-generated/bytecodes-builtins-list.h',
@@ -480,6 +481,7 @@
             }],
           ],
           'action': [
+            '<@(mksnapshot_wxneeded_prefix)',
             '<@(emulator)',
             '>@(_inputs)',
             '>@(mksnapshot_flags)',
@@ -491,6 +493,17 @@
           'dependencies': [
             '<(perfetto_gyp_file):perfetto_sdk',
           ],
+        }],
+        ['OS=="freebsd"', {
+          'variables': {
+            'mksnapshot_wxneeded_prefix': [
+              '<(python)',
+              '<(DEPTH)/tools/freebsd-wxneeded.py',
+              '--exec',
+              'mksnapshot',
+              '--',
+            ],
+          },
         }],
         ['want_separate_host_toolset', {
           'dependencies': [
