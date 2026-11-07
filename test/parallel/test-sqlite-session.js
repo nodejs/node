@@ -540,6 +540,14 @@ test('database.createSession() - specify other database', (t) => {
   t.assert.strictEqual(sessionTest.changeset().length, 0);
 });
 
+test('database.createSession() - undefined options use defaults', (t) => {
+  const database = new Database(':memory:');
+  const session = database.createSession({ table: undefined, db: undefined });
+  database.exec('CREATE TABLE data (key INTEGER PRIMARY KEY)');
+  database.exec('INSERT INTO data (key) VALUES (1)');
+  t.assert.notStrictEqual(session.changeset().length, 0);
+});
+
 test('database.createSession() - wrong arguments', (t) => {
   const database = new Database(':memory:');
   t.assert.throws(() => {
