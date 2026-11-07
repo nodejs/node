@@ -45,7 +45,7 @@ async function check(backend, webWorker, {
 
   let result;
   const statuses = [];
-  const handle = backends[backend](['--experimental-web-worker'], workerData, {
+  const handle = backends[backend]([], workerData, {
     message(message) {
       if (message.type === 'result') {
         statuses.push(message.result.status);
