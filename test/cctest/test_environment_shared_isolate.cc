@@ -298,7 +298,7 @@ TEST_P(SharedIsolateTest, EnvironmentsComeAndGoWhileSiblingsRun) {
                                    ->InstanceTemplate()
                                    ->NewInstance(context)
                                    .ToLocalChecked();
-    v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(
+    v8::Object::Wrap<v8::CppHeapPointerTag::kFirstEmbedderWrappableTag>(
         isolate_,
         holder,
         cppgc::MakeGarbageCollected<EmbedderObject>(

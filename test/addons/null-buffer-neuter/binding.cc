@@ -28,8 +28,12 @@ void Run(const v8::FunctionCallbackInfo<v8::Value>& args) {
           FreeCallback,
           nullptr).ToLocalChecked();
 
+    assert(node::Buffer::Length(buf) == 0);
+#ifndef V8_ENABLE_SANDBOX
+    // With the V8 sandbox, empty buffers point into the sandbox instead.
     char* data = node::Buffer::Data(buf);
     assert(data == nullptr);
+#endif
   }
 }
 

@@ -10,7 +10,7 @@
 
 class CppGCed : public v8::Object::Wrappable {
  public:
-  static uint16_t states[2];
+  static uint16_t* states;
   static constexpr int kDestructCount = 0;
   static constexpr int kTraceCount = 1;
 
@@ -38,18 +38,20 @@ class CppGCed : public v8::Object::Wrappable {
   void Trace(cppgc::Visitor* visitor) const { states[kTraceCount]++; }
 };
 
-uint16_t CppGCed::states[] = {0, 0};
+uint16_t* CppGCed::states = nullptr;
 
 void InitModule(v8::Local<v8::Object> exports) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   auto context = isolate->GetCurrentContext();
 
-  auto store = v8::ArrayBuffer::NewBackingStore(
-      CppGCed::states,
-      sizeof(uint16_t) * 2,
-      [](void*, size_t, void*) {},
-      nullptr);
-  auto ab = v8::ArrayBuffer::New(isolate, std::move(store));
+  // Let V8 allocate the counters, as the V8 sandbox does not allow external
+  // backing stores. The store is leaked so that the counters outlive the
+  // CppHeap, whose teardown runs the destructors.
+  static auto* store = new std::shared_ptr<v8::BackingStore>(
+      v8::ArrayBuffer::NewBackingStore(isolate, sizeof(uint16_t) * 2));
+  CppGCed::states = static_cast<uint16_t*>((*store)->Data());
+  std::fill_n(CppGCed::states, 2, 0);
+  auto ab = v8::ArrayBuffer::New(isolate, *store);
 
   exports
       ->Set(context,
