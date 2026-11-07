@@ -123,12 +123,14 @@ The following methods from the `node:dns` module are available:
 * [`resolver.resolveAny()`][`dns.resolveAny()`]
 * [`resolver.resolveCaa()`][`dns.resolveCaa()`]
 * [`resolver.resolveCname()`][`dns.resolveCname()`]
+* [`resolver.resolveHttps()`][`dns.resolveHttps()`]
 * [`resolver.resolveMx()`][`dns.resolveMx()`]
 * [`resolver.resolveNaptr()`][`dns.resolveNaptr()`]
 * [`resolver.resolveNs()`][`dns.resolveNs()`]
 * [`resolver.resolvePtr()`][`dns.resolvePtr()`]
 * [`resolver.resolveSoa()`][`dns.resolveSoa()`]
 * [`resolver.resolveSrv()`][`dns.resolveSrv()`]
+* [`resolver.resolveSvcb()`][`dns.resolveSvcb()`]
 * [`resolver.resolveTlsa()`][`dns.resolveTlsa()`]
 * [`resolver.resolveTxt()`][`dns.resolveTxt()`]
 * [`resolver.reverse()`][`dns.reverse()`]
@@ -445,12 +447,14 @@ records. The type and structure of individual results varies based on `rrtype`:
 | `'ANY'`   | any records                    | {Object}    | [`dns.resolveAny()`][]   |
 | `'CAA'`   | CA authorization records       | {Object}    | [`dns.resolveCaa()`][]   |
 | `'CNAME'` | canonical name records         | {string}    | [`dns.resolveCname()`][] |
+| `'HTTPS'` | HTTPS service bindings         | {Object}    | [`dns.resolveHttps()`][] |
 | `'MX'`    | mail exchange records          | {Object}    | [`dns.resolveMx()`][]    |
 | `'NAPTR'` | name authority pointer records | {Object}    | [`dns.resolveNaptr()`][] |
 | `'NS'`    | name server records            | {string}    | [`dns.resolveNs()`][]    |
 | `'PTR'`   | pointer records                | {string}    | [`dns.resolvePtr()`][]   |
 | `'SOA'`   | start of authority records     | {Object}    | [`dns.resolveSoa()`][]   |
 | `'SRV'`   | service records                | {Object}    | [`dns.resolveSrv()`][]   |
+| `'SVCB'`  | service bindings               | {Object}    | [`dns.resolveSvcb()`][]  |
 | `'TLSA'`  | certificate associations       | {Object}    | [`dns.resolveTlsa()`][]  |
 | `'TXT'`   | text records                   | {string\[]} | [`dns.resolveTxt()`][]   |
 
@@ -546,12 +550,14 @@ will be present on the object:
 | `'AAAA'`  | `address`/`ttl`                                                                                                                                  |
 | `'CAA'`   | Refer to [`dns.resolveCaa()`][]                                                                                                                  |
 | `'CNAME'` | `value`                                                                                                                                          |
+| `'HTTPS'` | Refer to [`dns.resolveHttps()`][]                                                                                                                |
 | `'MX'`    | Refer to [`dns.resolveMx()`][]                                                                                                                   |
 | `'NAPTR'` | Refer to [`dns.resolveNaptr()`][]                                                                                                                |
 | `'NS'`    | `value`                                                                                                                                          |
 | `'PTR'`   | `value`                                                                                                                                          |
 | `'SOA'`   | Refer to [`dns.resolveSoa()`][]                                                                                                                  |
 | `'SRV'`   | Refer to [`dns.resolveSrv()`][]                                                                                                                  |
+| `'SVCB'`  | Refer to [`dns.resolveSvcb()`][]                                                                                                                 |
 | `'TLSA'`  | Refer to [`dns.resolveTlsa()`][]                                                                                                                 |
 | `'TXT'`   | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
 
@@ -623,6 +629,26 @@ Uses the DNS protocol to resolve `CAA` records for the `hostname`. The
 will contain an array of certification authority authorization records
 available for the `hostname` (e.g. `[{critical: 0, iodef:
 'mailto:pki@example.com'}, {critical: 128, issue: 'pki.example.com'}]`).
+
+## `dns.resolveHttps(hostname, callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!--lint disable no-undefined-references list-item-bullet-indent-->
+
+* `hostname` {string}
+* `callback` {Function}
+  * `err` {Error}
+  * `records` {Object\[]}
+
+<!--lint enable no-undefined-references list-item-bullet-indent-->
+
+Uses the DNS protocol to resolve `HTTPS` records ([RFC 9460][]) for the
+`hostname`. `HTTPS` records use the same format as `SVCB` records, so the
+`records` argument passed to the `callback` function has the same structure as
+in [`dns.resolveSvcb()`][].
 
 ## `dns.resolveMx(hostname, callback)`
 
@@ -803,6 +829,63 @@ be an array of objects with the following properties:
   name: 'service.example.com',
 });
 ```
+
+## `dns.resolveSvcb(hostname, callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!--lint disable no-undefined-references list-item-bullet-indent-->
+
+* `hostname` {string}
+* `callback` {Function}
+  * `err` {Error}
+  * `records` {Object\[]}
+
+<!--lint enable no-undefined-references list-item-bullet-indent-->
+
+Uses the DNS protocol to resolve service binding records (`SVCB` records, as
+defined in [RFC 9460][]) for the `hostname`. The `records` argument passed to
+the `callback` function is an array of objects with these properties:
+
+* `priority` {integer} The `SvcPriority`. `0` indicates AliasMode, in which
+  case `target` is an alias and `params` is empty.
+* `target` {string} The `TargetName`. An empty string represents the root
+  name (`.`), which in ServiceMode means the owner name of the record itself.
+* `params` {Object} The `SvcParams`, keyed by their presentation name. Known
+  keys are decoded as follows:
+
+  * `mandatory` {string\[]} Names of the keys the client must understand.
+  * `alpn` {string\[]} ALPN protocol identifiers, e.g. `['h2', 'h3']`.
+  * `no-default-alpn` {boolean} Always `true` when present.
+  * `port` {integer}
+  * `ipv4hint` {string\[]} IPv4 addresses.
+  * `ech` {ArrayBuffer} The `ECHConfigList`.
+  * `ipv6hint` {string\[]} IPv6 addresses.
+  * `dohpath` {string} The DoH URI template ([RFC 9461][]).
+  * `ohttp` {boolean} Always `true` when present ([RFC 9540][]).
+
+  Any other key is reported as `keyNNNNN`, where `NNNNN` is the numeric key,
+  with the raw value as an {ArrayBuffer}. This includes keys in the
+  private-use range (65280-65534).
+
+```js
+({
+  priority: 1,
+  target: 'svc.example.com',
+  params: {
+    alpn: ['h2', 'h3'],
+    port: 8443,
+    ipv4hint: ['192.0.2.1'],
+    key65400: [ArrayBuffer],
+  },
+});
+```
+
+If any record in the response has a malformed `SvcParams` field, the query
+fails with `EBADRESP`. In [`dns.resolveAny()`][] results, a malformed set of
+`SVCB` or `HTTPS` records is omitted instead.
 
 ## `dns.resolveTlsa(hostname, callback)`
 
@@ -1039,12 +1122,14 @@ The following methods from the `dnsPromises` API are available:
 * [`resolver.resolveAny()`][`dnsPromises.resolveAny()`]
 * [`resolver.resolveCaa()`][`dnsPromises.resolveCaa()`]
 * [`resolver.resolveCname()`][`dnsPromises.resolveCname()`]
+* [`resolver.resolveHttps()`][`dnsPromises.resolveHttps()`]
 * [`resolver.resolveMx()`][`dnsPromises.resolveMx()`]
 * [`resolver.resolveNaptr()`][`dnsPromises.resolveNaptr()`]
 * [`resolver.resolveNs()`][`dnsPromises.resolveNs()`]
 * [`resolver.resolvePtr()`][`dnsPromises.resolvePtr()`]
 * [`resolver.resolveSoa()`][`dnsPromises.resolveSoa()`]
 * [`resolver.resolveSrv()`][`dnsPromises.resolveSrv()`]
+* [`resolver.resolveSvcb()`][`dnsPromises.resolveSvcb()`]
 * [`resolver.resolveTlsa()`][`dnsPromises.resolveTlsa()`]
 * [`resolver.resolveTxt()`][`dnsPromises.resolveTxt()`]
 * [`resolver.reverse()`][`dnsPromises.reverse()`]
@@ -1241,12 +1326,14 @@ based on `rrtype`:
 | `'ANY'`   | any records                    | {Object}    | [`dnsPromises.resolveAny()`][]   |
 | `'CAA'`   | CA authorization records       | {Object}    | [`dnsPromises.resolveCaa()`][]   |
 | `'CNAME'` | canonical name records         | {string}    | [`dnsPromises.resolveCname()`][] |
+| `'HTTPS'` | HTTPS service bindings         | {Object}    | [`dnsPromises.resolveHttps()`][] |
 | `'MX'`    | mail exchange records          | {Object}    | [`dnsPromises.resolveMx()`][]    |
 | `'NAPTR'` | name authority pointer records | {Object}    | [`dnsPromises.resolveNaptr()`][] |
 | `'NS'`    | name server records            | {string}    | [`dnsPromises.resolveNs()`][]    |
 | `'PTR'`   | pointer records                | {string}    | [`dnsPromises.resolvePtr()`][]   |
 | `'SOA'`   | start of authority records     | {Object}    | [`dnsPromises.resolveSoa()`][]   |
 | `'SRV'`   | service records                | {Object}    | [`dnsPromises.resolveSrv()`][]   |
+| `'SVCB'`  | service bindings               | {Object}    | [`dnsPromises.resolveSvcb()`][]  |
 | `'TLSA'`  | certificate associations       | {Object}    | [`dnsPromises.resolveTlsa()`][]  |
 | `'TXT'`   | text records                   | {string\[]} | [`dnsPromises.resolveTxt()`][]   |
 
@@ -1307,12 +1394,14 @@ present on the object:
 | `'AAAA'`  | `address`/`ttl`                                                                                                                                          |
 | `'CAA'`   | Refer to [`dnsPromises.resolveCaa()`][]                                                                                                                  |
 | `'CNAME'` | `value`                                                                                                                                                  |
+| `'HTTPS'` | Refer to [`dnsPromises.resolveHttps()`][]                                                                                                                |
 | `'MX'`    | Refer to [`dnsPromises.resolveMx()`][]                                                                                                                   |
 | `'NAPTR'` | Refer to [`dnsPromises.resolveNaptr()`][]                                                                                                                |
 | `'NS'`    | `value`                                                                                                                                                  |
 | `'PTR'`   | `value`                                                                                                                                                  |
 | `'SOA'`   | Refer to [`dnsPromises.resolveSoa()`][]                                                                                                                  |
 | `'SRV'`   | Refer to [`dnsPromises.resolveSrv()`][]                                                                                                                  |
+| `'SVCB'`  | Refer to [`dnsPromises.resolveSvcb()`][]                                                                                                                 |
 | `'TLSA'`  | Refer to [`dnsPromises.resolveTlsa()`][]                                                                                                                 |
 | `'TXT'`   | This type of record contains an array property called `entries` which refers to [`dnsPromises.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
 
@@ -1361,6 +1450,18 @@ added: v10.6.0
 Uses the DNS protocol to resolve `CNAME` records for the `hostname`. On success,
 the `Promise` is resolved with an array of canonical name records available for
 the `hostname` (e.g. `['bar.example.com']`).
+
+### `dnsPromises.resolveHttps(hostname)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `hostname` {string}
+
+Uses the DNS protocol to resolve `HTTPS` records ([RFC 9460][]) for the
+`hostname`. On success, the `Promise` is resolved with an array of objects with
+the same structure as in [`dnsPromises.resolveSvcb()`][].
 
 ### `dnsPromises.resolveMx(hostname)`
 
@@ -1487,6 +1588,56 @@ the following properties:
   name: 'service.example.com',
 });
 ```
+
+### `dnsPromises.resolveSvcb(hostname)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `hostname` {string}
+
+Uses the DNS protocol to resolve service binding records (`SVCB` records, as
+defined in [RFC 9460][]) for the `hostname`. On success, the `Promise` is
+resolved with an array of objects with these properties:
+
+* `priority` {integer} The `SvcPriority`. `0` indicates AliasMode, in which
+  case `target` is an alias and `params` is empty.
+* `target` {string} The `TargetName`. An empty string represents the root
+  name (`.`), which in ServiceMode means the owner name of the record itself.
+* `params` {Object} The `SvcParams`, keyed by their presentation name. Known
+  keys are decoded as follows:
+
+  * `mandatory` {string\[]} Names of the keys the client must understand.
+  * `alpn` {string\[]} ALPN protocol identifiers, e.g. `['h2', 'h3']`.
+  * `no-default-alpn` {boolean} Always `true` when present.
+  * `port` {integer}
+  * `ipv4hint` {string\[]} IPv4 addresses.
+  * `ech` {ArrayBuffer} The `ECHConfigList`.
+  * `ipv6hint` {string\[]} IPv6 addresses.
+  * `dohpath` {string} The DoH URI template ([RFC 9461][]).
+  * `ohttp` {boolean} Always `true` when present ([RFC 9540][]).
+
+  Any other key is reported as `keyNNNNN`, where `NNNNN` is the numeric key,
+  with the raw value as an {ArrayBuffer}. This includes keys in the
+  private-use range (65280-65534).
+
+```js
+({
+  priority: 1,
+  target: 'svc.example.com',
+  params: {
+    alpn: ['h2', 'h3'],
+    port: 8443,
+    ipv4hint: ['192.0.2.1'],
+    key65400: [ArrayBuffer],
+  },
+});
+```
+
+If any record in the response has a malformed `SvcParams` field, the query
+fails with `EBADRESP`. In [`dnsPromises.resolveAny()`][] results, a malformed
+set of `SVCB` or `HTTPS` records is omitted instead.
 
 ### `dnsPromises.resolveTlsa(hostname)`
 
@@ -1698,6 +1849,9 @@ uses. For instance, they do not use the configuration from `/etc/hosts`.
 [Implementation considerations section]: #implementation-considerations
 [RFC 5952]: https://tools.ietf.org/html/rfc5952#section-6
 [RFC 8482]: https://tools.ietf.org/html/rfc8482
+[RFC 9460]: https://www.rfc-editor.org/rfc/rfc9460
+[RFC 9461]: https://www.rfc-editor.org/rfc/rfc9461
+[RFC 9540]: https://www.rfc-editor.org/rfc/rfc9540
 [`--dns-result-order`]: cli.md#--dns-result-orderorder
 [`Error`]: errors.md#class-error
 [`UV_THREADPOOL_SIZE`]: cli.md#uv_threadpool_sizesize
@@ -1710,12 +1864,14 @@ uses. For instance, they do not use the configuration from `/etc/hosts`.
 [`dns.resolveAny()`]: #dnsresolveanyhostname-callback
 [`dns.resolveCaa()`]: #dnsresolvecaahostname-callback
 [`dns.resolveCname()`]: #dnsresolvecnamehostname-callback
+[`dns.resolveHttps()`]: #dnsresolvehttpshostname-callback
 [`dns.resolveMx()`]: #dnsresolvemxhostname-callback
 [`dns.resolveNaptr()`]: #dnsresolvenaptrhostname-callback
 [`dns.resolveNs()`]: #dnsresolvenshostname-callback
 [`dns.resolvePtr()`]: #dnsresolveptrhostname-callback
 [`dns.resolveSoa()`]: #dnsresolvesoahostname-callback
 [`dns.resolveSrv()`]: #dnsresolvesrvhostname-callback
+[`dns.resolveSvcb()`]: #dnsresolvesvcbhostname-callback
 [`dns.resolveTlsa()`]: #dnsresolvetlsahostname-callback
 [`dns.resolveTxt()`]: #dnsresolvetxthostname-callback
 [`dns.reverse()`]: #dnsreverseip-callback
@@ -1729,12 +1885,14 @@ uses. For instance, they do not use the configuration from `/etc/hosts`.
 [`dnsPromises.resolveAny()`]: #dnspromisesresolveanyhostname
 [`dnsPromises.resolveCaa()`]: #dnspromisesresolvecaahostname
 [`dnsPromises.resolveCname()`]: #dnspromisesresolvecnamehostname
+[`dnsPromises.resolveHttps()`]: #dnspromisesresolvehttpshostname
 [`dnsPromises.resolveMx()`]: #dnspromisesresolvemxhostname
 [`dnsPromises.resolveNaptr()`]: #dnspromisesresolvenaptrhostname
 [`dnsPromises.resolveNs()`]: #dnspromisesresolvenshostname
 [`dnsPromises.resolvePtr()`]: #dnspromisesresolveptrhostname
 [`dnsPromises.resolveSoa()`]: #dnspromisesresolvesoahostname
 [`dnsPromises.resolveSrv()`]: #dnspromisesresolvesrvhostname
+[`dnsPromises.resolveSvcb()`]: #dnspromisesresolvesvcbhostname
 [`dnsPromises.resolveTlsa()`]: #dnspromisesresolvetlsahostname
 [`dnsPromises.resolveTxt()`]: #dnspromisesresolvetxthostname
 [`dnsPromises.reverse()`]: #dnspromisesreverseip

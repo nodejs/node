@@ -485,6 +485,31 @@ test(async function test_resolveTlsa(done) {
   checkWrap(req);
 });
 
+test(async function test_resolveHttps(done) {
+  function validateResult(result) {
+    assert.ok(Array.isArray(result));
+    assert.ok(result.length >= 1);
+    for (const record of result) {
+      assert.strictEqual(typeof record.priority, 'number');
+      assert.strictEqual(typeof record.target, 'string');
+      assert.strictEqual(typeof record.params, 'object');
+      if (record.params.alpn !== undefined) {
+        assert.ok(Array.isArray(record.params.alpn));
+      }
+    }
+  }
+
+  validateResult(await dnsPromises.resolveHttps(addresses.HTTPS_HOST));
+
+  const req = dns.resolveHttps(addresses.HTTPS_HOST,
+                               common.mustSucceed((records) => {
+                                 validateResult(records);
+                                 done();
+                               }));
+
+  checkWrap(req);
+});
+
 test(function test_resolveTlsa_failure(done) {
   assert.rejects(
     dnsPromises.resolveTlsa(addresses.NOT_FOUND),
@@ -774,6 +799,10 @@ test(function test_empty_ptr_records(done) {
 
 test(function test_empty_srv_records(done) {
   testEmptyRecords('resolveSrv', done);
+});
+
+test(function test_empty_svcb_records(done) {
+  testEmptyRecords('resolveSvcb', done);
 });
 
 test(function test_empty_tlsa_records(done) {
