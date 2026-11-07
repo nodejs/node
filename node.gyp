@@ -140,6 +140,7 @@
       'src/node_errors.cc',
       'src/node_external_reference.cc',
       'src/node_file.cc',
+      'src/node_green_thread.cc',
       'src/node_file_utils.cc',
       'src/node_http_parser.cc',
       'src/node_http2.cc',

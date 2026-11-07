@@ -1552,10 +1552,15 @@ std::vector<std::string> GetRuntimeEnvironmentDefaults() {
 
 void TearDownOncePerProcess() {
   const uint32_t flags = init_process_flags.load();
+  // Green threads that aren't owned by an Environment, e.g. warm ones, must
+  // be gone before V8 is. Abandoned ones never are.
+  const bool green_threads_disposed = green_thread::TerminateAll();
   ResetStdio();
   if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
     ResetSignalHandlers();
   }
+
+  if (!green_threads_disposed) return;
 
   if (!(flags & ProcessInitializationFlags::kNoInitializeCppgc)) {
     cppgc::ShutdownProcess();

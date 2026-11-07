@@ -40,6 +40,8 @@ class TransferData : public MemoryRetainer {
   // this object should not hold any more Isolate-specific data.
   virtual v8::Maybe<bool> FinalizeTransferWrite(
       v8::Local<v8::Context> context, v8::ValueSerializer* serializer);
+  // For receivers without an Environment, which can only receive ports.
+  virtual MessagePortData* AsMessagePortData() { return nullptr; }
 };
 
 // Represents a single communication message.
@@ -79,6 +81,9 @@ class Message : public MemoryRetainer {
                             v8::Local<v8::Object> source_port =
                                 v8::Local<v8::Object>());
 
+  // Adds an ArrayBuffer that was transferred with the message, for messages
+  // that are serialized without Serialize().
+  void AddArrayBuffer(std::shared_ptr<v8::BackingStore> backing_store);
   // Internal method of Message that is called when a new SharedArrayBuffer
   // object is encountered in the incoming value's structure.
   void AddSharedArrayBuffer(std::shared_ptr<v8::BackingStore> backing_store);
@@ -101,6 +106,24 @@ class Message : public MemoryRetainer {
   }
   bool has_transferables() const {
     return !transferables_.empty() || !array_buffers_.empty();
+  }
+
+  // For receivers without an Environment, which deserialize the payload
+  // themselves. The payload refers to transferred ArrayBuffers, shared
+  // SharedArrayBuffers and host objects by their indices in these lists.
+  const MallocedBuffer<char>& payload() const { return main_message_buf_; }
+  std::vector<std::shared_ptr<v8::BackingStore>>& array_buffers() {
+    return array_buffers_;
+  }
+  const std::vector<std::shared_ptr<v8::BackingStore>>& shared_array_buffers()
+      const {
+    return shared_array_buffers_;
+  }
+  std::vector<std::unique_ptr<TransferData>>& mutable_transferables() {
+    return transferables_;
+  }
+  bool has_wasm_modules_or_shared_values() const {
+    return !wasm_modules_.empty() || shared_value_conveyor_.has_value();
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -171,7 +194,16 @@ class SiblingGroup final : public std::enable_shared_from_this<SiblingGroup> {
 // a specific Environment/Isolate/event loop, for easier transfer between those.
 class MessagePortData : public TransferData {
  public:
-  explicit MessagePortData(MessagePort* owner);
+  // What is notified of incoming messages: a MessagePort, or something that
+  // receives messages without an Environment.
+  class Owner {
+   public:
+    virtual ~Owner() = default;
+    // Called from any thread, with the MessagePortData's lock held.
+    virtual void OnIncomingMessage() = 0;
+  };
+
+  explicit MessagePortData(Owner* owner);
   ~MessagePortData() override;
 
   MessagePortData(MessagePortData&& other) = delete;
@@ -196,11 +228,20 @@ class MessagePortData : public TransferData {
   // which can happen on either side of a worker.
   void Disentangle();
 
+  // For owners other than MessagePorts. Sets the owner, which is notified
+  // right away if messages are queued. Once this returns, a previous owner
+  // is no longer notified. Thread-safe.
+  void SetOwner(Owner* owner);
+  // Removes and returns the next incoming message, if there is one, and if it
+  // is the close message or `close_message_only` is false. Thread-safe.
+  std::shared_ptr<Message> TakeIncomingMessage(bool close_message_only);
+
   void MemoryInfo(MemoryTracker* tracker) const override;
   BaseObjectPtr<BaseObject> Deserialize(
       Environment* env,
       v8::Local<v8::Context> context,
       std::unique_ptr<TransferData> self) override;
+  MessagePortData* AsMessagePortData() override { return this; }
 
   SET_MEMORY_INFO_NAME(MessagePortData)
   SET_SELF_SIZE(MessagePortData)
@@ -213,7 +254,7 @@ class MessagePortData : public TransferData {
   // once that is available with C++17, because std::shared_ptr comes with
   // overhead that is only necessary for BroadcastChannel.
   std::deque<std::shared_ptr<Message>> incoming_messages_;
-  MessagePort* owner_ = nullptr;
+  Owner* owner_ = nullptr;
   std::shared_ptr<SiblingGroup> group_;
   friend class MessagePort;
   friend class SiblingGroup;
@@ -222,7 +263,7 @@ class MessagePortData : public TransferData {
 // A message port that receives messages from other threads, including
 // the uv_async_t handle that is used to notify the current event loop of
 // new incoming messages.
-class MessagePort : public HandleWrap {
+class MessagePort : public HandleWrap, public MessagePortData::Owner {
  private:
   // Create a new MessagePort. The `context` argument specifies the Context
   // instance that is used for creating the values emitted from this port.
@@ -304,6 +345,7 @@ class MessagePort : public HandleWrap {
 
   void OnClose() override;
   void OnMessage(MessageProcessingMode mode);
+  void OnIncomingMessage() override;
   void TriggerAsync();
   v8::MaybeLocal<v8::Value> ReceiveMessage(
       v8::Local<v8::Context> context,
@@ -379,6 +421,11 @@ class JSTransferable : public BaseObject {
 
 v8::Local<v8::FunctionTemplate> GetMessagePortConstructorTemplate(
     IsolateData* isolate_data);
+
+v8::MaybeLocal<v8::Function> GetDOMException(v8::Local<v8::Context> context);
+// Throws a DOMException named DataCloneError in `context`.
+void ThrowDataCloneException(v8::Local<v8::Context> context,
+                             v8::Local<v8::String> message);
 
 }  // namespace worker
 }  // namespace node

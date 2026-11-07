@@ -351,6 +351,10 @@
               "type": "boolean",
               "description": "expose experimental Navigator API on the global scope"
             },
+            "experimental-green-threads": {
+              "type": "boolean",
+              "description": "experimental node:green_threads module"
+            },
             "experimental-import-meta-resolve": {
               "type": "boolean",
               "description": "experimental ES Module import.meta.resolve() parentURL support"

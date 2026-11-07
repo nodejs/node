@@ -363,6 +363,26 @@ v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
                         MultiIsolatePlatform* platform,
                         const SnapshotData* snapshot_data = nullptr,
                         const IsolateSettings& settings = {});
+// Like the overload above, but registers the isolate with `delegate` as its
+// foreground task runner instead of binding it to a libuv loop, and creates
+// it in `group`. Unless `use_first_snapshot` is true, `params` is used as is,
+// which means V8's own startup snapshot if it has no snapshot blob. All
+// isolates in a group must use the same snapshot.
+v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
+                        IsolatePlatformDelegate* delegate,
+                        MultiIsolatePlatform* platform,
+                        const IsolateSettings& settings,
+                        const v8::IsolateGroup& group,
+                        bool use_first_snapshot);
+namespace green_thread {
+// Terminates all green threads in the process and waits until their isolates
+// are disposed.
+// Returns false if green threads were abandoned, because they didn't stop
+// when asked to. Their isolates are never disposed, so V8 and the platform
+// must then not be disposed either.
+bool TerminateAll();
+}  // namespace green_thread
+
 // This overload automatically picks the right 'main_script_id' if no callback
 // was provided by the embedder.
 v8::MaybeLocal<v8::Value> StartExecution(

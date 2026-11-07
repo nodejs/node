@@ -233,6 +233,10 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   return handle_scope.Escape(return_value);
 }
 
+void Message::AddArrayBuffer(std::shared_ptr<BackingStore> backing_store) {
+  array_buffers_.emplace_back(std::move(backing_store));
+}
+
 void Message::AddSharedArrayBuffer(
     std::shared_ptr<BackingStore> backing_store) {
   shared_array_buffers_.emplace_back(std::move(backing_store));
@@ -269,6 +273,8 @@ MaybeLocal<Function> GetEmitMessageFunction(Local<Context> context,
   return emit_message_val.As<Function>();
 }
 
+}  // anonymous namespace
+
 MaybeLocal<Function> GetDOMException(Local<Context> context) {
   Isolate* isolate = Isolate::GetCurrent();
   Local<Object> per_context_bindings;
@@ -297,6 +303,8 @@ void ThrowDataCloneException(Local<Context> context, Local<String> message) {
   }
   isolate->ThrowException(exception);
 }
+
+namespace {
 
 // This tells V8 how to serialize objects that it does not understand
 // (e.g. C++ objects) into the output buffer, in a way that our own
@@ -624,9 +632,7 @@ void Message::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("transferables", transferables_);
 }
 
-MessagePortData::MessagePortData(MessagePort* owner)
-    : owner_(owner) {
-}
+MessagePortData::MessagePortData(Owner* owner) : owner_(owner) {}
 
 MessagePortData::~MessagePortData() {
   CHECK_NULL(owner_);
@@ -643,10 +649,27 @@ void MessagePortData::AddToIncomingQueue(std::shared_ptr<Message> message) {
   Mutex::ScopedLock lock(mutex_);
   incoming_messages_.emplace_back(std::move(message));
 
-  if (owner_ != nullptr) {
-    Debug(owner_, "Adding message to incoming queue");
-    owner_->TriggerAsync();
+  if (owner_ != nullptr) owner_->OnIncomingMessage();
+}
+
+void MessagePortData::SetOwner(Owner* owner) {
+  Mutex::ScopedLock lock(mutex_);
+  owner_ = owner;
+  if (owner_ != nullptr && !incoming_messages_.empty()) {
+    owner_->OnIncomingMessage();
   }
+}
+
+std::shared_ptr<Message> MessagePortData::TakeIncomingMessage(
+    bool close_message_only) {
+  Mutex::ScopedLock lock(mutex_);
+  if (incoming_messages_.empty() ||
+      (close_message_only && !incoming_messages_.front()->IsCloseMessage())) {
+    return nullptr;
+  }
+  std::shared_ptr<Message> message = std::move(incoming_messages_.front());
+  incoming_messages_.pop_front();
+  return message;
 }
 
 void MessagePortData::Entangle(MessagePortData* a, MessagePortData* b) {
@@ -707,6 +730,11 @@ MessagePort::MessagePort(Environment* env,
 
 bool MessagePort::IsDetached() const {
   return data_ == nullptr || IsHandleClosing();
+}
+
+void MessagePort::OnIncomingMessage() {
+  Debug(this, "Adding message to incoming queue");
+  TriggerAsync();
 }
 
 void MessagePort::TriggerAsync() {
