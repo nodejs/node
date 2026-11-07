@@ -872,7 +872,7 @@ Use of this pre-allocated internal memory pool is a key difference between
 calling `Buffer.alloc(size, fill)` vs. `Buffer.allocUnsafe(size).fill(fill)`.
 Specifically, `Buffer.alloc(size, fill)` will _never_ use the internal `Buffer`
 pool, while `Buffer.allocUnsafe(size).fill(fill)` _will_ use the internal
-`Buffer` pool if `size` is less than or equal to half [`Buffer.poolSize`][]. The
+`Buffer` pool if `size` is less than `Buffer.poolSize >>> 1`. The
 difference is subtle but can be important when an application requires the
 additional performance that [`Buffer.allocUnsafe()`][] provides.
 
@@ -5702,7 +5702,7 @@ to one of these new APIs._
 
 `Buffer` instances returned by [`Buffer.allocUnsafe()`][], [`Buffer.from(string)`][],
 [`Buffer.concat()`][] and [`Buffer.from(array)`][] _may_ be allocated off a shared
-internal memory pool if `size` is less than or equal to half [`Buffer.poolSize`][].
+internal memory pool if `size` is less than `Buffer.poolSize >>> 1`.
 Instances returned by [`Buffer.allocUnsafeSlow()`][] _never_ use the shared internal
 memory pool.
 
