@@ -137,7 +137,6 @@ assert(undocumented.delete('--experimental-worker'));
 assert(undocumented.delete('--napi-modules'));
 assert(undocumented.delete('--node-snapshot'));
 assert(undocumented.delete('--no-node-snapshot'));
-assert(undocumented.delete('--loader'));
 assert(undocumented.delete('--verify-base-objects'));
 assert(undocumented.delete('--no-verify-base-objects'));
 assert(undocumented.delete('--trace-promises'));

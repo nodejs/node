@@ -169,27 +169,16 @@ if (isMainThread) {
 added:
   - v23.7.0
   - v22.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67090
+    description: Always `false`, as Node.js no longer runs code in internal threads.
 -->
 
 * Type: {boolean}
 
-Is `true` if this code is running inside of an internal [`Worker`][] thread (e.g the loader thread).
-
-```bash
-node --experimental-loader ./loader.js main.js
-```
-
-```mjs
-// loader.js
-import { isInternalThread } from 'node:worker_threads';
-console.log(isInternalThread);  // true
-```
-
-```cjs
-// loader.js
-const { isInternalThread } = require('node:worker_threads');
-console.log(isInternalThread);  // true
-```
+Always `false`. Node.js no longer runs user-visible code in internal [`Worker`][]
+threads, so this is retained only for backward compatibility.
 
 ```mjs
 // main.js
