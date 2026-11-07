@@ -250,6 +250,10 @@ bool SeaResource::use_code_cache() const {
   return static_cast<bool>(flags & SeaFlags::kUseCodeCache);
 }
 
+bool SeaResource::use_vfs() const {
+  return static_cast<bool>(flags & SeaFlags::kEnableVfs);
+}
+
 bool SeaResource::use_vfs_archive() const {
   return static_cast<bool>(flags & SeaFlags::kVfsArchive);
 }

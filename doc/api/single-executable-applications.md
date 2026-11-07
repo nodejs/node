@@ -261,6 +261,25 @@ Module format detection works the same way as on the real file
 system: name bundled ES modules with the `.mjs` extension (or provide the
 relevant `package.json` files as assets) so they are interpreted as ESM.
 
+#### Worker threads
+
+Worker threads mount the virtual file system as well, at the same mount
+point as the main thread. A path into it, such as the main script's
+`__filename` or a worker script bundled as an asset, can therefore be loaded
+in a [`Worker`][], which reaches the other assets the same way the main
+script does:
+
+```cjs
+const { Worker } = require('node:worker_threads');
+const path = require('node:path');
+
+// worker.js is bundled as an asset, at the root of the mount.
+new Worker(path.join(__dirname, 'worker.js'));
+```
+
+A virtual file system mounted with [`vfs.mount()`][] in one thread is not
+mounted in the others, so a worker cannot load a script from it.
+
 #### Serving the assets from a ZIP archive with `"vfsArchive"`
 
 Instead of listing individual `"assets"`, the configuration can point
@@ -296,10 +315,10 @@ executable only embeds the archive; read the files through the file system
 APIs instead. `"vfsArchive"` requires `"useVfs": true` and cannot be
 combined with `"assets"`.
 
-The archive is mounted at the mount point reserved for [`--vfs-load`][], which
-is the same in every thread, and worker threads mount it as well. A path into
-the archive, such as the main script's `__filename`, can therefore be loaded
-in a worker:
+The archive is mounted at the mount point reserved for [`--vfs-load`][], and,
+like the assets, it is mounted in [worker threads](#worker-threads) as well.
+A path into the archive, such as the main script's `__filename`, can therefore
+be loaded in a worker:
 
 ```cjs
 const { Worker, isMainThread } = require('node:worker_threads');
@@ -808,6 +827,7 @@ to help us document them.
 [VFS documentation]: vfs.md
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
 [`--vfs-load`]: cli.md#--vfs-loadsource
+[`Worker`]: worker_threads.md#class-worker
 [`node:zlib`]: zlib.md
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
@@ -818,6 +838,7 @@ to help us document them.
 [`sea.getRawAsset()`]: #seagetrawassetkey
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
+[`vfs.mount()`]: vfs.md#vfsmount
 [documentation about startup snapshot support in Node.js]: cli.md#--build-snapshot
 [fuse]: https://www.electronjs.org/docs/latest/tutorial/fuses
 [module loader integration]: vfs.md#module-loader-integration
