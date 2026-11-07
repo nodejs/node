@@ -36,7 +36,8 @@
 extern Config config;
 
 namespace {
-int save_ticket_cb(ptls_save_ticket_t *self, ptls_t *ptls, ptls_iovec_t input) {
+int save_ticket_cb(ptls_save_ticket_t *self, ptls_t *ptls, ptls_iovec_t input,
+                   const ptls_save_ticket_properties_t *ticket_prop) {
   auto conn_ref =
     static_cast<ngtcp2_crypto_conn_ref *>(*ptls_get_data_ptr(ptls));
   auto c = static_cast<ClientBase *>(conn_ref->user_data);

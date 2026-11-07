@@ -107,7 +107,7 @@ class ClientRun:
     def assert_verify_cert_handshake(self):
         c_hs, s_hs = self.norm_exp(
             "ServerHello:EncryptedExtensions:CertificateRequest:(Compressed)?Certificate:CertificateVerify:Finished",
-            "ClientHello:Certificate:CertificateVerify:Finished")
+            "ClientHello:(Compressed)?Certificate:CertificateVerify:Finished")
         self._assert_hs(c_hs, s_hs)
 
 

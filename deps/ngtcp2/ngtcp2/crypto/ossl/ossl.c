@@ -411,6 +411,7 @@ static void crypto_buf_write(crypto_buf *cbuf, const uint8_t *data,
 
 struct ngtcp2_crypto_ossl_ctx {
   SSL *ssl;
+  ngtcp2_encryption_level rx_level;
   ngtcp2_encryption_level tx_level;
   crypto_buf *crypto_head, *crypto_read, *crypto_write;
   size_t crypto_head_released;
@@ -425,6 +426,7 @@ int ngtcp2_crypto_ossl_ctx_new(ngtcp2_crypto_ossl_ctx **possl_ctx, SSL *ssl) {
   }
 
   ossl_ctx->ssl = ssl;
+  ossl_ctx->rx_level = NGTCP2_ENCRYPTION_LEVEL_INITIAL;
   ossl_ctx->tx_level = NGTCP2_ENCRYPTION_LEVEL_INITIAL;
   ossl_ctx->crypto_head = ossl_ctx->crypto_read = ossl_ctx->crypto_write = NULL;
   ossl_ctx->crypto_head_released = 0;
@@ -962,7 +964,10 @@ int ngtcp2_crypto_read_write_crypto_data(
   SSL *ssl = ossl_ctx->ssl;
   int rv;
   int err;
-  (void)encryption_level;
+
+  if (encryption_level != ossl_ctx->rx_level) {
+    return -1;
+  }
 
   if (crypto_ossl_ctx_write_crypto_data(ossl_ctx, data, datalen) != 0) {
     return -1;
@@ -1128,7 +1133,10 @@ static int ossl_yield_secret(SSL *ssl, uint32_t ossl_level, int direction,
       return 0;
     }
 
-    ossl_ctx->tx_level = level;
+    /* CRYPTO data is never sent in 0-RTT packet. */
+    if (level != NGTCP2_ENCRYPTION_LEVEL_0RTT) {
+      ossl_ctx->tx_level = level;
+    }
 
     return 1;
   }
@@ -1136,6 +1144,11 @@ static int ossl_yield_secret(SSL *ssl, uint32_t ossl_level, int direction,
   if (ngtcp2_crypto_derive_and_install_rx_key(conn, NULL, NULL, NULL, level,
                                               secret, secretlen) != 0) {
     return 0;
+  }
+
+  /* This check is probably not needed, but just in case */
+  if (level != NGTCP2_ENCRYPTION_LEVEL_0RTT) {
+    ossl_ctx->rx_level = level;
   }
 
   return 1;

@@ -115,9 +115,21 @@ uint64_t ngtcp2_strm_rx_offset(const ngtcp2_strm *strm) {
 }
 
 /* strm_rob_heavily_fragmented returns nonzero if the number of gaps
-   in |rob| exceeds the limit. */
-static int strm_rob_heavily_fragmented(const ngtcp2_rob *rob) {
-  return ngtcp2_ksl_len(&rob->gapksl) >= 4000;
+   in strm->rx.rob exceeds the limit.  A gap costs memory no matter
+   how small it is, while flow control only charges the remote
+   endpoint for the offset range that the reorder buffer covers.
+   Therefore, beyond a fixed allowance, each gap must be backed by
+   NGTCP2_MIN_STREAM_DATALEN bytes of that range. */
+static int strm_rob_heavily_fragmented(const ngtcp2_strm *strm) {
+  size_t ngap = ngtcp2_ksl_len(&strm->rx.rob->gapksl);
+  uint64_t rx_offset = ngtcp2_rob_first_gap_offset(strm->rx.rob);
+  uint64_t span;
+
+  assert(strm->rx.last_offset >= rx_offset);
+
+  span = strm->rx.last_offset - rx_offset;
+
+  return ngap >= 4000 || ngap > 128 + span / NGTCP2_MIN_STREAM_DATALEN;
 }
 
 ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
@@ -134,10 +146,6 @@ ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
     if (strm->rx.cont_offset) {
       ngtcp2_rob_remove_prefix(strm->rx.rob, strm->rx.cont_offset);
     }
-
-    if (strm->flags & NGTCP2_STRM_FLAG_NO_REORDERED_DATA_BUFFERING) {
-      ngtcp2_rob_discard_data(strm->rx.rob);
-    }
   }
 
   nwrite = ngtcp2_rob_push(strm->rx.rob, offset, data, datalen);
@@ -145,7 +153,7 @@ ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
     return nwrite;
   }
 
-  if (strm_rob_heavily_fragmented(strm->rx.rob)) {
+  if (strm_rob_heavily_fragmented(strm)) {
     return NGTCP2_ERR_INTERNAL;
   }
 
@@ -734,13 +742,12 @@ int ngtcp2_strm_require_retransmit_max_stream_data(
 
 int ngtcp2_strm_require_retransmit_stream_data_blocked(
   const ngtcp2_strm *strm, const ngtcp2_stream_data_blocked *fr) {
-  return fr->offset == strm->tx.max_offset &&
+  return fr->max_stream_data == strm->tx.max_offset &&
          !(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
 }
 
-uint64_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm,
-                                          uint64_t rx_offset) {
-  uint64_t datalen;
+size_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm, uint64_t rx_offset) {
+  size_t datalen;
   const uint8_t *data;
   uint64_t orig_rx_offset = rx_offset;
 
@@ -759,19 +766,5 @@ uint64_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm,
     rx_offset += datalen;
   }
 
-  return rx_offset - orig_rx_offset;
-}
-
-void ngtcp2_strm_stop_buffering_reordered_data(ngtcp2_strm *strm) {
-  if (strm->flags & NGTCP2_STRM_FLAG_NO_REORDERED_DATA_BUFFERING) {
-    return;
-  }
-
-  strm->flags |= NGTCP2_STRM_FLAG_NO_REORDERED_DATA_BUFFERING;
-
-  if (!strm->rx.rob) {
-    return;
-  }
-
-  ngtcp2_rob_discard_data(strm->rx.rob);
+  return (size_t)(rx_offset - orig_rx_offset);
 }
