@@ -140,7 +140,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   Response resume(std::optional<bool> terminateOnResume) override;
   Response stepOver(
       std::unique_ptr<protocol::Array<protocol::Debugger::LocationRange>>
-          inSkipList) override;
+          inSkipList,
+      std::unique_ptr<protocol::Array<protocol::Debugger::LocationRange>>
+          inEnterRanges) override;
   Response stepInto(
       std::optional<bool> inBreakOnAsyncCall,
       std::unique_ptr<protocol::Array<protocol::Debugger::LocationRange>>
@@ -206,6 +208,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
                             const v8::debug::Location& start,
                             const v8::debug::Location& end);
   bool shouldBeSkipped(const String16& scriptId, int line, int column);
+  bool shouldEnterFunction(const String16& scriptId,
+                           const v8::debug::Location& start,
+                           const v8::debug::Location& end);
 
   bool acceptsPause(bool isOOMBreak) const;
 
@@ -245,8 +250,11 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   void setScriptInstrumentationBreakpointIfNeeded(V8DebuggerScript* script);
 
-  Response processSkipList(
-      protocol::Array<protocol::Debugger::LocationRange>& skipList);
+  // Validates {ranges} and converts them into a map from script id to sorted
+  // range boundaries (see isWithinOneRange) in {result}.
+  Response processLocationRanges(
+      protocol::Array<protocol::Debugger::LocationRange>& ranges,
+      std::unordered_map<String16, std::vector<std::pair<int, int>>>* result);
 
   V8DebuggerScript* getScriptById(
       const String16& scriptId,
@@ -313,6 +321,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   std::unordered_map<String16, std::vector<std::pair<int, int>>>
       m_blackboxedPositions;
   std::unordered_map<String16, std::vector<std::pair<int, int>>> m_skipList;
+  std::unordered_map<String16, std::vector<std::pair<int, int>>> m_enterRanges;
   std::unordered_set<String16> m_blackboxedExecutionContexts;
   struct BreakpointInfo {
     int line_number;

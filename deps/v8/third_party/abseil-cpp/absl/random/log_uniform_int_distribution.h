@@ -16,13 +16,14 @@
 #define ABSL_RANDOM_LOG_UNIFORM_INT_DISTRIBUTION_H_
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
+#include <ios>
 #include <istream>
 #include <limits>
 #include <ostream>
 
 #include "absl/base/config.h"
+#include "absl/base/macros.h"
 #include "absl/random/internal/iostream_state_saver.h"
 #include "absl/random/internal/traits.h"
 #include "absl/random/uniform_int_distribution.h"
@@ -60,15 +61,18 @@ class log_uniform_int_distribution {
           range_(static_cast<unsigned_type>(max_) -
                  static_cast<unsigned_type>(min_)),
           log_range_(0) {
-      assert(max_ >= min_);
-      assert(base_ > 1);
+      ABSL_HARDENING_ASSERT(max_ >= min_);
+      ABSL_HARDENING_ASSERT(base_ > 1);
 
       if (base_ == 2) {
         // Determine where the first set bit is on range(), giving a log2(range)
         // value which can be used to construct bounds.
         log_range_ = (std::min)(random_internal::BitWidth(range()),
                                 std::numeric_limits<unsigned_type>::digits);
-      } else {
+      } else if (base_ > 2) {
+        // An out-of-contract base_ (<= 1) skips this branch entirely so that
+        // no floating-point undefined behavior is reached.
+        //
         // NOTE: Computing the logN(x) introduces error from 2 sources:
         // 1. Conversion of int to double loses precision for values >=
         // 2^53, which may cause some log() computations to operate on
@@ -240,9 +244,16 @@ std::basic_istream<CharT, Traits>& operator>>(
   auto saver = random_internal::make_istream_state_saver(is);
   is >> min >> max >> base;
   if (!is.fail()) {
-    x.param(param_type(static_cast<result_type>(min),
-                       static_cast<result_type>(max),
-                       static_cast<result_type>(base)));
+    const result_type min_val = static_cast<result_type>(min);
+    const result_type max_val = static_cast<result_type>(max);
+    const result_type base_val = static_cast<result_type>(base);
+    if (max_val < min_val || base_val <= 1) {
+      // The input violates the param_type preconditions; signal failure by
+      // setting the failbit instead of constructing an invalid param_type.
+      is.setstate(is.rdstate() | std::ios_base::failbit);
+    } else {
+      x.param(param_type(min_val, max_val, base_val));
+    }
   }
   return is;
 }

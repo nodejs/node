@@ -20,7 +20,13 @@ function sendDebugCommand(cmd) {
 globalThis.handleInspectorMessage = function() {
   // Growing memory 2 should fail because it cannot grow in place (because of
   // --stress-wasm-memory-moving).
-  assertThrows(() => instance.exports.mem2.grow(1), Error, /Unable to grow/);
+  assertThrows(
+      () => instance.exports.mem2.grow(1), RangeError, /Unable to grow/);
+  // Growing memory 1 should also fail even when it must grow in place (via
+  // toResizableBuffer()).
+  instance.exports.mem1.toResizableBuffer();
+  assertThrows(
+      () => instance.exports.mem1.grow(1), RangeError, /Unable to grow/);
   sendDebugCommand('Debugger.resume');
 };
 

@@ -4,6 +4,7 @@
 
 #include "src/profiler/heap-snapshot-generator.h"
 
+#include <array>
 #include <optional>
 #include <utility>
 
@@ -11,6 +12,7 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/assembler-inl.h"
@@ -95,7 +97,11 @@ void CollectScopeTree(Scope* scope, int depth, HeapEntry* script_entry,
 
   std::vector<Variable*> context_vars;
 
-  if (scope->is_class_scope()) {
+  if (scope->is_script_scope()) {
+    // Script scopes contain global lexical variables (let/const) that can be
+    // accessed across different scripts, for which uses are not tracked. Omit
+    // context variables to disable dead context analysis.
+  } else if (scope->is_class_scope()) {
     // Class scopes contain private fields and methods for which uses across
     // closures are currently not tracked. Omit context variables to disable
     // dead context analysis.
@@ -520,15 +526,15 @@ void HeapEntry::Print(const char* prefix, const char* edge_name, int max_depth,
   for (auto i = children_begin(); i != children_end(); ++i) {
     HeapGraphEdge& edge = **i;
     const char* edge_prefix = "";
-    base::EmbeddedVector<char, 64> index;
-    edge_name = index.begin();
+    std::array<char, 64> index;
+    edge_name = index.data();
     switch (edge.type()) {
       case HeapGraphEdge::kContextVariable:
         edge_prefix = "#";
         edge_name = edge.name();
         break;
       case HeapGraphEdge::kElement:
-        SNPrintF(index, "%d", edge.index());
+        base::SNPrintF(index, "%d", edge.index());
         break;
       case HeapGraphEdge::kInternal:
         edge_prefix = "$";
@@ -539,7 +545,7 @@ void HeapEntry::Print(const char* prefix, const char* edge_name, int max_depth,
         break;
       case HeapGraphEdge::kHidden:
         edge_prefix = "$";
-        SNPrintF(index, "%d", edge.index());
+        base::SNPrintF(index, "%d", edge.index());
         break;
       case HeapGraphEdge::kShortcut:
         edge_prefix = "^";
@@ -550,7 +556,7 @@ void HeapEntry::Print(const char* prefix, const char* edge_name, int max_depth,
         edge_name = edge.name();
         break;
       default:
-        SNPrintF(index, "!!! unknown edge type: %d ", edge.type());
+        base::SNPrintF(index, "!!! unknown edge type: %d ", edge.type());
     }
     edge.to()->Print(edge_prefix, edge_name, max_depth, indent + 2);
   }
@@ -1703,6 +1709,8 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
 #if V8_ENABLE_WEBASSEMBLY
   } else if (IsWasmStruct(obj)) {
     ExtractWasmStructReferences(Cast<WasmStruct>(obj), entry);
+  } else if (IsWasmCustomMap(obj)) {
+    ExtractWasmCustomMapReferences(Cast<WasmCustomMap>(obj), entry);
   } else if (IsWasmArray(obj)) {
     ExtractWasmArrayReferences(Cast<WasmArray>(obj), entry);
   } else if (Is<WasmTrustedInstanceData>(obj)) {
@@ -2089,6 +2097,13 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
       SetInternalReference(
           entry, "constructor_function_data", constructor_or_back_pointer,
           offsetof(Map, constructor_or_back_pointer_or_native_context_));
+#if V8_ENABLE_WEBASSEMBLY
+    } else if (IsWasmTypeInfo(constructor_or_back_pointer)) {
+      TagObject(constructor_or_back_pointer, "(wasm type info)");
+      SetInternalReference(
+          entry, "wasm_type_info", constructor_or_back_pointer,
+          offsetof(Map, constructor_or_back_pointer_or_native_context_));
+#endif  // V8_ENABLE_WEBASSEMBLY
     } else {
       SetInternalReference(
           entry, "constructor", constructor_or_back_pointer,
@@ -2102,7 +2117,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
   // Wasm object maps overload the dependent_code field to store the
   // immediate supertype map. Emit without field offset to avoid
   // double-marking the slot.
-  if (IsWasmObjectMap(map) && map->has_immediate_supertype_map()) {
+  if (IsAnyWasmObjectMap(map) && map->has_immediate_supertype_map()) {
     TagObject(map->immediate_supertype_map(), "(immediate supertype map)");
     SetInternalReference(entry, "immediate_supertype_map",
                          map->immediate_supertype_map());
@@ -2858,6 +2873,64 @@ void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
         entry->SetNamedReference(HeapGraphEdge::kProperty, field_name,
                                  value_entry, generator_);
         MarkVisitedField(WasmStruct::kHeaderSize + field_offset);
+        break;
+      }
+      case wasm::kVoid:
+      case wasm::kTop:
+      case wasm::kBottom:
+        UNREACHABLE();
+    }
+  }
+}
+
+void V8HeapExplorer::ExtractWasmCustomMapReferences(Tagged<WasmCustomMap> obj,
+                                                    HeapEntry* entry) {
+  // Inherited from ExtractMapReferences:
+  ExtractMapReferences(entry, obj);
+
+  // Inherited from ExtractWasmStructReferences:
+  // TODO(jkummerow): Deduplicate.
+  Tagged<WasmTypeInfo> info = obj->map()->wasm_type_info();
+  const wasm::CanonicalStructType* type =
+      wasm::GetTypeCanonicalizer()->LookupStruct(info->type_index());
+  wasm::CanonicalTypeNamesProvider* names =
+      wasm::GetCanonicalTypeNamesProvider();
+  Isolate* isolate = heap_->isolate();
+  for (uint32_t i = 0; i < type->field_count(); i++) {
+    wasm::StringBuilder sb;
+    names->PrintFieldName(sb, info->type_index(), i);
+    sb << '\0';
+    const char* field_name = names_->GetCopy(sb.start());
+    switch (type->field(i).kind()) {
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kI32:
+      case wasm::kI64:
+      case wasm::kF16:
+      case wasm::kF32:
+      case wasm::kF64:
+      case wasm::kS128: {
+        std::string value_string = obj->GetFieldValue(i).to_string();
+        const char* value_name = names_->GetCopy(value_string.c_str());
+        SnapshotObjectId id = heap_object_map_->get_next_id();
+        HeapEntry* child_entry =
+            snapshot_->AddEntry(HeapEntry::kString, value_name, id, 0, 0);
+        entry->SetNamedReference(HeapGraphEdge::kInternal, field_name,
+                                 child_entry, generator_);
+        break;
+      }
+      case wasm::kRef:
+      case wasm::kRefNull: {
+        int field_offset = type->field_offset(i);
+        Tagged<Object> value = obj->RawField(field_offset).load(isolate);
+        // We could consider hiding {null} fields by default (like we do for
+        // arrays, see below), but for now we always include them, in the hope
+        // that they might help identify opportunities for struct size
+        // reductions.
+        HeapEntry* value_entry = GetEntry(value);
+        entry->SetNamedReference(HeapGraphEdge::kProperty, field_name,
+                                 value_entry, generator_);
+        MarkVisitedField(WasmCustomMap::kHeaderSize + field_offset);
         break;
       }
       case wasm::kVoid:
@@ -4307,7 +4380,7 @@ void HeapSnapshotJSONSerializer::SerializeSamples() {
 
 void HeapSnapshotJSONSerializer::SerializeStrings() {
   auto sorted_strings =
-      base::OwnedVector<const unsigned char*>::NewForOverwrite(
+      base::UniqueArray<const unsigned char*>::NewForOverwrite(
           strings_.occupancy() + 1);
   for (base::HashMap::Entry* entry = strings_.Start(); entry != nullptr;
        entry = strings_.Next(entry)) {

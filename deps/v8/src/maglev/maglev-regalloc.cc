@@ -549,6 +549,9 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
                         kSystemPointerSize +
                     interpreter::Register::receiver().index()));
             phi->result().SetAllocated(phi->regalloc_info()->spill_slot());
+#ifdef V8_COMPRESS_POINTERS
+            phi->SetTaggedResultNeedsDecompress();
+#endif
             // Break once both accumulator and receiver have been processed.
             break;
           }

@@ -589,22 +589,36 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
     ValueNode* context) {
   if (may_have_aliasing_contexts_ == ContextSlotLoadsAlias::kAlways) return;
 
-  while (true) {
-    if (auto load_prev_ctxt = context->TryCast<LoadContextSlotNoCells>()) {
-      DCHECK_EQ(load_prev_ctxt->offset(),
-                Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
-      // Recurse until we find the root.
-      context = load_prev_ctxt->input(0).node();
-      continue;
-    }
-    break;
-  }
-
   switch (context->opcode()) {
+    case Opcode::kLoadContextSlotNoCells:
+      do {
+        LoadContextSlotNoCells* load_prev_ctxt =
+            context->Cast<LoadContextSlotNoCells>();
+        DCHECK_EQ(load_prev_ctxt->offset(),
+                  Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+        context = load_prev_ctxt->input(0).node();
+      } while (context->Is<LoadContextSlotNoCells>());
+      // Walking PREVIOUS_INDEX loads is only non-aliasing if rooted at the
+      // incoming context InitialValue, since any other root (such as an
+      // allocated context or a HeapConstant) can have its parent context
+      // represented directly by a distinct ValueNode in the graph.
+      if (!context->Is<InitialValue>()) {
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
+        break;
+      }
+      [[fallthrough]];
     case Opcode::kInitialValue:
-      may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
-          may_have_aliasing_contexts_,
-          ContextSlotLoadsAlias::kOnlyLoadsRelativeToCurrentContext);
+      // In OSR, local registers also start as InitialValues and may hold outer
+      // contexts saved by PushContext, which can alias PREVIOUS_INDEX loads
+      // from the incoming context.
+      if (context->Cast<InitialValue>()->source() ==
+          interpreter::Register::current_context()) {
+        may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
+            may_have_aliasing_contexts_,
+            ContextSlotLoadsAlias::kOnlyLoadsRelativeToCurrentContext);
+      } else {
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
+      }
       break;
     case Opcode::kHeapConstant:
       may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(

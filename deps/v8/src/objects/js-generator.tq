@@ -51,7 +51,7 @@ extern class JSAsyncFunctionObject extends JSGeneratorObject {
 extern class JSAsyncGeneratorObject extends JSGeneratorObject {
   // Pointer to the head of a singly linked list of AsyncGeneratorRequest, or
   // undefined.
-  queue: HeapObject;
+  queue: AsyncGeneratorRequest|Undefined;
   // Whether or not the generator is currently awaiting.
   is_awaiting: Smi;
 }

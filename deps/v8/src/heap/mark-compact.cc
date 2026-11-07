@@ -1611,7 +1611,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     if (V8_LIKELY(dest != CODE_SPACE)) {
       DCHECK_VALID_REGULAR_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
-      base->heap_->CopyBlock(dst_addr, src_addr, size);
+      Heap::CopyBlock(dst_addr, src_addr, object_size);
       if (mode != MigrationMode::kFast) {
         base->ExecuteMigrationObservers(dest, src, dst, size);
       }

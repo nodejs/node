@@ -558,6 +558,7 @@ void Cord::Append(T&& src) {
   if (src.size() <= kMaxBytesToCopy) {
     Append(absl::string_view(src));
   } else {
+    contents_.MaybeRemoveEmptyCrcNode();
     CordRep* rep = CordRepFromString(std::forward<T>(src));
     contents_.AppendTree(rep, CordzUpdateTracker::kAppendString);
   }
@@ -637,6 +638,7 @@ inline void Cord::Prepend(T&& src) {
   if (src.size() <= kMaxBytesToCopy) {
     Prepend(absl::string_view(src));
   } else {
+    contents_.MaybeRemoveEmptyCrcNode();
     CordRep* rep = CordRepFromString(std::forward<T>(src));
     contents_.PrependTree(rep, CordzUpdateTracker::kPrependString);
   }

@@ -524,8 +524,7 @@ DirectHandle<Object> CallSiteInfo::GetMethodName(
 
   // ES2015 gives getters and setters name prefixes which must
   // be stripped to find the property name.
-  if (name->HasOneBytePrefix(base::CStrVector("get ")) ||
-      name->HasOneBytePrefix(base::CStrVector("set "))) {
+  if (name->HasOneBytePrefix("get ") || name->HasOneBytePrefix("set ")) {
     name = isolate->factory()->NewProperSubString(name, 4, name->length());
   } else if (name->length() == 0) {
     // The function doesn't have a meaningful "name" property, however

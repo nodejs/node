@@ -59,7 +59,7 @@ namespace container_internal {
 
 
 template <typename T>
-uint32_t TrailingZeros(T x) {
+constexpr uint32_t TrailingZeros(T x) {
   ABSL_ASSUME(x != 0);
   return static_cast<uint32_t>(countr_zero(x));
 }

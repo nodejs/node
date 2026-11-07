@@ -65,6 +65,7 @@ V8_OBJECT class DataHandler : public Struct {
  public:
   TaggedMember<UnionOf<Smi, Code>> smi_handler_;
   TaggedMember<UnionOf<Smi, Cell>> validity_cell_;
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, data);
 
  private:

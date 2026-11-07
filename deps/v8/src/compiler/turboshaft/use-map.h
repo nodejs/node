@@ -15,7 +15,7 @@ typedef bool (*FunctionType)(const Graph& graph, const Operation& op,
 
 // UseMap computes uses of all operations of the given turboshaft graph. It
 // provides a mapping from `OpIndex` to its `uses`.
-class UseMap {
+class V8_EXPORT_PRIVATE UseMap {
   struct PerOperationUses {
     // We encode offsets as follows:
     // offset < 0: -offset-1 indexes into {saturated_uses_}.
@@ -60,11 +60,10 @@ class Simd128UseMap : public UseMap, public NON_EXPORTED_BASE(ZoneObject) {
 
               if (has_revectorizable_simd128_output(op)) return false;
 
-              // Identify input_reps of ReturnOp, FrameStateOp and MakeTupleOp
-              // (which doesn't track inputs_rep, except for the Word32 popcount
-              // input of ReturnOp).
-              if (op.TryCast<ReturnOp>() || op.TryCast<FrameStateOp>() ||
-                  op.TryCast<MakeTupleOp>()) {
+              // Identify input_reps of ReturnOp and FrameStateOp (which don't
+              // track inputs_rep, except for the Word32 popcount input of
+              // ReturnOp).
+              if (op.TryCast<ReturnOp>() || op.TryCast<FrameStateOp>()) {
                 for (auto input : op.inputs()) {
                   const Operation& input_op = graph.Get(input);
                   if (has_revectorizable_simd128_output(input_op)) return false;

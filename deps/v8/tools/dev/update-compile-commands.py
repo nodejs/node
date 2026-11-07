@@ -117,9 +117,9 @@ def GenerateCCFiles():
   build_dir = f"out/{DEFAULT_ARCH}.debug"
   assert os.path.exists(os.path.join(build_dir, "build.ninja"))
   targets = "v8_generated_cc_files"
-  # The metagen action only exists when v8_use_metagen_instance_types is on.
-  if _GetGnArg(build_dir, "v8_use_metagen_instance_types") == "true":
-    targets += " metagen_instance_types_h"
+  # The metagen action only exists when v8_use_metagen is on.
+  if _GetGnArg(build_dir, "v8_use_metagen") == "true":
+    targets += " run_metagen"
   _Call(f"autoninja -C {build_dir} {targets}")
 
 

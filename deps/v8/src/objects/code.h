@@ -585,6 +585,8 @@ V8_OBJECT class CodeWrapper : public Struct {
   V8_IT_NO_AUTO_DISPATCH;
 
  public:
+  inline explicit CodeWrapper(const AllocationWitness& witness);
+
   DECL_CODE_POINTER_ACCESSORS(code)
 
   DECL_PRINTER(CodeWrapper)

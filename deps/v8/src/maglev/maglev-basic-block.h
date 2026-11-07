@@ -82,19 +82,13 @@ class BasicBlock {
 
   // Moves all nodes after |node| to the resulting ZoneVector, while keeping all
   // nodes before |node| (inclusive) in the basic block.
-  ZoneVector<Node*> Split(Node* node, Zone* zone) {
-    size_t split = 0;
-    for (; split < nodes_.size(); split++) {
-      if (nodes_[split] == node) break;
-    }
-    DCHECK_NE(split, nodes_.size());
-    ZoneVector<Node*> result(nodes_.size() - split, zone);
-    for (size_t i = 0; i < result.size(); i++) {
-      result[i] = nodes_[i + split];
-    }
-    nodes_.resize(split);
-    return result;
-  }
+  ZoneVector<Node*> Split(Node* node, Zone* zone);
+
+  // Truncates the basic block to end just before |node|, dropping |node| and
+  // all subsequent nodes.
+  void TruncateAt(Node* node);
+
+  void OverwriteControlWithAbort(AbortReason reason);
 
   bool has_phi() const { return has_state() && state_->has_phi(); }
 

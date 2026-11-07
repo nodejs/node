@@ -37,8 +37,6 @@
 #include "absl/types/source_location.h"
 #include "absl/types/span.h"
 
-#ifndef SWIG
-// Disabled for SWIG as it doesn't parse attributes correctly.
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 // Returned Status objects may not be ignored. Codesearch doesn't handle ifdefs
@@ -54,13 +52,6 @@ class ABSL_MUST_USE_RESULT ABSL_ATTRIBUTE_TRIVIAL_ABI
     Status;
 #endif
 
-ABSL_NAMESPACE_END
-}  // namespace absl
-#endif  // !SWIG
-
-namespace absl {
-ABSL_NAMESPACE_BEGIN
-
 enum class StatusCode : int;
 enum class StatusToStringMode : int;
 
@@ -69,12 +60,9 @@ template <typename T>
 class StatusOr;
 
 namespace status_internal {
-#ifndef SWIG
 class StatusPrivateAccessor;
 class StatusPrivateAccessorForStatusBuilder;
-#endif  // !SWIG
 
-#ifndef SWIG
 // Container for status payloads.
 struct Payload {
   std::string type_url;
@@ -178,7 +166,6 @@ const char* absl_nonnull MakeCheckFailString(
     const absl::Status* absl_nonnull status, const char* absl_nonnull prefix);
 
 }  // namespace status_internal
-#endif  // SWIG
 
 ABSL_NAMESPACE_END
 }  // namespace absl

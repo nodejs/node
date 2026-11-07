@@ -70,6 +70,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::algorithm_container
     absl::base
     absl::bits
     absl::charset

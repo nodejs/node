@@ -56,3 +56,14 @@ development:
 - **[cleanup_worktree.sh](../../scripts/cleanup_worktree.sh)**: Safely removes
   task workspaces (Git worktrees or Rift subvolumes) and prunes remnants once a
   CL is landed or abandoned.
+- **[setup_worktree_build.py](../../../tools/dev/setup_worktree_build.py)**:
+  Sets up shared `gclient` dependency symlinks in a worktree (invoked
+  automatically by `create_worktree.sh` and `gm.py`). When a worktree's `DEPS`
+  differs from the main repository, it caches a synced dependency tree under
+  `<main_repo>/worktrees/.deps_cache/<hash>` and automatically prunes old
+  unreferenced entries (keeping at least the 3 most recent).
+  - `tools/dev/setup_worktree_build.py prune-cache <main_repo>`: Manually prune
+    unreferenced `.deps_cache` entries (keeping all referenced entries and the 3
+    most recently used).
+  - `tools/dev/setup_worktree_build.py clear-cache <main_repo>`: Remove all
+    entries in `<main_repo>/worktrees/.deps_cache`.

@@ -781,6 +781,7 @@ RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
     DirectHandle<SharedFunctionInfo> shared(fun->shared(), isolate);
     isolate->debug()->DeoptimizeFunction(shared);
     if (isolate->debug()->last_step_action() >= StepInto ||
+        isolate->debug()->step_over_enters_functions() ||
         isolate->debug()->break_on_next_function_call()) {
       DCHECK_EQ(isolate->debug_execution_mode(), DebugInfo::kBreakpoints);
       isolate->debug()->PrepareStepIn(fun);

@@ -40,6 +40,7 @@
 #include "include/v8-sandbox.h"
 #include "include/v8-snapshot.h"
 #include "src/api/api-inl.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/script-details.h"
@@ -74,6 +75,7 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/setup-isolate-for-tests.h"
+#include "test/common/flag-utils.h"
 #include "test/common/version-utils.h"
 namespace v8 {
 namespace internal {
@@ -86,15 +88,9 @@ constexpr EmbedderDataTypeTag kRawDataTag = 2;
 // A convenience struct to simplify management of the blobs required to
 // deserialize an isolate.
 struct StartupBlobs {
-  base::Vector<const uint8_t> startup;
-  base::Vector<const uint8_t> read_only;
-  base::Vector<const uint8_t> shared_space;
-
-  void Dispose() {
-    startup.Dispose();
-    read_only.Dispose();
-    shared_space.Dispose();
-  }
+  base::UniqueArray<const uint8_t> startup;
+  base::UniqueArray<const uint8_t> read_only;
+  base::UniqueArray<const uint8_t> shared_space;
 };
 
 }  // namespace
@@ -123,9 +119,9 @@ class TestSerializer {
   }
 
   static v8::Isolate* NewIsolateFromBlob(const StartupBlobs& blobs) {
-    SnapshotData startup_snapshot(blobs.startup);
-    SnapshotData read_only_snapshot(blobs.read_only);
-    SnapshotData shared_space_snapshot(blobs.shared_space);
+    SnapshotData startup_snapshot(blobs.startup.as_vector());
+    SnapshotData read_only_snapshot(blobs.read_only.as_vector());
+    SnapshotData shared_space_snapshot(blobs.shared_space.as_vector());
     const bool kEnableSerializer = false;
     v8::Isolate* v8_isolate = NewIsolate(kEnableSerializer);
     v8::Isolate::Scope isolate_scope(v8_isolate);
@@ -153,12 +149,9 @@ namespace {
 
 enum CodeCacheType { kLazy, kEager, kAfterExecute };
 
-base::Vector<const uint8_t> WritePayload(
+base::UniqueArray<const uint8_t> WritePayload(
     const base::Vector<const uint8_t>& payload) {
-  int length = payload.length();
-  uint8_t* blob = NewArray<uint8_t>(length);
-  memcpy(blob, payload.begin(), length);
-  return base::VectorOf(blob, length);
+  return base::UniqueCopyOf(payload);
 }
 
 // Convenience wrapper around the convenience wrapper.
@@ -230,20 +223,20 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
           WritePayload(shared_space_snapshot.RawData())};
 }
 
-base::Vector<const char> ConstructSource(base::Vector<const char> head,
-                                         base::Vector<const char> body,
-                                         base::Vector<const char> tail,
-                                         int repeats) {
+base::UniqueArray<const char> ConstructSource(base::Vector<const char> head,
+                                              base::Vector<const char> body,
+                                              base::Vector<const char> tail,
+                                              int repeats) {
   size_t source_length = head.size() + body.size() * repeats + tail.size();
-  char* source = NewArray<char>(source_length);
-  CopyChars(source, head.begin(), head.length());
+  auto source = base::UniqueArray<char>::NewForOverwrite(source_length);
+  CopyChars(source.begin(), head.begin(), head.length());
   for (int i = 0; i < repeats; i++) {
-    CopyChars(source + head.length() + i * body.length(), body.begin(),
+    CopyChars(source.begin() + head.length() + i * body.length(), body.begin(),
               body.length());
   }
-  CopyChars(source + head.length() + repeats * body.length(), tail.begin(),
-            tail.length());
-  return base::VectorOf(source, source_length);
+  CopyChars(source.begin() + head.length() + repeats * body.length(),
+            tail.begin(), tail.length());
+  return source;
 }
 
 v8::Isolate* Deserialize(const StartupBlobs& blobs) {
@@ -278,7 +271,6 @@ void TestStartupSerializerOnceImpl() {
     SanityCheck(isolate);
   }
   isolate->Dispose();
-  blobs.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
@@ -296,7 +288,6 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
   isolate = Deserialize(blobs1);
   StartupBlobs blobs2 = Serialize(isolate);
   isolate->Dispose();
-  blobs1.Dispose();
 
   isolate = Deserialize(blobs2);
   {
@@ -309,7 +300,6 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
     SanityCheck(isolate);
   }
   isolate->Dispose();
-  blobs2.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
@@ -333,7 +323,6 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
     CHECK_EQ(4, result.FromJust());
   }
   isolate->Dispose();
-  blobs.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
@@ -345,7 +334,6 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
   isolate = Deserialize(blobs1);
   StartupBlobs blobs2 = Serialize(isolate);
   isolate->Dispose();
-  blobs1.Dispose();
 
   isolate = Deserialize(blobs2);
   {
@@ -363,14 +351,14 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
     CHECK_EQ(4, result.FromJust());
   }
   isolate->Dispose();
-  blobs2.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
-static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
-                             base::Vector<const uint8_t>* read_only_blob_out,
-                             base::Vector<const uint8_t>* shared_space_blob_out,
-                             base::Vector<const uint8_t>* context_blob_out) {
+static void SerializeContext(
+    base::UniqueArray<const uint8_t>* startup_blob_out,
+    base::UniqueArray<const uint8_t>* read_only_blob_out,
+    base::UniqueArray<const uint8_t>* shared_space_blob_out,
+    base::UniqueArray<const uint8_t>* context_blob_out) {
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateInitialized();
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   Heap* heap = isolate->heap();
@@ -465,35 +453,31 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
 
 #ifdef SNAPSHOT_COMPRESSION
 UNINITIALIZED_TEST(SnapshotCompression) {
-  base::Vector<const uint8_t> startup_blob;
-  base::Vector<const uint8_t> read_only_blob;
-  base::Vector<const uint8_t> shared_space_blob;
-  base::Vector<const uint8_t> context_blob;
+  base::UniqueArray<const uint8_t> startup_blob;
+  base::UniqueArray<const uint8_t> read_only_blob;
+  base::UniqueArray<const uint8_t> shared_space_blob;
+  base::UniqueArray<const uint8_t> context_blob;
   SerializeContext(&startup_blob, &read_only_blob, &shared_space_blob,
                    &context_blob);
-  SnapshotData original_snapshot_data(context_blob);
+  SnapshotData original_snapshot_data(context_blob.as_vector());
   SnapshotData compressed =
       i::SnapshotCompression::Compress(&original_snapshot_data);
   SnapshotData decompressed =
       i::SnapshotCompression::Decompress(compressed.RawData());
-  CHECK_EQ(context_blob, decompressed.RawData());
-
-  startup_blob.Dispose();
-  read_only_blob.Dispose();
-  shared_space_blob.Dispose();
-  context_blob.Dispose();
+  CHECK_EQ(context_blob.as_vector(), decompressed.RawData());
 }
 #endif  // SNAPSHOT_COMPRESSION
 
 UNINITIALIZED_TEST(ContextSerializerContext) {
-  base::Vector<const uint8_t> startup_blob;
-  base::Vector<const uint8_t> read_only_blob;
-  base::Vector<const uint8_t> shared_space_blob;
-  base::Vector<const uint8_t> context_blob;
+  base::UniqueArray<const uint8_t> startup_blob;
+  base::UniqueArray<const uint8_t> read_only_blob;
+  base::UniqueArray<const uint8_t> shared_space_blob;
+  base::UniqueArray<const uint8_t> context_blob;
   SerializeContext(&startup_blob, &read_only_blob, &shared_space_blob,
                    &context_blob);
 
-  StartupBlobs blobs = {startup_blob, read_only_blob, shared_space_blob};
+  StartupBlobs blobs = {std::move(startup_blob), std::move(read_only_blob),
+                        std::move(shared_space_blob)};
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateFromBlob(blobs);
   CHECK(v8_isolate);
   {
@@ -506,7 +490,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
         isolate->factory()->NewUninitializedJSGlobalProxy(
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
-      SnapshotData snapshot_data(context_blob);
+      SnapshotData snapshot_data(context_blob.as_vector());
       root = ContextDeserializer::DeserializeContext(
                  isolate, &snapshot_data, 0, false, global_proxy,
                  DeserializeEmbedderFieldsCallback(
@@ -518,7 +502,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
 
     DirectHandle<Object> root2;
     {
-      SnapshotData snapshot_data(context_blob);
+      SnapshotData snapshot_data(context_blob.as_vector());
       root2 = ContextDeserializer::DeserializeContext(
                   isolate, &snapshot_data, 0, false, global_proxy,
                   DeserializeEmbedderFieldsCallback(
@@ -527,18 +511,16 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
       CHECK(IsContext(*root2));
       CHECK(!root.is_identical_to(root2));
     }
-    context_blob.Dispose();
   }
   v8_isolate->Dispose();
-  blobs.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
 static void SerializeCustomContext(
-    base::Vector<const uint8_t>* startup_blob_out,
-    base::Vector<const uint8_t>* read_only_blob_out,
-    base::Vector<const uint8_t>* shared_space_blob_out,
-    base::Vector<const uint8_t>* context_blob_out) {
+    base::UniqueArray<const uint8_t>* startup_blob_out,
+    base::UniqueArray<const uint8_t>* read_only_blob_out,
+    base::UniqueArray<const uint8_t>* shared_space_blob_out,
+    base::UniqueArray<const uint8_t>* context_blob_out) {
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
@@ -568,14 +550,14 @@ static void SerializeCustomContext(
           "var p = 0;"
           "(async ()=>{ p = await 42; })();");
 
-      base::Vector<const char> source = ConstructSource(
+      base::UniqueArray<const char> source = ConstructSource(
           base::StaticCharVector("function g() { return [,"),
           base::StaticCharVector("1,"),
           base::StaticCharVector("];} a = g(); b = g(); b.push(1);"), 100000);
       v8::MaybeLocal<v8::String> source_str = v8::String::NewFromUtf8(
-          isolate, source.begin(), v8::NewStringType::kNormal, source.length());
+          isolate, source.begin(), v8::NewStringType::kNormal,
+          static_cast<int>(source.size()));
       CompileRun(source_str.ToLocalChecked());
-      source.Dispose();
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
@@ -666,14 +648,15 @@ static void SerializeCustomContext(
 }
 
 UNINITIALIZED_TEST(ContextSerializerCustomContext) {
-  base::Vector<const uint8_t> startup_blob;
-  base::Vector<const uint8_t> read_only_blob;
-  base::Vector<const uint8_t> shared_space_blob;
-  base::Vector<const uint8_t> context_blob;
+  base::UniqueArray<const uint8_t> startup_blob;
+  base::UniqueArray<const uint8_t> read_only_blob;
+  base::UniqueArray<const uint8_t> shared_space_blob;
+  base::UniqueArray<const uint8_t> context_blob;
   SerializeCustomContext(&startup_blob, &read_only_blob, &shared_space_blob,
                          &context_blob);
 
-  StartupBlobs blobs = {startup_blob, read_only_blob, shared_space_blob};
+  StartupBlobs blobs = {std::move(startup_blob), std::move(read_only_blob),
+                        std::move(shared_space_blob)};
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateFromBlob(blobs);
   CHECK(v8_isolate);
   {
@@ -686,7 +669,7 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
         isolate->factory()->NewUninitializedJSGlobalProxy(
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
-      SnapshotData snapshot_data(context_blob);
+      SnapshotData snapshot_data(context_blob.as_vector());
       root = ContextDeserializer::DeserializeContext(
                  isolate, &snapshot_data, 0, false, global_proxy,
                  DeserializeEmbedderFieldsCallback(
@@ -755,10 +738,8 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
                   .FromJust();
       CHECK_EQ(100002, b);
     }
-    context_blob.Dispose();
   }
   v8_isolate->Dispose();
-  blobs.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
@@ -1809,7 +1790,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
   // Flood the startup snapshot with shared function infos. If they are
   // serialized before the immortal immovable root, the root will no longer end
   // up on the first page.
-  base::Vector<const char> source =
+  base::UniqueArray<const char> source =
       ConstructSource(base::StaticCharVector("var a = [];"),
                       base::StaticCharVector("a.push(function() {return 7});"),
                       base::StaticCharVector("\0"), 10000);
@@ -1831,7 +1812,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
     CHECK_EQ(7, CompileRun("a[0]()")->Int32Value(context).FromJust());
   }
   isolate->Dispose();
-  source.Dispose();
   delete[] data.data;  // We can dispose of the snapshot blob now.
   FreeCurrentEmbeddedBlob();
 }
@@ -2514,13 +2494,14 @@ TEST(CodeSerializerLargeCodeObject) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  base::Vector<const char> source = ConstructSource(
+  base::UniqueArray<const char> source = ConstructSource(
       base::StaticCharVector("var j=1; if (j == 0) {"),
       base::StaticCharVector(
           "for (let i of Object.prototype) for (let k = 0; k < 0; ++k);"),
       base::StaticCharVector("} j=7; j"), 2000);
-  Handle<String> source_str =
-      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
+  Handle<String> source_str = isolate->factory()
+                                  ->NewStringFromUtf8(source.as_vector())
+                                  .ToHandleChecked();
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
@@ -2557,7 +2538,6 @@ TEST(CodeSerializerLargeCodeObject) {
   CHECK_EQ(7, result_int);
 
   delete cache;
-  source.Dispose();
 }
 
 TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
@@ -2577,12 +2557,13 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  base::Vector<const char> source = ConstructSource(
+  base::UniqueArray<const char> source = ConstructSource(
       base::StaticCharVector("var j=1; if (j == 0) {"),
       base::StaticCharVector("for (var i = 0; i < Object.prototype; i++);"),
       base::StaticCharVector("} j=7; var s = 'happy_hippo'; j"), 20000);
-  Handle<String> source_str =
-      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
+  Handle<String> source_str = isolate->factory()
+                                  ->NewStringFromUtf8(source.as_vector())
+                                  .ToHandleChecked();
 
   // Create a string on an evacuation candidate in old space.
   DirectHandle<String> moving_object;
@@ -2642,7 +2623,6 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   CHECK_EQ(7, result_int);
 
   delete cache;
-  source.Dispose();
 }
 
 TEST(CodeSerializerLargeStrings) {
@@ -2654,15 +2634,16 @@ TEST(CodeSerializerLargeStrings) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  base::Vector<const char> source_s = ConstructSource(
+  base::UniqueArray<const char> source_s = ConstructSource(
       base::StaticCharVector("var s = \""), base::StaticCharVector("abcdef"),
       base::StaticCharVector("\";"), 1000000);
-  base::Vector<const char> source_t = ConstructSource(
+  base::UniqueArray<const char> source_t = ConstructSource(
       base::StaticCharVector("var t = \""), base::StaticCharVector("uvwxyz"),
       base::StaticCharVector("\"; s + t"), 999999);
   Handle<String> source_str =
-      f->NewConsString(f->NewStringFromUtf8(source_s).ToHandleChecked(),
-                       f->NewStringFromUtf8(source_t).ToHandleChecked())
+      f->NewConsString(
+           f->NewStringFromUtf8(source_s.as_vector()).ToHandleChecked(),
+           f->NewStringFromUtf8(source_t.as_vector()).ToHandleChecked())
           .ToHandleChecked();
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
@@ -2705,8 +2686,6 @@ TEST(CodeSerializerLargeStrings) {
 #endif
 
   delete cache;
-  source_s.Dispose();
-  source_t.Dispose();
 }
 
 TEST(CodeSerializerThreeBigStrings) {
@@ -2722,23 +2701,23 @@ TEST(CodeSerializerThreeBigStrings) {
   const int32_t length_of_b = kMaxRegularHeapObjectSize / 2;
   const int32_t length_of_c = kMaxRegularHeapObjectSize / 2;
 
-  base::Vector<const char> source_a = ConstructSource(
+  base::UniqueArray<const char> source_a = ConstructSource(
       base::StaticCharVector("var a = \""), base::StaticCharVector("a"),
       base::StaticCharVector("\";"), length_of_a);
   Handle<String> source_a_str =
-      f->NewStringFromUtf8(source_a).ToHandleChecked();
+      f->NewStringFromUtf8(source_a.as_vector()).ToHandleChecked();
 
-  base::Vector<const char> source_b = ConstructSource(
+  base::UniqueArray<const char> source_b = ConstructSource(
       base::StaticCharVector("var b = \""), base::StaticCharVector("b"),
       base::StaticCharVector("\";"), length_of_b);
   Handle<String> source_b_str =
-      f->NewStringFromUtf8(source_b).ToHandleChecked();
+      f->NewStringFromUtf8(source_b.as_vector()).ToHandleChecked();
 
-  base::Vector<const char> source_c = ConstructSource(
+  base::UniqueArray<const char> source_c = ConstructSource(
       base::StaticCharVector("var c = \""), base::StaticCharVector("c"),
       base::StaticCharVector("\";"), length_of_c);
   Handle<String> source_c_str =
-      f->NewStringFromUtf8(source_c).ToHandleChecked();
+      f->NewStringFromUtf8(source_c.as_vector()).ToHandleChecked();
 
   Handle<String> source_str =
       f->NewConsString(
@@ -2792,9 +2771,6 @@ TEST(CodeSerializerThreeBigStrings) {
   CHECK(heap->InSpace(*v8::Utils::OpenDirectHandle(*result_str), OLD_SPACE));
 
   delete cache;
-  source_a.Dispose();
-  source_b.Dispose();
-  source_c.Dispose();
 }
 
 class SerializerOneByteResource
@@ -2990,12 +2966,13 @@ TEST(CodeSerializerLargeExternalString) {
   v8::HandleScope scope(CcTest::isolate());
 
   // Create a huge external internalized string to use as variable name.
-  base::Vector<const char> string = ConstructSource(
+  base::UniqueArray<const char> string = ConstructSource(
       base::StaticCharVector(""), base::StaticCharVector("abcdef"),
       base::StaticCharVector(""), 999999);
-  Handle<String> name = f->NewStringFromUtf8(string).ToHandleChecked();
+  Handle<String> name =
+      f->NewStringFromUtf8(string.as_vector()).ToHandleChecked();
   SerializerOneByteResource one_byte_resource(
-      reinterpret_cast<const char*>(string.begin()), string.length());
+      reinterpret_cast<const char*>(string.begin()), string.size());
   name = f->InternalizeString(name);
   name->MakeExternal(isolate, &one_byte_resource);
   CHECK(IsExternalOneByteString(*name));
@@ -3040,7 +3017,6 @@ TEST(CodeSerializerLargeExternalString) {
   // This avoids the GC from trying to free stack allocated resources.
   i::Cast<i::ExternalOneByteString>(name)->SetResource(isolate, nullptr);
   delete cache;
-  string.Dispose();
 }
 
 TEST(CodeSerializerExternalScriptName) {
@@ -3496,6 +3472,30 @@ TEST(CodeSerializerEmbedderString) {
   }
 
   isolate->Dispose();
+}
+
+// The trusted section must be part of the payload.
+TEST(CodeSerializerTrustedSectionLengthMismatch) {
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cache(
+      CompileRunAndProduceCache("'abcdef'"));
+  Address header = reinterpret_cast<Address>(cache->data);
+  base::WriteLittleEndianValue<uint32_t>(
+      header + SerializedCodeData::kTrustedPayloadLengthOffset,
+      base::ReadLittleEndianValue<uint32_t>(
+          header + SerializedCodeData::kPayloadLengthOffset) +
+          1);
+  CHECK_EQ(cache->CompatibilityCheck(CcTest::isolate()),
+           v8::ScriptCompiler::CachedData::kLengthMismatch);
+}
+
+// The checksum covers the trusted section.
+TEST(CodeSerializerTrustedSectionBitFlip) {
+  i::v8_flags.verify_snapshot_checksum = true;
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cache(
+      CompileRunAndProduceCache("'abcdef'"));
+  const_cast<uint8_t*>(cache->data)[SerializedCodeData::kHeaderSize] ^= 0x40;
+  CHECK_EQ(cache->CompatibilityCheck(CcTest::isolate()),
+           v8::ScriptCompiler::CachedData::kChecksumMismatch);
 }
 
 TEST(CodeSerializerBitFlip) {
@@ -6682,6 +6682,276 @@ TEST(InvalidCachedCompileFunction) {
   }
 }
 
+TEST(CodeCacheSha256SourceHash) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->compilation_cache()->DisableScriptAndEval();
+
+  v8::HandleScope scope(isolate);
+
+  // 1. Direct unit checks on SourceHash with SHA256 flag enabled.
+  {
+    FlagScope<bool> flag_scope(&v8_flags.code_cache_source_hash_sha256, true);
+
+    // Use a 600-character string (> ConsString::kMinLength == 13) so
+    // ConsString flattening and SlicedString handling are exercised.
+    static constexpr int kPartLength = 300;
+    static constexpr int kTotalLength = kPartLength * 2;
+    std::string part1_ascii(kPartLength, 'a');
+    std::string part2_ascii(kPartLength, 'b');
+    for (int i = 0; i < kPartLength; ++i) {
+      part1_ascii[i] = static_cast<char>('a' + (i % 26));
+      part2_ascii[i] = static_cast<char>('A' + (i % 26));
+    }
+    std::string full_ascii = part1_ascii + part2_ascii;
+
+    Handle<String> one_byte =
+        i_isolate->factory()->NewStringFromAsciiChecked(full_ascii.c_str());
+    CHECK(one_byte->IsOneByteRepresentation());
+
+    std::vector<uint16_t> two_byte_data(kTotalLength);
+    for (int i = 0; i < kTotalLength; ++i) {
+      two_byte_data[i] = static_cast<uint16_t>(full_ascii[i]);
+    }
+    Handle<String> two_byte = i_isolate->factory()
+                                  ->NewRawTwoByteString(kTotalLength)
+                                  .ToHandleChecked();
+    {
+      DisallowGarbageCollection no_gc;
+      CopyChars(Cast<SeqTwoByteString>(*two_byte)->GetChars(no_gc),
+                two_byte_data.data(), kTotalLength);
+    }
+    CHECK(!two_byte->IsOneByteRepresentation());
+
+    Handle<String> part1 =
+        i_isolate->factory()->NewStringFromAsciiChecked(part1_ascii.c_str());
+    Handle<String> part2 =
+        i_isolate->factory()->NewStringFromAsciiChecked(part2_ascii.c_str());
+    Handle<String> cons =
+        i_isolate->factory()->NewConsString(part1, part2).ToHandleChecked();
+    CHECK(IsConsString(*cons));
+    CHECK(!cons->IsFlat());
+
+    // ConsString with mixed one-byte and two-byte leaves flattens to two-byte.
+    Handle<String> two_byte_part2 = i_isolate->factory()
+                                        ->NewRawTwoByteString(kPartLength)
+                                        .ToHandleChecked();
+    {
+      DisallowGarbageCollection no_gc;
+      CopyChars(Cast<SeqTwoByteString>(*two_byte_part2)->GetChars(no_gc),
+                two_byte_data.data() + kPartLength, kPartLength);
+    }
+    Handle<String> cons_mixed = i_isolate->factory()
+                                    ->NewConsString(part1, two_byte_part2)
+                                    .ToHandleChecked();
+    CHECK(IsConsString(*cons_mixed));
+    CHECK(!cons_mixed->IsFlat());
+
+    // SlicedString representation of the same content.
+    std::string padded_ascii = "0123456789" + full_ascii + "9876543210";
+    Handle<String> padded =
+        i_isolate->factory()->NewStringFromAsciiChecked(padded_ascii.c_str());
+    Handle<String> sliced =
+        i_isolate->factory()->NewProperSubString(padded, 10, 10 + kTotalLength);
+    CHECK(IsSlicedString(*sliced));
+
+    Handle<FixedArray> empty_wrapped_arguments;
+    ScriptOriginOptions default_origin_options;
+
+    SerializedCodeData::SourceHash hash_one_byte(
+        one_byte, empty_wrapped_arguments, default_origin_options, i_isolate);
+    SerializedCodeData::SourceHash hash_two_byte(
+        two_byte, empty_wrapped_arguments, default_origin_options, i_isolate);
+    SerializedCodeData::SourceHash hash_cons(cons, empty_wrapped_arguments,
+                                             default_origin_options, i_isolate);
+    SerializedCodeData::SourceHash hash_cons_mixed(
+        cons_mixed, empty_wrapped_arguments, default_origin_options, i_isolate);
+    SerializedCodeData::SourceHash hash_sliced(
+        sliced, empty_wrapped_arguments, default_origin_options, i_isolate);
+
+    CHECK_EQ(hash_one_byte.kSize, kSizeOfSha256Digest);
+    CHECK_EQ(hash_one_byte, hash_cons);
+    CHECK_EQ(hash_one_byte, hash_sliced);
+    CHECK_NE(hash_one_byte, hash_two_byte);
+    CHECK_EQ(hash_two_byte, hash_cons_mixed);
+
+    // A one-byte string with the exact same raw byte sequence as a two-byte
+    // string (twice the character length) must produce a different hash
+    // because the character length is included in the hash.
+    Handle<SeqOneByteString> one_byte_same_raw_bytes =
+        i_isolate->factory()
+            ->NewRawOneByteString(kTotalLength * sizeof(uint16_t))
+            .ToHandleChecked();
+    {
+      DisallowGarbageCollection no_gc;
+      CopyChars(one_byte_same_raw_bytes->GetChars(no_gc),
+                reinterpret_cast<const uint8_t*>(two_byte_data.data()),
+                kTotalLength * sizeof(uint16_t));
+    }
+    SerializedCodeData::SourceHash hash_same_raw_bytes(
+        one_byte_same_raw_bytes, empty_wrapped_arguments,
+        default_origin_options, i_isolate);
+    CHECK_NE(hash_two_byte, hash_same_raw_bytes);
+
+    // Different content of the same length produces a different hash.
+    std::string diff_ascii = full_ascii;
+    diff_ascii[550] ^= 1;
+    Handle<String> diff_content =
+        i_isolate->factory()->NewStringFromAsciiChecked(diff_ascii.c_str());
+    SerializedCodeData::SourceHash hash_diff(diff_content,
+                                             empty_wrapped_arguments,
+                                             default_origin_options, i_isolate);
+    CHECK_NE(hash_one_byte, hash_diff);
+
+    // Module origin produces different hash.
+    ScriptOriginOptions module_origin_options(false, false, false, true);
+    SerializedCodeData::SourceHash hash_module(
+        one_byte, empty_wrapped_arguments, module_origin_options, i_isolate);
+    CHECK_NE(hash_one_byte, hash_module);
+
+    // Wrapped arguments presence and contents produce different hashes.
+    Handle<FixedArray> wrapped_zero = i_isolate->factory()->NewFixedArray(0);
+    SerializedCodeData::SourceHash hash_wrapped_zero(
+        one_byte, wrapped_zero, default_origin_options, i_isolate);
+    CHECK_NE(hash_one_byte, hash_wrapped_zero);
+
+    Handle<FixedArray> wrapped_x = i_isolate->factory()->NewFixedArray(1);
+    wrapped_x->set(0, *i_isolate->factory()->NewStringFromAsciiChecked("x"));
+    Handle<FixedArray> wrapped_y = i_isolate->factory()->NewFixedArray(1);
+    wrapped_y->set(0, *i_isolate->factory()->NewStringFromAsciiChecked("y"));
+    SerializedCodeData::SourceHash hash_wrapped_x(
+        one_byte, wrapped_x, default_origin_options, i_isolate);
+    SerializedCodeData::SourceHash hash_wrapped_y(
+        one_byte, wrapped_y, default_origin_options, i_isolate);
+    CHECK_NE(hash_wrapped_zero, hash_wrapped_x);
+    CHECK_NE(hash_wrapped_x, hash_wrapped_y);
+
+    // Argument boundaries are domain-separated (["ab", "c"] != ["a", "bc"]).
+    Handle<FixedArray> wrapped_ab_c = i_isolate->factory()->NewFixedArray(2);
+    wrapped_ab_c->set(0,
+                      *i_isolate->factory()->NewStringFromAsciiChecked("ab"));
+    wrapped_ab_c->set(1, *i_isolate->factory()->NewStringFromAsciiChecked("c"));
+    Handle<FixedArray> wrapped_a_bc = i_isolate->factory()->NewFixedArray(2);
+    wrapped_a_bc->set(0, *i_isolate->factory()->NewStringFromAsciiChecked("a"));
+    wrapped_a_bc->set(1,
+                      *i_isolate->factory()->NewStringFromAsciiChecked("bc"));
+    SerializedCodeData::SourceHash hash_wrapped_ab_c(
+        one_byte, wrapped_ab_c, default_origin_options, i_isolate);
+    SerializedCodeData::SourceHash hash_wrapped_a_bc(
+        one_byte, wrapped_a_bc, default_origin_options, i_isolate);
+    CHECK_NE(hash_wrapped_ab_c, hash_wrapped_a_bc);
+  }
+
+  // 2. End-to-end code cache serialization and rejection on same-length source
+  // or parameter name change.
+  {
+    FlagScope<bool> flag_scope(&v8_flags.code_cache_source_hash_sha256, true);
+
+    v8::Local<v8::String> source1 = v8_str("function f() { return 1; }");
+    v8::Local<v8::String> source2 = v8_str("function f() { return 2; }");
+    CHECK_EQ(source1->Length(), source2->Length());
+
+    // 2a. Consuming with the exact same source succeeds.
+    {
+      v8::ScriptCompiler::Source script_source(source1);
+      v8::Local<v8::UnboundScript> script =
+          v8::ScriptCompiler::CompileUnboundScript(
+              isolate, &script_source, v8::ScriptCompiler::kEagerCompile)
+              .ToLocalChecked();
+      ScriptCompiler::CachedData* cache =
+          v8::ScriptCompiler::CreateCodeCache(script);
+      CHECK_NOT_NULL(cache);
+      CHECK(!cache->rejected);
+
+      v8::ScriptCompiler::Source consume_source(source1, cache);
+      v8::Local<v8::UnboundScript> script2 =
+          v8::ScriptCompiler::CompileUnboundScript(
+              isolate, &consume_source, v8::ScriptCompiler::kConsumeCodeCache)
+              .ToLocalChecked();
+      CHECK(!script2.IsEmpty());
+      CHECK(!consume_source.GetCachedData()->rejected);
+    }
+
+    // 2b. Consuming with different source of the same length must be rejected
+    // with SHA256.
+    {
+      v8::ScriptCompiler::Source script_source(source1);
+      v8::Local<v8::UnboundScript> script =
+          v8::ScriptCompiler::CompileUnboundScript(
+              isolate, &script_source, v8::ScriptCompiler::kEagerCompile)
+              .ToLocalChecked();
+      ScriptCompiler::CachedData* cache =
+          v8::ScriptCompiler::CreateCodeCache(script);
+      CHECK_NOT_NULL(cache);
+      CHECK(!cache->rejected);
+
+      v8::ScriptCompiler::Source consume_source(source2, cache);
+      v8::Local<v8::UnboundScript> script2 =
+          v8::ScriptCompiler::CompileUnboundScript(
+              isolate, &consume_source, v8::ScriptCompiler::kConsumeCodeCache)
+              .ToLocalChecked();
+      CHECK(!script2.IsEmpty());
+      CHECK(consume_source.GetCachedData()->rejected);
+    }
+
+    // 2c. CompileFunction cache is rejected if wrapped argument names differ.
+    {
+      v8::Local<v8::String> body = v8_str("return arguments[0];");
+      v8::Local<v8::String> arg_x = v8_str("x");
+      v8::Local<v8::String> arg_y = v8_str("y");
+      v8::ScriptCompiler::Source script_source(body);
+      v8::Local<v8::Function> fun =
+          v8::ScriptCompiler::CompileFunction(env.local(), &script_source, 1,
+                                              &arg_x, 0, nullptr,
+                                              v8::ScriptCompiler::kEagerCompile)
+              .ToLocalChecked();
+      ScriptCompiler::CachedData* cache =
+          v8::ScriptCompiler::CreateCodeCacheForFunction(fun);
+      CHECK_NOT_NULL(cache);
+      CHECK(!cache->rejected);
+
+      v8::ScriptCompiler::Source consume_source(body, cache);
+      v8::Local<v8::Function> fun2 =
+          v8::ScriptCompiler::CompileFunction(
+              env.local(), &consume_source, 1, &arg_y, 0, nullptr,
+              v8::ScriptCompiler::kConsumeCodeCache)
+              .ToLocalChecked();
+      CHECK(!fun2.IsEmpty());
+      CHECK(consume_source.GetCachedData()->rejected);
+    }
+  }
+
+  // 3. Cached data produced with SHA-256 is rejected if flag is disabled.
+  {
+    v8::Local<v8::String> source = v8_str("function f() { return 42; }");
+    ScriptCompiler::CachedData* sha256_cache;
+    {
+      FlagScope<bool> flag_scope(&v8_flags.code_cache_source_hash_sha256, true);
+      v8::ScriptCompiler::Source script_source(source);
+      v8::Local<v8::UnboundScript> script =
+          v8::ScriptCompiler::CompileUnboundScript(
+              isolate, &script_source, v8::ScriptCompiler::kEagerCompile)
+              .ToLocalChecked();
+      sha256_cache = v8::ScriptCompiler::CreateCodeCache(script);
+      CHECK_NOT_NULL(sha256_cache);
+      CHECK(!sha256_cache->rejected);
+    }
+
+    {
+      FlagScope<bool> flag_scope(&v8_flags.code_cache_source_hash_sha256,
+                                 false);
+      v8::ScriptCompiler::Source consume_source(source, sha256_cache);
+      v8::Local<v8::UnboundScript> script2 =
+          v8::ScriptCompiler::CompileUnboundScript(
+              isolate, &consume_source, v8::ScriptCompiler::kConsumeCodeCache)
+              .ToLocalChecked();
+      CHECK(!script2.IsEmpty());
+      CHECK(consume_source.GetCachedData()->rejected);
+    }
+  }
+}
+
 TEST(CachedCompileFunctionRespectsEager) {
   LocalContext env;
   Isolate* isolate = CcTest::i_isolate();
@@ -6882,7 +7152,6 @@ UNINITIALIZED_TEST(SharedStrings) {
       [isolate2]() { isolate2->Dispose(); });
   isolate1->Dispose();
 
-  blobs.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
@@ -7033,14 +7302,82 @@ UNINITIALIZED_TEST(StaticRootsPredictableSnapshot) {
   // relative to the cage base are identical. However, we can't test this, since
   // when we create two isolates in the same process, the offsets will actually
   // be different.
-  CHECK_EQ(blobs1.read_only, blobs2.read_only);
+  CHECK_EQ(blobs1.read_only.as_vector(), blobs2.read_only.as_vector());
 
-  blobs1.Dispose();
-  blobs2.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 #endif  // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) &&
         // defined(V8_SHARED_RO_HEAP)
+
+UNINITIALIZED_TEST(SnapshotCreatorScriptContextCellsMismatch) {
+  v8::StartupData blob;
+  {
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+
+      CompileRun(
+          "let x = 1; x = 2;\n"
+          "function lazy() { x = 3; return x; }\n");
+
+      creator.SetDefaultContext(context);
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  v8_flags.script_context_cells = false;
+  v8_flags.function_context_cells = false;
+  v8_flags.allow_natives_syntax = true;
+
+  {
+    SnapshotCreatorParams testing_params(nullptr, &blob);
+    v8::Isolate* isolate = v8::Isolate::New(testing_params.create_params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+
+      ExpectInt32(
+          "%PrepareFunctionForOptimization(lazy);\n"
+          "lazy();\n"
+          "%OptimizeFunctionOnNextCall(lazy);\n"
+          "lazy();\n",
+          3);
+
+      ExpectInt32(
+          "function f() { x = 4; return x; }\n"
+          "%PrepareFunctionForOptimization(f);\n"
+          "f(); f();\n"
+          "%OptimizeMaglevOnNextCall(f);\n"
+          "f();\n",
+          4);
+
+      ExpectInt32(
+          "function get_x() { return x; }\n"
+          "%PrepareFunctionForOptimization(get_x);\n"
+          "get_x(); get_x();\n"
+          "%OptimizeMaglevOnNextCall(get_x);\n"
+          "get_x();\n",
+          4);
+
+      ExpectInt32(
+          "function g() { x = 5; return x; }\n"
+          "%PrepareFunctionForOptimization(g);\n"
+          "g(); g();\n"
+          "%OptimizeFunctionOnNextCall(g);\n"
+          "g();\n",
+          5);
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+}
 
 }  // namespace internal
 }  // namespace v8

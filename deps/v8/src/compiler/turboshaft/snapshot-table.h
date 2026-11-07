@@ -436,7 +436,7 @@ SnapshotTable<Value, KeyData>::MoveToNewSnapshot(
   if (predecessors.empty()) {
     common_ancestor = root_snapshot_;
   } else {
-    common_ancestor = predecessors.first().data_;
+    common_ancestor = predecessors.front().data_;
     for (Snapshot s : predecessors.SubVectorFrom(1)) {
       common_ancestor = common_ancestor->CommonAncestor(s.data_);
     }

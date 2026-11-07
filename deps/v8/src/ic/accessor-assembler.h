@@ -354,6 +354,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     bool receiver_is_null() const { return !receiver_; }
     bool flags_is_null() const { return !flags_.has_value(); }
 
+    StoreICMode mode() const { return mode_; }
+
     bool IsDefineNamedOwn() const {
       return mode_ == StoreICMode::kDefineNamedOwn;
     }
@@ -643,14 +645,15 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                  ElementSupport support_elements);
   void HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
                                    TNode<JSObject> holder, TNode<Object> value,
-                                   Label* miss);
+                                   StoreICMode mode, Label* miss);
   void HandleStoreICSmiHandlerJSSharedStructFieldCase(
       TNode<Context> context, TNode<Word32T> handler_word,
       TNode<JSObject> holder, TNode<Object> value);
   void HandleStoreFieldAndReturn(TNode<Word32T> handler_word,
                                  TNode<JSObject> holder, TNode<Object> value,
                                  std::optional<TNode<Float64T>> double_value,
-                                 Representation representation, Label* miss);
+                                 Representation representation,
+                                 StoreICMode mode, Label* miss);
 
   TNode<MaybeObject> CheckPrototypeValidityCell(
       TNode<Object> maybe_validity_cell, Label* miss);

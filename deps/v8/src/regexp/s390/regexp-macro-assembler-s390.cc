@@ -668,26 +668,20 @@ void RegExpMacroAssemblerS390::Fail() {
 }
 
 void RegExpMacroAssemblerS390::LoadRegExpStackPointerFromMemory(Register dst) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_stack_pointer(isolate());
-  __ mov(dst, Operand(ref));
-  __ LoadU64(dst, MemOperand(dst));
+  __ mov(dst, Operand(regexp_stack_thread_local()));
+  __ LoadU64(dst, MemOperand(dst, Stack::kStackPointerOffset));
 }
 
 void RegExpMacroAssemblerS390::StoreRegExpStackPointerToMemory(
     Register src, Register scratch) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_stack_pointer(isolate());
-  __ mov(scratch, Operand(ref));
-  __ StoreU64(src, MemOperand(scratch));
+  __ mov(scratch, Operand(regexp_stack_thread_local()));
+  __ StoreU64(src, MemOperand(scratch, Stack::kStackPointerOffset));
 }
 
 void RegExpMacroAssemblerS390::PushRegExpBasePointer(Register stack_pointer,
                                                      Register scratch) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ mov(scratch, Operand(ref));
-  __ LoadU64(scratch, MemOperand(scratch));
+  __ mov(scratch, Operand(regexp_stack_thread_local()));
+  __ LoadU64(scratch, MemOperand(scratch, Stack::kMemoryTopOffset));
   __ SubS64(scratch, stack_pointer, scratch);
   __ StoreU64(scratch,
               MemOperand(frame_pointer(), kRegExpStackBasePointerOffset));
@@ -695,12 +689,10 @@ void RegExpMacroAssemblerS390::PushRegExpBasePointer(Register stack_pointer,
 
 void RegExpMacroAssemblerS390::PopRegExpBasePointer(Register stack_pointer_out,
                                                     Register scratch) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
   __ LoadU64(stack_pointer_out,
              MemOperand(frame_pointer(), kRegExpStackBasePointerOffset));
-  __ mov(scratch, Operand(ref));
-  __ LoadU64(scratch, MemOperand(scratch));
+  __ mov(scratch, Operand(regexp_stack_thread_local()));
+  __ LoadU64(scratch, MemOperand(scratch, Stack::kMemoryTopOffset));
   __ AddS64(stack_pointer_out, stack_pointer_out, scratch);
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
@@ -1206,19 +1198,15 @@ void RegExpMacroAssemblerS390::ReadCurrentPositionFromRegister(int reg) {
 }
 
 void RegExpMacroAssemblerS390::WriteStackPointerToRegister(int reg) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ mov(r3, Operand(ref));
-  __ LoadU64(r3, MemOperand(r3));
+  __ mov(r3, Operand(regexp_stack_thread_local()));
+  __ LoadU64(r3, MemOperand(r3, Stack::kMemoryTopOffset));
   __ SubS64(r2, backtrack_stackpointer(), r3);
   __ StoreU64(r2, register_location(reg));
 }
 
 void RegExpMacroAssemblerS390::ReadStackPointerFromRegister(int reg) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ mov(r2, Operand(ref));
-  __ LoadU64(r2, MemOperand(r2));
+  __ mov(r2, Operand(regexp_stack_thread_local()));
+  __ LoadU64(r2, MemOperand(r2, Stack::kMemoryTopOffset));
   __ LoadU64(backtrack_stackpointer(), register_location(reg), r0);
   __ AddS64(backtrack_stackpointer(), backtrack_stackpointer(), r2);
 }
@@ -1467,10 +1455,8 @@ void RegExpMacroAssemblerS390::CheckPreemption() {
 }
 
 void RegExpMacroAssemblerS390::CheckStackLimit() {
-  ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit_address(isolate());
-  __ mov(r2, Operand(stack_limit));
-  __ CmpU64(backtrack_stackpointer(), MemOperand(r2));
+  __ mov(r2, Operand(regexp_stack_thread_local()));
+  __ CmpU64(backtrack_stackpointer(), MemOperand(r2, Stack::kLimitOffset));
   SafeCall(&stack_overflow_label_, le);
 }
 
@@ -1478,9 +1464,8 @@ void RegExpMacroAssemblerS390::AssertAboveStackLimitMinusSlack() {
   DCHECK(v8_flags.slow_debug_code);
   Label no_stack_overflow;
   ASM_CODE_COMMENT_STRING(masm_.get(), "AssertAboveStackLimitMinusSlack");
-  auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
-  __ mov(r2, Operand(l));
-  __ LoadU64(r2, MemOperand(r2));
+  __ mov(r2, Operand(regexp_stack_thread_local()));
+  __ LoadU64(r2, MemOperand(r2, Stack::kLimitOffset));
   __ SubS64(r2, r2, Operand(Stack::kStackLimitSlackSize));
   __ CmpU64(backtrack_stackpointer(), r2);
   __ bgt(&no_stack_overflow);

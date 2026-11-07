@@ -166,6 +166,8 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static constexpr bool kUninterestingPagesCanBeSkipped = true;
 
  private:
+  friend class AllocationWitness;
+
   static inline bool IsSkipWriteBarrierMode(WriteBarrierMode mode) {
     static_assert(SKIP_WRITE_BARRIER == 0 && SKIP_WRITE_BARRIER_SCOPE == 1 &&
                   SKIP_WRITE_BARRIER_FOR_GC == 2 &&

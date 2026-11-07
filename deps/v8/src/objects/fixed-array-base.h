@@ -55,7 +55,7 @@ V8_OBJECT class FixedArrayBase : public HeapObject {
   DECL_VERIFIER(FixedArrayBase)
 
  public:
-  uint32_t length_;
+  V8_TQ_CONST uint32_t length_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
@@ -84,7 +84,7 @@ V8_OBJECT class TrustedFixedArrayBase : public TrustedObject {
   inline void set_length(uint32_t value, ReleaseStoreTag tag);
 
  public:
-  uint32_t length_;
+  V8_TQ_CONST uint32_t length_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif

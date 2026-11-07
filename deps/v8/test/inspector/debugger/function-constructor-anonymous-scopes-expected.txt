@@ -10,4 +10,5 @@ Paused in '':
 Running test: testNested
 Paused in 'inner':
   [0] local: 
+  [1] closure: a
   anonymous = string: global anonymous

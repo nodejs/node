@@ -424,7 +424,9 @@ StatusCode ErrnoToStatusCode(int error_number) {
     case ENETRESET:     // Connection aborted by network
     case ENETUNREACH:   // Network unreachable
     case ENOLCK:        // No locks available
+#ifdef ENOLINK
     case ENOLINK:       // Link has been severed
+#endif
 #ifdef ENONET
     case ENONET:  // Machine is not on the network
 #endif

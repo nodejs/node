@@ -3281,6 +3281,79 @@ TEST_F(AssemblerX64Test, AVX10RegisterCodes) {
 #endif  // V8_ENABLE_AVX10_1
 
 #ifdef V8_ENABLE_AVX10_1
+TEST_F(AssemblerX64Test, AVX10Vaddph) {
+  auto buffer = AllocateAssemblerBuffer();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  // Encoding only: do not execute AVX10.1 instructions on the test host.
+  CpuFeatureScope fscope(&masm, AVX10_1, CpuFeatureScope::kDontCheckSupported);
+
+  __ vaddph(xmm3, xmm2, xmm1);
+  __ vaddph(ymm3, ymm2, ymm1);
+  __ vaddph(xmm19, xmm18, xmm17);
+  __ vaddph(ymm31, ymm30, ymm29);
+  __ vaddph(xmm3, xmm3, xmm1);
+  __ vaddph(xmm3, xmm2, xmm3);
+  __ vaddph(xmm3, xmm3, xmm3);
+  __ vaddph(ymm3, ymm3, ymm1);
+  __ vaddph(ymm3, ymm2, ymm3);
+  __ vaddph(ymm3, ymm3, ymm3);
+  __ vaddph(xmm3, xmm2, Operand(rbx, 64));
+  __ vaddph(ymm3, ymm2, Operand(rbx, 128));
+  __ vaddph(xmm3, xmm2, Operand(rbx, -16));
+  __ vaddph(ymm3, ymm2, Operand(rbx, -32));
+  // Not divisible by vector width: disp32 instead of compressed disp8.
+  __ vaddph(xmm3, xmm2, Operand(rbx, 20));
+  __ vaddph(ymm3, ymm2, Operand(rbx, 36));
+  // Compressed displacement is out of range.
+  __ vaddph(xmm3, xmm2, Operand(rbx, 2048));
+  __ vaddph(ymm3, ymm2, Operand(rbx, 4096));
+  __ vaddph(xmm19, xmm18, Operand(r12, r13, times_2, 64));
+  __ vaddph(ymm19, ymm18, Operand(r12, r13, times_2, 128));
+  Label xmm_label, ymm_label;
+  __ bind(&xmm_label);
+  __ vaddph(xmm3, xmm2, Operand(&xmm_label));
+  __ bind(&ymm_label);
+  __ vaddph(ymm3, ymm2, Operand(&ymm_label));
+
+  int instruction_length = masm.pc_offset();
+  CodeDesc desc;
+  masm.GetCode(i_isolate(), &desc);
+  // Independently checked with LLVM's assembler: EVEX.NP.MAP5.W0 58 /r.
+  // Keep one instruction per line.
+  // clang-format off
+  const uint8_t expected[] = {
+      // Register operands, including high registers and aliasing.
+      0x62, 0xf5, 0x6c, 0x08, 0x58, 0xd9,
+      0x62, 0xf5, 0x6c, 0x28, 0x58, 0xd9,
+      0x62, 0xa5, 0x6c, 0x00, 0x58, 0xd9,
+      0x62, 0x05, 0x0c, 0x20, 0x58, 0xfd,
+      0x62, 0xf5, 0x64, 0x08, 0x58, 0xd9,
+      0x62, 0xf5, 0x6c, 0x08, 0x58, 0xdb,
+      0x62, 0xf5, 0x64, 0x08, 0x58, 0xdb,
+      0x62, 0xf5, 0x64, 0x28, 0x58, 0xd9,
+      0x62, 0xf5, 0x6c, 0x28, 0x58, 0xdb,
+      0x62, 0xf5, 0x64, 0x28, 0x58, 0xdb,
+      // Compressed disp8: scale is 16 bytes for XMM, 32 for YMM.
+      0x62, 0xf5, 0x6c, 0x08, 0x58, 0x5b, 0x04,
+      0x62, 0xf5, 0x6c, 0x28, 0x58, 0x5b, 0x04,
+      0x62, 0xf5, 0x6c, 0x08, 0x58, 0x5b, 0xff,
+      0x62, 0xf5, 0x6c, 0x28, 0x58, 0x5b, 0xff,
+      // disp32 fallback: unaligned or out of compressed disp8 range.
+      0x62, 0xf5, 0x6c, 0x08, 0x58, 0x9b, 0x14, 0x00, 0x00, 0x00,
+      0x62, 0xf5, 0x6c, 0x28, 0x58, 0x9b, 0x24, 0x00, 0x00, 0x00,
+      0x62, 0xf5, 0x6c, 0x08, 0x58, 0x9b, 0x00, 0x08, 0x00, 0x00,
+      0x62, 0xf5, 0x6c, 0x28, 0x58, 0x9b, 0x00, 0x10, 0x00, 0x00,
+      // SIB addressing with extended base/index and vector registers.
+      0x62, 0x85, 0x6c, 0x00, 0x58, 0x5c, 0x6c, 0x04,
+      0x62, 0x85, 0x6c, 0x20, 0x58, 0x5c, 0x6c, 0x04,
+      // RIP-relative displacements are not compressed.
+      0x62, 0xf5, 0x6c, 0x08, 0x58, 0x1d, 0xf6, 0xff, 0xff, 0xff,
+      0x62, 0xf5, 0x6c, 0x28, 0x58, 0x1d, 0xf6, 0xff, 0xff, 0xff};
+  // clang-format on
+  CHECK_EQ(static_cast<int>(sizeof(expected)), instruction_length);
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
 TEST_F(AssemblerX64Test, AVX10Vpmullq) {
   auto buffer = AllocateAssemblerBuffer();
   Isolate* isolate = i_isolate();

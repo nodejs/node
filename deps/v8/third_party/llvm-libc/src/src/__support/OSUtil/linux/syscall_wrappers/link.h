@@ -1,16 +1,21 @@
-//===-- Implementation header for link --------------------------*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+///
+/// \file
+/// Syscall wrapper for link.
+///
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_SRC___SUPPORT_OSUTIL_LINUX_SYSCALL_WRAPPERS_LINK_H
 #define LLVM_LIBC_SRC___SUPPORT_OSUTIL_LINUX_SYSCALL_WRAPPERS_LINK_H
 
-#include "hdr/fcntl_macros.h"                   // AT_FDCWD
-#include "src/__support/OSUtil/linux/syscall.h" // syscall_impl
+#include "hdr/fcntl_macros.h"
+#include "src/__support/OSUtil/linux/syscall.h" // syscall_checked
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
@@ -21,16 +26,13 @@ namespace linux_syscalls {
 
 LIBC_INLINE ErrorOr<int> link(const char *oldpath, const char *newpath) {
 #ifdef SYS_linkat
-  int ret =
-      syscall_impl<int>(SYS_linkat, AT_FDCWD, oldpath, AT_FDCWD, newpath, 0);
+  return syscall_checked<int>(SYS_linkat, AT_FDCWD, oldpath, AT_FDCWD, newpath,
+                              0);
 #elif defined(SYS_link)
-  int ret = syscall_impl<int>(SYS_link, oldpath, newpath);
+  return syscall_checked<int>(SYS_link, oldpath, newpath);
 #else
 #error "link and linkat syscalls not available."
 #endif
-  if (ret < 0)
-    return Error(-static_cast<int>(ret));
-  return ret;
 }
 
 } // namespace linux_syscalls

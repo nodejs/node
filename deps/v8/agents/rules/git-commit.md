@@ -11,10 +11,15 @@ commands in V8.
 ## Commit Message Format
 
 - **Title**: Must follow the format `[component] Title`.
+  - Keep the title short, concise, and punchy: aim for ~50 characters, and
+    strictly under 65 characters (including the `[component]` prefix). Prefer
+    high-level intent over verbose implementation details.
   - Use `[agents] title` ONLY for changes to the agent automation suite itself.
-- **Description**: Provide a clear explanation of "why" and "what". Wrap lines
-  at 72 characters. Focus on content and effects, not the process. Highlight the
-  rationale and key non-obvious design decisions.
+- **Description**: Keep the body concise (aim for at most 10 lines) and include
+  only essential information. Explain "why" and the high-level "what" without
+  restating details that are obvious from the diff. Focus on content, rationale,
+  and key non-obvious design decisions, not the process. Wrap lines at 72
+  characters.
   - Maintain a cohesive summary: Rewrite or integrate new descriptions into a
     cohesive summary instead of simply appending them.
 - **Tone**: Use concise, declarative, and natural engineering language.

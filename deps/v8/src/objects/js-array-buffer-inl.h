@@ -26,12 +26,14 @@ namespace internal {
 // JSArrayBuffer.
 //
 
-Tagged<MaybeObject> JSArrayBuffer::views_or_detach_key() const {
+Tagged<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>
+JSArrayBuffer::views_or_detach_key() const {
   return views_or_detach_key_.load();
 }
 
-void JSArrayBuffer::set_views_or_detach_key(Tagged<MaybeObject> value,
-                                            WriteBarrierMode mode) {
+void JSArrayBuffer::set_views_or_detach_key(
+    Tagged<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>> value,
+    WriteBarrierMode mode) {
   views_or_detach_key_.store(this, value, mode);
 }
 
@@ -204,7 +206,8 @@ void JSArrayBuffer::set_views(Tagged<MaybeObject> value,
                               WriteBarrierMode mode) {
   DCHECK(!has_detach_key());
   DCHECK(value.IsWeak() || value == kNoView || value == kManyViews);
-  set_views_or_detach_key(value, mode);
+  set_views_or_detach_key(
+      Cast<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>(value), mode);
 }
 
 Tagged<Cell> JSArrayBuffer::detach_key() const {
@@ -397,21 +400,22 @@ void JSTypedArray::set_length(size_t value) {
   WriteBoundedSizeField(offsetof(JSTypedArray, raw_length_), value);
 }
 
-Tagged<Object> JSTypedArray::base_pointer() const {
+Tagged<UnionOf<ByteArray, Smi>> JSTypedArray::base_pointer() const {
   return base_pointer_.load();
 }
 
-Tagged<Object> JSTypedArray::base_pointer(AcquireLoadTag) const {
+Tagged<UnionOf<ByteArray, Smi>> JSTypedArray::base_pointer(
+    AcquireLoadTag) const {
   return base_pointer_.Acquire_Load();
 }
 
-void JSTypedArray::set_base_pointer(Tagged<Object> value,
+void JSTypedArray::set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
                                     WriteBarrierMode mode) {
   base_pointer_.store(this, value, mode);
 }
 
-void JSTypedArray::set_base_pointer(Tagged<Object> value, ReleaseStoreTag,
-                                    WriteBarrierMode mode) {
+void JSTypedArray::set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
+                                    ReleaseStoreTag, WriteBarrierMode mode) {
   base_pointer_.Release_Store(this, value, mode);
 }
 

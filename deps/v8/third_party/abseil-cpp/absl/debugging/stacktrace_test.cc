@@ -339,13 +339,13 @@ ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS void SigUsr1Handler(int, siginfo_t*, void*) {
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
 }
 
-ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS ABSL_ATTRIBUTE_NOINLINE void RaiseSignal() {
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS void RaiseSignal() {
   g_return_address = __builtin_return_address(0);
   raise(SIGUSR1);
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
 }
 
-ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS ABSL_ATTRIBUTE_NOINLINE void
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS void
 TestNestedSignal() {
   constexpr size_t kAltstackSize = 1 << 14;
   // Allocate altstack on regular stack to make sure it'll have a higher

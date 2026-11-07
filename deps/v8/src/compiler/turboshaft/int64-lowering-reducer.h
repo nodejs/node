@@ -292,11 +292,9 @@ class Int64LoweringReducer : public Next {
   }
 
   V<None> REDUCE(Return)(V<Word32> pop_count,
-                         base::Vector<const OpIndex> return_values,
-                         bool spill_caller_frame_slots) {
+                         base::Vector<const OpIndex> return_values) {
     if (!returns_i64_) {
-      return Next::ReduceReturn(pop_count, return_values,
-                                spill_caller_frame_slots);
+      return Next::ReduceReturn(pop_count, return_values);
     }
     base::SmallVector<OpIndex, 8> lowered_values;
     for (size_t i = 0; i < sig_->return_count(); ++i) {
@@ -308,8 +306,7 @@ class Int64LoweringReducer : public Next {
         lowered_values.push_back(return_values[i]);
       }
     }
-    return Next::ReduceReturn(pop_count, base::VectorOf(lowered_values),
-                              spill_caller_frame_slots);
+    return Next::ReduceReturn(pop_count, base::VectorOf(lowered_values));
   }
 
   Word32OrWord32Pair REDUCE(WordUnary)(Word32OrWord32Pair input,

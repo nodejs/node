@@ -23,7 +23,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects.h"
-#include "src/objects/descriptor-array.h"
+#include "src/objects/descriptor-array-inl.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/foreign.h"
 #include "src/objects/hash-seed-wrapper.h"
@@ -460,21 +460,23 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     symbol_map->SetConstructorFunctionIndex(Context::SYMBOL_FUNCTION_INDEX);
 
     // Finally, initialise the non-map objects using those maps.
-    undefined_value->set_map_after_allocation(isolate(), undefined_map,
-                                              SKIP_WRITE_BARRIER);
-    undefined_value->set_kind(Oddball::kUndefined);
-
-    null_value->set_map_after_allocation(isolate(), null_map,
-                                         SKIP_WRITE_BARRIER);
-    null_value->set_kind(Oddball::kNull);
-
-    true_value->set_map_after_allocation(isolate(), boolean_map,
-                                         SKIP_WRITE_BARRIER);
-    true_value->set_kind(Oddball::kTrue);
-
-    false_value->set_map_after_allocation(isolate(), boolean_map,
-                                          SKIP_WRITE_BARRIER);
-    false_value->set_kind(Oddball::kFalse);
+    {
+      AllocationWitness witness(undefined_value, roots,
+                                AllocationType::kReadOnly);
+      new (witness) Undefined(witness);
+    }
+    {
+      AllocationWitness witness(null_value, roots, AllocationType::kReadOnly);
+      new (witness) Null(witness);
+    }
+    {
+      AllocationWitness witness(true_value, roots, AllocationType::kReadOnly);
+      new (witness) True(witness);
+    }
+    {
+      AllocationWitness witness(false_value, roots, AllocationType::kReadOnly);
+      new (witness) False(witness);
+    }
 
     // The empty string is initialised with an empty hash despite being
     // internalized -- this will be calculated once the hashseed is available.
@@ -574,13 +576,13 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
   // Allocate the empty enum cache.
   {
-    AllocationResult allocation =
-        Allocate(roots_table().enum_cache_map(), AllocationType::kReadOnly);
-    if (!allocation.To(&obj)) return false;
+    if (!AllocateRaw(sizeof(EnumCache), AllocationType::kReadOnly).To(&obj)) {
+      return false;
+    }
+    AllocationWitness witness(obj, roots, AllocationType::kReadOnly);
+    set_empty_enum_cache(new (witness) EnumCache(
+        witness, roots.empty_fixed_array(), roots.empty_fixed_array()));
   }
-  set_empty_enum_cache(Cast<EnumCache>(obj));
-  Cast<EnumCache>(obj)->set_keys(roots.empty_fixed_array());
-  Cast<EnumCache>(obj)->set_indices(roots.empty_fixed_array());
 
   // Allocate the empty descriptor array.
   {
@@ -681,11 +683,9 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       AllocationResult alloc =
           AllocateRaw(sizeof(Cell), AllocationType::kReadOnly);
       if (!alloc.To(&obj)) return false;
-      obj->set_map_after_allocation(isolate(), roots.cell_map(),
-                                    SKIP_WRITE_BARRIER);
-      Cast<Cell>(obj)->set_maybe_value(Map::kPrototypeChainInvalid,
-                                       SKIP_WRITE_BARRIER);
-      set_invalid_prototype_validity_cell(Cast<Cell>(obj));
+      AllocationWitness witness(obj, roots, AllocationType::kReadOnly);
+      set_invalid_prototype_validity_cell(
+          new (witness) Cell(witness, Map::kPrototypeChainInvalid));
     }
 
     ALLOCATE_MAP(PROPERTY_CELL_TYPE, sizeof(PropertyCell), global_property_cell)
@@ -739,6 +739,8 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     }
 
     // The DescriptorArray map is pre-allocated and initialized above.
+    ALLOCATE_MAP(UNINITIALIZED_HEAP_NUMBER_TYPE, sizeof(HeapNumber),
+                 uninitialized_heap_number)
     ALLOCATE_VARSIZE_MAP(TURBOSHAFT_WORD32_SET_TYPE_TYPE,
                          turboshaft_word32set_type)
     ALLOCATE_VARSIZE_MAP(TURBOSHAFT_WORD64_SET_TYPE_TYPE,
@@ -1130,18 +1132,16 @@ bool Heap::CreateReadOnlyObjects() {
 
   {
     // Empty array boilerplate description
-    AllocationResult alloc =
-        Allocate(roots_table().array_boilerplate_description_map(),
-                 AllocationType::kReadOnly);
+    AllocationResult alloc = AllocateRaw(sizeof(ArrayBoilerplateDescription),
+                                         AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
 
-    Cast<ArrayBoilerplateDescription>(obj)->set_constant_elements(
-        roots.empty_fixed_array());
-    Cast<ArrayBoilerplateDescription>(obj)->set_elements_kind(
-        ElementsKind::PACKED_SMI_ELEMENTS);
+    AllocationWitness witness(obj, roots, AllocationType::kReadOnly);
+    set_empty_array_boilerplate_description(
+        new (witness) ArrayBoilerplateDescription(
+            witness, ElementsKind::PACKED_SMI_ELEMENTS,
+            roots.empty_fixed_array()));
   }
-  set_empty_array_boilerplate_description(
-      Cast<ArrayBoilerplateDescription>(obj));
 
   // Empty arrays.
   {
@@ -1181,24 +1181,15 @@ bool Heap::CreateReadOnlyObjects() {
 #undef ENSURE_SINGLE_CHAR_STRINGS_ARE_SINGLE_CHAR
 
   // Finish initializing oddballs after creating the string table.
-  Oddball::Initialize(isolate(), factory->undefined_value(), "undefined",
-                      factory->undefined_nan_value(), "undefined",
-                      Oddball::kUndefined);
-
-  // Initialize the null_value.
-  Oddball::Initialize(isolate(), factory->null_value(), "null",
-                      direct_handle(Smi::zero(), isolate()), "object",
-                      Oddball::kNull);
-
-  // Initialize the true_value.
-  Oddball::Initialize(isolate(), factory->true_value(), "true",
-                      direct_handle(Smi::FromInt(1), isolate()), "boolean",
-                      Oddball::kTrue);
-
-  // Initialize the false_value.
-  Oddball::Initialize(isolate(), factory->false_value(), "false",
-                      direct_handle(Smi::zero(), isolate()), "boolean",
-                      Oddball::kFalse);
+  roots.undefined_value()->FinishInitialization(roots.undefined_string(),
+                                                roots.undefined_nan_value(),
+                                                roots.undefined_string());
+  roots.null_value()->FinishInitialization(roots.null_string(), Smi::zero(),
+                                           roots.object_string());
+  roots.true_value()->FinishInitialization(roots.true_string(), Smi::FromInt(1),
+                                           roots.boolean_string());
+  roots.false_value()->FinishInitialization(roots.false_string(), Smi::zero(),
+                                            roots.boolean_string());
 
   {
     HandleScope handle_scope(isolate());

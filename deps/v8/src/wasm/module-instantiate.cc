@@ -2145,12 +2145,14 @@ bool InstanceBuilder::ProcessImportedMemories(
         TryCast(memory_object->array_buffer(), &buffer)) {
       DCHECK_EQ(backing_store, buffer->GetBackingStore());
       DCHECK_EQ(backing_store->is_shared(), buffer->is_shared());
+      size_t buffer_byte_length = buffer->GetByteLength();
       if (backing_store->is_shared()) {
         // Note: For shared memory, the backing store might have just grown in
-        // another thread.
-        DCHECK_GE(backing_store->byte_length(), buffer->GetByteLength());
+        // another thread. Read the buffer's byte length first in case it is a
+        // growable SharedArrayBuffer (which also reads from the backing store).
+        DCHECK_GE(backing_store->byte_length(), buffer_byte_length);
       } else {
-        DCHECK_EQ(backing_store->byte_length(), buffer->GetByteLength());
+        DCHECK_EQ(backing_store->byte_length(), buffer_byte_length);
       }
     }
 #endif  // DEBUG

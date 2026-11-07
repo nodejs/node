@@ -633,6 +633,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
 
 #if V8_ENABLE_WEBASSEMBLY
   void ExtractWasmStructReferences(Tagged<WasmStruct> obj, HeapEntry* entry);
+  void ExtractWasmCustomMapReferences(Tagged<WasmCustomMap> obj,
+                                      HeapEntry* entry);
   void ExtractWasmArrayReferences(Tagged<WasmArray> obj, HeapEntry* entry);
   void ExtractWasmTrustedInstanceDataReferences(
       Tagged<WasmTrustedInstanceData> obj, HeapEntry* entry);

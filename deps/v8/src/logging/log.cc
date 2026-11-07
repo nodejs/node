@@ -17,6 +17,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/source-position-table.h"
@@ -410,7 +411,7 @@ PerfBasicLogger::PerfBasicLogger(Isolate* isolate) : CodeEventLogger(isolate) {
     CHECK_NOT_NULL(v8_flags.perf_basic_prof_path);
     const char* base_dir = v8_flags.perf_basic_prof_path;
     // Open the perf JIT dump file.
-    auto perf_dump_name = base::OwnedVector<char>::NewForOverwrite(
+    auto perf_dump_name = base::UniqueArray<char>::NewForOverwrite(
         strlen(base_dir) + kFilenameBufferPadding);
     int size = SNPrintF(perf_dump_name.as_vector(), "%s/perf-%d.map", base_dir,
                         process_id_);
@@ -725,7 +726,7 @@ LowLevelLogger::LowLevelLogger(Isolate* isolate, const char* name)
   // Open the low-level log file.
   size_t len = strlen(name);
   auto ll_name =
-      base::OwnedVector<char>::NewForOverwrite(len + sizeof(kLogExt));
+      base::UniqueArray<char>::NewForOverwrite(len + sizeof(kLogExt));
   MemCopy(ll_name.begin(), name, len);
   MemCopy(ll_name.begin() + len, kLogExt, sizeof(kLogExt));
   ll_output_handle_ =

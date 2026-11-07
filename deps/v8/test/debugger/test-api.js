@@ -210,7 +210,15 @@ class DebugWrapper {
 
     const scopeObject =
         { value : () => details[kScopeDetailsObjectIndex],
-          property : (prop) => details[kScopeDetailsObjectIndex][prop],
+          property : (prop) => {
+            // Unavailable variables (e.g. stack-allocated variables of outer
+            // functions) are exposed as accessors that throw on access.
+            try {
+              return details[kScopeDetailsObjectIndex][prop];
+            } catch (e) {
+              return undefined;
+            }
+          },
           properties : scopeObjectProperties,
           propertyNames : () => Object.keys(details[kScopeDetailsObjectIndex])
               .map((key, _) => key),

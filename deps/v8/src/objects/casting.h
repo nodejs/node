@@ -111,7 +111,9 @@
 namespace v8::internal {
 
 // CastTraits<T> is a type trait that defines type checking behaviour for
-// tagged object casting. The expected specialization is:
+// tagged object casting. It only ever receives strong references or Smis;
+// reference strength and structural targets (Union, Weak) are handled by
+// CastTraitsImpl below. The expected specialization is:
 //
 //     template<>
 //     struct CastTraits<SomeObject> {
@@ -126,7 +128,8 @@ namespace v8::internal {
 // HeapObjects and the Object implementation has additional overhead in Smi
 // checks.
 //
-//     struct CastTraits<Object> {
+//     template<>
+//     struct CastTraits<SomeObject> {
 //       static bool AllowFrom(Tagged<HeapObject> value) {
 //         return IsSomeObject(value);
 //       }
@@ -138,15 +141,62 @@ namespace v8::internal {
 template <typename To>
 struct CastTraits;
 
+// CastTraitsImpl<T>::AllowFrom accepts any tagged source and checks membership
+// in T, including reference strength. This is what Is<T> and the Cast family
+// call. Do not specialize for object types; the primary template forwards to
+// CastTraits<T>. Only structural targets (Weak, Union, ClearedWeakValue)
+// specialize it.
+//
+// The static source type is kept as narrow as possible: Tagged<Union<...>> of
+// heap objects only derives from Tagged<HeapObject>, so overload resolution
+// picks the HeapObject overload of CastTraits<T>::AllowFrom and skips the Smi
+// check.
+template <typename T>
+struct CastTraitsImpl {
+  // T is Smi or a strong HeapObject type; Weak, Union and ClearedWeakValue
+  // targets are handled by the specializations below.
+  static_assert(!is_maybe_weak_v<T> && !is_union_v<T> &&
+                !std::is_same_v<T, ClearedWeakValue>);
+
+  template <typename U>
+  static inline bool AllowFrom(Tagged<U> value) {
+    if constexpr (std::is_same_v<U, ClearedWeakValue>) {
+      // Always weak-tagged, and StrongOf<ClearedWeakValue> is not a strong
+      // type.
+      return false;
+    } else if constexpr (!is_maybe_weak_v<U>) {
+      return CastTraits<T>::AllowFrom(value);
+    } else {
+      // U is maybe-weak: Weak<X> or a Union with a weak member (e.g.
+      // MaybeWeak<X>, MaybeObject). T, on the other hand, is a strong target,
+      // so a weak reference is never a T.
+      if constexpr (std::is_same_v<T, Smi>) {
+        // A weak-tagged word is never Smi-tagged, so no strength check needed.
+        return value.IsSmi();
+      }
+      if (!value.IsStrongOrSmi()) return false;
+      // Re-type the now strong value as StrongOf<U>, e.g.
+      // Union<A, Weak<B>> -> Union<A, B>. This keeps B even though a strong B
+      // cannot occur, but the Tagged base class (and thus the selected
+      // overload) is the same as for Union<A>.
+      // TODO(jgruber): Filter Weak members out of the Union instead of keeping
+      // their strong counterparts.
+      // The bits are already strong; do not use MakeStrong, whose tag masking
+      // clobbers Smi payload bit 1 under 31-bit Smi tagging.
+      return CastTraits<T>::AllowFrom(UncheckedCast<StrongOf<U>>(value));
+    }
+  }
+};
+
 class Oddball;
 
 template <typename T>
 concept NotGCedType = !std::is_base_of_v<HeapObject, T>;
 
-// `Is<T>(value)` checks whether `value` is a tagged object of type `T`.
+// `Is<T>(value)` checks membership in T, including reference strength.
 template <typename T, typename U>
 inline bool Is(Tagged<U> value) {
-  return CastTraits<T>::AllowFrom(value);
+  return CastTraitsImpl<T>::AllowFrom(value);
 }
 template <typename T>
 inline bool Is(const HeapObject* obj) {
@@ -486,72 +536,57 @@ inline Derived* Cast(Base* from,
   return static_cast<Derived*>(from);
 }
 
-// `Is<T>(maybe_weak_value)` specialization for possible weak values and strong
-// target `T`, that additionally first checks whether `maybe_weak_value` is
-// actually a strong value (or a Smi, which can't be weak).
-template <typename T, typename U>
-inline bool Is(Tagged<MaybeWeak<U>> value) {
-  // Cast from maybe weak to strong needs to be strong or smi.
-  if constexpr (!is_maybe_weak_v<T>) {
-    if (!value.IsStrongOrSmi()) return false;
-    return CastTraits<T>::AllowFrom(Tagged<U>(value.ptr()));
-  } else {
-    // Dispatches to CastTraits<MaybeWeak<T>> below.
-    return CastTraits<T>::AllowFrom(value);
-  }
-}
-template <typename T, typename... U>
-constexpr inline bool Is(Tagged<Union<U...>> value) {
-  using UnionU = Union<U...>;
-  if constexpr (is_weak_v<UnionU>) {
-    return Is<T>(Tagged<Weak<HeapObject>>(value));
-  } else if constexpr (is_maybe_weak_v<UnionU>) {
-    // Cleared values are always ok.
-    if (value.IsCleared()) return true;
-    // TODO(leszeks): Skip Smi check for values that are known to not be Smi.
-    if (value.IsSmi()) {
-      return Is<T>(Tagged<Smi>(value.ptr()));
-    }
-    return Is<T>(MakeStrong(value));
-  } else if constexpr (is_subtype_v<UnionU, HeapObject>) {
-    return Is<T>(Tagged<HeapObject>(value));
-  } else {
-    static_assert(is_subtype_v<UnionU, Object>);
-    return Is<T>(Tagged<Object>(value));
-  }
-}
-
-// Specialization for weak cast targets, which first converts the incoming
-// value to a strong reference and then checks if the cast to the strong T
-// is allowed. Cleared weak references always return true.
+// Cleared references belong to every Weak<T>, irrespective of payload type.
 template <typename T>
-struct CastTraits<Weak<T>> {
+struct CastTraitsImpl<Weak<T>> {
   template <typename U>
   static bool AllowFrom(Tagged<U> value) {
-    if constexpr (is_weak_v<U>) {
-      return CastTraits<T>::AllowFrom(MakeStrong(value));
-    }
-    if constexpr (is_maybe_weak_v<U>) {
-      // Cleared values are always ok.
-      if (value.IsCleared()) return true;
-      // TODO(leszeks): Skip Smi check for values that are known to not be Smi.
-      if (value.IsSmi()) return false;
-      return CastTraits<T>::AllowFrom(MakeStrong(value));
-    } else {
-      // Can't cast weak to non-weak.
+    if constexpr (std::is_same_v<U, ClearedWeakValue>) {
+      return true;
+    } else if constexpr (!is_maybe_weak_v<U>) {
+      // A strong reference is never a Weak<T>.
       return false;
+    } else {
+      if (value.IsCleared()) return true;
+      // Only sources that admit strong references need the tag test.
+      if constexpr (!is_weak_v<U>) {
+        if (!value.IsWeak()) return false;
+      }
+      // The reference is weak, hence not a Smi, but U may still have Smi
+      // members (e.g. MaybeObject), which MakeStrong rejects statically. Since
+      // there is no Weak<Smi>, Weak<HeapObject> is the tightest Smi-free type
+      // in that case; otherwise keep WeakOf<U> (MaybeWeak<Map> -> Weak<Map>).
+      using WeakU =
+          std::conditional_t<is_subtype_v<Smi, U>, Weak<HeapObject>, WeakOf<U>>;
+      return Is<T>(MakeStrong(UncheckedCast<WeakU>(value)));
     }
   }
 };
 
 template <typename... T>
-struct CastTraits<Union<T...>> {
+struct CastTraitsImpl<Union<T...>> {
+  template <typename U>
+  static inline bool AllowFrom(Tagged<U> value) {
+    return (Is<T>(value) || ...);
+  }
+};
+
+template <>
+struct CastTraitsImpl<ClearedWeakValue> {
+  template <typename U>
+  static inline bool AllowFrom(Tagged<U> value) {
+    return value.IsCleared();
+  }
+};
+
+// ReadOnly<T> is a strong predicate on T, so it is a plain CastTraits
+// specialization and goes through the primary CastTraitsImpl.
+template <typename T>
+struct CastTraits<ReadOnly<T>> {
   static inline bool AllowFrom(Tagged<Object> value) {
-    return (Is<T>(value) || ...);
+    return value.IsHeapObject() && AllowFrom(UncheckedCast<HeapObject>(value));
   }
-  static inline bool AllowFrom(Tagged<HeapObject> value) {
-    return (Is<T>(value) || ...);
-  }
+  static inline bool AllowFrom(Tagged<HeapObject> value);
 };
 
 template <>

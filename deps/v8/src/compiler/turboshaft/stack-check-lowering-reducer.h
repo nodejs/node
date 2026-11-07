@@ -83,9 +83,7 @@ class StackCheckLoweringReducer : public Next {
   }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  V<None> REDUCE(WasmStackCheck)(
-      OptionalV<WasmTrustedInstanceData> trusted_instance_data,
-      WasmStackCheckOp::Kind kind) {
+  V<None> REDUCE(WasmStackCheck)(WasmStackCheckOp::Kind kind) {
     if (kind == WasmStackCheckOp::Kind::kFunctionEntry) {
       // As an optimization, skip stack checks in leaf functions. Rely on
       // their callers checking the stack height instead.
@@ -112,7 +110,7 @@ class StackCheckLoweringReducer : public Next {
       if (v8_flags.wasm_growable_stacks) {
         // WasmStackCheck should be lowered by GrowableStacksReducer
         // in a special way.
-        return Next::ReduceWasmStackCheck(trusted_instance_data, kind);
+        return Next::ReduceWasmStackCheck(kind);
       }
 
       const CallDescriptor* entry_call_descriptor =

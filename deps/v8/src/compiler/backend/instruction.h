@@ -1002,6 +1002,7 @@ class V8_EXPORT_PRIVATE Instruction final {
   FlagsCondition flags_condition() const {
     return FlagsConditionField::decode(opcode());
   }
+  SharedFlag shared_base() const { return SharedBaseField::decode(opcode()); }
   bool branch_hinted() const { return BranchHintField::decode(opcode()); }
   int misc() const { return MiscField::decode(opcode()); }
   bool HasMemoryAccessMode() const {
@@ -1134,8 +1135,9 @@ class V8_EXPORT_PRIVATE Instruction final {
     }
   }
 
-  // For JS call instructions, computes the index of the argument count input.
-  size_t JSCallArgumentCountInputIndex() const {
+  // For JS call instructions, computes the index of the expected parameter
+  // count input.
+  size_t JSCallExpectedParameterCountInputIndex() const {
     // Keep in sync with instruction-selector.cc where the inputs are assembled.
     return InputCount() - 1 -
            HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler) -

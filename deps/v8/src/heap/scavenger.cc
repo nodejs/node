@@ -1989,9 +1989,9 @@ bool Scavenger::TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
   // failure case. It also helps us to ensure that we do not rely on non-relaxed
   // memory ordering for the CAS above.
   target->set_map_word(map, kRelaxedStore);
-  heap()->CopyBlock(target.address() + kTaggedSize,
-                    source.address() + kTaggedSize,
-                    object_size.value() - kTaggedSize);
+  Heap::CopyBlock(target.address() + kTaggedSize,
+                  source.address() + kTaggedSize,
+                  SafeHeapObjectSize(object_size.value() - kTaggedSize));
 
   if (is_logging_) [[unlikely]] {
     // TODO(425150995): We should have uint versions for allocation to avoid

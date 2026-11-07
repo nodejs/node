@@ -134,6 +134,8 @@ struct FieldAccess {
                                         // decoding.
   bool is_immutable = false;  // Whether this field is known to be immutable for
                               // the purpose of loads.
+  SharedFlag shared_base = SharedFlag{false};  // Whether the base is a shared
+                                               // tagged object.
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -155,7 +157,8 @@ struct FieldAccess {
               ExternalPointerTag external_pointer_tag = kExternalPointerNullTag,
               IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag,
               bool maybe_initializing_or_transitioning_store = false,
-              bool is_immutable = false)
+              bool is_immutable = false,
+              SharedFlag shared_base = SharedFlag{false})
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -169,7 +172,8 @@ struct FieldAccess {
         indirect_pointer_tag(indirect_pointer_tag),
         maybe_initializing_or_transitioning_store(
             maybe_initializing_or_transitioning_store),
-        is_immutable(is_immutable) {
+        is_immutable(is_immutable),
+        shared_base(shared_base) {
     DCHECK_GE(offset, 0);
     DCHECK_IMPLIES(machine_type.IsMapWord(),
                    offset == offsetof(HeapObject, map_) &&

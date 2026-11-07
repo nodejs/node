@@ -71,10 +71,10 @@ TEST_F(StringTableTest, InternalizeUtf8String) {
       EXPECT_TRUE(IsInternalizedString(*a));
       DirectHandle<String> b = factory()->InternalizeUtf8String(string);
       EXPECT_EQ(*b, *a);
-      EXPECT_TRUE(b->IsOneByteEqualTo(base::CStrVector(string)));
+      EXPECT_TRUE(b->IsOneByteEqualTo(string));
       b = factory()->InternalizeUtf8String(base::CStrVector(string));
       EXPECT_EQ(*b, *a);
-      EXPECT_TRUE(b->IsOneByteEqualTo(base::CStrVector(string)));
+      EXPECT_TRUE(b->IsOneByteEqualTo(string));
     }
   };
 

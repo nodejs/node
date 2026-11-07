@@ -55,12 +55,15 @@ LIBC_INLINE static Reduction<N> fast_reduction(cpp::simd<double, N> x) {
   return {r, cpp::bit_cast<cpp::simd<int64_t, N>>(z)};
 }
 
-// Three-double expansions of 2^(8*q) / pi, reduced modulo an even integer,
-// q = 3..12. Padded to 16 length arrays for safe masked indexing.
+// Three-double expansions of 2^(8*q) / pi reduced modulo an even integer.
+// Entries 0..14 correspond to q = 0..14, and entry 15 corresponds to q = -1
+// after masking. Entry 13 and 14 act as padding for inactive lanes.
+// The first two parts have 29 significant bits, such that the fp64 product
+// is exact when multiplied by an fp32 input.
 LIBC_INLINE_VAR constexpr double INV_PI_HI[16] = {
-    0,
-    0,
-    0,
+    0x1.45f306ep-2,
+    -0x1.067c91bp-1,
+    0x1.836e4e4p-1,
     -0x1.236377d000000p-2,
     -0x1.b1bbead000000p-1,
     -0x1.bbead60000000p-1,
@@ -73,12 +76,13 @@ LIBC_INLINE_VAR constexpr double INV_PI_HI[16] = {
     0x1.f534ddc000000p-1,
     0,
     0,
+    0x1.45f306ep-10,
 };
 
 LIBC_INLINE_VAR constexpr double INV_PI_MID[16] = {
-    0,
-    0,
-    0,
+    -0x1.b1bbeadp-33,
+    -0x1.bbead6p-33,
+    0x1.054a7f1p-31,
     -0x1.6b01ec5000000p-32,
     -0x1.80f62a1000000p-31,
     -0x1.ec54170000000p-32,
@@ -91,12 +95,13 @@ LIBC_INLINE_VAR constexpr double INV_PI_MID[16] = {
     0x1.b6c52b3000000p-34,
     0,
     0,
+    -0x1.b1bbeadp-41,
 };
 
 LIBC_INLINE_VAR constexpr double INV_PI_LO[16] = {
-    0,
-    0,
-    0,
+    -0x1.80f62a0b82b2dp-63,
+    -0x1.ec54170565912p-64,
+    -0x1.8a82e0acb223fp-61,
     -0x1.05c1596447e50p-62,
     0x1.1f534ddc0db80p-61,
     -0x1.596447e493ae0p-62,
@@ -109,10 +114,12 @@ LIBC_INLINE_VAR constexpr double INV_PI_LO[16] = {
     0x1.3c439041fe400p-65,
     0,
     0,
+    -0x1.80f62a0b82b2dp-71,
 };
 
 // Reduces non-negative large finite inputs x >= 0x1p49.
 // Decomposes x / pi into k + r, with k as an integer and |r| <= 0.5.
+// Based on a paper written by Tue Ly, see https://arxiv.org/abs/2609.35015
 template <size_t N>
 LIBC_INLINE static Reduction<N> large_reduction(cpp::simd<double, N> x) {
   constexpr cpp::simd<double, N> shift = 0x1.8p52;
@@ -124,9 +131,8 @@ LIBC_INLINE static Reduction<N> large_reduction(cpp::simd<double, N> x) {
   cpp::simd<int64_t, N> q =
       cpp::simd_cast<int64_t>(ix >> 55) - cpp::simd<int64_t, N>(131);
 
-  // While sufficiently large x will always produce q within [3, 12],
-  // not all input lanes are guaranteed to require the large reduction,
-  // so we mask with 15 to keep all values within bounds.
+  // For float inputs requiring large reduction, q is in [-1, 12]. Masking
+  // maps q = -1 to entry 15 and keeps inactive lanes within bounds.
   cpp::simd<int64_t, N> idx = q & cpp::simd<int64_t, N>(15);
   cpp::simd<double, N> c_hi =
       cpp::gather<cpp::simd<double, N>>(true, idx, INV_PI_HI);

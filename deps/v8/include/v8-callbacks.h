@@ -489,6 +489,14 @@ using PrepareStackTraceCallback = MaybeLocal<Value> (*)(Local<Context> context,
                                                         Local<Value> error,
                                                         Local<Array> sites);
 
+/**
+ * DynamicScriptCompiledFromEmbedderCallback is called when a dynamic script
+ * (such as from eval or the Function constructor) is compiled from the embedder
+ * without a calling user JavaScript frame on the stack.
+ */
+using DynamicScriptCompiledFromEmbedderCallback =
+    void (*)(Local<Context> context, int script_id);
+
 #if defined(V8_OS_WIN)
 /**
  * Callback to selectively enable ETW tracing based on the document URL.

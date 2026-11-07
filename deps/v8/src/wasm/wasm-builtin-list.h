@@ -23,7 +23,7 @@ namespace v8::internal::wasm {
   V(WasmTriggerTierUp)                                                         \
   V(WasmLiftoffFrameSetup)                                                     \
   V(WasmDebugBreak)                                                            \
-  V(WasmDebugTrap)                                                             \
+  V(WasmTrapHandlerThrowTrap)                                                  \
   V(WasmInt32ToHeapNumber)                                                     \
   V(WasmInt32ToSharedHeapNumber)                                               \
   V(WasmFloat64ToString)                                                       \
@@ -59,6 +59,7 @@ namespace v8::internal::wasm {
   V(WasmThrowRef)                                                              \
   V(WasmRethrowExplicitContext)                                                \
   V(WasmHandleStackOverflow)                                                   \
+  V(WasmReturnFromSegment)                                                     \
   V(WasmTraceEnter)                                                            \
   V(WasmTraceExit)                                                             \
   V(WasmTraceMemory)                                                           \
@@ -191,8 +192,7 @@ namespace v8::internal::wasm {
   V(WasmAllocateInSharedHeap)                    \
   V(WasmJSStringEqual)                           \
   V(WasmToJsWrapperInvalidSig)                   \
-  V(WasmTrap)                                    \
-  V(WasmTrapHandlerThrowTrap)
+  V(WasmTrap)
 
 #define WASM_BUILTIN_LIST(V, VTRAP)            \
   WASM_BUILTINS_WITH_JUMP_TABLE_SLOT(V, VTRAP) \

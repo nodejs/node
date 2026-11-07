@@ -82,6 +82,13 @@ class SimdCrossCompilerDeterminismTest
                               FuzzExtMulPairwiseTree tree,
                               int preconsumed_liftoff_regs, bool allow_avx);
 
+  void TestHalvingAdd(WasmOpcode add_opcode, WasmOpcode shift_opcode,
+                      WasmOpcode bitwise_opcode,
+                      WasmOpcode shifted_bitwise_opcode,
+                      std::array<Simd128, 2> inputs, int32_t shift,
+                      uint8_t operand_choices, int preconsumed_liftoff_regs,
+                      bool allow_avx);
+
   static constexpr int kMaxPreconsumedLiftoffRegs =
       kFpCacheRegList.GetNumRegsSet();
 
@@ -110,6 +117,72 @@ class SimdCrossCompilerDeterminismTest
       InputLocationsImpl<sizeof...(locations),
                          std::array<InputLocation, sizeof...(locations)>{
                              locations...}>;
+
+  template <typename Config>
+  Simd128 GetHalvingAddResult(TestExecutionTier tier, WasmOpcode add_opcode,
+                              WasmOpcode shift_opcode,
+                              WasmOpcode bitwise_opcode,
+                              WasmOpcode shifted_bitwise_opcode,
+                              std::array<Simd128, 2> inputs, int32_t shift,
+                              uint8_t operand_choices,
+                              int preconsumed_liftoff_regs = 0) {
+    CommonWasmRunner<void> runner(isolate(), tier);
+    Simd128* memory = runner.builder().AddMemoryElems<Simd128>(2);
+    uint8_t lhs = runner.AllocateLocal(kWasmS128);
+    uint8_t rhs = runner.AllocateLocal(kWasmS128);
+
+    constexpr size_t kMaxBytecodeSize = 80 + 19 * kMaxPreconsumedLiftoffRegs;
+    base::SmallVector<uint8_t, kMaxBytecodeSize> bytecode;
+
+    DCHECK_LE(preconsumed_liftoff_regs, kMaxPreconsumedLiftoffRegs);
+    DCHECK_IMPLIES(tier != TestExecutionTier::kLiftoff,
+                   preconsumed_liftoff_regs == 0);
+    for (int i = 0; i < preconsumed_liftoff_regs; ++i) {
+      bytecode.insert(bytecode.end(), {WASM_SIMD_CONSTANT(Simd128{}.bytes())});
+    }
+
+    bytecode.insert(bytecode.end(),
+                    Config::template GetInput<0>(memory, inputs[0]));
+    bytecode.insert(bytecode.end(), {kExprLocalSet, lhs});
+    bytecode.insert(bytecode.end(),
+                    Config::template GetInput<1>(memory, inputs[1]));
+    bytecode.insert(bytecode.end(), {kExprLocalSet, rhs});
+    bytecode.insert(bytecode.end(), {WASM_ZERO});
+
+    // Construct a variant of (a & b) + ((a ^ b) >> shift).
+    // Bits 0-1 select lhs (0) or rhs (1) for the bitwise and's operands.
+    // Bits 2-3 do the same for the shifted bitwise xor's operands.
+    // Bit 4 swaps the operands of the add/sub operation.
+    auto emit_bitwise = [&] {
+      bytecode.insert(bytecode.end(),
+                      {WASM_LOCAL_GET((operand_choices & 1) ? rhs : lhs),
+                       WASM_LOCAL_GET((operand_choices & 2) ? rhs : lhs),
+                       WASM_SIMD_OP(bitwise_opcode)});
+    };
+    auto emit_shift = [&] {
+      bytecode.insert(bytecode.end(),
+                      {WASM_LOCAL_GET((operand_choices & 4) ? rhs : lhs),
+                       WASM_LOCAL_GET((operand_choices & 8) ? rhs : lhs),
+                       WASM_SIMD_OP(shifted_bitwise_opcode), WASM_I32V(shift),
+                       WASM_SIMD_OP(shift_opcode)});
+    };
+    if (operand_choices & 16) {
+      emit_shift();
+      emit_bitwise();
+    } else {
+      emit_bitwise();
+      emit_shift();
+    }
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(add_opcode)});
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprS128StoreMem),
+                                     ZERO_ALIGNMENT, ZERO_OFFSET});
+    bytecode.push_back(kExprReturn);
+
+    DCHECK_GE(kMaxBytecodeSize, bytecode.size());
+    runner.Build(base::VectorOf(bytecode));
+    runner.Call();
+    return memory[0];
+  }
 
   template <typename Config>
   Simd128 GetTernOpResult(TestExecutionTier tier, WasmOpcode opcode,
@@ -647,6 +720,152 @@ V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestTernOp)
         // allow_avx
         fuzztest::Arbitrary<bool>())
     .WithSeeds(kTernOpSeeds);
+
+void SimdCrossCompilerDeterminismTest::TestHalvingAdd(
+    WasmOpcode add_opcode, WasmOpcode shift_opcode, WasmOpcode bitwise_opcode,
+    WasmOpcode shifted_bitwise_opcode, std::array<Simd128, 2> inputs,
+    int32_t shift, uint8_t operand_choices, int preconsumed_liftoff_regs,
+    bool allow_avx) {
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  AVXSupport avx_support(allow_avx);
+#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+
+  Simd128 results[] = {
+      // Liftoff reference.
+      GetHalvingAddResult<InputLocations<kConstant, kConstant>>(
+          TestExecutionTier::kLiftoff, add_opcode, shift_opcode, bitwise_opcode,
+          shifted_bitwise_opcode, inputs, shift, operand_choices,
+          preconsumed_liftoff_regs),
+      // Use both constant folding and mixed input.
+      GetHalvingAddResult<InputLocations<kConstant, kConstant>>(
+          TestExecutionTier::kTurbofan, add_opcode, shift_opcode,
+          bitwise_opcode, shifted_bitwise_opcode, inputs, shift,
+          operand_choices),
+      GetHalvingAddResult<InputLocations<kConstant, kDynamic>>(
+          TestExecutionTier::kTurbofan, add_opcode, shift_opcode,
+          bitwise_opcode, shifted_bitwise_opcode, inputs, shift,
+          operand_choices),
+      GetHalvingAddResult<InputLocations<kDynamic, kConstant>>(
+          TestExecutionTier::kTurbofan, add_opcode, shift_opcode,
+          bitwise_opcode, shifted_bitwise_opcode, inputs, shift,
+          operand_choices),
+      // Dynamic inputs to stop the pattern being constant-folded.
+      GetHalvingAddResult<InputLocations<kDynamic, kDynamic>>(
+          TestExecutionTier::kTurbofan, add_opcode, shift_opcode,
+          bitwise_opcode, shifted_bitwise_opcode, inputs, shift,
+          operand_choices)};
+
+  ASSERT_TRUE(AllResultsEqual<Simd128>(base::VectorOf(results)))
+      << absl::StrFormat(
+             "HalvingAdd with arithmetic %s, shift %s, bitwise %s, shifted "
+             "bitwise %s, shift %d, operand_choices %d on inputs %v, %v\n",
+             WasmOpcodes::OpcodeName(add_opcode),
+             WasmOpcodes::OpcodeName(shift_opcode),
+             WasmOpcodes::OpcodeName(bitwise_opcode),
+             WasmOpcodes::OpcodeName(shifted_bitwise_opcode), shift,
+             operand_choices, inputs[0], inputs[1])
+      << "Different results for different configs: "
+      << PrintCollection(base::VectorOf(results));
+}
+
+constexpr std::array kHalvingAddArithmeticOps = {
+    kExprI8x16Add, kExprI8x16Sub, kExprI16x8Add, kExprI16x8Sub,
+    kExprI32x4Add, kExprI32x4Sub, kExprI64x2Add, kExprI64x2Sub};
+
+constexpr std::array kHalvingAddShiftOps = {
+    kExprI8x16Shl,  kExprI8x16ShrS, kExprI8x16ShrU, kExprI16x8Shl,
+    kExprI16x8ShrS, kExprI16x8ShrU, kExprI32x4Shl,  kExprI32x4ShrS,
+    kExprI32x4ShrU, kExprI64x2Shl,  kExprI64x2ShrS, kExprI64x2ShrU};
+
+constexpr std::array kHalvingAddBitwiseOps = {kExprS128And, kExprS128Or,
+                                              kExprS128Xor};
+
+// Use signed min/max values to check handling of unsigned sum overflows.
+constexpr std::array<Simd128, 2> kHalvingAddInputs8 = {
+    Simd128{Simd128::int8x16{-128, 127, -1, 0, 1, -128, 127, -3, -128, 127, -1,
+                             0, 1, -128, 127, -3}},
+    Simd128{Simd128::int8x16{-128, 127, -1, -1, 0, 127, -128, 0, -128, 127, -1,
+                             -1, 0, 127, -128, 0}}};
+constexpr std::array<Simd128, 2> kHalvingAddInputs16 = {
+    Simd128{Simd128::int16x8{-32768, 32767, -1, 0, 1, -32768, 32767, -3}},
+    Simd128{Simd128::int16x8{-32768, 32767, -1, -1, 0, 32767, -32768, 0}}};
+constexpr std::array<Simd128, 2> kHalvingAddInputs32 = {
+    Simd128{Simd128::int32x4{INT32_MIN, INT32_MAX, -1, -3}},
+    Simd128{Simd128::int32x4{INT32_MIN, INT32_MAX, -1, 0}}};
+
+constexpr std::tuple<WasmOpcode, WasmOpcode, WasmOpcode, WasmOpcode,
+                     std::array<Simd128, 2>, int32_t, uint8_t, int, bool>
+    kHalvingAddSeeds[] = {
+        // Addition.
+        {kExprI8x16Add, kExprI8x16ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs8, 1, 10, 0, true},
+        {kExprI8x16Add, kExprI8x16ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs8, 9, 9, 0, true},
+        {kExprI16x8Add, kExprI16x8ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs16, -15, 6, 0, true},
+        {kExprI16x8Add, kExprI16x8ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs16, 17, 5, 0, true},
+        {kExprI32x4Add, kExprI32x4ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 33, 26, 0, true},
+        {kExprI32x4Add, kExprI32x4ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, -31, 25, 0, true},
+        {kExprI64x2Add, kExprI64x2ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 22, 0, true},
+        {kExprI64x2Add, kExprI64x2ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 65, 21, 0, true},
+        // Subtraction.
+        {kExprI16x8Sub, kExprI16x8ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs16, 1, 10, 0, true},
+        {kExprI32x4Sub, kExprI32x4ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 26, 0, true},
+        // Left shifts.
+        {kExprI8x16Add, kExprI8x16Shl, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs8, 1, 10, 0, true},
+        {kExprI16x8Add, kExprI16x8Shl, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs16, 1, 10, 0, true},
+        {kExprI32x4Add, kExprI32x4Shl, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 10, 0, true},
+        {kExprI64x2Add, kExprI64x2Shl, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 10, 0, true},
+        // Alternate bitwise operations.
+        {kExprI16x8Add, kExprI16x8ShrS, kExprS128Or, kExprS128Xor,
+         kHalvingAddInputs16, 1, 10, 0, true},
+        {kExprI16x8Add, kExprI16x8ShrS, kExprS128And, kExprS128Or,
+         kHalvingAddInputs16, 1, 10, 0, true},
+        {kExprI16x8Add, kExprI16x8ShrS, kExprS128Xor, kExprS128And,
+         kHalvingAddInputs16, 1, 10, 0, true},
+        {kExprI16x8Add, kExprI8x16ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs16, 1, 10, 0, true},
+        // Mismatched input pairs between 'xor' and 'and' operations.
+        {kExprI32x4Add, kExprI32x4ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 2, 0, true},
+        {kExprI32x4Add, kExprI32x4ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 14, 0, true},
+        {kExprI32x4Add, kExprI32x4ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 8, 0, true},
+        // All operands are lhs or rhs.
+        {kExprI8x16Add, kExprI8x16ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs8, 1, 0, 0, true},
+        {kExprI16x8Add, kExprI16x8ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs16, 1, 31, 0, true}};
+
+V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestHalvingAdd)
+    .WithDomains(
+        // 64-bit to test the fallback, S/UHADD supports 8, 16 and 32-bit lanes.
+        fuzztest::ElementOf<WasmOpcode>(kHalvingAddArithmeticOps),
+        fuzztest::ElementOf<WasmOpcode>(kHalvingAddShiftOps),
+        fuzztest::ElementOf<WasmOpcode>(kHalvingAddBitwiseOps),
+        fuzztest::ElementOf<WasmOpcode>(kHalvingAddBitwiseOps),
+        fuzztest::ArrayOf<2>(ArbitrarySimd()),
+        // Check the optimization only runs for shifts of 1.
+        fuzztest::OneOf(fuzztest::ElementOf<int32_t>({1, 9, 17, 33, 65, -7, -15,
+                                                      -31, -63}),
+                        fuzztest::Arbitrary<int32_t>()),
+        fuzztest::InRange<uint8_t>(0, 31),
+        fuzztest::InRange(
+            0, SimdCrossCompilerDeterminismTest::kMaxPreconsumedLiftoffRegs),
+        fuzztest::Arbitrary<bool>())
+    .WithSeeds(kHalvingAddSeeds);
 
 void SimdCrossCompilerDeterminismTest::TestExtMulPairwiseTree(
     std::array<Simd128, 4> inputs, FuzzExtMulPairwiseTree tree,

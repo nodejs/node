@@ -194,7 +194,7 @@ V8_OBJECT class JSArrayIterator : public JSObject {
   TaggedMember<JSReceiver> iterated_object_;
   TaggedMember<Number> next_index_;
   // SmiTagged<IterationKind>.
-  TaggedMember<Smi> kind_;
+  TaggedMember<Smi> kind_ V8_TQ_TYPE(SmiTagged<IterationKind>);
 } V8_OBJECT_END;
 
 // Helper class for JSArrays that are template literal objects

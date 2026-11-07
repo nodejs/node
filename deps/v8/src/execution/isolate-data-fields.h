@@ -90,6 +90,8 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   IF_WASM(V, ActiveSuspender, kSystemPointerSize, active_suspender)            \
   V(DateCacheStamp, kInt32Size, date_cache_stamp)                              \
   V(IsDateCacheUsed, kUInt8Size, is_date_cache_used)                           \
+  IF_INTL(V, DefaultLocaleMayRequireSpecialCaseMapping, kUInt8Size,            \
+          default_locale_may_require_special_case_mapping)                     \
   /* This padding aligns next field to kDoubleSize bytes. */                   \
   PADDING_FIELD(kDoubleSize, V, RawArgumentsPadding, raw_arguments_padding)    \
   V(RawArguments, 2 * kDoubleSize, raw_arguments)                              \

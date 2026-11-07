@@ -16,10 +16,13 @@ function load(o) {
 
 %PrepareFunctionForOptimization(load);
 // Warm up with normal JS objects which have the same shape but distinct maps
-// so that the LoadIC enters HOMOMORPHIC state.
+// so that the LoadIC enters HOMOMORPHIC state. Keep them alive so GC stress
+// does not collect their maps before the IC transitions to HOMOMORPHIC.
+let objects = [];
 for (let i = 0; i < 11; i++) {
   let o = createNormalObject();
   o.a = i;
+  objects.push(o);
   assertEquals(i, load(o));
 }
 

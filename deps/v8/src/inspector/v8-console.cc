@@ -76,8 +76,16 @@ class ConsoleHelper {
     return m_inspector->sessionById(groupId(), sessionId);
   }
 
+  // Returns the console message storage for the current context group, or
+  // nullptr if the current context is not (or no longer) associated with any
+  // context group. The latter can happen for example when user JavaScript
+  // (i.e. a `toString()` method on a label argument) causes the embedder to
+  // destroy the current context. In that case we must not create a storage
+  // for the (invalid) context group 0, since that would never be cleaned up.
   V8ConsoleMessageStorage* consoleMessageStorage() {
-    return m_inspector->ensureConsoleMessageStorage(groupId());
+    int contextGroupId = groupId();
+    if (!contextGroupId) return nullptr;
+    return m_inspector->ensureConsoleMessageStorage(contextGroupId);
   }
 
   void reportCall(ConsoleAPIType type) {
@@ -150,12 +158,13 @@ class ConsoleHelper {
             m_inspector->client()->currentTimeMS(), type, arguments,
             consoleContextToString(isolate(), m_consoleContext),
             std::move(stackTrace));
+    if (!groupId()) return;
     consoleMessageStorage()->addMessage(std::move(message));
   }
 
   void reportDeprecatedCall(const char* id, const String16& message) {
-    if (!consoleMessageStorage()->shouldReportDeprecationMessage(contextId(),
-                                                                 id)) {
+    V8ConsoleMessageStorage* storage = consoleMessageStorage();
+    if (!storage || !storage->shouldReportDeprecationMessage(contextId(), id)) {
       return;
     }
     auto arguments =
@@ -341,10 +350,14 @@ void V8Console::Count(const v8::debug::ConsoleCallArguments& info,
   ConsoleHelper helper(info, consoleContext, m_inspector);
   String16 label =
       toProtocolString(m_inspector->isolate(), helper.firstArgToString());
-  int count = helper.consoleMessageStorage()->count(helper.contextId(),
-                                                    consoleContext.id(), label);
-  helper.reportCallWithArgument(ConsoleAPIType::kCount,
-                                label + ": " + String16::fromInteger(count));
+  // Converting the label to a string above can run arbitrary JavaScript,
+  // which might destroy the current context.
+  int count = 0;
+  if (V8ConsoleMessageStorage* storage = helper.consoleMessageStorage()) {
+    count = storage->count(helper.contextId(), consoleContext.id(), label);
+    helper.reportCallWithArgument(ConsoleAPIType::kCount,
+                                  label + ": " + String16::fromInteger(count));
+  }
   TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "label",
                   label.utf8().c_str(), "count", count);
 }
@@ -356,8 +369,11 @@ void V8Console::CountReset(const v8::debug::ConsoleCallArguments& info,
   ConsoleHelper helper(info, consoleContext, m_inspector);
   String16 label =
       toProtocolString(m_inspector->isolate(), helper.firstArgToString());
-  if (!helper.consoleMessageStorage()->countReset(helper.contextId(),
-                                                  consoleContext.id(), label)) {
+  // Converting the label to a string above can run arbitrary JavaScript,
+  // which might destroy the current context.
+  V8ConsoleMessageStorage* storage = helper.consoleMessageStorage();
+  if (storage &&
+      !storage->countReset(helper.contextId(), consoleContext.id(), label)) {
     helper.reportCallWithArgument(ConsoleAPIType::kWarning,
                                   "Count for '" + label + "' does not exist");
   }
@@ -378,6 +394,7 @@ void V8Console::Assert(const v8::debug::ConsoleCallArguments& info,
     arguments.push_back(toV8String(isolate, String16("console.assert")));
   }
   helper.reportCall(ConsoleAPIType::kAssert, arguments);
+  if (!helper.groupId()) return;
   m_inspector->debugger()->breakProgramOnAssert(helper.groupId());
 }
 
@@ -419,8 +436,11 @@ void V8Console::Time(const v8::debug::ConsoleCallArguments& info,
   ConsoleHelper helper(info, consoleContext, m_inspector);
   v8::Local<v8::String> label = helper.firstArgToString();
   String16 protocolLabel = toProtocolString(m_inspector->isolate(), label);
-  if (!helper.consoleMessageStorage()->time(
-          helper.contextId(), consoleContext.id(), protocolLabel)) {
+  // Converting the label to a string above can run arbitrary JavaScript,
+  // which might destroy the current context.
+  V8ConsoleMessageStorage* storage = helper.consoleMessageStorage();
+  if (!storage) return;
+  if (!storage->time(helper.contextId(), consoleContext.id(), protocolLabel)) {
     helper.reportCallWithArgument(
         ConsoleAPIType::kWarning,
         "Timer '" + protocolLabel + "' already exists");
@@ -435,8 +455,12 @@ void V8Console::TimeLog(const v8::debug::ConsoleCallArguments& info,
   ConsoleHelper helper(info, consoleContext, m_inspector);
   v8::Local<v8::String> label = helper.firstArgToString();
   String16 protocolLabel = toProtocolString(m_inspector->isolate(), label);
-  std::optional<double> elapsed = helper.consoleMessageStorage()->timeLog(
-      helper.contextId(), consoleContext.id(), protocolLabel);
+  // Converting the label to a string above can run arbitrary JavaScript,
+  // which might destroy the current context.
+  V8ConsoleMessageStorage* storage = helper.consoleMessageStorage();
+  if (!storage) return;
+  std::optional<double> elapsed =
+      storage->timeLog(helper.contextId(), consoleContext.id(), protocolLabel);
   if (!elapsed.has_value()) {
     helper.reportCallWithArgument(
         ConsoleAPIType::kWarning,
@@ -454,8 +478,12 @@ void V8Console::TimeEnd(const v8::debug::ConsoleCallArguments& info,
   ConsoleHelper helper(info, consoleContext, m_inspector);
   v8::Local<v8::String> label = helper.firstArgToString();
   String16 protocolLabel = toProtocolString(m_inspector->isolate(), label);
-  std::optional<double> elapsed = helper.consoleMessageStorage()->timeEnd(
-      helper.contextId(), consoleContext.id(), protocolLabel);
+  // Converting the label to a string above can run arbitrary JavaScript,
+  // which might destroy the current context.
+  V8ConsoleMessageStorage* storage = helper.consoleMessageStorage();
+  if (!storage) return;
+  std::optional<double> elapsed =
+      storage->timeEnd(helper.contextId(), consoleContext.id(), protocolLabel);
   if (!elapsed.has_value()) {
     helper.reportCallWithArgument(
         ConsoleAPIType::kWarning,
@@ -563,9 +591,8 @@ v8::Local<v8::ObjectTemplate> V8Console::taskTemplate() {
   v8::Local<v8::ObjectTemplate> taskTemplate = consTemplate->InstanceTemplate();
   v8::Local<v8::Signature> signature =
       v8::Signature::New(isolate, consTemplate);
-  v8::Local<v8::FunctionTemplate> funcTemplate =
-      v8::FunctionTemplate::New(isolate, &TaskInfo::runTask,
-                                v8::Local<v8::Value>(), signature);
+  v8::Local<v8::FunctionTemplate> funcTemplate = v8::FunctionTemplate::New(
+      isolate, &TaskInfo::runTask, v8::Local<v8::Value>(), signature);
   taskTemplate->Set(isolate, "run", funcTemplate);
 
   m_taskTemplate.Reset(isolate, taskTemplate);

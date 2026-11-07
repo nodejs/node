@@ -25,11 +25,10 @@
 namespace v8 {
 namespace internal {
 
-
-Tagged<PrimitiveHeapObject> Symbol::description() const {
+Tagged<UnionOf<String, Undefined>> Symbol::description() const {
   return description_.load();
 }
-void Symbol::set_description(Tagged<PrimitiveHeapObject> value,
+void Symbol::set_description(Tagged<UnionOf<String, Undefined>> value,
                              WriteBarrierMode mode) {
   SLOW_DCHECK(IsString(value) || IsUndefined(value));
   description_.store(this, value, mode);

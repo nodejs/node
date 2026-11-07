@@ -11,10 +11,13 @@
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
+#include "src/heap/factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/scope-info-inl.h"
+#include "src/objects/source-text-module-inl.h"
 #include "src/objects/string-set-inl.h"
 #include "src/roots/roots.h"
 
@@ -1314,18 +1317,10 @@ template <typename IsolateT>
 Handle<ModuleRequest> ModuleRequest::New(
     IsolateT* isolate, DirectHandle<String> specifier, ModuleImportPhase phase,
     DirectHandle<FixedArray> import_attributes, int position) {
-  auto result = Cast<ModuleRequest>(
-      isolate->factory()->NewStruct(MODULE_REQUEST_TYPE, AllocationType::kOld));
-  DisallowGarbageCollection no_gc;
-  Tagged<ModuleRequest> raw = *result;
-  raw->set_specifier(*specifier);
-  raw->set_import_attributes(*import_attributes);
-  raw->set_flags(0);
-
-  raw->set_phase(phase);
-  DCHECK_GE(position, 0);
-  raw->set_position(position);
-  return result;
+  return indirect_handle(
+      isolate->factory()->template New<ModuleRequest, AllocationType::kOld>(
+          specifier, phase, import_attributes, position),
+      isolate);
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
@@ -1345,18 +1340,12 @@ Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
     DirectHandle<UnionOf<String, Undefined>> local_name,
     DirectHandle<UnionOf<String, Undefined>> import_name, int module_request,
     int cell_index, int beg_pos, int end_pos) {
-  auto result = Cast<SourceTextModuleInfoEntry>(isolate->factory()->NewStruct(
-      SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));
-  DisallowGarbageCollection no_gc;
-  Tagged<SourceTextModuleInfoEntry> raw = *result;
-  raw->set_export_name(*export_name);
-  raw->set_local_name(*local_name);
-  raw->set_import_name(*import_name);
-  raw->set_module_request(module_request);
-  raw->set_cell_index(cell_index);
-  raw->set_beg_pos(beg_pos);
-  raw->set_end_pos(end_pos);
-  return result;
+  return indirect_handle(
+      isolate->factory()
+          ->template New<SourceTextModuleInfoEntry, AllocationType::kOld>(
+              export_name, local_name, import_name, module_request, cell_index,
+              beg_pos, end_pos),
+      isolate);
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)

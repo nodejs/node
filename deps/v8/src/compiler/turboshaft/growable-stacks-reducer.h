@@ -13,6 +13,7 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/uniform-reducer-adapter.h"
+#include "src/execution/isolate-data.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -37,12 +38,10 @@ class GrowableStacksReducer : public Next {
 #endif
   }
 
-  V<None> REDUCE(WasmStackCheck)(
-      OptionalV<WasmTrustedInstanceData> trusted_instance_data,
-      WasmStackCheckOp::Kind kind) {
+  V<None> REDUCE(WasmStackCheck)(WasmStackCheckOp::Kind kind) {
     CHECK_EQ(kind, WasmStackCheckOp::Kind::kFunctionEntry);
     if (skip_reducer_) {
-      return Next::ReduceWasmStackCheck(trusted_instance_data, kind);
+      return Next::ReduceWasmStackCheck(kind);
     }
     // Loads of the stack limit should not be load-eliminated as it can be
     // modified by another thread.
@@ -63,74 +62,20 @@ class GrowableStacksReducer : public Next {
                                    LazyDeoptOnThrow{false}, __ graph_zone());
       V<WordPtr> builtin =
           __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmGrowableStackGuard);
-      auto param_slots_size = __ IntPtrConstant(
-          call_descriptor_->ParameterSlotCount() * kSystemPointerSize);
+      auto stack_param_and_return_slots_size =
+          __ IntPtrConstant((call_descriptor_->ParameterSlotCount() +
+                             call_descriptor_->ReturnSlotCount()) *
+                            kSystemPointerSize);
       V<WordPtr> gap =
           __ ChangeInt32ToIntPtr(__ UntagSmi(__ StackCheckOffset()));
-      __ Call(builtin, {param_slots_size, gap}, ts_stub_call_descriptor);
+      auto parameter_slots_size = __ IntPtrConstant(
+          call_descriptor_->ParameterSlotCount() * kSystemPointerSize);
+      __ Call(builtin,
+              {stack_param_and_return_slots_size, gap, parameter_slots_size},
+              ts_stub_call_descriptor);
     }
 
     return V<None>::Invalid();
-  }
-
-  OpIndex REDUCE(Return)(V<Word32> pop_count,
-                         base::Vector<const OpIndex> return_values,
-                         bool spill_caller_frame_slots) {
-    if (skip_reducer_ || !spill_caller_frame_slots ||
-        call_descriptor_->ReturnSlotCount() == 0) {
-      return Next::ReduceReturn(pop_count, return_values,
-                                spill_caller_frame_slots);
-    }
-    V<Word32> frame_marker = __ Load(
-        __ FramePointer(), LoadOp::Kind::RawAligned(),
-        MemoryRepresentation::Uint32(), WasmFrameConstants::kFrameTypeOffset);
-
-    Label<WordPtr> done(this);
-    IF (UNLIKELY(__ Word32Equal(
-            frame_marker,
-            StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)))) {
-      auto sig =
-          FixedSizeSignature<MachineType>::Returns(MachineType::Pointer())
-              .Params(MachineType::Pointer());
-      const CallDescriptor* ccall_descriptor =
-          compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(), &sig);
-      const TSCallDescriptor* ts_ccall_descriptor = TSCallDescriptor::Create(
-          ccall_descriptor, compiler::CanThrow{false},
-          compiler::LazyDeoptOnThrow{false}, __ graph_zone());
-      GOTO(done, __ template Call<WordPtr>(
-                     __ ExternalConstant(ExternalReference::wasm_load_old_fp()),
-                     OpIndex::Invalid(),
-                     base::VectorOf({__ ExternalConstant(
-                         ExternalReference::isolate_address())}),
-                     ts_ccall_descriptor));
-    } ELSE {
-      GOTO(done, __ FramePointer());
-    }
-    BIND(done, old_fp);
-
-    base::SmallVector<OpIndex, 8> register_return_values;
-    for (size_t i = 0; i < call_descriptor_->ReturnCount(); i++) {
-      LinkageLocation loc = call_descriptor_->GetReturnLocation(i);
-      if (!loc.IsCallerFrameSlot()) {
-        register_return_values.push_back(return_values[i]);
-        continue;
-      }
-      MemoryRepresentation mem_rep =
-          MemoryRepresentation::FromMachineType(loc.GetType());
-      OpIndex ret_value = return_values[i];
-      // Pointers are stored uncompressed on the stacks.
-      // Also, we don't need to mark the stack slot as a reference, because
-      // we are about to return from this frame, so it is the caller's
-      // responsibility to track the tagged return values using the signature.
-      if (mem_rep == MemoryRepresentation::AnyTagged()) {
-        mem_rep = MemoryRepresentation::UintPtr();
-        ret_value = __ BitcastTaggedToWordPtr(ret_value);
-      }
-      __ StoreOffHeap(old_fp, ret_value, mem_rep,
-                      FrameSlotToFPOffset(loc.GetLocation()));
-    }
-    return Next::ReduceReturn(pop_count, base::VectorOf(register_return_values),
-                              spill_caller_frame_slots);
   }
 
  private:

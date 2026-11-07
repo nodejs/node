@@ -191,6 +191,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM
   // Register holding pointer to the current code object.
   static constexpr Register code_pointer() { return r5; }
 
+  // Register holding the address of the regexp stack's thread-local block,
+  // from which the stack limit, memory top and saved stack pointer are
+  // loaded at Stack::k*Offset.
+  static constexpr Register regexp_stack() { return r9; }
+
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to);
@@ -210,7 +215,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM
   inline void Pop(Register target);
 
   void LoadRegExpStackPointerFromMemory(Register dst);
-  void StoreRegExpStackPointerToMemory(Register src, Register scratch);
+  void StoreRegExpStackPointerToMemory(Register src);
   void PushRegExpBasePointer(Register stack_pointer, Register scratch);
   void PopRegExpBasePointer(Register stack_pointer_out, Register scratch);
 

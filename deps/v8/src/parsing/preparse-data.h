@@ -12,7 +12,6 @@
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/utils/scoped-list.h"
-#include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

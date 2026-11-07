@@ -14,6 +14,7 @@
 
 #include "include/v8-wasm.h"  // For WasmStreaming::ModuleCachingInterface.
 #include "src/base/macros.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-constants.h"
@@ -67,7 +68,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   virtual void OnFinishedChunk() = 0;
   // Report the end of the stream. This will be called even after an error has
   // been detected. In any case, the parameter is the total received bytes.
-  virtual void OnFinishedStream(base::OwnedVector<const uint8_t> bytes,
+  virtual void OnFinishedStream(base::UniqueArray<const uint8_t> bytes,
                                 bool after_error) = 0;
   // Report the abortion of the stream.
   virtual void OnAbort() = 0;
@@ -77,7 +78,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   // taken over by the deserialized module (the parameter will be reset to an
   // empty vector); otherwise ownership stays with the caller.
   virtual bool Deserialize(base::Vector<const uint8_t> module_bytes,
-                           base::OwnedVector<const uint8_t>& wire_bytes) = 0;
+                           base::UniqueArray<const uint8_t>& wire_bytes) = 0;
 };
 
 // The StreamingDecoder takes a sequence of byte arrays, each received by a call
