@@ -1,10 +1,10 @@
 arg:
 let
   repo = "https://github.com/NixOS/nixpkgs";
-  rev = "0bb2eedc20e4739f29e8045034f2828ad7054f8f";
+  rev = "085af13c1607f4f73ab1e7a51071faf6577a7e87";
   nixpkgs = import (builtins.fetchTarball {
     url = "${repo}/archive/${rev}.tar.gz";
-    sha256 = "008j4dj5yrzww91qvp1lp2c9d1lkwc6i2dpainf5nkdkr3rwj8vy";
+    sha256 = "0wwdfxvwc19qymmjshf8qzw39dqyav1kgxna2ady9l7akqzanm1i";
   }) arg;
 in
 # Unstable channel no longer supports Intel architecture for macOS. We can use the 26.05 channel
