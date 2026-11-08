@@ -1871,12 +1871,13 @@ typedef struct nghttp3_settings {
      NGHTTP3_SETTINGS_V3. */
   /**
    * :member:`glitch_ratelim_burst` is the maximum number of tokens
-   * available to "glitch" rate limiter.  "glitch" is a suspicious
-   * activity from a remote endpoint.  If detected, certain amount of
-   * tokens are consumed.  If no tokens are available to consume, the
-   * connection is closed.  The rate of token generation is specified
-   * by :member:`glitch_ratelim_rate`.  This feature is enabled only
-   * when `nghttp3_conn_read_stream2` is used.
+   * available to "glitch" rate limiter.  It is clamped to UINT64_MAX
+   * / NGHTTP3_SECONDS.  "glitch" is a suspicious activity from a
+   * remote endpoint.  If detected, certain amount of tokens are
+   * consumed.  If no tokens are available to consume, the connection
+   * is closed.  The rate of token generation is specified by
+   * :member:`glitch_ratelim_rate`.  This feature is enabled only when
+   * `nghttp3_conn_read_stream2` is used.
    *
    * .. version-added:: 1.12.0
    */
@@ -3089,6 +3090,8 @@ typedef struct nghttp3_data_reader {
  *     Stream has already been opened.
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     The required memory for |nva| of length |nvlen| is too large.
  */
 NGHTTP3_EXTERN int nghttp3_conn_submit_request(
   nghttp3_conn *conn, int64_t stream_id, const nghttp3_nv *nva, size_t nvlen,
@@ -3108,6 +3111,8 @@ NGHTTP3_EXTERN int nghttp3_conn_submit_request(
  *     Stream not found
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     The required memory for |nva| of length |nvlen| is too large.
  */
 NGHTTP3_EXTERN int nghttp3_conn_submit_info(nghttp3_conn *conn,
                                             int64_t stream_id,
@@ -3130,6 +3135,8 @@ NGHTTP3_EXTERN int nghttp3_conn_submit_info(nghttp3_conn *conn,
  *     Stream not found
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     The required memory for |nva| of length |nvlen| is too large.
  */
 NGHTTP3_EXTERN int nghttp3_conn_submit_response(nghttp3_conn *conn,
                                                 int64_t stream_id,
@@ -3154,6 +3161,8 @@ NGHTTP3_EXTERN int nghttp3_conn_submit_response(nghttp3_conn *conn,
  *     Application has already submitted fin to stream.
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     The required memory for |nva| of length |nvlen| is too large.
  */
 NGHTTP3_EXTERN int nghttp3_conn_submit_trailers(nghttp3_conn *conn,
                                                 int64_t stream_id,

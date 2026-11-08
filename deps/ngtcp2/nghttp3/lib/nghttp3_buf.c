@@ -25,13 +25,15 @@
  */
 #include "nghttp3_buf.h"
 
-void nghttp3_buf_init(nghttp3_buf *buf) {
-  buf->begin = buf->end = buf->pos = buf->last = NULL;
-}
+void nghttp3_buf_init(nghttp3_buf *buf) { *buf = (nghttp3_buf){0}; }
 
 void nghttp3_buf_wrap_init(nghttp3_buf *buf, uint8_t *src, size_t len) {
-  buf->begin = buf->pos = buf->last = src;
-  buf->end = buf->begin + len;
+  *buf = (nghttp3_buf){
+    .begin = src,
+    .end = src + len,
+    .pos = src,
+    .last = src,
+  };
 }
 
 void nghttp3_buf_free(nghttp3_buf *buf, const nghttp3_mem *mem) {
