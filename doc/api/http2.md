@@ -3722,7 +3722,7 @@ For incoming headers:
 * The `:status` header is converted to `number`.
 * Duplicates of `:status`, `:method`, `:authority`, `:scheme`, `:path`,
   `:protocol`, `age`, `authorization`, `access-control-allow-credentials`,
-  `access-control-max-age`, `access-control-request-method`, `content-encoding`,
+  `access-control-max-age`, `access-control-request-method`,
   `content-language`, `content-length`, `content-location`, `content-md5`,
   `content-range`, `content-type`, `date`, `dnt`, `etag`, `expires`, `from`,
   `host`, `if-match`, `if-modified-since`, `if-none-match`, `if-range`,
