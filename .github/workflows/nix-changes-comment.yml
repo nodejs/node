@@ -69,20 +69,21 @@ jobs:
               }
               echo "| ${QUOTE}${PLATFORM}${QUOTE} | $BEFORE -> $AFTER => $DIFF | $CHANGED / $AFTER = $PERCENT% |"
               for STATE in before after; do
-                # Split store paths into package name and version; non-default outputs are appended to the name (e.g. `brotli.lib`).
+                # Split store paths into package name, output (or source archive extension), and version.
                 awk -v OFS='\t' -v PLATFORM="$PLATFORM" '{
                   name = substr($0, 45)
                   pname = name
+                  output = "out"
                   version = "_unversioned_"
                   if (match(name, /-[^A-Za-z]/)) {
                     pname = substr(name, 1, RSTART - 1)
                     version = substr(name, RSTART + 1)
-                    if (match(version, /-[a-z]+$/)) {
-                      pname = pname "." substr(version, RSTART + 1)
+                    if (match(version, /-[a-z]+$/) || match(version, /\.(tar(\.[a-z0-9]+)?|tgz|tbz2?|txz|zip|patch|diff)$/)) {
+                      output = substr(version, RSTART + 1)
                       version = substr(version, 1, RSTART - 1)
                     }
                   }
-                  print pname, version, PLATFORM, $0
+                  print pname, output, version, PLATFORM, $0
                 }' "requisites-${PLATFORM}-${STATE}.list" >> "requisites-${STATE}.list"
               done
             done
@@ -118,10 +119,10 @@ jobs:
                 gsub(/ /, post ", " pre, s)
                 return s
               }
-              /^[-+]/ && NF == 4 {
-                key = substr($1, 2) SUBSEP $3
-                if (substr($1, 1, 1) == "-") removed[key] = insert(removed[key], $2)
-                else added[key] = insert(added[key], $2)
+              /^[-+]/ && NF == 5 {
+                key = substr($1, 2) SUBSEP $2 SUBSEP $4
+                if (substr($1, 1, 1) == "-") removed[key] = insert(removed[key], $3)
+                else added[key] = insert(added[key], $3)
               }
               END {
                 for (key in removed) if (!(key in added)) added[key] = ""
@@ -133,12 +134,20 @@ jobs:
                   else if (r == "") change = "_added_: " join(a, "**", "**")
                   else if (a == "") change = "_removed_: " join(r)
                   else change = join(r) " -> " join(a, "**", "**")
-                  group[k[1] SUBSEP change] = insert(group[k[1] SUBSEP change], k[2])
+                  platforms[k[1] SUBSEP k[2] SUBSEP change] = insert(platforms[k[1] SUBSEP k[2] SUBSEP change], k[3])
                 }
-                for (g in group) {
-                  split(g, k, SUBSEP)
+                for (key in platforms) {
+                  split(key, k, SUBSEP)
+                  row = k[1] SUBSEP k[3] SUBSEP join(platforms[key])
+                  outputs[row] = insert(outputs[row], k[2])
+                }
+                for (row in outputs) {
+                  split(row, k, SUBSEP)
+                  n = split(outputs[row], o, " ")
+                  name = ""
+                  for (i = 1; i <= n; i++) name = name ", `" k[1] (o[i] == "out" ? "" : "." o[i]) "`"
                   rank = k[2] ~ /^_added_/ ? 0 : k[2] ~ /^_removed_/ ? 2 : k[2] ~ /^_no version change_/ ? 3 : 1
-                  print rank "\t| `" k[1] "` | " k[2] " | " join(group[g]) " |"
+                  print rank "\t| " substr(name, 3) " | " k[2] " | " k[3] " |"
                 }
               }
             ' requisites.diff > versions.tsv
