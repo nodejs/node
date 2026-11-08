@@ -56,7 +56,10 @@ jobs:
 
       - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b  # v31.11.3
         with:
-          extra_nix_config: sandbox = true
+          extra_nix_config: |
+            sandbox = true
+            restrict-eval = true
+            allowed-uris = https://github.com/NixOS/nixpkgs/archive/
 
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
         with:
@@ -78,6 +81,7 @@ jobs:
           ./tools/nix/list-requisites.sh > requisites-${{ matrix.system }}-before.list
         env:
           PUSH_BEFORE_SHA: ${{ github.event_name == 'push' && github.event.before || '' }}
+          NIX_CONFIG: restrict-eval = false
 
       - name: Output diff
         run: |
