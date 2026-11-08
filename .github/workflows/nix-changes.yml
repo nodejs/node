@@ -56,10 +56,7 @@ jobs:
 
       - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b  # v31.11.3
         with:
-          extra_nix_config: |
-            sandbox = true
-            restrict-eval = true
-            allowed-uris = https://github.com/NixOS/nixpkgs/archive/
+          extra_nix_config: sandbox = true
 
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
         with:
@@ -68,6 +65,12 @@ jobs:
 
       - name: Compute requisites after change
         run: ./tools/nix/list-requisites.sh > requisites-${{ matrix.system }}-after.list
+        env:
+          # Making sure we do not depend on eval-time fetches, which are not cached.
+          # The only exception is nixpkgs source tarballs.
+          NIX_CONFIG: |
+            restrict-eval = true
+            allowed-uris = https://github.com/NixOS/nixpkgs/archive/
 
       - name: Compute requisites before change
         run: |
@@ -81,7 +84,6 @@ jobs:
           ./tools/nix/list-requisites.sh > requisites-${{ matrix.system }}-before.list
         env:
           PUSH_BEFORE_SHA: ${{ github.event_name == 'push' && github.event.before || '' }}
-          NIX_CONFIG: restrict-eval = false
 
       - name: Output diff
         run: |
