@@ -144,8 +144,8 @@ template("inspector_protocol_concatenate") {
     inputs += invoker.inputs
     args += rebase_path(invoker.inputs, root_build_dir)
 
-    outputs += [invoker.output_file]
-    args += [rebase_path(invoker.output_file, root_build_dir)]
+    outputs += [ invoker.output_file ]
+    args += [ rebase_path(invoker.output_file, root_build_dir) ]
 
     forward_variables_from(invoker,
                            [
