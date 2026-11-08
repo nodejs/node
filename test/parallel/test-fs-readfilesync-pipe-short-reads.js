@@ -5,13 +5,13 @@
 // that happens.
 // Refs: https://github.com/nodejs/node/issues/66341
 const common = require('../common');
+const fs = require('fs');
 
-if (!common.isLinux)
+if (!fs.existsSync('/proc/self/io'))
   common.skip('Paces the writes with /proc/<pid>/io.');
 
 const assert = require('assert');
 const { spawn } = require('child_process');
-const fs = require('fs');
 
 const kShortWrite = 4000;
 const kShortWrites = 20;
