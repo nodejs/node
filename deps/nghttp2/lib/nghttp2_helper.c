@@ -247,7 +247,8 @@ int nghttp2_increase_local_window_size(int32_t *local_window_size_ptr,
 
 int nghttp2_should_send_window_update(int32_t local_window_size,
                                       int32_t recv_window_size) {
-  return recv_window_size > 0 && recv_window_size >= local_window_size / 2;
+  return recv_window_size > 0 && local_window_size > 0 &&
+         recv_window_size >= local_window_size / 2;
 }
 
 const char *nghttp2_strerror(int error_code) {

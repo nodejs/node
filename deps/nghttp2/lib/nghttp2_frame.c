@@ -1048,8 +1048,8 @@ void nghttp2_nv_array_sort(nghttp2_nv *nva, size_t nvlen) {
 int nghttp2_nv_array_copy(nghttp2_nv **nva_ptr, const nghttp2_nv *nva,
                           size_t nvlen, nghttp2_mem *mem) {
   size_t i;
-  uint8_t *data = NULL;
-  size_t buflen = 0;
+  uint8_t *data;
+  size_t buflen;
   nghttp2_nv *p;
 
   if (nvlen == 0) {
@@ -1058,17 +1058,31 @@ int nghttp2_nv_array_copy(nghttp2_nv **nva_ptr, const nghttp2_nv *nva,
     return 0;
   }
 
+  if (sizeof(nghttp2_nv) > SIZE_MAX / nvlen) {
+    return NGHTTP2_ERR_INVALID_ARGUMENT;
+  }
+
+  buflen = sizeof(nghttp2_nv) * nvlen;
+
   for (i = 0; i < nvlen; ++i) {
     /* + 1 for null-termination */
     if ((nva[i].flags & NGHTTP2_NV_FLAG_NO_COPY_NAME) == 0) {
+      if (nva[i].namelen == SIZE_MAX ||
+          buflen > SIZE_MAX - nva[i].namelen - 1) {
+        return NGHTTP2_ERR_INVALID_ARGUMENT;
+      }
+
       buflen += nva[i].namelen + 1;
     }
     if ((nva[i].flags & NGHTTP2_NV_FLAG_NO_COPY_VALUE) == 0) {
+      if (nva[i].valuelen == SIZE_MAX ||
+          buflen > SIZE_MAX - nva[i].valuelen - 1) {
+        return NGHTTP2_ERR_INVALID_ARGUMENT;
+      }
+
       buflen += nva[i].valuelen + 1;
     }
   }
-
-  buflen += sizeof(nghttp2_nv) * nvlen;
 
   *nva_ptr = nghttp2_mem_malloc(mem, buflen);
 
