@@ -38,23 +38,4 @@ else
           Cflags: -I${lib.getInclude boringssl}/include
         '';
       };
-
-    # TODO: remove pin once https://github.com/mozilla/sccache/issues/2869 is resolved
-    sccache = nixpkgs.callPackage (builtins.fetchurl {
-      url = "${repo}/raw/aff8a0b28396750446e5537a96461bc4facdb287/pkgs/by-name/sc/sccache/package.nix";
-      sha256 = "09dlc99sam9ld9jvzgcc00r4v4ls1cmbb0yim3mr895fpbs8b3qa";
-    }) { };
-
-    # TODO: remove this override once the pin we use has picked up https://github.com/NixOS/nixpkgs/pull/575002
-    uvwasi = nixpkgs.uvwasi.overrideAttrs (old: {
-      patches = old.patches ++ [
-        (nixpkgs.fetchpatch2 {
-          url = "https://github.com/nodejs/uvwasi/commit/fe602a6911207efd8dcfc070a752bcf76813c978.patch?full_index=1";
-          hash = "sha256-MyFvRuEhcqZR+Bz2pY9vani8U1iyQrDeni2kKKnJGEI=";
-        })
-      ];
-
-      buildInputs = [ ];
-      propagatedBuildInputs = old.buildInputs;
-    });
   }
