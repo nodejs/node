@@ -1922,7 +1922,6 @@ protected:
      * Set the current time without affecting flags or fields.
      *
      * @param time    The time to be set
-     * @return        the current time without recomputing.
      * @stable ICU 2.0
      */
     U_I18N_API void internalSetTime(UDate time) { fTime = time; }

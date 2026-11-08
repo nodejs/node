@@ -91,9 +91,9 @@ public:
     /** Destructor, does nothing. See class documentation for details. @stable ICU 4.2 */
     virtual ~ErrorCode();
     /** Conversion operator, returns a reference. @stable ICU 4.2 */
-    operator UErrorCode & () { return errorCode; }
+    operator UErrorCode&() U_LIFETIME_BOUND { return errorCode; }
     /** Conversion operator, returns a pointer. @stable ICU 4.2 */
-    operator UErrorCode * () { return &errorCode; }
+    operator UErrorCode*() U_LIFETIME_BOUND { return &errorCode; }
     /** Tests for U_SUCCESS(). @stable ICU 4.2 */
     UBool isSuccess() const { return U_SUCCESS(errorCode); }
     /** Tests for U_FAILURE(). @stable ICU 4.2 */

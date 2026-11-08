@@ -180,26 +180,27 @@ private:
      *
      * The case bits are unused and available.
      */
-    static inline int64_t tempCEFromIndexAndStrength(int32_t index, int32_t strength) {
+    static inline uint64_t tempCEFromIndexAndStrength(int32_t index, int32_t strength) {
         return
             // CE byte offsets, to ensure valid CE bytes, and case bits 11
-            INT64_C(0x4040000006002000) +
+            UINT64_C(0x4040000006002000) +
             // index bits 19..13 -> primary byte 1 = CE bits 63..56 (byte values 40..BF)
-            (static_cast<int64_t>(index & 0xfe000) << 43) +
+            (static_cast<uint64_t>(index & 0xfe000) << 43) +
             // index bits 12..6 -> primary byte 2 = CE bits 55..48 (byte values 40..BF)
-            (static_cast<int64_t>(index & 0x1fc0) << 42) +
+            (static_cast<uint64_t>(index & 0x1fc0) << 42) +
             // index bits 5..0 -> secondary byte 1 = CE bits 31..24 (byte values 06..45)
             ((index & 0x3f) << 24) +
             // strength bits 1..0 -> tertiary byte 1 = CE bits 13..8 (byte values 20..23)
             (strength << 8);
     }
-    static inline int32_t indexFromTempCE(int64_t tempCE) {
-        tempCE -= INT64_C(0x4040000006002000);
+    static inline int32_t indexFromTempCE(uint64_t tempCE) {
+        tempCE -= UINT64_C(0x4040000006002000);
         return
             (static_cast<int32_t>(tempCE >> 43) & 0xfe000) |
             (static_cast<int32_t>(tempCE >> 42) & 0x1fc0) |
             (static_cast<int32_t>(tempCE >> 24) & 0x3f);
     }
+
     static inline int32_t strengthFromTempCE(int64_t tempCE) {
         return (static_cast<int32_t>(tempCE) >> 8) & 3;
     }
@@ -251,7 +252,7 @@ private:
         return static_cast<int64_t>(previous) << 28;
     }
     static inline int64_t nodeFromNextIndex(int32_t next) {
-        return next << 8;
+        return static_cast<int64_t>(next) << 8;
     }
     static inline int64_t nodeFromStrength(int32_t strength) {
         return strength;

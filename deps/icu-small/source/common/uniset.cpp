@@ -203,11 +203,11 @@ UnicodeSet::~UnicodeSet() {
 /**
  * Assigns this object to be a copy of another.
  */
-UnicodeSet& UnicodeSet::operator=(const UnicodeSet& o) {
+UnicodeSet& UnicodeSet::operator=(const UnicodeSet& o) U_LIFETIME_BOUND {
     return copyFrom(o, false);
 }
 
-UnicodeSet& UnicodeSet::copyFrom(const UnicodeSet& o, UBool asThawed) {
+UnicodeSet& UnicodeSet::copyFrom(const UnicodeSet& o, UBool asThawed) U_LIFETIME_BOUND {
     if (this == &o) {
         return *this;
     }
@@ -241,7 +241,7 @@ UnicodeSet& UnicodeSet::copyFrom(const UnicodeSet& o, UBool asThawed) {
     } else if (hasStrings()) {
         strings_->removeAllElements();
     }
-    if (o.stringSpan != nullptr && !asThawed) {
+    if (o.stringSpan != nullptr && strings_ != nullptr && !asThawed) {
         stringSpan = new UnicodeSetStringSpan(*o.stringSpan, *strings_);
         if (stringSpan == nullptr) { // Check for memory allocation error.
             setToBogus();
@@ -745,7 +745,7 @@ UChar32 UnicodeSet::charAt(int32_t index) const {
  * @param start first character in the set, inclusive
  * @rparam end last character in the set, inclusive
  */
-UnicodeSet& UnicodeSet::set(UChar32 start, UChar32 end) {
+UnicodeSet& UnicodeSet::set(UChar32 start, UChar32 end) U_LIFETIME_BOUND {
     clear();
     complement(start, end);
     return *this;
@@ -762,7 +762,7 @@ UnicodeSet& UnicodeSet::set(UChar32 start, UChar32 end) {
  * @param end last character, inclusive, of range to be added
  * to this set.
  */
-UnicodeSet& UnicodeSet::add(UChar32 start, UChar32 end) {
+UnicodeSet& UnicodeSet::add(UChar32 start, UChar32 end) U_LIFETIME_BOUND {
     if (pinCodePoint(start) < pinCodePoint(end)) {
         UChar32 limit = end + 1;
         // Fast path for adding a new range after the last one.
@@ -830,7 +830,7 @@ void dump(const UChar32* list, int32_t len) {
  * present.  If this set already contains the specified character,
  * the call leaves this set unchanged.
  */
-UnicodeSet& UnicodeSet::add(UChar32 c) {
+UnicodeSet& UnicodeSet::add(UChar32 c) U_LIFETIME_BOUND {
     // find smallest i such that c < list[i]
     // if odd, then it is IN the set
     // if even, then it is OUT of the set
@@ -947,7 +947,7 @@ UnicodeSet& UnicodeSet::add(UChar32 c) {
  * @param s the source string
  * @return the modified set, for chaining
  */
-UnicodeSet& UnicodeSet::add(const UnicodeString& s) {
+UnicodeSet& UnicodeSet::add(const UnicodeString& s) U_LIFETIME_BOUND {
     if (isFrozen() || isBogus()) return *this;
     int32_t cp = getSingleCP(s);
     if (cp < 0) {
@@ -1008,7 +1008,7 @@ int32_t UnicodeSet::getSingleCP(const UnicodeString& s) {
  * @param the source string
  * @return the modified set, for chaining
  */
-UnicodeSet& UnicodeSet::addAll(const UnicodeString& s) {
+UnicodeSet& UnicodeSet::addAll(const UnicodeString& s) U_LIFETIME_BOUND {
     UChar32 cp;
     for (int32_t i = 0; i < s.length(); i += U16_LENGTH(cp)) {
         cp = s.char32At(i);
@@ -1023,7 +1023,7 @@ UnicodeSet& UnicodeSet::addAll(const UnicodeString& s) {
  * @param the source string
  * @return the modified set, for chaining
  */
-UnicodeSet& UnicodeSet::retainAll(const UnicodeString& s) {
+UnicodeSet& UnicodeSet::retainAll(const UnicodeString& s) U_LIFETIME_BOUND {
     UnicodeSet set;
     set.addAll(s);
     retainAll(set);
@@ -1036,7 +1036,7 @@ UnicodeSet& UnicodeSet::retainAll(const UnicodeString& s) {
  * @param the source string
  * @return the modified set, for chaining
  */
-UnicodeSet& UnicodeSet::complementAll(const UnicodeString& s) {
+UnicodeSet& UnicodeSet::complementAll(const UnicodeString& s) U_LIFETIME_BOUND {
     UnicodeSet set;
     set.addAll(s);
     complementAll(set);
@@ -1049,14 +1049,14 @@ UnicodeSet& UnicodeSet::complementAll(const UnicodeString& s) {
  * @param the source string
  * @return the modified set, for chaining
  */
-UnicodeSet& UnicodeSet::removeAll(const UnicodeString& s) {
+UnicodeSet& UnicodeSet::removeAll(const UnicodeString& s) U_LIFETIME_BOUND {
     UnicodeSet set;
     set.addAll(s);
     removeAll(set);
     return *this;
 }
 
-UnicodeSet& UnicodeSet::removeAllStrings() {
+UnicodeSet& UnicodeSet::removeAllStrings() U_LIFETIME_BOUND {
     if (!isFrozen() && hasStrings()) {
         strings_->removeAllElements();
         releasePattern();
@@ -1103,7 +1103,7 @@ UnicodeSet* U_EXPORT2 UnicodeSet::createFromAll(const UnicodeString& s) {
  * @param end last character, inclusive, of range to be retained
  * to this set.
  */
-UnicodeSet& UnicodeSet::retain(UChar32 start, UChar32 end) {
+UnicodeSet& UnicodeSet::retain(UChar32 start, UChar32 end) U_LIFETIME_BOUND {
     if (pinCodePoint(start) <= pinCodePoint(end)) {
         UChar32 range[3] = { start, end+1, UNICODESET_HIGH };
         retain(range, 2, 0);
@@ -1113,11 +1113,11 @@ UnicodeSet& UnicodeSet::retain(UChar32 start, UChar32 end) {
     return *this;
 }
 
-UnicodeSet& UnicodeSet::retain(UChar32 c) {
+UnicodeSet& UnicodeSet::retain(UChar32 c) U_LIFETIME_BOUND {
     return retain(c, c);
 }
 
-UnicodeSet& UnicodeSet::retain(const UnicodeString &s) {
+UnicodeSet& UnicodeSet::retain(const UnicodeString &s) U_LIFETIME_BOUND {
     if (isFrozen() || isBogus()) { return *this; }
     UChar32 cp = getSingleCP(s);
     if (cp < 0) {
@@ -1148,7 +1148,7 @@ UnicodeSet& UnicodeSet::retain(const UnicodeString &s) {
  * @param end last character, inclusive, of range to be removed
  * from this set.
  */
-UnicodeSet& UnicodeSet::remove(UChar32 start, UChar32 end) {
+UnicodeSet& UnicodeSet::remove(UChar32 start, UChar32 end) U_LIFETIME_BOUND {
     if (pinCodePoint(start) <= pinCodePoint(end)) {
         UChar32 range[3] = { start, end+1, UNICODESET_HIGH };
         retain(range, 2, 2);
@@ -1161,7 +1161,7 @@ UnicodeSet& UnicodeSet::remove(UChar32 start, UChar32 end) {
  * The set will not contain the specified range once the call
  * returns.
  */
-UnicodeSet& UnicodeSet::remove(UChar32 c) {
+UnicodeSet& UnicodeSet::remove(UChar32 c) U_LIFETIME_BOUND {
     return remove(c, c);
 }
 
@@ -1172,7 +1172,7 @@ UnicodeSet& UnicodeSet::remove(UChar32 c) {
  * @param the source string
  * @return the modified set, for chaining
  */
-UnicodeSet& UnicodeSet::remove(const UnicodeString& s) {
+UnicodeSet& UnicodeSet::remove(const UnicodeString& s) U_LIFETIME_BOUND {
     if (isFrozen() || isBogus()) return *this;
     int32_t cp = getSingleCP(s);
     if (cp < 0) {
@@ -1196,7 +1196,7 @@ UnicodeSet& UnicodeSet::remove(const UnicodeString& s) {
  * @param end last character, inclusive, of range to be removed
  * from this set.
  */
-UnicodeSet& UnicodeSet::complement(UChar32 start, UChar32 end) {
+UnicodeSet& UnicodeSet::complement(UChar32 start, UChar32 end) U_LIFETIME_BOUND {
     if (isFrozen() || isBogus()) {
         return *this;
     }
@@ -1208,7 +1208,7 @@ UnicodeSet& UnicodeSet::complement(UChar32 start, UChar32 end) {
     return *this;
 }
 
-UnicodeSet& UnicodeSet::complement(UChar32 c) {
+UnicodeSet& UnicodeSet::complement(UChar32 c) U_LIFETIME_BOUND {
     return complement(c, c);
 }
 
@@ -1216,7 +1216,7 @@ UnicodeSet& UnicodeSet::complement(UChar32 c) {
  * This is equivalent to
  * <code>complement(MIN_VALUE, MAX_VALUE)</code>.
  */
-UnicodeSet& UnicodeSet::complement() {
+UnicodeSet& UnicodeSet::complement() U_LIFETIME_BOUND {
     if (isFrozen() || isBogus()) {
         return *this;
     }
@@ -1243,7 +1243,7 @@ UnicodeSet& UnicodeSet::complement() {
  * @param s the string to complement
  * @return this object, for chaining
  */
-UnicodeSet& UnicodeSet::complement(const UnicodeString& s) {
+UnicodeSet& UnicodeSet::complement(const UnicodeString& s) U_LIFETIME_BOUND {
     if (isFrozen() || isBogus()) return *this;
     int32_t cp = getSingleCP(s);
     if (cp < 0) {
@@ -1269,7 +1269,7 @@ UnicodeSet& UnicodeSet::complement(const UnicodeString& s) {
  * @param c set whose elements are to be added to this set.
  * @see #add(char, char)
  */
-UnicodeSet& UnicodeSet::addAll(const UnicodeSet& c) {
+UnicodeSet& UnicodeSet::addAll(const UnicodeSet& c) U_LIFETIME_BOUND {
     if ( c.len>0 && c.list!=nullptr ) {
         add(c.list, c.len, 0);
     }
@@ -1295,7 +1295,7 @@ UnicodeSet& UnicodeSet::addAll(const UnicodeSet& c) {
  *
  * @param c set that defines which elements this set will retain.
  */
-UnicodeSet& UnicodeSet::retainAll(const UnicodeSet& c) {
+UnicodeSet& UnicodeSet::retainAll(const UnicodeSet& c) U_LIFETIME_BOUND {
     if (isFrozen() || isBogus()) {
         return *this;
     }
@@ -1319,7 +1319,7 @@ UnicodeSet& UnicodeSet::retainAll(const UnicodeSet& c) {
  * @param c set that defines which elements will be removed from
  *          this set.
  */
-UnicodeSet& UnicodeSet::removeAll(const UnicodeSet& c) {
+UnicodeSet& UnicodeSet::removeAll(const UnicodeSet& c) U_LIFETIME_BOUND {
     if (isFrozen() || isBogus()) {
         return *this;
     }
@@ -1338,7 +1338,7 @@ UnicodeSet& UnicodeSet::removeAll(const UnicodeSet& c) {
  * @param c set that defines which elements will be xor'ed from
  *          this set.
  */
-UnicodeSet& UnicodeSet::complementAll(const UnicodeSet& c) {
+UnicodeSet& UnicodeSet::complementAll(const UnicodeSet& c) U_LIFETIME_BOUND {
     if (isFrozen() || isBogus()) {
         return *this;
     }
@@ -1359,7 +1359,7 @@ UnicodeSet& UnicodeSet::complementAll(const UnicodeSet& c) {
  * Removes all of the elements from this set.  This set will be
  * empty after this call returns.
  */
-UnicodeSet& UnicodeSet::clear() {
+UnicodeSet& UnicodeSet::clear() U_LIFETIME_BOUND {
     if (isFrozen()) {
         return *this;
     }
@@ -1404,7 +1404,7 @@ UChar32 UnicodeSet::getRangeEnd(int32_t index) const {
     return list[index*2 + 1] - 1;
 }
 
-const UnicodeString* UnicodeSet::getString(int32_t index) const {
+const UnicodeString* UnicodeSet::getString(int32_t index) const U_LIFETIME_BOUND {
     return static_cast<const UnicodeString*>(strings_->elementAt(index));
 }
 
@@ -1412,7 +1412,7 @@ const UnicodeString* UnicodeSet::getString(int32_t index) const {
  * Reallocate this objects internal structures to take up the least
  * possible space, without changing this object's value.
  */
-UnicodeSet& UnicodeSet::compact() {
+UnicodeSet& UnicodeSet::compact() U_LIFETIME_BOUND {
     if (isFrozen() || isBogus()) {
         return *this;
     }
@@ -2025,7 +2025,7 @@ void UnicodeSet::_appendToPat(UnicodeString &result, UChar32 start, UChar32 end,
  * a cleaned version of the string passed to applyPattern(), if there
  * is one.  Otherwise it will be generated.
  */
-UnicodeString& UnicodeSet::_toPattern(UnicodeString& result,
+UnicodeString& UnicodeSet::_toPattern(UnicodeString& result U_LIFETIME_BOUND,
                                       UBool escapeUnprintable) const
 {
     if (pat != nullptr) {
@@ -2065,7 +2065,7 @@ UnicodeString& UnicodeSet::_toPattern(UnicodeString& result,
  * calling this function is passed to a UnicodeSet constructor, it
  * will produce another set that is equal to this one.
  */
-UnicodeString& UnicodeSet::toPattern(UnicodeString& result,
+UnicodeString& UnicodeSet::toPattern(UnicodeString& result U_LIFETIME_BOUND,
                                      UBool escapeUnprintable) const
 {
     result.truncate(0);
@@ -2077,7 +2077,7 @@ UnicodeString& UnicodeSet::toPattern(UnicodeString& result,
  * This does not use this.pat, the cleaned up copy of the string
  * passed to applyPattern().
  */
-UnicodeString& UnicodeSet::_generatePattern(UnicodeString& result,
+UnicodeString& UnicodeSet::_generatePattern(UnicodeString& result U_LIFETIME_BOUND,
                                             UBool escapeUnprintable) const
 {
     result.append(u'[');
@@ -2169,7 +2169,7 @@ void UnicodeSet::setPattern(const char16_t *newPat, int32_t newPatLen) {
     // We can regenerate an equivalent pattern later when requested.
 }
 
-UnicodeSet *UnicodeSet::freeze() {
+UnicodeSet* UnicodeSet::freeze() U_LIFETIME_BOUND {
     if(!isFrozen() && !isBogus()) {
         compact();
 

@@ -1184,10 +1184,8 @@ public:
      * ignoring the effect of this object's filter.  The base class
      * implementation returns the empty set.  Subclasses that wish to
      * implement this should override this method.
-     * @return the set of characters that this transliterator may
-     * modify.  The set may be modified, so subclasses should return a
-     * newly-created object.
-     * @param result receives result set; previous contents lost
+     * @param result receives the set of characters that this transliterator may
+     * modify; previous contents lost
      * @see #getSourceSet
      * @see #getTargetSet
      * @stable ICU 2.4
@@ -1348,8 +1346,6 @@ public:
      * Transliterator::createXXX to avoid undefined behavior.
      *
      * @param ID the ID of the transliterator or class
-     * @return the <code>Object</code> that was registered with
-     * <code>ID</code>, or <code>null</code> if none was
      * @see #registerInstance
      * @see #registerFactory
      * @stable ICU 2.0

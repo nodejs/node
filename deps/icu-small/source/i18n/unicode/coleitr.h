@@ -269,7 +269,6 @@ public:
     * Sets the offset of the currently processed character in the source string.
     * @param newOffset the new offset.
     * @param status the error code status.
-    * @return the offset of the character.
     * @stable ICU 2.0
     */
     void setOffset(int32_t newOffset, UErrorCode& status);

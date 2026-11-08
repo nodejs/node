@@ -292,7 +292,7 @@ public:
     inline static int32_t getStringCount(const UnicodeSet& set) {
         return set.stringsSize();
     }
-    inline static const UnicodeString* getString(const UnicodeSet& set,
+    inline static const UnicodeString* getString(const UnicodeSet& set U_LIFETIME_BOUND,
                                                  int32_t i) {
         return set.getString(i);
     }
@@ -320,7 +320,7 @@ uset_getItemCount(const USet* uset) {
 }
 
 U_CAPI const UChar* U_EXPORT2
-uset_getString(const USet *uset, int32_t index, int32_t *pLength) {
+uset_getString(const USet* uset U_LIFETIME_BOUND, int32_t index, int32_t* pLength) {
     if (pLength == nullptr) { return nullptr; }
     const UnicodeSet &set = *(const UnicodeSet *)uset;
     int32_t count = USetAccess::getStringCount(set);

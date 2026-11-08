@@ -15,8 +15,10 @@
 
 U_NAMESPACE_BEGIN
 
-const Locale& LocaleBased::getLocale(const Locale& valid, const Locale& actual,
-                                     ULocDataLocaleType type, UErrorCode& status) {
+const Locale& LocaleBased::getLocale(const Locale& valid U_LIFETIME_BOUND,
+                                     const Locale& actual U_LIFETIME_BOUND,
+                                     ULocDataLocaleType type,
+                                     UErrorCode& status) {
     if (U_FAILURE(status)) {
         return Locale::getRoot();
     }

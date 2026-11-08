@@ -234,10 +234,9 @@ void  RBBIDataWrapper::printTable(const char *heading, const RBBIStateTable *tab
 
     RBBIDebugPrintf("   fDictCategoriesStart: %d\n", table->fDictCategoriesStart);
     RBBIDebugPrintf("   fLookAheadResultsSize: %d\n", table->fLookAheadResultsSize);
-    RBBIDebugPrintf("   Flags: %4x RBBI_LOOKAHEAD_HARD_BREAK=%s RBBI_BOF_REQUIRED=%s  RBBI_8BITS_ROWS=%s\n",
+    RBBIDebugPrintf("   Flags: %4x RBBI_LOOKAHEAD_HARD_BREAK=%s RBBI_8BITS_ROWS=%s\n",
                     table->fFlags,
                     table->fFlags & RBBI_LOOKAHEAD_HARD_BREAK ? "T" : "F",
-                    table->fFlags & RBBI_BOF_REQUIRED ? "T" : "F",
                     table->fFlags & RBBI_8BITS_ROWS ? "T" : "F");
     RBBIDebugPrintf("\nState |  Acc  LA TagIx");
     for (c=0; c<fHeader->fCatCount; c++) {RBBIDebugPrintf("%3d ", c);}

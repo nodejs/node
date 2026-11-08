@@ -248,7 +248,7 @@ udatpg_getDateTimeFormatForStyle(const UDateTimePatternGenerator *udtpg,
     }
     // Note: The UnicodeString for the dateTimeFormat string in the DateTimePatternGenerator
     // was NUL-terminated what it was set, to avoid doing it here which could re-allocate
-    // the buffe and affect and cont references to the string or its buffer.
+    // the buffer and affect const references to the string or its buffer.
     return result.getBuffer();
  }
 

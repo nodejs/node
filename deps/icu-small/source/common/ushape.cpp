@@ -982,7 +982,7 @@ expandCompositCharAtEnd(char16_t *dest, int32_t sourceLength, int32_t destSize,U
 
     uprv_memset(tempbuffer, 0, (sourceLength+1)*U_SIZEOF_UCHAR);
 
-    while(dest[inpsize-1] == SPACE_CHAR) {
+    while(inpsize>0 && dest[inpsize-1] == SPACE_CHAR) {
         countr++;
         inpsize--;
     }
@@ -1525,6 +1525,11 @@ u_shapeArabic(const char16_t *source, int32_t sourceLength,
                 prevLink = currLink;
                 currLink = getLink(source[i]);
                 if (aggregate_tashkeel && ((prevLink|currLink)&COMBINE) == COMBINE && aggregation_possible) {
+                    if (j<0 || j>=2*sourceLength) {
+                        *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
+                        if (tempsource != nullptr) uprv_free(tempsource);
+                        return 0;
+                    }
                     aggregation_possible = 0;
                     tempsource[j] = (prev<source[i]?prev:source[i])-0x064C+0xFC5E;
                     currLink = getLink(tempsource[j]);

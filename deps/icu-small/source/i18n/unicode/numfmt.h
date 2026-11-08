@@ -358,9 +358,6 @@ public:
      *                  last character successfully parsed. If the
      *                  source is not parsed successfully, this param
      *                  will remain unchanged.
-     * @return          A newly created Formattable* object, or nullptr
-     *                  on failure.  The caller owns this and should
-     *                  delete it when done.
      * @stable ICU 2.0
      */
     virtual void parseObject(const UnicodeString& source,
@@ -1118,8 +1115,9 @@ protected:
      * Returns the currency in effect for this formatter.  Subclasses
      * should override this method as needed.  Unlike getCurrency(),
      * this method should never return "".
-     * @result output parameter for null-terminated result, which must
+     * @param result output parameter for null-terminated result, which must
      * have a capacity of at least 4
+     * @param ec Output parameter filled with success/failure status.
      * @internal
      */
     virtual void getEffectiveCurrency(char16_t* result, UErrorCode& ec) const;

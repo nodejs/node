@@ -49,7 +49,7 @@ public:
      */
     virtual int32_t count(UErrorCode& status) const override;
 
-    virtual const char* next(int32_t *resultLength, UErrorCode& status) override;
+    virtual const char* next(int32_t* resultLength, UErrorCode& status) U_LIFETIME_BOUND override;
 
     /**
      * Returns the next element a UnicodeString*.  If there are no
@@ -57,7 +57,7 @@ public:
      * @param status the error code.
      * @return a pointer to the string, or nullptr.
      */
-    virtual const UnicodeString* snext(UErrorCode& status) override;
+    virtual const UnicodeString* snext(UErrorCode& status) U_LIFETIME_BOUND override;
 
     /**
      * Resets the iterator.

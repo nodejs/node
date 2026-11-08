@@ -915,6 +915,7 @@ uidna_compare(  const char16_t *s1, int32_t length1,
 
     if (U_FAILURE(bufferStatus)) {
         *status = bufferStatus;
+        goto CLEANUP;
     }
 
     // when toASCII is applied all label separators are replaced with FULL_STOP

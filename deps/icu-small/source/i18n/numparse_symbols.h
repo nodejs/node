@@ -38,7 +38,7 @@ class U_I18N_API SymbolMatcher : public NumberParseMatcher, public UMemory {
 
   protected:
     UnicodeString fString;
-    const UnicodeSet* fUniSet; // a reference from numparse_unisets.h; never owned
+    const UnicodeSet* fUniSet = nullptr; // a reference from numparse_unisets.h; never owned
 
     SymbolMatcher(const UnicodeString& symbolString, unisets::Key key);
 };
@@ -88,7 +88,7 @@ class U_I18N_API MinusSignMatcher : public SymbolMatcher {
     void accept(StringSegment& segment, ParsedNumber& result) const override;
 
   private:
-    bool fAllowTrailing;
+    bool fAllowTrailing = false;
 };
 
 
@@ -160,7 +160,7 @@ class U_I18N_API PlusSignMatcher : public SymbolMatcher {
     void accept(StringSegment& segment, ParsedNumber& result) const override;
 
   private:
-    bool fAllowTrailing;
+    bool fAllowTrailing = false;
 };
 
 
@@ -177,7 +177,7 @@ class U_I18N_API ApproximatelySignMatcher : public SymbolMatcher {
     void accept(StringSegment& segment, ParsedNumber& result) const override;
 
   private:
-    bool fAllowTrailing;
+    bool fAllowTrailing = false;
 };
 
 } // namespace numparse::impl

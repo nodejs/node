@@ -551,6 +551,7 @@ private:
 
     PluralFormat() = delete;   // default constructor not implemented
     void init(const PluralRules* rules, UPluralType type, UErrorCode& status);
+    void initializeNumberFormat(UErrorCode& status);
     /**
      * Copies dynamically allocated values (pointer fields).
      * Others are copied using their copy constructors and assignment operators.

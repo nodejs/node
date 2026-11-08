@@ -372,7 +372,8 @@ void AlphabeticIndex::initLabels(UVector &indexCharacters, UErrorCode &errorCode
 
 namespace {
 
-const UnicodeString &fixLabel(const UnicodeString &current, UnicodeString &temp) {
+const UnicodeString &fixLabel(const UnicodeString &current U_LIFETIME_BOUND,
+                              UnicodeString &temp U_LIFETIME_BOUND) {
     if (!current.startsWith(BASE, BASE_LENGTH)) {
         return current;
     }

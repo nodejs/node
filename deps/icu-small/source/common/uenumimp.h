@@ -137,9 +137,9 @@ U_CDECL_END
  * function.
  */
 U_CAPI const UChar* U_EXPORT2
-uenum_unextDefault(UEnumeration* en,
-            int32_t* resultLength,
-            UErrorCode* status);
+uenum_unextDefault(UEnumeration* en U_LIFETIME_BOUND,
+                   int32_t* resultLength,
+                   UErrorCode* status);
 
 /* This is the default implementation for uenum_next().
  * It automatically converts the UChar * string to char *.
@@ -148,8 +148,8 @@ uenum_unextDefault(UEnumeration* en,
  * function.
  */
 U_CAPI const char* U_EXPORT2
-uenum_nextDefault(UEnumeration* en,
-            int32_t* resultLength,
-            UErrorCode* status);
+uenum_nextDefault(UEnumeration* en U_LIFETIME_BOUND,
+                  int32_t* resultLength,
+                  UErrorCode* status);
 
 #endif

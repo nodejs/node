@@ -1921,7 +1921,7 @@ FormatNameEnumeration::FormatNameEnumeration(LocalPointer<UVector> nameList, UEr
 }
 
 const UnicodeString*
-FormatNameEnumeration::snext(UErrorCode& status) {
+FormatNameEnumeration::snext(UErrorCode& status) U_LIFETIME_BOUND {
     if (U_SUCCESS(status) && pos < fFormatNames->size()) {
         return static_cast<const UnicodeString*>(fFormatNames->elementAt(pos++));
     }

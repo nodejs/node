@@ -1877,7 +1877,7 @@ int32_t RegexCImpl::split(RegularExpression     *regexp,
                 i++;
 
                 // Set up to extract the capture group contents into the dest buffer.
-                destFields[i] = &destBuf[destIdx];
+                destFields[i] = (destBuf == nullptr) ? nullptr :  &destBuf[destIdx];
                 tStatus = U_ZERO_ERROR;
                 int32_t t = uregex_group(reinterpret_cast<URegularExpression*>(regexp),
                                          groupNum,

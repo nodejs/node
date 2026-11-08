@@ -45,7 +45,8 @@ public:
     inline int32_t get(T toCheck) const { return (fBools & flag(toCheck))?1:0; }
     inline UBool isValidEnum(T toCheck) const {  return (toCheck>=minValue&&toCheck<limitValue); }
     inline UBool isValidValue(int32_t v) const { return (v==0||v==1); }
-    inline const EnumSet<T,minValue,limitValue>& operator=(const EnumSet<T,minValue,limitValue>& other) {
+    inline const EnumSet<T, minValue, limitValue>&
+    operator=(const EnumSet<T, minValue, limitValue>& other) U_LIFETIME_BOUND {
         fBools = other.fBools;
         return *this;
     }
