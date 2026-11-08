@@ -219,7 +219,6 @@ const {
   HTTP2_HEADER_ACCESS_CONTROL_REQUEST_METHOD,
   HTTP2_HEADER_AGE,
   HTTP2_HEADER_AUTHORIZATION,
-  HTTP2_HEADER_CONTENT_ENCODING,
   HTTP2_HEADER_CONTENT_LANGUAGE,
   HTTP2_HEADER_CONTENT_LENGTH,
   HTTP2_HEADER_CONTENT_LOCATION,
@@ -267,6 +266,7 @@ const {
 });
 
 [
+  HTTP2_HEADER_CONTENT_ENCODING,
   HTTP2_HEADER_ACCEPT_CHARSET,
   HTTP2_HEADER_ACCEPT_ENCODING,
   HTTP2_HEADER_ACCEPT_LANGUAGE,
@@ -418,4 +418,11 @@ assert.strictEqual(getAuthority({
   assert.deepStrictEqual(headers['set-cookie'], ['sc1', 'sc2']);
   assert.strictEqual(headers.age, '10');
   assert.strictEqual(headers['x-multi'], 'first, second');
+}
+
+// Content-Encoding is an ordered list, including repeated content codings.
+for (const values of [['gzip', 'br'], ['br', 'gzip'], ['gzip', 'gzip']]) {
+  const rawHeaders = values.flatMap((value) => ['content-encoding', value]);
+  assert.strictEqual(toHeaderObject(rawHeaders)['content-encoding'],
+                     values.join(', '));
 }
