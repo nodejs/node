@@ -1499,10 +1499,11 @@ bench-addons-clean:
 	$(RM) -r benchmark/napi/*/build
 	$(RM) benchmark/napi/.buildstamp
 
-ifeq ("$(wildcard tools/.mdlintstamp)","")
-LINT_MD_NEWER =
-else
+# Recheck all Markdown when the lint dependencies change.
+ifeq ($(shell test tools/.mdlintstamp -nt tools/lint-md/package-lock.json && echo 1),1)
 LINT_MD_NEWER = -newer tools/.mdlintstamp
+else
+LINT_MD_NEWER =
 endif
 
 LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(filter-out CLAUDE.md,$(wildcard *.md))
@@ -1512,7 +1513,7 @@ LINT_MD_FILES = $(shell $(FIND) $(LINT_MD_TARGETS) -type f \
 run-lint-md = tools/lint-md/lint-md.mjs $(LINT_MD_FILES)
 
 # Check for a specific file, as (empty) directories are persisted in git.
-tools/lint-md/node_modules/remark-parse/package.json:
+tools/lint-md/node_modules/remark-parse/package.json: tools/lint-md/package-lock.json
 	-cd tools/lint-md && $(call available-node,$(run-npm-ci))
 
 # Lint all changed markdown files maintained by us
