@@ -159,6 +159,6 @@ for (const arg of ['--vfs-load=assets.zip', '--vfs-load']) {
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /"vfsArchive" cannot be used together with --vfs-load in "execArgv"/,
+      stderr: /"useVfs" cannot be used together with --vfs-load in "execArgv"/,
     });
 }
