@@ -6181,6 +6181,17 @@ changes:
 Generates cryptographically strong pseudorandom data. The `size` argument
 is a number indicating the number of bytes to generate.
 
+> [!NOTE]
+> The random data is drawn from OpenSSL's DRBG inside the process. After a
+> snapshot or checkpoint restore (for example a VM restore, Firecracker
+> snapshot, or CRIU checkpoint), the DRBG continues from the saved state until
+> its next scheduled reseed, and output may repeat across the two continuations
+> of a restored process. Applications resumed from a saved image should reseed
+> (or draw fresh randomness via their own restore signal) before relying on
+> further output from `crypto.randomBytes()`, `crypto.randomInt()`,
+> `crypto.randomFill()`, `crypto.randomUUID()`, and
+> `crypto.getRandomValues()`. See #66880 for measurements.
+
 If a `callback` function is provided, the bytes are generated asynchronously
 and the `callback` function is invoked with two arguments: `err` and `buf`.
 If an error occurs, `err` will be an `Error` object; otherwise it is `null`. The
@@ -6594,7 +6605,10 @@ added:
 * Returns: {string}
 
 Generates a random [RFC 4122][] version 4 UUID. The UUID is generated using a
-cryptographic pseudorandom number generator.
+cryptographic pseudorandom number generator. Because of the entropy cache,
+after a snapshot or checkpoint restore up to 128 UUIDs may repeat across the
+restored process's continuations unless `disableEntropyCache: true` is used or
+fresh randomness is drawn after the restore.
 
 ### `crypto.randomUUIDv7([options])`
 
