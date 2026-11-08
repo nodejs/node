@@ -70,7 +70,21 @@ void platform_init(int argc, char **argv) {
 }
 
 
-int process_start(char *name, char *part, process_info_t *p, int is_helper) {
+void notify_parent_process(void) {
+  HANDLE handle;
+  char* arg;
+
+  arg = getenv("UV_TEST_RUNNER_FD");
+  if (arg == NULL)
+    return;
+
+  handle = (HANDLE)(uintptr_t)strtoull(arg, NULL, 10);
+  SetEnvironmentVariableA("UV_TEST_RUNNER_FD", NULL);
+  ASSERT_NE(CloseHandle(handle), 0);
+}
+
+
+int process_start(char* name, char* part, process_info_t* p, int is_helper) {
   HANDLE file = INVALID_HANDLE_VALUE;
   HANDLE nul = INVALID_HANDLE_VALUE;
   WCHAR path[MAX_PATH], filename[MAX_PATH];
@@ -79,10 +93,22 @@ int process_start(char *name, char *part, process_info_t *p, int is_helper) {
   STARTUPINFOW si;
   PROCESS_INFORMATION pi;
   DWORD result;
+  HANDLE fds[2];
+  char fdstr[32];
 
-  if (!is_helper) {
-    /* Give the helpers time to settle. Race-y, fix this. */
-    uv_sleep(250);
+  fds[0] = fds[1] = INVALID_HANDLE_VALUE;
+
+  if (is_helper) {
+    /* Create a pipe so the helper can signal when it is ready. */
+    if (!CreatePipe(&fds[0], &fds[1], NULL, 0))
+      goto error;
+    if (!SetHandleInformation(fds[0], HANDLE_FLAG_INHERIT, 0))
+      goto error;
+    if (!SetHandleInformation(fds[1], HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT))
+      goto error;
+    snprintf(fdstr, sizeof(fdstr), "%" PRIuPTR, (uintptr_t) fds[1]);
+    if (!SetEnvironmentVariableA("UV_TEST_RUNNER_FD", fdstr))
+      goto error;
   }
 
   if (GetTempPathW(sizeof(path) / sizeof(WCHAR), (WCHAR*)&path) == 0)
@@ -162,9 +188,41 @@ int process_start(char *name, char *part, process_info_t *p, int is_helper) {
   p->process = pi.hProcess;
   p->name = part;
 
+  if (!is_helper)
+    return 0;
+
+  /* Close the write end in the parent and wait for the child to close its
+   * copy, which signals that the helper has finished starting up. */
+  ASSERT_NE(CloseHandle(fds[1]), 0);
+  fds[1] = INVALID_HANDLE_VALUE;
+  SetEnvironmentVariableA("UV_TEST_RUNNER_FD", NULL);
+
+  {
+    char buf[1];
+    DWORD bytes;
+    if (ReadFile(fds[0], buf, sizeof(buf), &bytes, NULL)) {
+      if (bytes > 0) {
+        fprintf(stderr, "EOF expected but got data.\n");
+        CloseHandle(fds[0]);
+        return -1;
+      }
+    } else if (GetLastError() != ERROR_BROKEN_PIPE) {
+      fprintf(stderr, "ReadFile: %lu\n", GetLastError());
+      CloseHandle(fds[0]);
+      return -1;
+    }
+  }
+
+  ASSERT_NE(CloseHandle(fds[0]), 0);
   return 0;
 
 error:
+  if (fds[0] != INVALID_HANDLE_VALUE)
+    CloseHandle(fds[0]);
+  if (fds[1] != INVALID_HANDLE_VALUE) {
+    CloseHandle(fds[1]);
+    SetEnvironmentVariableA("UV_TEST_RUNNER_FD", NULL);
+  }
   if (file != INVALID_HANDLE_VALUE)
     CloseHandle(file);
   if (nul != INVALID_HANDLE_VALUE)
