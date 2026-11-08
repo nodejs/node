@@ -1025,9 +1025,11 @@ bool ExecuteWasmDebugBreaks(
   if (debug_info->IsStepping(frame) && !debug_info->IsFrameBlackboxed(frame)) {
     debug_info->ClearStepping(isolate);
     StepAction step_action = isolate->debug()->last_step_action();
+    v8::debug::BreakReasons break_reasons =
+        isolate->debug()->scheduled_break_on_next_function_call();
     isolate->debug()->ClearStepping();
     isolate->debug()->OnDebugBreak(isolate->factory()->empty_fixed_array(),
-                                   step_action);
+                                   step_action, break_reasons);
     return true;
   }
 

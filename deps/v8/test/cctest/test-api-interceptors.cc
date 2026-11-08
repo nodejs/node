@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "include/v8-fast-api-calls.h"
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
@@ -6372,6 +6373,371 @@ TEST(PreprocessExceptionFromInterceptorsWithDescriptorCallback) {
   TestPreprocessExceptionFromInterceptors(isolate, config, ctx, obj,
                                           is_descriptor_callback_available);
 }
+
+#if V8_ENABLE_WEBASSEMBLY && !defined(V8_ENABLE_CET_SHADOW_STACK)
+namespace {
+
+void InvokeArgAndMaybeThrowCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  if (info.Length() > 0 && info[0]->IsFunction()) {
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    std::ignore = info[0].As<v8::Function>()->Call(context, context->Global(),
+                                                   0, nullptr);
+  }
+  if (info.Length() > 1 && info[1]->IsTrue()) {
+    isolate->ThrowError("Direct callback error.");
+  }
+}
+
+v8::Intercepted UnwindInnerStackThenThrowGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
+  CompileRun(ctx, "try { globalThis.stress_throw(); } catch {}")
+      .ToLocalChecked();
+  isolate->ThrowError("After nested unwind.");
+  return v8::Intercepted::kYes;
+}
+
+void SecondaryStackFastApiCallback(v8::Local<v8::Object> receiver, int32_t mode,
+                                   v8::FastApiCallbackOptions& options) {
+  v8::Isolate* isolate = options.isolate;
+  v8::HandleScope handle_scope(isolate);
+  if (mode == 1 || mode == 3) {
+    v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
+    const char* holder_name =
+        mode == 1 ? "interceptor_obj" : "unwind_interceptor_obj";
+    v8::Local<v8::Object> obj = ctx->Global()
+                                    ->Get(ctx, v8_str(holder_name))
+                                    .ToLocalChecked()
+                                    .As<v8::Object>();
+    std::ignore = obj->Get(ctx, v8_str("prop"));
+  } else if (mode == 2) {
+    isolate->ThrowError("Fast API error.");
+  }
+}
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+v8::AnyCType SecondaryStackFastApiCallbackPatch(v8::AnyCType receiver,
+                                                v8::AnyCType mode,
+                                                v8::AnyCType options) {
+  v8::AnyCType ret;
+  SecondaryStackFastApiCallback(receiver.object_value, mode.int32_value,
+                                *options.options_value);
+  return ret;
+}
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
+void SecondaryStackSlowApiCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
+  int32_t mode = info[0]->Int32Value(ctx).FromJust();
+  CHECK(mode == 1 || mode == 3);
+  const char* holder_name =
+      mode == 1 ? "interceptor_obj" : "unwind_interceptor_obj";
+  v8::Local<v8::Object> obj = ctx->Global()
+                                  ->Get(ctx, v8_str(holder_name))
+                                  .ToLocalChecked()
+                                  .As<v8::Object>();
+  std::ignore = obj->Get(ctx, v8_str("prop"));
+}
+
+void RunPreprocessExceptionOnWasmSecondaryStackTest(v8::Isolate* isolate,
+                                                    void* reserved_pages,
+                                                    size_t reserve_size) {
+  v8::HandleScope handle_scope(isolate);
+  isolate->SetExceptionPropagationCallback(PreprocessExceptionTestCallback);
+
+  v8::Local<v8::FunctionTemplate> ctor =
+      v8::FunctionTemplate::New(isolate, InvokeArgAndMaybeThrowCallback);
+  ctor->SetClassName(v8_str("MyClass"));
+
+  PreprocessExceptionTestConfig pet_config;
+  pet_config.getter_should_throw = true;
+  v8::Local<v8::FunctionTemplate> interceptor_ctor =
+      v8::FunctionTemplate::New(isolate);
+  interceptor_ctor->SetClassName(v8_str("InterceptorHolder"));
+  interceptor_ctor->InstanceTemplate()->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(PETNamedGetter, nullptr, nullptr,
+                                            nullptr, nullptr,
+                                            MakeData(isolate, &pet_config)));
+
+  v8::Local<v8::FunctionTemplate> unwind_interceptor_ctor =
+      v8::FunctionTemplate::New(isolate);
+  unwind_interceptor_ctor->SetClassName(v8_str("UnwindHolder"));
+  unwind_interceptor_ctor->InstanceTemplate()->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(UnwindInnerStackThenThrowGetter));
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  v8::CFunction c_func = v8::CFunction::Make(
+      SecondaryStackFastApiCallback, SecondaryStackFastApiCallbackPatch);
+#else
+  v8::CFunction c_func = v8::CFunction::Make(SecondaryStackFastApiCallback);
+#endif
+  v8::Local<v8::FunctionTemplate> fast_api_tpl = v8::FunctionTemplate::New(
+      isolate, SecondaryStackSlowApiCallback, v8::Local<v8::Value>(),
+      v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kThrow,
+      v8::SideEffectType::kHasSideEffect, &c_func);
+
+  v8::Local<v8::Context> ctx = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(ctx);
+
+  v8::Local<v8::Object> global = ctx->Global();
+  global->Set(ctx, v8_str("MyClass"), ctor->GetFunction(ctx).ToLocalChecked())
+      .FromJust();
+  global
+      ->Set(ctx, v8_str("interceptor_obj"),
+            interceptor_ctor->InstanceTemplate()
+                ->NewInstance(ctx)
+                .ToLocalChecked())
+      .FromJust();
+  global
+      ->Set(ctx, v8_str("unwind_interceptor_obj"),
+            unwind_interceptor_ctor->InstanceTemplate()
+                ->NewInstance(ctx)
+                .ToLocalChecked())
+      .FromJust();
+  global
+      ->Set(ctx, v8_str("fast_api"),
+            fast_api_tpl->GetFunction(ctx).ToLocalChecked())
+      .FromJust();
+
+  CompileRun(
+      ctx,
+      "const vec = (...b) => [b.length, ...b];"
+      "const str = s => vec(...Array.from(s, c => c.charCodeAt(0)));"
+      "const bytes = new Uint8Array(["
+      "  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,"
+      "  1, ...vec(5,"
+      "    0x60, 1, 0x6f, 0,"              // 0: (externref) -> ()
+      "    0x60, 2, 0x6f, 0x7f, 1, 0x7f,"  // 1: (externref, i32) -> i32
+      "    0x60, 1, 0x7f, 0,"              // 2: (i32) -> ()
+      "    0x60, 2, 0x6f, 0x6f, 1, 0x7f,"  // 3: (externref, externref) -> i32
+      "    0x60, 1, 0x7f, 1, 0x6f),"       // 4: (i32) -> externref
+      "  2, ...vec(3,"
+      "    ...str('m'), ...str('tag'), 4, 0, 0,"
+      "    ...str('wasm:js-string'), ...str('charCodeAt'), 0, 1,"
+      "    ...str('m'), ...str('fast_api'), 0, 2),"
+      "  3, ...vec(2, 3, 4),"
+      "  7, ...vec(2,"
+      "    ...str('probe'), 0, 2,"
+      "    ...str('call_fast'), 0, 3),"
+      "  10, ...vec(2,"
+      // probe(exn, s): charCodeAt(s, 0) + (try_table { throw exn },
+      // charCodeAt(s, 0))
+      "    ...vec(0,"
+      "      0x20, 1, 0x41, 0, 0x10, 0,"
+      "      0x02, 0x40, 0x1f, 0x40, 1, 0x02, 0,"
+      "        0x20, 0, 0x08, 0,"
+      "      0x0b, 0x0b,"
+      "      0x20, 1, 0x41, 0, 0x10, 0,"
+      "      0x6a, 0x0b),"
+      // call_fast(mode): try_table (catch tag 0) { fast_api(mode) }
+      "    ...vec(0,"
+      "      0x02, 0x6f, 0x1f, 0x40, 1, 0x00, 0, 0,"
+      "        0x20, 0, 0x10, 1,"
+      "      0x0b, 0xd0, 0x6f, 0x0b, 0x0b))"
+      "]);"
+      "const mod = new WebAssembly.Module(bytes, {builtins: ['js-string']});"
+      "const inst = new WebAssembly.Instance(mod, {"
+      "  m: {tag: WebAssembly.JSTag, fast_api: globalThis.fast_api}"
+      "});"
+      "globalThis.probe_raw = inst.exports.probe;"
+      "globalThis.promising_probe = WebAssembly.promising(inst.exports.probe);"
+      "globalThis.promising_call_fast ="
+      "    WebAssembly.promising(inst.exports.call_fast);")
+      .ToLocalChecked();
+
+  if (!i::v8_flags.liftoff_only && !i::v8_flags.disable_optimizing_compilers) {
+    CompileRun(ctx, "%WasmTierUpFunction(globalThis.probe_raw);")
+        .ToLocalChecked();
+  }
+
+  if (reserved_pages != nullptr) {
+    CHECK(
+        i::GetPlatformPageAllocator()->FreePages(reserved_pages, reserve_size));
+  }
+
+  // 1. Wasm `throw` caught locally on a JSPI secondary stack inside an API
+  // callback must NOT trigger ExceptionPropagationCallback (nor run JS getters
+  // that transition `s` into a ThinString mid-function).
+  CompileRun(ctx,
+             "globalThis.getter_ran = false;"
+             "const key = {['A'.repeat(32)]: 1};"
+             "const s = String.fromCharCode(...new Array(32).fill(65));"
+             "%SimulateNewspaceFull();"
+             "const exn = {"
+             "  get message() {"
+             "    ({})[s];"
+             "    globalThis.getter_ran = true;"
+             "    return 'wasm error';"
+             "  }"
+             "};"
+             "globalThis.probe_result = -1;"
+             "new MyClass(() => {"
+             "  promising_probe(exn, s).then(v => {"
+             "    globalThis.probe_result = v;"
+             "  });"
+             "}, false);")
+      .ToLocalChecked();
+  isolate->PerformMicrotaskCheckpoint();
+  CHECK(CompileRun(ctx, "!globalThis.getter_ran")
+            .ToLocalChecked()
+            ->BooleanValue(isolate));
+  CHECK_EQ(130, CompileRun(ctx, "globalThis.probe_result")
+                    .ToLocalChecked()
+                    ->Int32Value(ctx)
+                    .FromJust());
+
+  // 2. An exception thrown directly by the API callback on the central stack
+  // after the JSPI call returns must still be preprocessed.
+  {
+    v8::TryCatch try_catch(isolate);
+    std::ignore = CompileRun(
+        ctx,
+        "new MyClass(() => promising_probe({message: 'inner'}, 'B'.repeat(32)),"
+        "            true);");
+    CheckMessage(try_catch, ":MyClass:Constructor: Direct callback error.");
+  }
+
+  // 3. An API interceptor invoked from C++ while the topmost V8 frame is on a
+  // JSPI secondary stack must still have its direct exception preprocessed.
+  CompileRun(ctx,
+             "globalThis.caught_msg = '';"
+             "new MyClass(() => {"
+             "  promising_call_fast(1).then(e => {"
+             "    globalThis.caught_msg = e.message;"
+             "  });"
+             "}, false);")
+      .ToLocalChecked();
+  isolate->PerformMicrotaskCheckpoint();
+  {
+    v8::Local<v8::Value> msg =
+        CompileRun(ctx, "globalThis.caught_msg").ToLocalChecked();
+    v8::String::Utf8Value utf8(isolate, msg);
+    CHECK_EQ(std::string(*utf8),
+             std::string(
+                 "InterceptorHolder:prop:NamedGetter: Named getter failed."));
+  }
+
+#ifdef V8_ENABLE_TURBOFAN
+  // 4. A direct ThrowError inside a Wasm Fast API call (WASM_TO_JS frame on the
+  // JSPI secondary stack) must not crash or be misattributed to an outer API
+  // callback.
+  if (i::v8_flags.turbo_fast_api_calls) {
+    CompileRun(ctx,
+               "globalThis.caught_msg = '';"
+               "new MyClass(() => {"
+               "  promising_call_fast(2).then(e => {"
+               "    globalThis.caught_msg = e.message;"
+               "  });"
+               "}, false);")
+        .ToLocalChecked();
+    isolate->PerformMicrotaskCheckpoint();
+    v8::Local<v8::Value> msg =
+        CompileRun(ctx, "globalThis.caught_msg").ToLocalChecked();
+    v8::String::Utf8Value utf8(isolate, msg);
+    CHECK_EQ(std::string(*utf8), std::string("Fast API error."));
+  }
+#endif  // V8_ENABLE_TURBOFAN
+
+  // 5. Unwinding an inner secondary stack across a stack boundary via
+  // UnwindAndFindHandler() inside an API callback must restore
+  // thread_local_top()->central_stack_sp_ to the outer secondary stack's entry
+  // SP, so a subsequent direct throw from that API callback is still
+  // preprocessed.
+  {
+    i::FlagScope<bool> stress_switch(&i::v8_flags.stress_wasm_stack_switching,
+                                     true);
+    CompileRun(
+        ctx,
+        "const stress_bytes = new Uint8Array(["
+        "  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,"
+        "  1, ...vec(1, 0x60, 0, 0),"
+        "  3, ...vec(1, 0),"
+        "  7, ...vec(1, ...str('stress_throw'), 0, 0),"
+        "  10, ...vec(1, ...vec(0, 0x00, 0x0b))"
+        "]);"
+        "globalThis.stress_throw ="
+        "    new WebAssembly.Instance(new WebAssembly.Module(stress_bytes))"
+        "        .exports.stress_throw;"
+        "globalThis.caught_msg = '';"
+        "new MyClass(() => {"
+        "  promising_call_fast(3).then(e => {"
+        "    globalThis.caught_msg = e.message;"
+        "  });"
+        "}, false);")
+        .ToLocalChecked();
+    isolate->PerformMicrotaskCheckpoint();
+    v8::Local<v8::Value> msg =
+        CompileRun(ctx, "globalThis.caught_msg").ToLocalChecked();
+    v8::String::Utf8Value utf8(isolate, msg);
+    CHECK_EQ(
+        std::string(*utf8),
+        std::string("UnwindHolder:prop:NamedGetter: After nested unwind."));
+  }
+
+  isolate->SetExceptionPropagationCallback(nullptr);
+}
+
+class WasmSecondaryStackExceptionThread
+    : public v8::internal::SandboxableThread {
+ public:
+  WasmSecondaryStackExceptionThread(void* reserved_pages, size_t reserve_size)
+      : SandboxableThread(
+            Options("WasmSecondaryStackExceptionThread", 16 * 1024 * 1024)),
+        reserved_pages_(reserved_pages),
+        reserve_size_(reserve_size) {}
+
+  void Run() override {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      RunPreprocessExceptionOnWasmSecondaryStackTest(isolate, reserved_pages_,
+                                                     reserve_size_);
+    }
+    isolate->Dispose();
+  }
+
+ private:
+  void* reserved_pages_;
+  size_t reserve_size_;
+};
+
+}  // namespace
+
+TEST(PreprocessExceptionOnWasmSecondaryStack) {
+  if (i::v8_flags.jitless || i::v8_flags.wasm_jitless) return;
+
+  FLAG_SCOPE(experimental_report_exceptions_from_callbacks);
+  FLAG_SCOPE(allow_natives_syntax);
+  FLAG_SCOPE(wasm_unsafe_fast_api_wrapper);
+#ifdef DEBUG
+  FLAG_SCOPE(turboshaft_verify_load_elimination);
+#endif
+
+  // Test on a worker thread after freeing reserved pages above its stack,
+  // placing the JSPI secondary stack at a higher address than the central stack
+  // (reproducing crbug.com/575939904).
+  v8::PageAllocator* allocator = i::GetPlatformPageAllocator();
+  size_t page_size = allocator->AllocatePageSize();
+  size_t reserve_size = 16 * 1024 * 1024;
+  void* reserved_pages = allocator->AllocatePages(
+      nullptr, reserve_size, page_size, v8::PageAllocator::kNoAccess);
+  WasmSecondaryStackExceptionThread thread(reserved_pages, reserve_size);
+  CHECK(thread.Start());
+  thread.Join();
+
+  // Also test with the JSPI secondary stack mapped below the main thread's
+  // central stack.
+  RunPreprocessExceptionOnWasmSecondaryStackTest(CcTest::isolate(), nullptr, 0);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY && !defined(V8_ENABLE_CET_SHADOW_STACK)
 
 namespace {
 

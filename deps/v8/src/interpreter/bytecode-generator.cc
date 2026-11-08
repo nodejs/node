@@ -3691,7 +3691,10 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     DCHECK_EQ(ClassBoilerplate::kFirstDynamicArgumentIndex,
               args.register_count());
 
-    VisitForAccumulatorValueOrTheHole(expr->extends());
+    {
+      ClassScope::HeritageParsingScope heritage(expr->scope());
+      VisitForAccumulatorValueOrTheHole(expr->extends());
+    }
     builder()->StoreAccumulatorInRegister(super_class);
 
     VisitFunctionLiteral(expr->constructor());
@@ -7061,16 +7064,24 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       builder()->MoveRegister(args[receiver_arg_count], runtime_call_args[1]);
     }
     Scope* scope_with_context = current_scope();
+    bool private_name_lookup_skips_outer_class = false;
     if (!scope_with_context->NeedsContext()) {
+      private_name_lookup_skips_outer_class =
+          scope_with_context->private_name_lookup_skips_outer_class();
       scope_with_context = scope_with_context->GetOuterScopeWithContext();
+    } else if (scope_with_context->is_class_scope()) {
+      private_name_lookup_skips_outer_class =
+          scope_with_context->AsClassScope()->IsParsingHeritage();
     }
     if (scope_with_context) {
       eval_calls_.emplace_back(expr, scope_with_context);
     }
+    int eval_flags = ResolveEvalFlags::Encode(
+        language_mode(), private_name_lookup_skips_outer_class);
     builder()
         ->MoveRegister(callee, runtime_call_args[0])
         .MoveRegister(Register::function_closure(), runtime_call_args[2])
-        .LoadLiteral(Smi::FromEnum(language_mode()))
+        .LoadLiteral(Smi::FromInt(eval_flags))
         .StoreAccumulatorInRegister(runtime_call_args[3])
         .LoadLiteral(Smi::FromInt(expr->eval_scope_info_index()))
         .StoreAccumulatorInRegister(runtime_call_args[4])

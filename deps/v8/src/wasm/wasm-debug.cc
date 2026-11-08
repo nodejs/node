@@ -490,7 +490,12 @@ class DebugInfoImpl {
 
   bool IsStepping(WasmFrame* frame) {
     Isolate* isolate = frame->isolate();
-    if (isolate->debug()->last_step_action() == StepInto) return true;
+    if (isolate->debug()->last_step_action() == StepInto ||
+        isolate->debug()->break_on_next_function_call() ||
+        isolate->debug()->scheduled_break_on_function_call()) {
+      return true;
+    }
+    if (isolate->debug()->last_step_action() == StepNone) return false;
     base::MutexGuard guard(&mutex_);
     auto it = per_isolate_data_.find(isolate);
     return it != per_isolate_data_.end() &&

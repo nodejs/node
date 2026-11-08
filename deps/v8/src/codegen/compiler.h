@@ -166,7 +166,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       ParseRestriction restriction, int parameters_end_pos,
                       int eval_position,
                       ParsingWhileDebugging parsing_while_debugging =
-                          ParsingWhileDebugging::kNo);
+                          ParsingWhileDebugging::kNo,
+                      bool private_name_lookup_skips_outer_class = false);
 
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.

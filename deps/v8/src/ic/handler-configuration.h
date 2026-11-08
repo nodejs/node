@@ -369,10 +369,6 @@ V8_OBJECT class StoreHandler final : public DataHandler {
                                    Handle<JSProxy> proxy,
                                    DirectHandle<JSReceiver> receiver);
 
-  // Creates a handler for storing a property to the property cell of a global
-  // object.
-  static MaybeObjectHandle StoreGlobal(Handle<PropertyCell> cell);
-
   // Creates a Smi-handler for storing a property to a global proxy object.
   static inline DirectHandle<Smi> StoreGlobalProxy(Isolate* isolate);
 
