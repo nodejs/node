@@ -2004,7 +2004,7 @@ Emitted when a new thread is created.
 
 ##### Event: `'worker_threads.main.registry'`
 
-* `threadIds` {number[]} A snapshot of the registered worker thread IDs.
+* `threadIds` {number\[]} A snapshot of the registered worker thread IDs.
 
 Emitted only on the main thread whenever a worker's messaging port is registered
 or unregistered, including workers created by other workers. The main thread's
