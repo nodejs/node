@@ -154,11 +154,14 @@ struct Http2RcBufferPointerTraits {
 using Http2Headers = NgHeaders<Http2HeadersTraits>;
 using Http2RcBufferPointer = NgRcBufPointer<Http2RcBufferPointerTraits>;
 
+class Http2Stream;
+
 struct NgHttp2StreamWrite : public MemoryRetainer {
   // Completed once all buffers from the request have been consumed.
   BaseObjectPtr<AsyncWrap> req_wrap;
   // Retains the request's buffers without completing it.
   BaseObjectPtr<AsyncWrap> buffer_owner;
+  BaseObjectPtr<Http2Stream> stream;
   uv_buf_t buf;
 
   inline explicit NgHttp2StreamWrite(uv_buf_t buf_) : buf(buf_) {}
@@ -167,6 +170,14 @@ struct NgHttp2StreamWrite : public MemoryRetainer {
                             uv_buf_t buf_)
       : req_wrap(std::move(req_wrap)),
         buffer_owner(std::move(buffer_owner)),
+        buf(buf_) {}
+  inline NgHttp2StreamWrite(BaseObjectPtr<AsyncWrap> req_wrap,
+                            BaseObjectPtr<AsyncWrap> buffer_owner,
+                            BaseObjectPtr<Http2Stream> stream,
+                            uv_buf_t buf_)
+      : req_wrap(std::move(req_wrap)),
+        buffer_owner(std::move(buffer_owner)),
+        stream(std::move(stream)),
         buf(buf_) {}
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -180,7 +191,6 @@ typedef uint32_t(*get_setting)(nghttp2_session* session,
 class Http2Ping;
 class Http2Session;
 class Http2Settings;
-class Http2Stream;
 class Origins;
 
 // This scope should be present when any call into nghttp2 that may schedule

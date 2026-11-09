@@ -2183,6 +2183,7 @@ int Http2Session::OnSendData(
     if (write.buf.len <= length) {
       // This write does not suffice by itself, so we can consume it completely.
       length -= write.buf.len;
+      write.stream = stream;
       session->PushOutgoingBuffer(std::move(write));
       stream->queue_.pop();
       continue;
@@ -2190,8 +2191,11 @@ int Http2Session::OnSendData(
 
     // Slice off `length` bytes of the first write in the queue. Retain the
     // originating request until the slice is no longer used by the socket.
-    session->PushOutgoingBuffer(NgHttp2StreamWrite{
-        nullptr, write.buffer_owner, uv_buf_init(write.buf.base, length)});
+    session->PushOutgoingBuffer(
+        NgHttp2StreamWrite{nullptr,
+                           write.buffer_owner,
+                           stream,
+                           uv_buf_init(write.buf.base, length)});
     write.buf.base += length;
     write.buf.len -= length;
     break;
@@ -2289,8 +2293,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
 
 bool Http2Session::HasWritesOnSocketForStream(Http2Stream* stream) {
   for (const NgHttp2StreamWrite& wr : outgoing_buffers_) {
-    if (wr.req_wrap && WriteWrap::FromObject(wr.req_wrap)->stream() == stream)
-      return true;
+    if (wr.stream.get() == stream) return true;
   }
   return false;
 }
@@ -3587,6 +3590,7 @@ void NgHttp2StreamWrite::MemoryInfo(MemoryTracker* tracker) const {
   if (req_wrap)
     tracker->TrackField("req_wrap", req_wrap);
   if (buffer_owner) tracker->TrackField("buffer_owner", buffer_owner);
+  if (stream) tracker->TrackField("stream", stream);
   tracker->TrackField("buf", buf);
 }
 
