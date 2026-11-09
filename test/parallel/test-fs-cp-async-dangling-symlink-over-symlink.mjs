@@ -7,10 +7,19 @@ import tmpdir from '../common/tmpdir.js';
 
 tmpdir.refresh();
 
-const src = nextdir();
-const dest = nextdir();
-symlinkSync('missing', src);
-symlinkSync(process.execPath, dest);
+for (const verbatimSymlinks of [undefined, false, true]) {
+  const src = nextdir();
+  const dest = nextdir();
+  symlinkSync('missing', src);
+  symlinkSync(process.execPath, dest);
 
-await promises.cp(src, dest, mustNotMutateObjectDeep({ force: true }));
-assert.strictEqual(readlinkSync(dest), resolve(dirname(src), 'missing'));
+  const options = { force: true };
+  if (verbatimSymlinks !== undefined) {
+    options.verbatimSymlinks = verbatimSymlinks;
+  }
+
+  await promises.cp(src, dest, mustNotMutateObjectDeep(options));
+  assert.strictEqual(readlinkSync(dest),
+                     verbatimSymlinks ? 'missing' : resolve(dirname(src), 'missing'),
+                     `verbatimSymlinks: ${verbatimSymlinks}`);
+}
