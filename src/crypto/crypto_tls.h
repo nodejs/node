@@ -65,6 +65,7 @@ class TLSWrap : public AsyncWrap,
   void set_cert_cb_running(bool on = true) { cert_cb_running_ = on; }
   void set_awaiting_new_session(bool on = true) { awaiting_new_session_ = on; }
   void enable_session_callbacks() { session_callbacks_ = true; }
+  bool is_resumption_disabled() const { return resumption_disabled_; }
   bool BindSessionsToServerName(std::string_view servername);
   bool PinServerName(std::string_view servername);
   bool is_server() const { return kind_ == Kind::kServer; }
@@ -284,6 +285,7 @@ class TLSWrap : public AsyncWrap,
   bool established_ = false;
   bool write_callback_scheduled_ = false;
   bool servername_pinned_ = false;
+  bool resumption_disabled_ = false;
 
   int cycle_depth_ = 0;
 
