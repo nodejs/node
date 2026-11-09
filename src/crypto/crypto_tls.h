@@ -34,6 +34,7 @@
 #include <openssl/ssl.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace node {
@@ -64,6 +65,7 @@ class TLSWrap : public AsyncWrap,
   void set_cert_cb_running(bool on = true) { cert_cb_running_ = on; }
   void set_awaiting_new_session(bool on = true) { awaiting_new_session_ = on; }
   void enable_session_callbacks() { session_callbacks_ = true; }
+  bool BindSessionsToServerName(std::string_view servername);
   bool is_server() const { return kind_ == Kind::kServer; }
   bool is_client() const { return kind_ == Kind::kClient; }
   bool is_awaiting_new_session() const { return awaiting_new_session_; }

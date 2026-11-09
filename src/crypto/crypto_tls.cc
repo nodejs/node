@@ -20,7 +20,11 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "crypto/crypto_tls.h"
+#include <algorithm>
 #include <cstdio>
+#include <optional>
+#include <span>
+#include <string_view>
 #include "async_wrap-inl.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_clienthello-inl.h"
@@ -100,6 +104,93 @@ SSL_SESSION* GetSessionCallback(
   *copy = 0;
   return w->ReleaseSession();
 }
+
+// Reads a 16-bit length prefixed vector from the front of data. Returns
+// nothing if the length does not fit within data.
+std::optional<std::span<const uint8_t>> ReadVector16(
+    std::span<const uint8_t> data) {
+  if (data.size() < 2) return std::nullopt;
+  const size_t len = (static_cast<size_t>(data[0]) << 8) | data[1];
+  if (data.size() < 2 + len) return std::nullopt;
+  return data.subspan(2, len);
+}
+
+// The host name from the server_name extension, empty if the client sent
+// none. Nothing at all if it sent one that cannot be used, in which case the
+// handshake should fail.
+std::optional<std::string_view> ServerName(
+    std::optional<std::span<const uint8_t>> ext) {
+  if (!ext.has_value()) return std::string_view();
+  // RFC 6066: a 16-bit list length, then one entry of an 8-bit name type,
+  // a 16-bit name length and that many name bytes. The constraints applied
+  // here are the ones the TLS stack's own parser applies: exactly one
+  // entry, of type host_name, of a sane length and free of NULs.
+  auto list = ReadVector16(*ext);
+  if (!list.has_value() || list->size() < 3) return std::nullopt;
+  if ((*list)[0] != TLSEXT_NAMETYPE_host_name) return std::nullopt;
+  auto name = ReadVector16(list->subspan(1));
+  if (!name.has_value()) return std::nullopt;
+  if (name->size() + 3 != list->size()) return std::nullopt;
+  if (name->empty() || name->size() > TLSEXT_MAXLEN_host_name) {
+    return std::nullopt;
+  }
+  if (std::find(name->begin(), name->end(), 0) != name->end()) {
+    return std::nullopt;
+  }
+  return std::string_view(reinterpret_cast<const char*>(name->data()),
+                          name->size());
+}
+
+// The TLS library invokes this before version negotiation and before session
+// or ticket resumption.
+#ifdef OPENSSL_IS_BORINGSSL
+ssl_select_cert_result_t EarlyClientHelloCallback(const SSL_CLIENT_HELLO* ch) {
+  TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(ch->ssl));
+
+  const uint8_t* ext;
+  size_t ext_len;
+  std::optional<std::span<const uint8_t>> sni;
+  if (SSL_early_callback_ctx_extension_get(
+          ch, TLSEXT_TYPE_server_name, &ext, &ext_len)) {
+    sni.emplace(ext, ext_len);
+  }
+  auto servername = ServerName(sni);
+  // If we can't parse the hello SNI, reject it explicitly:
+  if (!servername.has_value()) return ssl_select_cert_error;
+
+  // Session resumption must only be allowed for sessions with exactly the same
+  // SNI. We use the SNI to derive the session id, so no handshake can resume
+  // from a mismatched SNI value. Mismatches fall back to full handshakes:
+  if (!w->BindSessionsToServerName(*servername)) return ssl_select_cert_error;
+
+  return ssl_select_cert_success;
+}
+#else
+int EarlyClientHelloCallback(SSL* s, int* al, void* arg) {
+  TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(s));
+
+  const unsigned char* ext;
+  size_t ext_len;
+  std::optional<std::span<const uint8_t>> sni;
+  if (SSL_client_hello_get0_ext(s, TLSEXT_TYPE_server_name, &ext, &ext_len) ==
+      1) {
+    sni.emplace(ext, ext_len);
+  }
+  auto servername = ServerName(sni);
+  // If we can't parse the hello SNI, reject it explicitly:
+  if (!servername.has_value()) {
+    *al = SSL_AD_DECODE_ERROR;
+    return SSL_CLIENT_HELLO_ERROR;
+  }
+
+  // Session resumption must only be allowed for sessions with exactly the same
+  // SNI. We use the SNI to derive the session id, so no handshake can resume
+  // from a mismatched SNI value. Mismatches fall back to full handshakes:
+  if (!w->BindSessionsToServerName(*servername)) return SSL_CLIENT_HELLO_ERROR;
+
+  return SSL_CLIENT_HELLO_SUCCESS;
+}
+#endif
 
 void OnClientHello(
     void* arg,
@@ -430,6 +521,7 @@ TLSWrap::TLSWrap(Environment* env,
   ssl_ = sc_->CreateSSL();
   CHECK(ssl_);
 
+  sc_->SetClientHelloCallback(EarlyClientHelloCallback);
   sc_->SetGetSessionCallback(GetSessionCallback);
   sc_->SetNewSessionCallback(NewSessionCallback);
 
@@ -1408,8 +1500,8 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   Local<Value> ctx = p->object()->Get(env->context(), env->sni_context_string())
       .FromMaybe(Local<Value>());
 
-  if (ctx.IsEmpty() || !ctx->IsObject()) [[unlikely]]
-    return SSL_TLSEXT_ERR_NOACK;
+  // Acknowlege the name so it's correctly stored on the session:
+  if (ctx.IsEmpty() || !ctx->IsObject()) return SSL_TLSEXT_ERR_OK;
 
   if (!env->secure_context_constructor_template()->HasInstance(ctx)) {
     // Failure: incorrect SNI context object
@@ -1427,6 +1519,26 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   p->SetCACerts(sc);
 
   return SSL_TLSEXT_ERR_OK;
+}
+
+bool TLSWrap::BindSessionsToServerName(std::string_view servername) {
+  if (sc_->session_id_context().empty()) return true;
+
+  // Server names can't contain NULs, so a NUL keeps the parts apart.
+  std::string input = sc_->session_id_context();
+  input += '\0';
+  input += servername;
+  // Hash this to guarantee the value fits in 32 bytes while keeping
+  // values distinct:
+  unsigned char digest[EVP_MAX_MD_SIZE];
+  unsigned int digest_len;
+  return EVP_Digest(input.data(),
+                    input.size(),
+                    digest,
+                    &digest_len,
+                    EVP_sha256(),
+                    nullptr) == 1 &&
+         SSL_set_session_id_context(ssl_.get(), digest, digest_len) == 1;
 }
 
 int TLSWrap::SetCACerts(SecureContext* sc) {

@@ -1776,6 +1776,14 @@ void SecureContext::SetSelectSNIContextCallback(SelectSNIContextCb cb) {
   SSL_CTX_set_tlsext_servername_callback(ctx_.get(), cb);
 }
 
+void SecureContext::SetClientHelloCallback(ClientHelloCb cb) {
+#ifdef OPENSSL_IS_BORINGSSL
+  SSL_CTX_set_select_certificate_cb(ctx_.get(), cb);
+#else
+  SSL_CTX_set_client_hello_cb(ctx_.get(), cb, nullptr);
+#endif
+}
+
 void SecureContext::SetKeylogCallback(KeylogCb cb) {
   SSL_CTX_set_keylog_callback(ctx_.get(), cb);
 }
@@ -2197,8 +2205,11 @@ void SecureContext::SetSessionIdContext(
       reinterpret_cast<const unsigned char*>(*sessionIdContext);
   unsigned int sid_ctx_len = sessionIdContext.length();
 
-  if (SSL_CTX_set_session_id_context(sc->ctx_.get(), sid_ctx, sid_ctx_len) == 1)
+  int ok = SSL_CTX_set_session_id_context(sc->ctx_.get(), sid_ctx, sid_ctx_len);
+  if (ok == 1) {
+    sc->session_id_context_.assign(*sessionIdContext, sid_ctx_len);
     return;
+  }
 
   Local<String> message;
 
