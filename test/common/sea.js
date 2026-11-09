@@ -240,8 +240,23 @@ function signSEA(targetExecutable, verifyWorkflow = false) {
   }
 }
 
+// On Windows, building a single executable application requires signtool to
+// be available so the executable can be signed. Check for it up front so that
+// tests that carry out asynchronous work (and therefore register a mustCall
+// before this point) are skipped cleanly instead of failing on the pending
+// mustCall when signSEA() discovers signtool is missing mid-flight.
+function skipIfSigningIsNotSupported() {
+  if (process.platform !== 'win32') return;
+  try {
+    spawnSyncAndExitWithoutError('where', [ 'signtool' ]);
+  } catch (e) {
+    common.skip(`Cannot find signtool: ${inspect(e)}`);
+  }
+}
+
 module.exports = {
   skipIfBuildSEAIsNotSupported,
+  skipIfSigningIsNotSupported,
   skipIfSingleExecutableIsNotSupported,
   generateSEA,
   signSEA,
