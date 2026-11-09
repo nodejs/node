@@ -8,6 +8,8 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 #include "v8.h"
 
 namespace node {
@@ -81,11 +83,18 @@ inline constexpr bool HasOption(EnableOption value, EnableOption flag) {
 class CompileCacheHandler {
  public:
   explicit CompileCacheHandler(Environment* env);
+  // With PORTABLE, the cache keys are computed from paths relative to
+  // key_root, or to the cache directory when key_root is empty.
   CompileCacheEnableResult Enable(Environment* env,
                                   const std::string& dir,
-                                  EnableOption option = EnableOption::DEFAULT);
+                                  EnableOption option = EnableOption::DEFAULT,
+                                  const std::string& key_root = std::string());
 
   void Persist();
+  // Every entry holding a cache in the layout of a cache file, paired with
+  // the name of the file Persist() would write it to.
+  std::vector<std::pair<std::string, std::vector<char>>> SerializeEntries()
+      const;
 
   CompileCacheEntry* GetOrInsert(v8::Local<v8::String> code,
                                  v8::Local<v8::String> filename,
@@ -109,6 +118,7 @@ class CompileCacheHandler {
 
  private:
   void ReadCacheFile(CompileCacheEntry* entry);
+  static std::vector<char> SerializeEntry(const CompileCacheEntry* entry);
 
   template <typename T>
   void MaybeSaveImpl(CompileCacheEntry* entry,
@@ -129,7 +139,7 @@ class CompileCacheHandler {
   bool is_debug_ = false;
 
   std::string compile_cache_dir_;
-  std::string normalized_compile_cache_dir_;
+  std::string normalized_key_root_;
   EnableOption portable_ = EnableOption::DEFAULT;
   bool read_only_ = false;
   std::unordered_map<uint32_t, std::unique_ptr<CompileCacheEntry>>
