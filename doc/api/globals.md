@@ -624,7 +624,8 @@ asynchronously and report the result through `loadstart`, `progress`, `load`,
 
 `readAsDataURL()` produces a base64 `data:` URL. When the blob's type is the
 empty string, the URL has no media type (`data:;base64,...`). Chrome and
-Firefox use `application/octet-stream` in that case.
+Firefox use `application/octet-stream` in that case. `#`, `?`, `%`, and
+whitespace in a media type are percent-encoded so the result stays one URL.
 
 `readAsText()` follows {TextDecoder} for the chosen encoding, including its
 ICU requirement. Labels that the Encoding Standard maps to the replacement
@@ -654,8 +655,10 @@ An implementation of {FileReaderSync} from the [File API][]. It is
 thread or in threads created with `node:worker_threads`.
 
 `readAsArrayBuffer()`, `readAsBinaryString()`, `readAsText()`, and
-`readAsDataURL()` read a {Blob} synchronously. A file-backed blob, such as
-one returned by [`fs.openAsBlob()`][], throws a `NotReadableError`.
+`readAsDataURL()` read a {Blob} synchronously. A file-backed blob that can
+still be read, such as one returned by [`fs.openAsBlob()`][], throws a
+`NotReadableError`: the blob reader does not finish synchronously. If the
+file has been removed, the error is `NotFoundError`.
 
 ```js
 // Inside a Web Worker (`--experimental-web-worker`):

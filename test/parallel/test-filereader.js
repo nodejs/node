@@ -265,3 +265,54 @@ if (common.hasCrypto) {
     assert.strictEqual(data.bytes, 4);
   });
 }
+
+{
+  const reader = new FileReader();
+  const order = [];
+  reader.onload = common.mustCall(() => {
+    setImmediate(common.mustCall(() => {
+      order.push('immediate');
+      assert.deepStrictEqual(order, ['loadend', 'immediate']);
+    }));
+  });
+  reader.onloadend = common.mustCall(() => {
+    order.push('loadend');
+  });
+  reader.readAsText(new Blob(['x']));
+}
+
+{
+  assert.throws(() => {
+    new ProgressEvent(Symbol(), new Proxy({ __proto__: null }, {
+      get() {
+        throw new Error('argument 2 was read');
+      },
+    }));
+  }, TypeError);
+}
+
+{
+  const reader = new FileReader();
+  reader.onload = common.mustCall(() => {
+    assert.strictEqual(
+      reader.result,
+      'data:text/plain;x=%23;base64,aGVsbG8=');
+  });
+  reader.readAsDataURL(new Blob(['hello'], { type: 'text/plain;x=#' }));
+}
+
+{
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const file = path.join(os.tmpdir(), `node-filereader-${process.pid}.txt`);
+  fs.writeFileSync(file, 'x');
+  fs.openAsBlob(file).then(common.mustCall((blob) => {
+    fs.unlinkSync(file);
+    const reader = new FileReader();
+    reader.onerror = common.mustCall(() => {
+      assert.strictEqual(reader.error.name, 'NotFoundError');
+    });
+    reader.readAsText(blob);
+  }));
+}
