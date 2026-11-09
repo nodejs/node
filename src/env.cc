@@ -205,7 +205,6 @@ bool AsyncHooks::pop_async_context(double async_id) {
     } else {
       native_execution_async_resources_.resize(offset);
     }
-    native_execution_async_resources_.shrink_to_fit();
   }
 
   if (js_execution_async_resources()->Length() > offset) [[unlikely]] {
