@@ -667,6 +667,12 @@
             },
           },
         }],
+        ['node_shared=="true" and OS in "aix os400"', {
+          'dependencies': ['generate_node_exp'],
+          'ldflags': [
+            '-Wl,-bE:<(PRODUCT_DIR)/<(node_core_target_name).exp',
+          ],
+        }],
         [ 'node_shared=="false"', {
           # Keep this whole-archive section in sync with the `node_lib` target below.
           'xcode_settings': {
@@ -1164,6 +1170,23 @@
           'direct_dependent_settings': {
             'ldflags': [ '-Wl,-brtl' ],
           },
+        }],
+        ['OS in "aix os400"', {
+          'conditions': [
+            ['node_use_node_snapshot=="true"', {
+              'variables': {
+                'expfile_extra_inputs': [
+                  '<(obj_dir)/<(node_lib_target_name)/gen/node_snapshot.o',
+                ],
+              },
+            }, {
+              'variables': {
+                'expfile_extra_inputs': [
+                  '<(obj_dir)/<(node_lib_target_name)/src/node_snapshot_stub.o',
+                ],
+              },
+            }],
+          ],
         }],
         [ 'node_shared=="true" and OS=="win"', {
           'sources': [
@@ -1712,6 +1735,33 @@
   ], # end targets
 
   'conditions': [
+    ['OS in "aix os400" and node_shared=="true"', {
+      'targets': [
+        {
+          'target_name': 'generate_node_exp',
+          'type': 'none',
+          'dependencies': [
+            '<(node_lib_target_name)',
+          ],
+          'actions': [
+            {
+              'action_name': 'generate_node_exp_action',
+              'inputs': [
+                '<(PRODUCT_DIR)/<(node_lib_target_name).exp',
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/<(node_core_target_name).exp',
+              ],
+              'action': [
+                '<(python)', 'tools/copyfile.py',
+                '<@(_inputs)',
+                '<@(_outputs)',
+              ],
+            },
+          ],
+        },
+      ],
+    }],
     ['OS=="win" and node_shared=="true"', {
      'targets': [
        {

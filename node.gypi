@@ -300,20 +300,24 @@
         [ 'force_load=="true"', {
           'variables': {
             'exp_filename': '<(PRODUCT_DIR)/<(_target_name).exp',
+            'expfile_extra_inputs%': [],
           },
           'actions': [
             {
               'action_name': 'expfile',
               'inputs': [
                 '<(obj_dir)',
+                '<@(expfile_extra_inputs)',
               ],
               'outputs': [
                 '<(exp_filename)',
               ],
               'action': [
                 'sh', 'tools/create_expfile.sh',
-                '<@(_inputs)',
+                '<(obj_dir)',
                 '<@(_outputs)',
+                '<(_target_name)',
+                '<@(expfile_extra_inputs)',
               ],
             }
           ],
