@@ -1620,6 +1620,55 @@ def get_rustc_version(rustc):
   warn(f'Could not recognize `rustc`: {rustc_ret}')
   return '0.0'
 
+# Prefixes of Rust target triple architectures for each GYP architecture.
+rust_arch_prefixes = {
+  'arm': ('arm', 'thumb'),
+  'arm64': ('aarch64',),
+  'ia32': ('i386', 'i586', 'i686'),
+  'loong64': ('loongarch64',),
+  'mips64el': ('mips64el',),
+  'mipsel': ('mipsel',),
+  'ppc64': ('powerpc64',),
+  'riscv64': ('riscv64',),
+  's390x': ('s390x',),
+  'x64': ('x86_64',),
+}
+
+def get_rust_cross_targets(host_arch, default_target):
+  """Returns (host triple, target triple, problem). problem is non-empty when
+  the triples for a bundled Temporal cross build cannot be determined."""
+  rust_target = os.environ.get('CARGO_BUILD_TARGET', '') or default_target
+  if not rust_target:
+    return '', '', 'Cross compilation with bundled Temporal requires CARGO_BUILD_TARGET.'
+
+  rust_host_target = ''
+  rustc = os.environ.get('RUSTC', 'rustc')
+  try:
+    version = subprocess.check_output(shlex.split(rustc) + ['-vV'],
+                                      stderr=subprocess.PIPE, text=True)
+  except (OSError, subprocess.CalledProcessError):
+    version = ''
+  match = re.search(r'^host: (\S+)$', version, re.MULTILINE)
+  if match:
+    rust_host_target = match.group(1)
+  if not rust_host_target:
+    return '', '', 'Cannot determine the Rust host triple from `rustc -vV`.'
+
+  # The host toolset follows CC_host, which may build 32-bit host tools for
+  # 32-bit targets (e.g. CC_host="gcc -m32") on a 64-bit Rust host.
+  rust_host_arch, _, rust_host_rest = rust_host_target.partition('-')
+  if not rust_host_arch.startswith(rust_arch_prefixes.get(host_arch, ('',))):
+    if host_arch == 'ia32' and rust_host_arch == 'x86_64':
+      rust_host_target = f'i686-{rust_host_rest}'
+    else:
+      return '', '', (f'Rust host triple {rust_host_target} does not match '
+                      f'the host toolset architecture {host_arch} (CC_host).')
+
+  for triple in (rust_host_target, rust_target):
+    if not re.fullmatch(r'[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)+', triple):
+      error('Rust targets must be target triples, not paths to target JSON files')
+  return rust_host_target, rust_target, ''
+
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
 # the version check more by accident than anything else but a more rigorous
 # check involves checking the build number against an allowlist.  I'm not
@@ -1957,6 +2006,23 @@ def configure_node(o):
     os.environ['GYP_CROSSCOMPILE'] = "1"
 
   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
+  o['variables']['cargo_cross_compiling'] = 0
+  if (flavor != 'win' and cross_compiling and
+      not options.v8_disable_temporal_support and not options.shared_temporal_capi):
+    # Only bundled Temporal cross builds need explicit per-toolset Rust targets.
+    rust_host_target, rust_target, problem = get_rust_cross_targets(
+        host_arch, o['variables']['cargo_rust_target'])
+    if problem:
+      # Like a missing Rust toolchain, this is only fatal when Temporal support
+      # was explicitly requested.
+      if options.v8_enable_temporal_support:
+        error(problem)
+      warn(f'{problem} Support for Temporal will be disabled.')
+      options.v8_disable_temporal_support = True
+    else:
+      o['variables']['cargo_cross_compiling'] = 1
+      o['variables']['cargo_rust_target_target'] = rust_target
+      o['variables']['cargo_rust_target_host'] = rust_host_target
 
   if target_arch == 'arm64':
     o['variables']['arm_fpu'] = options.arm_fpu or 'neon'
