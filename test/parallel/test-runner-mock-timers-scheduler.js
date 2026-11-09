@@ -7,22 +7,20 @@ const { it, describe } = require('node:test');
 const nodeTimersPromises = require('node:timers/promises');
 
 describe('Mock Timers Scheduler Test Suite', () => {
-  it('should advance in time and trigger timers when calling the .tick function', (t) => {
+  it('should advance in time and trigger timers when calling the .tick function', async (t) => {
     t.mock.timers.enable({ apis: ['scheduler.wait'] });
 
-    const now = Date.now();
-    const durationAtMost = 100;
+    const fn = t.mock.fn();
 
-    const p = nodeTimersPromises.scheduler.wait(4000);
+    nodeTimersPromises.scheduler.wait(4000).then(fn).then(common.mustCall());
     t.mock.timers.tick(4000);
 
-    return p.then(common.mustCall((result) => {
-      assert.strictEqual(result, undefined);
-      assert.ok(
-        Date.now() - now < durationAtMost,
-        `time should be advanced less than the ${durationAtMost}ms`
-      );
-    }));
+    // A real 4000ms timer cannot fire within a single turn of the event loop,
+    // so the promise being settled here proves the mocked timer was used.
+    await nodeTimersPromises.setImmediate();
+
+    assert.strictEqual(fn.mock.callCount(), 1);
+    assert.deepStrictEqual(fn.mock.calls[0].arguments, [undefined]);
   });
 
   it('should advance in time and trigger timers when calling the .tick function multiple times', async (t) => {
