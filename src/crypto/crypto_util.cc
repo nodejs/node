@@ -448,19 +448,6 @@ std::optional<std::string> ProcessFipsOptions() {
   const bool force_fips = per_process::cli_options->force_fips_crypto;
   if (!enable_fips && !force_fips) return std::nullopt;
 
-#ifndef OPENSSL_IS_BORINGSSL
-  // Whether FIPS-approved implementations are reachable is decided by the
-  // OpenSSL configuration, not by Node.js. Refuse to start rather than
-  // restrict the default property query to a provider that is not there,
-  // which would leave every operation failing as unsupported.
-  if (!ncrypto::testFipsEnabled()) {
-    const std::string option = force_fips ? "--force-fips" : "--enable-fips";
-    return option + " requires an active OpenSSL provider named \"fips\". "
-                    "FIPS mode is configured through OpenSSL; see "
-                    "https://nodejs.org/api/crypto.html#fips-mode";
-  }
-#endif
-
   CryptoErrorList errors{CryptoErrorList::Option::NONE};
   if (!ncrypto::setFipsEnabled(true, &errors)) {
     std::string error = "OpenSSL error when trying to enable FIPS";
