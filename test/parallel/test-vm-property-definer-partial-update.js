@@ -54,3 +54,23 @@ const assert = require('assert');
   assert.strictEqual(
     Object.getOwnPropertyDescriptor(context, 'c2').enumerable, false);
 }
+
+{
+  const context = vm.createContext({});
+
+  const { before, after } = vm.runInContext(`
+    const { defineProperty, getOwnPropertyDescriptor } = Object;
+    const key = 'globalThis';
+    ({
+      before: getOwnPropertyDescriptor(globalThis, key),
+      after: getOwnPropertyDescriptor(defineProperty(globalThis, key, {}), key),
+    });
+  `, context);
+
+  assert.strictEqual(before.writable, true);
+  assert.strictEqual(before.configurable, true);
+  assert.strictEqual(after.writable, before.writable);
+  assert.strictEqual(after.enumerable, before.enumerable);
+  assert.strictEqual(after.configurable, before.configurable);
+  assert.strictEqual(typeof after.value, 'object');
+}
