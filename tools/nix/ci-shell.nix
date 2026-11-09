@@ -46,13 +46,17 @@ args@{
           )
         }-pkg-config-only"
         {
+          __structuredAttrs = true;
+          strictDeps = true;
           nativeBuildInputs = [ pkgs.pkgconf ];
           buildInputs = [ dep ];
+          outputChecks.out.disallowedRequisites = [ pkgs.pkgconf ];
         }
         ''
           mkdir -p "$out/lib/pkgconfig"
-          for pc in $(pkgconf --list-package-names); do
-            ln -s "$(pkgconf --path "$pc")" "$out/lib/pkgconfig/"
+          for pc in $(pkgconf --env-only --list-package-names); do
+            PC_PATH="$(pkgconf --path "$pc")"
+            [ -z "$PC_PATH" ] || ln -s "$PC_PATH" "$out/lib/pkgconfig/"
           done
         ''
     ) old.buildInputs;
