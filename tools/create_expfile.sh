@@ -6,7 +6,7 @@
 # by native add-ons.
 #
 # The raw symbol data is obtained by using dump -tov on
-# the .a files which make up the node executable.
+# the .a and .o files which make up the node executable.
 #
 # dump -tov flags:
 # -t: Display symbol table entries
@@ -29,12 +29,17 @@
 # Symbols for the gtest libraries are excluded as
 # they are not linked into the node executable.
 #
-echo "Searching $1 to write out expfile to $2"
+SEARCH_DIR="$1"
+OUTPUT="$2"
+TARGET_NAME="$3"
+shift 3 || true
+# Remaining arguments are explicit extra inputs for the build to order on.
 
-# This special sequence must be at the start of the exp file.
-echo "#!." > "$2.tmp"
+echo "Searching $SEARCH_DIR to write out expfile to $OUTPUT"
 
-# Pull the symbols from the .a files.
+SYMFILE="${OUTPUT}.syms"
+: > "$SYMFILE"
+
 # Use dump -tov to get visibility information and exclude HIDDEN symbols.
 # This prevents AIX linker error 0711-407 when addons try to import symbols
 # with visibility attributes.
@@ -42,46 +47,47 @@ echo "#!." > "$2.tmp"
 # IMPORTANT: AIX dump -tov output has a visibility column that contains either
 # a visibility keyword (HIDDEN/EXPORTED/PROTECTED) or blank spaces when no
 # visibility attribute is set. Since AWK splits fields on whitespace, this
-# results in different field counts:
-#
-# With visibility keyword (8 fields after AWK splits):
-#   [137] m 0x00003290 .text 1 weak HIDDEN ._ZNKSt3__1...
-#    $1  $2    $3      $4   $5  $6    $7        $8
-#                              |     |         └─ Symbol name
-#                              |     └─ Visibility (HIDDEN/EXPORTED/PROTECTED)
-#                              └─ Linkage (weak/extern)
-#
-# Without visibility keyword (7 fields after AWK splits, spaces collapsed):
-#   [77] m 0x00000000 .text 1 weak ._ZN8simdjson...
-#    $1 $2    $3      $4   $5  $6       $7
-#                             |         └─ Symbol name
-#                             └─ Linkage (weak/extern)
-#
-# The awk script handles both cases by using an associative array V[]
-# to map field values to their export suffixes. For fields that don't match
-# any key in V[], the lookup returns an empty string, which is perfect for
-# handling the variable field positions caused by the blank visibility column.
-#
-find "$1" -name "*.a" | grep -v gtest | while read -r f; do
-    dump -tov -X 32_64 "$f" 2>/dev/null | \
-    awk '
-        BEGIN {
-            V["EXPORTED"]=" export"
-            V["PROTECTED"]=" protected"
-            V["HIDDEN"]=" hidden"
-            V["weak"]=" weak"
-        }
-        /^\[[0-9]+\]\tm +[^ ]+ +\.(text|data|tdata|bss) +[^ ]+ +(extern|weak)( +(EXPORTED|PROTECTED|HIDDEN))?/ {
-            # Exclude symbols starting with dot, __sinit, __sterm, __[0-9]+__
-            # Also exclude HIDDEN symbols to avoid visibility attribute issues
-            if (!match($NF,/^(\.|__sinit|__sterm|__[0-9]+__)/)) {
-                # Skip if HIDDEN visibility (can be at $(NF-1) or $(NF-2))
-                if ($(NF-1) != "HIDDEN" && $(NF-2) != "HIDDEN") {
-                    print $NF V[$(NF-1)] V[$(NF-2)]
-                }
-            }
-        }
-    '
-done | sort -u >> "$2.tmp"
+# results in different field counts. The awk script handles both cases by using
+# an associative array V[] to map field values to their export suffixes.
 
-mv -f "$2.tmp" "$2"
+# This is to bypass the lint-sh job from saying "Expressions don't expand in
+# single quotes, use double quotes for that." which is invalid for this case
+# shellcheck disable=SC2016
+DUMP_AWK='
+BEGIN {
+    V["EXPORTED"]=" export"
+    V["PROTECTED"]=" protected"
+    V["HIDDEN"]=" hidden"
+    V["weak"]=" weak"
+}
+/^\[[0-9]+\]\tm +[^ ]+ +\.(text|data|tdata|bss) +[^ ]+ +(extern|weak)( +(EXPORTED|PROTECTED|HIDDEN))?/ {
+    if (!match($NF,/^(\.|__sinit|__sterm|__[0-9]+__)/)) {
+        if ($(NF-1) != "HIDDEN" && $(NF-2) != "HIDDEN") {
+            print $NF V[$(NF-1)] V[$(NF-2)]
+        }
+    }
+}
+'
+
+find "$SEARCH_DIR" -name "*.a" | grep -v gtest | while read -r f; do
+  dump -tov -X 32_64 "$f" 2>/dev/null | awk "$DUMP_AWK" >> "$SYMFILE"
+done
+
+# Objects linked directly into the target (not archived), e.g. node_snapshot.o.
+if [ -n "$TARGET_NAME" ] && [ -d "$SEARCH_DIR/$TARGET_NAME" ]; then
+  find "$SEARCH_DIR/$TARGET_NAME" -name "*.o" | while read -r f; do
+    dump -tov -X 32_64 "$f" 2>/dev/null | awk "$DUMP_AWK" >> "$SYMFILE"
+  done
+fi
+
+for extra in "$@"; do
+  if [ -f "$extra" ]; then
+    dump -tov -X 32_64 "$extra" 2>/dev/null | awk "$DUMP_AWK" >> "$SYMFILE"
+  fi
+done
+
+{
+  echo "#!."
+  sort -u "$SYMFILE"
+} > "$OUTPUT"
+rm -f "$SYMFILE"
