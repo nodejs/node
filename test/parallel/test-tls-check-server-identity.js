@@ -138,10 +138,13 @@ const tests = [
     cert: { subject: { CN: '*.a.com' } },
     error: 'Host: ba.com. is not cert\'s CN: *.a.com'
   },
+  // A hostname containing a forbidden host code point (here a line feed) is
+  // rejected instead of being silently normalized and matched: domainToASCII()
+  // would drop the control character, producing a host that was never asked for.
   {
     host: '\n.b.com',
     cert: { subject: { CN: '*n.b.com' } },
-    error: 'Host: \n.b.com. is not cert\'s CN: *n.b.com'
+    error: 'Host contains a forbidden host code point'
   },
   { host: 'b.a.com',
     cert: {
@@ -432,6 +435,28 @@ const tests = [
       subject: {},
     },
   },
+  // domainToASCII() is implemented on top of the URL host parser, which stops at
+  // path/query/fragment delimiters and percent-decodes. Reject hostnames that
+  // would be silently truncated or otherwise transformed, so the certificate is
+  // never validated against a host the application did not ask for (e.g.
+  // "agent1/.bank.example" must not be verified as "agent1").
+  ...[
+    ['agent1/.bank.example'],
+    ['agent1?.bank.example'],
+    ['agent1#.bank.example'],
+    ['agent1\\.bank.example'],
+    ['ag%65nt1'],
+    ['ag@ent1'],
+    ['ag:ent1'],
+    ['ag ent1'],
+  ].map(([host]) => ({
+    host,
+    cert: {
+      subjectaltname: 'DNS:agent1',
+      subject: {},
+    },
+    error: 'Host contains a forbidden host code point',
+  })),
   {
     host: 'localhost', cert: {
       subjectaltname: 'DNS:a.com',
