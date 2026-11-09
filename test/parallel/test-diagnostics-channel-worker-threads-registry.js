@@ -53,7 +53,7 @@ if (isMainThread) {
     assert.deepStrictEqual(snapshots, [[threadId], [threadId, childId], [threadId], []]);
   }
 
-  test().then(common.mustCall(), common.mustNotCall());
+  test().then(common.mustCall());
 } else {
   // Neither the parent worker nor its child should publish this channel locally.
   dc.subscribe(channelName, common.mustNotCall());
@@ -76,6 +76,6 @@ if (isMainThread) {
       parentPort.close();
     }
 
-    run().then(common.mustCall(), common.mustNotCall());
+    run().then(common.mustCall());
   }
 }
