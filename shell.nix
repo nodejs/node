@@ -144,6 +144,14 @@ pkgs.mkShell {
         )
       )
     );
+
+    # CA bundle built from the vendored Mozilla trust store, so Nix-built tools
+    # (curl, git, shared OpenSSL) don't fall back to the user's possibly stale one.
+    NIX_SSL_CERT_FILE = "${
+      pkgs.cacert.overrideAttrs {
+        src = ./tools/certdata.txt;
+      }
+    }/etc/ssl/certs/ca-bundle.crt";
   }
   // (
     let
