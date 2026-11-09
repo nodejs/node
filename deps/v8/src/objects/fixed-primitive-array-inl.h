@@ -192,6 +192,11 @@ void FixedDoubleArray::set(uint32_t index, double value) {
   DCHECK(!is_the_hole(index));
 }
 
+void FixedDoubleArray::set_raw(uint32_t index, Float64 value) {
+  DCHECK(IsInBounds(index));
+  values()[index].set_value_as_bits(value.get_bits());
+}
+
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void FixedDoubleArray::set_undefined(uint32_t index) {
   DCHECK(IsInBounds(index));

@@ -96,7 +96,8 @@ Handle<JSArray> Factory::NewJSArrayWithElements(
 
 Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(
     DirectHandle<Map> map, int number_of_slow_properties,
-    AllocationType allocation, DirectHandle<AllocationSite> allocation_site,
+    AllocationType allocation,
+    MaybeDirectHandle<AllocationSite> allocation_site,
     NewJSObjectType new_js_object_type) {
   auto js_object =
       map->is_dictionary_map()

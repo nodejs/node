@@ -1029,7 +1029,7 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Tagged<Map> map) {
   if (Tagged<DescriptorArray> array;
       map->owns_descriptors() &&
 #if V8_ENABLE_WEBASSEMBLY
-      !IsWasmObjectMap(map) &&
+      !IsAnyWasmObjectMap(map) &&
 #endif  // V8_ENABLE_WEBASSEMBLY
       (array = map->instance_descriptors()) !=
           ReadOnlyRoots(heap_).empty_descriptor_array()) {

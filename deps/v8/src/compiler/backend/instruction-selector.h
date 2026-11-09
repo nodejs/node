@@ -783,6 +783,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
     }
     bool is_trapping() const { return kind().with_trap_handler; }
     bool is_atomic() const { return kind().is_atomic; }
+    bool has_shared_base() const { return kind().shared_base; }
 
     turboshaft::OpIndex base() const {
       if (load_) return load_->base();

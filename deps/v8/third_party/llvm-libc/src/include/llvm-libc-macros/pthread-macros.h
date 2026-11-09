@@ -77,6 +77,16 @@
       /* .__write_tid = */ 0,                                                  \
   }
 
+#define pthread_cleanup_push(routine, arg)                                     \
+  do {                                                                         \
+    struct __pthread_cleanup_frame __cleanup_frame;                            \
+  __pthread_cleanup_push(&__cleanup_frame, (routine), (arg))
+
+#define pthread_cleanup_pop(execute)                                           \
+  __pthread_cleanup_pop((execute));                                            \
+  }                                                                            \
+  while (0)
+
 // glibc extensions
 #define PTHREAD_STACK_MIN (1 << 14) // 16KB
 #define PTHREAD_RWLOCK_PREFER_READER_NP 0

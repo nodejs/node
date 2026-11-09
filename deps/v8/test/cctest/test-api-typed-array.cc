@@ -4,6 +4,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/object-conversions-inl.h"
@@ -107,7 +108,7 @@ void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
       "sum;");
   CHECK_EQ(28, result->Int32Value(context).FromJust());
 
-  auto test_buf = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  auto test_buf = v8::base::UniqueArray<char>::NewForOverwrite(1024);
 
   // Check legal boundary conditions.
   // The repeated loads and stores ensure the ICs are exercised.
@@ -696,7 +697,7 @@ void TestOnHeapHasBuffer(const char* array_name, size_t elem_size) {
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(128);
+  auto source = v8::base::UniqueArray<char>::NewForOverwrite(128);
   // Test on-heap sizes.
   for (size_t size = 0; size <= i::JSTypedArray::kMaxSizeInHeap;
        size += elem_size) {
@@ -729,7 +730,7 @@ void TestOffHeapHasBuffer(const char* array_name, size_t elem_size) {
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(128);
+  auto source = v8::base::UniqueArray<char>::NewForOverwrite(128);
   // Test off-heap sizes.
   size_t size = i::JSTypedArray::kMaxSizeInHeap;
   for (int i = 0; i < 3; i++) {

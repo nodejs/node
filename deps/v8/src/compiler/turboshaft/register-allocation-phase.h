@@ -217,6 +217,9 @@ struct AssembleCodePhase {
     CodeGenerator* code_generator = data->code_generator();
     DCHECK_NOT_NULL(code_generator);
     code_generator->AssembleCode();
+    if (data->broker() != nullptr) {
+      code_generator->PrepareCodeOnBackground(data->broker()->local_isolate());
+    }
   }
 };
 

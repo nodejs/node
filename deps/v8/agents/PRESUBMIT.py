@@ -6,13 +6,16 @@ USE_PYTHON3 = True
 
 
 def _CommonChecks(input_api, output_api):
-  return input_api.RunTests(
-      input_api.canned_checks.GetUnitTestsInDirectory(
-          input_api,
-          output_api,
-          'scripts',
-          files_to_check=[r'.+_test\.py$'],
-          run_on_python2=False))
+  tests = []
+  for directory in ('scripts', 'skills/clusterfuzz/scripts'):
+    tests.extend(
+        input_api.canned_checks.GetUnitTestsInDirectory(
+            input_api,
+            output_api,
+            directory,
+            files_to_check=[r'.+_test\.py$'],
+            run_on_python2=False))
+  return input_api.RunTests(tests)
 
 
 def CheckChangeOnCommit(input_api, output_api):

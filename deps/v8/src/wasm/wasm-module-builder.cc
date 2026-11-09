@@ -459,14 +459,14 @@ ModuleTypeIndex WasmModuleBuilder::AddStructType(StructType* type,
                                                  bool is_final,
                                                  ModuleTypeIndex supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.emplace_back(type, supertype, is_final, SharedFlag{false});
+  types_.emplace_back(type, supertype, is_final, type->is_shared());
   return ModuleTypeIndex{index};
 }
 
 ModuleTypeIndex WasmModuleBuilder::AddArrayType(ArrayType* type, bool is_final,
                                                 ModuleTypeIndex supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.emplace_back(type, supertype, is_final, SharedFlag{false});
+  types_.emplace_back(type, supertype, is_final, type->is_shared());
   return ModuleTypeIndex{index};
 }
 

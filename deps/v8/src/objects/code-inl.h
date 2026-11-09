@@ -19,6 +19,7 @@
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instruction-stream-inl.h"
+#include "src/objects/struct-inl.h"
 #include "src/objects/trusted-object-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
@@ -933,6 +934,9 @@ inline void Code::set_js_dispatch_handle(JSDispatchHandle handle) {
   Relaxed_WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
                                                         handle.value());
 }
+
+CodeWrapper::CodeWrapper(const AllocationWitness& witness)
+    : Struct(witness.roots().code_wrapper_map()) {}
 
 Tagged<Code> CodeWrapper::code(IsolateForSandbox isolate) const {
   return code_.load(isolate);

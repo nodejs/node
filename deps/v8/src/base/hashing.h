@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstring>
 #include <functional>
+#include <span>
 #include <type_traits>
 #include <utility>
 
@@ -263,6 +264,11 @@ V8_INLINE size_t hash_value(const T (&v)[N]) {
 template <typename T, size_t N>
 V8_INLINE size_t hash_value(T (&v)[N]) {
   return Hasher{}.AddRange(v, v + N).hash();
+}
+
+template <typename T, size_t N>
+V8_INLINE size_t hash_value(std::span<T, N> v) {
+  return Hasher{}.AddRange(v.begin(), v.end()).hash();
 }
 
 template <typename T>

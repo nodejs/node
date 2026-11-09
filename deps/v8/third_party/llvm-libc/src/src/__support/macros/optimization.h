@@ -16,17 +16,24 @@
 
 // We use a template to implement likely/unlikely to make sure that we don't
 // accidentally pass an integer.
+// Note that `__builtin_expect` requires the second argument to be a constant
+// expression.
 namespace LIBC_NAMESPACE_DECL {
 namespace details {
 template <typename T>
-LIBC_INLINE constexpr bool expects_bool_condition(T value, T expected) {
-  return __builtin_expect(value, expected);
+LIBC_ALWAYS_INLINE constexpr bool expects_bool_condition(T value) = delete;
+
+template <>
+LIBC_ALWAYS_INLINE constexpr bool expects_bool_condition<bool>(bool value) {
+  return value;
 }
 } // namespace details
 } // namespace LIBC_NAMESPACE_DECL
-#define LIBC_LIKELY(x) LIBC_NAMESPACE::details::expects_bool_condition(x, true)
+#define LIBC_LIKELY(x)                                                         \
+  (__builtin_expect(LIBC_NAMESPACE::details::expects_bool_condition((x)), true))
 #define LIBC_UNLIKELY(x)                                                       \
-  LIBC_NAMESPACE::details::expects_bool_condition(x, false)
+  (__builtin_expect(LIBC_NAMESPACE::details::expects_bool_condition((x)),      \
+                    false))
 
 #if defined(LIBC_COMPILER_IS_CLANG)
 #define LIBC_LOOP_NOUNROLL _Pragma("nounroll")

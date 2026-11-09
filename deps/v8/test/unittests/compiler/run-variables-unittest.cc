@@ -64,11 +64,11 @@ static void RunVariableTests(Isolate* isolate, std::string_view source_format,
                              std::span<const TestCase> test_cases) {
   for (size_t i = 0; i < test_cases.size(); ++i) {
     const auto& test_case = test_cases[i];
-    base::EmbeddedVector<char, 512> buffer;
-    SNPrintF(buffer, source_format.data(), test_case.code.data());
-    PrintF("#%zu: %s\n", i, buffer.begin());
+    std::array<char, 512> buffer;
+    base::SNPrintF(buffer, source_format.data(), test_case.code.data());
+    PrintF("#%zu: %s\n", i, buffer.data());
 
-    FunctionTester tester(isolate, buffer.begin());
+    FunctionTester tester(isolate, buffer.data());
 
     // Check function with non-falsey parameter.
     if (test_case.expected_truthy != kThrows) {

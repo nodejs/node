@@ -109,15 +109,15 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   };
   using Flags = base::Flags<Flag>;
 
-  CallDescriptor(Kind kind, CodeEntrypointTag tag, MachineType target_type,
-                 LinkageLocation target_loc, LocationSignature* location_sig,
-                 size_t param_slot_count, Operator::Properties properties,
-                 RegList callee_saved_registers,
-                 DoubleRegList callee_saved_fp_registers, Flags flags,
-                 const char* debug_name = "",
-                 const RegList allocatable_registers = {},
-                 size_t return_slot_count = 0,
-                 uint64_t signature_hash = kInvalidWasmSignatureHash)
+  CallDescriptor(
+      Kind kind, CodeEntrypointTag tag, MachineType target_type,
+      LinkageLocation target_loc, LocationSignature* location_sig,
+      size_t param_slot_count, Operator::Properties properties,
+      RegList callee_saved_registers, DoubleRegList callee_saved_fp_registers,
+      Flags flags, const char* debug_name = "",
+      const RegList allocatable_registers = {}, size_t return_slot_count = 0,
+      uint64_t signature_hash = kInvalidWasmSignatureHash,
+      uint16_t expected_parameter_count = kDontAdaptArgumentsSentinel)
       : kind_(kind),
         tag_(tag),
         target_type_(target_type),
@@ -125,6 +125,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
         location_sig_(location_sig),
         param_slot_count_(param_slot_count),
         return_slot_count_(return_slot_count),
+        expected_parameter_count_(expected_parameter_count),
         properties_(properties),
         callee_saved_registers_(callee_saved_registers),
         callee_saved_fp_registers_(callee_saved_fp_registers),
@@ -238,6 +239,15 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // The number of stack return value slots from the call.
   size_t ReturnSlotCount() const { return return_slot_count_; }
 
+  // The expected formal parameter count of the target JSFunction. It's used
+  // for ensuring that potentially adapted number of arguments pushed on the
+  // stack matches the target function's parameter count read from the dispatch
+  // table entry (V8 sandbox only).
+  uint16_t expected_parameter_count() const {
+    DCHECK(IsJSFunctionCall());
+    return expected_parameter_count_;
+  }
+
   // The number of parameters to the JS function call.
   size_t JSParameterCount() const {
     DCHECK(IsJSFunctionCall());
@@ -349,6 +359,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const LocationSignature* const location_sig_;
   const size_t param_slot_count_;
   const size_t return_slot_count_;
+  const uint16_t expected_parameter_count_;
   const Operator::Properties properties_;
   const RegList callee_saved_registers_;
   const DoubleRegList callee_saved_fp_registers_;
@@ -410,9 +421,19 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   // Calls to JSFunctions should never overwrite the {properties}, but calls to
   // known builtins might.
   static CallDescriptor* GetJSCallDescriptor(
-      Zone* zone, bool is_osr, int parameter_count, CallDescriptor::Flags flags,
+      Zone* zone, bool is_osr, int js_parameter_count,
+      uint16_t expected_parameter_count, CallDescriptor::Flags flags,
       Operator::Properties properties =
           Operator::kNoProperties /* use with care! */);
+
+  static CallDescriptor* GetJSCallDescriptor(
+      Zone* zone, bool is_osr, int js_parameter_count,
+      CallDescriptor::Flags flags,
+      Operator::Properties properties =
+          Operator::kNoProperties /* use with care! */) {
+    return GetJSCallDescriptor(zone, is_osr, js_parameter_count,
+                               js_parameter_count, flags, properties);
+  }
 
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int parameter_count,

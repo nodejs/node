@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "src/base/fpu.h"
+#include "src/base/unique-array.h"
 #include "src/execution/microtask-queue.h"
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/sandboxable-thread.h"
@@ -162,7 +163,7 @@ DirectHandle<WasmInstanceObject> CompileAndInstantiateAsync(
   GetWasmEngine()->AsyncCompile(
       isolate->isolate(), enabled_features, CompileTimeImports{},
       std::make_unique<MockCompilationResolver>(isolate, &maybe_instance),
-      base::OwnedCopyOf(*buffer), kAPIMethodName);
+      base::UniqueCopyOf(*buffer), kAPIMethodName);
   while (!IsWasmInstanceObject(*maybe_instance)) PumpMessageLoop(isolate);
   DirectHandle<WasmInstanceObject> instance =
       Cast<WasmInstanceObject>(maybe_instance);

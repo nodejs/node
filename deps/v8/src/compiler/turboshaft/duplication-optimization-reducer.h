@@ -62,6 +62,20 @@ namespace v8::internal::compiler::turboshaft {
 // conditions that are used more than once, so that they can be generated right
 // before each branch without worrying about breaking SSA.
 //
+// Similarly, a comparison that is only used by a branch, but that was emitted
+// in a previous block, is materialized in a register, since the
+// InstructionSelector only combines a comparison with a branch in the same
+// block. This typically happens after the BranchEliminationReducer has cloned a
+// merge block ending with a branch on a Phi into each of its predecessors
+// (CloneBlockAndGoto): the comparison stays in the predecessor, and the branch
+// ends up alone in the cloned block. For instance, `if (a == b && c < d)` is
+// built as a branch on a Phi of `c < d` and `0`. When the branch is the first
+// use of the comparison, the comparison is re-emitted right before the branch
+// (unless this would move it into a loop header, or extend the live ranges of
+// its inputs too much); if the original comparison has no other uses, it is
+// then not emitted (since both CopyingPhase and InstructionSelector skip unused
+// operations).
+//
 // 2. Load/Store flexible second operand duplication: on Arm64, it tries to
 // duplicate the "index" input of Loads/Stores when it's a shift by a constant.
 // This allows the Instruction Selector to compute said shift using a flexible
@@ -144,6 +158,10 @@ class DuplicationOptimizationReducer : public Next {
  private:
   bool MaybeDuplicateCond(const Operation& cond, OpIndex input_idx,
                           V<Word32>* new_cond) {
+    if (const ComparisonOp* comp = cond.TryCast<ComparisonOp>()) {
+      *new_cond = MaybeSinkComparison(*comp, input_idx);
+      if (new_cond->valid()) return true;
+    }
     if (cond.saturated_use_count.Is(1)) return false;
 
     switch (cond.opcode) {
@@ -162,6 +180,43 @@ class DuplicationOptimizationReducer : public Next {
         return false;
     }
     return new_cond->valid();
+  }
+
+  V<Word32> MaybeSinkComparison(const ComparisonOp& comp, OpIndex input_idx) {
+    // Only for the first use of the comparison in the output graph (further
+    // uses are handled by MaybeDuplicateComparison). We cannot require the
+    // comparison to have a single use in the input graph, since its other
+    // uses are often dead (for instance, a Phi that is not emitted).
+    OpIndex output_idx = __ MapToNewGraph(input_idx);
+    const Operation& output_op = __ Get(output_idx);
+    if (!output_op.Is<ComparisonOp>() || !output_op.saturated_use_count.Is(0)) {
+      return {};
+    }
+    // Not if the comparison is in the current block: the InstructionSelector
+    // can then combine it with the branch.
+    const Block* current_block = __ current_block();
+    if (output_idx.id() >= current_block->begin().id()) return {};
+    // Not into a loop header, where the comparison would be recomputed at each
+    // iteration. (At this point, a loop header only has its forward
+    // predecessor: its back edge is added later.)
+    if (current_block->IsLoop()) return {};
+    // If the comparison is in the single predecessor of the current block, the
+    // live ranges of its inputs are barely extended. Otherwise, as for
+    // duplication (see MaybeCanDuplicateGenericBinop), not if both inputs are
+    // only used by the comparison: this would keep 2 values alive instead of
+    // 1, possibly across a loop.
+    const Block* predecessor = current_block->LastPredecessor();
+    bool in_predecessor = predecessor != nullptr &&
+                          predecessor->NeighboringPredecessor() == nullptr &&
+                          predecessor->Contains(output_idx);
+    if (!in_predecessor &&
+        __ input_graph().Get(comp.left()).saturated_use_count.Is(1) &&
+        __ input_graph().Get(comp.right()).saturated_use_count.Is(1)) {
+      return {};
+    }
+    DisableValueNumbering disable_gvn(this);
+    return __ Comparison(__ MapToNewGraph(comp.left()),
+                         __ MapToNewGraph(comp.right()), comp.kind, comp.rep);
   }
 
   bool MaybeCanDuplicateGenericBinop(OpIndex input_idx, OpIndex left,

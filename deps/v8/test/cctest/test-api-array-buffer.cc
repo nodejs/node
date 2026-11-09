@@ -9,6 +9,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/objects/backing-store.h"
@@ -45,7 +46,7 @@ void CheckIsDetached(v8::Local<v8::TypedArray> ta) {
 }
 
 void CheckIsTypedArrayVarDetached(const char* name) {
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  auto source = v8::base::UniqueArray<char>::NewForOverwrite(1024);
   v8::base::SNPrintF(
       source.as_vector(),
       "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0", name, name,

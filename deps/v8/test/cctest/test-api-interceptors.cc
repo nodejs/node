@@ -8,6 +8,7 @@
 
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/execution.h"
 #include "src/objects/objects-inl.h"
@@ -5925,7 +5926,7 @@ void PreprocessExceptionTestCallback(v8::ExceptionPropagationMessage info) {
   String::Utf8Value property_name(isolate, info.GetPropertyName());
   String::Utf8Value message(isolate, message_value);
 
-  auto buf = v8::base::OwnedVector<char>::NewForOverwrite(256);
+  auto buf = v8::base::UniqueArray<char>::NewForOverwrite(256);
   v8::base::SNPrintF(buf.as_vector(), "%s:%s:%s: %s", *interface_name,
                      *property_name, ToString(info.GetExceptionContext()),
                      *message);

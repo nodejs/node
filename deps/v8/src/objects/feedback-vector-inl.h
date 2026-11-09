@@ -15,8 +15,10 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged.h"
 #include "src/roots/roots-inl.h"
@@ -36,6 +38,21 @@ namespace v8::internal {
           1 + Index ==                                                   \
       static_cast<intptr_t>(                                             \
           Builtin::kLoadIC##Location##Representation##Kind##Index##Baseline));
+
+FeedbackMetadata::FeedbackMetadata(const AllocationWitness& witness,
+                                   int32_t slot_count,
+                                   int32_t create_closure_slot_count)
+    : HeapObject(witness.roots().feedback_metadata_map()),
+      slot_count_(slot_count),
+      create_closure_slot_count_(create_closure_slot_count) {
+  DCHECK_LE(0, slot_count);
+  DCHECK_LE(0, create_closure_slot_count);
+  // Initialize the data section to 0.
+  int size = SizeFor(slot_count, create_closure_slot_count);
+  int data_size = size - kHeaderSize;
+  Address data_start = address() + kHeaderSize;
+  memset(reinterpret_cast<uint8_t*>(data_start), 0, data_size);
+}
 
 int32_t FeedbackMetadata::slot_count(AcquireLoadTag) const {
   return base::AsAtomic32::Acquire_Load(&slot_count_);
@@ -110,6 +127,21 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   UNREACHABLE();
 }
 
+FeedbackVector::FeedbackVector(
+    const AllocationWitness& witness, int32_t length,
+    Tagged<SharedFunctionInfo> shared_function_info,
+    Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array,
+    Tagged<FeedbackCell> parent_feedback_cell)
+    : HeapObject(witness.roots().feedback_vector_map()),
+      length_(length),
+      shared_function_info_(witness, shared_function_info),
+      closure_feedback_cell_array_(witness, closure_feedback_cell_array),
+      parent_feedback_cell_(witness, parent_feedback_cell) {
+  DCHECK_LE(0, length);
+  // TODO(leszeks): Initialize based on the feedback metadata.
+  MemsetTagged(slots_start(), witness.roots().undefined_value(), length);
+}
+
 bool FeedbackVector::is_empty() const { return length().value() == 0; }
 
 DEF_GETTER(FeedbackVector, has_metadata, bool) {
@@ -127,7 +159,6 @@ DEF_ACQUIRE_GETTER(FeedbackVector, metadata, Tagged<FeedbackMetadata>) {
 SafeHeapObjectSize FeedbackVector::length() const {
   return SafeHeapObjectSize(length_);
 }
-void FeedbackVector::set_length(int32_t value) { length_ = value; }
 
 int32_t FeedbackVector::invocation_count() const {
   return invocation_count_.load(std::memory_order_relaxed);
@@ -167,26 +198,14 @@ void FeedbackVector::set_flags(uint16_t value) { flags_ = value; }
 Tagged<SharedFunctionInfo> FeedbackVector::shared_function_info() const {
   return shared_function_info_.load();
 }
-void FeedbackVector::set_shared_function_info(Tagged<SharedFunctionInfo> value,
-                                              WriteBarrierMode mode) {
-  shared_function_info_.store(this, value, mode);
-}
 
 Tagged<ClosureFeedbackCellArray> FeedbackVector::closure_feedback_cell_array()
     const {
   return closure_feedback_cell_array_.load();
 }
-void FeedbackVector::set_closure_feedback_cell_array(
-    Tagged<ClosureFeedbackCellArray> value, WriteBarrierMode mode) {
-  closure_feedback_cell_array_.store(this, value, mode);
-}
 
 Tagged<FeedbackCell> FeedbackVector::parent_feedback_cell() const {
   return parent_feedback_cell_.load();
-}
-void FeedbackVector::set_parent_feedback_cell(Tagged<FeedbackCell> value,
-                                              WriteBarrierMode mode) {
-  parent_feedback_cell_.store(this, value, mode);
 }
 
 Tagged<MaybeObject> FeedbackVector::raw_feedback_slots(int i,
@@ -217,8 +236,6 @@ void FeedbackVector::reset_osr_urgency() { set_osr_urgency(0); }
 void FeedbackVector::RequestOsrAtNextOpportunity() {
   set_osr_urgency(kMaxOsrUrgency);
 }
-
-void FeedbackVector::reset_osr_state() { set_osr_state(0); }
 
 bool FeedbackVector::maybe_has_optimized_osr_code() const {
   return maybe_has_maglev_osr_code() || maybe_has_turbofan_osr_code();
@@ -491,7 +508,8 @@ ForInHint ForInHintFromFeedback(ForInFeedback type_feedback) {
       return ForInHint::kEnumCacheKeys;
     case ForInFeedback::kEnumCacheKeysAndIndices:
       return ForInHint::kEnumCacheKeysAndIndices;
-    default:
+    case ForInFeedback::kEnumeratorHolder:
+    case ForInFeedback::kAny:
       return ForInHint::kAny;
   }
   UNREACHABLE();
@@ -645,11 +663,11 @@ Builtin FeedbackNexus::GetLoadICHandlerForStorageOffset(int storage_offset,
   if (is_double) return Builtin::kLoadICDoubleFieldBaseline;
 
   if (is_inobject) {
-    int in_object_index = storage_offset - JSObject::kHeaderSize / kTaggedSize;
-    DCHECK_GE(in_object_index, 0);
+    uint32_t in_object_index =
+        storage_offset - JSObject::kHeaderSize / kTaggedSize;
     // Currently we have eight handlers that support loading in-object field
     // with fixed index 0~7.
-    int kMaxIndex = 7;
+    uint32_t kMaxIndex = 7;
     if (in_object_index > kMaxIndex) {
       return Builtin::kLoadICInObjectNonDoubleFieldBaseline;
     }
@@ -661,12 +679,11 @@ Builtin FeedbackNexus::GetLoadICHandlerForStorageOffset(int storage_offset,
         in_object_index + 1;
     return static_cast<Builtin>(builtin_id);
   } else {
-    int out_of_object_index =
+    uint32_t out_of_object_index =
         storage_offset - OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
-    DCHECK_GE(out_of_object_index, 0);
     // Currently we have four handlers that support loading out-of-object
     // field with fixed index 0~3.
-    int kMaxIndex = 3;
+    uint32_t kMaxIndex = 3;
     if (out_of_object_index > kMaxIndex) {
       return Builtin::kLoadICOutOfObjectNonDoubleFieldBaseline;
     }

@@ -14,12 +14,15 @@ so they are skipped unless one is given:
 
   tools/regexp/correctness_fuzzer/grammar_test.py --d8 out/x64.release/d8
 
-The rest run without a build.
+The default run uses small samples for presubmit. --exhaustive enables the
+full Python coverage sweeps without a build; --d8 enables those too.
 """
 
 import argparse
 import collections
+import contextlib
 import inspect
+import io
 import json
 import os
 import random
@@ -31,33 +34,29 @@ import unittest
 
 import correctness_fuzzer
 import grammar
+import harness
+import run
 from grammar import registry
-
-HARNESS_PATH = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), "harness.js")
 
 # Set from the command line; None means the d8-dependent tests are skipped.
 D8 = None
+EXHAUSTIVE = False
+
+
+def sample_size(n):
+  return n if EXHAUSTIVE else min(n, 200)
 
 
 def run_cases(cases):
   """Run |cases| through the harness, returning index -> result JSON string."""
-  fd, path = tempfile.mkstemp(prefix="grammar_test_", suffix=".json")
+  fd, path = tempfile.mkstemp(prefix="grammar_test_", suffix=".js")
   try:
-    with os.fdopen(fd, "w") as f:
-      json.dump(cases, f)
-    p = subprocess.run([D8, HARNESS_PATH, "--", path],
-                       capture_output=True,
-                       text=True,
-                       timeout=300)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+      f.write(harness.emit_js(cases))
+    p = subprocess.run([D8, path], capture_output=True, text=True, timeout=300)
   finally:
     os.unlink(path)
-  results = {}
-  for line in p.stdout.splitlines():
-    key, tab, value = line.partition("\t")
-    if tab and key.isdigit():
-      results[int(key)] = value
-  return results
+  return correctness_fuzzer.Runner._results(p.stdout)
 
 
 def generate(n, seed=1, **kwargs):
@@ -84,6 +83,8 @@ class GrammarStructureTest(unittest.TestCase):
   """Properties of the grammar itself, checkable without a d8."""
 
   def test_every_rule_is_reachable(self):
+    if not EXHAUSTIVE:
+      self.skipTest("needs --exhaustive or --d8")
     # A rule that never fires tests nothing, and no amount of case volume
     # reveals that on its own -- this is the check that caught a depth-budget
     # bug where every generated character class came out empty.
@@ -97,6 +98,8 @@ class GrammarStructureTest(unittest.TestCase):
     self.assertEqual([], missing, "unreachable at the default --max-depth")
 
   def test_every_profile_reaches_every_rule(self):
+    if not EXHAUSTIVE:
+      self.skipTest("needs --exhaustive or --d8")
     # A profile reweights rules; setting one to a very low weight in effect
     # removes it, which should be a deliberate choice rather than a side
     # effect of tuning some other rule up.
@@ -112,11 +115,21 @@ class GrammarStructureTest(unittest.TestCase):
         ]
         self.assertEqual([], missing)
 
+  def test_profiles_keep_positive_rule_weights(self):
+    for profile in grammar.PROFILES:
+      weights = grammar.parse_weights(profile, None)
+      ctx = grammar.Context(random.Random(1), False, False, 5, weights=weights)
+      for rules in registry.GRAMMAR.values():
+        for rule in rules:
+          self.assertGreater(
+              ctx.weight_of(rule), 0,
+              "%s: %s.%s" % (profile, rule.prod, rule.name))
+
   def test_mode_specific_syntax_stays_in_its_mode(self):
     # The spec's [+UnicodeMode] / [+UnicodeSetsMode] parameters are what make
     # most syntax errors structurally impossible; a rule that loses its guard
     # would still generate, just invalidly.
-    for pattern, flags, _, _ in generate(4000):
+    for pattern, flags, _, _ in generate(sample_size(4000)):
       if "v" not in flags:
         self.assertNotIn(r"\q{", pattern)
         self.assertNotIn("&&", pattern)
@@ -130,7 +143,10 @@ class GrammarStructureTest(unittest.TestCase):
     # `\1` and `\0` are terminated by lookahead, so a digit right after either
     # silently reparses it.  The `(?:)` separator that prevents this is only a
     # separator between Terms; inside a class it would be four more members.
-    for pattern, _, _, _ in generate(4000):
+    for escape in (r"\0", r"\1", r"\12"):
+      self.assertEqual(escape + "(?:)3", registry.concat_terms([escape, "3"]))
+    self.assertEqual(r"\d3", registry.concat_terms([r"\d", "3"]))
+    for pattern, _, _, _ in generate(sample_size(4000)):
       self.assertIsNone(re.search(r"\\[0-9]+[0-9]", pattern), pattern)
       for m in re.finditer(r"\(\?:\)", pattern):
         self.assertFalse(_in_class(pattern, m.start()), pattern)
@@ -141,8 +157,10 @@ class GrammarStructureTest(unittest.TestCase):
     self.assertEqual(generate(200, seed=7), generate(200, seed=7))
 
   def test_depth_budget_bounds_pattern_size(self):
-    small = max(len(p) for p, _, _, _ in generate(500, max_depth=2))
-    large = max(len(p) for p, _, _, _ in generate(500, max_depth=6))
+    small = max(
+        len(p) for p, _, _, _ in generate(sample_size(500), max_depth=2))
+    large = max(
+        len(p) for p, _, _, _ in generate(sample_size(500), max_depth=6))
     self.assertLess(small, large)
 
   def test_unknown_profile_and_rule_are_rejected(self):
@@ -222,7 +240,7 @@ class GrammarStructureTest(unittest.TestCase):
     # which cannot tell a quantifier from a `\q{9}` or a `{` inside a class.
     counted = looping = 0
     rng = random.Random(1)
-    for _ in range(3000):
+    for _ in range(sample_size(3000)):
       ctx = grammar.Context(rng, False, False, 5)
       m = re.fullmatch(r"\{(\d+),?\d*\}",
                        grammar.expand(ctx, "QuantifierPrefix"))
@@ -240,25 +258,73 @@ class GrammarStructureTest(unittest.TestCase):
     # adds match indices, a whole output surface; neither was generated
     # before.
     seen = set()
-    for _, flags, _, _ in generate(2000):
+    for _, flags, _, _ in generate(sample_size(2000)):
       seen.update(flags)
     self.assertEqual(set("dgimsuvy"), seen)
 
   def test_u_and_v_are_never_combined(self):
-    for _, flags, _, _ in generate(3000):
+    for _, flags, _, _ in generate(sample_size(3000)):
       self.assertFalse("u" in flags and "v" in flags, flags)
 
   def test_weight_override_shifts_the_distribution(self):
 
     def caret_share(weights):
       coverage = collections.Counter()
-      generate(1500, weights=weights, coverage=coverage)
+      generate(sample_size(1500), weights=weights, coverage=coverage)
       return coverage[("Assertion", "caret")]
 
     base = caret_share(None)
     boosted = caret_share(
         grammar.parse_weights("default", ["Assertion.caret=20"]))
     self.assertGreater(boosted, base)
+
+  def test_class_string_disjunction_surrogates(self):
+    # Inside `\q{...}`, lone surrogates only combine into a supplementary code
+    # point when both halves are literals or `\uXXXX` escapes; any `\u{...}`
+    # escape keeps them separate.  Verify that mixed escape forms and
+    # literal/escaped combinations are reachable, and that every
+    # ClassSetCharacter expansion records a single decoded character in
+    # ctx.literals rather than escape sequences.
+    weights = grammar.parse_weights("default", [
+        "CharacterClass.negated_class=0",
+        "ClassContents.empty_class=0",
+        "ClassSetOperandOrRange.set_range=0",
+        "ClassSetOperand.set_character=0",
+        "ClassSetOperand.set_class_escape=0",
+        "CharacterEscape.unicode_escape=10",
+        "CharacterEscape.unicode_escape_braced=20",
+        "ClassSetCharacter.literal=1",
+        "ClassSetCharacter.escape=2",
+    ])
+    targets = {
+        r"\ud83c\u{dca1}",
+        r"\u{d83c}\udca1",
+        r"\u{d83c}\u{dca1}",
+        "\\ud83c\udca1",
+        "\\u{d83c}\udca1",
+        "\ud83c\\udca1",
+        "\ud83c\\u{dca1}",
+    }
+    seen = set()
+    rng = random.Random(13)
+    for _ in range(8000):
+      cov = collections.Counter()
+      ctx = grammar.Context(rng, True, True, 1, weights=weights, coverage=cov)
+      pat = grammar.expand(ctx, "CharacterClass")
+      self.assertTrue(pat.startswith(r"[\q{") and pat.endswith("}]"), pat)
+      n_chars = (
+          cov[("ClassSetCharacter", "literal")] +
+          cov[("ClassSetCharacter", "escape")])
+      self.assertEqual(n_chars, len(ctx.literals))
+      self.assertTrue(all(len(lit) == 1 for lit in ctx.literals), ctx.literals)
+      for t in targets:
+        if t in pat:
+          seen.add(t)
+          self.assertIn("\ud83c", ctx.literals)
+          self.assertIn("\udca1", ctx.literals)
+      if seen == targets:
+        break
+    self.assertEqual(targets, seen)
 
 
 class ClassificationTest(unittest.TestCase):
@@ -310,6 +376,52 @@ class ClassificationTest(unittest.TestCase):
     self.assertEqual("DIVERGENCE",
                      correctness_fuzzer.classify(0, self.OK, 0, None))
 
+  def test_print_case_preserves_pattern_and_flags(self):
+
+    class StubRunner:
+      ref = test = None
+
+      def run_one(self, config, pattern, flags, subject, last_index=0):
+        return 0, ClassificationTest.OK
+
+    for pattern, flags, expected in self.LITERAL_CASES:
+      with self.subTest(pattern=pattern, flags=flags):
+        raw = io.BytesIO()
+        stream = io.TextIOWrapper(raw, encoding="utf-8")
+        with contextlib.redirect_stdout(stream):
+          correctness_fuzzer._print_case(StubRunner(), pattern, flags, pattern,
+                                         0, "DIVERGENCE")
+        lines = raw.getvalue().decode("utf-8").splitlines()
+        self.assertEqual("  pattern: " + expected, lines[1])
+
+  LITERAL_CASES = (
+      (r"\d", "", r"/\d/"),
+      (r"\\", "u", r"/\\/u"),
+      ('"', "v", '/"/v'),
+      ("/", "", r"/\//"),
+      (r"\/", "u", r"/\//u"),
+      (r"\\/", "v", r"/\\\//v"),
+      ("[/]", "u", "/[/]/u"),
+      (r"\[/", "", r"/\[\//"),
+      ("", "v", "/(?:)/v"),
+      ("\n\r\t\u2028\u2029\x00\x01\x7f", "",
+       r"/\n\r\t\u2028\u2029\x00\x01\x7f/"),
+      ("\\\n", "", r"/\n/"),
+      ("\\\\\n", "u", r"/\\\n/u"),
+      ("[\\\n/]", "", r"/[\n/]/"),
+      ("\ud83c", "", r"/\ud83c/"),
+      ("\udca1", "u", r"/\u{dca1}/u"),
+      ("\ud83c", "v", r"/\u{d83c}/v"),
+      ("\\\ud83c", "", r"/\ud83c/"),
+      ("\\\x00", "", r"/\x00/"),
+      ("\ud83c\udca1", "u", "/\U0001f0a1/u"),
+      ("\U0001f0a1", "v", "/\U0001f0a1/v"),
+      ("\ud83c" + r"\udca1", "u", r"/\u{d83c}\udca1/u"),
+      (r"\ud83c" + "\udca1", "v", r"/\ud83c\u{dca1}/v"),
+      ("[\ud83c" + r"\udca1]", "v", r"/[\u{d83c}\udca1]/v"),
+      (r"[\q{" + "\ud83c" + r"\udca1}]", "v", r"/[\q{\u{d83c}\udca1}]/v"),
+  )
+
 
 class MinimizerTest(unittest.TestCase):
   """Shrinking, which has to keep up with the large quantifier bounds."""
@@ -353,6 +465,95 @@ class MinimizerTest(unittest.TestCase):
     self.assertLess(runner.calls, 100)
 
 
+class TestcaseFormatTest(unittest.TestCase):
+  """Test emitted testcase files."""
+
+  CASES = [
+      ["a|b", "gi", "ab", 1],
+      ["[\\p{L}--[a]]", "v", "\u00e9\U0001f600", 0],
+      ["(?<n>x)\\k<n>", "d", "xx", 0],
+  ]
+
+  def test_emitted_script_is_standalone_ascii(self):
+    text = harness.emit_js(self.CASES, header=["seed=1"])
+    self.assertTrue(text.isascii())
+    self.assertNotIn("arguments[", text)
+    self.assertNotIn("read(", text)
+    self.assertTrue(text.startswith("// seed=1\nconst cases = [\n"))
+
+  def test_emitted_script_uses_regexp_foozzie_namespace(self):
+    text = harness.emit_js(self.CASES)
+    self.assertIn('v8-foozzie source: regexp-fuzzer:', text)
+    self.assertNotIn('V8 correctness self-check failure', text)
+
+  def test_one_case_per_line_with_trailing_commas(self):
+    lines = harness.emit_js(self.CASES).splitlines()
+    start = lines.index("const cases = [")
+    end = lines.index("];")
+    body = lines[start + 1:end]
+    self.assertEqual(len(self.CASES), len(body))
+    self.assertTrue(all(l.endswith(",") for l in body))
+
+  def test_cases_round_trip(self):
+    text = harness.emit_js(self.CASES)
+    self.assertEqual(self.CASES, harness.parse_testcase(text))
+
+  def test_parser_tolerates_a_minimized_file(self):
+    lines = harness.emit_js(self.CASES).splitlines()
+    del lines[2]
+    lines[2] = lines[2].rstrip(",")
+    lines[2] = '["ab", "y"]'
+    cases = harness.parse_testcase("\n".join(lines))
+    self.assertEqual([["a|b", "gi", "ab", 1], ["ab", "y", "", 0]], cases)
+
+  def test_parser_rejects_a_foreign_file(self):
+    with self.assertRaises(ValueError):
+      harness.parse_testcase("print('not a fuzzer testcase');\n")
+
+  def test_tag_keeps_shape_and_drops_literals(self):
+    self.assertEqual(
+        harness.source_tag("(ab|cd)+\\d", "gi"),
+        harness.source_tag("(xy|zw)+\\d", "ig"))
+    self.assertEqual(harness.source_tag("\\.", ""), "/")
+    self.assertEqual(harness.source_tag("\\w\\1", ""), "/\\w\\1")
+    self.assertLessEqual(len(harness.source_tag("(" * 500, "")), 41)
+
+
+class FlagsFileTest(unittest.TestCase):
+  """Test the foozzie flags emitted next to each testcase."""
+
+  EXPERIMENTS = [[30, "jitless", "slow_path", "d8"],
+                 [70, "jitless", "slow_path", "clang_x86/d8"]]
+  ADDITIONAL = [[0.5, "--foo"], [0.5, "--bar --baz"]]
+
+  def test_choose_flags_draws_from_the_tables(self):
+    rng = random.Random(7)
+    for _ in range(50):
+      flags = run.choose_foozzie_flags(rng, self.EXPERIMENTS, self.ADDITIONAL,
+                                       12345)
+      self.assertEqual("--random-seed=12345", flags[0])
+      self.assertEqual(["--first-config=jitless", "--second-config=slow_path"],
+                       flags[1:3])
+      self.assertIn(flags[3], ["--second-d8=d8", "--second-d8=clang_x86/d8"])
+      extra = [f.split("=", 1)[1] for f in flags[4:]]
+      self.assertIn(
+          extra,
+          [[], ["--foo"], ["--bar", "--baz"], ["--foo", "--bar", "--baz"]])
+
+  def test_every_testcase_gets_a_flags_file(self):
+    with tempfile.TemporaryDirectory() as out:
+      run.main(
+          ["--output_dir", out, "--no_of_files", "3", "--cases-per-file", "5"])
+      for i in range(3):
+        with open(os.path.join(out, "flags-%d.js" % i)) as f:
+          flags = f.read().split()
+        seeds = [flag for flag in flags if flag.startswith("--random-seed=")]
+        self.assertEqual(1, len(seeds))
+        self.assertIn(int(seeds[0].split("=", 1)[1]), range(1, 2**31))
+        self.assertTrue(any(f.startswith("--first-config=") for f in flags))
+        self.assertTrue(any(f.startswith("--second-d8=") for f in flags))
+
+
 class GeneratedPatternTest(unittest.TestCase):
   """Properties that only a real engine can judge."""
 
@@ -361,6 +562,65 @@ class GeneratedPatternTest(unittest.TestCase):
     # after this module is imported, so a decorator would capture None.
     if D8 is None:
       self.skipTest("needs --d8")
+
+  def test_printed_literals_preserve_matches(self):
+    atoms = ("0", "d", "\\", "/", "[", "]", '"', "\n", "\r", "\t", "\u2028",
+             "\u2029", "\x00", "\ud83c", "\udca1")
+    subjects = [""] + list(atoms) + [a + b for a in atoms for b in atoms]
+    cases = []
+    patterns = [(p, f) for p, f, _ in ClassificationTest.LITERAL_CASES]
+    for n in range(6):
+      for c in ("/", "\n", "\r", "\u2028", "\u2029", "\x00", "\ud83c",
+                "\ud83c\udca1"):
+        for flags in ("", "u", "v", "gy", "du"):
+          patterns.append(("\\" * n + c, flags))
+    for pattern, flags in patterns:
+      cases.append([
+          pattern, flags,
+          correctness_fuzzer._regexp_literal(pattern, flags), subjects, 0
+      ])
+    for pattern, flags, subject, last_index in generate(3000, seed=19):
+      cases.append([
+          pattern, flags,
+          correctness_fuzzer._regexp_literal(pattern, flags), [subject],
+          last_index
+      ])
+    script = "const cases = " + json.dumps(cases) + ";\n" + r"""
+      function exec(r, subject, lastIndex) {
+        r.lastIndex = lastIndex;
+        const m = r.exec(subject);
+        return JSON.stringify({r:m, idx:m?.index, g:m?.groups, di:m?.indices,
+                               dg:m?.indices?.groups, li:r.lastIndex});
+      }
+      let checked = 0;
+      for (const [pattern, flags, literal, subjects, lastIndex] of cases) {
+        let original;
+        try {
+          original = new RegExp(pattern, flags);
+        } catch {
+          continue;  // Formatting is only defined for valid patterns.
+        }
+        const copy = eval(literal);
+        if (copy.flags !== original.flags) throw new Error(literal);
+        for (const subject of subjects) {
+          const a = exec(original, subject, lastIndex);
+          const b = exec(copy, subject, lastIndex);
+          if (a !== b) {
+            throw new Error(JSON.stringify({pattern, flags, literal, subject,
+                                            lastIndex, a, b}));
+          }
+        }
+        checked++;
+      }
+      print(checked);
+    """
+    with tempfile.TemporaryDirectory() as out:
+      path = os.path.join(out, "literals.js")
+      with open(path, "w", encoding="utf-8") as f:
+        f.write(script)
+      p = subprocess.run([D8, path], capture_output=True, text=True, timeout=60)
+    self.assertEqual(0, p.returncode, p.stdout + p.stderr)
+    self.assertGreaterEqual(int(p.stdout.strip()), 3000)
 
   def test_patterns_are_syntactically_valid(self):
     # The generator this replaced emitted 44% syntax errors, so nearly half of
@@ -420,13 +680,53 @@ class GeneratedPatternTest(unittest.TestCase):
     # Absent without the flag or the construct, rather than reported as null.
     self.assertNotIn("di", json.loads(results[1])["warm"])
 
+  def test_generated_testcase_runs_standalone(self):
+    with tempfile.TemporaryDirectory() as out:
+      run.main(
+          ["--output_dir", out, "--no_of_files", "1", "--cases-per-file", "50"])
+      path = os.path.join(out, "fuzz-0.js")
+      p = subprocess.run([D8, path],
+                         capture_output=True,
+                         text=True,
+                         timeout=300)
+    self.assertEqual(0, p.returncode, p.stderr)
+    lines = p.stdout.splitlines()
+    self.assertEqual("DONE", lines[-1])
+    self.assertEqual(50, len(correctness_fuzzer.Runner._results(p.stdout)))
+    self.assertEqual(
+        50,
+        sum(1 for l in lines
+            if l.startswith("v8-foozzie source: regexp-fuzzer:")))
+
+  def test_testcase_replay_of_a_clean_file_finds_nothing(self):
+    with tempfile.TemporaryDirectory() as out:
+      run.main(
+          ["--output_dir", out, "--no_of_files", "1", "--cases-per-file", "20"])
+      p = subprocess.run([
+          sys.executable,
+          os.path.join(
+              os.path.dirname(os.path.realpath(__file__)),
+              "correctness_fuzzer.py"), "--ref", D8, "--test", D8, "--testcase",
+          os.path.join(out, "fuzz-0.js")
+      ],
+                         capture_output=True,
+                         text=True,
+                         timeout=600)
+    self.assertEqual(0, p.returncode, p.stdout + p.stderr)
+    self.assertIn("20 case(s)", p.stdout)
+
 
 def main():
   ap = argparse.ArgumentParser(description=__doc__)
   ap.add_argument("--d8", help="d8 binary; enables the execution tests")
+  ap.add_argument(
+      "--exhaustive",
+      action="store_true",
+      help="run full Python coverage sweeps and sample sizes")
   args, remaining = ap.parse_known_args()
-  global D8
+  global D8, EXHAUSTIVE
   D8 = args.d8
+  EXHAUSTIVE = args.exhaustive or D8 is not None
   if D8 is None:
     print("no --d8 given; skipping the tests that need one", file=sys.stderr)
   unittest.main(argv=[sys.argv[0]] + remaining)

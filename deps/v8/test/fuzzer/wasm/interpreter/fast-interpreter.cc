@@ -4,6 +4,7 @@
 
 #include "include/v8-context.h"
 #include "include/v8-isolate.h"
+#include "src/base/unique-array.h"
 #include "src/execution/isolate-inl.h"
 #include "src/wasm/fuzzing/random-module-generation.h"
 #include "src/wasm/wasm-engine.h"
@@ -54,7 +55,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       GetWasmEngine()
           ->SyncCompile(i_isolate, enabled_features, CompileTimeImports{},
                         &thrower,
-                        v8::base::OwnedCopyOf(wire_bytes.module_bytes()))
+                        v8::base::UniqueCopyOf(wire_bytes.module_bytes()))
           .ToHandle(&module_object);
   // TODO(338326645): Add similar GenerateTestCase code for wasm fast
   // interpreter.

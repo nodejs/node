@@ -7,6 +7,9 @@ import os
 import unittest
 from typing import cast
 
+from .helpers.args import check_args
+from .helpers.args import check_args_mismatch
+from .helpers.args import check_frame_relative_inspect
 from .helpers.backtrace import check_backtrace
 from .helpers.corruptions import check_corruption
 from .helpers.corruptions import check_corrupted_map_inspect
@@ -133,6 +136,44 @@ class LldbSourceLiveTest(unittest.TestCase):
     with self._session() as session:
       session.run_to_abort()
       check_source(session)
+
+
+class LldbArgsLiveTest(unittest.TestCase):
+  """Checks `v8 args` and frame-relative `v8 inspect` with a live d8 in LLDB."""
+
+  def _session(self):
+    script = os.path.join(FIXTURES_DIR, "throw.js")
+    return LldbSession(
+        _CONFIG,
+        target_binary=_CONFIG.d8_binary,
+        target_args=f'{_CONFIG.d8_args} --abort-on-uncaught-exception '
+        f'"{script}"',
+    )
+
+  def test_args(self):
+    """Checks `v8 args` rendering, flags, and error handling."""
+    with self._session() as session:
+      session.run_to_abort()
+      check_args(session)
+
+  def test_frame_relative_inspect(self):
+    """Checks `v8 inspect this|argN` against the selected frame."""
+    with self._session() as session:
+      session.run_to_abort()
+      check_frame_relative_inspect(session)
+
+  def test_args_mismatch(self):
+    """Checks under- and over-applied frames report call-site arguments."""
+    script = os.path.join(FIXTURES_DIR, "args-mismatch.js")
+    session = LldbSession(
+        _CONFIG,
+        target_binary=_CONFIG.d8_binary,
+        target_args=f'{_CONFIG.d8_args} --abort-on-uncaught-exception '
+        f'"{script}"',
+    )
+    with session:
+      session.run_to_abort()
+      check_args_mismatch(session)
 
 
 class LldbCorruptedMapTest(unittest.TestCase):

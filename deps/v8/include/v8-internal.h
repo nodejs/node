@@ -374,15 +374,23 @@ constexpr size_t kMaxExternalPointers = 0;
 
 #endif  // V8_COMPRESS_POINTERS
 
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+constexpr uint64_t kExternalPointerMarkBit = 1ULL << 56;
+constexpr uint64_t kExternalPointerTagShift = 57;
+constexpr uint64_t kExternalPointerTagMask = 0xfe00000000000000ULL;
+constexpr uint64_t kExternalPointerTagAndMarkbitMask = 0xff00000000000000ULL;
+constexpr uint64_t kExternalPointerPayloadMask = 0x00ffffffffffffffULL;
+#else   // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 constexpr uint64_t kExternalPointerMarkBit = 1ULL << 48;
 constexpr uint64_t kExternalPointerTagShift = 49;
 constexpr uint64_t kExternalPointerTagMask = 0x00fe000000000000ULL;
+constexpr uint64_t kExternalPointerTagAndMarkbitMask = 0x00ff000000000000ULL;
+constexpr uint64_t kExternalPointerPayloadMask = 0xff00ffffffffffffULL;
+#endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 constexpr uint64_t kExternalPointerShiftedTagMask =
     kExternalPointerTagMask >> kExternalPointerTagShift;
 static_assert(kExternalPointerShiftedTagMask << kExternalPointerTagShift ==
               kExternalPointerTagMask);
-constexpr uint64_t kExternalPointerTagAndMarkbitMask = 0x00ff000000000000ULL;
-constexpr uint64_t kExternalPointerPayloadMask = 0xff00ffffffffffffULL;
 
 // A ExternalPointerHandle represents a (opaque) reference to an external
 // pointer that can be stored inside the sandbox. A ExternalPointerHandle has
@@ -679,8 +687,8 @@ enum class ManagedTypeId : uint32_t {
 // use ExternalPointerHandles directly and use them to access the pointers in an
 // ExternalPointerTable.
 //
-// The tag is currently in practice limited to 15 bits since it needs to fit
-// together with a marking bit into the unused parts of a pointer.
+// The tag is limited to 7 bits since it needs to fit together with a marking
+// bit into the unused parts of a 57-bit pointer to support LA57 on x64.
 enum ExternalPointerTag : uint16_t {
   kFirstExternalPointerTag = 0,
   kExternalPointerNullTag = 0,
@@ -761,6 +769,9 @@ enum ExternalPointerTag : uint16_t {
   // The tags are limited to 7 bits, so the last tag is 0x7f.
   kLastExternalPointerTag = 0x7f,
 };
+
+// All tags must fit into the 7 tag bits of an external pointer table entry.
+static_assert(kLastExternalPointerTag <= 0x7f);
 
 constexpr const char* ToString(ExternalPointerTag tag) {
   switch (tag) {

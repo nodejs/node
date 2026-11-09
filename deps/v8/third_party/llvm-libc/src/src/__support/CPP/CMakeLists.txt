@@ -253,20 +253,3 @@ add_header_library(
     .utility
     .tuple
 )
-
-add_header_library(
-  vector
-  HDRS
-    vector.h
-  DEPENDS
-    .new
-    .type_traits
-    .utility
-    libc.hdr.func.free
-    libc.hdr.func.malloc
-    libc.hdr.func.realloc
-    libc.hdr.types.size_t
-    libc.src.__support.common
-    libc.src.__support.libc_assert
-    libc.src.__support.macros.config
-)

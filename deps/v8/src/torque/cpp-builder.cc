@@ -24,7 +24,14 @@ void Function::PrintDeclarationHeader(std::ostream& stream,
   }
   if (IsStatic()) stream << "static ";
   if (IsConstexpr()) stream << "constexpr ";
-  stream << return_type_ << " " << name_ << "(";
+  stream << return_type_ << " ";
+  std::streampos begin = stream.tellp();
+  stream << name_;
+  std::streampos end = stream.tellp();
+  if (kythe_cb_ && end != std::streampos(-1)) {
+    kythe_cb_(stream, static_cast<size_t>(begin), static_cast<size_t>(end));
+  }
+  stream << "(";
   bool first = true;
   for (const auto& p : parameters_) {
     if (!first) stream << ", ";
@@ -97,8 +104,14 @@ void Function::PrintBeginDefinition(std::ostream& stream,
     }
     scope += "::";
   }
-  stream << std::string(indentation, ' ') << return_type_ << " " << scope
-         << name_ << "(";
+  stream << std::string(indentation, ' ') << return_type_ << " " << scope;
+  std::streampos begin = stream.tellp();
+  stream << name_;
+  std::streampos end = stream.tellp();
+  if (kythe_cb_ && end != std::streampos(-1)) {
+    kythe_cb_(stream, static_cast<size_t>(begin), static_cast<size_t>(end));
+  }
+  stream << "(";
   bool first = true;
   for (const auto& p : parameters_) {
     if (!first) stream << ", ";

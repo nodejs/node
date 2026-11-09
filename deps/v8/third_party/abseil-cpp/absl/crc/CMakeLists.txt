@@ -112,7 +112,10 @@ absl_cc_test(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::config
+    absl::core_headers
     absl::crc32c
+    absl::crc_internal
     absl::memory
     absl::random_distributions
     absl::random_random

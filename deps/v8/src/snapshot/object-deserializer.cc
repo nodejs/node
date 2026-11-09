@@ -21,8 +21,9 @@ namespace internal {
 
 ObjectDeserializer::ObjectDeserializer(Isolate* isolate,
                                        const SerializedCodeData* data)
-    : Deserializer(isolate, data->Payload(), data->GetMagicNumber(), true,
-                   false) {}
+    : Deserializer(isolate, data->UntrustedPayload(), data->TrustedPayload(),
+                   data->GetMagicNumber(), /* deserializing_user_code */ true,
+                   /* can_rehash */ false) {}
 
 MaybeDirectHandle<SharedFunctionInfo>
 ObjectDeserializer::DeserializeSharedFunctionInfo(
@@ -43,8 +44,8 @@ MaybeDirectHandle<HeapObject> ObjectDeserializer::Deserialize() {
   HandleScope scope(isolate());
   DirectHandle<HeapObject> result;
   {
-    result = ReadObject();
-    DeserializeDeferredObjects();
+    result = DeserializeUntrustedSection();
+    DeserializeTrustedSection();
     CHECK(new_instruction_stream_objects().empty());
     LinkAllocationSites();
     CHECK(new_maps().empty());
@@ -94,8 +95,9 @@ void ObjectDeserializer::LinkAllocationSites() {
 
 OffThreadObjectDeserializer::OffThreadObjectDeserializer(
     LocalIsolate* isolate, const SerializedCodeData* data)
-    : Deserializer(isolate, data->Payload(), data->GetMagicNumber(), true,
-                   false) {}
+    : Deserializer(isolate, data->UntrustedPayload(), data->TrustedPayload(),
+                   data->GetMagicNumber(), /* deserializing_user_code */ true,
+                   /* can_rehash */ false) {}
 
 MaybeDirectHandle<SharedFunctionInfo>
 OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(
@@ -119,8 +121,8 @@ MaybeDirectHandle<HeapObject> OffThreadObjectDeserializer::Deserialize(
   LocalHandleScope scope(isolate());
   DirectHandle<HeapObject> result;
   {
-    result = ReadObject();
-    DeserializeDeferredObjects();
+    result = DeserializeUntrustedSection();
+    DeserializeTrustedSection();
     CHECK(new_instruction_stream_objects().empty());
     CHECK(new_allocation_sites().empty());
     CHECK(new_maps().empty());

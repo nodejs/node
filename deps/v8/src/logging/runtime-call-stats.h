@@ -381,8 +381,6 @@ namespace v8::internal {
   V(DeserializeIsolate)                        \
   V(FinalizationRegistryCleanupFromTask)       \
   V(FunctionCallback)                          \
-  V(FunctionArgumentsGetter)                   \
-  V(FunctionCallerGetter)                      \
   V(FunctionLengthGetter)                      \
   V(FunctionPrototypeGetter)                   \
   V(FunctionPrototypeSetter)                   \

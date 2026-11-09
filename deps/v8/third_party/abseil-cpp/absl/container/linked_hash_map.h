@@ -248,6 +248,7 @@ class linked_hash_map {
     if (get_allocator() == other.get_allocator()) {
       *this = std::move(other);
     } else {
+      reserve(other.size());
       CopyFrom(std::move(other));
     }
   }
@@ -267,11 +268,32 @@ class linked_hash_map {
 
   linked_hash_map& operator=(linked_hash_map&& other) noexcept {
     if (this != &other) {
-      // underlying containers will handle progagate_on_container_move details
-      set_ = std::move(other.set_);
-      list_ = std::move(other.list_);
-      other.set_.clear();
-      other.list_.clear();
+      using AllocTraits = std::allocator_traits<Alloc>;
+      if constexpr (AllocTraits::propagate_on_container_move_assignment::
+                        value) {
+        set_ = std::move(other.set_);
+        list_ = std::move(other.list_);
+        other.clear();
+      } else if (AllocTraits::is_always_equal::value ||
+                 get_allocator() == other.get_allocator()) {
+        // The allocators are equal, so the list can take over other's nodes.
+        // std::list's move assignment can not be used here: with an allocator
+        // that does not propagate on move assignment it element-assigns, which
+        // is ill-formed for value_type, std::pair<const K, V>.
+        clear();
+        set_ = std::move(other.set_);
+        list_.splice(list_.end(), other.list_);
+        other.set_.clear();
+      } else if constexpr (!AllocTraits::is_always_equal::value) {
+        // The list can not take over other's nodes, so move each element into
+        // a new node allocated with this map's allocator and rebuild the index
+        // over them, adopting other's hash and equality state. This is the
+        // same pattern as raw_hash_set::move_assign.
+        clear();
+        set_ = SetType(other.size(), other.set_.hash_function(),
+                       other.set_.key_eq(), get_allocator());
+        CopyFrom(std::move(other));
+      }
     }
     return *this;
   }
@@ -620,6 +642,12 @@ class linked_hash_map {
   void CopyFrom(Other&& other) {
     for (auto& elem : other.list_) {
       set_.insert(list_.insert(list_.end(), std::move(elem)));
+    }
+    if constexpr (!std::is_const_v<std::remove_reference_t<Other>>) {
+      // When moving from `other`, `std::move(elem)` above mutates the elements
+      // of `other.list_` in place, invalidating `other.set_`'s index over them.
+      // Clear `other` so its `set_` and `list_` remain consistent and empty.
+      other.clear();
     }
     assert(set_.size() == list_.size());
   }

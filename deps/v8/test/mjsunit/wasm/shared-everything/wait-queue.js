@@ -19,6 +19,31 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                /opcode pause is not allowed in constant expressions/);
 })();
 
+(function TestShorthandIsNullable() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  builder.addFunction("shorthand_typed", makeSig([], [kWasmWaitqueueRef]))
+    .addBody([kExprRefNull, kWaitqueueRefCode])
+    .exportFunc();
+
+  builder.instantiate();
+})();
+
+(function TestShorthandIsNotShared() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  builder.addFunction("shorthand_typed", makeSig([], [kWasmWaitqueueRef]))
+    .addBody([kAtomicPrefix, kExprWaitqueueNew])
+    .exportFunc();
+
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
+               /\(expected waitqueueref, got \(ref shared waitqueue\)\)/);
+})();
+
 (function TestTypeTestAndCast() {
   print(arguments.callee.name);
 

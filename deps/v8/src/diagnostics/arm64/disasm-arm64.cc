@@ -4718,7 +4718,7 @@ namespace disasm {
 
 const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
-  return tmp_buffer_.begin();
+  return tmp_buffer_.data();
 }
 
 const char* NameConverter::NameOfConstant(uint8_t* addr) const {
@@ -4734,7 +4734,7 @@ const char* NameConverter::NameOfCPURegister(int reg) const {
     return "xzr";
   }
   v8::base::SNPrintF(tmp_buffer_, "x%u", ureg);
-  return tmp_buffer_.begin();
+  return tmp_buffer_.data();
 }
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {

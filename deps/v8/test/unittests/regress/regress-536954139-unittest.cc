@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
+
 #include "src/base/vector.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
@@ -19,12 +21,12 @@ TEST_F(DisasmX64RegressTest, Regress536954139) {
   disasm::NameConverter converter;
   disasm::Disassembler disassembler(converter);
 
-  v8::base::EmbeddedVector<char, 128> buffer;
+  std::array<char, 128> buffer;
   buffer[0] = '\0';
   disassembler.InstructionDecode(buffer, code);
 
   // The disassembled string should contain "vpminsd".
-  EXPECT_NE(nullptr, strstr(buffer.begin(), "vpminsd")) << buffer.begin();
+  EXPECT_NE(nullptr, strstr(buffer.data(), "vpminsd")) << buffer.data();
 }
 
 }  // namespace internal

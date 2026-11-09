@@ -43,7 +43,6 @@ GET_TYPE_NAME(double)
 // TRACED_FORRANGE(type, var, low, high) expands to a loop that assigns |var|
 // every value in the range |low| to (including) |high| and adds a
 // SCOPED_TRACE() message for the |var| while inside the loop body.
-// TODO(bmeurer): Migrate to C++11 once we're ready.
 #define TRACED_FORRANGE(_type, _var, _low, _high)                          \
   for (_type _var##_i = _low; _var##_i <= _high; ++_var##_i)               \
     for (bool _var##_done = false; !_var##_done;)                          \

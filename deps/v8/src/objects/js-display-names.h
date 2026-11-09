@@ -105,7 +105,7 @@ V8_OBJECT class JSDisplayNames : public JSObject {
 
  public:
   TaggedMember<CppGCManaged<DisplayNamesInternal>> internal_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSDisplayNamesFlags>);
 } V8_OBJECT_END;
 
 inline constexpr int JSDisplayNames::kHeaderSize = sizeof(JSDisplayNames);

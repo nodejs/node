@@ -142,6 +142,8 @@ enum class ArrayStorageAllocationMode {
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
+  using FactoryBase<Factory>::New;
+
   inline ReadOnlyRoots read_only_roots() const;
 
   DirectHandle<Hole> NewHole();
@@ -250,6 +252,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                  DirectHandle<Object> value2,
                                  RelaxedStoreTag tag,
                                  AllocationType allocation);
+
+  DirectHandle<ForInEnumeratorHolder> NewForInEnumeratorHolder(
+      DirectHandle<Map> enum_cache_map, DirectHandle<FixedArray> named_keys,
+      Tagged<Smi> elements_length, Tagged<Smi> cache_length,
+      AllocationType allocation = AllocationType::kYoung);
 
   // Create a new PropertyDescriptorObject struct.
   DirectHandle<PropertyDescriptorObject> NewPropertyDescriptorObject();
@@ -528,6 +535,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int aliased_context_slot);
 
   DirectHandle<AccessorInfo> NewAccessorInfo();
+  DirectHandle<AccessCheckInfo> NewAccessCheckInfo();
 
   DirectHandle<InterceptorInfo> NewInterceptorInfo(
       InterceptorKind kind, AllocationType allocation = AllocationType::kOld);
@@ -761,15 +769,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // runtime.
   Handle<JSObject> NewJSObjectFromMap(
       DirectHandle<Map> map, AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   // Like NewJSObjectFromMap, but includes allocating a properties dictionary.);
   Handle<JSObject> NewSlowJSObjectFromMap(
       DirectHandle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   Handle<JSObject> NewSlowJSObjectFromMap(DirectHandle<Map> map);
   // Calls NewJSObjectFromMap or NewSlowJSObjectFromMap depending on whether the
@@ -777,8 +783,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(
       DirectHandle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(DirectHandle<Map> map);
   // Allocates and initializes a new JavaScript object with the given
@@ -1465,7 +1470,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Tagged<HeapObject> AllocateRawWithAllocationSite(
       DirectHandle<Map> map, AllocationType allocation,
-      DirectHandle<AllocationSite> allocation_site);
+      MaybeDirectHandle<AllocationSite> allocation_site);
 
   Handle<JSArrayBufferView> NewJSArrayBufferView(
       DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements,
@@ -1498,7 +1503,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<T> CopyArrayAndGrow(DirectHandle<T> src, uint32_t grow_by,
                              AllocationType allocation);
 
-  MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,
+  MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string,
+                                           uint32_t length,
                                            AllocationType allocation);
 
   // Creates a new JSArray with the given backing storage. Performs no

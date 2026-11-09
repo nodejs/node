@@ -1,21 +1,26 @@
-//===--- A platform independent file data structure -------------*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+///
+/// \file
+/// Platform independent file data structure.
+///
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_SRC___SUPPORT_FILE_FILE_H
 #define LLVM_LIBC_SRC___SUPPORT_FILE_FILE_H
 
+#include "file_io_result.h"
 #include "file_mode.h"
 #include "hdr/stdint_proxy.h"
 #include "hdr/stdio_macros.h"
 #include "hdr/types/off_t.h"
 #include "hdr/types/wchar_t.h"
 #include "hdr/types/wint_t.h"
-#include "src/__support/CPP/new.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/properties/architectures.h"
@@ -25,18 +30,6 @@
 #include <stddef.h>
 
 namespace LIBC_NAMESPACE_DECL {
-
-struct FileIOResult {
-  size_t value;
-  int error;
-
-  constexpr FileIOResult(size_t val) : value(val), error(0) {}
-  constexpr FileIOResult(size_t val, int error) : value(val), error(error) {}
-
-  constexpr bool has_error() { return error != 0; }
-
-  constexpr operator size_t() { return value; }
-};
 
 // This a generic base class to encapsulate a platform independent file data
 // structure. Platform specific specializations should create a subclass as
@@ -228,34 +221,8 @@ public:
     return ungetwc_unlocked(wc);
   }
 
-  // Does the following:
-  // 1. If in write mode, Write out any data present in the buffer.
-  // 2. Call platform_close.
-  // platform_close is expected to cleanup the complete file object.
-  int close() {
-    {
-      FileLock lock(this);
-      if (prev_op == FileOp::WRITE && pos > 0) {
-        auto buf_result = platform_write(this, buf, pos);
-        if (buf_result.has_error() || buf_result.value < pos) {
-          err = true;
-          return buf_result.error;
-        }
-      }
-    }
-
-    // If we own the buffer, delete it before calling the platform close
-    // implementation. The platform close should not need to access the buffer
-    // and we need to clean it up before the entire structure is removed.
-    if (own_buf)
-      delete buf;
-
-    // Platform close is expected to cleanup the file data structure which
-    // includes the file mutex. Hence, we call platform_close after releasing
-    // the file lock. Another thread doing file operations while a thread is
-    // closing the file is undefined behavior as per POSIX.
-    return platform_close(this);
-  }
+  // Closes the file stream and frees up all resources owned by it.
+  int close();
 
   // Sets the internal buffer to |buffer| with buffering mode |mode|.
   // |size| is the size of |buffer|. If |size| is non-zero, but |buffer|

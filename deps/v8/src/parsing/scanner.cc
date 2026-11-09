@@ -457,7 +457,7 @@ void Scanner::SeekForward(int pos) {
   int current_pos = source_pos();
   DCHECK_EQ(next().location.end_pos, current_pos);
   // Positions inside the lookahead token aren't supported.
-  DCHECK(pos >= current_pos);
+  CHECK_GE(pos, current_pos);
   if (pos != current_pos) {
     source_->Seek(pos);
     Advance();

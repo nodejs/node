@@ -34,7 +34,7 @@ extern class JSPromise extends JSObjectWithEmbedderSlots {
 
   // Smi 0 terminated list of PromiseReaction objects in case the JSPromise was
   // not settled yet, otherwise the result.
-  reactions_or_result: Zero|PromiseReaction|JSAny;
+  reactions_or_result: PromiseReaction|JSAny;
   flags: SmiTagged<JSPromiseFlags>;
 }
 

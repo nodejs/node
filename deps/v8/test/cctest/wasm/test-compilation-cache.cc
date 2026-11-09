@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/base/unique-array.h"
 #include "src/init/v8.h"
 #include "src/objects/managed.h"
 #include "src/wasm/streaming-decoder.h"
@@ -92,7 +93,7 @@ CppGCManaged<NativeModule>::Ptr SyncCompile(base::Vector<const uint8_t> bytes) {
       GetWasmEngine()
           ->SyncCompile(CcTest::i_isolate(), enabled_features,
                         CompileTimeImports{}, &thrower,
-                        base::OwnedCopyOf(bytes))
+                        base::UniqueCopyOf(bytes))
           .ToHandleChecked();
   return module->native_module();
 }
@@ -142,13 +143,13 @@ TEST(TestAsyncCache) {
 
   GetWasmEngine()->AsyncCompile(
       CcTest::i_isolate(), WasmEnabledFeatures::All(), CompileTimeImports{},
-      resolverA1, base::OwnedCopyOf(bufferA), "WebAssembly.compile");
+      resolverA1, base::UniqueCopyOf(bufferA), "WebAssembly.compile");
   GetWasmEngine()->AsyncCompile(
       CcTest::i_isolate(), WasmEnabledFeatures::All(), CompileTimeImports{},
-      resolverA2, base::OwnedCopyOf(bufferA), "WebAssembly.compile");
+      resolverA2, base::UniqueCopyOf(bufferA), "WebAssembly.compile");
   GetWasmEngine()->AsyncCompile(
       CcTest::i_isolate(), WasmEnabledFeatures::All(), CompileTimeImports{},
-      resolverB, base::OwnedCopyOf(bufferB), "WebAssembly.compile");
+      resolverB, base::UniqueCopyOf(bufferB), "WebAssembly.compile");
 
   while (pending > 0) {
     v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
@@ -208,7 +209,7 @@ TEST(TestStreamingAndSyncCache) {
   // Compile the same module synchronously to make sure we don't deadlock
   // waiting for streaming compilation to finish.
   auto full_bytes =
-      base::OwnedVector<uint8_t>::New(kPrefixSize + kFunctionSize);
+      base::UniqueArray<uint8_t>::New(kPrefixSize + kFunctionSize);
   memcpy(full_bytes.begin(), kPrefix, kPrefixSize);
   memcpy(full_bytes.begin() + kPrefixSize, kFunctionA, kFunctionSize);
   CppGCManaged<NativeModule>::Ptr native_module_sync =
@@ -249,7 +250,7 @@ void TestModuleSharingBetweenIsolates() {
         i::HandleScope handle_scope(i_isolate);
         v8::Context::New(isolate)->Enter();
         auto full_bytes =
-            base::OwnedVector<uint8_t>::New(kPrefixSize + kFunctionSize);
+            base::UniqueArray<uint8_t>::New(kPrefixSize + kFunctionSize);
         memcpy(full_bytes.begin(), kPrefix, kPrefixSize);
         memcpy(full_bytes.begin() + kPrefixSize, kFunctionA, kFunctionSize);
         ErrorThrower thrower(i_isolate, "Test");

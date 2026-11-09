@@ -61,6 +61,7 @@ absl_source_set("strings") {
     ":internal",
     ":resize_and_overwrite",
     ":string_view",
+    "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",

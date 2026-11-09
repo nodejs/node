@@ -18,6 +18,7 @@
 #include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/memory.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
@@ -480,6 +481,104 @@ V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count) {
   }
 }
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+V8_INLINE uint32_t WidenTwoBytesToU32(const uint8_t* p) {
+  uint32_t x = base::ReadUnalignedValue<uint16_t>(p);
+  return (x | (x << 8)) & 0x00FF00FFu;
+}
+
+V8_INLINE uint64_t WidenFourBytesToU64(const uint8_t* p) {
+  uint64_t x = base::ReadUnalignedValue<uint32_t>(p);
+  x = (x | (x << 16)) & 0x0000FFFF0000FFFFULL;
+  return (x | (x << 8)) & 0x00FF00FF00FF00FFULL;
+}
+#endif  // defined(V8_TARGET_LITTLE_ENDIAN)
+
+V8_INLINE bool CompareOneAndTwoByteCharsFallback(const uint8_t* one_byte,
+                                                 const uint16_t* two_byte,
+                                                 size_t length) {
+  DCHECK_LT(length, 8);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  static constexpr size_t kSwarChunkSize = 4;
+  if (length >= kSwarChunkSize) {
+    return WidenFourBytesToU64(one_byte) ==
+               base::ReadUnalignedValue<uint64_t>(
+                   reinterpret_cast<const uint8_t*>(two_byte)) &&
+           WidenFourBytesToU64(one_byte + length - kSwarChunkSize) ==
+               base::ReadUnalignedValue<uint64_t>(
+                   reinterpret_cast<const uint8_t*>(two_byte + length -
+                                                    kSwarChunkSize));
+  }
+  if (length >= 2) {
+    return WidenTwoBytesToU32(one_byte) ==
+               base::ReadUnalignedValue<uint32_t>(
+                   reinterpret_cast<const uint8_t*>(two_byte)) &&
+           WidenTwoBytesToU32(one_byte + length - 2) ==
+               base::ReadUnalignedValue<uint32_t>(
+                   reinterpret_cast<const uint8_t*>(two_byte + length - 2));
+  }
+  return length == 0 || *one_byte == *two_byte;
+#else
+  for (size_t i = 0; i < length; ++i) {
+    if (one_byte[i] != two_byte[i]) return false;
+  }
+  return true;
+#endif  // defined(V8_TARGET_LITTLE_ENDIAN)
+}
+
+// We intentionally use misaligned reads for the SIMD intrinsics below, disable
+// alignment sanitization explicitly.
+#if defined(__SSE3__)
+V8_CLANG_NO_SANITIZE("alignment")
+V8_INLINE bool CompareOneAndTwoByteChunk(const uint8_t* ob,
+                                         const uint16_t* tb) {
+  __m128i ob8 = _mm_loadu_si64(ob);
+  __m128i ob16 = _mm_unpacklo_epi8(ob8, _mm_setzero_si128());
+  __m128i tb16 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(tb));
+  __m128i eq = _mm_cmpeq_epi16(ob16, tb16);
+  return _mm_movemask_epi8(eq) == 0xFFFF;
+}
+#elif defined(V8_OPTIMIZE_WITH_NEON)
+V8_CLANG_NO_SANITIZE("alignment")
+V8_INLINE bool CompareOneAndTwoByteChunk(const uint8_t* ob,
+                                         const uint16_t* tb) {
+  uint8x8_t ob8 = vld1_u8(ob);
+  uint16x8_t ob16 = vmovl_u8(ob8);
+  uint16x8_t tb16 = vld1q_u16(tb);
+  uint16x8_t diff = veorq_u16(ob16, tb16);
+  return vmaxvq_u16(diff) == 0;
+}
+#endif
+
+#if defined(__SSE3__) || defined(V8_OPTIMIZE_WITH_NEON)
+V8_INLINE bool CompareOneAndTwoByteChars(const uint8_t* one_byte,
+                                         const uint16_t* two_byte,
+                                         size_t length) {
+  static constexpr size_t kChunkSize = 8;
+  if (length < kChunkSize) {
+    return CompareOneAndTwoByteCharsFallback(one_byte, two_byte, length);
+  }
+  size_t i = 0;
+  for (; i + kChunkSize <= length; i += kChunkSize) {
+    if (!CompareOneAndTwoByteChunk(one_byte + i, two_byte + i)) return false;
+  }
+  if (i < length) {
+    return CompareOneAndTwoByteChunk(one_byte + length - kChunkSize,
+                                     two_byte + length - kChunkSize);
+  }
+  return true;
+}
+#else
+V8_INLINE bool CompareOneAndTwoByteChars(const uint8_t* one_byte,
+                                         const uint16_t* two_byte,
+                                         size_t length) {
+  for (size_t i = 0; i < length; ++i) {
+    if (one_byte[i] != two_byte[i]) return false;
+  }
+  return true;
+}
+#endif
+
 // Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
 inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
@@ -495,6 +594,12 @@ inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
     // memcmp compares byte-by-byte, but for equality it doesn't matter whether
     // two-byte char comparison is little- or big-endian.
     return memcmp(lhs, rhs, chars * sizeof(*lhs)) == 0;
+  }
+  if constexpr (sizeof(*lhs) == 1 && sizeof(*rhs) == 2) {
+    return CompareOneAndTwoByteChars(lhs, rhs, chars);
+  }
+  if constexpr (sizeof(*lhs) == 2 && sizeof(*rhs) == 1) {
+    return CompareOneAndTwoByteChars(rhs, lhs, chars);
   }
   for (const lchar* limit = lhs + chars; lhs < limit; ++lhs, ++rhs) {
     if (*lhs != *rhs) return false;

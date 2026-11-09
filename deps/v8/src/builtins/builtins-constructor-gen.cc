@@ -724,7 +724,10 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
       GotoIf(TaggedIsSmi(field), &store_field);
       // TODO(leszeks): Read the field descriptor to decide if this heap
       // number is mutable or not.
-      GotoIf(IsHeapNumber(CAST(field)), &continue_with_write_barrier);
+      TNode<Map> field_map = LoadMap(CAST(field));
+      GotoIf(IsHeapNumberMap(field_map), &continue_with_write_barrier);
+      GotoIf(IsUninitializedHeapNumberMap(field_map),
+             &continue_with_write_barrier);
       Goto(&store_field);
       BIND(&store_field);
       StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
@@ -781,17 +784,29 @@ void ConstructorBuiltinsAssembler::CopyMutableHeapNumbersInObject(
       start_offset, end_offset,
       [=, this](TNode<IntPtrT> offset) {
         TNode<Object> field = LoadObjectField(copy, offset);
-        Label copy_heap_number(this, Label::kDeferred), continue_loop(this);
+        Label copy_heap_number(this, Label::kDeferred),
+            copy_uninitialized_heap_number(this, Label::kDeferred),
+            continue_loop(this);
         // We only have to clone complex field values.
         GotoIf(TaggedIsSmi(field), &continue_loop);
         // TODO(leszeks): Read the field descriptor to decide if this heap
         // number is mutable or not.
-        Branch(IsHeapNumber(CAST(field)), &copy_heap_number, &continue_loop);
+        TNode<Map> field_map = LoadMap(CAST(field));
+        GotoIf(IsHeapNumberMap(field_map), &copy_heap_number);
+        Branch(IsUninitializedHeapNumberMap(field_map),
+               &copy_uninitialized_heap_number, &continue_loop);
         BIND(&copy_heap_number);
         {
           TNode<Float64T> double_value = LoadHeapNumberValue(CAST(field));
           TNode<HeapNumber> heap_number =
               AllocateHeapNumberWithValue(double_value);
+          StoreObjectField(copy, offset, heap_number);
+          Goto(&continue_loop);
+        }
+        BIND(&copy_uninitialized_heap_number);
+        {
+          TNode<UninitializedHeapNumber> heap_number =
+              AllocateUninitializedHeapNumber();
           StoreObjectField(copy, offset, heap_number);
           Goto(&continue_loop);
         }

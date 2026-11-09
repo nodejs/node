@@ -31,6 +31,19 @@ BOOL_GETTER(CallSiteInfo, flags, IsStrict, IsStrictBit::kShift)
 BOOL_GETTER(CallSiteInfo, flags, IsConstructor, IsConstructorBit::kShift)
 BOOL_GETTER(CallSiteInfo, flags, IsAsync, IsAsyncBit::kShift)
 
+CallSiteInfo::CallSiteInfo(
+    const AllocationWitness& witness, Tagged<JSAny> receiver_or_instance,
+    Tagged<Union<JSFunction, Smi>> function,
+    Tagged<Union<Code, BytecodeArray, Undefined>> code_object,
+    int code_offset_or_source_position, int flags)
+    : Struct(witness.roots().call_site_info_map()),
+      code_object_(witness, code_object),
+      receiver_or_instance_(witness, receiver_or_instance),
+      function_(witness, function),
+      code_offset_or_source_position_(
+          Smi::FromInt(code_offset_or_source_position)),
+      flags_(Smi::FromInt(flags)) {}
+
 Tagged<HeapObject> CallSiteInfo::code_object(IsolateForSandbox isolate) const {
   // The field can contain either a Code or a BytecodeArray, so we need to use
   // the kUnknownIndirectPointerTag. Since we can then no longer rely on the
@@ -40,31 +53,12 @@ Tagged<HeapObject> CallSiteInfo::code_object(IsolateForSandbox isolate) const {
   return CheckedCast<Union<Code, BytecodeArray>>(object);
 }
 
-void CallSiteInfo::set_code_object(
-    Tagged<Union<Code, BytecodeArray, Undefined>> maybe_code,
-    WriteBarrierMode mode) {
-  if (Tagged<Union<Code, BytecodeArray>> code; TryCast(maybe_code, &code)) {
-    code_object_.store(this, code, mode);
-  } else {
-    DCHECK(IsUndefined(maybe_code));
-    code_object_.clear(this);
-  }
-}
-
 Tagged<JSAny> CallSiteInfo::receiver_or_instance() const {
   return receiver_or_instance_.load();
-}
-void CallSiteInfo::set_receiver_or_instance(Tagged<JSAny> value,
-                                            WriteBarrierMode mode) {
-  receiver_or_instance_.store(this, value, mode);
 }
 
 Tagged<Union<JSFunction, Smi>> CallSiteInfo::function() const {
   return function_.load();
-}
-void CallSiteInfo::set_function(Tagged<Union<JSFunction, Smi>> value,
-                                WriteBarrierMode mode) {
-  function_.store(this, value, mode);
 }
 
 int CallSiteInfo::code_offset_or_source_position() const {

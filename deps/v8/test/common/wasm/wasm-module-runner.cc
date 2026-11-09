@@ -4,6 +4,7 @@
 
 #include "test/common/wasm/wasm-module-runner.h"
 
+#include "src/base/unique-array.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/objects/heap-number-inl.h"
@@ -25,7 +26,7 @@ MaybeDirectHandle<WasmModuleObject> CompileForTesting(
   auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
   MaybeDirectHandle<WasmModuleObject> module = GetWasmEngine()->SyncCompile(
       isolate, enabled_features, CompileTimeImports{}, thrower,
-      base::OwnedCopyOf(bytes));
+      base::UniqueCopyOf(bytes));
   DCHECK_EQ(thrower->error(), module.is_null());
   return module;
 }

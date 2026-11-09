@@ -25,8 +25,8 @@ use syn::fold::{self, Fold};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{
-    parse_macro_input, parse_quote, DeriveInput, Ident, Lifetime, MetaList, Token,
-    TraitBoundModifier, Type, TypeParamBound, TypePath, WherePredicate,
+    parse_macro_input, parse_quote, DeriveInput, Ident, Lifetime, MetaList, Token, Type,
+    TypeParamBound, TypePath, WherePredicate,
 };
 use synstructure::Structure;
 mod visitor;
@@ -91,7 +91,6 @@ fn zf_derive_impl(input: &DeriveInput) -> TokenStream2 {
         .map(|ty| {
             // Strip out param defaults, we don't need them in the impl
             let mut ty = ty.clone();
-            ty.eq_token = None;
             ty.default = None;
             ty
         })
@@ -128,11 +127,10 @@ fn zf_derive_impl(input: &DeriveInput) -> TokenStream2 {
                 // Remove `?Sized`` bound because we need a param to be Sized in order to take a ZeroFrom of it.
                 // This only applies to fields marked as `may_borrow`.
                 let mut bounds = core::mem::take(&mut param.bounds);
-                while let Some(bound_pair) = bounds.pop() {
-                    let bound = bound_pair.into_value();
+                while let Some(bound) = bounds.pop() {
                     if let TypeParamBound::Trait(ref trait_bound) = bound {
                         if trait_bound.path.get_ident().map(|ident| ident == "Sized") == Some(true)
-                            && matches!(trait_bound.modifier, TraitBoundModifier::Maybe(_))
+                            && trait_bound.maybe.is_some()
                         {
                             continue;
                         }

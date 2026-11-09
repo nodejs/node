@@ -101,7 +101,7 @@ V8_OBJECT class JSRelativeTimeFormat : public JSObject {
   TaggedMember<String> locale_;
   TaggedMember<String> numberingSystem_;
   TaggedMember<Foreign> icu_formatter_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSRelativeTimeFormatFlags>);
 } V8_OBJECT_END;
 
 inline constexpr int JSRelativeTimeFormat::kHeaderSize =

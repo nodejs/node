@@ -29,6 +29,7 @@
 
 #include <ctype.h>
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <string>
@@ -41,6 +42,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/flags/flags.h"
@@ -293,7 +295,7 @@ bool HasString(v8::Isolate* isolate, const v8::HeapGraphNode* node,
 void EnsureNoUninstrumentedInternals(v8::Isolate* isolate,
                                      const v8::HeapGraphNode* node) {
   for (int i = 0; i < 20; ++i) {
-    auto buffer = v8::base::OwnedVector<char>::NewForOverwrite(10);
+    auto buffer = v8::base::UniqueArray<char>::NewForOverwrite(10);
     std::string_view str = i::IntToStringView(i, buffer.as_vector());
     // GetProperty requires a null-terminated string.
     const v8::HeapGraphNode* internal = GetProperty(
@@ -1365,7 +1367,7 @@ TEST(HeapSnapshotJSONSerialization) {
   snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(1, stream.eos_signaled());
-  auto json = v8::base::OwnedVector<char>::NewForOverwrite(stream.size());
+  auto json = v8::base::UniqueArray<char>::NewForOverwrite(stream.size());
   stream.WriteTo(json.as_vector());
 
   // Verify that snapshot string is valid JSON.
@@ -3090,11 +3092,11 @@ TEST(ManyLocalsInSharedContext) {
   // Check all the objects have got their names.
   // ... well check just every 15th because otherwise it's too slow in debug.
   for (int i = 0; i < num_objects - 1; i += 15) {
-    v8::base::EmbeddedVector<char, 100> var_name;
+    std::array<char, 100> var_name;
     v8::base::SNPrintF(var_name, "f_%d", i);
     const v8::HeapGraphNode* f_object =
         GetProperty(env.isolate(), context_object,
-                    v8::HeapGraphEdge::kContextVariable, var_name.begin());
+                    v8::HeapGraphEdge::kContextVariable, var_name.data());
     CHECK(f_object);
   }
 }
@@ -3193,9 +3195,9 @@ static const v8::HeapGraphNode* GetNodeByPath(v8::Isolate* isolate,
       const v8::HeapGraphNode* to_node = edge->GetToNode();
       v8::String::Utf8Value edge_name(isolate, edge->GetName());
       v8::String::Utf8Value node_name(isolate, to_node->GetName());
-      v8::base::EmbeddedVector<char, 100> name;
+      std::array<char, 100> name;
       v8::base::SNPrintF(name, "%s::%s", *edge_name, *node_name);
-      if (strstr(name.begin(), path[current_depth])) {
+      if (strstr(name.data(), path[current_depth])) {
         node = to_node;
         break;
       }
@@ -4481,7 +4483,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  auto source = v8::base::UniqueArray<char>::NewForOverwrite(1024);
   v8::base::SNPrintF(source.as_vector(),
                      "var number_elements = %d;"
                      "var elements = new Array(number_elements);"
@@ -5004,7 +5006,8 @@ TEST(HeapSnapshotWithWasmInstance) {
       isolate, trusted_instance_data_node,
       {"data_segments", "dispatch_table0", "dispatch_table_for_imports",
        "dispatch_tables", "instance_object", "managed_native_module", "map",
-       "memory_bases_and_sizes", "native_context"});
+       "memory_bases_and_sizes", "native_context",
+       "shared_memory_backing_stores"});
 
   // "module_object" should be the same as the global "module".
   const v8::HeapGraphNode* module_node =

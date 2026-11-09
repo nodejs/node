@@ -25,10 +25,15 @@ V8_OBJECT class Microtask : public Struct {
   V8_IT_ABSTRACT;
 
  public:
+  inline Microtask(const AllocationWitness& witness, Tagged<ReadOnly<Map>> map
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+                   ,
+                   Tagged<Object> continuation_preserved_embedder_data
+#endif
+  );
+
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   inline Tagged<Object> continuation_preserved_embedder_data() const;
-  inline void set_continuation_preserved_embedder_data(
-      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 #endif
 
   DECL_PRINTER(Microtask)
@@ -42,7 +47,7 @@ V8_OBJECT class Microtask : public Struct {
   friend struct ObjectTraits<Microtask>;
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  TaggedMember<Object> continuation_preserved_embedder_data_;
+  const TaggedMember<Object> continuation_preserved_embedder_data_;
 #endif
 } V8_OBJECT_END;
 
@@ -51,13 +56,16 @@ V8_OBJECT class Microtask : public Struct {
 // used by Blink for example.
 V8_OBJECT class CallbackTask : public Microtask {
  public:
-  inline Tagged<Foreign> callback() const;
-  inline void set_callback(Tagged<Foreign> value,
-                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline CallbackTask(const AllocationWitness& witness,
+                      Tagged<Foreign> callback, Tagged<Object> data
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+                      ,
+                      Tagged<Object> continuation_preserved_embedder_data
+#endif
+  );
 
+  inline Tagged<Foreign> callback() const;
   inline Tagged<Object> data() const;
-  inline void set_data(Tagged<Object> value,
-                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_VERIFIER(CallbackTask)
   DECL_PRINTER(CallbackTask)
@@ -66,8 +74,8 @@ V8_OBJECT class CallbackTask : public Microtask {
   friend class TorqueGeneratedCallbackTaskAsserts;
   friend class MicrotaskQueueBuiltinsAssembler;
 
-  TaggedMember<Foreign> callback_;
-  TaggedMember<Object> data_;
+  const TaggedMember<Foreign> callback_;
+  const TaggedMember<Object> data_;
 } V8_OBJECT_END;
 
 // A CallableTask is a special (internal) Microtask that allows us to
@@ -75,13 +83,16 @@ V8_OBJECT class CallbackTask : public Microtask {
 // for various tests of the microtask queue.
 V8_OBJECT class CallableTask : public Microtask {
  public:
-  inline Tagged<JSReceiver> callable() const;
-  inline void set_callable(Tagged<JSReceiver> value,
-                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline CallableTask(const AllocationWitness& witness,
+                      Tagged<JSReceiver> callable, Tagged<NativeContext> context
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+                      ,
+                      Tagged<Object> continuation_preserved_embedder_data
+#endif
+  );
 
+  inline Tagged<JSReceiver> callable() const;
   inline Tagged<NativeContext> context() const;
-  inline void set_context(Tagged<NativeContext> value,
-                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
   DECL_VERIFIER(CallableTask)
@@ -93,8 +104,8 @@ V8_OBJECT class CallableTask : public Microtask {
   friend class MicrotaskQueueBuiltinsAssembler;
   friend class GlobalQueueMicrotaskAssembler;
 
-  TaggedMember<JSReceiver> callable_;
-  TaggedMember<NativeContext> context_;
+  const TaggedMember<JSReceiver> callable_;
+  const TaggedMember<NativeContext> context_;
 } V8_OBJECT_END;
 
 // Specialized microtask for resuming async generators/functions when the

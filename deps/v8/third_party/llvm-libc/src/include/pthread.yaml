@@ -62,6 +62,10 @@ macros:
     standards:
       - llvm_libc_ext
     macro_header: pthread-macros.h
+  - macro_name: "pthread_cleanup_pop"
+    macro_header: pthread-macros.h
+  - macro_name: "pthread_cleanup_push"
+    macro_header: pthread-macros.h
 types:
   - type_name: pthread_t
   - type_name: pthread_once_t
@@ -79,7 +83,24 @@ types:
   - type_name: pthread_id_np_t
     standards:
       - llvm_libc_ext
+  - type_name: struct___pthread_cleanup_frame
+    standards:
+      - llvm_libc_ext
 functions:
+  - name: __pthread_cleanup_pop
+    standards:
+      - llvm_libc_ext
+    return_type: void
+    arguments:
+      - type: int
+  - name: __pthread_cleanup_push
+    standards:
+      - llvm_libc_ext
+    return_type: void
+    arguments:
+      - type: struct __pthread_cleanup_frame *
+      - type: void (*)(void *)
+      - type: void *
   - name: pthread_atfork
     return_type: int
     arguments:

@@ -314,8 +314,6 @@ BUILTIN(FunctionPrototypeToString) {
                             isolate->factory()->Function_string()));
 }
 
-#ifndef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
-
 namespace {
 
 bool IsSloppyNormalJSFunction(Tagged<Object> receiver) {
@@ -373,8 +371,6 @@ BUILTIN(FunctionPrototypeLegacyCallerSetter) {
   isolate->CountUsage(v8::Isolate::kFunctionPrototypeCaller);
   return ReadOnlyRoots(isolate).undefined_value();
 }
-
-#endif  // !V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 
 }  // namespace internal
 }  // namespace v8

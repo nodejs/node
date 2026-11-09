@@ -15,6 +15,7 @@
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/struct-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -22,6 +23,19 @@
 
 namespace v8 {
 namespace internal {
+
+FunctionTemplateRareData::FunctionTemplateRareData(
+    const AllocationWitness& witness)
+    : Struct(witness.roots().function_template_rare_data_map()),
+      prototype_template_(witness.roots().undefined_value()),
+      prototype_provider_template_(witness.roots().undefined_value()),
+      parent_template_(witness.roots().undefined_value()),
+      named_property_handler_(witness.roots().undefined_value()),
+      indexed_property_handler_(witness.roots().undefined_value()),
+      instance_template_(witness.roots().undefined_value()),
+      instance_call_handler_(witness.roots().undefined_value()),
+      access_check_info_(witness.roots().undefined_value()),
+      c_function_overloads_(witness.roots().empty_fixed_array()) {}
 
 Tagged<UnionOf<Undefined, ObjectTemplateInfo>>
 FunctionTemplateRareData::prototype_template() const {

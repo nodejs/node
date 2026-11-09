@@ -6,6 +6,7 @@
 
 #include "include/v8-isolate.h"
 #include "src/base/logging.h"
+#include "src/base/unique-array.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -44,7 +45,7 @@ class WasmUseCounterTest
   }
 
   void Compile() {
-    base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(buffer_);
+    base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(buffer_);
     switch (GetParam()) {
       case kSync:
         return WasmCompileHelper::SyncCompile(isolate(), std::move(bytes));

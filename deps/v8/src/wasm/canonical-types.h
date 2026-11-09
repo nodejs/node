@@ -145,6 +145,7 @@ class TypeCanonicalizer {
 
   SharedFlag IsShared(CanonicalTypeIndex index) const;
   bool has_descriptor(CanonicalTypeIndex index) const;
+  bool is_descriptor(CanonicalTypeIndex index) const;
 
   // TODO(manoskouk): Implement a fast version of this if we have evidence that
   // it is needed.
