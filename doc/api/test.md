@@ -4774,7 +4774,7 @@ server ports) across concurrent test files:
 
 ```mjs
 import { test } from 'node:test';
-import { process } from 'node:process';
+import process from 'node:process';
 
 test('database operations', async (t) => {
   // Worker ID is available via context
