@@ -68,6 +68,12 @@ jobs:
 
       - name: Compute requisites after change
         run: ./tools/nix/list-requisites.sh > requisites-${{ matrix.system }}-after.list
+        env:
+          # Making sure we do not depend on eval-time fetches, which are not cached.
+          # The only exception is nixpkgs source tarballs.
+          NIX_CONFIG: |
+            restrict-eval = true
+            allowed-uris = https://github.com/NixOS/nixpkgs/archive/
 
       - name: Compute requisites before change
         run: |
