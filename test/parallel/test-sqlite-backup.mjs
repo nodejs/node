@@ -195,6 +195,20 @@ test('database backup', async (t) => {
   });
 });
 
+test('backup treats undefined source and target as main', async (t) => {
+  const database = makeSourceDb();
+  const destDb = nextDb();
+
+  await backup(database, destDb, { source: undefined, target: undefined });
+
+  const backupDb = new Database(destDb);
+  t.after(() => {
+    database.close();
+    backupDb.close();
+  });
+  t.assert.strictEqual(backupDb.prepare('SELECT count(*) AS n FROM main.data').get().n, 2);
+});
+
 test('backup database using location as URL', async (t) => {
   const database = makeSourceDb();
   const destDb = pathToFileURL(nextDb());

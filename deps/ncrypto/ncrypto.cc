@@ -337,14 +337,22 @@ constexpr BoringSSLCipher kBoringSSLCiphers[] = {
 
 // ============================================================================
 
+namespace {
+// ERR_clear_error() resets every slot of the error queue even when it is
+// empty, which costs several times more than checking for an error first.
+void ClearErrorQueue() {
+  if (ERR_peek_error() != 0) ERR_clear_error();
+}
+}  // namespace
+
 ClearErrorOnReturn::ClearErrorOnReturn(CryptoErrorList* errors)
     : errors_(errors) {
-  ERR_clear_error();
+  ClearErrorQueue();
 }
 
 ClearErrorOnReturn::~ClearErrorOnReturn() {
   if (errors_ != nullptr) errors_->capture();
-  ERR_clear_error();
+  ClearErrorQueue();
 }
 
 unsigned long ClearErrorOnReturn::peekError() {  // NOLINT(runtime/int)
@@ -925,6 +933,7 @@ int64_t PortableTimeGM(struct tm* t) {
 // SPKAC
 
 bool VerifySpkac(const char* input, size_t length) {
+  ClearErrorOnReturn clear_error_on_return;
 #ifdef OPENSSL_IS_BORINGSSL
   // OpenSSL uses EVP_DecodeBlock, which explicitly removes trailing characters,
   // while BoringSSL uses EVP_DecodedLength and EVP_DecodeBase64, which do not.
@@ -943,6 +952,7 @@ bool VerifySpkac(const char* input, size_t length) {
 }
 
 BIOPointer ExportPublicKey(const char* input, size_t length) {
+  ClearErrorOnReturn clear_error_on_return;
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
 
@@ -964,6 +974,7 @@ BIOPointer ExportPublicKey(const char* input, size_t length) {
 }
 
 Buffer<char> ExportChallenge(const char* input, size_t length) {
+  ClearErrorOnReturn clear_error_on_return;
 #ifdef OPENSSL_IS_BORINGSSL
   // OpenSSL uses EVP_DecodeBlock, which explicitly removes trailing characters,
   // while BoringSSL uses EVP_DecodedLength and EVP_DecodeBase64, which do not.
@@ -4534,6 +4545,7 @@ bool ECKeyHasMissingOid(const EVPKeyPointer& key) {
 EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePrivateKey(
     const PrivateKeyEncodingConfig& config,
     const Buffer<const unsigned char>& buffer) {
+  ERR_clear_error();
   static constexpr auto keyOrError = [](EVPKeyPointer pkey,
                                         bool had_passphrase = false) {
     if (unsigned long err = ERR_peek_error()) {  // NOLINT(runtime/int)
@@ -5498,15 +5510,38 @@ DigestCache::Result DigestCache::insert(const char* name,
 #endif
 }
 
+DigestCache::~DigestCache() = default;
+
 void DigestCache::reset(uint64_t generation) {
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   if (generation_ == generation) return;
   aliases_.clear();
+  hmac_templates_.clear();
   digests_.clear();
   first_id_ = next_id_;
 #endif
   generation_ = generation;
 }
+
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+const HMACCtxPointer* DigestCache::getHmacTemplate(const EVP_MD* digest,
+                                                   uint64_t generation) {
+  if (generation_ != generation || digest == nullptr) return nullptr;
+  for (size_t index = 0; index < digests_.size(); index++) {
+    if (digests_[index].get() != digest) continue;
+    if (hmac_templates_.size() <= index) {
+      hmac_templates_.resize(digests_.size());
+    }
+    if (!hmac_templates_[index]) {
+      auto ctx = HMACCtxPointer::New(Digest::Ref(digest));
+      if (!ctx) return nullptr;
+      hmac_templates_[index] = std::make_unique<HMACCtxPointer>(std::move(ctx));
+    }
+    return hmac_templates_[index].get();
+  }
+  return nullptr;
+}
+#endif
 
 const DigestCache::AliasMap& DigestCache::aliases() const {
 #if NCRYPTO_USE_OPENSSL_PROVIDER
@@ -8576,7 +8611,9 @@ HMACCtxPointer::HMACCtxPointer(EVPMacPointer&& mac, EVPMacCtxPointer&& ctx)
 HMACCtxPointer::HMACCtxPointer(HMACCtxPointer&& other) noexcept
     : mac_(std::move(other.mac_)),
       ctx_(std::move(other.ctx_)),
+      md_(other.md_),
       md_size_(other.md_size_) {
+  other.md_ = nullptr;
   other.md_size_ = 0;
 }
 
@@ -8584,7 +8621,9 @@ HMACCtxPointer& HMACCtxPointer::operator=(HMACCtxPointer&& other) noexcept {
   if (this == &other) return *this;
   mac_ = std::move(other.mac_);
   ctx_ = std::move(other.ctx_);
+  md_ = other.md_;
   md_size_ = other.md_size_;
+  other.md_ = nullptr;
   other.md_size_ = 0;
   return *this;
 }
@@ -8596,11 +8635,13 @@ HMACCtxPointer::~HMACCtxPointer() {
 void HMACCtxPointer::reset() {
   ctx_.reset();
   mac_.reset();
+  md_ = nullptr;
   md_size_ = 0;
 }
 
 bool HMACCtxPointer::init(const Buffer<const void>& buf, const Digest& md) {
   if (!ctx_ || !md) return false;
+  if (md.get() == md_) return ctx_.init(buf);
 
   const char* md_name = EVP_MD_get0_name(md);
   if (md_name == nullptr) return false;
@@ -8612,6 +8653,7 @@ bool HMACCtxPointer::init(const Buffer<const void>& buf, const Digest& md) {
   };
 
   if (!ctx_.init(buf, params)) return false;
+  md_ = md.get();
   md_size_ = md.size();
   return true;
 }
@@ -8643,6 +8685,16 @@ bool HMACCtxPointer::digestInto(Buffer<void>* buf) {
   return true;
 }
 
+HMACCtxPointer HMACCtxPointer::clone() const {
+  if (!ctx_) return {};
+  EVPMacCtxPointer ctx(EVP_MAC_CTX_dup(ctx_.get()));
+  if (!ctx) return {};
+  HMACCtxPointer result(EVPMacPointer(), std::move(ctx));
+  result.md_ = md_;
+  result.md_size_ = md_size_;
+  return result;
+}
+
 HMACCtxPointer HMACCtxPointer::New() {
   auto mac = EVPMacPointer::Fetch(OSSL_MAC_NAME_HMAC);
   if (!mac) return {};
@@ -8651,6 +8703,25 @@ HMACCtxPointer HMACCtxPointer::New() {
   if (!ctx) return {};
 
   return HMACCtxPointer(std::move(mac), std::move(ctx));
+}
+
+HMACCtxPointer HMACCtxPointer::New(const Digest& md) {
+  if (!md) return {};
+  const char* md_name = EVP_MD_get0_name(md);
+  if (md_name == nullptr) return {};
+
+  auto result = New();
+  if (!result) return {};
+
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_utf8_string(
+          OSSL_MAC_PARAM_DIGEST, const_cast<char*>(md_name), 0),
+      OSSL_PARAM_construct_end(),
+  };
+  if (EVP_MAC_CTX_set_params(result.ctx_.get(), params) != 1) return {};
+  result.md_ = md.get();
+  result.md_size_ = md.size();
+  return result;
 }
 #endif  // OPENSSL_WITH_EVP_MAC
 
@@ -8940,6 +9011,16 @@ const Digest Digest::Fetch(const char* name) {
 #endif
 
   return Digest();
+}
+
+const Digest Digest::Ref(const EVP_MD* md) {
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  if (md != nullptr && EVP_MD_get0_provider(md) != nullptr) {
+    if (EVP_MD_up_ref(const_cast<EVP_MD*>(md)) != 1) return Digest();
+    return Digest(DeleteFnPtr<EVP_MD, EVP_MD_free>(const_cast<EVP_MD*>(md)));
+  }
+#endif
+  return Digest(md);
 }
 
 // ============================================================================

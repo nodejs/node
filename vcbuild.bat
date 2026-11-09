@@ -224,6 +224,15 @@ if defined pgo_generate if defined pgo_use (
   exit /b 1
 )
 
+:: PGO generation build release flag cleaning
+if defined build_release if defined pgo_generate (
+  set package=
+  set msi=
+  set licensertf=
+  set cctest=
+  set sign=
+)
+
 if defined msi     set stage_package=1
 if defined package set stage_package=1
 

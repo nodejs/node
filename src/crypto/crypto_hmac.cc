@@ -1,6 +1,7 @@
 #include "crypto/crypto_hmac.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
+#include "crypto/crypto_hash.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_sig.h"
 #include "crypto/crypto_util.h"
@@ -69,7 +70,7 @@ void Hmac::New(const FunctionCallbackInfo<Value>& args) {
 void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
   HandleScope scope(env()->isolate());
 
-  Digest md = Digest::FromName(hash_type);
+  Digest md = GetDigest(env(), hash_type);
   if (!md) [[unlikely]] {
     return THROW_ERR_CRYPTO_INVALID_DIGEST(
         env(), "Invalid digest: %s", hash_type);
@@ -78,7 +79,7 @@ void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
     key = "";
   }
 
-  ctx_ = HMACCtxPointer::New();
+  ctx_ = NewHmacContext(env(), md);
   ncrypto::Buffer<const void> key_buf{
       .data = key,
       .len = static_cast<size_t>(key_len),

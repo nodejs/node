@@ -3,6 +3,7 @@ const npmFetch = require('npm-registry-fetch')
 const semver = require('semver')
 const { log, output } = require('proc-log')
 const { otplease } = require('../utils/auth.js')
+const { oidc } = require('../utils/oidc.js')
 const pkgJson = require('@npmcli/package-json')
 const BaseCommand = require('../base-cmd.js')
 
@@ -101,6 +102,7 @@ class DistTag extends BaseCommand {
       throw new Error('Tag name must not be a valid SemVer range: ' + t)
     }
 
+    await this.#oidc(spec, opts)
     const tags = await this.fetchTags(spec, opts)
     if (tags[t] === version) {
       log.warn('dist-tag add', t, 'is already set to version', version)
@@ -130,6 +132,7 @@ class DistTag extends BaseCommand {
       throw this.usageError()
     }
 
+    await this.#oidc(spec, opts)
     const tags = await this.fetchTags(spec, opts)
     if (!tags[tag]) {
       log.info('dist-tag del', tag, 'is not a dist-tag on', spec.name)
@@ -163,6 +166,7 @@ class DistTag extends BaseCommand {
     spec = npa(spec)
 
     try {
+      await this.#oidc(spec, opts)
       const tags = await this.fetchTags(spec, opts)
       const msg =
         Object.keys(tags).map(k => `${k}: ${tags[k]}`).sort().join('\n')
@@ -201,6 +205,16 @@ class DistTag extends BaseCommand {
     }
 
     return data
+  }
+
+  async #oidc (spec, opts) {
+    const registry = npmFetch.pickRegistry(spec, opts)
+    await oidc({
+      packageName: spec.name,
+      registry,
+      opts,
+      config: this.npm.config,
+    })
   }
 }
 

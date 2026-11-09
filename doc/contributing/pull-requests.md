@@ -121,6 +121,16 @@ If you are modifying code, please be sure to run `make lint` (or
 `vcbuild.bat lint` on Windows) to ensure that the changes follow the Node.js
 code style guide.
 
+For C/C++ changes, also run the formatter, which is not included in `make lint`.
+Install the formatter tooling with `make format-cpp-build`, then format the
+changes in your branch:
+
+```bash
+CLANG_FORMAT_START=$(git merge-base HEAD main) make format-cpp
+```
+
+Review and commit any formatting changes before submitting the pull request.
+
 Any documentation you write (including code comments and API documentation)
 should follow the [Style Guide](../../doc/README.md). Code samples
 included in the API docs will also be checked when running `make lint` (or

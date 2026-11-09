@@ -7,6 +7,9 @@ added:
   - v19.7.0
   - v18.16.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66768
+    description: Allowed "useCodeCache" together with "useVfs".
   - version: v25.5.0
     pr-url: https://github.com/nodejs/node/pull/61167
     description: Added built-in single executable application generation via the CLI flag `--build-sea`.
@@ -317,13 +320,25 @@ with `"vfsArchive"`: `--build-sea` rejects it in `"execArgv"`, and the
 executable rejects it at startup when it comes from `--node-options` or from
 the `execArgv` of a worker.
 
-#### Snapshot and code caching limitations
+#### Code cache for the modules in the VFS
 
-`"useVfs": true` cannot be used together with `"useSnapshot": true` or
-`"useCodeCache": true`. The code cache limitation is due to incomplete
-implementation, not a technical impossibility. Consider bundling the
-application if startup performance matters and do not rely on module loading
-from the VFS in that case.
+When `"useCodeCache": true` is combined with `"useVfs": true`, the code cache
+is not limited to the main script: `--build-sea` compiles every JavaScript
+module in the virtual file system (and every TypeScript module, when type
+stripping is enabled), including the main script and the modules under
+`node_modules`, and embeds their V8 code cache into the preparation blob.
+The modules are compiled without being run, so the build has no side
+effects. A module that fails to compile is left out of the cache and fails
+the same way at run time if the application loads it.
+
+The cache is keyed by the path of each module inside the mount and verified
+against its source, so it is used by the executable whenever the modules are
+loaded from the VFS, and ignored if they changed. The cache is
+platform-specific, like the code cache of the main script.
+
+#### Snapshot limitations
+
+`"useVfs": true` cannot be used together with `"useSnapshot": true`.
 
 #### Native addon limitations
 
@@ -372,6 +387,9 @@ the preparation blob and get injected into the final executable. When the single
 executable application is launched, instead of compiling the `main` script from
 scratch, Node.js would use the code cache to speed up the compilation, then
 execute the script, which would improve the startup performance.
+
+When `useVfs` is also set to `true`, the code cache covers every module in the
+virtual file system, see [Code cache for the modules in the VFS][].
 
 ### Execution arguments
 
@@ -798,6 +816,7 @@ Suggestions for other resource injection tools/workflows are welcomed. Please
 start a discussion at <https://github.com/nodejs/single-executable/discussions>
 to help us document them.
 
+[Code cache for the modules in the VFS]: #code-cache-for-the-modules-in-the-vfs
 [CommonJS]: modules.md#modules-commonjs-modules
 [ECMAScript Modules]: esm.md#modules-ecmascript-modules
 [ELF]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format

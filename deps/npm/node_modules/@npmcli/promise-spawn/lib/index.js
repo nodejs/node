@@ -83,19 +83,26 @@ const spawnWithShell = (cmd, args, opts, extra) => {
   if (isCmd) {
     let doubleEscape = false
 
-    // find the actual command we're running
+    // Decode the executable token so escaped batch shims still get double escaping.
     let initialCmd = ''
     let insideQuotes = false
     for (let i = 0; i < cmd.length; ++i) {
       const char = cmd.charAt(i)
+      if (char === '^' && !insideQuotes && i + 1 < cmd.length) {
+        initialCmd += cmd.charAt(++i)
+        continue
+      }
       if (char === ' ' && !insideQuotes) {
         break
       }
 
       initialCmd += char
-      if (char === '"' || char === "'") {
+      if (char === '"') {
         insideQuotes = !insideQuotes
       }
+    }
+    if (initialCmd.startsWith('"') && initialCmd.endsWith('"')) {
+      initialCmd = initialCmd.slice(1, -1)
     }
 
     let pathToInitial

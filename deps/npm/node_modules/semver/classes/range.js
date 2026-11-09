@@ -119,7 +119,7 @@ class Range {
     debug('hyphen replace', range)
 
     // `> 1.2.3 < 1.2.5` => `>1.2.3 <1.2.5`
-    range = range.replace(re[t.COMPARATORTRIM], comparatorTrimReplace)
+    range = trimComparatorWhitespace(range)
     debug('comparator trim', range)
 
     // `~ 1.2.3` => `~1.2.3`
@@ -224,11 +224,11 @@ const parseOptions = require('../internal/parse-options')
 const Comparator = require('./comparator')
 const debug = require('../internal/debug')
 const SemVer = require('./semver')
+const trimComparatorWhitespace = require('../internal/trim-comparator-whitespace')
 const {
   safeRe: re,
   src,
   t,
-  comparatorTrimReplace,
   tildeTrimReplace,
   caretTrimReplace,
 } = require('../internal/re')
