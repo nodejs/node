@@ -460,12 +460,10 @@ class KnownNodeAspects {
   }
 
   const NodeInfo* TryGetInfoFor(ValueNode* node) const {
-    node = node->Unwrap();
     return const_cast<KnownNodeAspects*>(this)->TryGetInfoFor(node);
   }
 
   NodeInfo* TryGetInfoFor(ValueNode* node) {
-    node = node->Unwrap();
     auto info_it = FindInfo(node);
     if (!IsValid(info_it)) return nullptr;
     return &info_it->second;
@@ -481,8 +479,8 @@ class KnownNodeAspects {
 
   NodeInfo* GetOrCreateInfoFor(compiler::JSHeapBroker* broker,
                                ValueNode* node) {
-    node = node->Unwrap();
-    auto info_it = FindInfo(node);
+    node = UnwrapNode(node);
+    auto info_it = node_infos_.find(node);
     if (IsValid(info_it)) return &info_it->second;
     auto res = &node_infos_.emplace(node, NodeInfo()).first->second;
     res->IntersectType(node->GetStaticType(broker));
@@ -490,7 +488,6 @@ class KnownNodeAspects {
   }
 
   ValueNode* TryGetAlternativeFor(ValueNode* node, UseRepresentation repr) {
-    node = node->Unwrap();
     auto info_it = FindInfo(node);
     if (!IsValid(info_it)) return nullptr;
     return info_it->second.alternative().get(repr);
@@ -1018,12 +1015,58 @@ class KnownNodeAspects {
     return it->second->UnwrapIdentities();
   }
 
+  // Only unwrap conversions that preserve `NodeType` invariants across
+  // representations (e.g. `kSmi` means Smi-tagged for tagged values, but only
+  // Smi-sized for untagged values).
+  // TODO(496266449): Remove once `kTagged` is split into `kSmi` and
+  // `kTaggedPointer` representations.
+  static ValueNode* UnwrapNode(ValueNode* node) {
+    while (true) {
+      if (node->Is<Identity>() || node->Is<ReturnedValue>()) {
+        node = node->input_node(0);
+        continue;
+      }
+      if (!node->is_conversion()) break;
+      switch (node->opcode()) {
+        case Opcode::kCheckedNumberToInt32:
+        case Opcode::kCheckedNumberToFloat64:
+        case Opcode::kUnsafeNumberToFloat64:
+        case Opcode::kCheckedObjectToIndex:
+        case Opcode::kUnsafeInt32ToUint32:
+          return node;
+        // kForceHeapNumber allocates a HeapNumber even for Smi-sized inputs.
+        case Opcode::kInt32ToNumber:
+          if (node->Cast<Int32ToNumber>()->conversion_mode() ==
+              NumberConversionMode::kForceHeapNumber) {
+            return node;
+          }
+          break;
+        case Opcode::kFloat64ToTagged:
+          if (node->Cast<Float64ToTagged>()->conversion_mode() ==
+              NumberConversionMode::kForceHeapNumber) {
+            return node;
+          }
+          break;
+        case Opcode::kHoleyFloat64ToTagged:
+          if (node->Cast<HoleyFloat64ToTagged>()->conversion_mode() ==
+              NumberConversionMode::kForceHeapNumber) {
+            return node;
+          }
+          break;
+        default:
+          break;
+      }
+      node = node->input_node(0);
+    }
+    return node;
+  }
+
   NodeInfos::iterator FindInfo(ValueNode* node) {
-    node = node->Unwrap();
+    node = UnwrapNode(node);
     return node_infos_.find(node);
   }
   NodeInfos::const_iterator FindInfo(ValueNode* node) const {
-    node = node->Unwrap();
+    node = UnwrapNode(node);
     return node_infos_.find(node);
   }
   bool IsValid(NodeInfos::iterator& it) { return it != node_infos_.end(); }

@@ -84,7 +84,40 @@ Reduction WasmLoadElimination::UpdateState(Node* node,
 std::tuple<Node*, Node*> WasmLoadElimination::TruncateAndExtendOrType(
     Node* value, Node* effect, Node* control, wasm::ValueType field_type,
     bool is_signed) {
+  if (value->opcode() == IrOpcode::kDead ||
+      value->opcode() == IrOpcode::kDeadValue) {
+    return {dead(), dead()};
+  }
+
+  // The value might be untyped or have a non-Wasm type (e.g. Type::None() from
+  // DeadCodeElimination, or a JS node in case of Wasm inlined into JS). Without
+  // a concrete Wasm type we cannot verify representation compatibility.
+  if (!NodeProperties::IsTyped(value)) {
+    return {nullptr, nullptr};
+  }
+
+  Type value_type = NodeProperties::GetType(value);
+  if (!value_type.IsWasm()) {
+    return {nullptr, nullptr};
+  }
+
+  wasm::TypeInModule node_type = value_type.AsWasm();
+  if (node_type.type.is_top()) {
+    return {nullptr, nullptr};
+  }
+
+  wasm::ValueType unpacked_field_type = field_type.Unpacked();
+  if (node_type.type.is_uninhabited() ||
+      TypesUnrelated(node_type.type, unpacked_field_type, node_type.module)) {
+    // Uninhabited or unrelated types can occur as a result of unreachable code.
+    // Example: Storing a value x of type A in a struct, then casting the struct
+    // to a different struct type to then load type B from the same offset
+    // results in trying to replace the load with value x.
+    return {dead(), dead()};
+  }
+
   if (field_type == wasm::kWasmI8 || field_type == wasm::kWasmI16) {
+    DCHECK_EQ(node_type.type, wasm::kWasmI32);
     Node* ret = nullptr;
     if (is_signed) {
       int shift = 32 - 8 * field_type.value_kind_size();
@@ -98,30 +131,10 @@ std::tuple<Node*, Node*> WasmLoadElimination::TruncateAndExtendOrType(
                              jsgraph()->Int32Constant(mask));
     }
 
-    NodeProperties::SetType(ret, NodeProperties::GetType(value));
+    NodeProperties::SetType(ret, value_type);
     return {ret, effect};
   }
 
-  // The value might be untyped in case of wasm inlined into JS if the value
-  // comes from a JS node.
-  if (!NodeProperties::IsTyped(value)) {
-    return {value, effect};
-  }
-
-  Type value_type = NodeProperties::GetType(value);
-  if (!value_type.IsWasm()) {
-    return {value, effect};
-  }
-
-  wasm::TypeInModule node_type = value_type.AsWasm();
-
-  if (TypesUnrelated(node_type.type, field_type, node_type.module)) {
-    // Unrelated types can occur as a result of unreachable code.
-    // Example: Storing a value x of type A in a struct, then casting the struct
-    // to a different struct type to then load type B from the same offset
-    // results in trying to replace the load with value x.
-    return {dead(), dead()};
-  }
   if (!wasm::IsSubtypeOf(node_type.type, field_type, node_type.module)) {
     Type type = Type::Wasm({field_type, node_type.module}, graph()->zone());
     Node* ret =
@@ -233,10 +246,12 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
       node->Kill();
       return Replace(dead());
     }
-    ReplaceWithValue(node, std::get<0>(replacement), std::get<1>(replacement),
-                     control);
-    node->Kill();
-    return Replace(std::get<0>(replacement));
+    if (std::get<0>(replacement) != nullptr) {
+      ReplaceWithValue(node, std::get<0>(replacement), std::get<1>(replacement),
+                       control);
+      node->Kill();
+      return Replace(std::get<0>(replacement));
+    }
   }
 
   half_state = half_state->AddField(field_info.field_index, object, node);

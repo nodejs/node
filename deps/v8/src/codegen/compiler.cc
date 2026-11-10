@@ -3320,7 +3320,8 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
     DirectHandle<SharedFunctionInfo> outer_info, DirectHandle<Context> context,
     LanguageMode language_mode, ParseRestriction restriction,
     int parameters_end_pos, int eval_position,
-    ParsingWhileDebugging parsing_while_debugging) {
+    ParsingWhileDebugging parsing_while_debugging,
+    bool private_name_lookup_skips_outer_class) {
   // The cache lookup key needs to be aware of the separation between the
   // parameters and the body to prevent this valid invocation:
   //   Function("", "function anonymous(\n/**/) {\n}");
@@ -3376,6 +3377,8 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
         v8_flags.lazy_eval);
     flags.set_is_eval(true);
     flags.set_parsing_while_debugging(parsing_while_debugging);
+    flags.set_private_name_lookup_skips_outer_class(
+        private_name_lookup_skips_outer_class);
     DCHECK(!flags.is_module());
     flags.set_parse_restriction(restriction);
 

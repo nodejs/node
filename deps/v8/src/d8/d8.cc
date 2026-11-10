@@ -4768,8 +4768,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   global_template->Set(Symbol::GetToStringTag(isolate),
                        String::NewFromUtf8Literal(isolate, "global"));
   global_template->Set(isolate, "onerror", v8::Null(isolate));
-  global_template->Set(isolate, "version",
-                       FunctionTemplate::New(isolate, Version));
+  Local<FunctionTemplate> version_func_template =
+      FunctionTemplate::New(isolate, Version);
+  version_func_template->SetAcceptAnyReceiver(false);
+  global_template->Set(isolate, "version", version_func_template);
 
   global_template->Set(isolate, "print", FunctionTemplate::New(isolate, Print));
   global_template->Set(isolate, "printErr",

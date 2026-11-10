@@ -13,6 +13,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
@@ -826,7 +827,8 @@ RUNTIME_FUNCTION(Runtime_LogOrTraceOptimizedOSREntry) {
 static Tagged<Object> CompileGlobalEval(
     Isolate* isolate, Handle<i::Object> source_object,
     DirectHandle<SharedFunctionInfo> outer_info, LanguageMode language_mode,
-    int eval_scope_info_index, int eval_position) {
+    int eval_scope_info_index, int eval_position,
+    bool private_name_lookup_skips_outer_class) {
   DirectHandle<NativeContext> native_context = isolate->native_context();
 
   // Check if native context allows code generation from
@@ -865,7 +867,8 @@ static Tagged<Object> CompileGlobalEval(
       isolate, compiled,
       Compiler::GetFunctionFromEval(
           isolate, source.ToHandleChecked(), outer_info, context, language_mode,
-          restriction, kNoSourcePosition, eval_position),
+          restriction, kNoSourcePosition, eval_position,
+          ParsingWhileDebugging::kNo, private_name_lookup_skips_outer_class),
       ReadOnlyRoots(isolate).exception());
   return *compiled;
 }
@@ -882,13 +885,17 @@ RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
     return *callee;
   }
 
-  DCHECK(is_valid_language_mode(args.smi_value_at(3)));
-  LanguageMode language_mode = static_cast<LanguageMode>(args.smi_value_at(3));
+  int eval_flags = args.smi_value_at(3);
+  LanguageMode language_mode =
+      interpreter::ResolveEvalFlags::LanguageModeBit::decode(eval_flags);
+  bool private_name_lookup_skips_outer_class = interpreter::ResolveEvalFlags::
+      PrivateNameLookupSkipsOuterClassBit::decode(eval_flags);
   DirectHandle<SharedFunctionInfo> outer_info(args.at<JSFunction>(2)->shared(),
                                               isolate);
   return CompileGlobalEval(isolate, args.at<Object>(1), outer_info,
                            language_mode, args.smi_value_at(4),
-                           args.smi_value_at(5));
+                           args.smi_value_at(5),
+                           private_name_lookup_skips_outer_class);
 }
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS

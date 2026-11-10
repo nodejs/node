@@ -5420,7 +5420,9 @@ class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
   static constexpr OpProperties kProperties =
       OpProperties::Call() | OpProperties::CanAllocate() |
       OpProperties::CanThrow() | OpProperties::LazyDeopt() |
-      OpProperties::NotIdempotent();
+      OpProperties::NotIdempotent() |
+      // The runtime call may make prototype maps fast.
+      OpProperties::CanWrite();
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -5488,7 +5490,9 @@ class CreateObjectLiteral
   static constexpr OpProperties kProperties =
       OpProperties::Call() | OpProperties::CanAllocate() |
       OpProperties::CanThrow() | OpProperties::LazyDeopt() |
-      OpProperties::NotIdempotent();
+      OpProperties::NotIdempotent() |
+      // The runtime call may make prototype maps fast.
+      OpProperties::CanWrite();
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
