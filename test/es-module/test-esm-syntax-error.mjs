@@ -13,4 +13,16 @@ describe('ESM: importing a module with syntax error(s)', { concurrency: !process
     assert.match(stderr, /SyntaxError:/);
     assert.notStrictEqual(code, 0);
   });
+
+  it('should include the source location when imported dynamically', async () => {
+    const moduleURL = fixtures.fileURL('es-module-loaders', 'syntax-error.mjs');
+    const { code, stderr } = await spawnPromisified(execPath, [
+      '-e',
+      `import(${JSON.stringify(moduleURL.href)}).catch(console.error)`,
+    ]);
+
+    assert.strictEqual(code, 0);
+    assert.match(stderr, /syntax-error\.mjs:2/);
+    assert.match(stderr, /await async \(\) => 0;\n\^+/);
+  });
 });
