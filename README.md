@@ -321,6 +321,8 @@ For information about the governance of the Node.js project, see
   **Christian Clauss** <<cclauss@me.com>> (he/him)
 * [ChALkeR](https://github.com/ChALkeR) -
   **Сковорода Никита Андреевич** <<chalkerx@gmail.com>> (he/him)
+* [christianaurichzm](https://github.com/christianaurichzm) -
+  **Christian Aurich Zanettini Martins** <<christian.aurichzm@gmail.com>> (he/him)
 * [cjihrig](https://github.com/cjihrig) -
   **Colin Ihrig** <<cjihrig@gmail.com>> (he/him)
 * [codebytere](https://github.com/codebytere) -
