@@ -309,7 +309,7 @@ class MaglevGraphBuilder {
     using Label = Base::Label;
     using LabelForTrackingInterpreterFrameState =
         Base::LabelForTrackingInterpreterFrameState;
-    class LoopLabel;
+    class V8_NODISCARD LoopLabel;
 
     MaglevSubGraphBuilder(MaglevGraphBuilder* builder, int variable_count);
     LoopLabel BeginLoop(std::initializer_list<Variable*> loop_vars);
@@ -1072,7 +1072,7 @@ class MaglevGraphBuilder {
       compiler::OptionalSharedFunctionInfoRef maybe_shared,
       CallArguments& args);
   MaybeReduceResult TryReduceFunctionPrototypeApplyCallWithReceiver(
-      compiler::OptionalHeapObjectRef maybe_receiver, CallArguments& args,
+      compiler::OptionalJSFunctionRef maybe_receiver, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
 
   template <typename CallNode, typename... Args>

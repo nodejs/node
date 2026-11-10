@@ -1554,7 +1554,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     ICMode ic_mode, ElementSupport support_elements) {
   Label if_smi_handler(this), if_nonsmi_handler(this);
   Label if_proto_handler(this), call_handler(this),
-      store_transition_or_global_or_accessor(this);
+      store_transition_or_accessor(this);
 
   Branch(TaggedIsSmi(handler), &if_smi_handler, &if_nonsmi_handler);
 
@@ -1685,8 +1685,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
   BIND(&if_nonsmi_handler);
   {
     TNode<HeapObjectReference> ref_handler = CAST(handler);
-    GotoIf(IsWeakOrCleared(ref_handler),
-           &store_transition_or_global_or_accessor);
+    GotoIf(IsWeakOrCleared(ref_handler), &store_transition_or_accessor);
     TNode<HeapObject> strong_handler = CAST(handler);
     TNode<Map> handler_map = LoadMap(strong_handler);
     Branch(IsCodeMap(handler_map), &call_handler, &if_proto_handler);
@@ -1711,39 +1710,17 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     }
   }
 
-  BIND(&store_transition_or_global_or_accessor);
+  BIND(&store_transition_or_accessor);
   {
     // Load value or miss if the {handler} weak cell is cleared.
     CSA_DCHECK(this, IsWeakOrCleared(handler));
     TNode<HeapObject> strong_handler = GetHeapObjectAssumeWeak(handler, miss);
 
-    Label store_global(this), store_transition(this), store_accessor(this);
+    Label store_transition(this), store_accessor(this);
     TNode<Map> strong_handler_map = LoadMap(strong_handler);
-    GotoIf(IsPropertyCellMap(strong_handler_map), &store_global);
     Branch(IsAccessorPairMap(strong_handler_map), &store_accessor,
            &store_transition);
 
-    BIND(&store_global);
-    {
-      if (p->IsDefineNamedOwn()) {
-        // The global proxy has its attributes set in the global object,
-        // which can't be handled by StoreGlobalIC_PropertyCellCase when
-        // defining public fields. Handle it in runtime.
-        GotoIf(IsJSGlobalProxy(CAST(p->receiver())), &if_slow);
-      } else if (p->IsDefineKeyedOwn()) {
-        Label proceed_defining(this);
-        // StoreGlobalIC_PropertyCellCase doesn't support definition
-        // of private fields, so handle them in runtime.
-        GotoIfNot(IsSymbol(CAST(p->name())), &proceed_defining);
-        Branch(IsAnyPrivateName(CAST(p->name())), &if_slow, &proceed_defining);
-        BIND(&proceed_defining);
-      }
-
-      TNode<PropertyCell> property_cell = CAST(strong_handler);
-      ExitPoint direct_exit(this);
-      StoreGlobalIC_PropertyCellCase(property_cell, p->value(), &direct_exit,
-                                     miss);
-    }
     BIND(&store_accessor);
     {
       TNode<AccessorPair> pair = CAST(strong_handler);

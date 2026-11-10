@@ -179,6 +179,8 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
   template <typename FixedArrayT, typename NodeT>
   MaybeReduceResult AbortIfInvalidFixedArrayIndex(NodeT* node);
 
+  ProcessResult OverwriteWith(Opcode opcode);
+
   ProcessResult ReplaceWith(ValueNode* node);
 
   template <typename NodeT, typename... Args>

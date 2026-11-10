@@ -744,12 +744,20 @@ void Parser::ParseProgram(Isolate* isolate, DirectHandle<Script> script,
   }
 
   scanner_.Initialize();
+  std::optional<ClassScope::HeritageParsingScope> heritage;
+  if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class() &&
+                  original_scope_->is_class_scope())) {
+    heritage.emplace(original_scope_->AsClassScope());
+  }
   FunctionLiteral* result =
       DoParseProgram(isolate, info, script->eval_from_position());
   if (flags().allow_heap_allocation()) {
     HandleDebugMagicComments(isolate, script);
   }
   if (result == nullptr) return;
+  if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class())) {
+    result->scope()->RecordNeedsPrivateNameContextChainRecalc();
+  }
   result->scope()->set_is_hoisted_in_context(
       info->flags().is_hoisted_in_context());
   if (flags().allow_heap_allocation()) {
@@ -1252,6 +1260,9 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     }
 
     if (has_error()) return nullptr;
+    if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class())) {
+      result->scope()->RecordNeedsPrivateNameContextChainRecalc();
+    }
     result->set_requires_instance_members_initializer(
         flags().requires_instance_members_initializer());
     result->set_class_scope_has_private_brand(

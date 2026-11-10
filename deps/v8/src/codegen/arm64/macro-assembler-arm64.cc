@@ -979,11 +979,11 @@ void MacroAssembler::LoadStoreMacroComplex(const CPURegister& rt,
     // Post-index beyond unscaled addressing range.
     DCHECK(!is_imm_unscaled);
     LoadStore(rt, MemOperand(addr.base()), op);
-    add(addr.base(), addr.base(), offset);
+    Add(addr.base(), addr.base(), offset);
   } else {
     // Pre-index beyond unscaled addressing range.
     DCHECK(!is_imm_unscaled && addr.IsPreIndex());
-    add(addr.base(), addr.base(), offset);
+    Add(addr.base(), addr.base(), offset);
     LoadStore(rt, MemOperand(addr.base()), op);
   }
 }

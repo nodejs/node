@@ -74,6 +74,7 @@
   'debugger/wasm-*': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
   'runtime/get-properties': [SKIP],
+  'regress/regress-577352626': [SKIP],
   'regress/regress-crbug-349248170': [SKIP],
 }],  # not has_webassembly or variant == jitless
 

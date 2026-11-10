@@ -983,7 +983,7 @@ Instr Assembler::SF(Register rd) {
 }
 
 Instr Assembler::ImmAddSub(int imm) {
-  DCHECK(IsImmAddSub(imm));
+  CHECK(IsImmAddSub(imm));
   if (is_uint12(imm)) {  // No shift required.
     imm <<= ImmAddSub_offset;
   } else {

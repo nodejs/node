@@ -1695,8 +1695,8 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       default:
         UNREACHABLE();
     }
-    if (literal.object().equals(info()->closure()) &&
-        info()->function_context_specializing()) {
+    if (info()->function_context_specializing() &&
+        literal.IsObject(info()->closure())) {
       translations_.StoreJSFrameFunction();
     } else {
       int literal_id = DefineDeoptimizationLiteral(literal);
