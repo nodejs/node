@@ -3,10 +3,12 @@
 const common = require('../common');
 common.skipIfFFIMissing();
 const assert = require('node:assert');
+const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test } = require('node:test');
+const tmpdir = require('../common/tmpdir');
 const ffi = require('node:ffi');
 const vfs = require('node:vfs');
 const { fixtureSymbols, libraryPath } = require('./ffi-test-common');
@@ -21,8 +23,12 @@ myVfs.writeFileSync(`/${libraryName}`, fs.readFileSync(libraryPath));
 const mountPoint = myVfs.mount();
 const virtualPath = path.join(mountPoint, libraryName);
 
+// Images land in TMPDIR, which other tests loading libraries share. Point it at
+// a directory this test owns, so their images cannot pass for a leak here.
+tmpdir.refresh();
+process.env.TMPDIR = tmpdir.path;
+
 test('ffi.dlopen() loads a library from a mounted VFS', () => {
-  const before = new Set(fs.readdirSync(os.tmpdir()));
   const { lib, functions } = ffi.dlopen(virtualPath, {
     add_i32: fixtureSymbols.add_i32,
   });
@@ -40,10 +46,62 @@ test('ffi.dlopen() loads a library from a mounted VFS', () => {
   // filesystem; on other POSIX it is unlinked right after loading.
   // (Windows keeps a delete-on-close file until exit, so skip there.)
   if (!common.isWindows) {
-    const leaked = fs.readdirSync(os.tmpdir())
-      .filter((f) => f.startsWith('node-addon') && !before.has(f));
+    const leaked = fs.readdirSync(tmpdir.path)
+      .filter((f) => f.startsWith('node-addon'));
     assert.deepStrictEqual(leaked, [], `image not cleaned up: ${leaked}`);
   }
+});
+
+test('library images leave no file descriptor behind', { skip: !common.isLinux }, () => {
+  const images = () => fs.readdirSync('/proc/self/fd').filter((fd) => {
+    try {
+      return fs.readlinkSync(`/proc/self/fd/${fd}`).startsWith('/memfd:node-addon');
+    } catch {
+      return false;
+    }
+  });
+
+  const { lib, functions } = ffi.dlopen(virtualPath, {
+    add_i32: fixtureSymbols.add_i32,
+  });
+  try {
+    assert.deepStrictEqual(images(), []);
+    assert.strictEqual(functions.add_i32(40, 2), 42);
+  } finally {
+    lib.close();
+  }
+  assert.deepStrictEqual(images(), []);
+});
+
+test('closed library images give their fd numbers back', { skip: !common.isLinux }, () => {
+  // More loads than the limit allows fds, one at a time. There is no usable
+  // temporary directory, so this only works if each stays an in-memory image.
+  const limit = 128;
+  const child = `
+    const assert = require('node:assert');
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const ffi = require('node:ffi');
+    const vfs = require('node:vfs');
+    const myVfs = vfs.create();
+    myVfs.writeFileSync('/lib.so', fs.readFileSync(${JSON.stringify(libraryPath)}));
+    const libPath = path.join(myVfs.mount(), 'lib.so');
+    for (let i = 0; i < ${limit * 4}; i++) {
+      const { lib, functions } = ffi.dlopen(libPath, {
+        add_i32: ${JSON.stringify(fixtureSymbols.add_i32)},
+      });
+      assert.strictEqual(functions.add_i32(40, 2), 42);
+      lib.close();
+    }
+  `;
+  const { status, stderr } = spawnSync('/bin/sh', [
+    '-c', `ulimit -n ${limit} && exec "$0" "$@"`,
+    process.execPath, '--disable-warning=ExperimentalWarning', '-e', child,
+  ], {
+    encoding: 'utf8',
+    env: { ...process.env, TMPDIR: path.join(os.tmpdir(), 'no-such-directory') },
+  });
+  assert.strictEqual(status, 0, stderr);
 });
 
 test('new ffi.DynamicLibrary() loads from a mounted VFS', () => {
@@ -90,5 +148,59 @@ test('a library loaded from a VFS outlives the mount', () => {
     assert.strictEqual(functions.add_i32(20, 22), 42);
   } finally {
     lib.close();
+  }
+});
+
+const addonPath = (name) => path.join(
+  __dirname, '..', 'addons', name, 'build', common.buildType, 'binding.node');
+
+test('an addon loaded after a VFS library is its own module', (t) => {
+  const helloPath = addonPath('hello-world');
+  if (!fs.existsSync(helloPath)) {
+    t.skip('the hello-world addon is not built');
+    return;
+  }
+  const seqVfs = vfs.create();
+  seqVfs.writeFileSync(`/${libraryName}`, fs.readFileSync(libraryPath));
+  seqVfs.writeFileSync('/hello.node', fs.readFileSync(helloPath));
+  const seqMount = seqVfs.mount();
+  const { lib, functions } = ffi.dlopen(path.join(seqMount, libraryName), {
+    add_i32: fixtureSymbols.add_i32,
+  });
+
+  try {
+    // Resolved to the library, the addon would fail with "Module did not
+    // self-register".
+    const addon = require(path.join(seqMount, 'hello.node'));
+    assert.strictEqual(addon.hello(), 'world');
+    assert.strictEqual(functions.add_i32(20, 22), 42);
+  } finally {
+    lib.close();
+    seqVfs.unmount();
+  }
+});
+
+test('a VFS library loaded after an addon is its own library', (t) => {
+  const functionPath = addonPath('hello-world-function-export');
+  if (!fs.existsSync(functionPath)) {
+    t.skip('the hello-world-function-export addon is not built');
+    return;
+  }
+  const seqVfs = vfs.create();
+  seqVfs.writeFileSync('/function.node', fs.readFileSync(functionPath));
+  seqVfs.writeFileSync(`/${libraryName}`, fs.readFileSync(libraryPath));
+  const seqMount = seqVfs.mount();
+  const addon = require(path.join(seqMount, 'function.node'));
+  assert.strictEqual(addon(), 'world');
+
+  // Resolved to the addon, the library would have no add_i32 to look up.
+  const { lib, functions } = ffi.dlopen(path.join(seqMount, libraryName), {
+    add_i32: fixtureSymbols.add_i32,
+  });
+  try {
+    assert.strictEqual(functions.add_i32(40, 2), 42);
+  } finally {
+    lib.close();
+    seqVfs.unmount();
   }
 });
