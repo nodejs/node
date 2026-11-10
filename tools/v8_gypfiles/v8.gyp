@@ -174,6 +174,28 @@
       ],
     },  # v8_maybe_icu
     {
+      # V8 uses BoringSSL/OpenSSL for SHA-256. If configured --without-ssl,
+      # use V8_USE_OPENSSL to fall back to the Omaha implementation.
+      'target_name': 'v8_maybe_openssl',
+      'type': 'none',
+      'toolsets': ['host', 'target'],
+      'hard_dependency': 1,
+      'conditions': [
+        ['node_use_openssl=="false" or _toolset=="host"', {
+          'direct_dependent_settings': {
+            'defines': ['V8_USE_OPENSSL=0'],
+          },
+        }, 'node_shared_openssl=="false" and target_arch not in "ppc64 s390x"', {
+          'dependencies': [
+            '../../deps/openssl/openssl.gyp:openssl',
+          ],
+          'export_dependent_settings': [
+            '../../deps/openssl/openssl.gyp:openssl',
+          ],
+        }],
+      ],
+    },  # v8_maybe_openssl
+    {
       'target_name': 'torque_runtime_support',
       'type': 'none',
       'toolsets': ['host', 'target'],
@@ -1107,6 +1129,7 @@
         'run_torque#target',
         'v8_internal_headers',
         'v8_maybe_icu',
+        'v8_maybe_openssl',
         'v8_zlib',
         'v8_pch',
       ],
