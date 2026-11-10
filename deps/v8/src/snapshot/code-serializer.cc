@@ -4,7 +4,7 @@
 
 #include "src/snapshot/code-serializer.h"
 
-#if V8_BORINGSSL_SHA256
+#if V8_USE_OPENSSL
 // OpenSSL 3.0+ deprecates the low-level SHA256_Init/Update/Final API, which
 // remains the standard streaming SHA-256 interface in BoringSSL. Suppress the
 // deprecation warning when building against OpenSSL (e.g. in Node.js).

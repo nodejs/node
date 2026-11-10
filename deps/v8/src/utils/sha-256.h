@@ -10,11 +10,15 @@
 
 #include "include/v8config.h"
 
+// Embedders can define V8_USE_OPENSSL to 0 to use the Omaha SHA-256
+// implementation.
+#if !defined(V8_USE_OPENSSL)
 #if !defined(V8_HOST_ARCH_PPC64) && !defined(V8_HOST_ARCH_S390X) && \
     !defined(V8_HOST_ARCH_LOONG64)
-#define V8_BORINGSSL_SHA256 1
+#define V8_USE_OPENSSL 1
 #else
-#define V8_BORINGSSL_SHA256 0
+#define V8_USE_OPENSSL 0
+#endif
 #endif
 
 const size_t kSizeOfSha256Digest = 32;
@@ -26,7 +30,7 @@ namespace internal {
 // Convenience method. Returns digest address.
 const uint8_t* SHA256_hash(const void* data, size_t len, uint8_t* digest);
 
-#if !V8_BORINGSSL_SHA256
+#if !V8_USE_OPENSSL
 
 // Copyright 2013 Google Inc.
 //
@@ -81,7 +85,7 @@ void SHA256_Init(SHA256_CTX* ctx);
 void SHA256_Update(SHA256_CTX* ctx, const void* data, size_t len);
 void SHA256_Final(uint8_t* digest, SHA256_CTX* ctx);
 
-#endif  // !V8_BORINGSSL_SHA256
+#endif  // !V8_USE_OPENSSL
 
 }  // namespace internal
 }  // namespace v8

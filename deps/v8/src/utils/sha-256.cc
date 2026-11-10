@@ -4,7 +4,7 @@
 
 #include "src/utils/sha-256.h"
 
-#if V8_BORINGSSL_SHA256
+#if V8_USE_OPENSSL
 
 #define OPENSSL_SUPPRESS_DEPRECATED
 #include <openssl/sha.h>
@@ -21,7 +21,7 @@ const uint8_t* SHA256_hash(const void* data, size_t len, uint8_t* digest) {
 }  // namespace internal
 }  // namespace v8
 
-#else  // !V8_BORINGSSL_SHA256
+#else  // !V8_USE_OPENSSL
 
 // Copyright 2013 Google Inc.
 //
@@ -192,4 +192,4 @@ const uint8_t* SHA256_hash(const void* data, size_t len, uint8_t* digest) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_BORINGSSL_SHA256
+#endif  // V8_USE_OPENSSL
