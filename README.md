@@ -323,6 +323,8 @@ For information about the governance of the Node.js project, see
   **Dario Piotrowicz** <<dario.piotrowicz@gmail.com>> (he/him)
 * [deokjinkim](https://github.com/deokjinkim) -
   **Deokjin Kim** <<deokjin81.kim@gmail.com>> (he/him)
+* [efekrskl](https://github.com/efekrskl) -
+  **Efe Karasakal** <<hi@efe.dev>> (he/him)
 * [ErickWendel](https://github.com/ErickWendel) -
   **Erick Wendel** <<erick.workspace@gmail.com>> (he/him)
 * [Ethan-Arrowood](https://github.com/Ethan-Arrowood) -
