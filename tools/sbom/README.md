@@ -6,8 +6,8 @@ binary.
 
 ## Usage
 
-Run `./configure` first. The set of dependencies that end up in the binary is
-read from `config.gypi`.
+Run `./configure` first. The set of dependencies that end up in the binary, and
+the toolchain versions, are read from `config.gypi`.
 
 ```bash
 make sbom       # write out/Release/node-v<version>-sbom.json
@@ -32,7 +32,15 @@ python tools/sbom/generate_sbom.py --validate [--output PATH]
   with no dependencies of their own get no entry.
 * `formulation`: build environment details (compilers, glibc version and the
   configure command), when they can be determined. The configure command is
-  published as-is and may contain local paths.
+  published as-is and may contain local paths. The versions of the C and C++
+  compilers, rustc, cargo and nasm are the ones `./configure` detected and
+  recorded in `config.gypi`; a tool it did not detect is left out (for example
+  rustc and cargo when Temporal is not built, nasm anywhere but Windows
+  x86/x64, and the C/C++ compilers on Windows). The C and C++ compilers are
+  named by product — `gcc`, `clang` or `apple-clang` — because the version
+  alone is ambiguous: Apple clang 17.0.0 is not upstream clang 17. Each
+  component keeps a `bom-ref` of `build-environment:<role>`, where the role is
+  `cc`, `cxx`, `rustc`, `cargo` or `nasm`.
 
 A dependency whose version cannot be read is recorded as `unknown` with a
 warning rather than failing the build.

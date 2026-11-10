@@ -1396,6 +1396,18 @@ def try_check_compiler(cc, lang):
   return (True, is_clang, clang_version, gcc_version, is_apple)
 
 
+def compiler_product(ok, is_clang, is_apple):
+  """Name the compiler product behind CC/CXX, for the SBOM.
+
+  Apple clang versions differ from upstream clang's, so it is named apart.
+  """
+  if not ok:
+    return 'unknown'
+  if not is_clang:
+    return 'gcc'
+  return 'apple-clang' if is_apple else 'clang'
+
+
 #
 # The version of asm compiler is needed for building openssl asm files.
 # See deps/openssl/openssl.gypi for detail.
@@ -1674,6 +1686,8 @@ def check_compiler(o):
   ok, is_clang, clang_version, gcc_version, is_apple = try_check_compiler(CXX, 'c++')
   o['variables']['clang'] = B(is_clang)
   version_str = ".".join(map(str, clang_version if is_clang else gcc_version))
+  o['variables']['cxx_version'] = version_str if ok else '0.0'
+  o['variables']['cxx_compiler'] = compiler_product(ok, is_clang, is_apple)
   print_verbose(f"Detected {'Apple ' if is_apple else ''}{'clang ' if is_clang else ''}C++ compiler (CXX={CXX}) version: {version_str}")
   if not ok:
     warn(f'failed to autodetect C++ compiler version (CXX={CXX})')
@@ -1682,6 +1696,8 @@ def check_compiler(o):
 
   ok, is_clang, clang_version, gcc_version, is_apple = try_check_compiler(CC, 'c')
   version_str = ".".join(map(str, clang_version if is_clang else gcc_version))
+  o['variables']['cc_version'] = version_str if ok else '0.0'
+  o['variables']['cc_compiler'] = compiler_product(ok, is_clang, is_apple)
   print_verbose(f"Detected {'Apple ' if is_apple else ''}{'clang ' if is_clang else ''}C compiler (CC={CC}) version: {version_str}")
   if not ok:
     warn(f'failed to autodetect C compiler version (CC={CC})')
@@ -1700,6 +1716,7 @@ def check_compiler(o):
     min_rustc_ver_tuple = (1, 88)
     cargo = os.environ.get('CARGO', 'cargo')
     cargo_ver = get_cargo_version(cargo)
+    o['variables']['cargo_version'] = cargo_ver
     print_verbose(f'Detected cargo (CARGO={cargo}): {cargo_ver}')
     if cargo_ver == '0.0':
       # Error if --v8-enable-temporal-support is explicitly set,
@@ -1721,6 +1738,7 @@ def check_compiler(o):
     # cargo supports RUSTC environment variable to override "rustc".
     rustc = os.environ.get('RUSTC', 'rustc')
     rustc_ver = get_rustc_version(rustc)
+    o['variables']['rustc_version'] = rustc_ver
     if rustc_ver == '0.0':
       # Error if --v8-enable-temporal-support is explicitly set,
       # otherwise disable support for Temporal.

@@ -7,8 +7,8 @@
 #   python tools/sbom/generate_sbom.py --validate [--output PATH]
 #
 # The output defaults to out/Release/node-v{version}-sbom.json. Generating
-# requires ./configure to have been run first, as the set of dependencies that
-# end up in the binary is read from config.gypi.
+# requires ./configure to have been run first, as the bundled dependencies and
+# the toolchain versions are read from config.gypi.
 
 import argparse
 import datetime
@@ -79,45 +79,13 @@ def _run(cmd_args, timeout=10):
   return result.stdout.strip() or None
 
 
-def get_compiler_version(env_var, default):
-  """Report the tool named by `$env_var` (or `default`) and its version.
+def get_compiler_command(env_var, default):
+  """Return the command named by `$env_var`, or `default` when it is unset.
 
-  Returns {'command': str, 'output': str} where `output` is the first line of
-  `<tool> --version`, or NOT_AVAILABLE if the tool cannot be run. The variable
-  is split with shlex because it may hold a wrapper or flags (`ccache gcc`).
+  `env_var` is None for tools that have no environment variable.
   """
-  command = os.environ.get(env_var) or default
-  try:
-    args = shlex.split(command)
-  except ValueError:
-    return {'command': command, 'output': NOT_AVAILABLE}
-  output = _run(args + ['--version']) if args else None
-  first_line = output.splitlines()[0].strip() if output else ''
-  return {'command': command, 'output': first_line or NOT_AVAILABLE}
-
-
-def _parse_version(output):
-  """Pull a dotted version number out of `output`, else return it as is."""
-  match = re.search(r'\d+(?:\.\d+)+', output)
-  return match.group(0) if match else output
-
-
-def get_apple_clang_llvm_version(version_output):
-  """Return the inferred upstream LLVM major version for Apple Clang, or None.
-
-  Apple encodes the LLVM major version in the build number inside parentheses:
-    Apple clang version 21.0.0 (clang-2100.3.34.2)
-                                        ^^^^
-  LLVM major = first 4+-digit cluster after 'clang-' // 100.
-  Returns None if the output is not from Apple Clang or the build number
-  cannot be parsed.
-  """
-  if not version_output or 'Apple clang' not in version_output:
-    return None
-  m = re.search(r'clang-(\d{4,})', version_output)
-  if not m:
-    return None
-  return str(int(m.group(1)) // 100)
+  value = os.environ.get(env_var) if env_var else None
+  return value or default
 
 
 def get_git_sha(root):
@@ -227,10 +195,38 @@ def get_compiler_package_version(binary_path):
   return NOT_AVAILABLE
 
 
+def _binary_path(command):
+  """Return the path of the executable in `command`, or None."""
+  try:
+    binary = shlex.split(command)[0] if command else None
+  except (ValueError, IndexError):
+    return None
+  return shutil.which(binary) if binary else None
+
+
+def _configured_version(config_vars, key):
+  """Return the version configure recorded under `key`, or NOT_AVAILABLE.
+
+  configure.py records all zeros (`0.0`, `0.0.0`) for an undetected tool.
+  """
+  version = config_vars.get(key)
+  if not version or re.fullmatch(r'0(\.0)*', str(version)):
+    return NOT_AVAILABLE
+  return version
+
+
+def _configured_product(config_vars, role):
+  """Return the compiler product configure recorded for `role`, else `role`."""
+  product = config_vars.get(f'{role}_compiler')
+  return role if not product or product == 'unknown' else product
+
+
 def collect_build_environment(root, config_vars):
   """Return a dict of build-environment facts for build_sbom().
 
   Each fact is a string, with NOT_AVAILABLE when it cannot be determined.
+  Toolchain versions come from config.gypi; tools configure did not detect
+  are left out.
   """
   # Same defaults as configure.py, so an unset CC/CXX reports what configure
   # actually used.
@@ -241,20 +237,27 @@ def collect_build_environment(root, config_vars):
   else:
     default_cc, default_cxx = 'gcc', 'g++'
 
+  # (role, environment variable, default command). The role is the bom-ref
+  # suffix, so it stays stable whichever product CC/CXX turns out to be.
+  tools = (('cc', 'CC', default_cc),
+           ('cxx', 'CXX', default_cxx),
+           ('rustc', 'RUSTC', 'rustc'),
+           ('cargo', 'CARGO', 'cargo'),
+           ('nasm', None, 'nasm'))
+
   compilers = []
-  for name, env_var, default in (('cc', 'CC', default_cc),
-                                 ('cxx', 'CXX', default_cxx),
-                                 ('rustc', 'RUSTC', 'rustc'),
-                                 ('cargo', 'CARGO', 'cargo')):
-    info = get_compiler_version(env_var, default)
-    # Resolve the actual binary path for the package-version probe. Only the
-    # first token is the executable (shlex.split handles wrappers like ccache).
-    try:
-      binary = shlex.split(info['command'])[0] if info['command'] else None
-    except ValueError:
-      binary = None
-    info['binary_path'] = shutil.which(binary) if binary else None
-    compilers.append({'name': name, **info})
+  for role, env_var, default in tools:
+    version = _configured_version(config_vars, f'{role}_version')
+    if version == NOT_AVAILABLE:
+      continue
+    command = get_compiler_command(env_var, default)
+    compilers.append({
+      'role': role,
+      'name': _configured_product(config_vars, role),
+      'command': command,
+      'version': version,
+      'binary_path': _binary_path(command),
+    })
 
   git_alg, git_sha = get_git_sha(root)
   return {
@@ -755,13 +758,7 @@ def build_sbom(node_version, components, lib_files, build_env=None):
     'name': 'nodejs:bundled-lib-files',
     'value': json.dumps(lib_files),
   }]
-  # The raw version line is kept as a property so nothing is lost when the
-  # parsed component version is imprecise.
   compilers = build_env.get('compilers', [])
-  properties.extend({
-    'name': f'nodejs:{c["name"]}-version',
-    'value': c['output'],
-  } for c in compilers)
 
   git_sha = build_env.get('git_sha')
   git_alg = build_env.get('git_alg')
@@ -821,22 +818,15 @@ def build_sbom(node_version, components, lib_files, build_env=None):
     for c in compilers:
       pkg_version = get_compiler_package_version(c.get('binary_path'))
       comp = {
-        'bom-ref': f'build-environment:{c["name"]}',
+        'bom-ref': f'build-environment:{c["role"]}',
         'type': 'application',
         'name': c['name'],
-        'version': (c['output'] if c['output'] == NOT_AVAILABLE
-                    else _parse_version(c['output'])),
+        'version': c['version'],
         'description': f'Build tool from `{c["command"]}`',
       }
-      comp_props = []
       if pkg_version != NOT_AVAILABLE:
-        comp_props.append({'name': 'nodejs:package-version',
-                           'value': pkg_version})
-      llvm_ver = get_apple_clang_llvm_version(c.get('output', ''))
-      if llvm_ver:
-        comp_props.append({'name': 'nodejs:llvm-version', 'value': llvm_ver})
-      if comp_props:
-        comp['properties'] = comp_props
+        comp['properties'] = [{'name': 'nodejs:package-version',
+                               'value': pkg_version}]
       formula_components.append(comp)
   glibc_version = build_env.get('glibc_version')
   if glibc_version and glibc_version != NOT_AVAILABLE:

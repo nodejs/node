@@ -11,6 +11,12 @@ ROOT = path.abspath(path.join(path.dirname(__file__), '..', '..'))
 sys.path.insert(0, path.join(ROOT, 'tools', 'sbom'))
 import generate_sbom as sbom
 
+# A config.gypi in which configure detected every build tool.
+CONFIGURED_TOOLS = {'cc_version': '13.2.1', 'cc_compiler': 'gcc',
+                    'cxx_version': '13.2.1', 'cxx_compiler': 'gcc',
+                    'rustc_version': '1.88.0', 'cargo_version': '1.88.1',
+                    'nasm_version': '2.16'}
+
 
 class TestDepCatalog(unittest.TestCase):
   """Validate that the DEP_CATALOG entries are structurally correct."""
@@ -273,40 +279,43 @@ class TestBuildSbom(unittest.TestCase):
 
   def test_compilers_are_emitted(self):
     build_env = {'compilers': [
-      {'name': 'cc', 'command': 'ccache gcc',
-       'output': 'gcc (GCC) 13.2.1 20240101'},
-      {'name': 'rustc', 'command': 'rustc', 'output': sbom.NOT_AVAILABLE},
+      {'role': 'cc', 'name': 'gcc', 'command': 'ccache gcc',
+       'version': '13.2.1'},
+      {'role': 'rustc', 'name': 'rustc', 'command': 'rustc',
+       'version': '1.88.0'},
     ]}
     doc = sbom.build_sbom('27.0.0', [], [], build_env)
-    props = {p['name']: p['value'] for p in doc['metadata']['properties']}
-    self.assertEqual(props['nodejs:cc-version'], 'gcc (GCC) 13.2.1 20240101')
-    self.assertEqual(props['nodejs:rustc-version'], 'N/A')
+    props = {p['name'] for p in doc['metadata']['properties']}
+    self.assertFalse({'nodejs:cc-version', 'nodejs:rustc-version'} & props)
     components = doc['formulation'][0]['components']
     self.assertEqual([(c['name'], c['version']) for c in components],
-                     [('cc', '13.2.1'), ('rustc', 'N/A')])
+                     [('gcc', '13.2.1'), ('rustc', '1.88.0')])
     self.assertEqual(components[0]['type'], 'application')
     self.assertIn('ccache gcc', components[0]['description'])
 
-  def test_apple_clang_emits_llvm_version_property(self):
+  def test_bom_ref_uses_the_role_not_the_product(self):
+    # cc and cxx are often the same product but must not share a bom-ref.
     build_env = {'compilers': [
-      {'name': 'cc', 'command': 'cc',
-       'output': 'Apple clang version 21.0.0 (clang-2100.3.34.2)'},
+      {'role': 'cc', 'name': 'gcc', 'command': 'gcc', 'version': '13.2.1'},
+      {'role': 'cxx', 'name': 'gcc', 'command': 'g++', 'version': '13.2.1'},
     ]}
     doc = sbom.build_sbom('27.0.0', [], [], build_env)
-    cc_comp = doc['formulation'][0]['components'][0]
-    self.assertEqual(cc_comp['version'], '21.0.0')
-    props = {p['name']: p['value'] for p in cc_comp.get('properties', [])}
-    self.assertEqual(props['nodejs:llvm-version'], '21')
+    components = doc['formulation'][0]['components']
+    self.assertEqual([c['bom-ref'] for c in components],
+                     ['build-environment:cc', 'build-environment:cxx'])
+    self.assertEqual({c['name'] for c in components}, {'gcc'})
 
-  def test_non_apple_clang_omits_llvm_version_property(self):
+  def test_apple_clang_is_named_apart_from_upstream_clang(self):
     build_env = {'compilers': [
-      {'name': 'cc', 'command': 'gcc',
-       'output': 'gcc (GCC) 13.2.1 20240101'},
+      {'role': 'cc', 'name': 'apple-clang', 'command': 'cc',
+       'version': '21.0.0'},
     ]}
     doc = sbom.build_sbom('27.0.0', [], [], build_env)
     cc_comp = doc['formulation'][0]['components'][0]
-    props = {p['name']: p['value'] for p in cc_comp.get('properties', [])}
-    self.assertNotIn('nodejs:llvm-version', props)
+    self.assertEqual((cc_comp['name'], cc_comp['version']),
+                     ('apple-clang', '21.0.0'))
+    self.assertEqual(cc_comp['bom-ref'], 'build-environment:cc')
+    self.assertNotIn('properties', cc_comp)
 
   def test_git_sha1_and_embedder_string_are_emitted(self):
     sha = 'a' * 40
@@ -375,7 +384,8 @@ class TestBuildSbom(unittest.TestCase):
 
   def test_configure_command_alongside_compilers(self):
     doc = sbom.build_sbom('27.0.0', [], [], {
-      'compilers': [{'name': 'cc', 'command': 'gcc', 'output': 'gcc 13.2.1'}],
+      'compilers': [{'role': 'cc', 'name': 'gcc', 'command': 'gcc',
+                     'version': '13.2.1'}],
       'configure_command': sbom.NOT_AVAILABLE,
     })
     formula = doc['formulation'][0]
@@ -402,51 +412,70 @@ class TestRun(unittest.TestCase):
       [sys.executable, '-c', 'import time; time.sleep(5)'], timeout=0.1))
 
 
-class TestGetCompilerVersion(unittest.TestCase):
+class TestGetCompilerCommand(unittest.TestCase):
 
-  def test_set_and_working(self):
-    with mock.patch.dict(os.environ, {'CC': 'gcc'}), \
-         mock.patch.object(sbom, '_run',
-                           return_value='gcc 13.2.1\nCopyright') as run:
-      result = sbom.get_compiler_version('CC', 'cc')
-    run.assert_called_once_with(['gcc', '--version'])
-    self.assertEqual(result, {'command': 'gcc', 'output': 'gcc 13.2.1'})
+  def test_set_variable_wins(self):
+    with mock.patch.dict(os.environ, {'CC': 'ccache gcc -m64'}):
+      self.assertEqual(sbom.get_compiler_command('CC', 'cc'),
+                       'ccache gcc -m64')
 
   def test_unset_uses_default(self):
     env = {k: v for k, v in os.environ.items() if k != 'CC'}
-    with mock.patch.dict(os.environ, env, clear=True), \
-         mock.patch.object(sbom, '_run', return_value='cc 1.0') as run:
-      result = sbom.get_compiler_version('CC', 'cc')
-    run.assert_called_once_with(['cc', '--version'])
-    self.assertEqual(result['command'], 'cc')
-    self.assertEqual(result['output'], 'cc 1.0')
+    with mock.patch.dict(os.environ, env, clear=True):
+      self.assertEqual(sbom.get_compiler_command('CC', 'cc'), 'cc')
 
   def test_empty_variable_uses_default(self):
-    with mock.patch.dict(os.environ, {'CC': ''}), \
-         mock.patch.object(sbom, '_run', return_value='cc 1.0') as run:
-      sbom.get_compiler_version('CC', 'cc')
-    run.assert_called_once_with(['cc', '--version'])
+    with mock.patch.dict(os.environ, {'CC': ''}):
+      self.assertEqual(sbom.get_compiler_command('CC', 'cc'), 'cc')
 
-  def test_missing_binary_is_not_available(self):
-    with mock.patch.dict(os.environ, {'CC': 'nonexistent-cc'}), \
-         mock.patch.object(sbom, '_run', return_value=None):
-      result = sbom.get_compiler_version('CC', 'cc')
-    self.assertEqual(result,
-                     {'command': 'nonexistent-cc', 'output': sbom.NOT_AVAILABLE})
+  def test_no_variable_uses_default(self):
+    # nasm has no environment variable.
+    with mock.patch.dict(os.environ, {'CC': 'gcc'}):
+      self.assertEqual(sbom.get_compiler_command(None, 'nasm'), 'nasm')
 
-  def test_wrapper_and_flags_are_split(self):
-    with mock.patch.dict(os.environ, {'CC': 'ccache gcc -m64'}), \
-         mock.patch.object(sbom, '_run', return_value='gcc 13') as run:
-      result = sbom.get_compiler_version('CC', 'cc')
-    run.assert_called_once_with(['ccache', 'gcc', '-m64', '--version'])
-    self.assertEqual(result['command'], 'ccache gcc -m64')
 
-  def test_unbalanced_quotes_are_not_available(self):
-    with mock.patch.dict(os.environ, {'CC': 'gcc "unterminated'}), \
-         mock.patch.object(sbom, '_run') as run:
-      result = sbom.get_compiler_version('CC', 'cc')
-    run.assert_not_called()
-    self.assertEqual(result['output'], sbom.NOT_AVAILABLE)
+class TestConfiguredVersion(unittest.TestCase):
+
+  def test_returns_recorded_version(self):
+    self.assertEqual(sbom._configured_version({'cc_version': '13.2.1'},
+                                              'cc_version'), '13.2.1')
+
+  def test_missing_empty_or_zero_is_not_available(self):
+    # '0.0.0' is recorded for a compiler defining neither __GNUC__ nor
+    # __clang__.
+    for config_vars in ({}, {'cc_version': ''}, {'cc_version': '0.0'},
+                        {'cc_version': '0.0.0'}):
+      self.assertEqual(sbom._configured_version(config_vars, 'cc_version'),
+                       sbom.NOT_AVAILABLE)
+
+  def test_version_starting_with_zero_is_kept(self):
+    self.assertEqual(sbom._configured_version({'nasm_version': '0.98'},
+                                              'nasm_version'), '0.98')
+
+
+class TestConfiguredProduct(unittest.TestCase):
+
+  def test_returns_recorded_product(self):
+    self.assertEqual(
+      sbom._configured_product({'cc_compiler': 'apple-clang'}, 'cc'),
+      'apple-clang')
+
+  def test_falls_back_to_role(self):
+    for config_vars in ({}, {'cc_compiler': ''},
+                        {'cc_compiler': 'unknown'}):
+      self.assertEqual(sbom._configured_product(config_vars, 'cc'), 'cc')
+
+
+class TestBinaryPath(unittest.TestCase):
+
+  def test_resolves_first_token_of_wrapper(self):
+    with mock.patch('shutil.which', return_value='/usr/bin/ccache') as which:
+      self.assertEqual(sbom._binary_path('ccache gcc'), '/usr/bin/ccache')
+    which.assert_called_once_with('ccache')
+
+  def test_unbalanced_quotes_or_empty_is_none(self):
+    self.assertIsNone(sbom._binary_path('gcc "unterminated'))
+    self.assertIsNone(sbom._binary_path(''))
 
 
 class TestGetGitSha(unittest.TestCase):
@@ -575,48 +604,6 @@ class TestGetBuilderName(unittest.TestCase):
       self.assertEqual(sbom.get_builder_name(), sbom.NOT_AVAILABLE)
 
 
-class TestParseVersion(unittest.TestCase):
-
-  def test_extracts_dotted_version(self):
-    self.assertEqual(sbom._parse_version('gcc (GCC) 13.2.1 2024'), '13.2.1')
-    self.assertEqual(sbom._parse_version('rustc 1.85.0 (abc 2025-01-01)'),
-                     '1.85.0')
-
-  def test_falls_back_to_input(self):
-    self.assertEqual(sbom._parse_version('mystery tool'), 'mystery tool')
-
-
-class TestGetAppleClangLlvmVersion(unittest.TestCase):
-
-  def test_extracts_llvm_major_from_build_number(self):
-    # clang-2100 -> LLVM 21
-    self.assertEqual(
-      sbom.get_apple_clang_llvm_version(
-        'Apple clang version 21.0.0 (clang-2100.3.34.2)'),
-      '21')
-
-  def test_extracts_llvm_major_xcode_16(self):
-    # clang-1600 -> LLVM 16
-    self.assertEqual(
-      sbom.get_apple_clang_llvm_version(
-        'Apple clang version 16.0.0 (clang-1600.0.26.4)'),
-      '16')
-
-  def test_returns_none_for_non_apple_clang(self):
-    self.assertIsNone(
-      sbom.get_apple_clang_llvm_version('gcc (GCC) 13.2.1 20240101'))
-    self.assertIsNone(
-      sbom.get_apple_clang_llvm_version('clang version 18.0.0'))
-
-  def test_returns_none_for_empty_or_none(self):
-    self.assertIsNone(sbom.get_apple_clang_llvm_version(''))
-    self.assertIsNone(sbom.get_apple_clang_llvm_version(None))
-
-  def test_returns_none_when_build_number_missing(self):
-    self.assertIsNone(
-      sbom.get_apple_clang_llvm_version('Apple clang version 21.0.0'))
-
-
 class TestCollectBuildEnvironment(unittest.TestCase):
 
   def test_reports_configure_command(self):
@@ -627,13 +614,63 @@ class TestCollectBuildEnvironment(unittest.TestCase):
         env = sbom.collect_build_environment(tmp, {})
     self.assertEqual(env['configure_command'], './configure --debug')
 
-  def test_reports_all_tools(self):
-    with mock.patch.object(sbom, '_run', return_value='tool 1.2.3'):
-      env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
-    self.assertEqual([c['name'] for c in env['compilers']],
-                     ['cc', 'cxx', 'rustc', 'cargo'])
-    self.assertTrue(all(c['output'] == 'tool 1.2.3'
-                        for c in env['compilers']))
+  def test_reports_versions_from_config_vars(self):
+    config_vars = {'cc_version': '13.2.1', 'cxx_version': '13.2.2',
+                   'rustc_version': '1.88.0', 'cargo_version': '1.88.1'}
+    env = sbom.collect_build_environment(sbom.REPO_ROOT, config_vars)
+    self.assertEqual({c['role']: c['version'] for c in env['compilers']},
+                     {'cc': '13.2.1', 'cxx': '13.2.2',
+                      'rustc': '1.88.0', 'cargo': '1.88.1'})
+
+  def test_runs_no_version_probes(self):
+    with mock.patch.object(sbom, '_run', return_value=None) as run:
+      sbom.collect_build_environment(
+        sbom.REPO_ROOT, {'cc_version': '13.2.1'})
+    # Only get_git_sha may run a subprocess.
+    for call in run.call_args_list:
+      self.assertEqual(call.args[0][0], 'git')
+
+  def test_compilers_are_named_by_product(self):
+    config_vars = {'cc_version': '21.0.0', 'cc_compiler': 'apple-clang',
+                   'cxx_version': '21.0.0', 'cxx_compiler': 'apple-clang'}
+    env = sbom.collect_build_environment(sbom.REPO_ROOT, config_vars)
+    self.assertEqual([(c['role'], c['name']) for c in env['compilers']],
+                     [('cc', 'apple-clang'), ('cxx', 'apple-clang')])
+
+  def test_unidentified_compiler_falls_back_to_its_role(self):
+    config_vars = {'cc_version': '13.2.1', 'cc_compiler': 'unknown'}
+    env = sbom.collect_build_environment(sbom.REPO_ROOT, config_vars)
+    self.assertEqual([(c['role'], c['name']) for c in env['compilers']],
+                     [('cc', 'cc')])
+
+  def test_tools_configure_did_not_detect_are_omitted(self):
+    # No recorded versions means no build tools to report.
+    self.assertEqual(
+      sbom.collect_build_environment(sbom.REPO_ROOT, {})['compilers'], [])
+
+  def test_zero_version_is_omitted(self):
+    config_vars = {'cc_version': '0.0', 'cxx_version': '0.0.0',
+                   'rustc_version': '0.0', 'cargo_version': '0.0',
+                   'nasm_version': '0.0'}
+    env = sbom.collect_build_environment(sbom.REPO_ROOT, config_vars)
+    self.assertEqual(env['compilers'], [])
+
+  def test_rust_toolchain_omitted_when_temporal_is_not_built(self):
+    # rustc and cargo are only recorded when Temporal is built.
+    config_vars = {'cc_version': '13.2.1', 'cxx_version': '13.2.1'}
+    env = sbom.collect_build_environment(sbom.REPO_ROOT, config_vars)
+    self.assertEqual([c['role'] for c in env['compilers']], ['cc', 'cxx'])
+
+  def test_nasm_reported_when_configure_found_it(self):
+    env = sbom.collect_build_environment(
+      sbom.REPO_ROOT, {'nasm_version': '2.16'})
+    nasm = env['compilers'][-1]
+    self.assertEqual((nasm['role'], nasm['name'], nasm['command'],
+                      nasm['version']), ('nasm', 'nasm', 'nasm', '2.16'))
+
+  def test_nasm_omitted_without_nasm_version(self):
+    env = sbom.collect_build_environment(sbom.REPO_ROOT, {'cc_version': '13'})
+    self.assertNotIn('nasm', [c['role'] for c in env['compilers']])
 
   def test_reports_git_sha_and_embedder_string(self):
     sha = 'c' * 40
@@ -648,12 +685,6 @@ class TestCollectBuildEnvironment(unittest.TestCase):
       env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
     self.assertEqual(env['builder'], 'build-host-1')
 
-  def test_all_tools_missing(self):
-    with mock.patch.object(sbom, '_run', return_value=None):
-      env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
-    self.assertTrue(all(c['output'] == sbom.NOT_AVAILABLE
-                        for c in env['compilers']))
-
   def test_platform_defaults(self):
     for plat, cc, cxx in (('darwin', 'cc', 'c++'),
                           ('win32', 'clang', 'clang'),
@@ -662,10 +693,10 @@ class TestCollectBuildEnvironment(unittest.TestCase):
              if k not in ('CC', 'CXX')}
       with mock.patch.dict(os.environ, env, clear=True), \
            mock.patch.object(sys, 'platform', plat), \
-           mock.patch.object(sbom, '_run', return_value='x 1.0'), \
            mock.patch('shutil.which', return_value='/usr/bin/cc'):
-        result = sbom.collect_build_environment(sbom.REPO_ROOT, {})
-      commands = {c['name']: c['command'] for c in result['compilers']}
+        result = sbom.collect_build_environment(
+          sbom.REPO_ROOT, {'cc_version': '13.2.1', 'cxx_version': '13.2.1'})
+      commands = {c['role']: c['command'] for c in result['compilers']}
       self.assertEqual((commands['cc'], commands['cxx']), (cc, cxx), plat)
 
 
@@ -753,10 +784,10 @@ class TestGetCompilerPackageVersion(unittest.TestCase):
 class TestBuildSbomGlibc(unittest.TestCase):
   """Verify that glibc and compiler package-version appear correctly in build_sbom."""
 
-  def _compiler(self, name='cc', command='gcc', output='gcc 13.2.1',
+  def _compiler(self, role='cc', name='gcc', command='gcc', version='13.2.1',
                 binary_path='/usr/bin/gcc'):
-    return {'name': name, 'command': command, 'output': output,
-            'binary_path': binary_path}
+    return {'role': role, 'name': name, 'command': command,
+            'version': version, 'binary_path': binary_path}
 
   def test_glibc_component_present(self):
     build_env = {
@@ -805,7 +836,7 @@ class TestBuildSbomGlibc(unittest.TestCase):
       }
       doc = sbom.build_sbom('27.0.0', [], [], build_env)
     names = [c['name'] for c in doc['formulation'][0]['components']]
-    self.assertIn('cc', names)
+    self.assertIn('gcc', names)
     self.assertIn('glibc', names)
     # glibc comes last (after compilers)
     self.assertEqual(names[-1], 'glibc')
@@ -820,18 +851,18 @@ class TestCollectBuildEnvironmentGlibc(unittest.TestCase):
     self.assertEqual(env['glibc_version'], '2.34')
 
   def test_binary_path_resolved_for_compilers(self):
-    with mock.patch.object(sbom, '_run', return_value='gcc 13.2.1'), \
-         mock.patch.object(sbom, 'get_glibc_version', return_value='2.34'), \
+    with mock.patch.object(sbom, 'get_glibc_version', return_value='2.34'), \
          mock.patch('shutil.which', return_value='/usr/bin/gcc'):
-      env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
+      env = sbom.collect_build_environment(sbom.REPO_ROOT, CONFIGURED_TOOLS)
+    self.assertTrue(env['compilers'])
     for c in env['compilers']:
-      self.assertIn('binary_path', c)
+      self.assertEqual(c['binary_path'], '/usr/bin/gcc')
 
   def test_binary_path_is_none_when_which_fails(self):
-    with mock.patch.object(sbom, '_run', return_value='gcc 13.2.1'), \
-         mock.patch.object(sbom, 'get_glibc_version', return_value=sbom.NOT_AVAILABLE), \
+    with mock.patch.object(sbom, 'get_glibc_version', return_value=sbom.NOT_AVAILABLE), \
          mock.patch('shutil.which', return_value=None):
-      env = sbom.collect_build_environment(sbom.REPO_ROOT, {})
+      env = sbom.collect_build_environment(sbom.REPO_ROOT, CONFIGURED_TOOLS)
+    self.assertTrue(env['compilers'])
     for c in env['compilers']:
       self.assertIsNone(c['binary_path'])
 
