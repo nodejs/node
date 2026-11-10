@@ -3,8 +3,8 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
+const tmpdir = require('../common/tmpdir');
 const vfs = require('node:vfs');
 
 const addonPath = path.join(
@@ -21,7 +21,11 @@ const myVfs = vfs.create();
 myVfs.writeFileSync('/binding.node', fs.readFileSync(addonPath));
 const mountPoint = myVfs.mount();
 
-const before = new Set(fs.readdirSync(os.tmpdir()));
+// Images land in TMPDIR, which other tests loading addons share. Point it at a
+// directory this test owns, so their images cannot pass for a leak here.
+tmpdir.refresh();
+process.env.TMPDIR = tmpdir.path;
+
 const addon = require(path.join(mountPoint, 'binding.node'));
 assert.strictEqual(addon.hello(), 'world');
 
@@ -29,8 +33,8 @@ assert.strictEqual(addon.hello(), 'world');
 // temp image is unlinked right after loading, so no addon temp file lingers.
 // (Windows keeps a delete-on-close file until exit, so skip the check there.)
 if (process.platform !== 'win32') {
-  const leaked = fs.readdirSync(os.tmpdir())
-    .filter((f) => f.startsWith('node-addon') && !before.has(f));
+  const leaked = fs.readdirSync(tmpdir.path)
+    .filter((f) => f.startsWith('node-addon'));
   assert.deepStrictEqual(leaked, [], `addon temp not cleaned up: ${leaked}`);
 }
 
