@@ -7,9 +7,8 @@
 // this checks both halves of the contract:
 //
 //   Linux:       an anonymous memfd loaded through /proc/self/fd - nothing ever
-//                reaches the filesystem, and AfterOpen() closes the descriptor
-//                once the load owns its mapping, so repeated loads must not
-//                accumulate open descriptors.
+//                reaches the filesystem, and the fd is closed right after the
+//                load, whether or not it worked.
 //   other POSIX: a mkdtemp() directory unlinked and rmdir()ed right after the
 //                load, so nothing is left even while the process runs.
 //   Windows:     the loader maps the file by path for the DLL's lifetime, so
@@ -45,27 +44,48 @@ const child = `
   // the load can only come from the bytes and their materialized image.
   const virtualPath = ${JSON.stringify(path.join(addonPath, '..', 'nowhere', 'binding.node'))};
 
-  // On Linux the image is a descriptor rather than a file, so count them: each
-  // load must hand its fd to the mapping and close it, leaving no growth.
+  // On Linux the image is a memfd rather than a file, so count those: no load
+  // may keep one.
   const fdDir = '/proc/self/fd';
-  const countFds = () => {
-    try { return fs.readdirSync(fdDir).length; } catch { return -1; }
+  const imageFds = () => {
+    let fds;
+    try { fds = fs.readdirSync(fdDir); } catch { return null; }
+    return fds.filter((fd) => {
+      try {
+        return fs.readlinkSync(\`\${fdDir}/\${fd}\`).startsWith('/memfd:node-addon');
+      } catch { return false; }
+    });
   };
-  const before = countFds();
 
   // Load repeatedly: each load materializes its own image, so a leak of an
-  // image, a descriptor or a retained handle shows up as growth.
-  for (let i = 0; i < 5; i++) {
+  // image or a retained handle shows up as growth.
+  const loads = 5;
+  for (let i = 0; i < loads; i++) {
     const m = { exports: {} };
     // flags undefined: keep the default dlopen(2) mode - 0 is not valid
     // everywhere (glibc rejects it with EINVAL).
     dlopenBinary(m, virtualPath, undefined, bytes);
     if (m.exports.hello() !== 'world') throw new Error('addon did not load');
   }
+  const afterLoads = imageFds();
 
-  const after = countFds();
-  if (before !== -1 && after > before) {
-    throw new Error(\`descriptor leak: \${before} -> \${after} after 5 loads\`);
+  for (let i = 0; i < loads; i++) {
+    try {
+      dlopenBinary({ exports: {} }, virtualPath, undefined, Buffer.from('nope'));
+      throw new Error('loading garbage bytes did not fail');
+    } catch (err) {
+      if (err.code !== 'ERR_DLOPEN_FAILED') throw err;
+    }
+  }
+  const afterFailures = imageFds();
+
+  if (afterLoads !== null) {
+    if (afterLoads.length !== 0) {
+      throw new Error(\`loads kept images: \${afterLoads}\`);
+    }
+    if (afterFailures.length !== 0) {
+      throw new Error(\`failed loads kept images: \${afterFailures}\`);
+    }
   }
   process.exit(0);
 `;
