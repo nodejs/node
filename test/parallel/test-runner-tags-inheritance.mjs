@@ -49,10 +49,16 @@ test('multi-level nesting flattens by union', () => {
 test('suite context exposes inherited tags', () => {
   describe('outer', { tags: ['a'] }, () => {
     describe('mid', { tags: ['b'] }, (s) => {
-      it('child tags do not override suite tags', { tags: ['c'] }, (t) => {
-        assert.deepStrictEqual(t.tags, ['a', 'b', 'c']);
-      });
       assert.deepStrictEqual(s.tags, ['a', 'b']);
+    });
+  });
+});
+
+test('child tags do not leak into the suite context', () => {
+  describe('suite', { tags: ['a'] }, (s) => {
+    it('child', { tags: ['b'] }, (t) => {
+      assert.deepStrictEqual(t.tags, ['a', 'b']);
+      assert.deepStrictEqual(s.tags, ['a']);
     });
   });
 });
