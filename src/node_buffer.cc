@@ -39,6 +39,7 @@
 #include <stdint.h>
 #include <climits>
 #include <cstring>
+#include <type_traits>
 #include "nbytes.h"
 
 #define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
@@ -1299,56 +1300,87 @@ int64_t FastIndexOfNumber(Local<Value>,
 
 static CFunction fast_index_of_number(CFunction::Make(FastIndexOfNumber));
 
-void Swap16(const FunctionCallbackInfo<Value>& args) {
-  DCHECK(args[0]->IsArrayBufferView());
-  SPREAD_BUFFER_ARG(args[0], ts_obj);
-  CHECK(nbytes::SwapBytes16(ts_obj_data, ts_obj_length));
+using FastSwapSize =
+    std::conditional_t<sizeof(size_t) == sizeof(uint64_t), uint64_t, uint32_t>;
+
+// Materialize backing buffers in JS to keep allocation out of value-returning
+// fast API calls.
+template <bool (*swap_bytes)(char*, size_t), typename T>
+V8_INLINE bool SwapBytes(Local<Value> buffer_obj,
+                         T byte_offset,
+                         T byte_length) {
+  size_t buffer_length;
+  char* data;
+  if (buffer_obj->IsArrayBuffer()) {
+    Local<ArrayBuffer> buffer = buffer_obj.As<ArrayBuffer>();
+    if (buffer->IsImmutable()) return false;
+    buffer_length = buffer->ByteLength();
+    data = static_cast<char*>(buffer->Data());
+  } else {
+    CHECK(buffer_obj->IsSharedArrayBuffer());
+    Local<SharedArrayBuffer> buffer = buffer_obj.As<SharedArrayBuffer>();
+    buffer_length = buffer->ByteLength();
+    data = static_cast<char*>(buffer->Data());
+  }
+  CHECK_GE(byte_offset, 0);
+  CHECK_LE(byte_offset, buffer_length);
+  CHECK_GE(byte_length, 0);
+  CHECK_LE(byte_length, buffer_length - byte_offset);
+  const size_t offset = static_cast<size_t>(byte_offset);
+  const size_t length = static_cast<size_t>(byte_length);
+  if (length == 0) return true;
+  CHECK_NOT_NULL(data);
+  CHECK(swap_bytes(data + offset, length));
+  return true;
 }
 
-void FastSwap16(Local<Value> receiver,
+void Swap16(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[1]->IsNumber());
+  CHECK(args[2]->IsNumber());
+  args.GetReturnValue().Set(SwapBytes<nbytes::SwapBytes16>(
+      args[0], args[1].As<Number>()->Value(), args[2].As<Number>()->Value()));
+}
+
+bool FastSwap16(Local<Value> receiver,
                 Local<Value> buffer_obj,
-                // NOLINTNEXTLINE(runtime/references)
-                FastApiCallbackOptions& options) {
+                FastSwapSize byte_offset,
+                FastSwapSize byte_length) {
   TRACK_V8_FAST_API_CALL("buffer.swap16");
-  HandleScope scope(options.isolate);
-  SPREAD_BUFFER_ARG(buffer_obj, ts_obj);
-  CHECK(nbytes::SwapBytes16(ts_obj_data, ts_obj_length));
+  return SwapBytes<nbytes::SwapBytes16>(buffer_obj, byte_offset, byte_length);
 }
 
 static CFunction fast_swap16(CFunction::Make(FastSwap16));
 
 void Swap32(const FunctionCallbackInfo<Value>& args) {
-  DCHECK(args[0]->IsArrayBufferView());
-  SPREAD_BUFFER_ARG(args[0], ts_obj);
-  CHECK(nbytes::SwapBytes32(ts_obj_data, ts_obj_length));
+  CHECK(args[1]->IsNumber());
+  CHECK(args[2]->IsNumber());
+  args.GetReturnValue().Set(SwapBytes<nbytes::SwapBytes32>(
+      args[0], args[1].As<Number>()->Value(), args[2].As<Number>()->Value()));
 }
 
-void FastSwap32(Local<Value> receiver,
+bool FastSwap32(Local<Value> receiver,
                 Local<Value> buffer_obj,
-                // NOLINTNEXTLINE(runtime/references)
-                FastApiCallbackOptions& options) {
+                FastSwapSize byte_offset,
+                FastSwapSize byte_length) {
   TRACK_V8_FAST_API_CALL("buffer.swap32");
-  HandleScope scope(options.isolate);
-  SPREAD_BUFFER_ARG(buffer_obj, ts_obj);
-  CHECK(nbytes::SwapBytes32(ts_obj_data, ts_obj_length));
+  return SwapBytes<nbytes::SwapBytes32>(buffer_obj, byte_offset, byte_length);
 }
 
 static CFunction fast_swap32(CFunction::Make(FastSwap32));
 
 void Swap64(const FunctionCallbackInfo<Value>& args) {
-  DCHECK(args[0]->IsArrayBufferView());
-  SPREAD_BUFFER_ARG(args[0], ts_obj);
-  CHECK(nbytes::SwapBytes64(ts_obj_data, ts_obj_length));
+  CHECK(args[1]->IsNumber());
+  CHECK(args[2]->IsNumber());
+  args.GetReturnValue().Set(SwapBytes<nbytes::SwapBytes64>(
+      args[0], args[1].As<Number>()->Value(), args[2].As<Number>()->Value()));
 }
 
-void FastSwap64(Local<Value> receiver,
+bool FastSwap64(Local<Value> receiver,
                 Local<Value> buffer_obj,
-                // NOLINTNEXTLINE(runtime/references)
-                FastApiCallbackOptions& options) {
+                FastSwapSize byte_offset,
+                FastSwapSize byte_length) {
   TRACK_V8_FAST_API_CALL("buffer.swap64");
-  HandleScope scope(options.isolate);
-  SPREAD_BUFFER_ARG(buffer_obj, ts_obj);
-  CHECK(nbytes::SwapBytes64(ts_obj_data, ts_obj_length));
+  return SwapBytes<nbytes::SwapBytes64>(buffer_obj, byte_offset, byte_length);
 }
 
 static CFunction fast_swap64(CFunction::Make(FastSwap64));
