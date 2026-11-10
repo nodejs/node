@@ -124,7 +124,9 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
     "internal/bootstrap/",
     "internal/per_context/",
     "internal/deps/",
-    "internal/main/"
+    "internal/main/",
+    // Only run in green threads.
+    "internal/green_threads/runtime/",
   };
 
   builtin_categories.cannot_be_required = std::set<std::string> {
@@ -162,6 +164,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "bench/reporters",  // Experimental.
         "dtls",             // Experimental.
         "ffi",              // Experimental.
+        "green_threads",    // Experimental.
         "quic",             // Experimental.
         "sqlite",           // Experimental.
         "stream/iter",      // Experimental.
