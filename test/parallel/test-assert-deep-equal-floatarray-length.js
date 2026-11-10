@@ -11,6 +11,13 @@ for (const FloatArray of [Float16Array, Float32Array, Float64Array]) {
   const empty = new FloatArray(0);
   const emptyEqual = new FloatArray(0);
 
+  // Check strict comparisons before installing the loose-mode getter guards.
+  assert.deepStrictEqual(actual, equal);
+  assert.notDeepStrictEqual(actual, different);
+  assert.notDeepStrictEqual(actual, shorter);
+  assert.notDeepStrictEqual(actual, empty);
+  assert.deepStrictEqual(empty, emptyEqual);
+
   // Own properties must not replace the view's intrinsic element count.
   for (const view of [actual, equal, different, shorter, empty, emptyEqual]) {
     Object.defineProperty(view, 'length', {
