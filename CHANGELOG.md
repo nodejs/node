@@ -46,7 +46,8 @@ release.
 <b><a href="doc/changelogs/CHANGELOG_V27.md#27.0.0-alpha.0.0.0">27.0.0-alpha.0.0.0</a></b><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V26.md#26.13.0">26.13.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V26.md#26.13.1">26.13.1</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V26.md#26.13.0">26.13.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V26.md#26.12.1">26.12.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V26.md#26.12.0">26.12.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V26.md#26.11.1">26.11.1</a><br/>
