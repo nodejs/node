@@ -3724,8 +3724,9 @@ napi_status NAPI_CDECL napi_detach_arraybuffer(napi_env env,
       env, value->IsArrayBuffer(), napi_arraybuffer_expected);
 
   v8::Local<v8::ArrayBuffer> it = value.As<v8::ArrayBuffer>();
-  RETURN_STATUS_IF_FALSE(
-      env, it->IsDetachable(), napi_detachable_arraybuffer_expected);
+  RETURN_STATUS_IF_FALSE(env,
+                         it->IsDetachable() && !it->IsImmutable(),
+                         napi_detachable_arraybuffer_expected);
 
   it->Detach(v8::Local<v8::Value>()).Check();
 
