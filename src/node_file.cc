@@ -4643,8 +4643,10 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   auto dest_path_str = ConvertPathToUTF8(dest_path);
 
   if (!error_code) {
-    // Check if src and dest are identical.
-    if (std::filesystem::equivalent(src_path, dest_path)) {
+    // Check if src and dest are identical. A dangling dest symlink makes
+    // equivalent() fail, which means they are not the same file.
+    std::error_code equivalent_error;
+    if (std::filesystem::equivalent(src_path, dest_path, equivalent_error)) {
       static constexpr const char* message =
           "src and dest cannot be the same %s";
       return THROW_ERR_FS_CP_EINVAL(env, message, dest_path_str);
