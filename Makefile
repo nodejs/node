@@ -1715,15 +1715,17 @@ endif
 # python -m pip install yamllint
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-yaml-build: ## Build resources needed to lint YAML files.
+ifeq ($(YAMLLINT), tools/pip/site-packages/bin/yamllint)
 	$(info Pip installing yamllint on $(shell $(PYTHON) --version)...)
 	$(PYTHON) -m pip install --upgrade -t tools/pip/site-packages yamllint || \
 		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages yamllint
+endif
 
 .PHONY: lint-yaml
 ifneq ("","$(wildcard $(YAMLLINT))")
 lint-yaml: ## Lint the YAML files with yamllint.
 	$(info Running YAML linter...)
-	PYTHONPATH=tools/pip $(YAMLLINT) .
+	PYTHONPATH=tools/pip $(YAMLLINT) --strict .
 else
 lint-yaml:
 	$(warning YAML linting with yamllint is not available)
