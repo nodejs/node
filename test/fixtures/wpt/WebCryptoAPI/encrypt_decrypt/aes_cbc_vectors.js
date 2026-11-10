@@ -194,7 +194,7 @@ function getTestVectors() {
         ["zeroPadChar", "bigPadChar", "inconsistentPadChars"].forEach(function(paddingProblem) {
             var badCiphertext = new Uint8Array(ciphertext[keyLength].byteLength);
             badCiphertext.set(ciphertext[keyLength].slice(0, ciphertext[keyLength].byteLength - 16));
-            badCiphertext.set(badPadding[keyLength][paddingProblem]);
+            badCiphertext.set(badPadding[keyLength][paddingProblem], ciphertext[keyLength].byteLength - 16);
 
             decryptionFailing.push({
                 name: "AES-CBC " + keyLength.toString() + "-bit key, " + paddingProblem,
