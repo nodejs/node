@@ -13,6 +13,7 @@ const char* dlopen_pong(void) {
 
 namespace {
 
+using v8::Exception;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
@@ -24,20 +25,42 @@ typedef const char* (*ping)(void);
 
 static ping ping_func;
 
+void ThrowError(Isolate* isolate, const char* message) {
+  isolate->ThrowException(Exception::Error(
+      String::NewFromUtf8(isolate, message).ToLocalChecked()));
+}
+
 void LoadLibrary(const FunctionCallbackInfo<Value>& args) {
-  const String::Utf8Value filename(args.GetIsolate(), args[0]);
+  Isolate* isolate = args.GetIsolate();
+  const String::Utf8Value filename(isolate, args[0]);
   void* handle = dlopen(*filename, RTLD_LAZY);
-  if (handle == nullptr) fprintf(stderr, "%s\n", dlerror());
-  assert(handle != nullptr);
+  if (handle == nullptr) {
+    ThrowError(isolate, dlerror() != nullptr ? dlerror() : "dlopen failed");
+    return;
+  }
   ping_func = reinterpret_cast<ping>(dlsym(handle, "dlopen_ping"));
-  assert(ping_func != nullptr);
+  if (ping_func == nullptr) {
+    dlclose(handle);
+    ThrowError(isolate,
+               dlerror() != nullptr ? dlerror() : "dlsym dlopen_ping failed");
+    return;
+  }
 }
 
 void Ping(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  assert(ping_func != nullptr);
-  args.GetReturnValue().Set(String::NewFromUtf8(
-        isolate, ping_func()).ToLocalChecked());
+  if (ping_func == nullptr) {
+    ThrowError(isolate, "ping library was not loaded");
+    return;
+  }
+  const char* answer = ping_func();
+  if (answer == nullptr) {
+    ThrowError(isolate,
+               "dlopen_pong could not be resolved (RTLD_GLOBAL)");
+    return;
+  }
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(isolate, answer).ToLocalChecked());
 }
 
 void init(Local<Object> exports) {
