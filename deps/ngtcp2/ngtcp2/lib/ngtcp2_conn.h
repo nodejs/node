@@ -93,6 +93,10 @@ typedef enum {
    value, it is truncated. */
 #define NGTCP2_CCERR_MAX_REASONLEN 1024
 
+/* NGTCP2_MAX_TOKENLEN is the maximum length of token given in
+   ngtcp2_settings.token that client sends in its Initial packet. */
+#define NGTCP2_MAX_TOKENLEN 512
+
 /* NGTCP2_WRITE_PKT_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_WRITE_PKT_FLAG_NONE 0x00U
 /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet other
@@ -164,9 +168,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
    supports Greasing QUIC Bit extension. */
 #define NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT 0x0400U
 /* NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED is set when key update is
-   not confirmed by the local endpoint.  That is, it has not received
-   ACK frame which acknowledges packet which is encrypted with new
-   key. */
+   not confirmed by the local endpoint.  That is, it has received
+   neither ACK frame which acknowledges packet which is encrypted with
+   new key, nor packet which is encrypted with new key. */
 #define NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED 0x0800U
 /* NGTCP2_CONN_FLAG_PPE_PENDING is set when
    NGTCP2_WRITE_STREAM_FLAG_MORE is used and the intermediate state of
@@ -193,6 +197,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
    Initial CRYPTO frame into pieces as a countermeasure against Deep
    Packet Inspection. */
 #define NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO 0x40000U
+/* NGTCP2_CONN_FLAG_CLIENT_INITIAL_CALLED is set when
+   ngtcp2_callbacks.client_initial has been called successfully. */
+#define NGTCP2_CONN_FLAG_CLIENT_INITIAL_CALLED 0x80000U
 
 typedef struct ngtcp2_pktns {
   struct {
@@ -392,6 +399,24 @@ struct ngtcp2_conn {
     ngtcp2_tstamp last_max_data_ts;
 
     struct {
+      /* max_streams is the maximum number of bidirectional streams which
+         the local endpoint can open. */
+      uint64_t max_streams;
+      /* next_stream_id is the bidirectional stream ID which the local
+         endpoint opens next. */
+      int64_t next_stream_id;
+    } bidi;
+
+    struct {
+      /* max_streams is the maximum number of unidirectional streams
+         which the local endpoint can open. */
+      uint64_t max_streams;
+      /* next_stream_id is the unidirectional stream ID which the
+         local endpoint opens next. */
+      int64_t next_stream_id;
+    } uni;
+
+    struct {
       /* validation_start_ts is the timestamp when ECN validation is
          started.  It is UINT64_MAX if it has not started yet. */
       ngtcp2_tstamp validation_start_ts;
@@ -441,10 +466,28 @@ struct ngtcp2_conn {
     ngtcp2_ccerr ccerr;
 
     struct {
-      /* pkt_num is the lowest incoming packet number of the packet
-         that server verified preferred address usage of client. */
-      int64_t pkt_num;
-    } preferred_addr;
+      /* unsent_max_streams is the maximum number of streams of peer
+         initiated bidirectional stream which the local endpoint can
+         accept.  This limit is not yet notified to the remote
+         endpoint. */
+      uint64_t unsent_max_streams;
+      /* max_streams is the maximum number of streams of peer
+         initiated bidirectional stream which the local endpoint can
+         accept. */
+      uint64_t max_streams;
+    } bidi;
+
+    struct {
+      /* unsent_max_streams is the maximum number of streams of peer
+         initiated unidirectional stream which the local endpoint can
+         accept.  This limit is not yet notified to the remote
+         endpoint. */
+      uint64_t unsent_max_streams;
+      /* max_streams is the maximum number of streams of peer
+         initiated unidirectional stream which the local endpoint can
+         accept. */
+      uint64_t max_streams;
+    } uni;
   } rx;
 
   struct {
@@ -467,23 +510,6 @@ struct ngtcp2_conn {
     /* transport_params is the local transport parameters.  It is used
        for Short packet only. */
     ngtcp2_transport_params transport_params;
-    struct {
-      /* max_streams is the maximum number of bidirectional streams which
-         the local endpoint can open. */
-      uint64_t max_streams;
-      /* next_stream_id is the bidirectional stream ID which the local
-         endpoint opens next. */
-      int64_t next_stream_id;
-    } bidi;
-
-    struct {
-      /* max_streams is the maximum number of unidirectional streams
-         which the local endpoint can open. */
-      uint64_t max_streams;
-      /* next_stream_id is the unidirectional stream ID which the
-         local endpoint opens next. */
-      int64_t next_stream_id;
-    } uni;
   } local;
 
   struct {
@@ -494,32 +520,17 @@ struct ngtcp2_conn {
        during handshake.  It is copied to transport_params when 1RTT
        key is available. */
     ngtcp2_transport_params *pending_transport_params;
-    struct {
-      ngtcp2_idtr idtr;
-      /* unsent_max_streams is the maximum number of streams of peer
-         initiated bidirectional stream which the local endpoint can
-         accept.  This limit is not yet notified to the remote
-         endpoint. */
-      uint64_t unsent_max_streams;
-      /* max_streams is the maximum number of streams of peer
-         initiated bidirectional stream which the local endpoint can
-         accept. */
-      uint64_t max_streams;
-    } bidi;
-
-    struct {
-      ngtcp2_idtr idtr;
-      /* unsent_max_streams is the maximum number of streams of peer
-         initiated unidirectional stream which the local endpoint can
-         accept.  This limit is not yet notified to the remote
-         endpoint. */
-      uint64_t unsent_max_streams;
-      /* max_streams is the maximum number of streams of peer
-         initiated unidirectional stream which the local endpoint can
-         accept. */
-      uint64_t max_streams;
-    } uni;
   } remote;
+
+  struct {
+    /* idtr tracks the stream ID usage. */
+    ngtcp2_idtr idtr;
+  } bidi;
+
+  struct {
+    /* idtr tracks the stream ID usage. */
+    ngtcp2_idtr idtr;
+  } uni;
 
   struct {
     struct {
@@ -786,18 +797,19 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 
 /*
  * ngtcp2_conn_tx_strmq_top returns the ngtcp2_strm which sits on the
- * top of queue.  tx_strmq must not be empty.
+ * top of queue.  |conn|->tx.strmq must not be empty.
  */
 ngtcp2_strm *ngtcp2_conn_tx_strmq_top(ngtcp2_conn *conn);
 
 /*
  * ngtcp2_conn_tx_strmq_pop pops the ngtcp2_strm from the queue.
- * tx_strmq must not be empty.
+ * |conn|->tx.strmq must not be empty.
  */
 void ngtcp2_conn_tx_strmq_pop(ngtcp2_conn *conn);
 
 /*
- * ngtcp2_conn_tx_strmq_push pushes |strm| into tx_strmq.
+ * ngtcp2_conn_tx_strmq_push pushes |strm| into |conn|->tx.strmq.
+ * |strm|->cycle must be set before calling this function.
  *
  *  This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -806,6 +818,18 @@ void ngtcp2_conn_tx_strmq_pop(ngtcp2_conn *conn);
  *     Out of memory.
  */
 int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm);
+
+/*
+ * ngtcp2_conn_tx_strmq_push_if_not pushes |strm| into
+ * |conn|->tx.strmq if |strm| is not pushed yet.
+ *
+ *  This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+int ngtcp2_conn_tx_strmq_push_if_not(ngtcp2_conn *conn, ngtcp2_strm *strm);
 
 /*
  * ngtcp2_conn_internal_expiry returns the minimum expiry time among

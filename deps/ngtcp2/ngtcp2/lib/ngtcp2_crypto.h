@@ -54,7 +54,9 @@ typedef struct ngtcp2_crypto_km {
   /* pkt_num is a packet number of a packet which uses this keying
      material.  For encryption key, it is the lowest packet number of
      a packet.  For decryption key, it is the lowest packet number of
-     a packet which can be decrypted with this keying material. */
+     a packet which can be decrypted with this keying material, or
+     INT64_MAX if the local endpoint initiated key update, and no
+     packet has been decrypted with this keying material yet. */
   int64_t pkt_num;
   /* use_count is the number of encryption applied with this key. */
   uint64_t use_count;

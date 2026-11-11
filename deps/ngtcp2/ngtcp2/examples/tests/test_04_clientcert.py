@@ -49,9 +49,13 @@ class TestClientCert:
         creqs = [r for r in cr.handshake if r.hsid == 13]  # CertificateRequest
         assert len(creqs) == 1
         creq = creqs[0].to_json()
-        certs = [r for r in cr.server.handshake if r.hsid == 11]  # Certificate
+        certs = [r for r in cr.server.handshake if r.hsid == 11 or r.hsid == 25]  # Certificate or CompressedCertificate
         assert len(certs) == 1
         crec = certs[0].to_json()
-        assert len(crec['certificate_list']) == 1
-        assert creq['context'] == crec['context']
+        if 'certificate_list' in crec:
+            cert_list = crec['certificate_list']
+            assert len(cert_list) == 1
+            assert creq['context'] == crec['context']
+        else:
+            assert 'compressed_certificate_message' in crec
         # TODO: check that GET indeed gave a response

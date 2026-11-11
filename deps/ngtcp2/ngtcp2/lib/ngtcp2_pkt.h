@@ -281,13 +281,13 @@ typedef struct ngtcp2_ping {
 
 typedef struct ngtcp2_data_blocked {
   uint64_t type;
-  uint64_t offset;
+  uint64_t max_data;
 } ngtcp2_data_blocked;
 
 typedef struct ngtcp2_stream_data_blocked {
   uint64_t type;
   int64_t stream_id;
-  uint64_t offset;
+  uint64_t max_stream_data;
 } ngtcp2_stream_data_blocked;
 
 typedef struct ngtcp2_streams_blocked {

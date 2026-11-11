@@ -82,6 +82,10 @@ ProtoCodec::on_stream_close(int64_t stream_id,
     return {};
   }
 
+  if (auto stream = client_->find_stream(stream_id); stream) {
+    sendq_.erase(stream);
+  }
+
   if (!config.quiet) {
     std::println(stderr,
                  "HTTP stream {:#x} closed with error codes (RX:{}, TX:{})",
