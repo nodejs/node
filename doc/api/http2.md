@@ -1129,8 +1129,8 @@ creates and returns an `Http2Stream` instance that can be used to send an
 HTTP/2 request to the connected server.
 
 When sending a request, header values must not contain characters outside the
-`latin1` encoding. The `:path` pseudo-header must not contain unescaped
-characters.
+`latin1` encoding, and the `:path` pseudo-header must not contain unescaped
+characters (this `:path` check is always enforced).
 
 This strict validation can be relaxed via the `httpValidation` option of
 [`http2.connect()`](#http2connectauthority-options-listener). The `'relaxed'`
@@ -3312,6 +3312,9 @@ server.listen(8443);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63571
+    description: Added the `httpValidation` option.
   - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/65619
     description: Added the `connectionWindowSize` option.
@@ -3441,8 +3444,9 @@ changes:
       [Fetch specification][].
     * `'insecure'`: Skips header value validation (equivalent to
       `insecureHTTPParser` in HTTP/1).
-      When set to `'relaxed'` or `'insecure'`, `strictSingleValueFields` is
-      automatically disabled.
+      When set to `'relaxed'` or `'insecure'`, `strictSingleValueFields` and
+      `strictFieldWhitespaceValidation` are automatically disabled, as they
+      would otherwise conflict with the relaxed behaviour.
       **Default:** `'strict'`.
 * `listener` {Function} Will be registered as a one-time listener of the
   [`'connect'`][] event.
