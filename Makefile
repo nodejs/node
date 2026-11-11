@@ -1572,7 +1572,7 @@ jslint-ci: lint-js-ci
 LINT_CPP_ADDON_DOC_FILES_GLOB = test/addons/??_*/*.cc test/addons/??_*/*.h
 LINT_CPP_ADDON_DOC_FILES = $(wildcard $(LINT_CPP_ADDON_DOC_FILES_GLOB))
 LINT_CPP_EXCLUDE ?=
-LINT_CPP_EXCLUDE += src/node_root_certs.h
+LINT_CPP_EXCLUDE += src/node_root_certs.h src/node_root_certs_distrust.h
 LINT_CPP_EXCLUDE += $(LINT_CPP_ADDON_DOC_FILES)
 # These files were copied more or less verbatim from V8.
 LINT_CPP_EXCLUDE += src/tracing/trace_event_legacy.h src/tracing/trace_event_legacy_inl.h

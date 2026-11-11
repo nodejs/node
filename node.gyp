@@ -304,6 +304,7 @@
       'src/node_report.h',
       'src/node_revert.h',
       'src/node_root_certs.h',
+      'src/node_root_certs_distrust.h',
       'src/node_sea.h',
       'src/node_shadow_realm.h',
       'src/node_snapshotable.h',

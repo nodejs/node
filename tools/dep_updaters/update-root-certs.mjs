@@ -152,6 +152,19 @@ if (values.verbose) {
   console.log(mkCABundleOut);
 }
 
+// Run tools/mk-root-certs-distrust.mjs to generate
+// src/node_root_certs_distrust.h from the same certdata.txt.
+if (values.verbose) {
+  console.log('Running tools/mk-root-certs-distrust.mjs');
+}
+const mkDistrustTool = join(checkoutDir, 'tools', 'mk-root-certs-distrust.mjs');
+const mkDistrustOut = execFileSync(process.execPath,
+                                   [ mkDistrustTool, ...(values.verbose ? [ '-v' ] : []) ],
+                                   opts);
+if (values.verbose) {
+  console.log(mkDistrustOut);
+}
+
 // Determine certificates added and/or removed.
 const certHeaderFile = relative(process.cwd(), join(checkoutDir, 'src', 'node_root_certs.h'));
 const diff = execFileSync('git', [ 'diff-files', '-u', '--', certHeaderFile ], opts);
@@ -162,6 +175,15 @@ const certsAddedRE = /^\+\/\* (.*) \*\//gm;
 const certsRemovedRE = /^-\/\* (.*) \*\//gm;
 const added = [ ...diff.matchAll(certsAddedRE) ].map((m) => m[1]);
 const removed = [ ...diff.matchAll(certsRemovedRE) ].map((m) => m[1]);
+
+// Determine distrust-after dates added and/or removed.
+const distrustHeaderFile = relative(process.cwd(), join(checkoutDir, 'src', 'node_root_certs_distrust.h'));
+const distrustDiff = execFileSync('git', [ 'diff-files', '-u', '--', distrustHeaderFile ], opts);
+if (values.verbose) {
+  console.log(distrustDiff);
+}
+const distrustAdded = [ ...distrustDiff.matchAll(certsAddedRE) ].map((m) => m[1]);
+const distrustRemoved = [ ...distrustDiff.matchAll(certsRemovedRE) ].map((m) => m[1]);
 
 const commitMsg = [
   `crypto: update root certificates to NSS ${version}`,
@@ -181,6 +203,16 @@ if (added.length > 0) {
 if (removed.length > 0) {
   commitMsg.push('Certificates removed:');
   commitMsg.push(...removed.map((cert) => `- ${cert}`));
+  commitMsg.push('');
+}
+if (distrustAdded.length > 0) {
+  commitMsg.push('Distrust-after dates added:');
+  commitMsg.push(...distrustAdded.map((cert) => `- ${cert}`));
+  commitMsg.push('');
+}
+if (distrustRemoved.length > 0) {
+  commitMsg.push('Distrust-after dates removed:');
+  commitMsg.push(...distrustRemoved.map((cert) => `- ${cert}`));
   commitMsg.push('');
 }
 commitMsg.push(`[0] ${certdataURL}`);
