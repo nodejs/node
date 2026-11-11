@@ -842,6 +842,31 @@ class Certificate(HSRecord):
             f'{ind}  certificate_list: \n' + '\n'.join(
                 [self._enxtry_text(e, indent+4) for e in self._cert_entries])
 
+class CompressedCertificate(HSRecord):
+
+    def __init__(self, hsid: int, name: str, data):
+        super().__init__(hsid=hsid, name=name, data=data)
+        d = data
+        d, algorithm = _get_field(d, 2)
+        self._algorithm = int.from_bytes(bytearray(algorithm), byteorder='big')
+        d, uncompressed_length = _get_field(d, 3)
+        self._uncompressed_length = int.from_bytes(bytearray(uncompressed_length), byteorder='big')
+        d, self._compressed_certificate_message = _get_len_field(d, 3)
+        assert len(d) == 0
+
+    def to_json(self):
+        jdata = super().to_json()
+        jdata['algorithm'] = self._algorithm
+        jdata['uncompressed_length'] = self._uncompressed_length
+        jdata['compressed_certificate_message'] = binascii.hexlify(self._compressed_certificate_message).decode()
+        return jdata
+
+    def to_text(self, indent: int = 0):
+        ind = ' ' * (indent + 2)
+        return super().to_text(indent=indent) + '\n'\
+            f'{ind}  algorithm: {self._algorithm}\n'\
+            f'{ind}  uncompressed_length: {self._uncompressed_length}\n'\
+            f'{ind}  compressed_certificate_message: {binascii.hexlify(self._compressed_certificate_message).decode()}'
 
 class SessionTicket(HSRecord):
 
@@ -901,7 +926,7 @@ class HandShake:
         (20, 'Finished', HSRecord),
         (22, 'CertificateStatus', HSRecord),
         (24, 'KeyUpdate', HSRecord),
-        (25, 'CompressedCertificate', HSRecord),
+        (25, 'CompressedCertificate', CompressedCertificate),
     ]
     RT_NAME_BY_ID = {}
     RT_CLS_BY_ID = {}

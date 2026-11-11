@@ -40,11 +40,11 @@ typedef uint64_t ngtcp2_map_key_type;
 
 typedef struct ngtcp2_map {
   ngtcp2_map_key_type *keys;
-  void **data;
   /* psl is the Probe Sequence Length.  0 has special meaning that the
      element is not stored at i-th position if psl[i] == 0.  Because
      of this, the actual psl value is psl[i] - 1 if psl[i] > 0. */
-  uint8_t *psl;
+  size_t *psl;
+  void **data;
   const ngtcp2_mem *mem;
   uint64_t seed;
   size_t size;

@@ -117,7 +117,12 @@ int ngtcp2_pv_validate(ngtcp2_pv *pv, uint8_t *pflags,
 void ngtcp2_pv_handle_entry_expiry(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
   ngtcp2_pv_entry *ent;
 
-  if (ngtcp2_ringbuf_len(&pv->ents.rb) == 0) {
+  /* Do not start new round until at least one PATH_CHALLENGE is sent
+     in the current round.  It might not be sent (e.g., server is
+     blocked by anti-amplification limit), and the last entry remains
+     expired. */
+  if (ngtcp2_ringbuf_len(&pv->ents.rb) == 0 ||
+      pv->probe_pkt_left == NGTCP2_PV_NUM_PROBE_PKT) {
     return;
   }
 
@@ -158,12 +163,20 @@ int ngtcp2_pv_validation_timed_out(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
 ngtcp2_tstamp ngtcp2_pv_next_expiry(ngtcp2_pv *pv) {
   ngtcp2_pv_entry *ent;
 
-  if ((pv->flags & NGTCP2_PV_FLAG_CANCEL_TIMER) ||
-      ngtcp2_ringbuf_len(&pv->ents.rb) == 0) {
+  if (ngtcp2_ringbuf_len(&pv->ents.rb) == 0) {
     return UINT64_MAX;
   }
 
   ent = ngtcp2_ringbuf_get(&pv->ents.rb, ngtcp2_ringbuf_len(&pv->ents.rb) - 1);
+
+  if (pv->flags & NGTCP2_PV_FLAG_CANCEL_TIMER) {
+    /* The timer of the last entry has expired, but a new
+       PATH_CHALLENGE might never be sent (e.g., server is blocked by
+       anti-amplification limit), which leaves no timer armed.  Keep
+       the timer for the timeout of path validation armed, which is
+       the value ngtcp2_pv_validation_timed_out compares with. */
+    return ngtcp2_max(pv->started_ts + pv->timeout, ent->expiry);
+  }
 
   return ent->expiry;
 }

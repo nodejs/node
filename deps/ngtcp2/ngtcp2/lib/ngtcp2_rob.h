@@ -50,9 +50,6 @@ typedef struct ngtcp2_rob {
   const ngtcp2_mem *mem;
   /* chunk is the size of each buffer in data field */
   size_t chunk;
-  /* discard_data, if nonzero, stops buffering data.  If it is
-     nonzero, ngtcp2_ksl_empty(&dataksl) always returns nonzero. */
-  int discard_data;
 } ngtcp2_rob;
 
 /*
@@ -76,10 +73,6 @@ void ngtcp2_rob_free(ngtcp2_rob *rob);
  * ngtcp2_rob_push adds new data pointed by |data| of length |datalen|
  * at the stream offset |offset|.
  *
- * If ngtcp2_rob_discard_data is called, this function does not buffer
- * data.  The return value is the number of bytes that would be
- * buffered if ngtcp2_rob_discard_data has not been called.
- *
  * This function returns the number of data newly buffered if it
  * succeeds, or one of the following negative error codes:
  *
@@ -102,11 +95,9 @@ void ngtcp2_rob_remove_prefix(ngtcp2_rob *rob, uint64_t offset);
  * valid length of available data.  If no data is available, it
  * returns 0.  This function only returns the data before the first
  * gap.  It returns 0 even if data is available after the first gap.
- * If ngtcp2_rob_discard_data has been called, NULL is assigned to
- * |*pdest| if this function returns nonzero.
  */
-uint64_t ngtcp2_rob_data_at(const ngtcp2_rob *rob, const uint8_t **pdest,
-                            uint64_t offset);
+size_t ngtcp2_rob_data_at(const ngtcp2_rob *rob, const uint8_t **pdest,
+                          uint64_t offset);
 
 /*
  * ngtcp2_rob_pop clears data at stream offset |offset| of length
@@ -118,10 +109,8 @@ uint64_t ngtcp2_rob_data_at(const ngtcp2_rob *rob, const uint8_t **pdest,
  *
  * Caller should call this function from offset 0 in non-decreasing
  * order.
- *
- * ngtcp2_rob_pop is noop if ngtcp2_rob_discard_data has been called.
  */
-void ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, uint64_t len);
+void ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, size_t len);
 
 /*
  * ngtcp2_rob_first_gap_offset returns the offset to the first gap.
@@ -133,11 +122,5 @@ uint64_t ngtcp2_rob_first_gap_offset(const ngtcp2_rob *rob);
  * ngtcp2_rob_data_buffered returns nonzero if any data is buffered.
  */
 int ngtcp2_rob_data_buffered(const ngtcp2_rob *rob);
-
-/*
- * ngtcp2_rob_discard_data discards the buffered data, and stops
- * buffering data any further.
- */
-void ngtcp2_rob_discard_data(ngtcp2_rob *rob);
 
 #endif /* !defined(NGTCP2_ROB_H) */
