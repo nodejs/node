@@ -347,6 +347,10 @@
               "type": "boolean",
               "description": "experimental node:ffi module"
             },
+            "experimental-fileapi": {
+              "type": "boolean",
+              "description": "experimental File API globals"
+            },
             "experimental-global-navigator": {
               "type": "boolean",
               "description": "expose experimental Navigator API on the global scope"
