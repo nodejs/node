@@ -68,7 +68,7 @@ enum FileEntryFlag {
 };
 
 struct FileEntry {
-  uint64_t len{};
+  size_t len{};
   void *map{};
   int fd{};
   uint8_t flags{};

@@ -169,6 +169,9 @@ struct Config {
   // gso_burst is the number of packets to aggregate in GSO.  0 means
   // it is not limited by the configuration.
   size_t gso_burst{};
+  // write_stream_data_thresh is the threshold for the length of
+  // STREAM frame payload that the local endpoint sends.
+  size_t write_stream_data_thresh{255};
 };
 
 struct HTTPHeader {

@@ -130,8 +130,8 @@ void test_sim_unistream(void) {
 
     assert_true(rv.has_value());
     assert_true(svapp.is_all_bytes_sent());
-    assert_uint64(link.compute_expected_goodput(link.delay * 2), <=,
-                  svapp.compute_goodput());
+    assert_lte(link.compute_expected_goodput(link.delay * 2),
+               svapp.compute_goodput());
   }
 }
 

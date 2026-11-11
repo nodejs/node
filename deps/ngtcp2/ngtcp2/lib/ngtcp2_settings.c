@@ -37,6 +37,7 @@ void ngtcp2_settings_default_versioned(int settings_version,
 
   switch (settings_version) {
   case NGTCP2_SETTINGS_VERSION:
+  case NGTCP2_SETTINGS_V4:
   case NGTCP2_SETTINGS_V3:
     settings->glitch_ratelim_burst = NGTCP2_DEFAULT_GLITCH_RATELIM_BURST;
     settings->glitch_ratelim_rate = NGTCP2_DEFAULT_GLITCH_RATELIM_RATE;
@@ -87,6 +88,8 @@ size_t ngtcp2_settingslen_version(int settings_version) {
   switch (settings_version) {
   case NGTCP2_SETTINGS_VERSION:
     return sizeof(settings);
+  case NGTCP2_SETTINGS_V4:
+    return offsetof(ngtcp2_settings, log_write) + sizeof(settings.log_write);
   case NGTCP2_SETTINGS_V3:
     return offsetof(ngtcp2_settings, glitch_ratelim_rate) +
            sizeof(settings.glitch_ratelim_rate);

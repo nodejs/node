@@ -69,19 +69,24 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent,
 /* NGTCP2_PV_FLAG_DONT_CARE indicates that the outcome of path
    validation should be ignored entirely. */
 #define NGTCP2_PV_FLAG_DONT_CARE 0x01U
-/* NGTCP2_PV_FLAG_CANCEL_TIMER indicates that the expiry timer is
-   cancelled. */
+/* NGTCP2_PV_FLAG_CANCEL_TIMER indicates that the expiry timer of the
+   last ngtcp2_pv_entry is cancelled.  The timer for the timeout of
+   path validation itself is still armed. */
 #define NGTCP2_PV_FLAG_CANCEL_TIMER 0x02U
 /* NGTCP2_PV_FLAG_FALLBACK_PRESENT indicates that a fallback
    Destination Connection ID and PTO are available in ngtcp2_pv.  If
    path validation fails, then fallback to them.  If path validation
    succeeds, the fallback Destination Connection ID is retired if it
    is not zero length, and does not equal to the current Destination
-   Connection ID. */
+   Connection ID, and NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK is not
+   set. */
 #define NGTCP2_PV_FLAG_FALLBACK_PRESENT 0x04U
 /* NGTCP2_PV_FLAG_PREFERRED_ADDR indicates that client is migrating to
    server's preferred address.  This flag is only used by client. */
 #define NGTCP2_PV_FLAG_PREFERRED_ADDR 0x10U
+/* NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK prevents the fallback
+   Destination Connection ID from being retired. */
+#define NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK 0x20U
 
 typedef struct ngtcp2_pv ngtcp2_pv;
 
@@ -170,6 +175,9 @@ int ngtcp2_pv_validate(ngtcp2_pv *pv, uint8_t *pflags,
 
 /*
  * ngtcp2_pv_handle_entry_expiry checks expiry of existing entries.
+ * If the last entry has expired, it starts new round.  Calling this
+ * function again has no effect until new entry is added by
+ * ngtcp2_pv_add_entry.
  */
 void ngtcp2_pv_handle_entry_expiry(ngtcp2_pv *pv, ngtcp2_tstamp ts);
 
@@ -191,7 +199,10 @@ int ngtcp2_pv_validation_timed_out(ngtcp2_pv *pv, ngtcp2_tstamp ts);
 ngtcp2_tstamp ngtcp2_pv_next_expiry(ngtcp2_pv *pv);
 
 /*
- * ngtcp2_pv_cancel_expired_timer cancels the expired timer.
+ * ngtcp2_pv_cancel_expired_timer cancels the expired timer.  It does
+ * not cancel the timer for the timeout of path validation.  The
+ * caller must check it with ngtcp2_pv_validation_timed_out before
+ * calling this function.
  */
 void ngtcp2_pv_cancel_expired_timer(ngtcp2_pv *pv, ngtcp2_tstamp ts);
 

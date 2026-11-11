@@ -86,7 +86,12 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
 
   buf->last += rv;
 
-  if (ngtcp2_buf_cap(buf) < ppe_sample_offset(ppe) + NGTCP2_HP_SAMPLELEN) {
+  /* The space for header protection sample only guarantees 4 -
+     hd->pkt_numlen bytes of payload, which is 0 if packet number is
+     encoded in 4 bytes.  A packet must contain at least one frame, so
+     make sure that at least 1 byte of payload can be written. */
+  if (ngtcp2_buf_cap(buf) < ppe_sample_offset(ppe) + NGTCP2_HP_SAMPLELEN ||
+      ngtcp2_ppe_left(ppe) == 0) {
     return NGTCP2_ERR_NOBUF;
   }
 

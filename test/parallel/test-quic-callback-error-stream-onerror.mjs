@@ -21,11 +21,18 @@ const serverDone = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
+    // The client destroys its first stream with an error, which resets it.
+    if (stream.id === 0n) {
+      await assert.rejects(stream.closed, {
+        code: 'ERR_QUIC_APPLICATION_ERROR',
+      });
+      return;
+    }
     stream.writer.endSync();
     await stream.closed;
     serverSession.close();
     serverDone.resolve();
-  });
+  }, 2);
 }));
 
 const clientSession = await connect(serverEndpoint.address);

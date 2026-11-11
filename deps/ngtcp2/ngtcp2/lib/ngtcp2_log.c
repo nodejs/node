@@ -284,7 +284,7 @@ static void log_fr_data_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                 const char *dir) {
   ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_FRM, NGTCP2_LOG_PKT(dir, hd),
                        " DATA_BLOCKED(0x", hex(fr->type),
-                       ") offset=", fr->offset);
+                       ") max_data=", fr->max_data);
 }
 
 static void log_fr_stream_data_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -292,7 +292,8 @@ static void log_fr_stream_data_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                        const char *dir) {
   ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_FRM, NGTCP2_LOG_PKT(dir, hd),
                        " STREAM_DATA_BLOCKED(0x", hex(fr->type), ") id=0x",
-                       hex(fr->stream_id), " offset=", fr->offset);
+                       hex(fr->stream_id),
+                       " max_stream_data=", fr->max_stream_data);
 }
 
 static void log_fr_streams_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,

@@ -89,9 +89,6 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 /* NGTCP2_STRM_FLAG_ANY_SENT indicates that any STREAM frame,
    including empty one, has been sent. */
 #define NGTCP2_STRM_FLAG_ANY_SENT 0x1000U
-/* NGTCP2_STRM_FLAG_NO_REORDERED_DATA_BUFFERING is set when
-   ngtcp2_strm_stop_buffering_reordered_data is called. */
-#define NGTCP2_STRM_FLAG_NO_REORDERED_DATA_BUFFERING 0x2000U
 /* NGTCP2_STRM_FLAG_RX_APP_ERROR_CODE_SET is set when
    ngtcp2_strm.rx.app_error_code is set. */
 #define NGTCP2_STRM_FLAG_RX_APP_ERROR_CODE_SET 0x4000U
@@ -101,6 +98,14 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 /* NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET is set when
    ngtcp2_strm.tx.stop_sending_app_error_code is set. */
 #define NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET 0x10000U
+/* NGTCP2_STRM_FLAG_SEND_STREAM_DATA_BLOCKED is set when
+   STREAM_DATA_BLOCKED and/or DATA_BLOCKED frame should be sent. */
+#define NGTCP2_STRM_FLAG_SEND_STREAM_DATA_BLOCKED 0x20000U
+/* NGTCP2_STRM_FLAG_RX_FIN_DELIVERED is set when all stream data up to
+   the final offset have been passed to an application via
+   ngtcp2_callbacks.recv_stream_data with
+   NGTCP2_STREAM_DATA_FLAG_FIN. */
+#define NGTCP2_STRM_FLAG_RX_FIN_DELIVERED 0x40000U
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 
@@ -233,10 +238,6 @@ uint64_t ngtcp2_strm_rx_offset(const ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_recv_reordering handles reordered data.
- *
- * If ngtcp2_strm_stop_buffering_reordered_data has been called, this
- * function only records the range of the reordered data.  The actual
- * data is not buffered.
  *
  * It returns the number of bytes newly buffered if it succeeds, or
  * one of the following negative error codes:
@@ -382,19 +383,10 @@ int ngtcp2_strm_require_retransmit_max_stream_data(
 int ngtcp2_strm_require_retransmit_stream_data_blocked(
   const ngtcp2_strm *strm, const ngtcp2_stream_data_blocked *fr);
 
-/*
- * ngtcp2_strm_discard_ordered_data discards the ordered data starting
- * at |rx_offset|.  It stops when it finds a gap, which means that a
- * portion of the data has not been received yet.  It returns the size
- * of the buffered bytes discarded.
- */
-uint64_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm,
-                                          uint64_t rx_offset);
-
-/*
- * ngtcp2_strm_stop_buffering_reordered_data discards the buffered
- * reordered data, and stops buffering data any further.
- */
-void ngtcp2_strm_stop_buffering_reordered_data(ngtcp2_strm *strm);
+/* ngtcp2_strm_discard_ordered_data discards the ordered data starting
+   at |rx_offset|.  It stops when it finds a gap, which means that a
+   portion of the data has not been received yet.  It returns the size
+   of the buffered bytes discarded. */
+size_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm, uint64_t rx_offset);
 
 #endif /* !defined(NGTCP2_STRM_H) */
