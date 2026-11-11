@@ -34,6 +34,17 @@ const vfs = require('node:vfs');
   }));
   assert.rejects(myVfs.promises.mkstemp('/missing/prefix-'), { code: 'ENOENT' })
     .then(common.mustCall());
+
+  // Test disposal on VirtualFileSystem
+  {
+    const file = myVfs.mkstempSync('/tmp-disp-');
+    assert.strictEqual(typeof file.remove, 'function');
+    assert.strictEqual(typeof file[Symbol.dispose], 'function');
+    assert.ok(myVfs.statSync(file.path).isFile());
+    file.remove();
+    assert.throws(() => myVfs.statSync(file.path), { code: 'ENOENT' });
+    file.remove(); // idempotent
+  }
 }
 
 // node:fs on a mounted path
@@ -84,7 +95,31 @@ const vfs = require('node:vfs');
     const result = await fs.promises.mkstemp(Buffer.from(prefix));
     assert.ok(Buffer.isBuffer(result.path));
     await result.handle.close();
+
+    const disposable = await fs.promises.mkstemp(prefix);
+    assert.strictEqual(typeof disposable.remove, 'function');
+    assert.strictEqual(typeof disposable[Symbol.asyncDispose], 'function');
+    assert.ok(fs.existsSync(disposable.path));
+    await disposable.remove();
+    assert.ok(!fs.existsSync(disposable.path));
+    await disposable.remove(); // idempotent
   })().then(common.mustCall());
+
+  {
+    const file = fs.mkstempSync(prefix);
+    assert.strictEqual(typeof file.remove, 'function');
+    assert.strictEqual(typeof file[Symbol.dispose], 'function');
+    assert.ok(fs.existsSync(file.path));
+    file.remove();
+    assert.ok(!fs.existsSync(file.path));
+    file.remove(); // idempotent
+  }
+
+  {
+    const file = fs.mkstempSync(prefix);
+    file[Symbol.dispose]();
+    assert.ok(!fs.existsSync(file.path));
+  }
 
   const missing = path.join(dir, 'missing', 'f-');
   assert.throws(() => fs.mkstempSync(missing), { code: 'ENOENT' });
