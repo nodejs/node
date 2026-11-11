@@ -750,8 +750,9 @@ The default is \fBverbatim\fR and \fBdns.setDefaultResultOrder()\fR have higher
 priority than \fB--dns-result-order\fR.
 .
 .It Fl -enable-fips
-Enable FIPS mode at startup. A configured provider named \fBfips\fR must be
-available and initialize successfully.
+Enable FIPS mode at startup by adding \fBfips=yes\fR to OpenSSL's default
+property query. This does not load or validate a FIPS provider or run its
+self-tests. Configure OpenSSL to load the provider separately.
 .
 .It Fl -enable-fips-indicator-events
 Publish OpenSSL FIPS indicator results to the
@@ -962,7 +963,8 @@ Disable loading native addons that are not context-aware.
 .
 .It Fl -force-fips Ns = Ns Ar [mode]
 Enable FIPS mode at startup and prevent it from being disabled from script
-code. The same OpenSSL requirements as \fB--enable-fips\fR apply.
+code. This changes the default property query as described for
+\fB--enable-fips\fR.
 An optional mode can be specified using \fB--force-fips=mode\fR:
 .Bl -bullet
 .It
