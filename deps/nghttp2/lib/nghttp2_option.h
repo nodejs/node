@@ -73,6 +73,7 @@
 #define NGHTTP2_OPT_STREAM_RESET_RATE_LIMIT 0x8000U
 #define NGHTTP2_OPT_MAX_CONTINUATIONS 0x010000U
 #define NGHTTP2_OPT_GLITCH_RATE_LIMIT 0x020000U
+#define NGHTTP2_OPT_MAX_OUTBOUND_QUEUE_SIZE 0x040000U
 
 /**
  * Struct to store option values for nghttp2_session.
@@ -108,6 +109,10 @@ struct nghttp2_option {
    * NGHTTP2_OPT_MAX_CONTINUATIONS
    */
   size_t max_continuations;
+  /**
+   * NGHTTP2_OPT_MAX_OUTBOUND_QUEUE_SIZE
+   */
+  size_t max_outbound_queue_size;
   /**
    * Bitwise OR of NGHTTP2_OPT_* values to determine which fields are
    * specified.
