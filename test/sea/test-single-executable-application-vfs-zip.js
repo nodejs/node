@@ -58,9 +58,8 @@ main().then(common.mustCall(() => {
     },
   );
 
-  // The archive is mounted where --vfs-load would mount its source, so the
-  // executable rejects --vfs-load at startup. --build-sea already refuses it
-  // in "execArgv", so pass it through --node-options instead.
+  // A SEA rejects --vfs-load at startup. --build-sea already refuses it in
+  // "execArgv", so pass it through --node-options instead.
   const rejectedFile = buildSEA(fixtures.path('sea', 'vfs-zip'), {
     configPath: 'sea-config-vfs-load-rejected.json',
   });
@@ -75,7 +74,7 @@ main().then(common.mustCall(() => {
     },
     {
       status: 9,
-      stderr: /--vfs-load cannot be used in a single executable application built with "vfsArchive"/,
+      stderr: /--vfs-load cannot be used in a single executable application/,
     },
   );
 }));

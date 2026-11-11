@@ -3998,9 +3998,9 @@ comes from anywhere else, such as the real file system, needs nothing added.
 the command line's decision, and the environment must not be able to redirect
 it.
 
-A [single executable application][] built with `"vfsArchive"` mounts that
-archive at the mount point reserved for `--vfs-load`, so `--vfs-load` cannot be
-used in it.
+`--vfs-load` cannot be used in a [single executable application][]: its entry
+point is the `"main"` it was built with, and with `"useVfs"` its own virtual
+file system is mounted at the mount point reserved for `--vfs-load`.
 
 ```console
 $ node --vfs-load=app.zip

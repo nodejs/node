@@ -257,6 +257,10 @@ bool SeaResource::use_code_cache() const {
   return static_cast<bool>(flags & SeaFlags::kUseCodeCache);
 }
 
+bool SeaResource::use_vfs() const {
+  return static_cast<bool>(flags & SeaFlags::kEnableVfs);
+}
+
 bool SeaResource::use_vfs_archive() const {
   return static_cast<bool>(flags & SeaFlags::kVfsArchive);
 }
@@ -622,6 +626,17 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
     }
   }
 
+  // A SEA rejects --vfs-load at startup (see EnvironmentOptions::CheckOptions),
+  // so do not build one that passes it in "execArgv".
+  for (const std::string& arg : result.exec_argv) {
+    if (arg == "--vfs-load" || arg.starts_with("--vfs-load=")) {
+      FPrintF(stderr,
+              "--vfs-load cannot be used in \"execArgv\" of a single "
+              "executable application\n");
+      return std::nullopt;
+    }
+  }
+
   if (static_cast<bool>(result.flags & SeaFlags::kVfsArchive)) {
     if (!static_cast<bool>(result.flags & SeaFlags::kEnableVfs)) {
       FPrintF(stderr, "\"vfsArchive\" requires \"useVfs\" to be true\n");
@@ -637,15 +652,6 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
               "\"vfsArchive\" field of %s is not a non-empty string\n",
               config_path);
       return std::nullopt;
-    }
-    // The archive takes the mount point reserved for the --vfs-load source.
-    for (const std::string& arg : result.exec_argv) {
-      if (arg == "--vfs-load" || arg.starts_with("--vfs-load=")) {
-        FPrintF(stderr,
-                "\"vfsArchive\" cannot be used together with --vfs-load in "
-                "\"execArgv\"\n");
-        return std::nullopt;
-      }
     }
     // The archive is embedded as a single reserved asset.
     result.flags |= SeaFlags::kIncludeAssets;

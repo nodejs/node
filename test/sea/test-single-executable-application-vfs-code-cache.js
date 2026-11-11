@@ -60,9 +60,10 @@ async function generateBlob(fixtureDir, prepare) {
 }
 
 async function main() {
-  // CommonJS: sea.js, modules/math.js, modules/calculator.js and the two
-  // packages under node_modules; config.json and greeting.txt are data.
-  assert.strictEqual(await generateBlob(fixtures.path('sea', 'vfs')), 5);
+  // CommonJS: sea.js, worker.js, modules/math.js, modules/calculator.js and
+  // the two packages under node_modules; config.json and greeting.txt are
+  // data.
+  assert.strictEqual(await generateBlob(fixtures.path('sea', 'vfs')), 6);
 
   // ESM: main.mjs, modules/math.mjs, modules/calculator.cjs and the package.
   assert.strictEqual(await generateBlob(fixtures.path('sea', 'vfs-esm')), 4);
@@ -101,7 +102,7 @@ async function main() {
       stderr: /Wrote single executable preparation blob/,
     });
   assert.strictEqual(
-    countCompileCacheEntries(tmpdir.resolve('sea-prep.blob')), 5);
+    countCompileCacheEntries(tmpdir.resolve('sea-prep.blob')), 6);
 
   // The executable runs with the cache embedded, and the reserved assets
   // are not visible as files of the virtual file system.
