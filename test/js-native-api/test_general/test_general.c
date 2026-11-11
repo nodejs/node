@@ -23,6 +23,16 @@ static napi_value testStrictEquals(napi_env env, napi_callback_info info) {
   return result;
 }
 
+static napi_value testSetPrototype(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
+  napi_value args[2];
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NODE_API_CALL(env, node_api_set_prototype(env, args[0], args[1]));
+
+  return NULL;
+}
+
 static napi_value testGetPrototype(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
@@ -137,7 +147,7 @@ static napi_value testNapiTypeof(napi_env env, napi_callback_info info) {
 }
 
 static bool deref_item_called = false;
-static void deref_item(napi_env env, void* data, void* hint) {
+static void deref_item(node_api_nogc_env env, void* data, void* hint) {
   (void) hint;
 
   NODE_API_ASSERT_RETURN_VOID(env, data == &deref_item_called,
@@ -156,7 +166,7 @@ static napi_value deref_item_was_called(napi_env env, napi_callback_info info) {
 
 static napi_value wrap_first_arg(napi_env env,
                                  napi_callback_info info,
-                                 napi_finalize finalizer,
+                                 node_api_basic_finalize finalizer,
                                  void* data) {
   size_t argc = 1;
   napi_value to_wrap;
@@ -195,7 +205,7 @@ static napi_value remove_wrap(napi_env env, napi_callback_info info) {
 }
 
 static bool finalize_called = false;
-static void test_finalize(napi_env env, void* data, void* hint) {
+static void test_finalize(node_api_nogc_env env, void* data, void* hint) {
   finalize_called = true;
 }
 
@@ -242,6 +252,15 @@ static void finalizer_only_callback(napi_env env, void* data, void* hint) {
   NODE_API_CALL_RETURN_VOID(env, napi_delete_reference(env, js_cb_ref));
 }
 
+static void schedule_finalizer_only_callback(node_api_nogc_env env,
+                                             void* data,
+                                             void* hint) {
+  NODE_API_CALL_RETURN_VOID(
+      (napi_env)env,
+      node_api_post_finalizer(
+          (napi_env)env, finalizer_only_callback, data, NULL));
+}
+
 static napi_value add_finalizer_only(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value argv[2];
@@ -250,8 +269,12 @@ static napi_value add_finalizer_only(napi_env env, napi_callback_info info) {
   NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
   NODE_API_CALL(env, napi_create_reference(env, argv[1], 1, &js_cb_ref));
   NODE_API_CALL(env,
-      napi_add_finalizer(
-          env, argv[0], js_cb_ref, finalizer_only_callback, NULL, NULL));
+                napi_add_finalizer(env,
+                                   argv[0],
+                                   js_cb_ref,
+                                   schedule_finalizer_only_callback,
+                                   NULL,
+                                   NULL));
   return NULL;
 }
 
@@ -262,7 +285,9 @@ static const char* env_cleanup_finalizer_messages[] = {
   "second wrap"
 };
 
-static void cleanup_env_finalizer(napi_env env, void* data, void* hint) {
+static void cleanup_env_finalizer(node_api_nogc_env env,
+                                  void* data,
+                                  void* hint) {
   (void) env;
   (void) hint;
 
@@ -286,26 +311,27 @@ static napi_value env_cleanup_wrap(napi_env env, napi_callback_info info) {
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
-    DECLARE_NODE_API_PROPERTY("testStrictEquals", testStrictEquals),
-    DECLARE_NODE_API_PROPERTY("testGetPrototype", testGetPrototype),
-    DECLARE_NODE_API_PROPERTY("testGetVersion", testGetVersion),
-    DECLARE_NODE_API_PROPERTY("testNapiRun", testNapiRun),
-    DECLARE_NODE_API_PROPERTY("doInstanceOf", doInstanceOf),
-    DECLARE_NODE_API_PROPERTY("getUndefined", getUndefined),
-    DECLARE_NODE_API_PROPERTY("getNull", getNull),
-    DECLARE_NODE_API_PROPERTY("createNapiError", createNapiError),
-    DECLARE_NODE_API_PROPERTY("testNapiErrorCleanup", testNapiErrorCleanup),
-    DECLARE_NODE_API_PROPERTY("testNapiTypeof", testNapiTypeof),
-    DECLARE_NODE_API_PROPERTY("wrap", wrap),
-    DECLARE_NODE_API_PROPERTY("envCleanupWrap", env_cleanup_wrap),
-    DECLARE_NODE_API_PROPERTY("unwrap", unwrap),
-    DECLARE_NODE_API_PROPERTY("removeWrap", remove_wrap),
-    DECLARE_NODE_API_PROPERTY("addFinalizerOnly", add_finalizer_only),
-    DECLARE_NODE_API_PROPERTY("testFinalizeWrap", test_finalize_wrap),
-    DECLARE_NODE_API_PROPERTY("finalizeWasCalled", finalize_was_called),
-    DECLARE_NODE_API_PROPERTY("derefItemWasCalled", deref_item_was_called),
-    DECLARE_NODE_API_PROPERTY("testAdjustExternalMemory", testAdjustExternalMemory)
-  };
+      DECLARE_NODE_API_PROPERTY("testStrictEquals", testStrictEquals),
+      DECLARE_NODE_API_PROPERTY("testSetPrototype", testSetPrototype),
+      DECLARE_NODE_API_PROPERTY("testGetPrototype", testGetPrototype),
+      DECLARE_NODE_API_PROPERTY("testGetVersion", testGetVersion),
+      DECLARE_NODE_API_PROPERTY("testNapiRun", testNapiRun),
+      DECLARE_NODE_API_PROPERTY("doInstanceOf", doInstanceOf),
+      DECLARE_NODE_API_PROPERTY("getUndefined", getUndefined),
+      DECLARE_NODE_API_PROPERTY("getNull", getNull),
+      DECLARE_NODE_API_PROPERTY("createNapiError", createNapiError),
+      DECLARE_NODE_API_PROPERTY("testNapiErrorCleanup", testNapiErrorCleanup),
+      DECLARE_NODE_API_PROPERTY("testNapiTypeof", testNapiTypeof),
+      DECLARE_NODE_API_PROPERTY("wrap", wrap),
+      DECLARE_NODE_API_PROPERTY("envCleanupWrap", env_cleanup_wrap),
+      DECLARE_NODE_API_PROPERTY("unwrap", unwrap),
+      DECLARE_NODE_API_PROPERTY("removeWrap", remove_wrap),
+      DECLARE_NODE_API_PROPERTY("addFinalizerOnly", add_finalizer_only),
+      DECLARE_NODE_API_PROPERTY("testFinalizeWrap", test_finalize_wrap),
+      DECLARE_NODE_API_PROPERTY("finalizeWasCalled", finalize_was_called),
+      DECLARE_NODE_API_PROPERTY("derefItemWasCalled", deref_item_was_called),
+      DECLARE_NODE_API_PROPERTY("testAdjustExternalMemory",
+                                testAdjustExternalMemory)};
 
   NODE_API_CALL(env, napi_define_properties(
       env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
