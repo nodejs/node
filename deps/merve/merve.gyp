@@ -8,7 +8,6 @@
       'type': 'static_library',
       'include_dirs': [
         '.',
-        '../v8/third_party/simdutf',
       ],
       'direct_dependent_settings': {
         'include_dirs': ['.'],
@@ -28,6 +27,11 @@
           'xcode_settings': {
             'CLANG_CXX_LANGUAGE_STANDARD': 'c++20',
           },
+        }],
+        ['node_shared_simdutf=="false"', {
+          'include_dirs': [
+            '../v8/third_party/simdutf',
+          ],
         }],
       ],
     },
