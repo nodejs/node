@@ -465,10 +465,10 @@ typedef enum {
   /**
    * Possible flooding by peer was detected in this HTTP/2 session.
    * Flooding is measured by how many PING and SETTINGS frames with
-   * ACK flag set are queued for transmission.  These frames are
-   * response for the peer initiated frames, and peer can cause memory
-   * exhaustion on server side to send these frames forever and does
-   * not read network.
+   * ACK flag set are queued for transmission, and the size of the
+   * outbound queue.  These frames are response for the peer initiated
+   * frames, and peer can cause memory exhaustion on server side to
+   * send these frames forever and does not read network.
    */
   NGHTTP2_ERR_FLOODED = -904,
   /**
@@ -3261,6 +3261,21 @@ NGHTTP2_EXTERN void nghttp2_option_set_glitch_rate_limit(nghttp2_option *option,
 /**
  * @function
  *
+ * This function sets the maximum number of frames allowed in the
+ * outbound queue.  The limit is checked after
+ * `nghttp2_session_mem_recv2()` and `nghttp2_session_recv()`.  The
+ * current queue size (excluding deferred DATA frames) can be obtained
+ * by `nghttp2_session_get_outbound_queue_size()`.  If it exceeds
+ * |val|, `nghttp2_session_mem_recv2()` and `nghttp2_session_recv()`
+ * return :enum:`nghttp2_error.NGHTTP2_ERR_FLOODED`.  The default
+ * value is 5000.
+ */
+NGHTTP2_EXTERN void
+nghttp2_option_set_max_outbound_queue_size(nghttp2_option *option, size_t val);
+
+/**
+ * @function
+ *
  * Initializes |*session_ptr| for client use.  The all members of
  * |callbacks| are copied to |*session_ptr|.  Therefore |*session_ptr|
  * does not store |callbacks|.  The |user_data| is an arbitrary user
@@ -4581,6 +4596,8 @@ NGHTTP2_EXTERN int32_t nghttp2_submit_request(
  *     reached.
  * :enum:`nghttp2_error.NGHTTP2_ERR_PROTO`
  *     The |session| is server session.
+ * :enum:`nghttp2_error.NGHTTP2_ERR_INVALID_ARGUMENT`
+ *     The required memory for |nva| of length |nvlen| is too large.
  *
  * .. warning::
  *
@@ -4724,7 +4741,8 @@ nghttp2_submit_response(nghttp2_session *session, int32_t stream_id,
  * :enum:`nghttp2_error.NGHTTP2_ERR_NOMEM`
  *     Out of memory.
  * :enum:`nghttp2_error.NGHTTP2_ERR_INVALID_ARGUMENT`
- *     The |stream_id| is 0.
+ *     The |stream_id| is 0; The required memory for |nva| of length
+ *     |nvlen| is too large.
  * :enum:`nghttp2_error.NGHTTP2_ERR_DATA_EXIST`
  *     DATA or HEADERS has been already submitted and not fully
  *     processed yet.  Normally, this does not happen, but when
@@ -4794,7 +4812,8 @@ nghttp2_submit_response2(nghttp2_session *session, int32_t stream_id,
  * :enum:`nghttp2_error.NGHTTP2_ERR_NOMEM`
  *     Out of memory.
  * :enum:`nghttp2_error.NGHTTP2_ERR_INVALID_ARGUMENT`
- *     The |stream_id| is 0.
+ *     The |stream_id| is 0; The required memory for |nva| of length
+ *     |nvlen| is too large.
  */
 NGHTTP2_EXTERN int nghttp2_submit_trailer(nghttp2_session *session,
                                           int32_t stream_id,
@@ -4860,7 +4879,8 @@ NGHTTP2_EXTERN int nghttp2_submit_trailer(nghttp2_session *session,
  *     No stream ID is available because maximum stream ID was
  *     reached.
  * :enum:`nghttp2_error.NGHTTP2_ERR_INVALID_ARGUMENT`
- *     The |stream_id| is 0.
+ *     The |stream_id| is 0; The required memory for |nva| of length
+ *     |nvlen| is too large.
  * :enum:`nghttp2_error.NGHTTP2_ERR_DATA_EXIST`
  *     DATA or HEADERS has been already submitted and not fully
  *     processed yet.  This happens if stream denoted by |stream_id|
@@ -5087,8 +5107,8 @@ NGHTTP2_EXTERN int nghttp2_submit_rst_stream(nghttp2_session *session,
  * copies all the elements in the |iv|.
  *
  * While updating individual stream's local window size, if the window
- * size becomes strictly larger than NGHTTP2_MAX_WINDOW_SIZE,
- * RST_STREAM is issued against such a stream.
+ * size becomes strictly larger than NGHTTP2_MAX_WINDOW_SIZE, GOAWAY
+ * frame is submitted and the connection will be terminated.
  *
  * SETTINGS with :enum:`nghttp2_flag.NGHTTP2_FLAG_ACK` is
  * automatically submitted by the library and application could not
@@ -5162,7 +5182,8 @@ NGHTTP2_EXTERN int nghttp2_submit_settings(nghttp2_session *session,
  *     reached.
  * :enum:`nghttp2_error.NGHTTP2_ERR_INVALID_ARGUMENT`
  *     The |stream_id| is 0; The |stream_id| does not designate stream
- *     that peer initiated.
+ *     that peer initiated; The required memory for |nva| of length
+ *     |nvlen| is too large.
  * :enum:`nghttp2_error.NGHTTP2_ERR_STREAM_CLOSED`
  *     The stream was already closed; or the |stream_id| is invalid.
  *
