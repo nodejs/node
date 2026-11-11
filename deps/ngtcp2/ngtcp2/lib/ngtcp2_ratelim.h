@@ -32,6 +32,9 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+/* NGTCP2_RATELIM_MAX_BURST is the maximum value of the burst. */
+#define NGTCP2_RATELIM_MAX_BURST (UINT64_MAX / NGTCP2_SECONDS)
+
 typedef struct ngtcp2_ratelim {
   /* burst is the maximum number of tokens. */
   uint64_t burst;
@@ -47,8 +50,8 @@ typedef struct ngtcp2_ratelim {
   ngtcp2_tstamp ts;
 } ngtcp2_ratelim;
 
-/* ngtcp2_ratelim_init initializes |rlim| with the given
-   parameters. */
+/* ngtcp2_ratelim_init initializes |rlim| with the given parameters.
+   |burst| is clamped to NGTCP2_RATELIM_MAX_BURST. */
 void ngtcp2_ratelim_init(ngtcp2_ratelim *rlim, uint64_t burst, uint64_t rate,
                          ngtcp2_tstamp ts);
 

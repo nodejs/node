@@ -174,39 +174,32 @@ int ngtcp2_dcidtr_verify_stateless_reset(
   return NGTCP2_ERR_INVALID_ARGUMENT;
 }
 
-static int verify_token_uniqueness(const ngtcp2_ringbuf *rb, int *pfound,
-                                   uint64_t seq, const ngtcp2_cid *cid,
-                                   const ngtcp2_stateless_reset_token *token) {
+static int verify_cid_uniqueness(const ngtcp2_ringbuf *rb,
+                                 const ngtcp2_cid *cid) {
   const ngtcp2_dcid *dcid;
   size_t i, len = ngtcp2_ringbuf_len(rb);
-  int rv;
 
   for (i = 0; i < len; ++i) {
     dcid = ngtcp2_ringbuf_get(rb, i);
-    rv = ngtcp2_dcid_verify_uniqueness(dcid, seq, cid, token);
-    if (rv != 0) {
-      return NGTCP2_ERR_PROTO;
-    }
 
     if (ngtcp2_cid_eq(&dcid->cid, cid)) {
-      *pfound = 1;
+      return NGTCP2_ERR_PROTO;
     }
   }
 
   return 0;
 }
 
-int ngtcp2_dcidtr_verify_token_uniqueness(
-  const ngtcp2_dcidtr *dtr, int *pfound, uint64_t seq, const ngtcp2_cid *cid,
-  const ngtcp2_stateless_reset_token *token) {
+int ngtcp2_dcidtr_verify_cid_uniqueness(const ngtcp2_dcidtr *dtr,
+                                        const ngtcp2_cid *cid) {
   int rv;
 
-  rv = verify_token_uniqueness(&dtr->bound.rb, pfound, seq, cid, token);
+  rv = verify_cid_uniqueness(&dtr->bound.rb, cid);
   if (rv != 0) {
     return rv;
   }
 
-  return verify_token_uniqueness(&dtr->unused.rb, pfound, seq, cid, token);
+  return verify_cid_uniqueness(&dtr->unused.rb, cid);
 }
 
 static void remove_dcid_at(ngtcp2_ringbuf *rb, size_t at) {

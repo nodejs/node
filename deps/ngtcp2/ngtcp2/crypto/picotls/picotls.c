@@ -387,9 +387,11 @@ int ngtcp2_crypto_read_write_crypto_data(
   size_t i;
   int rv;
 
-  ptls_buffer_init(&sendbuf, (void *)"", 0);
+  if (epoch != ptls_get_read_epoch(cptls->ptls)) {
+    return -1;
+  }
 
-  assert(datalen == 0 || epoch == ptls_get_read_epoch(cptls->ptls));
+  ptls_buffer_init(&sendbuf, (void *)"", 0);
 
   rv = ptls_handle_message(cptls->ptls, &sendbuf, epoch_offsets, epoch, data,
                            datalen, &cptls->handshake_properties);
