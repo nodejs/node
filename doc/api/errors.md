@@ -3598,6 +3598,17 @@ entry types are found.
 A `--vfs-load` source does not exist, is neither a regular file nor a
 directory, or is a source no provider claims.
 
+<a id="ERR_VFS_NOT_MOUNTED"></a>
+
+### `ERR_VFS_NOT_MOUNTED`
+
+A path into a virtual file system was used in a thread in which that virtual
+file system is not mounted. Each thread has its own mounts: a virtual file
+system mounted with [`vfs.mount()`][] is not mounted in the [`Worker`][]
+threads, so a worker cannot be started from a script in it. The source
+mounted with [`--vfs-load`][] and the virtual file system of a
+[single executable application][] are mounted in every thread.
+
 <a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING"></a>
 
 ### `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`
@@ -4787,6 +4798,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`--force-fips`]: cli.md#--force-fips
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
+[`--vfs-load`]: cli.md#--vfs-loadsource
 [`ABORT_ERR`]: #abort_err
 [`BoundSocket`]: net.md#class-netboundsocket
 [`Class: DOMException`]: globals.md#class-domexception
@@ -4805,6 +4817,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`REPL`]: repl.md
 [`ServerResponse`]: http.md#class-httpserverresponse
 [`Temporal`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
+[`Worker`]: worker_threads.md#class-worker
 [`Writable`]: stream.md#class-streamwritable
 [`ZipBuffer`]: zlib.md#class-zlibzipbuffer
 [`ZipFile`]: zlib.md#class-zlibzipfile
@@ -4868,6 +4881,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`util.inspect()`]: util.md#utilinspectobject-options
 [`util.parseArgs()`]: util.md#utilparseargsconfig
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
+[`vfs.mount()`]: vfs.md#vfsmount
 [`zlib`]: zlib.md
 [crypto digest algorithm]: crypto.md#cryptogethashes
 [debugger]: debugger.md
@@ -4878,6 +4892,7 @@ An error occurred trying to allocate memory. This should never happen.
 [package map]: packages.md#package-maps
 [relative URL]: https://url.spec.whatwg.org/#relative-url-string
 [self-reference a package using its name]: packages.md#self-referencing-a-package-using-its-name
+[single executable application]: single-executable-applications.md#virtual-file-system-vfs-for-assets
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [stream-based]: stream.md
 [syscall]: https://man7.org/linux/man-pages/man2/syscalls.2.html
