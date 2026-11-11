@@ -1604,7 +1604,7 @@ If the socket is `ref`ed calling `ref` again will have no effect.
 added: v0.5.10
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67402
     description: The peer path is now reported for Unix domain sockets.
 -->
 
