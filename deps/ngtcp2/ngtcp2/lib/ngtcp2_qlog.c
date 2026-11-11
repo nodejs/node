@@ -488,7 +488,7 @@ static uint8_t *write_data_blocked_frame(uint8_t *p,
 #define NGTCP2_QLOG_DATA_BLOCKED_FRAME_OVERHEAD 57
 
   p = write_verbatim(p, "{\"frame_type\":\"data_blocked\",");
-  p = write_pair_number(p, "limit", fr->offset);
+  p = write_pair_number(p, "limit", fr->max_data);
   *p++ = '}';
 
   return p;
@@ -505,7 +505,7 @@ write_stream_data_blocked_frame(uint8_t *p,
   p = write_verbatim(p, "{\"frame_type\":\"stream_data_blocked\",");
   p = write_pair_number(p, "stream_id", (uint64_t)fr->stream_id);
   *p++ = ',';
-  p = write_pair_number(p, "limit", fr->offset);
+  p = write_pair_number(p, "limit", fr->max_stream_data);
   *p++ = '}';
 
   return p;
