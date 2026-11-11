@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#22.23.5">22.23.5</a><br/>
 <a href="#22.23.4">22.23.4</a><br/>
 <a href="#22.23.3">22.23.3</a><br/>
 <a href="#22.23.2">22.23.2</a><br/>
@@ -75,6 +76,54 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.23.5"></a>
+
+## 2026-11-11, Version 22.23.5 'Jod' (LTS), @aduh95
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2026-123863) http2: release headers when a stream is removed (Matteo Collina) – High
+* (CVE-2026-123864) tls,http: prevent nested parser execution from empty writes (Matteo Collina) – High
+* (CVE-2026-123865) http2: detect streams abandoned by nghttp2 (Matteo Collina) – High
+* (CVE-2026-123866) http2: retain buffers until socket writes finish (Matteo Collina) – High
+* (CVE-2026-123872) tls: disable resumption for mTLS with no session id context (Tim Perry) – High
+* (CVE-2026-123872) tls: don't allow renegotiation or HRR to change SNI (Tim Perry) – High
+* (CVE-2026-123872) tls: don't allow TLS resumption to change SNI (Tim Perry) – High
+* (CVE-2026-123874) http2: retain streams during pending writes (Matteo Collina) – High
+* (CVE-2026-123828) http2: avoid overflowing ALTSVC buffers (Matteo Collina) – Medium
+* (CVE-2026-123867) tls: apply the CA of SNI contexts without a certificate (Matteo Collina) – Medium
+* (CVE-2026-123868) http2: charge inbound DATA retained by streams to maxSessionMemory (Matteo Collina) – Medium
+* (CVE-2026-123871) http: redact proxy credentials in invalid proxy URL errors (Matteo Collina) – Medium
+* (CVE-2026-123875) http2: guard against null write request on cancelled stream (Matteo Collina) – Medium
+* (CVE-2026-123877) https: isolate Agent TLS policy keys (Matteo Collina) – Medium
+* (CVE-2026-123829) permission: do not leak denied descendants in recursive fs.watch (RafaelGSS) – Low
+* (CVE-2026-123862) zlib: handle params callback after destroy (Matteo Collina) – Low
+* (CVE-2026-123873) permission: check heap snapshot destination (RafaelGSS) – Low
+* deps: update llhttp to 9.4.4 (Antoine du Hamel)
+* deps: update sqlite to 3.54.1 (Node.js GitHub Bot)
+
+### Commits
+
+* \[[`554fff40f0`](https://github.com/nodejs/node/commit/554fff40f0)] - **deps**: update llhttp to 9.4.4 (Antoine du Hamel) [nodejs-private/node-private#1038](https://github.com/nodejs-private/node-private/pull/1038)
+* \[[`6577cbf231`](https://github.com/nodejs/node/commit/6577cbf231)] - **deps**: update sqlite to 3.54.1 (Node.js GitHub Bot) [#66816](https://github.com/nodejs/node/pull/66816)
+* \[[`61d93c6086`](https://github.com/nodejs/node/commit/61d93c6086)] - **deps**: update sqlite to 3.54.0 (Node.js GitHub Bot) [#66663](https://github.com/nodejs/node/pull/66663)
+* \[[`cd18f6bdff`](https://github.com/nodejs/node/commit/cd18f6bdff)] - **http**: redact proxy credentials in invalid proxy URL errors (Matteo Collina) [nodejs-private/node-private#1001](https://github.com/nodejs-private/node-private/pull/1001)
+* \[[`6cd7e80d68`](https://github.com/nodejs/node/commit/6cd7e80d68)] - **http2**: retain buffers until socket writes finish (Matteo Collina) [nodejs-private/node-private#1017](https://github.com/nodejs-private/node-private/pull/1017)
+* \[[`9bce421783`](https://github.com/nodejs/node/commit/9bce421783)] - **http2**: release headers when a stream is removed (Matteo Collina) [nodejs-private/node-private#1026](https://github.com/nodejs-private/node-private/pull/1026)
+* \[[`30fd852c0d`](https://github.com/nodejs/node/commit/30fd852c0d)] - **http2**: detect streams abandoned by nghttp2 (Matteo Collina) [#66641](https://github.com/nodejs/node/pull/66641)
+* \[[`21fb5d0348`](https://github.com/nodejs/node/commit/21fb5d0348)] - **http2**: guard against null write request on cancelled stream (Matteo Collina) [#67252](https://github.com/nodejs/node/pull/67252)
+* \[[`af6fbb6564`](https://github.com/nodejs/node/commit/af6fbb6564)] - **https**: isolate Agent TLS policy keys (Matteo Collina) [nodejs-private/node-private#1036](https://github.com/nodejs-private/node-private/pull/1036)
+* \[[`5c9eed3b1e`](https://github.com/nodejs/node/commit/5c9eed3b1e)] - **permission**: do not leak denied descendants in recursive fs.watch (RafaelGSS) [nodejs-private/node-private#967](https://github.com/nodejs-private/node-private/pull/967)
+* \[[`5e497aec89`](https://github.com/nodejs/node/commit/5e497aec89)] - **src**: fix the fs permission tree node on wildcard nodes (James M Snell) [nodejs-private/node-private#986](https://github.com/nodejs-private/node-private/pull/986)
+* \[[`06af164d09`](https://github.com/nodejs/node/commit/06af164d09)] - **tls**: disable resumption for mTLS with no session id context (Tim Perry) [nodejs-private/node-private#1030](https://github.com/nodejs-private/node-private/pull/1030)
+* \[[`209c7e4d83`](https://github.com/nodejs/node/commit/209c7e4d83)] - **tls**: don't allow renegotiation or HRR to change SNI (Tim Perry) [nodejs-private/node-private#1030](https://github.com/nodejs-private/node-private/pull/1030)
+* \[[`05e452f075`](https://github.com/nodejs/node/commit/05e452f075)] - **tls**: don't allow TLS resumption to change SNI (Tim Perry) [nodejs-private/node-private#1030](https://github.com/nodejs-private/node-private/pull/1030)
+* \[[`67da864a89`](https://github.com/nodejs/node/commit/67da864a89)] - **tls**: apply the CA of SNI contexts without a certificate (Matteo Collina) [nodejs-private/node-private#1020](https://github.com/nodejs-private/node-private/pull/1020)
+* \[[`c841c6c7f1`](https://github.com/nodejs/node/commit/c841c6c7f1)] - **tls,http**: prevent nested parser execution from empty writes (Matteo Collina) [nodejs-private/node-private#1021](https://github.com/nodejs-private/node-private/pull/1021)
+* \[[`ea159e84dd`](https://github.com/nodejs/node/commit/ea159e84dd)] - **zlib**: handle params callback after destroy (Matteo Collina) [nodejs-private/node-private#1037](https://github.com/nodejs-private/node-private/pull/1037)
 
 <a id="22.23.4"></a>
 
