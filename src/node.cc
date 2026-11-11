@@ -1412,7 +1412,8 @@ InitializeOncePerProcessInternal(
         permission::ParseEnvAllowList(env_options->allow_env);
     const bool allow_all =
         std::find(allow.begin(), allow.end(), "*") != allow.end();
-    if (env_options->permission_audit && !allow_all) {
+    if (env_options->permission_audit && !env_options->permission &&
+        !allow_all) {
       // In audit mode nothing is removed, but accesses to the variables that
       // enforcing the permission model would remove are published.
       permission::RecordAuditedEnvironmentVariables(allow);

@@ -125,6 +125,16 @@ function run(...flags) {
   assert.strictEqual(result.hasAll, false);
 }
 
+// --permission takes precedence over --permission-audit.
+{
+  const result = run(
+    '--permission', '--permission-audit', '--allow-env=PERMISSION_ENV_ALLOWED');
+  assert.deepStrictEqual(result.keys, ['PERMISSION_ENV_ALLOWED', 'TZ']);
+  assert.strictEqual(result.has.PERMISSION_ENV_SECRET, false);
+  assert.strictEqual(result.has.PERMISSION_ENV_ALLOWED, true);
+  assert.strictEqual(result.hasAll, false);
+}
+
 // --allow-env requires the permission model.
 spawnSyncAndExit(
   process.execPath,
