@@ -3534,8 +3534,12 @@ The date/time from which this certificate is valid, encapsulated in a `Date` obj
 
 If the certificate's `notBefore` time cannot be parsed, this is an invalid
 `Date` (its `getTime()` method returns `NaN`). Every relational comparison
-with an invalid `Date` evaluates to `false`, so callers should reject an
-invalid `Date` before comparing it with other dates.
+with an invalid `Date` evaluates to `false`. To check whether a certificate
+is currently valid, test that the current time is inside the validity window
+(`now >= x509.validFromDate && now <= x509.validToDate`), which rejects an
+invalid bound. Do not test whether it is outside the window
+(`now < x509.validFromDate || now > x509.validToDate`): with an invalid
+bound, that test is `false` and the certificate appears valid.
 
 ### `x509.validTo`
 
@@ -3564,8 +3568,12 @@ The date/time until which this certificate is valid, encapsulated in a `Date` ob
 
 If the certificate's `notAfter` time cannot be parsed, this is an invalid
 `Date` (its `getTime()` method returns `NaN`). Every relational comparison
-with an invalid `Date` evaluates to `false`, so callers should reject an
-invalid `Date` before comparing it with other dates.
+with an invalid `Date` evaluates to `false`. To check whether a certificate
+is currently valid, test that the current time is inside the validity window
+(`now >= x509.validFromDate && now <= x509.validToDate`), which rejects an
+invalid bound. Do not test whether it is outside the window
+(`now < x509.validFromDate || now > x509.validToDate`): with an invalid
+bound, that test is `false` and the certificate appears valid.
 
 ### `x509.signature`
 
