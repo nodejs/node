@@ -3532,14 +3532,15 @@ added:
 
 The date/time from which this certificate is valid, encapsulated in a `Date` object.
 
-If the certificate's `notBefore` time cannot be parsed, this is an invalid
-`Date` (its `getTime()` method returns `NaN`). Every relational comparison
-with an invalid `Date` evaluates to `false`. To check whether a certificate
-is currently valid, test that the current time is inside the validity window
-(`now >= x509.validFromDate && now <= x509.validToDate`), which rejects an
-invalid bound. Do not test whether it is outside the window
-(`now < x509.validFromDate || now > x509.validToDate`): with an invalid
-bound, that test is `false` and the certificate appears valid.
+If the certificate's `notBefore` time cannot be parsed, this property is an
+invalid `Date` whose `getTime()` method returns `NaN`.
+
+Relational comparisons with an invalid `Date` evaluate to `false`. To check
+whether the current time is within the certificate's validity period, use
+`now >= x509.validFromDate && now <= x509.validToDate`. This expression
+evaluates to `false` if either date is invalid. Checking
+`now < x509.validFromDate || now > x509.validToDate` instead can fail to
+reject certificates with invalid dates.
 
 ### `x509.validTo`
 
@@ -3566,14 +3567,15 @@ added:
 
 The date/time until which this certificate is valid, encapsulated in a `Date` object.
 
-If the certificate's `notAfter` time cannot be parsed, this is an invalid
-`Date` (its `getTime()` method returns `NaN`). Every relational comparison
-with an invalid `Date` evaluates to `false`. To check whether a certificate
-is currently valid, test that the current time is inside the validity window
-(`now >= x509.validFromDate && now <= x509.validToDate`), which rejects an
-invalid bound. Do not test whether it is outside the window
-(`now < x509.validFromDate || now > x509.validToDate`): with an invalid
-bound, that test is `false` and the certificate appears valid.
+If the certificate's `notAfter` time cannot be parsed, this property is an
+invalid `Date` whose `getTime()` method returns `NaN`.
+
+Relational comparisons with an invalid `Date` evaluate to `false`. To check
+whether the current time is within the certificate's validity period, use
+`now >= x509.validFromDate && now <= x509.validToDate`. This expression
+evaluates to `false` if either date is invalid. Checking
+`now < x509.validFromDate || now > x509.validToDate` instead can fail to
+reject certificates with invalid dates.
 
 ### `x509.signature`
 
