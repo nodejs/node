@@ -9,6 +9,7 @@ const fs = require('fs');
 const fsPromises = fs.promises;
 const {
   access,
+  appendFile,
   chmod,
   chown,
   copyFile,
@@ -58,6 +59,30 @@ assert.strictEqual(
       code: 'ENOENT',
       name: 'Error',
       message: /^ENOENT: no such file or directory, access/,
+      stack: /at async assert\.rejects/
+    }
+  ).then(common.mustCall());
+
+  assert.rejects(
+    readFile('this file does not exist'),
+    {
+      code: 'ENOENT',
+      stack: /at async assert\.rejects/
+    }
+  ).then(common.mustCall());
+
+  assert.rejects(
+    writeFile(path.join('this dir does not exist', 'file'), 'data'),
+    {
+      code: 'ENOENT',
+      stack: /at async assert\.rejects/
+    }
+  ).then(common.mustCall());
+
+  assert.rejects(
+    appendFile(path.join('this dir does not exist', 'file'), 'data'),
+    {
+      code: 'ENOENT',
       stack: /at async assert\.rejects/
     }
   ).then(common.mustCall());
