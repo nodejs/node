@@ -26,8 +26,8 @@ typedef const char* (*ping)(void);
 static ping ping_func;
 
 void ThrowError(Isolate* isolate, const char* message) {
-  isolate->ThrowException(Exception::Error(
-      String::NewFromUtf8(isolate, message).ToLocalChecked()));
+  isolate->ThrowException(
+      Exception::Error(String::NewFromUtf8(isolate, message).ToLocalChecked()));
 }
 
 void LoadLibrary(const FunctionCallbackInfo<Value>& args) {
@@ -55,8 +55,7 @@ void Ping(const FunctionCallbackInfo<Value>& args) {
   }
   const char* answer = ping_func();
   if (answer == nullptr) {
-    ThrowError(isolate,
-               "dlopen_pong could not be resolved (RTLD_GLOBAL)");
+    ThrowError(isolate, "dlopen_pong could not be resolved (RTLD_GLOBAL)");
     return;
   }
   args.GetReturnValue().Set(
