@@ -38,8 +38,7 @@ server.listen(0, common.mustCall(() => {
     });
     // strictSingleValueFields is enabled by default.
     assert.throws(() => session.request([
-      [':method', 'GET'],
-      [':method', 'POST'],
+      ':method', 'GET', ':method', 'POST',
     ]), {
       code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
     });
@@ -58,8 +57,7 @@ server.listen(0, common.mustCall(() => {
     swallow(session.request({ 'x-control': 'value\x01here' }));
     // relaxed/insecure mode subsumes and disables strictSingleValueFields.
     swallow(session.request([
-      [':method', 'GET'],
-      [':method', 'POST'],
+      ':method', 'GET', ':method', 'POST',
     ]));
     // Non-latin1 characters are still rejected in relaxed mode.
     assert.throws(() => session.request({ 'x-bad-char': 'oʊmɪɡə' }), {
@@ -84,8 +82,7 @@ server.listen(0, common.mustCall(() => {
     swallow(session.request({ 'x-newline': 'value\nhere' }));
     // strictSingleValueFields is disabled in insecure mode too.
     swallow(session.request([
-      [':method', 'GET'],
-      [':method', 'POST'],
+      ':method', 'GET', ':method', 'POST',
     ]));
     // The :path pseudo-header check is still enforced.
     assert.throws(() => session.request({ ':path': 'bad\u0100path' }), {
