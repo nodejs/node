@@ -110,6 +110,9 @@ typedef struct {
    HEADER frame. */
 #define NGHTTP2_DEFAULT_MAX_CONTINUATIONS 8
 
+/* The default maximum size of the outbound queue. */
+#define NGHTTP2_DEFAULT_MAX_OUTBOUND_QUEUE_SIZE 5000
+
 /* Internal state when receiving incoming frame */
 typedef enum {
   /* Receiving frame header */
@@ -280,6 +283,8 @@ struct nghttp2_session {
   /* The number of CONTINUATION frames following an incoming HEADER
      frame.  This variable is reset when END_HEADERS flag is seen. */
   size_t num_continuations;
+  /* The maximum size of the outbound queue. */
+  size_t max_outbound_queue_size;
   /* Next Stream ID. Made unsigned int to detect >= (1 << 31). */
   uint32_t next_stream_id;
   /* The last stream ID this session initiated.  For client session,

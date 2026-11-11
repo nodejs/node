@@ -162,3 +162,9 @@ void nghttp2_option_set_glitch_rate_limit(nghttp2_option *option,
   option->glitch_burst = burst;
   option->glitch_rate = rate;
 }
+
+void nghttp2_option_set_max_outbound_queue_size(nghttp2_option *option,
+                                                size_t val) {
+  option->opt_set_mask |= NGHTTP2_OPT_MAX_OUTBOUND_QUEUE_SIZE;
+  option->max_outbound_queue_size = val;
+}
