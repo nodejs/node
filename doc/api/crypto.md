@@ -6794,9 +6794,9 @@ OpenSSL-backed APIs.
 This method only affects subsequent algorithm fetches. Node.js initializes some
 OpenSSL state before application code runs. When the property query must be
 active from process startup, set `default_properties = fips=yes` in the OpenSSL
-configuration or use [`--enable-fips`][] or [`--force-fips`][]. The command-line
-flags additionally require a configured provider named `fips` to initialize and
-pass its self-test; Node.js fails to start otherwise.
+configuration or use [`--enable-fips`][] or [`--force-fips`][]. Like this method,
+the command-line flags change the property query without loading or validating
+a provider or running its self-tests.
 
 Throws an error if OpenSSL cannot change the state. FIPS mode cannot be
 disabled when Node.js was started with `--force-fips`. With OpenSSL 1.1.1,
@@ -7436,10 +7436,9 @@ default section name.
 On OpenSSL 3, the configuration above enables the `fips=yes` property query at
 startup. The following controls are also available:
 
-* [`--enable-fips`][] and [`--force-fips`][] enable the property query and
-  additionally require the configured provider named `fips` to initialize and
-  pass its self-test. Node.js exits if that check fails. `--force-fips` also
-  prevents FIPS mode from being disabled from script code. With
+* [`--enable-fips`][] and [`--force-fips`][] enable the property query at startup.
+  They do not load or validate a provider or run its self-tests. `--force-fips`
+  also prevents FIPS mode from being disabled from script code. With
   `--force-fips=strict`, Node.js also rejects non-approved operations reported
   through the OpenSSL FIPS indicator callback.
 * [`crypto.setFips()`][] changes the FIPS/property-query state. On OpenSSL 3, it

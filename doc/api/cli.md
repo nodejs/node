@@ -1177,9 +1177,11 @@ priority than `--dns-result-order`.
 added: v6.0.0
 -->
 
-Enable [FIPS mode][] at startup. With OpenSSL 3, a configured provider named
-`fips` must be available and initialize successfully. With OpenSSL 1.1.1,
-Node.js must be built against a FIPS-capable OpenSSL.
+Enable [FIPS mode][] at startup. With OpenSSL 3, this adds `fips=yes` to
+OpenSSL's default property query. This does not load or validate a FIPS
+provider or run its self-tests. Configure OpenSSL to load the provider
+separately. With OpenSSL 1.1.1, Node.js must be built against a FIPS-capable
+OpenSSL.
 
 ### `--enable-fips-indicator-events`
 
@@ -1745,7 +1747,8 @@ changes:
 -->
 
 Enable [FIPS mode][] at startup and prevent it from being disabled from script
-code. The same OpenSSL requirements as [`--enable-fips`][] apply.
+code. With OpenSSL 3, this changes the default property query as described for
+[`--enable-fips`][].
 
 An optional mode can be specified using `--force-fips=mode`:
 
