@@ -46,6 +46,7 @@ const main = () => {
       a = a.slice(0, indexOfEqualSign)
       argv.unshift(value)
     }
+
     switch (a) {
       case '-rv': case '-rev': case '--rev': case '--reverse':
         reverse = true
@@ -60,15 +61,10 @@ const main = () => {
         versions.push(argv.shift())
         break
       case '-i': case '--inc': case '--increment':
-        switch (argv[0]) {
-          case 'major': case 'minor': case 'patch': case 'prerelease':
-          case 'premajor': case 'preminor': case 'prepatch':
-          case 'release':
-            inc = argv.shift()
-            break
-          default:
-            inc = 'patch'
-            break
+        if (semver.RELEASE_TYPES.includes(argv[0]) || (argv[0] === 'release')) {
+          inc = { value: argv.shift(), maybeErrantValue: null, option: a }
+        } else {
+          inc = { value: 'patch', maybeErrantValue: argv[0], option: a }
         }
         break
       case '--preid':
@@ -102,6 +98,14 @@ const main = () => {
 
   options = parseOptions({ loose, includePrerelease, rtl })
 
+  if (
+    inc &&
+    versions.includes(inc.maybeErrantValue) &&
+    !semver.valid(inc.maybeErrantValue, options)
+  ) {
+    console.warn(`Invalid value for ${inc.option}; defaulting to 'patch'. This may become a failure in future major versions.`)
+  }
+
   versions = versions.map((v) => {
     return coerce ? (semver.coerce(v, options) || { version: v }).version : v
   }).filter((v) => {
@@ -125,7 +129,7 @@ const main = () => {
   versions
     .sort((a, b) => semver[reverse ? 'rcompare' : 'compare'](a, b, options))
     .map(v => semver.clean(v, options))
-    .map(v => inc ? semver.inc(v, inc, options, identifier, identifierBase) : v)
+    .map(v => inc ? semver.inc(v, inc.value, options, identifier, identifierBase) : v)
     .forEach(v => console.log(v))
 }
 

@@ -181,7 +181,7 @@ t.test('invalid packument', async t => {
 })
 
 t.test('workspaces', async t => {
-  const loadWorkspaces = (t) => loadMockNpm(t, {
+  const loadWorkspaces = (t, config = { workspaces: true }) => loadMockNpm(t, {
     prefixDir: {
       'package.json': JSON.stringify(
         {
@@ -206,7 +206,7 @@ t.test('workspaces', async t => {
       },
     },
     config: {
-      workspaces: true,
+      ...config,
       // TODO: this is a workaround for npm run test-all
       // somehow leaking include-workspace-root
       'include-workspace-root': false,
@@ -226,8 +226,10 @@ t.test('workspaces', async t => {
   })
 
   t.test('one workspace', async t => {
-    const { npm, outputs } = await loadWorkspaces(t)
-    await npm.exec('pack', ['workspace-a'])
+    const { npm, outputs } = await loadWorkspaces(t, {
+      workspace: ['workspace-a'],
+    })
+    await npm.exec('pack', [])
     t.strictSame(outputs, ['workspace-a-1.0.0.tgz'])
   })
 
