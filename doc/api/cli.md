@@ -1778,6 +1778,16 @@ added:
 
 Enable experimental support for the worker inspection with Chrome DevTools.
 
+### `--experimental-yaml`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Enable the experimental [`node:yaml`][] module.
+
 ### `--force-context-aware`
 
 <!-- YAML
@@ -4334,6 +4344,7 @@ one is included in the list below.
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-websocket`
+* `--experimental-yaml`
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
@@ -5009,6 +5020,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
 [`node:vfs`]: vfs.md
+[`node:yaml`]: yaml.md
 [`permission.drop()`]: permissions.md#permissiondropscope-reference
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`session.connectToMainThread()`]: inspector.md#sessionconnecttomainthread
