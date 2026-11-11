@@ -18,6 +18,7 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::ConstructorBehavior;
@@ -162,8 +163,8 @@ int StreamBase::ReadStopJS(const FunctionCallbackInfo<Value>& args) {
 int StreamBase::UseUserBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(Buffer::HasInstance(args[0]));
 
-  uv_buf_t buf = uv_buf_init(Buffer::Data(args[0]), Buffer::Length(args[0]));
-  PushStreamListener(new CustomBufferJSListener(buf));
+  PushStreamListener(
+      new CustomBufferJSListener(args.This(), args[0].As<ArrayBufferView>()));
   return 0;
 }
 
@@ -765,9 +766,44 @@ void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   stream->CallJSOnreadMethod(nread, ab, offset);
 }
 
+CustomBufferJSListener::CustomBufferJSListener(Local<Object> object,
+                                               Local<ArrayBufferView> view) {
+  SetBuffer(object, view);
+}
+
+void CustomBufferJSListener::SetBuffer(Local<Object> object,
+                                       Local<ArrayBufferView> view) {
+  // Keep the view's lifetime tied to the wrapper without a strong global root.
+  object->SetInternalField(StreamBase::kUserBufferField, view);
+  backing_store_ = view->Buffer()->GetBackingStore();
+}
 
 uv_buf_t CustomBufferJSListener::OnStreamAlloc(size_t suggested_size) {
-  return buffer_;
+  CHECK_NOT_NULL(stream_);
+  StreamBase* stream = static_cast<StreamBase*>(stream_);
+  Environment* env = stream->stream_env();
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+
+  Local<ArrayBufferView> view =
+      stream->GetAsyncWrap()
+          ->object()
+          ->GetInternalField(StreamBase::kUserBufferField)
+          .As<ArrayBufferView>();
+  if (!backing_store_->IsImmutable()) {
+    // SetBuffer() materializes the backing store, so this cannot copy.
+    const auto contents = view->GetContents({});
+    if (!contents.empty()) {
+      buffer_ = uv_buf_init(reinterpret_cast<char*>(contents.data()),
+                            contents.size());
+      return buffer_;
+    }
+  }
+
+  // Allocation must return a usable buffer. Report the invalid view when the
+  // read completes, without writing into the user's former backing store.
+  using_fallback_buffer_ = true;
+  return env->allocate_managed_buffer(suggested_size);
 }
 
 
@@ -778,6 +814,13 @@ void CustomBufferJSListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   Environment* env = stream->stream_env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
+
+  if (using_fallback_buffer_) {
+    using_fallback_buffer_ = false;
+    env->recycle_managed_buffer(env->release_managed_buffer(buf));
+    stream->CallJSOnreadMethod(UV_EINVAL, Local<ArrayBuffer>());
+    return;
+  }
 
   // In the case that there's an error and buf is null, return immediately.
   // This can happen on unices when POLLHUP is received and UV_EOF is returned
@@ -795,8 +838,9 @@ void CustomBufferJSListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
                              StreamBase::SKIP_NREAD_CHECKS);
   Local<Value> next_buf_v;
   if (ret.ToLocal(&next_buf_v) && !next_buf_v->IsUndefined()) {
-    buffer_.base = Buffer::Data(next_buf_v);
-    buffer_.len = Buffer::Length(next_buf_v);
+    CHECK(Buffer::HasInstance(next_buf_v));
+    SetBuffer(stream->GetAsyncWrap()->object(),
+              next_buf_v.As<ArrayBufferView>());
   }
 }
 
