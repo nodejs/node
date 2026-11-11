@@ -3517,6 +3517,9 @@ added: v15.6.0
 
 The date/time from which this certificate is valid.
 
+If the certificate's `notBefore` time cannot be parsed, this is the string
+`'Bad time value'`.
+
 ### `x509.validFromDate`
 
 <!-- YAML
@@ -3529,6 +3532,11 @@ added:
 
 The date/time from which this certificate is valid, encapsulated in a `Date` object.
 
+If the certificate's `notBefore` time cannot be parsed, this is an invalid
+`Date` (its `getTime()` method returns `NaN`). Every relational comparison
+with an invalid `Date` evaluates to `false`, so callers should reject an
+invalid `Date` before comparing it with other dates.
+
 ### `x509.validTo`
 
 <!-- YAML
@@ -3538,6 +3546,9 @@ added: v15.6.0
 * Type: {string}
 
 The date/time until which this certificate is valid.
+
+If the certificate's `notAfter` time cannot be parsed, this is the string
+`'Bad time value'`.
 
 ### `x509.validToDate`
 
@@ -3550,6 +3561,11 @@ added:
 * Type: {Date}
 
 The date/time until which this certificate is valid, encapsulated in a `Date` object.
+
+If the certificate's `notAfter` time cannot be parsed, this is an invalid
+`Date` (its `getTime()` method returns `NaN`). Every relational comparison
+with an invalid `Date` evaluates to `false`, so callers should reject an
+invalid `Date` before comparing it with other dates.
 
 ### `x509.signature`
 
