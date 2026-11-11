@@ -1438,28 +1438,133 @@ constexpr SpkiHash kBlockedSPKIs[] = {
      0xfc, 0xd8, 0xdd, 0x55, 0xa8, 0x75, 0xd7, 0x20, 0xaa, 0xc2},
 };
 
+// Roots that stay in the bundle but whose trust for TLS server certificates
+// is limited by issuance date, mirroring Mozilla's
+// CKA_NSS_SERVER_DISTRUST_AFTER in certdata.txt. When a client verifies a
+// server chain through one of these keys and the leaf certificate's
+// notBefore is after the cutoff, the chain is rejected; certificates issued
+// up to the cutoff keep working. Client certificates are not affected, see
+// CertVerifyCallback. tools/mk-ca-bundle.pl does not carry this attribute
+// into node_root_certs.h, so the dates are maintained here. The cutoff is
+// the last valid second, as UTC seconds since the epoch.
+//
+// Node.js has no Certificate Transparency checking, so unlike Firefox it
+// cannot detect a backdated notBefore. The same limitation applied to the
+// StartCom/WoSign cutoff Node.js enforced in 2016.
+struct DistrustAfter {
+  SpkiHash spki;
+  time_t cutoff;
+};
+
+constexpr DistrustAfter kDistrustAfter[] = {
+    // emSign Root CA - G1, cutoff 2026-11-16 23:59:59 UTC.
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=2089115
+    // 40f6af0346a99aa1cd1d555a4e9cce62c7f9634603ee406615833dc8c8d00367
+    // C=IN, OU=emSign PKI, O=eMudhra Technologies Limited,
+    // CN=emSign Root CA - G1
+    {{0x37, 0x6a, 0x1a, 0x70, 0x82, 0xa5, 0x93, 0xdc, 0xcc, 0x20, 0xd5,
+      0x61, 0xd1, 0x19, 0xe9, 0xab, 0x8d, 0x30, 0xf1, 0x1c, 0xc3, 0x21,
+      0xd0, 0xa3, 0x7f, 0xa4, 0x1f, 0x0d, 0xf2, 0x84, 0xe0, 0x1c},
+     1794873599},  // $ date -u -d @1794873599 = 2026-11-16 23:59:59 UTC
+    // Izenpe.com, cutoff 2026-04-15 23:59:59 UTC.
+    // CKA_NSS_SERVER_DISTRUST_AFTER in tools/certdata.txt
+    // 2530cc8e98321502bad96f9b1fba1b099e2d299e0f4548bb914f363bc0d4531f
+    // C=ES, O=IZENPE S.A., CN=Izenpe.com
+    {{0x95, 0x2c, 0x20, 0x39, 0xc0, 0x24, 0x3e, 0xb5, 0x15, 0xdd, 0x73,
+      0xd8, 0x3f, 0xc3, 0x64, 0x31, 0x84, 0x87, 0x4f, 0xeb, 0x08, 0x62,
+      0xa9, 0x83, 0x77, 0x31, 0xed, 0x9b, 0x47, 0x42, 0xe1, 0x7a},
+     1776297599},  // $ date -u -d @1776297599 = 2026-04-15 23:59:59 UTC
+    // Autoridad de Certificacion Firmaprofesional CIF A62634068 (2014 root),
+    // cutoff 2026-08-06 07:01:00 UTC.
+    // CKA_NSS_SERVER_DISTRUST_AFTER in Mozilla's certdata.txt, newer than the
+    // copy in tools/certdata.txt
+    // 57de0583efd2b26e0361da99da9df4648def7ee8441c3b728afa9bcde0f9b26a
+    // C=ES, CN=Autoridad de Certificacion Firmaprofesional CIF A62634068
+    {{0x3b, 0x0d, 0x73, 0xb4, 0xbe, 0x4a, 0x85, 0x4a, 0xdc, 0x3e, 0x51,
+      0xd7, 0xef, 0x9f, 0xa4, 0x8a, 0xef, 0xbb, 0x2c, 0xdd, 0x82, 0x4d,
+      0x67, 0xbd, 0xc7, 0xd7, 0xd0, 0x9a, 0x2a, 0xbc, 0x2d, 0x43},
+     1785999660},  // $ date -u -d @1785999660 = 2026-08-06 07:01:00 UTC
+    // Test fixture, not a real CA: test/fixtures/keys/distrust-after-ca-key.pem
+    // with a cutoff of 2019-12-31 23:59:59 UTC. Its private key is public, so
+    // date-limiting it costs nothing and lets
+    // test/parallel/test-tls-distrust-after.js exercise the real list. The
+    // key is pinned in the fixtures Makefile; rotating it means updating this
+    // entry too.
+    // C=US, ST=CA, L=SF, O=Joyent, OU=Node.js, CN=distrust-after-ca
+    {{0x76, 0xf8, 0xf8, 0x4a, 0xd8, 0x4f, 0x02, 0x4a, 0x56, 0xc7, 0x0c,
+      0x0f, 0xd5, 0xff, 0x21, 0x72, 0x18, 0x11, 0x3b, 0xca, 0x81, 0x44,
+      0x5f, 0xe9, 0x23, 0x8d, 0xc1, 0xad, 0x06, 0xb9, 0xa5, 0xd8},
+     1577836799},  // $ date -u -d @1577836799 = 2019-12-31 23:59:59 UTC
+};
+
 enum class SpkiCheck { kAllowed, kBlocked, kError };
 
-// Hashes the DER-encoded SubjectPublicKeyInfo of `cert` and looks it up in
-// the blocklist. A failure to encode or hash is reported as kError rather
-// than kAllowed so that it cannot be used to slip past the check.
-SpkiCheck CheckSPKI(X509* cert) {
-  if (cert == nullptr) return SpkiCheck::kAllowed;
+// Hashes the DER-encoded SubjectPublicKeyInfo of `cert` into `*digest`.
+// Returns false if the key could not be encoded or hashed.
+bool HashSPKI(X509* cert, SpkiHash* digest) {
   uint8_t* spki = nullptr;
   int spki_len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(cert), &spki);
-  if (spki_len <= 0) return SpkiCheck::kError;
-  SpkiHash digest;
+  if (spki_len <= 0) return false;
   unsigned int digest_len = 0;
   int ok = EVP_Digest(spki,
                       static_cast<size_t>(spki_len),
-                      digest.data(),
+                      digest->data(),
                       &digest_len,
                       Digest::SHA256,
                       nullptr);
   OPENSSL_free(spki);
-  if (ok != 1 || digest_len != digest.size()) return SpkiCheck::kError;
+  return ok == 1 && digest_len == digest->size();
+}
+
+// Looks up the SubjectPublicKeyInfo of `cert` in the blocklist. A failure
+// to encode or hash is reported as kError rather than kAllowed so that it
+// cannot be used to slip past the check.
+SpkiCheck CheckSPKI(X509* cert) {
+  if (cert == nullptr) return SpkiCheck::kAllowed;
+  SpkiHash digest;
+  if (!HashSPKI(cert, &digest)) return SpkiCheck::kError;
   for (const auto& blocked : kBlockedSPKIs) {
     if (digest == blocked) return SpkiCheck::kBlocked;
+  }
+  return SpkiCheck::kAllowed;
+}
+
+// Applies kDistrustAfter to `leaf` for a chain containing `cert`: kBlocked
+// when `cert` is a date-limited root and `leaf` was issued after its cutoff,
+// kError when the key or the date could not be read.
+SpkiCheck CheckDistrustAfter(X509* cert, X509* leaf) {
+  if (cert == nullptr || leaf == nullptr) return SpkiCheck::kAllowed;
+  SpkiHash digest;
+  if (!HashSPKI(cert, &digest)) return SpkiCheck::kError;
+  for (const auto& entry : kDistrustAfter) {
+    if (digest != entry.spki) continue;
+    time_t cutoff = entry.cutoff;
+    // X509_cmp_time returns 1 when notBefore is later than cutoff, -1 when
+    // earlier or equal, and 0 when the time could not be parsed. A leaf
+    // issued exactly at the cutoff second is therefore still accepted.
+    int cmp = X509_cmp_time(X509_get0_notBefore(leaf), &cutoff);
+    if (cmp == 0) return SpkiCheck::kError;
+    if (cmp > 0) return SpkiCheck::kBlocked;
+  }
+  return SpkiCheck::kAllowed;
+}
+
+// Checks every certificate in `certs` against kDistrustAfter for `leaf`. On
+// kBlocked or kError, `*offender` points at the date-limited certificate and
+// `*depth` is its index in `certs`.
+SpkiCheck CheckDistrustAfterChain(const STACK_OF(X509) * certs,
+                                  X509* leaf,
+                                  X509** offender,
+                                  int* depth) {
+  if (certs == nullptr) return SpkiCheck::kAllowed;
+  for (OPENSSL_SIZE_T i = 0; i < sk_X509_num(certs); i++) {
+    X509* cert = sk_X509_value(certs, i);
+    SpkiCheck result = CheckDistrustAfter(cert, leaf);
+    if (result != SpkiCheck::kAllowed) {
+      *offender = cert;
+      *depth = i;
+      return result;
+    }
   }
   return SpkiCheck::kAllowed;
 }
@@ -1485,12 +1590,13 @@ SpkiCheck CheckSPKIs(const STACK_OF(X509) * certs,
 
 // Installed with SSL_CTX_set_cert_verify_callback on every SSL_CTX Node.js
 // creates. It wraps X509_verify_cert so that a chain through a blocked
-// public key is reported as X509_V_ERR_CERT_REVOKED even when the trust
-// store would accept it. The built chain is always checked; when
-// verification did not fully succeed (TLSWrap's per-certificate callback
-// continues past errors so JS can apply rejectUnauthorized, leaving the
-// error set on the context), the leaf and every peer-sent certificate are
-// checked too, so the blocklist takes precedence over the original error.
+// public key, or through a date-limited root with a leaf issued after the
+// cutoff, is reported as X509_V_ERR_CERT_REVOKED even when the trust store
+// would accept it. The built chain is always checked; when verification did
+// not fully succeed (TLSWrap's per-certificate callback continues past
+// errors so JS can apply rejectUnauthorized, leaving the error set on the
+// context), the leaf and every peer-sent certificate are checked too, so
+// these checks take precedence over the original error.
 //
 // A hit is reported like any other X509_verify_cert error: the error and
 // offending certificate are recorded on the context and the per-certificate
@@ -1531,22 +1637,54 @@ int CertVerifyCallback(X509_STORE_CTX* ctx, void*) {
   int ok = X509_verify_cert(ctx) > 0 ? 1 : 0;
   const bool verified = ok == 1 && X509_STORE_CTX_get_error(ctx) == X509_V_OK;
 
+  // The SSL object this verification belongs to. The library installs its
+  // per-certificate verify callback on the store context before calling this
+  // hook, and SSL_is_server tells which side of the handshake is verifying.
+  SSL* ssl = static_cast<SSL*>(
+      X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx()));
+
   // The depth is the offender's index in the built chain (0 = leaf), as
   // X509_verify_cert would report it. For certificates found only in the
   // peer-sent stack their index there is the closest equivalent.
   X509* offender = nullptr;
   int depth = 0;
-  SpkiCheck result =
-      CheckSPKIs(X509_STORE_CTX_get0_chain(ctx), &offender, &depth);
+  X509* leaf = X509_STORE_CTX_get0_cert(ctx);
+  const STACK_OF(X509)* chain = X509_STORE_CTX_get0_chain(ctx);
+  const STACK_OF(X509)* untrusted = X509_STORE_CTX_get0_untrusted(ctx);
+
+  // The SPKI blocklist applies to every verification: those keys are not
+  // trusted for anything.
+  SpkiCheck result = CheckSPKIs(chain, &offender, &depth);
   if (result == SpkiCheck::kAllowed && !verified) {
-    X509* leaf = X509_STORE_CTX_get0_cert(ctx);
     result = CheckSPKI(leaf);
     if (result != SpkiCheck::kAllowed) {
       offender = leaf;
       depth = 0;
     } else {
-      result =
-          CheckSPKIs(X509_STORE_CTX_get0_untrusted(ctx), &offender, &depth);
+      result = CheckSPKIs(untrusted, &offender, &depth);
+    }
+  }
+
+  // The distrust-after dates apply only when this side is a client verifying
+  // a server certificate. CKA_NSS_SERVER_DISTRUST_AFTER is Mozilla's TLS
+  // server authentication policy; Firefox does not validate client
+  // certificates against its root store at all, and the roots stay fully
+  // trusted anchors for everything else. Several of the date-limited CAs are
+  // large issuers of personal certificates used for client authentication,
+  // so a server validating client certificates against the bundled store
+  // keeps accepting them. This is the same scope the 2016 StartCom/WoSign
+  // cutoff had ("Server does not need to check the whitelist", 89217d14509).
+  const bool verifying_server_cert = ssl == nullptr || !SSL_is_server(ssl);
+  if (result == SpkiCheck::kAllowed && verifying_server_cert) {
+    result = CheckDistrustAfterChain(chain, leaf, &offender, &depth);
+    if (result == SpkiCheck::kAllowed && !verified) {
+      result = CheckDistrustAfter(leaf, leaf);
+      if (result != SpkiCheck::kAllowed) {
+        offender = leaf;
+        depth = 0;
+      } else {
+        result = CheckDistrustAfterChain(untrusted, leaf, &offender, &depth);
+      }
     }
   }
   if (result == SpkiCheck::kAllowed) return ok;
@@ -1565,10 +1703,8 @@ int CertVerifyCallback(X509_STORE_CTX* ctx, void*) {
   X509_STORE_CTX_set_error_depth(ctx, depth);
   X509_STORE_CTX_set_current_cert(ctx, offender);
 #endif
-  // The per-certificate callback is the one carried by the SSL object; it is
-  // what the library installs on the store context before calling this hook.
-  SSL* ssl = static_cast<SSL*>(
-      X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx()));
+  // Hand the error to the per-certificate callback carried by the SSL object
+  // so that rejectUnauthorized and authorizationError behave as usual.
   auto verify_cb = ssl != nullptr ? SSL_get_verify_callback(ssl) : nullptr;
   if (verify_cb == nullptr) return 0;
   return verify_cb(0, ctx) ? 1 : 0;

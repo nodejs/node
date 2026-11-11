@@ -1,0 +1,49 @@
+[ ca ]
+default_ca      = CA_default
+
+[ CA_default ]
+dir = .
+name_opt = CA_default
+cert_opt = CA_default
+default_crl_days = 9999
+default_md = sha256
+database = distrust-after-ca-database.txt
+serial = distrust-after-ca-serial
+private_key = distrust-after-ca-key.pem
+certificate = distrust-after-ca-cert.pem
+new_certs_dir = distrust-after-ca-issued-certs
+email_in_dn = no
+unique_subject = no
+policy          = policy_anything
+
+[ policy_anything ]
+countryName             = optional
+stateOrProvinceName     = optional
+localityName            = optional
+organizationName        = optional
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ req ]
+default_bits           = 2048
+days                   = 9999
+distinguished_name     = req_distinguished_name
+attributes             = req_attributes
+prompt                 = no
+x509_extensions        = v3_ca
+
+[ req_distinguished_name ]
+C                      = US
+ST                     = CA
+L                      = SF
+O                      = Joyent
+OU                     = Node.js
+CN                     = distrust-after-ca
+emailAddress           = distrust-after-ca@example.org
+
+[ req_attributes ]
+challengePassword              = A challenge password
+
+[ v3_ca ]
+basicConstraints = CA:TRUE
