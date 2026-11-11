@@ -555,13 +555,14 @@ nghttp3_ssize nghttp3_conn_read_stream2(nghttp3_conn *conn, int64_t stream_id,
     return 0;
   }
 
+  if (fin) {
+    stream->flags |= NGHTTP3_STREAM_FLAG_READ_EOF;
+  }
+
   if (nghttp3_stream_uni(stream_id)) {
     return nghttp3_conn_read_uni(conn, stream, src, srclen, fin, ts);
   }
 
-  if (fin) {
-    stream->flags |= NGHTTP3_STREAM_FLAG_READ_EOF;
-  }
   return nghttp3_conn_read_bidi(conn, &bidi_nproc, stream, src, srclen, fin,
                                 ts);
 }
@@ -1126,6 +1127,13 @@ nghttp3_ssize nghttp3_conn_read_control(nghttp3_conn *conn,
         break;
       }
 
+      /* Apply buffer limits here even if everything is in the input
+         buffer. */
+      if (rstate->left > sizeof(conn->rx.pri_fieldbuf)) {
+        rstate->state = NGHTTP3_CTRL_STREAM_STATE_IGN_FRAME;
+        break;
+      }
+
       conn->rx.pri_fieldbuflen = 0;
 
       rstate->state = NGHTTP3_CTRL_STREAM_STATE_PRIORITY_UPDATE;
@@ -1141,22 +1149,12 @@ nghttp3_ssize nghttp3_conn_read_control(nghttp3_conn *conn,
       len = (size_t)nghttp3_min(rstate->left, (uint64_t)(end - p));
       assert(len > 0);
       if (conn->rx.pri_fieldbuflen == 0 && rstate->left == len) {
-        /* Everything is in the input buffer.  Apply same length
-           limit we impose when buffering the field. */
-        if (len > sizeof(conn->rx.pri_fieldbuf)) {
-          busy = 1;
-          rstate->state = NGHTTP3_CTRL_STREAM_STATE_IGN_FRAME;
-          break;
-        }
-
+        /* Everything is in the input buffer. */
         pri_field_value = p;
         pri_field_valuelen = len;
-      } else if (len + conn->rx.pri_fieldbuflen >
-                 sizeof(conn->rx.pri_fieldbuf)) {
-        busy = 1;
-        rstate->state = NGHTTP3_CTRL_STREAM_STATE_IGN_FRAME;
-        break;
       } else {
+        assert(len + conn->rx.pri_fieldbuflen <= sizeof(conn->rx.pri_fieldbuf));
+
         memcpy(conn->rx.pri_fieldbuf + conn->rx.pri_fieldbuflen, p, len);
         conn->rx.pri_fieldbuflen += len;
 
@@ -1975,6 +1973,12 @@ int nghttp3_conn_on_settings_entry_received(nghttp3_conn *conn,
       break;
     }
 
+#if SIZE_MAX < UINT64_MAX
+    if (ent->value > SIZE_MAX) {
+      return NGHTTP3_ERR_H3_SETTINGS_ERROR;
+    }
+#endif /* SIZE_MAX < UINT64_MAX */
+
     dest->qpack_max_dtable_capacity = (size_t)ent->value;
 
     nghttp3_qpack_encoder_set_max_dtable_capacity(&conn->qenc,
@@ -1988,6 +1992,12 @@ int nghttp3_conn_on_settings_entry_received(nghttp3_conn *conn,
     if (ent->value == 0) {
       break;
     }
+
+#if SIZE_MAX < UINT64_MAX
+    if (ent->value > SIZE_MAX) {
+      return NGHTTP3_ERR_H3_SETTINGS_ERROR;
+    }
+#endif /* SIZE_MAX < UINT64_MAX */
 
     dest->qpack_blocked_streams = (size_t)ent->value;
 
@@ -2956,6 +2966,8 @@ int nghttp3_conn_set_client_stream_priority(nghttp3_conn *conn,
 
     memcpy(buf, data, datalen);
   }
+
+  assert(conn->tx.ctrl);
 
   rv = nghttp3_stream_frq_emplace(conn->tx.ctrl, &fr);
   if (rv != 0) {
