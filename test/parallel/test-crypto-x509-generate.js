@@ -389,7 +389,7 @@ for (const [type, options] of [
 
 {
   const keys = generateKeyPairSync('ec', { namedCurve: 'P-256' });
-  const passphrase = 'secret';
+  const passphrase = 'top secret';
   const encryptedPrivateKey = keys.privateKey.export({
     type: 'pkcs8',
     format: 'pem',
