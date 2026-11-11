@@ -7,7 +7,7 @@ added:
   - v19.7.0
   - v18.16.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.1.0
     pr-url: https://github.com/nodejs/node/pull/66768
     description: Allowed "useCodeCache" together with "useVfs".
   - version: v25.5.0

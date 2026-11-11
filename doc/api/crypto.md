@@ -3155,7 +3155,7 @@ the given private key.
 ### `x509.extensions`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.1.0
 -->
 
 * Type: {Object\[]}
@@ -3287,7 +3287,7 @@ available.
 ### `x509.issuerName`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.1.0
 -->
 
 * Type: {Object}
@@ -3413,7 +3413,7 @@ to handle both possible entry formats.
 ### `x509.subjectName`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.1.0
 -->
 
 * Type: {Object}
@@ -3458,7 +3458,7 @@ subject name cannot be inspected.
 ### `x509.tbs`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.1.0
 -->
 
 * Type: {Buffer}
@@ -3554,7 +3554,7 @@ The date/time until which this certificate is valid, encapsulated in a `Date` ob
 ### `x509.signature`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.1.0
 -->
 
 * Type: {Object}
@@ -3618,7 +3618,7 @@ The OID of the algorithm used to sign the certificate.
 ### `x509.version`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.1.0
 -->
 
 * Type: {number}
@@ -5252,7 +5252,7 @@ the process unresponsive.
 ### `crypto.generateX509Certificate(options, callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.1.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -5495,7 +5495,7 @@ rejection of duplicate extension OIDs exposed by inspection.
 ### `crypto.generateX509CertificateSync(options)`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.1.0
 -->
 
 > Stability: 1.2 - Release candidate
