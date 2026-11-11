@@ -50,6 +50,9 @@ SYMFILE="${OUTPUT}.syms"
 # results in different field counts. The awk script handles both cases by using
 # an associative array V[] to map field values to their export suffixes.
 
+# This is to bypass the lint-sh job from saying "Expressions don't expand in
+# single quotes, use double quotes for that." which is invalid for this case
+# shellcheck disable=SC2016
 DUMP_AWK='
 BEGIN {
     V["EXPORTED"]=" export"
