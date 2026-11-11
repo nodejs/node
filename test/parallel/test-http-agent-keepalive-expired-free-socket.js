@@ -96,6 +96,39 @@ function testMaxSockets(next) {
   }));
 }
 
+// A destroyed socket can stay in the free pool until its 'close' event. A
+// request made before that event must not get it.
+function testDestroyedSocket(next) {
+  const server = http.createServer(common.mustCall((req, res) => {
+    res.end('ok');
+  }, 3));
+  // No Keep-Alive hint from the server, so the pooled sockets have no idle
+  // timeout and cannot expire.
+  server.keepAliveTimeout = 0;
+
+  server.listen(0, common.mustCall(() => {
+    const agent = new http.Agent({ keepAlive: true });
+    const { port } = server.address();
+
+    fillPool(agent, port, 2, common.mustCall(() => {
+      const [first, last] = Object.values(agent.freeSockets)[0];
+      last.destroy();
+      const req = http.get({ port, agent }, common.mustCall((res) => {
+        assert.strictEqual(req.socket, first);
+        res.resume();
+        res.on('end', common.mustCall(() => {
+          agent.destroy();
+          server.close(next);
+        }));
+      }));
+      assert.strictEqual(req.reusedSocket, true);
+      assert.strictEqual(agent.totalSocketCount, 1);
+      assert.strictEqual(count(agent.freeSockets), 0);
+      assert.strictEqual(count(agent.sockets), 1);
+    }));
+  }));
+}
+
 // addRequest() reads the timers' clock through a fast API call when it takes a
 // socket from the pool; the optimized function must be able to make it.
 function testOptimizedAddRequest(next) {
@@ -147,6 +180,7 @@ const cases = [
   // A socket without an idle timeout is not expired by the clock.
   (next) => testReuse({}, 300, true, next),
   testMaxSockets,
+  testDestroyedSocket,
   testOptimizedAddRequest,
 ];
 
