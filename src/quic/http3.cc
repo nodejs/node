@@ -543,7 +543,14 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   void StreamRemoved(stream_id id) override {
-    if (conn_) nghttp3_conn_set_stream_user_data(*this, id, nullptr);
+    if (!conn_) return;
+    // Once the Stream is gone, nothing can supply its body data. Stop
+    // nghttp3 from writing to it. Otherwise a response whose headers were
+    // submitted but not yet sent makes nghttp3 call on_read_data_callback
+    // for a stream that no longer exists, which fails and closes the
+    // whole session.
+    nghttp3_conn_shutdown_stream_write(*this, id);
+    nghttp3_conn_set_stream_user_data(*this, id, nullptr);
   }
 
   bool SendHeaders(Stream& stream,
