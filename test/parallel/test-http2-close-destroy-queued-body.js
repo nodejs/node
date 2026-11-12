@@ -22,9 +22,9 @@ server.on('stream', common.mustCall((stream) => {
   req.close();
   req.destroy();
 
-  stream.on('error', common.expectsError({
-    code: 'ERR_HTTP2_STREAM_ABORTED',
-  }));
+  // On this release line a clean reset before the body ends closes the
+  // stream without an error.
+  stream.on('error', common.mustNotCall());
   stream.on('close', common.mustCall(() => {
     assert.strictEqual(stream.rstCode, NGHTTP2_NO_ERROR);
     server.close();
