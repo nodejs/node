@@ -373,7 +373,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   if (args[2]->IsObject())
     send_handle_obj = args[2].As<Object>();
 
-  // Compute the size of the storage that the string will be flattened into.
+  // Compute the size of the storage that the string will be written into.
   // For UTF8 strings that are very long, go ahead and take the hit for
   // computing their actual size, rather than tripling the storage.
   size_t storage_size;
@@ -397,15 +397,15 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
                    (!IsIPCPipe() || send_handle_obj.IsEmpty());
   if (try_write) {
     const size_t length = string->Length();
-    if (enc == LATIN1 && string->IsOneByte()) {
+    if ((enc == ASCII || enc == LATIN1) && string->IsOneByte()) {
       // WriteOneByte() does not flatten the string.
       string->WriteOneByte(
           isolate, 0, length, reinterpret_cast<uint8_t*>(stack_storage));
       data_size = length;
-    } else if (enc == UTF8 && string->IsOneByte() &&
-               storage_size >= 3 * length) {
+    } else if (enc == UTF8 && string->IsOneByte()) {
       // Latin-1 takes at most 2 UTF-8 bytes per char: convert from the last
       // third into the first two.
+      DCHECK_GE(storage_size, 3 * length);
       char* latin1 = stack_storage + 2 * length;
       string->WriteOneByte(
           isolate, 0, length, reinterpret_cast<uint8_t*>(latin1));
