@@ -200,6 +200,10 @@ class ThreadSafeDelegate : public InspectorSessionDelegate {
 MainThreadInterface::MainThreadInterface(Agent* agent) : agent_(agent) {}
 
 MainThreadInterface::~MainThreadInterface() {
+  Disconnect();
+}
+
+void MainThreadInterface::Disconnect() {
   if (handle_)
     handle_->Reset();
 }

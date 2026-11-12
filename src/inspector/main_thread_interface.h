@@ -80,6 +80,7 @@ class MainThreadInterface :
   explicit MainThreadInterface(Agent* agent);
   ~MainThreadInterface();
 
+  void Disconnect();
   void DispatchMessages();
   void Post(std::unique_ptr<Request> request);
   bool WaitForFrontendEvent();

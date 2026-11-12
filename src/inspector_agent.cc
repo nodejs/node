@@ -535,6 +535,11 @@ class NodeInspectorClient : public V8InspectorClient {
     }
   }
 
+  ~NodeInspectorClient() override {
+    // Close the handle before the interface can lose its last strong reference.
+    if (interface_) interface_->Disconnect();
+  }
+
   void runMessageLoopOnPause(int context_group_id) override {
     waiting_for_resume_ = true;
     runMessageLoop();
