@@ -1,6 +1,6 @@
-node:internal/modules/run_main:<line>
-    triggerUncaughtException(
-    ^
+node:internal/modules/esm/module_job:<line>
+    return this.module.evaluateSync();
+                       ^
 
 AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
 
