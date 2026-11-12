@@ -782,6 +782,40 @@ a nested condition does not have any mapping it will continue checking
 the remaining conditions of the parent condition. In this way nested
 conditions behave analogously to nested JavaScript `if` statements.
 
+### Target fallback arrays
+
+Anywhere a target is accepted in the [`"exports"`][] or [`"imports"`][] fields,
+an array of targets can be used instead. Node.js tries the items in order and
+uses the first one that is a valid target. An item is skipped, and the next one
+is tried, only when:
+
+* it is not a valid target, for example a string that does not follow the
+  [path rules for export targets][], or
+* it is a conditions object in which no condition matches.
+
+Fallback arrays exist for compatibility: a package can list a target that only
+some environments or future versions of Node.js treat as valid, followed by one
+that all of them support.
+
+Node.js does not check whether the file a target points to exists. Once an
+item is a valid target, it is used and the remaining items are ignored, even if
+loading the file then fails because it is missing:
+
+```json
+{
+  "exports": {
+    "./feature": ["./src/feature.js", "./dist/feature.js"]
+  }
+}
+```
+
+Here `./feature` always resolves to `./src/feature.js`. An array cannot be used
+to fall back from a missing file to another file.
+
+If the array is empty, the subpath is not exported. If every item is an
+invalid target, the error for the last item is thrown. The exact behavior is
+defined by `PACKAGE_TARGET_RESOLVE` in the [package resolution algorithm][].
+
 ### Resolving user conditions
 
 <!-- YAML
@@ -1417,7 +1451,9 @@ Node.js allows type stripping for:
 [import maps]: https://github.com/WICG/import-maps
 [load ECMAScript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
 [merve]: https://github.com/anonrig/merve
+[package resolution algorithm]: esm.md#resolution-algorithm-specification
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
+[path rules for export targets]: #path-rules-and-validation-for-export-targets
 [resolution algorithm pseudo-code]: modules.md#all-together
 [self-reference]: #self-referencing-a-package-using-its-name
 [subpath exports]: #subpath-exports
