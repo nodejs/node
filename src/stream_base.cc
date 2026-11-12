@@ -8,6 +8,7 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "simdutf.h"
 #include "string_bytes.h"
 #include "util-inl.h"
 #include "v8.h"
@@ -395,11 +396,25 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   bool try_write = HasDoTryWrite() && storage_size <= sizeof(stack_storage) &&
                    (!IsIPCPipe() || send_handle_obj.IsEmpty());
   if (try_write) {
-    data_size = StringBytes::Write(isolate,
-                                   stack_storage,
-                                   storage_size,
-                                   string,
-                                   enc);
+    const size_t length = string->Length();
+    if (enc == LATIN1 && string->IsOneByte()) {
+      // WriteOneByte() does not flatten the string.
+      string->WriteOneByte(
+          isolate, 0, length, reinterpret_cast<uint8_t*>(stack_storage));
+      data_size = length;
+    } else if (enc == UTF8 && string->IsOneByte() &&
+               storage_size >= 3 * length) {
+      // Latin-1 takes at most 2 UTF-8 bytes per char: convert from the last
+      // third into the first two.
+      char* latin1 = stack_storage + 2 * length;
+      string->WriteOneByte(
+          isolate, 0, length, reinterpret_cast<uint8_t*>(latin1));
+      data_size =
+          simdutf::convert_latin1_to_utf8(latin1, length, stack_storage);
+    } else {
+      data_size =
+          StringBytes::Write(isolate, stack_storage, storage_size, string, enc);
+    }
     buf = uv_buf_init(stack_storage, data_size);
 
     uv_buf_t* bufs = &buf;
