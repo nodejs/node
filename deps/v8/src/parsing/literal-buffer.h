@@ -69,9 +69,6 @@ class LiteralBuffer final {
     is_one_byte_ = true;
   }
 
-  template <typename IsolateT>
-  DirectHandle<String> Internalize(IsolateT* isolate) const;
-
  private:
   static constexpr int kInitialCapacity = 256;
   static constexpr int kGrowthFactor = 4;
