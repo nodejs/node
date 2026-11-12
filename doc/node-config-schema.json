@@ -351,6 +351,10 @@
               "type": "boolean",
               "description": "expose experimental Navigator API on the global scope"
             },
+            "experimental-http-serve": {
+              "type": "boolean",
+              "description": "experimental Fetch Server API (http.fetchServer)"
+            },
             "experimental-import-meta-resolve": {
               "type": "boolean",
               "description": "experimental ES Module import.meta.resolve() parentURL support"

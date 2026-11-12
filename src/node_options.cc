@@ -797,6 +797,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             BOOL_FIELD(experimental_sqlite),
             kAllowedInEnvvar,
             HAVE_SQLITE);
+  AddOption("--experimental-http-serve",
+            "experimental Fetch Server API (http.fetchServer)",
+            BOOL_FIELD(experimental_http_serve),
+            kAllowedInEnvvar);
   AddOption("--experimental-stream-iter",
             "experimental iterable streams API (node:stream/iter)",
             BOOL_FIELD(experimental_stream_iter),
