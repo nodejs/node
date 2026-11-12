@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # for npm trusted publishing
+      id-token: write  # for npm trusted publishing
     concurrency:
       group: npm-publish
       cancel-in-progress: false
