@@ -5,11 +5,11 @@ properties:
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: pythonPackage
       directives:
-        description: Install Python 3.14
+        description: Install Python 3.15
         module: Microsoft.WinGet.DSC
         allowPrerelease: true
       settings:
-        id: Python.Python.3.14
+        id: Python.Python.3.15
         source: winget
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: vsPackage
