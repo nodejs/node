@@ -54,7 +54,7 @@ if (common.isLinux) {
   `;
   const { status, stderr } = spawnSync('/bin/sh', [
     '-c', `ulimit -n ${limit} && exec "$0" "$@"`,
-    process.execPath, '--disable-warning=ExperimentalWarning', '-e', child,
+    process.execPath, '--experimental-vfs', '--disable-warning=ExperimentalWarning', '-e', child,
   ], { encoding: 'utf8' });
   assert.strictEqual(status, 0, stderr);
 }

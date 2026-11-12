@@ -96,7 +96,7 @@ test('closed library images give their fd numbers back', { skip: !common.isLinux
   `;
   const { status, stderr } = spawnSync('/bin/sh', [
     '-c', `ulimit -n ${limit} && exec "$0" "$@"`,
-    process.execPath, '--disable-warning=ExperimentalWarning', '-e', child,
+    process.execPath, '--experimental-vfs', '--disable-warning=ExperimentalWarning', '-e', child,
   ], {
     encoding: 'utf8',
     env: { ...process.env, TMPDIR: path.join(os.tmpdir(), 'no-such-directory') },
