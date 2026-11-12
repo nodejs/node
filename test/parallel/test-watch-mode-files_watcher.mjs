@@ -116,6 +116,9 @@ describe('watch mode file watcher', () => {
         child.kill();
       }
     }
+    // The child might have exited before the reload.
+    clearInterval(appendInterval);
+    assert.strictEqual(completeCount, 2);
   });
 
   it('should debounce changes', async () => {
