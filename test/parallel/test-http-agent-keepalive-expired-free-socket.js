@@ -96,6 +96,51 @@ function testMaxSockets(next) {
   }));
 }
 
+// When the socket that the scheduling picks first has expired and the other
+// one has not, the expired one is removed and the request reuses the other.
+function testMixedPool(scheduling, next) {
+  const server = http.createServer(common.mustCall((req, res) => {
+    res.end('ok');
+  }, 3));
+  // No Keep-Alive hint from the server, so both sockets enter the pool with
+  // the agent's `timeout` as their idle timeout.
+  server.keepAliveTimeout = 0;
+
+  server.listen(0, common.mustCall(() => {
+    const agent = new http.Agent({
+      keepAlive: true,
+      timeout: 60_000,
+      scheduling,
+    });
+    const { port } = server.address();
+
+    fillPool(agent, port, 2, common.mustCall(() => {
+      const [first, last] = Object.values(agent.freeSockets)[0];
+      // The socket that the scheduling picks first gets an idle timeout that
+      // passes during the block.
+      const [expired, kept] = scheduling === 'fifo' ?
+        [first, last] :
+        [last, first];
+      expired.setTimeout(100);
+      common.sleepSync(300);
+      const req = http.get({ port, agent }, common.mustCall((res) => {
+        assert.strictEqual(req.socket, kept);
+        res.resume();
+        res.on('end', common.mustCall(() => {
+          agent.destroy();
+          server.close(next);
+        }));
+      }));
+      assert.strictEqual(req.reusedSocket, true);
+      assert.strictEqual(expired.destroyed, true);
+      assert.strictEqual(kept.destroyed, false);
+      assert.strictEqual(agent.totalSocketCount, 1);
+      assert.strictEqual(count(agent.freeSockets), 0);
+      assert.strictEqual(count(agent.sockets), 1);
+    }));
+  }));
+}
+
 // A destroyed socket can stay in the free pool until its 'close' event. A
 // request made before that event must not get it.
 function testDestroyedSocket(next) {
@@ -180,6 +225,9 @@ const cases = [
   // A socket without an idle timeout is not expired by the clock.
   (next) => testReuse({}, 300, true, next),
   testMaxSockets,
+  // The idle timeout of one of two pooled sockets passed during the block.
+  (next) => testMixedPool('lifo', next),
+  (next) => testMixedPool('fifo', next),
   testDestroyedSocket,
   testOptimizedAddRequest,
 ];
