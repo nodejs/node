@@ -1531,6 +1531,11 @@ struct Session::Impl final : public MemoryRetainer {
     // application for processing. If it ends up being a user stream, the
     // application will handle creating the Stream handle and passing that off
     // to the JavaScript side.
+    //
+    // Stream data can't arrive before the application is installed: servers
+    // install it before resuming the handshake, and ngtcp2 only processes a
+    // client's 1-RTT packets after the handshake completes, which requires it.
+    DCHECK(session->has_application());
     if (!session->application().ReceiveStreamData(
             stream_id, data, datalen, data_flags, stream_user_data)) {
       return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -1622,6 +1627,8 @@ struct Session::Impl final : public MemoryRetainer {
 
   static int on_stream_open(ngtcp2_conn* conn, stream_id id, void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
+    // As in on_receive_stream_data, peer streams can't precede the application.
+    DCHECK(session->has_application());
     if (!session->application().ReceiveStreamOpen(id)) {
       return NGTCP2_ERR_CALLBACK_FAILURE;
     }
@@ -2470,6 +2477,10 @@ void Session::Close(CloseMethod method) {
         return;
       }
       impl_->state()->graceful_close = 1;
+
+      // Only a started session can close gracefully, as the shutdown is defined
+      // by its application protocol.
+      DCHECK(has_application());
 
       // The SendPendingDataScope ensures that the GOAWAY packet queued
       // by BeginShutdown is actually sent. Without it, the GOAWAY sits

@@ -441,8 +441,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   void InstallApplicationForAlpn(std::string_view alpn);
 
-  // Called once an Application is required. False, closing the session, if
-  // none has been started or it could not be started.
+  // Called once an Application is required. Returns false if none has been
+  // started or it could not be started, in which case the session is closed
+  // (directly, or by failing the handshake if inside an ngtcp2 callback).
   bool RequireApplication();
 
   // ngtcp2 ignores the duplicate when the TLS stack reports these again.

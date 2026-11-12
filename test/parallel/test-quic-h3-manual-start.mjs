@@ -90,7 +90,7 @@ const destroyed = { code: 'ERR_INVALID_STATE', message: /destroyed/ };
   await endpoint.close();
 }
 
-// Server: a connection with no session started by the end of the session
+// Server: a connection with no session started within the tick of the session
 // callback is closed with an error, so a deferred start is too late.
 {
   const done = Promise.withResolvers();

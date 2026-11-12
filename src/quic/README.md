@@ -152,7 +152,7 @@ and for servers from the `OnClientHello` TLS callback (see
 [Server handshake ordering](#server-handshake-ordering)).
 
 When `autoStart` is false, the Application is selected and started via
-the session start APIs ( (`QuicSession.start()` or `Http3Session.start()`)).
+the session start APIs (`QuicSession.start()` or `Http3Session.start()`).
 A session must be started by the end of the tick when the connection is
 opened (the server session callback or the client `opened` promise) - if
 not, the connection is closed automatically.

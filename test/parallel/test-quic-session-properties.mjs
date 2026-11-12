@@ -1,13 +1,13 @@
 // Flags: --experimental-quic --no-warnings
 
-// Test: session properties (PATH-03, PATH-06, PATH-07, PATH-08,
+// Test: connection properties (PATH-03, PATH-06, PATH-07, PATH-08,
 // CERT-01, CERT-02, CERT-03, CERT-04, CERT-05).
-// PATH-03/06: session.path returns { local, remote } with addresses.
-// session.path is cached (same object on second access).
-// session.path returns undefined after destroy.
-// session.certificate returns own cert object.
-// session.peerCertificate returns peer cert.
-// session.ephemeralKeyInfo returns key info on client.
+// PATH-03/06: connection.path returns { local, remote } with addresses.
+// connection.path is cached (same object on second access).
+// connection.path returns undefined after destroy.
+// connection.certificate returns own cert object.
+// connection.peerCertificate returns peer cert.
+// connection.ephemeralKeyInfo returns key info on client.
 // All three cached.
 // All three return undefined after destroy.
 

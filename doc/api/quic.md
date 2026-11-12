@@ -244,16 +244,18 @@ counter tracks how many packets have been dropped by the filter.
 
 Every `QuicConnection` is associated with a single application protocol. The
 application protocol is selected by starting an application session on the
-connection, either automatically by using `autoStart` with ALPN negotiation, or
-by using `autoStart: false` and calling `.start(connection)` from a session
-class.
+connection, either automatically by ALPN negotiation with
+[`sessionOptions.autoStart`][] (the default), or manually with `autoStart: false`
+by calling [`QuicSession.start()`][] or [`Http3Session.start()`][]. See
+[Starting a session][] for details.
 
 The `quic` module is designed to be application-agnostic in general, but also
 includes built-in support for HTTP/3 as a specific application protocol. When
 using HTTP/3, the `quic` module provides additional APIs for handling
 HTTP/3-specific features such as headers, trailers, and prioritization. For
 other application protocols, users can implement their own message framing and
-multiplexing on top of the core QUIC transport features.
+multiplexing on top of the core QUIC transport features, using a raw
+[`QuicSession`][].
 
 When initiating a TLS handshake, the client will include a list of supported
 ALPN protocols in the `ClientHello`. The server selects one of these protocols
@@ -262,9 +264,11 @@ protocol is negotiated for HTTP/3 and [`sessionOptions.autoStart`][] is enabled
 (the default), connections will be exposed as instances of [`Http3Session`][]
 which exposes APIs for various HTTP/3-specific features.
 
-Currently, the `quic` module only supports HTTP/3 as a built-in application protocol.
-All other protocols must be implemented by the user on top of the provided JavaScript
-API.
+Currently, HTTP/3 is the only built-in application protocol. All other
+protocols can be implemented by the user on top of a raw [`QuicSession`][]. The
+same is true of HTTP/3 itself: to use your own HTTP/3 implementation, set
+`autoStart: false` and start a [`QuicSession`][] on a connection that negotiated
+`h3`, instead of an [`Http3Session`][].
 
 ### Configuration
 
@@ -989,10 +993,38 @@ according to the ALPN protocol negotiated on the connection.
 
 If this is set to `false`, both APIs will instead provide a [`QuicConnection`][]
 and the session on top must be started manually. When doing so, a server must
-start the session synchronously inside the [`quic.listen()`][] callback, and
-a client must start one within the tick when its [`connection.opened`][]
+start the session within the tick in which its [`quic.listen()`][] callback is
+called, and a client must start one in the tick when its [`connection.opened`][]
 promise resolves. A connection with no session started by then is closed with
 an error.
+
+```mjs
+import { connect, listen, Http3Session } from 'node:quic';
+
+const endpoint = await listen((connection) => {
+  // Servers must start the session within the tick of this callback call:
+  const session = Http3Session.start(connection);
+  session.onstream = handleRequest;
+}, {
+  alpn: ['h3'],
+  autoStart: false,
+  sni: { '*': { keys: [key], certs: [cert] } },
+});
+
+const connection = await connect(endpoint.address, {
+  alpn: 'h3',
+  autoStart: false,
+  servername: 'example.com',
+});
+
+// Clients can inspect the handshake result once `opened` resolves, but must
+// start a session within the same tick:
+const { protocol } = await connection.opened;
+if (protocol === 'h3') {
+  const session = Http3Session.start(connection);
+  await session.close();
+}
+```
 
 Starting a session throws `ERR_INVALID_STATE` if the connection already has
 one, has been destroyed, or if the local session initialization fails.
@@ -1089,11 +1121,19 @@ added: v23.8.0
     UTF-8 encoding exceeds 256 bytes, it is truncated to at most 256 bytes.
 
 Immediately destroy the connection. All streams will be destroyed and the
-connection will be closed. If `error` is provided, the session's `onerror`
-callback (e.g. [`session.onerror`][]) is invoked before destruction, if set.
-The `connection.closed` promise will reject with the error. If `options` is
-provided, the `CONNECTION_CLOSE` frame sent to the peer will include the
-specified error code, type, and reason.
+connection will be closed. This can be called whether or not a session has been
+started on the connection.
+
+If `error` is provided, the `connection.closed` promise rejects with it, and if
+a session has been started and has an `onerror` callback set (e.g.
+[`session.onerror`][]), that callback is invoked with the error before
+destruction. Otherwise, `connection.closed` resolves.
+
+If the handshake has not yet completed, the `connection.opened` promise rejects
+too: with `error` if provided, or otherwise with an `ERR_INVALID_STATE` error.
+
+If `options` is provided, the `CONNECTION_CLOSE` frame sent to the peer will
+include the specified error code, type, and reason.
 
 ### `connection.destroyed`
 
@@ -4386,7 +4426,8 @@ added: REPLACEME
 An HTTP/3 session, started on a [`QuicConnection`][]. HTTP/3 interprets the
 data on the connection's streams and exposes APIs to allow you to use HTTP/3
 over QUIC. The streams that this session exposes are still `QuicStream`
-instances, but they gain HTTP/3 APIs and functionality from the application.
+instances, but they gain HTTP/3 APIs, functionality, and semantics from the
+application.
 
 The HTTP/3 session API exposes the HTTP/3 session details: the settings,
 statistics, and HTTP/3-level events. The connection details underneath (e.g.
@@ -5090,6 +5131,7 @@ throughput issues caused by flow control.
 [`QuicConnection`]: #class-quicconnection
 [`QuicEndpoint`]: #class-quicendpoint
 [`QuicError`]: #class-quicerror
+[`QuicSession.start()`]: #quicsessionstartconnection
 [`QuicSession`]: #class-quicsession
 [`application.enableConnectProtocol`]: #applicationoptionsenableconnectprotocol
 [`application.enableDatagrams`]: #sessionoptionsapplication
