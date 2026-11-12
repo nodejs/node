@@ -1266,10 +1266,9 @@ struct Session::Impl final : public MemoryRetainer {
 
     Local<Object> obj;
     if (!session->has_application()) {
-      // The application has not yet been selected (ALPN negotiation is not
-      // yet complete on the server) or the session has been destroyed. In
-      // either case, the application options are not available.
-      return args.GetReturnValue().SetUndefined();
+      // No application has been installed yet, or the session has been
+      // destroyed, so there are no application options.
+      return args.GetReturnValue().SetNull();
     }
     auto& options = session->application().options();
     if (options.ToObject(env).ToLocal(&obj)) {

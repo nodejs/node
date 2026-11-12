@@ -3,7 +3,7 @@
 // Test: starting HTTP/3 on a node:quic connection - when it is allowed, what
 // it validates, and how it behaves when the window has closed.
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
@@ -37,6 +37,7 @@ for (const Session of [Http3Session, QuicSession]) {
 // Validate manually starting both sides of an HTTP/3 session:
 {
   const endpoint = await listen(mustCall((connection) => {
+    assert.strictEqual(connection.applicationOptions, null);
     const session = Http3Session.start(connection);
     assert.strictEqual(session.connection, connection);
 
@@ -46,6 +47,7 @@ for (const Session of [Http3Session, QuicSession]) {
   }), serverOpts);
 
   const quicClient = await connect(endpoint.address, clientOpts);
+  assert.strictEqual(quicClient.applicationOptions, null);
 
   // Options are validated before anything is recorded, so a session can
   // still be started after these failures:
@@ -172,6 +174,39 @@ const destroyed = { code: 'ERR_INVALID_STATE', message: /destroyed/ };
   assert.strictEqual(http3.settings.maxHeaderPairs, 12n);
   assert.strictEqual(http3.settings.qpackMaxDtableCapacity, 4096n);
   await http3.close();
+  await endpoint.close();
+}
+
+// Callback options are applied directly, not through the session's accessors,
+// which user code could have patched:
+{
+  const names = ['ongoaway', 'onorigin', 'onsettings'];
+  const originals = names.map((name) =>
+    Object.getOwnPropertyDescriptor(Http3Session.prototype, name));
+  for (const [i, name] of names.entries()) {
+    Object.defineProperty(Http3Session.prototype, name, {
+      __proto__: null,
+      configurable: true,
+      get: originals[i].get,
+      set: mustNotCall(),
+    });
+  }
+
+  const endpoint = await listen(mustCall((connection) => {
+    Http3Session.start(connection);
+  }), serverOpts);
+  const client = Http3Session.start(await connect(endpoint.address, clientOpts), {
+    ongoaway() {},
+    onorigin() {},
+    onsettings() {},
+  });
+
+  for (const [i, name] of names.entries()) {
+    Object.defineProperty(Http3Session.prototype, name, originals[i]);
+    assert.strictEqual(typeof client[name], 'function');
+  }
+  await client.opened;
+  await client.close();
   await endpoint.close();
 }
 

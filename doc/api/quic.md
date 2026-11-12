@@ -1005,11 +1005,13 @@ added:
  - v24.20.0
 -->
 
-* Type: {quic.ApplicationOptions}
+* Type: {quic.ApplicationOptions|null}
 
 The current application-level options for this connection. These include settings
 that are specific to the negotiated application protocol (e.g. HTTP/3) and may
-be negotiated separately from the transport parameters. Read only.
+be negotiated separately from the transport parameters. This is `null` until a
+session has been started on the connection, and after the connection is
+destroyed. Read only.
 You can use the callback [`http3session.onsettings`][] to be informed, when settings
 from the remote arrive.
 
