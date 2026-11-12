@@ -26,7 +26,7 @@ observer.observe({ entryTypes: ['gc'] });
 // triggers a major GC if that memory is reported. The GC trigger and finalization
 // can vary depending on V8 internals, so only check the occurrence of a major GC here.
 const histogram = createHistogram();
-for (let i = 0; i < 400; i++) histogram.snapshot();
+for (let i = 0; i < 800; i++) histogram.snapshot();
 
 (async () => {
   // Performance entries for garbage collections are delivered asynchronously.
