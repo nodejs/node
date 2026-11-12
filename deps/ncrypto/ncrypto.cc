@@ -5194,7 +5194,7 @@ SSLPointer SSLPointer::New(const SSLCtxPointer& ctx) {
 
 void SSLPointer::getCiphers(std::function<void(const char*)> cb) const {
   if (!ssl_) return;
-  STACK_OF(SSL_CIPHER)* ciphers = SSL_get_ciphers(get());
+  const STACK_OF(SSL_CIPHER)* ciphers = SSL_get_ciphers(get());
 
   // TLSv1.3 ciphers aren't listed by EVP. There are only 5, we could just
   // document them, but since there are only 5, easier to just add them manually
