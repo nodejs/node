@@ -988,6 +988,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
         // Restore previous state.
         state = state->previous_state();
         builder = state->builder();
+        flags_ = builder->flags();
 
         builder->AddAtom(body);
         // For compatibility with JSC and ES3, we allow quantifiers after
