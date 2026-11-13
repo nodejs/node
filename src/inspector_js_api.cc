@@ -481,7 +481,8 @@ void Initialize(Local<Object> target, Local<Value> unused,
   SetConstructorFunction(context,
                          target,
                          "NetworkInitiator",
-                         NetworkInitiator::GetConstructorTemplate(env));
+                         NetworkInitiator::GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
 
   Local<String> console_string = FIXED_ONE_BYTE_STRING(isolate, "console");
 
