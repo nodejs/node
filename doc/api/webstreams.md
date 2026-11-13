@@ -1634,7 +1634,6 @@ added: v16.7.0
 ```mjs
 import { arrayBuffer } from 'node:stream/consumers';
 import { Readable } from 'node:stream';
-import { TextEncoder } from 'node:util';
 
 const encoder = new TextEncoder();
 const dataArray = encoder.encode('hello world from consumers!');
@@ -1648,7 +1647,6 @@ console.log(`from readable: ${data.byteLength}`);
 ```cjs
 const { arrayBuffer } = require('node:stream/consumers');
 const { Readable } = require('node:stream');
-const { TextEncoder } = require('node:util');
 
 const encoder = new TextEncoder();
 const dataArray = encoder.encode('hello world from consumers!');

@@ -1100,7 +1100,7 @@ not possible to replace the value of a Node.js builtin (core) module.
 * The specific {TypedArray} object is a {Uint8Array}.
 
 If the source value of a text-based format (i.e., `'json'`, `'module'`)
-is not a string, it is converted to a string using [`util.TextDecoder`][].
+is not a string, it is converted to a string using [`TextDecoder`][].
 
 ### Asynchronous customization hooks
 
@@ -2120,6 +2120,7 @@ returned object contains the following keys:
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
 [`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
 [`SourceMap`]: #class-modulesourcemap
+[`TextDecoder`]: globals.md#class-textdecoder
 [`initialize`]: #initialize
 [`module.constants.compileCacheStatus`]: #moduleconstantscompilecachestatus
 [`module.enableCompileCache()`]: #moduleenablecompilecacheoptions
@@ -2130,7 +2131,6 @@ returned object contains the following keys:
 [`module.setSourceMapsSupport()`]: #modulesetsourcemapssupportenabled-options
 [`os.tmpdir()`]: os.md#ostmpdir
 [`register`]: #moduleregisterspecifier-parenturl-options
-[`util.TextDecoder`]: util.md#class-utiltextdecoder
 [accepted final formats]: #accepted-final-formats-returned-by-load
 [asynchronous `load` hook]: #asynchronous-loadurl-context-nextload
 [asynchronous `resolve` hook]: #asynchronous-resolvespecifier-context-nextresolve
