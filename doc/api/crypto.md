@@ -3499,6 +3499,9 @@ added: v15.6.0
 
 The date/time from which this certificate is valid.
 
+If the certificate's `notBefore` time cannot be parsed, this is the string
+`'Bad time value'`.
+
 ### `x509.validFromDate`
 
 <!-- YAML
@@ -3511,6 +3514,16 @@ added:
 
 The date/time from which this certificate is valid, encapsulated in a `Date` object.
 
+If the certificate's `notBefore` time cannot be parsed, this property is an
+invalid `Date` whose `getTime()` method returns `NaN`.
+
+Relational comparisons with an invalid `Date` evaluate to `false`. To check
+whether the current time is within the certificate's validity period, use
+`now >= x509.validFromDate && now <= x509.validToDate`. This expression
+evaluates to `false` if either date is invalid. Checking
+`now < x509.validFromDate || now > x509.validToDate` instead can fail to
+reject certificates with invalid dates.
+
 ### `x509.validTo`
 
 <!-- YAML
@@ -3520,6 +3533,9 @@ added: v15.6.0
 * Type: {string}
 
 The date/time until which this certificate is valid.
+
+If the certificate's `notAfter` time cannot be parsed, this is the string
+`'Bad time value'`.
 
 ### `x509.validToDate`
 
@@ -3532,6 +3548,16 @@ added:
 * Type: {Date}
 
 The date/time until which this certificate is valid, encapsulated in a `Date` object.
+
+If the certificate's `notAfter` time cannot be parsed, this property is an
+invalid `Date` whose `getTime()` method returns `NaN`.
+
+Relational comparisons with an invalid `Date` evaluate to `false`. To check
+whether the current time is within the certificate's validity period, use
+`now >= x509.validFromDate && now <= x509.validToDate`. This expression
+evaluates to `false` if either date is invalid. Checking
+`now < x509.validFromDate || now > x509.validToDate` instead can fail to
+reject certificates with invalid dates.
 
 ### `x509.signature`
 
