@@ -60,7 +60,7 @@ class Session::Application : public MemoryRetainer {
   // and is not necessarily 0.
   virtual error_code GetNoErrorCode() const = 0;
 
-  // Returns whether a received application error code means "no error".
+  // Returns whether an application error code means "no error".
   // Applications may override this when unknown codes have special semantics.
   virtual bool IsNoErrorCode(error_code code) const {
     return code == GetNoErrorCode();

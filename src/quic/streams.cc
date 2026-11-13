@@ -438,8 +438,12 @@ struct Stream::Impl {
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     CHECK(args[0]->IsBigInt());
     error_code code = args[0].As<BigInt>()->Uint64Value();
+    const auto error = QuicError::ForApplication(code);
+    const bool is_error = !stream->session().IsNoError(error);
 
     stream->SendStopSending(code);
+
+    args.GetReturnValue().Set(is_error);
   }
 
   // Sends a reset stream to the peer to tell it we will not be sending any

@@ -3496,8 +3496,8 @@ selects how the stream's async iterator reports this:
 
 * `'ignore'` - The truncation itself is ignored: only a stream or connection
   error is reported, and any clean abort/cancellation or similar simply ends
-  the stream. A peer reset whose application code represents an error, a
-  non-zero local stop-sending, or a connection error still fails. A truncation
+  the stream. A peer reset or local stop-sending with an application code that
+  represents an error, or a connection error, still fails, but a truncation
   with no error at all (an idle timeout, a graceful close, or a plain
   `stopSending()`) ends the read cleanly with the data received. This matches
   `stream.closed`, which rejects only on an error.
