@@ -82,11 +82,18 @@ server.listen(0, common.mustCall(async () => {
     // TLS1.3 PSK works by pretending to be resumption (but it's not).
     const secret = Buffer.alloc(32, 1);
     const ciphers = 'TLS_AES_128_GCM_SHA256';
-    const psk = tls.createServer({ ciphers, pskCallback: () => secret },
-                                 common.mustCall((socket) => {
-                                   assert.strictEqual(socket.servername, 'psk.example');
-                                   socket.end();
-                                 }, 2));
+    // The resumption ticket is offered as a PSK identity too, and OpenSSL
+    // passes it to pskCallback when its leading bytes read as a string (e.g.
+    // '' when the random ticket key name starts with a NUL byte). Only answer
+    // for the identity the client uses, or the ticket is taken as an external
+    // PSK with the wrong key and the handshake fails with decrypt_error.
+    const psk = tls.createServer({
+      ciphers,
+      pskCallback: (socket, identity) => (identity === 'client' ? secret : null),
+    }, common.mustCall((socket) => {
+      assert.strictEqual(socket.servername, 'psk.example');
+      socket.end();
+    }, 2));
     await new Promise((resolve) => psk.listen(0, resolve));
     const pskOptions = {
       port: psk.address().port,
