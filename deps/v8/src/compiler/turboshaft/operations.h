@@ -3113,7 +3113,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
 // not decompress the value.
 struct LoadOp : OperationT<LoadOp> {
   struct __attribute__((packed)) Kind {
-    enum class Atomicity : uint8_t {
+    enum Atomicity : uint8_t {
       kNonAtomic,
       kSeqCst,
       kAcqRel,
