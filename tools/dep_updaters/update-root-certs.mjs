@@ -8,6 +8,14 @@ import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
+// SHA-256 fingerprints of root certificates to exclude from node-root-certs.h
+// Fingerprints can be found in the certificate report at
+// https://ccadb.my.salesforce-sites.com/mozilla/IncludedRootCertificateReport
+const ignoreRoots = [
+  // /* Example Root CA */
+  // '0000000000000000000000000000000000000000000000000000000000000000',
+];
+
 const __filename = fileURLToPath(import.meta.url);
 
 const getCertdataURL = (version) => {
@@ -145,9 +153,14 @@ if (values.verbose) {
 }
 const opts = { encoding: 'utf8' };
 const mkCABundleTool = join(checkoutDir, 'tools', 'mk-ca-bundle.pl');
-const mkCABundleOut = execFileSync(mkCABundleTool,
-                                   values.verbose ? [ '-v' ] : [],
-                                   opts);
+const mkCABundleArgs = [];
+if (values.verbose) {
+  mkCABundleArgs.push('-v');
+}
+if (ignoreRoots.length) {
+  mkCABundleArgs.push('-x', ignoreRoots.join(','));
+}
+const mkCABundleOut = execFileSync(mkCABundleTool, mkCABundleArgs, opts);
 if (values.verbose) {
   console.log(mkCABundleOut);
 }
