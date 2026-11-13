@@ -170,8 +170,19 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       DirectHandle<Script> script,
       base::SmallVector<v8::Isolate::UseCounterFeature, 8>* use_counters,
       int* preparse_skipped);
-  template <typename IsolateT>
-  void HandleDebugMagicComments(IsolateT* isolate, DirectHandle<Script> script);
+  void HandleDebugMagicComments(Isolate* isolate, DirectHandle<Script> script);
+  const Scanner::DebugMagicCommentLocations& debug_magic_comment_locations()
+      const {
+    return scanner_.debug_magic_comment_locations();
+  }
+  // Sets the debug magic comment fields of {script} to the values in {source}
+  // at the given locations: the source map URL is a substring of {source}, the
+  // source URL and debug ID are sequential copies. Locations that are empty,
+  // invalid or out of bounds are ignored.
+  static void SetDebugMagicCommentFields(
+      Isolate* isolate, DirectHandle<Script> script,
+      DirectHandle<String> source,
+      const Scanner::DebugMagicCommentLocations& locations);
 
  private:
   friend class ParserBase<Parser>;
