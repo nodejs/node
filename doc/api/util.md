@@ -2928,6 +2928,7 @@ The full list of formats can be found in [modifiers][].
 
 <!-- YAML
 added: v8.3.0
+deprecated: REPLACEME
 changes:
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22281
@@ -3066,6 +3067,7 @@ mark.
 
 <!-- YAML
 added: v8.3.0
+deprecated: REPLACEME
 changes:
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22281

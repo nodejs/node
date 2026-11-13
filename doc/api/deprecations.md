@@ -4844,6 +4844,20 @@ Type: Documentation-only
 `node:sqlite`'s `StatementSync` class was renamed to `Statement`.
 `StatementSync` is kept as a deprecated alias. Use `Statement` instead.
 
+### DEP0212: `util.TextDecoder` and `util.TextEncoder`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67461
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+`node:util`'s `util.TextDecoder` and `util.TextEncoder` are deprecated.
+Use global `TextDecoder` and `TextEncoder` instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
