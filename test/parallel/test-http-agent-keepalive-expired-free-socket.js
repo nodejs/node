@@ -141,6 +141,81 @@ function testMixedPool(scheduling, next) {
   }));
 }
 
+// A pooled socket whose timeout is set again is expired by its restarted timer,
+// not by the time it entered the pool.
+function testRestartedTimeout(next) {
+  const server = http.createServer(common.mustCall((req, res) => {
+    res.end('ok');
+  }, 2));
+  // No Keep-Alive hint from the server, so the agent's `timeout` alone sets
+  // the socket's idle timeout.
+  server.keepAliveTimeout = 0;
+
+  server.listen(0, common.mustCall(() => {
+    const agent = new http.Agent({ keepAlive: true, timeout: 60_000 });
+    const { port } = server.address();
+
+    fillPool(agent, port, 1, common.mustCall(() => {
+      const [socket] = Object.values(agent.freeSockets)[0];
+      common.sleepSync(300);
+      // Shorter than the block: only a timer restarted now has not passed it.
+      socket.setTimeout(200);
+      const req = http.get({ port, agent }, common.mustCall((res) => {
+        assert.strictEqual(res.socket, socket);
+        res.resume();
+        res.on('end', common.mustCall(() => {
+          agent.destroy();
+          server.close(next);
+        }));
+      }));
+      assert.strictEqual(req.reusedSocket, true);
+    }));
+  }));
+}
+
+// A request timeout that fired while the response waited unread is cleared when
+// the socket is kept alive. Its timer then still holds the fired timeout, but
+// the socket has no idle timeout, so it is reused.
+function testFiredTimeoutCleared(next) {
+  const server = http.createServer(common.mustCall((req, res) => {
+    res.end('ok');
+  }, 2));
+  // No Keep-Alive hint from the server, and the agent has no `timeout`, so the
+  // pooled socket has no idle timeout.
+  server.keepAliveTimeout = 0;
+
+  server.listen(0, common.mustCall(() => {
+    const agent = new http.Agent({ keepAlive: true });
+    const { port } = server.address();
+
+    function reuse(socket) {
+      assert.strictEqual(socket.timeout, 0);
+      const req = http.get({ port, agent }, common.mustCall((res) => {
+        assert.strictEqual(res.socket, socket);
+        res.resume();
+        res.on('end', common.mustCall(() => {
+          agent.destroy();
+          server.close(next);
+        }));
+      }));
+      assert.strictEqual(req.reusedSocket, true);
+    }
+
+    const first = http.get({ port, agent }, common.mustCall((res) => {
+      const { socket } = res;
+      // The response is read only after the request timeout has fired.
+      first.setTimeout(50, common.mustCall(() => {
+        setImmediate(common.mustCall(() => {
+          agent.once('free', common.mustCall(() => {
+            setImmediate(common.mustCall(() => reuse(socket)));
+          }));
+          res.resume();
+        }));
+      }));
+    }));
+  }));
+}
+
 // A destroyed socket can stay in the free pool until its 'close' event. A
 // request made before that event must not get it.
 function testDestroyedSocket(next) {
@@ -228,6 +303,8 @@ const cases = [
   // The idle timeout of one of two pooled sockets passed during the block.
   (next) => testMixedPool('lifo', next),
   (next) => testMixedPool('fifo', next),
+  testRestartedTimeout,
+  testFiredTimeoutCleared,
   testDestroyedSocket,
   testOptimizedAddRequest,
 ];
