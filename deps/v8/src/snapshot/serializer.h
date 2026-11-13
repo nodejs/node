@@ -238,6 +238,11 @@ class Serializer : public SerializerDeserializer {
                                    SlotType slot_type) = 0;
 
   virtual bool MustBeDeferred(Tagged<HeapObject> object);
+  // Whether sliced strings are serialized as sequential strings, so that the
+  // deserialized strings do not depend on their parents.
+  virtual bool SerializeSlicedStringsAsSequentialStrings() const {
+    return false;
+  }
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
@@ -523,6 +528,9 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void SerializeNativeContext();
   void SerializeExternalString();
   void SerializeExternalStringAsSequentialString();
+  void SerializeSlicedStringAsSequentialString();
+  void SerializeStringAsSequentialString(bool one_byte, uint32_t length,
+                                         const uint8_t* content);
 
   Isolate* isolate_;
   Serializer* serializer_;
