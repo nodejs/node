@@ -186,7 +186,7 @@ const char* conf_section_name = STRINGIFY(NODE_OPENSSL_CONF_NAME);
 
 #ifdef __POSIX__
 void SignalExit(int signo, siginfo_t* info, void* ucontext) {
-  ResetStdio();
+  ResetStdio(true);
   raise(signo);
 }
 #endif  // __POSIX__
@@ -447,7 +447,7 @@ void TrapWebAssemblyOrContinue(int signo, siginfo_t* info, void* ucontext) {
       sa.sa_handler = SIG_DFL;
       CHECK_EQ(sigaction(signo, &sa, nullptr), 0);
 
-      ResetStdio();
+      ResetStdio(true);
       raise(signo);
     }
   }
@@ -497,6 +497,14 @@ static struct {
 } stdio[1 + STDERR_FILENO];
 #endif  // __POSIX__
 
+// Set once Node.js changes the terminal mode itself. Accessed from signal
+// handlers, so it must be lock-free.
+static std::atomic<bool> terminal_mode_changed{false};
+
+void SetTerminalModeChanged() {
+  terminal_mode_changed.store(true, std::memory_order_relaxed);
+}
+
 void ResetSignalHandlers() {
 #ifdef __POSIX__
   // Restore signal dispositions, the parent process may have changed them.
@@ -541,7 +549,7 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   init_process_flags.store(flags);
 
   if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
-    atexit(ResetStdio);
+    atexit([]() { ResetStdio(); });
   }
 
 #ifdef __POSIX__
@@ -665,7 +673,7 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
 }
 
 // Safe to call more than once and from signal handlers.
-void ResetStdio() {
+void ResetStdio(bool force_terminal_restore) {
   if (init_process_flags.load() &
       ProcessInitializationFlags::kNoStdioInitialization) {
     return;
@@ -673,6 +681,15 @@ void ResetStdio() {
 
   uv_tty_reset_mode();
 #ifdef __POSIX__
+  // Only write back the terminal attributes recorded at startup when Node.js
+  // changed the terminal mode itself, or when exiting because of a signal.
+  // Another process sharing the terminal (e.g. a pager in `node -h | less`)
+  // may have changed them in the meantime, and a process that never touched
+  // the terminal has nothing to restore.
+  const bool restore_terminal =
+      force_terminal_restore ||
+      terminal_mode_changed.load(std::memory_order_relaxed);
+
   for (auto& s : stdio) {
     const int fd = &s - stdio;
 
@@ -704,7 +721,7 @@ void ResetStdio() {
       CHECK_NE(err, -1);
     }
 
-    if (s.isatty) {
+    if (s.isatty && restore_terminal) {
       sigset_t sa;
       int err;
 
