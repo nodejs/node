@@ -294,6 +294,56 @@ impl<L, R> Either<L, R> {
         }
     }
 
+    /// Returns `true` if the value is [`Left`], or value is [`Right`] and the value inside of it matches a predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use either::*;
+    ///
+    /// let left: Either<i32, i32> = Left(0);
+    /// let right2: Either<i32, i32> = Right(2);
+    /// let right0: Either<i32, i32> = Right(0);
+    ///
+    /// assert_eq!(left.is_left_or(|n| n > 1),   true);
+    /// assert_eq!(right2.is_left_or(|n| n > 1), true);
+    /// assert_eq!(right0.is_left_or(|n| n > 1), false);
+    /// ```
+    pub fn is_left_or<F>(self, f: F) -> bool
+    where
+        F: FnOnce(R) -> bool,
+    {
+        match self {
+            Left(_) => true,
+            Right(right) => f(right),
+        }
+    }
+
+    /// Returns `true` if the value is [`Right`], or value is [`Left`] and the value inside of it matches a predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use either::*;
+    ///
+    /// let right: Either<i32, i32> = Right(0);
+    /// let left2: Either<i32, i32> = Left(2);
+    /// let left0: Either<i32, i32> = Left(0);
+    ///
+    /// assert_eq!(right.is_right_or(|n| n > 1), true);
+    /// assert_eq!(left2.is_right_or(|n| n > 1), true);
+    /// assert_eq!(left0.is_right_or(|n| n > 1), false);
+    /// ```
+    pub fn is_right_or<F>(self, f: F) -> bool
+    where
+        F: FnOnce(L) -> bool,
+    {
+        match self {
+            Left(left) => f(left),
+            Right(_) => true,
+        }
+    }
+
     /// Return true if the value is the `Right` variant.
     ///
     /// ```

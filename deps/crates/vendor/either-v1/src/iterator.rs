@@ -97,6 +97,7 @@ where
         for_both!(self, inner => inner.size_hint())
     }
 
+    #[inline]
     fn fold<Acc, G>(self, init: Acc, f: G) -> Acc
     where
         G: FnMut(Acc, Self::Item) -> Acc,
@@ -187,6 +188,7 @@ where
         for_both!(self, inner => inner.nth_back(n))
     }
 
+    #[inline]
     fn rfold<Acc, G>(self, init: Acc, f: G) -> Acc
     where
         G: FnMut(Acc, Self::Item) -> Acc,
@@ -234,6 +236,7 @@ where
         for_both!(self.inner, ref inner => inner.size_hint())
     }
 
+    #[inline]
     fn fold<Acc, G>(self, init: Acc, f: G) -> Acc
     where
         G: FnMut(Acc, Self::Item) -> Acc,
@@ -324,6 +327,7 @@ where
         Some(map_both!(self.inner, ref mut inner => inner.nth_back(n)?))
     }
 
+    #[inline]
     fn rfold<Acc, G>(self, init: Acc, f: G) -> Acc
     where
         G: FnMut(Acc, Self::Item) -> Acc,

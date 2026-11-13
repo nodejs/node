@@ -38,11 +38,6 @@ impl<'a, T: EncodingType> Cursor<'a, T> {
         self.pos = pos;
     }
 
-    /// Peek the value at next position (current + 1).
-    pub(crate) fn peek(&self) -> ParserResult<Option<u8>> {
-        self.peek_n(1)
-    }
-
     /// Returns current position in source as `char`.
     pub(crate) fn current(&self) -> ParserResult<Option<u8>> {
         self.peek_n(0)
@@ -74,6 +69,17 @@ impl<'a, T: EncodingType> Cursor<'a, T> {
         let result = self.current();
         self.advance_n(1);
         result
+    }
+
+    /// Advances the cursor and returns the current char if it satisfies `f`.
+    pub(crate) fn next_if(&mut self, f: impl FnOnce(u8) -> bool) -> ParserResult<Option<u8>> {
+        if let Some(ch) = self.current()? {
+            if f(ch) {
+                self.advance();
+                return Ok(Some(ch));
+            }
+        }
+        Ok(None)
     }
 
     /// Returns the next value as a digit

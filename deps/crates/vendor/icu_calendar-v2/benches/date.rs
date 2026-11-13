@@ -18,11 +18,12 @@ struct Test {
 }
 
 use criterion::{
-    black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+    BenchmarkGroup, Criterion, black_box, criterion_group, criterion_main, measurement::WallTime,
 };
 use icu_calendar::{
+    AsCalendar, Calendar, Date,
     options::{DateAddOptions, Overflow},
-    types, AsCalendar, Calendar, Date,
+    types,
 };
 
 fn bench_date<A: AsCalendar>(date: &mut Date<A>) {

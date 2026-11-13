@@ -1,7 +1,9 @@
+#![allow(deprecated)]
+
 use {
     crate::{smallvec, SmallVec},
     alloc::{borrow::ToOwned, boxed::Box, rc::Rc, vec, vec::Vec},
-    std::iter::FromIterator,
+    std::{iter::FromIterator, usize},
 };
 
 #[test]
@@ -11,6 +13,20 @@ pub fn test_zero() {
     v.push(0usize);
     assert!(v.spilled());
     assert_eq!(&*v, &[0]);
+}
+
+#[cfg(feature = "may_dangle")]
+#[test]
+fn may_dangle_without_element_drop() {
+    let mut inline = SmallVec::<[&str; 1]>::new();
+    let mut spilled = SmallVec::<[&str; 0]>::new();
+    let text = "borrowed".to_owned();
+    inline.push(&text);
+    spilled.push(&text);
+    assert!(!inline.spilled());
+    assert!(spilled.spilled());
+    // `text` is dropped first, but dropping the vectors never reads these
+    // references.
 }
 
 // We heap allocate all these strings so that double frees will show up under
@@ -423,11 +439,13 @@ mod insert_many_panic {
 }
 
 #[test]
-#[should_panic]
 fn test_invalid_grow() {
     let mut v: SmallVec<[u8; 8]> = SmallVec::new();
     v.extend(0..8);
+    let cap = v.capacity();
     v.grow(5);
+    assert_eq!(v.capacity(), cap);
+    assert_eq!(v.len(), 8);
 }
 
 #[test]
@@ -787,6 +805,104 @@ fn test_retain() {
 }
 
 #[test]
+fn test_retain_panic_preserves_unprocessed_tail() {
+    use std::{
+        cell::Cell,
+        panic::{catch_unwind, AssertUnwindSafe},
+    };
+
+    struct Tracked {
+        id: usize,
+        drops: Rc<Vec<Cell<usize>>>,
+        panic_at: Option<usize>,
+    }
+    impl Drop for Tracked {
+        fn drop(&mut self) {
+            self.drops[self.id].set(self.drops[self.id].get() + 1);
+            assert_ne!(self.panic_at, Some(self.id), "drop panic");
+        }
+    }
+    fn tracked(len: usize, panic_at: Option<usize>) -> (Vec<Tracked>, Rc<Vec<Cell<usize>>>) {
+        let drops = Rc::new((0..len).map(|_| Cell::new(0)).collect::<Vec<_>>());
+        let values = (0..len)
+            .map(|id| Tracked {
+                id,
+                drops: drops.clone(),
+                panic_at,
+            })
+            .collect();
+        (values, drops)
+    }
+    fn ids(values: &[Tracked]) -> Vec<usize> {
+        values.iter().map(|v| v.id).collect()
+    }
+
+    for len in [8, 32].iter().copied() {
+        for panic_at in 0..len {
+            for drop_panics in [false, true].iter().copied() {
+                if drop_panics && panic_at % 2 == 0 {
+                    continue;
+                }
+                let destructor = if drop_panics { Some(panic_at) } else { None };
+                let (input, drops) = tracked(len, destructor);
+                let mut actual: SmallVec<[_; 16]> = input.into_iter().collect();
+                assert!(catch_unwind(AssertUnwindSafe(|| actual.retain(|x| {
+                    if !drop_panics {
+                        assert_ne!(x.id, panic_at);
+                    }
+                    x.id % 2 == 0
+                })))
+                .is_err());
+                let read = panic_at + if drop_panics { 1 } else { 0 };
+                let expected: Vec<_> = (0..panic_at).step_by(2).chain(read..len).collect();
+                assert_eq!(ids(&actual), expected);
+                drop(actual);
+                assert!(drops.iter().all(|x| x.get() == 1));
+            }
+        }
+    }
+}
+
+#[test]
+fn test_retain_patterns_and_zst() {
+    use std::{cell::Cell, thread_local};
+
+    thread_local! { static ZST_DROPS: Cell<usize> = Cell::new(0); }
+    struct Zst;
+    impl Drop for Zst {
+        fn drop(&mut self) {
+            ZST_DROPS.with(|x| x.set(x.get() + 1));
+        }
+    }
+
+    for len in [0, 1, 15, 16, 17, 64].iter().copied() {
+        for keep in 0..3 {
+            let mut actual: SmallVec<[_; 16]> = (0..len).collect();
+            let mut expected: Vec<_> = (0..len).collect();
+            actual.retain(|x| {
+                *x += 1;
+                *x % 2 < keep
+            });
+            for x in &mut expected {
+                *x += 1;
+            }
+            expected.retain(|x| *x % 2 < keep);
+            assert_eq!(actual.as_slice(), expected.as_slice());
+        }
+    }
+    ZST_DROPS.with(|x| x.set(0));
+    let mut values: SmallVec<[_; 16]> = (0..32).map(|_| Zst).collect();
+    let mut seen = 0;
+    values.retain(|_| {
+        seen += 1;
+        seen % 2 == 0
+    });
+    assert_eq!(values.len(), 16);
+    drop(values);
+    ZST_DROPS.with(|x| assert_eq!(x.get(), 32));
+}
+
+#[test]
 fn test_dedup() {
     let mut dupes: SmallVec<[i32; 5]> = SmallVec::from_slice(&[1, 1, 2, 3, 3]);
     dupes.dedup();
@@ -993,28 +1109,6 @@ fn test_clone_from() {
 
     b.clone_from(&c);
     assert_eq!(&*b, &[20, 21, 22]);
-}
-
-#[test]
-fn test_size() {
-    use core::mem::size_of;
-    const PTR_SIZE: usize = size_of::<usize>();
-    #[cfg(feature = "union")]
-    {
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; 0]>>());
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; 1]>>());
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; PTR_SIZE]>>());
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; PTR_SIZE + 1]>>());
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; 2 * PTR_SIZE]>>());
-        assert_eq!(4 * PTR_SIZE, size_of::<SmallVec<[u8; 2 * PTR_SIZE + 1]>>());
-    }
-    #[cfg(not(feature = "union"))]
-    {
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; 0]>>());
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; 1]>>());
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; PTR_SIZE]>>());
-        assert_eq!(4 * PTR_SIZE, size_of::<SmallVec<[u8; PTR_SIZE + 1]>>());
-    }
 }
 
 #[cfg(feature = "drain_filter")]

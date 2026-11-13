@@ -93,7 +93,7 @@ fn bad_zoned_date_time() {
     let err = IxdtfParser::from_str(bad_value).parse();
     assert_eq!(
         err,
-        Err(ParseError::AnnotationClose),
+        Err(ParseError::IanaChar),
         "Invalid ZonedDateTime parsing: \"{bad_value}\" should fail to parse."
     );
 
@@ -1527,4 +1527,71 @@ fn utf16_basic_test() {
         _ => unreachable!(),
     };
     assert_eq!(String::from_utf16_lossy(id), "America/Chicago");
+}
+
+#[test]
+fn annotation_and_timezone_validation_regression_8620() {
+    use super::TimeZoneParser;
+
+    let valid_annotations = [
+        ("2020-01-01[a=b]", None),
+        ("2020-01-01[_a=b]", None),
+        ("2020-01-01[u-ca=g]", Some("g")),
+        ("2020-01-01[u-ca=a-b]", Some("a-b")),
+        ("2020-01-01[u-ca=a-bc-d]", Some("a-bc-d")),
+    ];
+    for (input, expected_cal) in valid_annotations {
+        let parsed = IxdtfParser::from_str(input).parse().expect(input);
+        assert_eq!(parsed.calendar, expected_cal.map(str::as_bytes), "{input}");
+    }
+
+    let invalid_annotations = [
+        ("2020-01-01[u-cA=iso8601]", ParseError::AnnotationKeyChar),
+        ("2020-01-01[aB=iso8601]", ParseError::AnnotationKeyChar),
+        ("2020-01-01[u-ca=iso8601!]", ParseError::AnnotationValueChar),
+        ("2020-01-01[u-ca=!iso8601]", ParseError::AnnotationValueChar),
+        ("2020-01-01[u-ca=!!]", ParseError::AnnotationValueChar),
+        ("2020-01-01[u-ca=-iso]", ParseError::AnnotationValueChar),
+        (
+            "2020-01-01[u-ca=iso-]",
+            ParseError::AnnotationValueCharPostHyphen,
+        ),
+        (
+            "2020-01-01[u-ca=iso--8601]",
+            ParseError::AnnotationValueCharPostHyphen,
+        ),
+    ];
+    for (input, expected_err) in invalid_annotations {
+        let err = IxdtfParser::from_str(input).parse().unwrap_err();
+        assert_eq!(err, expected_err, "{input}");
+    }
+
+    let invalid_tz_annotations = [
+        ("2020-01-01[America/Chicago!]", ParseError::IanaChar),
+        ("2020-01-01[UTC!]", ParseError::IanaChar),
+        ("2020-01-01[cet!]", ParseError::IanaChar),
+        ("2020-01-01[America/]", ParseError::IanaCharPostSeparator),
+        (
+            "2020-01-01[America//Chicago]",
+            ParseError::IanaCharPostSeparator,
+        ),
+    ];
+    for (input, expected_err) in invalid_tz_annotations {
+        let err = IxdtfParser::from_str(input).parse().unwrap_err();
+        assert_eq!(err, expected_err, "{input}");
+    }
+
+    let invalid_bare_iana = [
+        ("America/Chicago!", ParseError::IanaChar),
+        ("UTC!", ParseError::IanaChar),
+        ("America/", ParseError::IanaCharPostSeparator),
+        ("America//Chicago", ParseError::IanaCharPostSeparator),
+        ("1America/Chicago", ParseError::TzLeadingChar),
+    ];
+    for (input, expected_err) in invalid_bare_iana {
+        let err = TimeZoneParser::from_str(input)
+            .parse_iana_identifier()
+            .unwrap_err();
+        assert_eq!(err, expected_err, "{input}");
+    }
 }

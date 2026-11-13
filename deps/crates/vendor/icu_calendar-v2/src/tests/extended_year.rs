@@ -2,10 +2,10 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-use crate::preferences::CalendarAlgorithm;
-use crate::types::Month;
 use crate::Calendar;
 use crate::Date;
+use crate::preferences::CalendarAlgorithm;
+use crate::types::Month;
 
 /// Reference: <https://tc39.es/proposal-intl-era-monthcode/#sec-temporal-calendardatearithmeticyear>
 fn extended_epoch<C: Calendar>(c: &C) -> Option<i32> {
