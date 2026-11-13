@@ -25,17 +25,19 @@ class NetworkInitiator final : public BaseObject {
                    v8::Local<v8::Object> object,
                    std::unique_ptr<v8_inspector::V8StackTrace> stack);
 
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
   static NetworkInitiator* FromObject(Environment* env,
                                       v8::Local<v8::Object> object);
 
   const v8_inspector::V8StackTrace* stack() const { return stack_.get(); }
 
-  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(NetworkInitiator)
   SET_SELF_SIZE(NetworkInitiator)
 
  private:
-  static v8::Local<v8::Private> Key(v8::Isolate* isolate);
   std::unique_ptr<v8_inspector::V8StackTrace> stack_;
 };
 

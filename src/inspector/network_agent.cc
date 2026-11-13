@@ -16,6 +16,8 @@
 namespace node {
 namespace inspector {
 
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -30,33 +32,35 @@ NetworkInitiator::NetworkInitiator(
     Local<Object> object,
     std::unique_ptr<v8_inspector::V8StackTrace> stack)
     : BaseObject(env, object), stack_(std::move(stack)) {
-  object
-      ->SetPrivate(
-          env->context(), Key(env->isolate()), v8::True(env->isolate()))
-      .Check();
   MakeWeak();
 }
 
-Local<v8::Private> NetworkInitiator::Key(Isolate* isolate) {
-  return v8::Private::ForApi(
-      isolate,
-      FIXED_ONE_BYTE_STRING(isolate, "node:inspector:networkInitiator"));
+void NetworkInitiator::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.IsConstructCall());
+  new NetworkInitiator(
+      env, args.This(), env->inspector_agent()->CaptureStackTrace());
+}
+
+Local<FunctionTemplate> NetworkInitiator::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl = env->network_initiator_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, New);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "NetworkInitiator"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
+    env->set_network_initiator_constructor_template(tmpl);
+  }
+  return tmpl;
 }
 
 NetworkInitiator* NetworkInitiator::FromObject(Environment* env,
                                                Local<Object> object) {
-  if (!BaseObject::IsBaseObject(env->isolate_data(), object) ||
-      !object->HasPrivate(env->context(), Key(env->isolate()))
-           .FromMaybe(false)) {
+  if (!GetConstructorTemplate(env)->HasInstance(object)) {
     return nullptr;
   }
   return BaseObject::FromJSObject<NetworkInitiator>(object);
-}
-
-void NetworkInitiator::MemoryInfo(MemoryTracker* tracker) const {
-  if (stack_) {
-    tracker->TrackFieldWithSize("stack", sizeof(*stack_), "V8StackTrace");
-  }
 }
 
 static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
