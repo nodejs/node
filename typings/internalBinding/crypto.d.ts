@@ -804,22 +804,31 @@ declare namespace InternalCryptoBinding {
   }
 
   interface X509CertificateHandle {
-    subject(): string;
+    subject(throwOnError?: true): string;
+    subject(throwOnError: false): string | undefined;
     subjectAltName(): string | undefined;
-    issuer(): string;
+    issuer(throwOnError?: true): string;
+    issuer(throwOnError: false): string | undefined;
     getIssuerCert(): X509CertificateHandle | undefined;
-    infoAccess(): string | undefined;
-    validFrom(): string;
-    validTo(): string;
-    validFromDate(): Date;
-    validToDate(): Date;
-    fingerprint(): string;
-    fingerprint256(): string;
-    fingerprint512(): string;
-    keyUsage(): string[] | undefined;
-    serialNumber(): string;
+    infoAccess(throwOnError?: boolean): string | undefined;
+    validFrom(throwOnError?: true): string;
+    validFrom(throwOnError: false): string | undefined;
+    validTo(throwOnError?: true): string;
+    validTo(throwOnError: false): string | undefined;
+    validFromDate(throwOnError?: boolean): Date;
+    validToDate(throwOnError?: boolean): Date;
+    fingerprint(throwOnError?: true): string;
+    fingerprint(throwOnError: false): string | undefined;
+    fingerprint256(throwOnError?: true): string;
+    fingerprint256(throwOnError: false): string | undefined;
+    fingerprint512(throwOnError?: true): string;
+    fingerprint512(throwOnError: false): string | undefined;
+    keyUsage(throwOnError?: boolean): string[] | undefined;
+    serialNumber(throwOnError?: true): string;
+    serialNumber(throwOnError: false): string | undefined;
     signatureAlgorithm(): string | undefined;
-    signatureAlgorithmOid(): string;
+    signatureAlgorithmOid(throwOnError?: true): string;
+    signatureAlgorithmOid(throwOnError: false): string | undefined;
     version(): number | undefined;
     subjectName(): X509Name | undefined;
     issuerName(): X509Name | undefined;

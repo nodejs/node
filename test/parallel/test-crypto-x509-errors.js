@@ -13,6 +13,7 @@ const {
   generateX509CertificateSync,
   X509Certificate,
 } = require('crypto');
+const { inspect } = require('util');
 
 const keys = generateKeyPairSync('ec', { namedCurve: 'P-256' });
 const expectedError = { code: 'ERR_CRYPTO_OPERATION_FAILED' };
@@ -84,6 +85,22 @@ for (const [oid, property] of [
   });
   assert.throws(() => malformed[property], expectedError);
   assert.throws(() => malformed.toLegacyObject(), expectedError);
+  assert(inspect(malformed).includes(`${property}: undefined`));
+  assert.throws(() => malformed[property], expectedError);
+  assert.throws(() => malformed.toLegacyObject(), expectedError);
+}
+
+{
+  const malformedSan = generate({
+    extensions: [{
+      type: 'raw',
+      oid: '2.5.29.17',
+      value: Buffer.from('0500', 'hex'),
+    }],
+  });
+  assert.throws(() => malformedSan.subjectAltName, expectedError);
+  assert.throws(() => inspect(malformedSan), expectedError);
+  assert.throws(() => malformedSan.subjectAltName, expectedError);
 }
 
 for (const value of [eku, Buffer.from('3000', 'hex')]) {
@@ -93,6 +110,25 @@ for (const value of [eku, Buffer.from('3000', 'hex')]) {
   assert.deepStrictEqual(
     withEku.keyUsage, value === eku ? ['1.3.6.1.5.5.7.3.1'] : []);
   assert.strictEqual(withEku.keyUsage, withEku.keyUsage);
+}
+
+{
+  const healthy = generate({
+    extensions: [{ type: 'raw', oid: '2.5.29.37', value: eku }],
+  });
+  const validFrom = healthy.validFromDate;
+  const validTo = healthy.validToDate;
+  const usages = healthy.keyUsage;
+  validFrom.setUTCFullYear(2040);
+  validTo.setUTCFullYear(2045);
+  usages.push('1.2.3.4');
+  const rendered = inspect(healthy);
+  assert(rendered.includes(validFrom.toISOString()));
+  assert(rendered.includes(validTo.toISOString()));
+  assert(rendered.includes("'1.2.3.4'"));
+  assert.strictEqual(healthy.validFromDate, validFrom);
+  assert.strictEqual(healthy.validToDate, validTo);
+  assert.strictEqual(healthy.keyUsage, usages);
 }
 
 {
@@ -126,6 +162,12 @@ if (!isBoringSSL) {
     // Replace the hour while retaining the UTCTime or GeneralizedTime size.
     der.write('99', offset + encoded.length - 7, 'ascii');
     const malformed = new X509Certificate(der);
+    assert.throws(() => malformed[property], expectedError);
+    assert.throws(() => malformed[dateProperty], expectedError);
+    assert.throws(() => malformed.toLegacyObject(), expectedError);
+    const rendered = inspect(malformed);
+    assert(rendered.includes(`${property}: 'Bad time value'`));
+    assert(rendered.includes(`${dateProperty}: Invalid Date`));
     assert.throws(() => malformed[property], expectedError);
     assert.throws(() => malformed[dateProperty], expectedError);
     assert.throws(() => malformed.toLegacyObject(), expectedError);

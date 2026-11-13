@@ -175,8 +175,14 @@ void ManagedX509::MemoryInfo(MemoryTracker* tracker) const {
 namespace {
 enum class X509ConversionMode {
   kThrow,
-  kLegacyTLS,
+  kLegacy,
 };
+
+X509ConversionMode GetConversionMode(const FunctionCallbackInfo<Value>& args) {
+  // The JS inspector retries failed getters without caching the fallback.
+  return args[0]->IsFalse() ? X509ConversionMode::kLegacy
+                            : X509ConversionMode::kThrow;
+}
 
 enum class MalformedSubjectAltNameMode {
   kThrow,
@@ -192,7 +198,7 @@ MaybeLocal<Value> GetFingerprintDigest(
     X509ConversionMode mode = X509ConversionMode::kThrow) {
   auto fingerprint = cert.getFingerprint(method);
   if (!fingerprint.has_value()) [[unlikely]] {
-    if (mode == X509ConversionMode::kLegacyTLS) {
+    if (mode == X509ConversionMode::kLegacy) {
       return Undefined(env->isolate());
     }
     THROW_ERR_CRYPTO_OPERATION_FAILED(env,
@@ -209,7 +215,8 @@ void Fingerprint(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetFingerprintDigest(env, algo, cert->view()).ToLocal(&ret)) {
+  if (GetFingerprintDigest(env, algo, cert->view(), GetConversionMode(args))
+          .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -285,7 +292,7 @@ MaybeLocal<Value> GetDer(Environment* env,
                          X509ConversionMode mode = X509ConversionMode::kThrow) {
   Local<Value> ret;
   auto bio = view.toDER();
-  if (!bio && mode == X509ConversionMode::kLegacyTLS) {
+  if (!bio && mode == X509ConversionMode::kLegacy) {
     return Undefined(env->isolate());
   }
   if (!ToBuffer(env, &bio, mode).ToLocal(&ret)) {
@@ -330,7 +337,7 @@ MaybeLocal<Value> GetInfoAccessString(
   bool has_extension = false;
   auto bio = view.getInfoAccess(&has_extension);
   if (!bio) [[unlikely]] {
-    if (!has_extension || mode == X509ConversionMode::kLegacyTLS) {
+    if (!has_extension || mode == X509ConversionMode::kLegacy) {
       return Undefined(env->isolate());
     }
     THROW_ERR_CRYPTO_OPERATION_FAILED(
@@ -354,7 +361,7 @@ MaybeLocal<Value> GetValidFrom(
   }
   Local<Value> ret;
   auto bio = view.getValidFrom();
-  if (!bio && mode == X509ConversionMode::kLegacyTLS) {
+  if (!bio && mode == X509ConversionMode::kLegacy) {
     return Undefined(env->isolate());
   }
   if (!ToV8Value(env->context(), bio, mode).ToLocal(&ret)) {
@@ -374,7 +381,7 @@ MaybeLocal<Value> GetValidTo(
   }
   Local<Value> ret;
   auto bio = view.getValidTo();
-  if (!bio && mode == X509ConversionMode::kLegacyTLS) {
+  if (!bio && mode == X509ConversionMode::kLegacy) {
     return Undefined(env->isolate());
   }
   if (!ToV8Value(env->context(), bio, mode).ToLocal(&ret)) {
@@ -383,18 +390,32 @@ MaybeLocal<Value> GetValidTo(
   return ret;
 }
 
-MaybeLocal<Value> GetValidFromDate(Environment* env, const X509View& view) {
+MaybeLocal<Value> GetValidFromDate(
+    Environment* env,
+    const X509View& view,
+    X509ConversionMode mode = X509ConversionMode::kThrow) {
   const auto valid_from_time = view.getValidFromTime();
   if (!valid_from_time.has_value()) [[unlikely]] {
+    if (mode == X509ConversionMode::kLegacy) {
+      return Date::New(env->context(),
+                       std::numeric_limits<double>::quiet_NaN());
+    }
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to convert X.509 notBefore");
     return {};
   }
   return Date::New(env->context(), valid_from_time.value() * 1000.);
 }
 
-MaybeLocal<Value> GetValidToDate(Environment* env, const X509View& view) {
+MaybeLocal<Value> GetValidToDate(
+    Environment* env,
+    const X509View& view,
+    X509ConversionMode mode = X509ConversionMode::kThrow) {
   const auto valid_to_time = view.getValidToTime();
   if (!valid_to_time.has_value()) [[unlikely]] {
+    if (mode == X509ConversionMode::kLegacy) {
+      return Date::New(env->context(),
+                       std::numeric_limits<double>::quiet_NaN());
+    }
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to convert X.509 notAfter");
     return {};
   }
@@ -413,10 +434,15 @@ MaybeLocal<Value> GetSignatureAlgorithm(Environment* env,
   return ret;
 }
 
-MaybeLocal<Value> GetSignatureAlgorithmOID(Environment* env,
-                                           const X509View& view) {
+MaybeLocal<Value> GetSignatureAlgorithmOID(
+    Environment* env,
+    const X509View& view,
+    X509ConversionMode mode = X509ConversionMode::kThrow) {
   auto oid = view.getSignatureAlgorithmOID();
   if (!oid.has_value()) [[unlikely]] {
+    if (mode == X509ConversionMode::kLegacy) {
+      return Undefined(env->isolate());
+    }
     THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Failed to read X.509 signature algorithm OID");
     return {};
@@ -436,7 +462,7 @@ MaybeLocal<Value> GetSerialNumber(
     return ToV8Value(
         env, ToUpper(std::string_view(static_cast<char*>(serial.get()))));
   }
-  if (mode == X509ConversionMode::kLegacyTLS) {
+  if (mode == X509ConversionMode::kLegacy) {
     return Undefined(env->isolate());
   }
   THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to read X.509 serial number");
@@ -455,7 +481,7 @@ MaybeLocal<Value> GetKeyUsage(
     return Undefined(env->isolate());
   }
   if (result == X509View::UsageResult::OPERATION_FAILED) {
-    if (mode == X509ConversionMode::kLegacyTLS) {
+    if (mode == X509ConversionMode::kLegacy) {
       return Undefined(env->isolate());
     }
     THROW_ERR_CRYPTO_OPERATION_FAILED(env,
@@ -864,7 +890,9 @@ void Subject(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (ToV8Value(env->context(), cert->view().getSubject()).ToLocal(&ret)) {
+  if (ToV8Value(
+          env->context(), cert->view().getSubject(), GetConversionMode(args))
+          .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -886,7 +914,9 @@ void Issuer(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (ToV8Value(env->context(), cert->view().getIssuer()).ToLocal(&ret)) {
+  if (ToV8Value(
+          env->context(), cert->view().getIssuer(), GetConversionMode(args))
+          .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -896,7 +926,8 @@ void InfoAccess(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetInfoAccessString(env, cert->view()).ToLocal(&ret)) {
+  if (GetInfoAccessString(env, cert->view(), GetConversionMode(args))
+          .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -906,7 +937,7 @@ void ValidFrom(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetValidFrom(env, cert->view()).ToLocal(&ret)) {
+  if (GetValidFrom(env, cert->view(), GetConversionMode(args)).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -916,7 +947,7 @@ void ValidTo(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetValidTo(env, cert->view()).ToLocal(&ret)) {
+  if (GetValidTo(env, cert->view(), GetConversionMode(args)).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -926,7 +957,8 @@ void ValidFromDate(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetValidFromDate(env, cert->view()).ToLocal(&ret)) {
+  if (GetValidFromDate(env, cert->view(), GetConversionMode(args))
+          .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -936,7 +968,8 @@ void ValidToDate(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetValidToDate(env, cert->view()).ToLocal(&ret)) {
+  if (GetValidToDate(env, cert->view(), GetConversionMode(args))
+          .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -956,7 +989,8 @@ void SignatureAlgorithmOID(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetSignatureAlgorithmOID(env, cert->view()).ToLocal(&ret)) {
+  if (GetSignatureAlgorithmOID(env, cert->view(), GetConversionMode(args))
+          .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -966,7 +1000,8 @@ void SerialNumber(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetSerialNumber(env, cert->view()).ToLocal(&ret)) {
+  if (GetSerialNumber(env, cert->view(), GetConversionMode(args))
+          .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -997,7 +1032,7 @@ void KeyUsage(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetKeyUsage(env, cert->view()).ToLocal(&ret)) {
+  if (GetKeyUsage(env, cert->view(), GetConversionMode(args)).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -1846,7 +1881,7 @@ v8::MaybeLocal<v8::Value> X509Certificate::toObject(Environment* env,
     return {};
   // TLS also builds legacy certificate objects during the handshake. An
   // inspection failure must not change certificate acceptance there.
-  return X509ToObject(env, cert, X509ConversionMode::kLegacyTLS)
+  return X509ToObject(env, cert, X509ConversionMode::kLegacy)
       .FromMaybe(Local<Value>());
 }
 
