@@ -372,13 +372,6 @@ void SetupNetworkTracking(const FunctionCallbackInfo<Value>& args) {
                                                disable_function);
 }
 
-void CaptureNetworkInitiator(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK(args.IsConstructCall());
-  new NetworkInitiator(
-      env, args.This(), env->inspector_agent()->CaptureStackTrace());
-}
-
 void IsEnabled(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   args.GetReturnValue().Set(env->inspector_agent()->IsListening());
@@ -485,11 +478,10 @@ void Initialize(Local<Object> target, Local<Value> unused,
   SetMethod(context, target, "setupNetworkTracking", SetupNetworkTracking);
   SetMethod(context, target, "putNetworkResource", PutNetworkResource);
 
-  Local<FunctionTemplate> initiator =
-      NewFunctionTemplate(isolate, CaptureNetworkInitiator);
-  initiator->InstanceTemplate()->SetInternalFieldCount(
-      NetworkInitiator::kInternalFieldCount);
-  SetConstructorFunction(context, target, "NetworkInitiator", initiator);
+  SetConstructorFunction(context,
+                         target,
+                         "NetworkInitiator",
+                         NetworkInitiator::GetConstructorTemplate(env));
 
   Local<String> console_string = FIXED_ONE_BYTE_STRING(isolate, "console");
 
@@ -525,7 +517,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsEnabled);
   registry->Register(EmitProtocolEvent);
   registry->Register(SetupNetworkTracking);
-  registry->Register(CaptureNetworkInitiator);
+  registry->Register(NetworkInitiator::New);
 
   registry->Register(JSBindingsConnection<LocalConnection>::New);
   registry->Register(JSBindingsConnection<LocalConnection>::Dispatch);

@@ -445,6 +445,7 @@
   V(module_request_template, v8::DictionaryTemplate)                           \
   V(mx_record_template, v8::DictionaryTemplate)                                \
   V(naptr_record_template, v8::DictionaryTemplate)                             \
+  V(network_initiator_constructor_template, v8::FunctionTemplate)              \
   V(object_stats_template, v8::DictionaryTemplate)                             \
   V(page_stats_template, v8::DictionaryTemplate)                               \
   V(permission_diagnostic_channel_message, v8::DictionaryTemplate)             \
