@@ -1876,7 +1876,7 @@ void Stream::EmitReset(const QuicError& error) {
   }
   CallbackScope<Stream> cb_scope(this);
   Local<Value> err;
-  if (!session().ToV8ErrorValue(error).ToLocal(&err)) return;
+  if (!error.ToV8Value(env()).ToLocal(&err)) return;
 
   MakeCallback(BindingData::Get(env()).stream_reset_callback(), 1, &err);
 }
@@ -1887,7 +1887,7 @@ void Stream::EmitStopSending(const QuicError& error) {
   }
   CallbackScope<Stream> cb_scope(this);
   Local<Value> err;
-  if (!session().ToV8ErrorValue(error).ToLocal(&err)) return;
+  if (!error.ToV8Value(env()).ToLocal(&err)) return;
 
   MakeCallback(BindingData::Get(env()).stream_stop_sending_callback(), 1, &err);
 }

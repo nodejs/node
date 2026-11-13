@@ -151,7 +151,8 @@ const decoder = new TextDecoder();
     },
   });
   stream.onreset = mustCall((error) => {
-    assert.strictEqual(error, undefined);
+    assert.strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
+    assert.strictEqual(error.errorCode, H3_NO_ERROR);
     reset.resolve();
   });
   stream.writer.endSync();

@@ -2196,8 +2196,7 @@ The callback to invoke when the peer aborts a direction of the stream by
 sending a `RESET_STREAM` frame (the peer abandons their writable side, so
 no further data will arrive on our readable side).
 
-The callback receives `undefined` when the application error code represents
-no error. Otherwise, it receives a Node.js error whose `errorCode` (`bigint`)
+The callback receives a Node.js error whose `errorCode` (`bigint`)
 property carries the application error code from the wire frame.
 
 The stream is **not** automatically destroyed when this callback fires —
@@ -2220,8 +2219,7 @@ The callback to invoke when the peer aborts a direction of the stream by
 sending a `STOP_SENDING` frame (the peer asks us to stop writing on our
 writable side).
 
-The callback receives `undefined` when the application error code represents
-no error. Otherwise, it receives a Node.js error whose `errorCode` (`bigint`)
+The callback receives a Node.js error whose `errorCode` (`bigint`)
 property carries the application error code from the wire frame. Read/write.
 
 ### `stream.headers`
@@ -4099,7 +4097,7 @@ added: v23.8.0
 -->
 
 * `this` {quic.QuicStream}
-* `error` {Error|undefined}
+* `error` {Error}
 
 ### Callback: `OnHeadersCallback`
 
@@ -4793,7 +4791,7 @@ added:
 
 * `stream` {quic.QuicStream}
 * `session` {quic.QuicSession}
-* `error` {Error|undefined} The QUIC error associated with the reset.
+* `error` {Error} The QUIC error associated with the reset.
 
 Published when a stream receives a RESET\_STREAM frame from the peer,
 indicating the peer has aborted its sending direction. This is a key signal
