@@ -219,6 +219,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kArrayBufferDetach:
       case Runtime::kDeoptimizeFunction:
       case Runtime::kDeoptimizeNow:
+      case Runtime::kInlineDeoptimizeNow:
+      case Runtime::kDisableEagerInlining:
       case Runtime::kDisableOptimizationFinalization:
       case Runtime::kEnableCodeLoggingForTesting:
       case Runtime::kFinalizeOptimization:
@@ -228,7 +230,6 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kOptimizeMaglevOnNextCall:
       case Runtime::kOptimizeOsr:
       case Runtime::kPrepareFunctionForOptimization:
-      case Runtime::kPretenureAllocationSite:
       case Runtime::kSetAllocationTimeout:
       case Runtime::kSetDispatchTableGCInterval:
       case Runtime::kSetForceSlowPath:
@@ -241,8 +242,10 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kIsEfficiencyModeEnabled:
       case Runtime::kBaselineOsr:
       case Runtime::kCompileBaseline:
+      case Runtime::kCopyFunctionWithFreshFeedback:
 #if V8_ENABLE_WEBASSEMBLY && V8_WASM_RANDOM_FUZZERS
       case Runtime::kWasmGenerateRandomModule:
+      case Runtime::kWasmGenerateRandomRevecModule:
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_WASM_RANDOM_FUZZERS
 #if V8_ENABLE_WEBASSEMBLY
       case Runtime::kWasmArray:
@@ -276,7 +279,6 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kAssertPeeled:
     case Runtime::kTurbofanStaticAssert:
     case Runtime::kAssertEscapeAnalysisElided:
-    case Runtime::kClearFunctionFeedback:
     case Runtime::kStringIsFlat:
     case Runtime::kGetInitializerFunction:
     case Runtime::kArrayBufferDetachForceWasm:
@@ -310,12 +312,17 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       return v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing;
 
     case Runtime::kInstallBytecode:
-      // %InstallBytecode allows installing manipulated bytecode that has
-      // only been checked for sandbox safety, not general correctness.
-      // Therefore, it is restricted to sandbox fuzzing with full bytecode
-      // verification enabled, preventing trivial sandbox violation alarms.
+      // %InstallBytecode exposes a threat model more powerful than the sandbox
+      // one, this leads to fuzzers reporting bytecode corruptions that would
+      // never be emitted by the bytecode compiler.
+      return false;
+
+    case Runtime::kGetCodeCache:
+    case Runtime::kConsumeCodeCache:
+      // These consume code caches with a replaced untrusted section, which
+      // only makes sense with the sandbox crash filter.
       return (v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing) &&
-             v8_flags.verify_bytecode_full;
+             v8_flags.code_cache_fuzzing;
 
     case Runtime::kIsSmi:
       return true;  // Enabled when not performing differential fuzzing.
@@ -328,10 +335,13 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
   switch (id) {
     // Functions used in testing and outside
     case Runtime::kArrayBufferDetach:
+    case Runtime::kArrayBufferSetDetachKey:
 #define F(name, nargs, ressize, ...) case k##name:
-#define I(name, nargs, ressize, ...) case kInline##name:
-    FOR_EACH_INTRINSIC_TEST(F, I)
-    IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)
+#define I(name, nargs, ressize, ...) \
+  case k##name:                      \
+  case kInline##name:
+      FOR_EACH_INTRINSIC_TEST(F, I)
+      IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)
 #undef I
 #undef F
     return true;

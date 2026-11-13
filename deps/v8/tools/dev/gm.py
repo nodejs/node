@@ -91,7 +91,7 @@ DEFAULT_TARGETS = ["d8"]
 # Tests that run-tests.py would run by default that can be run with
 # BUILD_TARGETS_TESTS.
 DEFAULT_TESTS = [
-    "cctest", "debugger", "filecheck", "intl", "message", "mjsunit", "unittests"
+    "cctest", "filecheck", "intl", "message", "mjsunit", "unittests"
 ]
 # These can be suffixed to any <arch>.<mode> combo, or used standalone,
 # or used as global modifiers (affecting all <arch>.<mode> combos).
@@ -148,7 +148,6 @@ TESTSUITES_TARGETS = {
     "benchmarks": "d8",
     "bigint": "bigint_shell",
     "cctest": "cctest",
-    "debugger": "d8",
     "filecheck": "d8",
     "fuzzer": "v8_fuzzers",
     "inspector": "inspector-test",
@@ -277,6 +276,14 @@ def detect_reclient():
     return Reclient.CUSTOM
   if "download_remoteexec_cfg" in custom_vars:
     return Reclient.GOOGLE
+  # On Linux corp machines (including Cog), Siso's built-in remote execution
+  # uses .sisoenv and does not require download_remoteexec_cfg in .gclient.
+  sisoenv_path = (
+      (CHROMIUM_DIR or V8_ROOT_DIR) / "build" / "config" / "siso" / ".sisoenv"
+  )
+  if (platform.system() == "Linux" and shutil.which("gcert") is not None and
+      sisoenv_path.exists()):
+    return Reclient.GOOGLE
   return Reclient.NONE
 
 
@@ -309,16 +316,9 @@ def detect_reclient_cert():
 
 RECLIENT_MODE = detect_reclient()
 
-if platform.system() == "Linux":
-  RECLIENT_CFG_REL = "../../buildtools/reclient_cfgs/linux"
-else:
-  RECLIENT_CFG_REL = "../../buildtools/reclient_cfgs"
-
 BUILD_DISTRIBUTION_LINE = ""
 if RECLIENT_MODE:
   BUILD_DISTRIBUTION_LINE = "\nuse_remoteexec = true"
-  if RECLIENT_MODE == Reclient.CUSTOM:
-    BUILD_DISTRIBUTION_LINE += f"\nreclient_cfg_dir = \"{RECLIENT_CFG_REL}\""
 
 RELEASE_ARGS_TEMPLATE = f"""\
 is_component_build = false
@@ -461,6 +461,8 @@ def _write(filename, content, log=True):
 
 
 def _notify(summary, body):
+  if QUIET:
+    return
   if (shutil.which('notify-send') is not None and
       os.environ.get("DISPLAY") is not None):
     _call(f"notify-send '{summary}' '{body}'", silent=True)
@@ -516,8 +518,7 @@ class RawConfig:
     args_gn = self.path / "args.gn"
     assert args_gn.exists(), f"args.gn does not exist: {args_gn}"
     gn_args = args_gn.read_text()
-    # Remove custom reclient config path (it will be added again as part of
-    # the config line below if needed).
+    # Remove obsolete rbe_cfg_dir and reclient_cfg_dir paths.
     new_gn_args = DEPRECATED_RBE_CFG_RE.sub("", gn_args)
     new_gn_args = RECLIENT_CFG_RE.sub("", new_gn_args)
     new_gn_args = BUILD_DISTRIBUTION_RE.sub(BUILD_DISTRIBUTION_LINE,
@@ -577,6 +578,10 @@ class RawConfig:
 
     return_code, output = _call_with_output(cmd)
     if return_code != 0 and "FAILED:" in output:
+      if "tools/dev/gm.py gen-checked-in-headers" in output:
+        _notify("V8 build requires your attention",
+                "Please regenerate the checked-in generated headers.")
+        return return_code
       if "snapshot_blob" in output:
         if "gen-static-roots.py" in output:
           _notify("V8 build requires your attention",
@@ -857,6 +862,14 @@ class ArgumentParser(object):
         arch = "arm64"
       self.populate_configs([arch], ["release"], ["mkgrokdump"], [], False)
       return
+    # Special handling for "gen-checked-in-headers": regenerate the checked-in
+    # generated headers under src/gen/ (see src/gen/README.md).
+    if argstring == "gen-checked-in-headers":
+      sys.exit(
+          subprocess.call([
+              sys.executable,
+              str(V8_DIR / "tools" / "dev" / "gen-checked-in-headers.py")
+          ]))
     if argstring.startswith("--"):
       # Pass all other flags to test runner.
       self.testrunner_args.append(argstring)

@@ -9,6 +9,7 @@
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/heap/memory-pool.h"
+#include "src/tracing/trace-event.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/allocation.h"
 #include "src/zone/zone-segment.h"

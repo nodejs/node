@@ -42,7 +42,7 @@ void TracedNode::Release(Address zap_value) {
   // Clear all flags.
   flags_ = 0;
   clear_markbit();
-  set_raw_object(zap_value);
+  set_raw_object<AccessMode::ATOMIC>(zap_value);
   DCHECK(IsMetadataCleared());
 }
 
@@ -139,10 +139,10 @@ void TracedHandles::FreeNode(TracedNode* node, Address zap_value) {
   }
   block.FreeNode(node, zap_value);
   if (block.IsEmpty()) {
-    usable_blocks_.Remove(&block);
-    blocks_.Remove(&block);
+    TracedNodeBlock::UsableList::Remove(&block);
+    TracedNodeBlock::OverallList::Remove(&block);
     if (block.InYoungList()) {
-      young_blocks_.Remove(&block);
+      TracedNodeBlock::YoungList::Remove(&block);
       DCHECK(!block.InYoungList());
       num_young_blocks_--;
     }
@@ -173,6 +173,7 @@ TracedHandles::~TracedHandles() {
 void TracedHandles::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
   DCHECK_IMPLIES(is_marking_, !is_sweeping_on_mutator_thread_);
   DCHECK_IMPLIES(is_sweeping_on_mutator_thread_, !is_marking_);
+  DCHECK(!is_processing_weakness_);
 
   // If sweeping on the mutator thread is running then the handle destruction
   // may be a result of a Reset() call from a destructor. The node will be
@@ -214,6 +215,7 @@ bool IsTracedHandleZapValue(Address value) {
 }  // namespace
 
 void TracedHandles::Copy(const TracedNode& from_node, Address** to) {
+  DCHECK(!is_processing_weakness_);
   DCHECK(!IsTracedHandleZapValue(from_node.raw_object()));
   FullObjectSlot o =
       Create(from_node.raw_object(), reinterpret_cast<Address*>(to),
@@ -228,6 +230,7 @@ void TracedHandles::Copy(const TracedNode& from_node, Address** to) {
 }
 
 void TracedHandles::Move(TracedNode& from_node, Address** from, Address** to) {
+  DCHECK(!is_processing_weakness_);
   DCHECK(from_node.is_in_use());
 
   // Deal with old "to".
@@ -272,6 +275,11 @@ void TracedHandles::SetIsMarking(bool value) {
 void TracedHandles::SetIsSweepingOnMutatorThread(bool value) {
   DCHECK_EQ(is_sweeping_on_mutator_thread_, !value);
   is_sweeping_on_mutator_thread_ = value;
+}
+
+void TracedHandles::SetIsProcessingWeakness(bool value) {
+  DCHECK_EQ(is_processing_weakness_, !value);
+  is_processing_weakness_ = value;
 }
 
 const TracedHandles::NodeBounds TracedHandles::GetNodeBounds() const {
@@ -356,7 +364,7 @@ void TracedHandles::ResetDeadNodes(
     }
 
     if (block->InYoungList()) {
-      young_blocks_.Remove(block);
+      TracedNodeBlock::YoungList::Remove(block);
       DCHECK(!block->InYoungList());
       num_young_blocks_--;
     }
@@ -586,7 +594,8 @@ class ClearWeaknessProcessor final
         }
         if (node_cleared) {
           // Mark as cleared due to weak semantics.
-          node->set_raw_object(kTracedHandleMinorGCWeakResetZapValue);
+          node->set_raw_object<AccessMode::ATOMIC>(
+              kTracedHandleMinorGCWeakResetZapValue);
           DCHECK(!node->is_in_use());
           DCHECK(!node->is_weak());
         } else {
@@ -666,12 +675,12 @@ void TracedHandles::ProcessWeakYoungObjects(
       DCHECK(!block->NeedsReprocessing());
       if (usable_blocks_.Contains(block)) {
         DCHECK(block->InUsableList());
-        usable_blocks_.Remove(block);
+        TracedNodeBlock::UsableList::Remove(block);
         DCHECK(!block->InUsableList());
       }
-      blocks_.Remove(block);
+      TracedNodeBlock::OverallList::Remove(block);
       DCHECK(block->InYoungList());
-      young_blocks_.Remove(block);
+      TracedNodeBlock::YoungList::Remove(block);
       DCHECK(!block->InYoungList());
       num_young_blocks_--;
       empty_blocks_.push_back(block);

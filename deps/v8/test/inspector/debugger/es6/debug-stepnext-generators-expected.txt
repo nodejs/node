@@ -1,0 +1,12 @@
+Tests stepping through generator yield expressions.
+paused at: debugger;  // B0
+paused at: yield 1;   // B1
+paused at: yield 2;   // B2 step out
+paused at: assertEquals(2, i.next().value);   // B3
+paused at: assertEquals(3, i.next().value);   // B4 step in
+paused at: yield 3;   // B5
+paused at: yield 4;   // B6 step out
+paused at: assertEquals(4, i.next().value);   // B7
+paused at: assertEquals(5, i.next().value);   // B8
+paused at: assertEquals(6, i.next(3).value);  // B9 stop
+breaks: 10

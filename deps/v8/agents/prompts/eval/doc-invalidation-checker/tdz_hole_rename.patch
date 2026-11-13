@@ -1,0 +1,77 @@
+diff --git a/src/maglev/maglev-graph-builder.cc b/src/maglev/maglev-graph-builder.cc
+index a221d6a0e15..e4194998f76 100644
+--- a/src/maglev/maglev-graph-builder.cc
++++ b/src/maglev/maglev-graph-builder.cc
+@@ -15741,7 +15741,7 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfTdzHole() {
+   // ThrowReferenceErrorIfTdzHole <variable_name>
+   compiler::NameRef name = GetRefOperand<Name>(0);
+   ValueNode* value = GetAccumulator();
+-  switch (value->IsTdzHole()) {
++  switch (value->CanElideTdzHoleCheck()) {
+     case Tribool::kTrue:
+       return reducer_.EmitThrow(Throw::kThrowAccessedUninitializedVariable,
+                                 GetConstant(name));
+@@ -15783,7 +15783,7 @@ ReduceResult MaglevGraphBuilder::VisitThrowSuperNotCalledIfTdzHole() {
+   // ThrowSuperNotCalledIfTdzHole
+   ValueNode* value = GetAccumulator();
+   if (CheckType(value, NodeType::kJSReceiver)) return ReduceResult::Done();
+-  switch (value->IsTdzHole()) {
++  switch (value->CanElideTdzHoleCheck()) {
+     case Tribool::kTrue:
+       return reducer_.EmitThrow(Throw::kThrowSuperNotCalled);
+     case Tribool::kFalse:
+@@ -15797,7 +15797,7 @@ ReduceResult MaglevGraphBuilder::VisitThrowSuperNotCalledIfTdzHole() {
+ ReduceResult MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotTdzHole() {
+   // ThrowSuperAlreadyCalledIfNotTdzHole
+   ValueNode* value = GetAccumulator();
+-  switch (value->IsTdzHole()) {
++  switch (value->CanElideTdzHoleCheck()) {
+     case Tribool::kTrue:
+       return ReduceResult::Done();
+     case Tribool::kFalse:
+diff --git a/src/maglev/maglev-graph-optimizer.cc b/src/maglev/maglev-graph-optimizer.cc
+index 04ac39d138d..7989d6d1b0c 100644
+--- a/src/maglev/maglev-graph-optimizer.cc
++++ b/src/maglev/maglev-graph-optimizer.cc
+@@ -1491,7 +1491,7 @@ ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForReturn(
+ 
+ ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfTdzHole(
+     ThrowReferenceErrorIfTdzHole* node, const ProcessingState& state) {
+-  switch (node->ValueInput().node()->IsTdzHole()) {
++  switch (node->ValueInput().node()->CanElideTdzHoleCheck()) {
+     case Tribool::kTrue: {
+       return ThrowAndTruncate(Throw::kThrowAccessedUninitializedVariable,
+                               reducer_.GetConstant(node->name()));
+@@ -1507,7 +1507,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfTdzHole(
+ 
+ ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfTdzHole(
+     ThrowSuperNotCalledIfTdzHole* node, const ProcessingState& state) {
+-  switch (node->ValueInput().node()->IsTdzHole()) {
++  switch (node->ValueInput().node()->CanElideTdzHoleCheck()) {
+     case Tribool::kTrue: {
+       return ThrowAndTruncate(Throw::kThrowSuperNotCalled);
+     }
+@@ -1522,7 +1522,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfTdzHole(
+ 
+ ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotTdzHole(
+     ThrowSuperAlreadyCalledIfNotTdzHole* node, const ProcessingState& state) {
+-  switch (node->ValueInput().node()->IsTdzHole()) {
++  switch (node->ValueInput().node()->CanElideTdzHoleCheck()) {
+     case Tribool::kTrue:
+       // It is the hole; removing.
+       return RemoveCurrentNode();
+diff --git a/src/maglev/maglev-ir.h b/src/maglev/maglev-ir.h
+index 59b6d0d5e66..a7ff2706cb0 100644
+--- a/src/maglev/maglev-ir.h
++++ b/src/maglev/maglev-ir.h
+@@ -2796,7 +2796,9 @@ class ValueNode : public Node {
+ 
+   Tribool IsHole(RootIndex hole_index) const;
+   Tribool IsTheHole() const { return IsHole(RootIndex::kTheHoleValue); }
+-  Tribool IsTdzHole() const { return IsHole(RootIndex::kTdzHoleValue); }
++  Tribool CanElideTdzHoleCheck() const {
++    return IsHole(RootIndex::kTdzHoleValue);
++  }
+   bool IsAnyHoleConstant() const;
+ 
+   inline void MaybeRecordUseReprHint(UseRepresentationSet repr);

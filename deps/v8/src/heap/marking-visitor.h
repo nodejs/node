@@ -12,7 +12,6 @@
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/heap/spaces.h"
 #include "src/heap/weak-object-worklists.h"
 
@@ -143,12 +142,12 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
                                       ExternalPointerSlot slot) override;
   V8_INLINE void VisitCppHeapPointer(Tagged<HeapObject> host,
                                      CppHeapPointerSlot slot) override;
-  V8_INLINE void VisitIndirectPointer(Tagged<HeapObject> host,
-                                      IndirectPointerSlot slot,
-                                      IndirectPointerMode mode) final;
+  V8_INLINE void VisitTrustedPointer(Tagged<HeapObject> host,
+                                     TrustedPointerSlot slot,
+                                     TrustedPointerMode mode) final;
 
   void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                     IndirectPointerSlot slot) final;
+                                     TrustedPointerSlot slot) final;
 
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                  JSDispatchHandle handle) override;
@@ -272,7 +271,7 @@ class FullMarkingVisitorBase : public MarkingVisitorBase<ConcreteVisitor> {
 
   MarkingState* marking_state() const { return marking_state_; }
 
-  void MarkPointerTableEntry(Tagged<HeapObject> obj, IndirectPointerSlot slot);
+  void MarkPointerTableEntry(Tagged<HeapObject> obj, TrustedPointerSlot slot);
 
  private:
   MarkingState* marking_state_;

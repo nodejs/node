@@ -104,6 +104,12 @@ transitioning javascript builtin IteratorHelperPrototypeNext(
     case (zipHelper: JSIteratorZipHelper): {
       return IteratorZipHelperNext(zipHelper);
     }
+    case (chunksHelper: JSIteratorChunksHelper): {
+      return IteratorChunksHelperNext(chunksHelper);
+    }
+    case (windowsHelper: JSIteratorWindowsHelper): {
+      return IteratorWindowsHelperNext(windowsHelper);
+    }
     case (Object): {
       unreachable;
     }
@@ -182,6 +188,12 @@ transitioning javascript builtin IteratorHelperPrototypeReturn(
         }
         // iii. Return ? IteratorClose(iterated, completion).
         IteratorClose(flatMapHelper.underlying_iterator);
+      }
+      case (windowsHelper: JSIteratorWindowsHelper): {
+        windowsHelper.buffer = kEmptyFixedArray;
+        windowsHelper.element_count = 0;
+        windowsHelper.start_index = 0;
+        IteratorClose(windowsHelper.underlying_iterator);
       }
       case (simpleHelper: JSIteratorHelperSimple): {
         // Standard generator body cleanup logic for simple iterator helpers
@@ -864,8 +876,7 @@ transitioning javascript builtin IteratorPrototypeReduce(
       //   a. Let next be ? IteratorStep(iterated).
       //   b. If next is false, throw a TypeError exception.
       next = IteratorStep(iterated, fastIteratorResultMap)
-          otherwise ThrowTypeError(
-          MessageTemplate::kIteratorReduceNoInitial, methodName);
+          otherwise ThrowTypeError(MessageTemplate::kIteratorReduceNoInitial);
       //   c. Let accumulator be ? IteratorValue(next).
       accumulator = IteratorValue(next, fastIteratorResultMap);
       //   d. Let counter be 1.
@@ -910,8 +921,8 @@ transitioning javascript builtin IteratorPrototypeReduce(
         ReThrowWithMessage(context, e, message);
       }
     }
-  } label CloseIteratorAndThrow(iteratorObject: JSReceiver, reducer: JSAny)
-  deferred {
+  } label CloseIteratorAndThrow(
+      iteratorObject: JSReceiver, reducer: JSAny) deferred {
     IteratorCloseOnException(iteratorObject);
     ThrowCalledNonCallable(reducer);
   }
@@ -2164,6 +2175,423 @@ transitioning javascript builtin IteratorPrototypeIncludes(
         IteratorClose(iterated);
         return True;
       }
+    }
+  }
+  unreachable;
+}
+
+// --- chunks helper
+
+macro NewJSIteratorChunksHelper(
+    implicit context: Context)(underlying: IteratorRecord,
+    chunkSize: Number): JSIteratorChunksHelper {
+  // If chunk size > kSmiMax, our implementation will anyway go OOM after the
+  // chunk size exceeds kFixedArrayMaxLength. Therefore, we clamp the chunk
+  // size to kSmiMax, in order to use Smi here and to avoid integer overflow.
+  const maxSmiSize: Smi = Convert<Smi>(Signed(kSmiMax));
+  const clampedChunkSize: Smi = chunkSize > maxSmiSize ?
+      maxSmiSize :
+      Convert<Smi>(Convert<intptr>(chunkSize));
+  return new JSIteratorChunksHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_CHUNKS_HELPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    state:
+        SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kSuspendedStart),
+    underlying_iterator: underlying,
+    chunk_size: clampedChunkSize
+  };
+}
+
+// https://tc39.es/proposal-iterator-chunking/#sec-iterator.prototype.chunks
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeChunks(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    chunkSize: JSAny): JSIteratorChunksHelper {
+  const methodName: constexpr string = 'Iterator.prototype.chunks';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]:
+  // undefined, [[Done]]: false }.
+  // 4. If chunkSize is not an integral Number, then
+  //   a. Let error be ThrowCompletion(a newly created TypeError object).
+  //   b. Return ? IteratorClose(iterated, error).
+  if (!IsInteger(chunkSize)) {
+    IteratorCloseOnException(o);
+    ThrowTypeError(MessageTemplate::kMustBeInteger, 'chunkSize');
+  }
+  const numberChunkSize = Cast<Number>(chunkSize) otherwise unreachable;
+
+  // 5. If chunkSize is not in the inclusive interval from 1𝔽 to 𝔽(2^32 - 1),
+  // then
+  //   a. Let error be ThrowCompletion(a newly created RangeError object).
+  //   b. Return ? IteratorClose(iterated, error).
+  if (numberChunkSize < 1 || numberChunkSize > 4294967295) {
+    IteratorCloseOnException(o);
+    ThrowRangeError(
+        MessageTemplate::kIteratorChunkOrWindowSizeRange, methodName,
+        'chunkSize');
+  }
+
+  // 6. Set iterated to ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // Step 7 implemented in IteratorChunksHelperNext.
+
+  //  8. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+  //     %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
+  //  9. Set result.[[UnderlyingIterators]] to « iterated ».
+  // 10. Return result.
+  return NewJSIteratorChunksHelper(iterated, numberChunkSize);
+}
+
+transitioning builtin IteratorChunksHelperNext(
+    implicit context: Context)(helper: JSIteratorChunksHelper): JSAny {
+  // 7. Let closure be a new Abstract Closure with no parameters that captures
+  //    iterated and chunkSize and performs the following steps when called:
+  //   a. Let buffer be a new empty List.
+  const chunkSize = Convert<intptr>(helper.chunk_size);
+  sbxcheck(chunkSize >= 1);
+  let buffer: FixedArray = kEmptyFixedArray;
+  let length: intptr = 0;
+  let capacity: intptr = 0;
+  const isFirstChunk = IteratorHelperIsSuspendedStart(helper);
+
+  MarkIteratorHelperAsExecuting(helper);
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // b. Repeat,
+  while (true) {
+    // i. Let value be ? IteratorStepValue(iterated).
+    let value: JSAny;
+    try {
+      value =
+          IteratorStepValue(helper.underlying_iterator, fastIteratorResultMap)
+          otherwise Done, DoneWithException;
+    } label Done {
+      // ii. If value is done, then
+      MarkIteratorHelperAsExhausted(helper);
+      // 1. If buffer is not empty, then
+      if (length > 0) {
+        // a. Perform Completion(Yield(CreateArrayFromList(buffer))).
+        const finalBuffer = Cast<FixedArray>(
+            AllocateFixedArray(ElementsKind::PACKED_ELEMENTS, length))
+            otherwise unreachable;
+        TorqueCopyElements(finalBuffer, 0, buffer, 0, length);
+        const arrayMap = GetFastPackedElementsJSArrayMap();
+        const array = NewJSArray(arrayMap, finalBuffer);
+        return AllocateJSIteratorResult(array, False);
+      }
+      // 2. Return ReturnCompletion(undefined).
+      return AllocateJSIteratorResult(Undefined, True);
+    } label DoneWithException(e: JSAny, message: JSMessageObject|TheHole) {
+      MarkIteratorHelperAsExhausted(helper);
+      ReThrowWithMessage(context, e, message);
+    }
+
+    // Ensure space for the new element.
+    if (length == capacity) {
+      const newCapacity = isFirstChunk ?
+          IntPtrMin(CalculateNewElementsCapacity(capacity), chunkSize) :
+          chunkSize;
+      const newBuffer = AllocateZeroedFixedArray(newCapacity);
+      if (length > 0) {
+        TorqueCopyElements(newBuffer, 0, buffer, 0, length);
+      }
+      buffer = newBuffer;
+      capacity = newCapacity;
+    }
+
+    // iii. Append value to buffer.
+    dcheck(capacity == Convert<intptr>(buffer.length));
+    dcheck(length < capacity);
+    buffer.objects[length++] = value;
+
+    // iv. If the number of elements in buffer is ℝ(chunkSize), then
+    if (length == chunkSize) {
+      // 1. Let completion be Completion(Yield(CreateArrayFromList(buffer))).
+      dcheck(length == capacity);
+      const arrayMap = GetFastPackedElementsJSArrayMap();
+      const array = NewJSArray(arrayMap, buffer);
+      MarkIteratorHelperAsFinishedExecuting(helper);
+      return AllocateJSIteratorResult(array, False);
+      // 2. IfAbruptCloseIterator(completion, iterated).
+      // (Done in IteratorHelperPrototypeReturn.)
+      // 3. Set buffer to a new empty List.
+      // (Done the next time that the helper is called.)
+    }
+  }
+  unreachable;
+}
+
+// --- windows helper
+
+macro NewJSIteratorWindowsHelper(
+    implicit context: Context)(underlying: IteratorRecord, windowSize: Number,
+    mode: JSIteratorWindowsHelperMode): JSIteratorWindowsHelper {
+  // If window size > kSmiMax, our implementation will anyway go OOM after the
+  // window size exceeds kFixedArrayMaxLength. Therefore, we clamp the window
+  // size to kSmiMax, in order to use Smi here and to avoid integer overflow.
+  const maxSmiSize: Smi = Convert<Smi>(Signed(kSmiMax));
+  const clampedWindowSize: Smi = windowSize > maxSmiSize ?
+      maxSmiSize :
+      Convert<Smi>(Convert<intptr>(windowSize));
+  return new JSIteratorWindowsHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_WINDOWS_HELPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    state:
+        SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kSuspendedStart),
+    underlying_iterator: underlying,
+    window_size: clampedWindowSize,
+    mode: SmiTag<JSIteratorWindowsHelperMode>(mode),
+    buffer: kEmptyFixedArray,
+    element_count: 0,
+    start_index: 0
+  };
+}
+
+// https://tc39.es/proposal-iterator-chunking/#sec-iterator.prototype.windows
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeWindows(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): JSIteratorWindowsHelper {
+  const methodName: constexpr string = 'Iterator.prototype.windows';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]:
+  // undefined, [[Done]]: false }.
+  // 4. If windowSize is not an integral Number, then
+  //   a. Let error be ThrowCompletion(a newly created TypeError object).
+  //   b. Return ? IteratorClose(iterated, error).
+  const windowSize = arguments[0];
+  if (!IsInteger(windowSize)) {
+    IteratorCloseOnException(o);
+    ThrowTypeError(MessageTemplate::kMustBeInteger, 'windowSize');
+  }
+  const numberWindowSize = Cast<Number>(windowSize) otherwise unreachable;
+
+  // 5. If windowSize is not in the inclusive interval from 1𝔽 to 𝔽(2^32 - 1),
+  // then
+  //   a. Let error be ThrowCompletion(a newly created RangeError object).
+  //   b. Return ? IteratorClose(iterated, error).
+  if (numberWindowSize < 1 || numberWindowSize > 4294967295) {
+    IteratorCloseOnException(o);
+    ThrowRangeError(
+        MessageTemplate::kIteratorChunkOrWindowSizeRange, methodName,
+        'windowSize');
+  }
+
+  // 6. If undersized is undefined, set undersized to "only-full".
+  // 7. If undersized is neither "only-full" nor "allow-partial", then
+  //   a. Let error be ThrowCompletion(a newly created TypeError object).
+  //   b. Return ? IteratorClose(iterated, error).
+  const undersized = arguments[1];
+  let mode: JSIteratorWindowsHelperMode;
+  if (undersized == Undefined) {
+    mode = JSIteratorWindowsHelperMode::kOnlyFull;
+  } else {
+    try {
+      typeswitch (undersized) {
+        case (str: String): {
+          if (StringEqual(context, str, StringConstant('only-full')) == True) {
+            mode = JSIteratorWindowsHelperMode::kOnlyFull;
+          } else if (
+              StringEqual(context, str, StringConstant('allow-partial')) ==
+              True) {
+            mode = JSIteratorWindowsHelperMode::kAllowPartial;
+          } else {
+            goto InvalidMode;
+          }
+        }
+        case (JSAny): {
+          goto InvalidMode;
+        }
+      }
+    } label InvalidMode {
+      IteratorCloseOnException(o);
+      ThrowTypeError(MessageTemplate::kInvalidIteratorWindowsMode);
+    }
+  }
+
+  // 8. Set iterated to ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // Step 9 implemented in IteratorWindowsHelperNext.
+
+  // 10. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+  //     %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
+  // 11. Set result.[[UnderlyingIterators]] to « iterated ».
+  // 12. Return result.
+  return NewJSIteratorWindowsHelper(iterated, numberWindowSize, mode);
+}
+
+transitioning builtin IteratorWindowsHelperNext(
+    implicit context: Context)(helper: JSIteratorWindowsHelper): JSAny {
+  // 9. Let closure be a new Abstract Closure with no parameters that captures
+  //    iterated, windowSize, and undersized and performs the following steps
+  //    when called:
+  //   a. Let buffer be a new empty List.
+  const windowSize = Convert<intptr>(helper.window_size);
+  sbxcheck(windowSize >= 1);
+  const useCircularBuffer = windowSize > 1024;
+  const mode = SmiUntag<JSIteratorWindowsHelperMode>(helper.mode);
+  let buffer = helper.buffer;
+  let length = Convert<intptr>(helper.element_count);
+  let capacity = Convert<intptr>(buffer.length);
+  let startIndex = Convert<intptr>(helper.start_index);
+  sbxcheck(startIndex >= 0);
+
+  MarkIteratorHelperAsExecuting(helper);
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // b. Repeat,
+  while (true) {
+    // i. Let value be ? IteratorStepValue(iterated).
+    let value: JSAny;
+    try {
+      value =
+          IteratorStepValue(helper.underlying_iterator, fastIteratorResultMap)
+          otherwise Done, DoneWithException;
+    } label Done {
+      // ii. If value is done, then
+      MarkIteratorHelperAsExhausted(helper);
+      helper.buffer = kEmptyFixedArray;
+      helper.element_count = 0;
+      helper.start_index = 0;
+      //   1. If undersized is "allow-partial", buffer is not empty, and the
+      //      number of elements in buffer < ℝ(windowSize), then
+      if (mode == JSIteratorWindowsHelperMode::kAllowPartial && length > 0 &&
+          length < windowSize) {
+        // a. Perform Completion(Yield(CreateArrayFromList(buffer))).
+        dcheck(startIndex == 0);
+        const finalBuffer = Cast<FixedArray>(
+            AllocateFixedArray(ElementsKind::PACKED_ELEMENTS, length))
+            otherwise unreachable;
+        TorqueCopyElements(finalBuffer, 0, buffer, 0, length);
+        const arrayMap = GetFastPackedElementsJSArrayMap();
+        const array = NewJSArray(arrayMap, finalBuffer);
+        return AllocateJSIteratorResult(array, False);
+      }
+      // 2. Return ReturnCompletion(undefined).
+      return AllocateJSIteratorResult(Undefined, True);
+    } label DoneWithException(e: JSAny, message: JSMessageObject|TheHole) {
+      MarkIteratorHelperAsExhausted(helper);
+      helper.buffer = kEmptyFixedArray;
+      helper.element_count = 0;
+      helper.start_index = 0;
+      ReThrowWithMessage(context, e, message);
+    }
+
+    // Fast path when the window size is 1 and no buffer is necessary.
+    if (windowSize == 1) {
+      const arrayMap = GetFastPackedElementsJSArrayMap();
+      const finalBuffer =
+          Cast<FixedArray>(AllocateFixedArray(ElementsKind::PACKED_ELEMENTS, 1))
+          otherwise unreachable;
+      finalBuffer.objects[0] = value;
+      const array = NewJSArray(arrayMap, finalBuffer);
+
+      MarkIteratorHelperAsFinishedExecuting(helper);
+      return AllocateJSIteratorResult(array, False);
+    }
+
+    // iii. If the number of elements in buffer is ℝ(windowSize), then
+    //   1. Remove the first element from buffer.
+    if (length == windowSize) {
+      if (++startIndex >= capacity) {
+        startIndex = 0;
+      }
+      length--;
+      helper.start_index = Convert<Smi>(startIndex);
+      helper.element_count = Convert<Smi>(length);
+    }
+
+    // Ensure space for the new element.
+    if (startIndex + length == capacity) {
+      const maxCapacity =
+          useCircularBuffer ? windowSize : IntPtrMax(2 * windowSize - 1, 16);
+      if (capacity < maxCapacity ||
+          (!useCircularBuffer && TaggedIsNotSmi(value))) {
+        // Grow (if capacity < maxCapacity) and reset startIndex to 0. In the
+        // double-capacity buffer case (!useCircularBuffer), we also allocate a
+        // new internal buffer in the new space if the value to be added is a
+        // heap object. This helps avoid the overhead of the write barrier, in
+        // the case where the existing buffer is in the old space and the
+        // underlying iterator yields heap objects. Note: it is a probabilistic
+        // optimization; it does not guarantee that no write barriers will be
+        // needed. Precise tracking of heap objects would be too expensive.
+        dcheck(!useCircularBuffer || startIndex == 0);
+        const newCapacity =
+            IntPtrMin(CalculateNewElementsCapacity(capacity), maxCapacity);
+        const newBuffer = AllocateZeroedFixedArray(newCapacity);
+        if (length > 0) {
+          TorqueCopyElements(newBuffer, 0, buffer, startIndex, length);
+        }
+        buffer = newBuffer;
+        helper.buffer = buffer;
+        capacity = newCapacity;
+        startIndex = 0;
+        helper.start_index = 0;
+      } else if (!useCircularBuffer) {
+        // Copy-back (amortized shift) in the existing double-capacity buffer.
+        dcheck(capacity == maxCapacity);
+        if (length > 0) {
+          TorqueMoveElements(buffer, 0, startIndex, length);
+        }
+        startIndex = 0;
+        helper.start_index = 0;
+      }
+    }
+
+    // iv. Append value to buffer.
+    dcheck(capacity == Convert<intptr>(buffer.length));
+    dcheck(length < capacity);
+    let appendIndex = startIndex + length;
+    if (appendIndex >= capacity) {
+      dcheck(useCircularBuffer);
+      appendIndex -= capacity;
+    }
+    dcheck(appendIndex < capacity);
+    buffer.objects[appendIndex] = value;
+    length++;
+    helper.element_count = Convert<Smi>(length);
+
+    // v. If the number of elements in buffer is ℝ(windowSize), then
+    if (length == windowSize) {
+      // 1. Let completion be Completion(Yield(CreateArrayFromList(buffer))).
+      // 2. IfAbruptCloseIterator(completion, iterated).
+      const arrayMap = GetFastPackedElementsJSArrayMap();
+      const finalBuffer = Cast<FixedArray>(
+          AllocateFixedArray(ElementsKind::PACKED_ELEMENTS, length))
+          otherwise unreachable;
+      if (startIndex + length <= capacity) {
+        // No wrap-around (always true when !useCircularBuffer).
+        TorqueCopyElements(finalBuffer, 0, buffer, startIndex, length);
+      } else {
+        // Wrap-around (only possible when useCircularBuffer).
+        dcheck(useCircularBuffer);
+        const firstPartSize = capacity - startIndex;
+        sbxcheck(firstPartSize > 0);
+        TorqueCopyElements(finalBuffer, 0, buffer, startIndex, firstPartSize);
+        const secondPartSize = length - firstPartSize;
+        TorqueCopyElements(
+            finalBuffer, firstPartSize, buffer, 0, secondPartSize);
+      }
+      const array = NewJSArray(arrayMap, finalBuffer);
+
+      MarkIteratorHelperAsFinishedExecuting(helper);
+      return AllocateJSIteratorResult(array, False);
     }
   }
   unreachable;

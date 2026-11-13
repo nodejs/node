@@ -443,8 +443,7 @@ class GeneratorAlternativesPerOption {
         wasmgc_(ConcatArrays(mvp, wasmgc)),
         all_(ConcatArrays(mvp, ConcatArrays(simd, wasmgc))) {}
 
-  constexpr base::Vector<const GenerateFn> GetAlternatives(
-      WasmModuleGenerationOptions options) const {
+  constexpr auto GetAlternatives(WasmModuleGenerationOptions options) const {
     switch (options.ToIntegral()) {
       case 0:  // 0
         return base::VectorOf(mvp_);
@@ -738,7 +737,7 @@ class BodyGen {
       std::copy_n(type->parameters().begin(), type->parameter_count(),
                   block_returns.begin());
     }
-    if (has_ref) block_returns.last() = kWasmExnRef;
+    if (has_ref) block_returns.back() = kWasmExnRef;
     {
       BlockScope block(this, kExprBlock, param_types, block_returns,
                        block_returns);
@@ -2535,7 +2534,7 @@ class BodyGen {
     if (break_types.empty()) {
       return false;
     }
-    ValueType break_type = break_types.last();
+    ValueType break_type = break_types.back();
     if (!break_type.is_ref()) {
       return false;
     }
@@ -4629,7 +4628,8 @@ class ModuleGen {
         // element type.
         type = builder_->GetArrayType(supertype)->element_type();
       }
-      ArrayType* array_fuz = zone_->New<ArrayType>(type, true);
+      ArrayType* array_fuz =
+          zone_->New<ArrayType>(type, true, SharedFlag{false});
       // TODO(14034): Generate some final types too.
       ModuleTypeIndex index =
           builder_->AddArrayType(array_fuz, false, supertype);
@@ -4692,9 +4692,25 @@ class ModuleGen {
     const bool kIsFinal = true;
     for (auto& import : *imports) {
       import.sig_index = builder_->ForceAddSignature(import.sig, kIsFinal);
+      WasmModuleBuilder::ImportEncoding encoding =
+          WasmModuleBuilder::ImportEncoding::kRegular;
+      if (v8_flags.wasm_compact_imports) {
+        switch (module_range_->get<uint8_t>() % 3) {
+          case 0:
+            encoding = WasmModuleBuilder::ImportEncoding::kCompactByModule;
+            break;
+          case 1:
+            encoding =
+                WasmModuleBuilder::ImportEncoding::kCompactByModuleAndType;
+            break;
+          case 2:
+            encoding = WasmModuleBuilder::ImportEncoding::kRegular;
+            break;
+        }
+      }
       uint32_t index =
-          builder_->AddImport(base::VectorOf(import.name), import.sig,
-                              base::VectorOf(import.module_name));
+          builder_->AddImport(import.name, import.sig, import.module_name,
+                              /*force_new_sig=*/false, encoding);
       import.index = index;
     }
     imports_ = imports;
@@ -4750,38 +4766,85 @@ class ModuleGen {
     static constexpr FunctionSig kSig_into_a8(1, 3, kReps_into_a8);
     static constexpr FunctionSig kSig_to_a8(1, 1, kReps_to_a8);
 
-    static constexpr base::Vector<const char> kJsString =
-        base::StaticCharVector("wasm:js-string");
-    static constexpr base::Vector<const char> kTextDecoder =
-        base::StaticCharVector("wasm:text-decoder");
-    static constexpr base::Vector<const char> kTextEncoder =
-        base::StaticCharVector("wasm:text-encoder");
+    static constexpr std::string_view kJsString = "wasm:js-string";
+    static constexpr std::string_view kTextDecoder = "wasm:text-decoder";
+    static constexpr std::string_view kTextEncoder = "wasm:text-encoder";
 
     // The signatures of compile-time imports must be defined in singleton
     // recgroups, so we can't allow them to get deduplicated against existing
-    // signatures that might be in nontrivial recgroups.
-    static constexpr bool kForceNewSig = true;
-#define STRINGFUNC(name, sig, group) \
-  strings.name =                     \
-      builder_->AddImport(base::CStrVector(#name), &sig, group, kForceNewSig)
+    // signatures that might be in nontrivial recgroups. However, compile-time
+    // imports with identical signatures can share the same singleton-recgroup
+    // signature, which also enables compact imports by module and type (0x7E).
+    static constexpr bool kIsFinal = true;
+    const ModuleTypeIndex sig_e_r =
+        builder_->ForceAddSignature(&kSig_e_r, kIsFinal);
+    const ModuleTypeIndex sig_i_r =
+        builder_->ForceAddSignature(&kSig_i_r, kIsFinal);
+    const ModuleTypeIndex sig_e_i =
+        builder_->ForceAddSignature(&kSig_e_i, kIsFinal);
+    const ModuleTypeIndex sig_i_ri =
+        builder_->ForceAddSignature(&kSig_i_ri, kIsFinal);
+    const ModuleTypeIndex sig_e_rr =
+        builder_->ForceAddSignature(&kSig_e_rr, kIsFinal);
+    const ModuleTypeIndex sig_e_rii =
+        builder_->ForceAddSignature(&kSig_e_rii, kIsFinal);
+    const ModuleTypeIndex sig_i_rr =
+        builder_->ForceAddSignature(&kSig_i_rr, kIsFinal);
+    const ModuleTypeIndex sig_from_a16 =
+        builder_->ForceAddSignature(&kSig_from_a16, kIsFinal);
+    const ModuleTypeIndex sig_into_a16 =
+        builder_->ForceAddSignature(&kSig_into_a16, kIsFinal);
+    const ModuleTypeIndex sig_into_a8 =
+        builder_->ForceAddSignature(&kSig_into_a8, kIsFinal);
+    const ModuleTypeIndex sig_to_a8 =
+        builder_->ForceAddSignature(&kSig_to_a8, kIsFinal);
+    const ModuleTypeIndex sig_from_a8 =
+        builder_->ForceAddSignature(&kSig_from_a8, kIsFinal);
 
-    STRINGFUNC(cast, kSig_e_r, kJsString);
-    STRINGFUNC(test, kSig_i_r, kJsString);
-    STRINGFUNC(fromCharCode, kSig_e_i, kJsString);
-    STRINGFUNC(fromCodePoint, kSig_e_i, kJsString);
-    STRINGFUNC(charCodeAt, kSig_i_ri, kJsString);
-    STRINGFUNC(codePointAt, kSig_i_ri, kJsString);
-    STRINGFUNC(length, kSig_i_r, kJsString);
-    STRINGFUNC(concat, kSig_e_rr, kJsString);
-    STRINGFUNC(substring, kSig_e_rii, kJsString);
-    STRINGFUNC(equals, kSig_i_rr, kJsString);
-    STRINGFUNC(compare, kSig_i_rr, kJsString);
-    STRINGFUNC(fromCharCodeArray, kSig_from_a16, kJsString);
-    STRINGFUNC(intoCharCodeArray, kSig_into_a16, kJsString);
-    STRINGFUNC(measureStringAsUTF8, kSig_i_r, kTextEncoder);
-    STRINGFUNC(encodeStringIntoUTF8Array, kSig_into_a8, kTextEncoder);
-    STRINGFUNC(encodeStringToUTF8Array, kSig_to_a8, kTextEncoder);
-    STRINGFUNC(decodeStringFromUTF8Array, kSig_from_a8, kTextDecoder);
+    using ImportEncoding = WasmModuleBuilder::ImportEncoding;
+    const uint8_t compact_mode =
+        v8_flags.wasm_compact_imports ? (module_range_->get<uint8_t>() % 4) : 4;
+    auto pick_encoding = [&](bool shares_sig_with_neighbor) -> ImportEncoding {
+      switch (compact_mode) {
+        case 0:
+          return shares_sig_with_neighbor
+                     ? ImportEncoding::kCompactByModuleAndType
+                     : ImportEncoding::kCompactByModule;
+        case 1:
+          return ImportEncoding::kCompactByModule;
+        case 2:
+          return ImportEncoding::kCompactByModuleAndType;
+        case 3:
+          if (shares_sig_with_neighbor) {
+            return ImportEncoding::kCompactByModuleAndType;
+          }
+          return ImportEncoding::kRegular;
+        default:
+          return ImportEncoding::kRegular;
+      }
+    };
+
+#define STRINGFUNC(name, sig, group, shares_sig_with_neighbor) \
+  strings.name = builder_->AddImport(#name, sig, group,        \
+                                     pick_encoding(shares_sig_with_neighbor))
+
+    STRINGFUNC(cast, sig_e_r, kJsString, false);
+    STRINGFUNC(test, sig_i_r, kJsString, false);
+    STRINGFUNC(length, sig_i_r, kJsString, false);
+    STRINGFUNC(fromCharCode, sig_e_i, kJsString, true);
+    STRINGFUNC(fromCodePoint, sig_e_i, kJsString, true);
+    STRINGFUNC(charCodeAt, sig_i_ri, kJsString, true);
+    STRINGFUNC(codePointAt, sig_i_ri, kJsString, true);
+    STRINGFUNC(concat, sig_e_rr, kJsString, false);
+    STRINGFUNC(substring, sig_e_rii, kJsString, false);
+    STRINGFUNC(equals, sig_i_rr, kJsString, true);
+    STRINGFUNC(compare, sig_i_rr, kJsString, true);
+    STRINGFUNC(fromCharCodeArray, sig_from_a16, kJsString, false);
+    STRINGFUNC(intoCharCodeArray, sig_into_a16, kJsString, false);
+    STRINGFUNC(measureStringAsUTF8, sig_i_r, kTextEncoder, false);
+    STRINGFUNC(encodeStringIntoUTF8Array, sig_into_a8, kTextEncoder, false);
+    STRINGFUNC(encodeStringToUTF8Array, sig_to_a8, kTextEncoder, false);
+    STRINGFUNC(decodeStringFromUTF8Array, sig_from_a8, kTextDecoder, false);
 
 #undef STRINGFUNC
 
@@ -5240,10 +5303,10 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     static constexpr ModuleTypeIndex kArrayI8{0};
     static constexpr ModuleTypeIndex kArrayI16{1};
     {
-      ArrayType* a8 = zone->New<ArrayType>(kWasmI8, 1);
+      ArrayType* a8 = zone->New<ArrayType>(kWasmI8, 1, SharedFlag{false});
       CHECK_EQ(kArrayI8, builder.AddArrayType(a8, true, kNoSuperType));
       array_types.push_back(kArrayI8);
-      ArrayType* a16 = zone->New<ArrayType>(kWasmI16, 1);
+      ArrayType* a16 = zone->New<ArrayType>(kWasmI16, 1, SharedFlag{false});
       CHECK_EQ(kArrayI16, builder.AddArrayType(a16, true, kNoSuperType));
       array_types.push_back(kArrayI16);
     }
@@ -5347,9 +5410,9 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     gen_body.Generate(return_types, &function_range);
     f->Emit(kExprEnd);
     if (module_exports) {
-      builder.AddExport(base::CStrVector((*module_exports)[i].name.c_str()), f);
+      builder.AddExport((*module_exports)[i].name, f);
     } else if (i == 0) {
-      builder.AddExport(base::CStrVector("main"), f);
+      builder.AddExport("main", f);
     }
   }
 
@@ -5441,7 +5504,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
                           (module_range.get<uint8_t>() % existing_array_types)};
       type = builder.GetArrayType(supertype)->element_type();
     }
-    ArrayType* array_fuz = zone->New<ArrayType>(type, true);
+    ArrayType* array_fuz = zone->New<ArrayType>(type, true, SharedFlag{false});
     ModuleTypeIndex index = builder.AddArrayType(array_fuz, false, supertype);
     array_types.push_back(index);
   }
@@ -5687,10 +5750,10 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
   static constexpr ModuleTypeIndex kArrayI8{0};
   static constexpr ModuleTypeIndex kArrayI16{1};
   {
-    ArrayType* a8 = zone->New<ArrayType>(kWasmI8, true);
+    ArrayType* a8 = zone->New<ArrayType>(kWasmI8, true, SharedFlag{false});
     CHECK_EQ(kArrayI8, builder.AddArrayType(a8, true, kNoSuperType));
     array_types.push_back(kArrayI8);
-    ArrayType* a16 = zone->New<ArrayType>(kWasmI16, true);
+    ArrayType* a16 = zone->New<ArrayType>(kWasmI16, true, SharedFlag{false});
     CHECK_EQ(kArrayI16, builder.AddArrayType(a16, true, kNoSuperType));
     array_types.push_back(kArrayI16);
   }
@@ -5782,9 +5845,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
   // Create global for call target index.
   // Simplification: This global is used to specify the call target at the deopt
   // point instead of passing the call target around dynamically.
-  uint32_t global_index =
-      builder.AddExportedGlobal(kWasmI32, true, WasmInitExpr(0),
-                                base::StaticCharVector("call_target_index"));
+  uint32_t global_index = builder.AddExportedGlobal(
+      kWasmI32, true, WasmInitExpr(0), "call_target_index");
 
   // Create inlinee bodies.
   for (int i = 0; i < num_inlinees; ++i) {
@@ -5839,7 +5901,7 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     }
 
     f->Emit(kExprEnd);
-    builder.AddExport(base::StaticCharVector("main"), f);
+    builder.AddExport("main", f);
   }
 
   // Create call target bodies.
@@ -6083,7 +6145,7 @@ base::Vector<uint8_t> GenerateWasmModuleForRevec(
     }
 
     f->Emit(kExprEnd);
-    if (i == 0) builder.AddExport(base::CStrVector("main"), f);
+    if (i == 0) builder.AddExport("main", f);
   }
 
   ZoneBuffer buffer{zone};

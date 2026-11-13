@@ -12,6 +12,7 @@
 #include <optional>
 #include <queue>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -27,7 +28,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
-#include "src/base/vector.h"
+#include "src/base/unique-array.h"
 #include "src/d8/async-hooks-wrapper.h"
 // For V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT.
 #include "src/d8/hardware-watchpoints.h"
@@ -43,11 +44,26 @@ inline Local<Value> ThrowError(Isolate* isolate, const char (&message)[N]) {
   return isolate->ThrowError(message);
 }
 
+inline std::string_view TruncateForError(std::string_view message) {
+  constexpr size_t kMaxErrorMessageLength = 1024;
+  return message.substr(0, kMaxErrorMessageLength);
+}
+
+inline std::string_view TruncateForError(const char* message) {
+  constexpr size_t kMaxErrorMessageLength = 1024;
+  const char* end =
+      std::char_traits<char>::find(message, kMaxErrorMessageLength, '\0');
+  size_t length =
+      end ? static_cast<size_t>(end - message) : kMaxErrorMessageLength;
+  return std::string_view(message, length);
+}
+
 inline Local<Value> ThrowError(Isolate* isolate, std::string_view message) {
   if (isolate->IsExecutionTerminating()) return v8::Undefined(isolate);
+  message = TruncateForError(message);
   Local<String> exception =
-      String::NewFromUtf8(
-          isolate, std::string(message.substr(0, String::kMaxLength)).c_str())
+      String::NewFromUtf8(isolate, message.data(), NewStringType::kNormal,
+                          static_cast<int>(message.length()))
           .ToLocalChecked();
   return isolate->ThrowError(exception);
 }
@@ -72,9 +88,8 @@ class SafeUtf8Value {
 
   SafeUtf8Value(Isolate* isolate, Local<Context> context, Local<Value> value) {
     if (value.IsEmpty()) return;
-    Local<String> str;
-    if (value->ToString(context).ToLocal(&str)) {
-      utf8_.emplace(isolate, str);
+    if (value->ToString(context).ToLocal(&str_)) {
+      utf8_.emplace(isolate, str_);
     }
   }
 
@@ -87,8 +102,10 @@ class SafeUtf8Value {
   std::string_view as_view() const {
     return is_valid() ? utf8_->as_view() : std::string_view();
   }
+  Local<String> string() const { return str_; }
 
  private:
+  Local<String> str_;
   std::optional<v8::String::Utf8Value> utf8_;
 };
 
@@ -179,6 +196,11 @@ class SourceGroup {
   // Returns true on success, false if an uncaught exception was thrown.
   bool Execute(Isolate* isolate);
 
+  // For --bundle-reprl: reads the script parts of the bundle file of this
+  // group. Returns false and prints an error if the group does not have
+  // exactly one bundle file with only script parts.
+  bool ReadBundleReprlScripts(std::vector<std::string>* scripts);
+
   void StartExecuteInThread();
   void WaitForThread(const i::ParkedScope& parked);
   void JoinThread(const i::ParkedScope& parked);
@@ -267,8 +289,7 @@ class Worker : public std::enable_shared_from_this<Worker> {
  public:
   static constexpr i::ManagedTypeId kTypeID = i::ManagedTypeId::kD8Worker;
 
-  explicit Worker(Isolate* parent_isolate, const char* script,
-                  bool flush_denormals);
+  explicit Worker(Isolate* parent_isolate, const char* script);
   ~Worker();
 
   // Post a message to the worker. The worker will take ownership of the
@@ -348,7 +369,6 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   base::Thread* thread_ = nullptr;
   char* script_;
-  bool flush_denormals_;
   std::atomic<State> state_;
   bool is_joined_ = false;
   // For signalling that the worker has started.
@@ -459,6 +479,11 @@ class PerIsolateData {
   std::unordered_set<DynamicImportData*> import_data_;
   Global<FunctionTemplate> test_api_object_ctor_;
   Global<FunctionTemplate> dom_node_ctor_;
+  // See Shell::GetOrCreateLeafInterfaceTypeTemplate.
+  Global<FunctionTemplate> leaf_interface_type_template_;
+  // The template of the global object of all contexts that d8 creates in this
+  // isolate, see Shell::GetOrCreateGlobalTemplate.
+  Global<ObjectTemplate> global_template_;
   // Track workers and their callbacks separately, so that we know both which
   // workers are still registered, and which of them have callbacks. We can't
   // rely on Shell::running_workers_ or worker.IsTerminated(), because these are
@@ -508,7 +533,7 @@ class ShellOptions {
   class DisallowReassignment {
    public:
     DisallowReassignment(const char* name, T value)
-        : name_(name), value_(value) {}
+        : name_(name), value_(value), default_value_(value) {}
 
     operator T() const { return value_; }
     T get() const { return value_; }
@@ -529,6 +554,10 @@ class ShellOptions {
       return *this;
     }
     void Overwrite(T value) { value_ = value; }
+    void Reset() {
+      value_ = default_value_;
+      specified_ = false;
+    }
 
     bool WasSpecified() const { return specified_; }
 
@@ -537,6 +566,7 @@ class ShellOptions {
    private:
     const char* name_;
     T value_;
+    const T default_value_;
     bool specified_ = false;
   };
   DisallowReassignment<bool> can_block = {"can_block", true};
@@ -572,16 +602,6 @@ class ShellOptions {
       "dump-system-memory-stats", false};
   DisallowReassignment<bool> ignore_unhandled_promises = {
       "ignore-unhandled-promises", false};
-  DisallowReassignment<bool> mock_arraybuffer_allocator = {
-      "mock-arraybuffer-allocator", false};
-  DisallowReassignment<size_t> mock_arraybuffer_allocator_limit = {
-      "mock-arraybuffer-allocator-limit", 0};
-  DisallowReassignment<bool> multi_mapped_mock_allocator = {
-      "multi-mapped-mock-allocator", false};
-  // This flag enables a bare-bones InspectorClient implementation in the shell.
-  // It is only a harness for basic tests in `test/debugger`, and not shipped
-  // in production. `test/inspector` uses the `inspector-test` binary instead.
-  DisallowReassignment<bool> enable_inspector = {"enable-inspector", false};
   int num_isolates = 1;
   DisallowReassignment<v8::ScriptCompiler::CompileOptions, true>
       compile_options = {"cache", v8::ScriptCompiler::kNoCompileOptions};
@@ -615,7 +635,6 @@ class ShellOptions {
       "disable-in-process-stack-traces", false};
   DisallowReassignment<int> read_from_tcp_port = {"read-from-tcp-port", -1};
   DisallowReassignment<bool> enable_os_system = {"enable-os-system", false};
-  DisallowReassignment<bool> quiet_load = {"quiet-load", false};
   DisallowReassignment<bool> apply_priority = {"apply-priority", true};
   DisallowReassignment<int> thread_pool_size = {"thread-pool-size", 0};
   DisallowReassignment<bool> stress_delay_tasks = {"stress-delay-tasks", false};
@@ -637,10 +656,10 @@ class ShellOptions {
   DisallowReassignment<bool> wasm_trap_handler = {"wasm-trap-handler", true};
 #endif  // V8_ENABLE_WEBASSEMBLY
   DisallowReassignment<bool> expose_fast_api = {"expose-fast-api", false};
-  DisallowReassignment<bool> flush_denormals = {"flush-denormals", false};
   DisallowReassignment<size_t> max_serializer_memory = {"max-serializer-memory",
                                                         1 * i::MB};
   DisallowReassignment<bool> bundle = {"bundle", false};
+  DisallowReassignment<bool> bundle_reprl = {"bundle-reprl", false};
 };
 
 class Shell : public i::AllStatic {
@@ -682,7 +701,8 @@ class Shell : public i::AllStatic {
 
   // Boolean return values (for any method below) typically denote "success".
   // We return `false` on uncaught exceptions, except for termination
-  // exceptions.
+  // exceptions. For `ExecuteSource`, `kReportExceptions` reports and clears
+  // caught exceptions, whereas `kNoReportExceptions` rethrows them.
   static bool ExecuteSource(Isolate* isolate, const Source& source,
                             Local<String> name,
                             ReportExceptions report_exceptions,
@@ -696,10 +716,17 @@ class Shell : public i::AllStatic {
                                      bool should_throw = true);
   static std::unique_ptr<base::OS::MemoryMappedFile> ReadFileData(
       Isolate* isolate, const char* name, bool should_throw = true);
+  // Returns std::nullopt if the file cannot be read.
+  static std::optional<std::string> ReadFileToString(const char* name);
   static Local<String> WasmLoadSourceMapCallback(Isolate* isolate,
                                                  const char* name);
   static MaybeLocal<Context> CreateEvaluationContext(Isolate* isolate);
-  static int RunMain(Isolate* isolate, bool last_run);
+  // With `reprl_script`, runs that script instead of the source group of the
+  // main isolate (--bundle-reprl).
+  static int RunMain(
+      Isolate* isolate, bool last_run,
+      std::optional<std::string_view> reprl_script = std::nullopt);
+  static int RunBundleReprl(Isolate* isolate);
   static int Main(int argc, char* argv[]);
   static void InitializeDefaultCounters(Isolate* isolate);
   static void Exit(int exit_code);
@@ -761,8 +788,6 @@ class Shell : public i::AllStatic {
 
   static void InstallConditionalFeatures(
       const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void SetFlushDenormals(
-      const v8::FunctionCallbackInfo<v8::Value>& info);
 
   static void AsyncHooksCreateHook(
       const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -800,6 +825,10 @@ class Shell : public i::AllStatic {
 
   static void ResetOnProfileEndListener(Isolate* isolate);
 
+  // Best-effort undo of state leaked by previous REPRL executions. Also used by
+  // --bundle-reprl, which is available in all builds.
+  static void ResetIsolateStateForReprl(Isolate* isolate);
+
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void WriteStdout(const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -815,7 +844,7 @@ class Shell : public i::AllStatic {
   static void ReadFile(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void CreateWasmMemoryMapDescriptor(
       const v8::FunctionCallbackInfo<v8::Value>& info);
-  static base::OwnedVector<char> ReadChars(const char* name);
+  static std::optional<base::UniqueArray<char>> ReadChars(const char* name);
   static MaybeLocal<PrimitiveArray> ReadLines(Isolate* isolate,
                                               const char* name);
   static void ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -913,9 +942,9 @@ class Shell : public i::AllStatic {
   static MaybeLocal<Context> HostCreateShadowRealmContext(
       Local<Context> initiator_context);
 
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
   static void Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& info);
-#endif  // V8_FUZZILLI
+#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE)
 
   // Data is of type DynamicImportData* wrapped in v8::External.
   static void DoHostImportModuleDynamically(v8::Local<v8::Data> data);
@@ -929,7 +958,8 @@ class Shell : public i::AllStatic {
 
   static void SetWaitUntilDone(Isolate* isolate, bool value);
 
-  static base::OwnedVector<char> ReadCharsFromTcpPort(const char* name);
+  static std::optional<base::UniqueArray<char>> ReadCharsFromTcpPort(
+      const char* name);
 
   static void set_script_executed() { script_executed_.store(true); }
   static bool ChangeWorkingDirectory(const std::string& path,
@@ -946,7 +976,7 @@ class Shell : public i::AllStatic {
 
   static void WaitForRunningWorkers(const i::ParkedScope& parked);
   static void AddRunningWorker(std::shared_ptr<Worker> worker);
-  static void RemoveRunningWorker(const std::shared_ptr<Worker>& worker);
+  static void RemoveRunningWorker(std::shared_ptr<Worker> worker);
 
   static void Initialize(Isolate* isolate, D8Console* console,
                          bool isOnMainThread = true);
@@ -995,7 +1025,9 @@ class Shell : public i::AllStatic {
   static Counter* GetCounter(const char* name, bool is_histogram);
   static Local<String> Stringify(Isolate* isolate, Local<Value> value);
   static void RunShell(Isolate* isolate);
-  static bool RunMainIsolate(Isolate* isolate, bool keep_context_alive);
+  static bool RunMainIsolate(Isolate* isolate, bool keep_context_alive,
+                             std::optional<std::string_view> reprl_script);
+  static bool ExecuteReprlScript(Isolate* isolate, std::string_view script);
   static bool SetOptions(int argc, char* argv[]);
 
   static void NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -1004,6 +1036,7 @@ class Shell : public i::AllStatic {
   static Local<FunctionTemplate> CreateNodeTemplates(
       Isolate* isolate, Local<FunctionTemplate> event_target);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> GetOrCreateGlobalTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateOSTemplate(Isolate* isolate);
   static Local<FunctionTemplate> CreateWorkerTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateAsyncHookTemplate(Isolate* isolate);
@@ -1012,6 +1045,10 @@ class Shell : public i::AllStatic {
   static Local<ObjectTemplate> CreateD8Template(Isolate* isolate);
   static Local<FunctionTemplate> CreateTestFastCApiTemplate(Isolate* isolate);
   static Local<FunctionTemplate> CreateLeafInterfaceTypeTemplate(
+      Isolate* isolate);
+  static Local<FunctionTemplate> GetOrCreateTestFastCApiTemplate(
+      Isolate* isolate);
+  static Local<FunctionTemplate> GetOrCreateLeafInterfaceTypeTemplate(
       Isolate* isolate);
   static void CreateInterceptorObject(
       const v8::FunctionCallbackInfo<v8::Value>& info);

@@ -89,8 +89,14 @@ class MapInference {
           reducer_->BuildCheckMaps(object_, base::VectorOf(maps_vector)));
     }
 
-    // Maps are now fresh.
-    node_info_->MarkFresh();
+    // Maps are now fresh. Re-fetch via `TryGetMutableInfoFor` both to unshare
+    // the leaf on write and because `BuildCheckMaps` may have cloned or mutated
+    // `known_node_aspects()`.
+    NodeInfo* mutable_info =
+        reducer_->known_node_aspects().TryGetMutableInfoFor(object_);
+    DCHECK_NOT_NULL(mutable_info);
+    mutable_info->MarkFresh();
+    node_info_ = mutable_info;
 
     // We have unstable maps and must re-enable invalidation tracking.
     reducer_->known_node_aspects().MarkSideEffectsRequireInvalidation();
@@ -108,7 +114,7 @@ class MapInference {
  private:
   ReducerT* const reducer_;
   ValueNode* const object_;
-  NodeInfo* const node_info_;
+  const NodeInfo* node_info_;
   const Variant variant_;
 };
 

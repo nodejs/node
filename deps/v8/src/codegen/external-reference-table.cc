@@ -76,6 +76,18 @@ const char* const
         "Store StubCache::secondary_->key",
         "Store StubCache::secondary_->value",
         "Store StubCache::secondary_->map",
+        "DefineOwn StubCache::primary_->key",
+        "DefineOwn StubCache::primary_->value",
+        "DefineOwn StubCache::primary_->map",
+        "DefineOwn StubCache::secondary_->key",
+        "DefineOwn StubCache::secondary_->value",
+        "DefineOwn StubCache::secondary_->map",
+        "Has StubCache::primary_->key",
+        "Has StubCache::primary_->value",
+        "Has StubCache::primary_->map",
+        "Has StubCache::secondary_->key",
+        "Has StubCache::secondary_->value",
+        "Has StubCache::secondary_->map",
         // Native code counters:
         STATS_COUNTER_NATIVE_CODE_LIST(ADD_STATS_COUNTER_NAME)
 };
@@ -116,6 +128,12 @@ void ExternalReferenceTable::Init(Isolate* isolate) {
   AddStubCache(isolate, &index);
   AddNativeCodeStatsCounters(isolate, &index);
   CHECK_EQ(kSize, index);
+
+#ifdef DEBUG
+  // {ref_name_} is parallel to {ref_addr_}: an entry added without a matching
+  // name shifts every later name by one and may leave a nullptr at the end.
+  for (int i = 0; i < kSize; i++) DCHECK_NOT_NULL(name(i));
+#endif  // DEBUG
 
   is_initialized_ = kInitialized;
 }
@@ -312,9 +330,9 @@ void ExternalReferenceTable::AddStubCache(Isolate* isolate, int* index) {
            *index);
 
   // Stub cache tables
-  std::array<StubCache*, 3> stub_caches{isolate->load_stub_cache(),
-                                        isolate->store_stub_cache(),
-                                        isolate->define_own_stub_cache()};
+  std::array<StubCache*, 4> stub_caches{
+      isolate->load_stub_cache(), isolate->store_stub_cache(),
+      isolate->define_own_stub_cache(), isolate->has_stub_cache()};
 
   for (StubCache* stub_cache : stub_caches) {
     Add(stub_cache->key_reference(StubCache::kPrimary).address(), index);

@@ -63,7 +63,7 @@ macro HandleFastAliasedSloppyArgumentsSlice(
 
   // Fill in the part of the result that map to context-mapped parameters.
   for (let current: intptr = Convert<intptr>(start); current < to; ++current) {
-    const e: Object = sloppyElements.mapped_entries[current];
+    const e: Object = sloppyElements.objects[current];
     const newElement = UnsafeCast<(JSAny | TheHole)>(
         e != TheHole ? argumentsContext.elements[UnsafeCast<Smi>(e)] :
                        unmappedElements.objects[current]);

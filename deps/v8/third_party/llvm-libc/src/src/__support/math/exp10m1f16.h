@@ -13,7 +13,6 @@
 
 #ifdef LIBC_TYPES_HAS_FLOAT16
 
-#include "exp10f16_utils.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/PolyEval.h"
@@ -25,6 +24,7 @@
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
 #include "src/__support/macros/properties/cpu_features.h"
+#include "src/__support/math/exp10f16_utils.h"
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -93,21 +93,7 @@ LIBC_INLINE constexpr float16 exp10m1f16(float16 x) {
       if (x_bits.is_inf())
         return FPBits::inf().get_val();
 
-#ifdef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      fputil::set_errno_if_required(ERANGE);
-      fputil::raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
-      return FPBits::inf().get_val();
-#else
-      switch (fputil::quick_get_round()) {
-      case FE_TONEAREST:
-      case FE_UPWARD:
-        fputil::set_errno_if_required(ERANGE);
-        fputil::raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
-        return FPBits::inf().get_val();
-      default:
-        return FPBits::max_normal().get_val();
-      }
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+      return fputil::set_overflow<float16>();
     }
 
     // When x < -11 * log10(2).

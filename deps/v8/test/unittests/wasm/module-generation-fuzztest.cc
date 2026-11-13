@@ -21,13 +21,13 @@ class ModuleGenerationTest
     isolate()->SetStackLimit(base::Stack::GetStackStart() - 100 * KB);
 
     // Enable GC, required by `ResetTypeCanonicalizer`.
-    v8_flags.expose_gc = true;
+    v8_flags.expose_gc.Set(true);
 
     // Random module generation mixed the old and new EH proposal; allow that
     // generally.
     // Note that for libfuzzer fuzzers this is implied by `--fuzzing`, but for
     // now we are more selective here and only enable this one flag.
-    v8_flags.wasm_allow_mixed_eh_for_testing = true;
+    v8_flags.wasm_allow_mixed_eh_for_testing.Set(true);
     EnableExperimentalWasmFeatures(isolate());
   }
 
@@ -38,6 +38,7 @@ class ModuleGenerationTest
   void TestSimd(int tier_mask, int debug_mask, const std::vector<uint8_t>&,
                 bool allow_avx);
   void TestGC(int tier_mask, int debug_mask, const std::vector<uint8_t>&);
+  void TestRevec(int tier_mask, int debug_mask, const std::vector<uint8_t>&);
   void TestAll(int tier_mask, int debug_mask, const std::vector<uint8_t>&);
 
  private:
@@ -64,6 +65,31 @@ void ModuleGenerationTest::TestGC(int tier_mask, int debug_mask,
                                   const std::vector<uint8_t>& input) {
   Test(WasmModuleGenerationOptions::WasmGC(), tier_mask, debug_mask, input,
        true);
+}
+
+void ModuleGenerationTest::TestRevec(int tier_mask, int debug_mask,
+                                     const std::vector<uint8_t>& input) {
+  // Set the tier mask to deterministically test a combination of Liftoff and
+  // Turbofan.
+  FlagScope<int> tier_mask_scope(&v8_flags.wasm_tier_mask_for_testing,
+                                 tier_mask);
+  // Generate debug code for some Liftoff functions.
+  FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
+                                  debug_mask);
+
+  zone_.Reset();
+
+  // V8 unittests run on some bots that disable SIMD support. Check that
+  // SIMD is supported before generating a module for revec to avoid failing
+  // validation.
+  if (!CpuFeatures::SupportsSimd128()) {
+    return;
+  }
+  base::Vector<const uint8_t> wire_bytes =
+      GenerateWasmModuleForRevec(&zone_, base::VectorOf(input));
+
+  constexpr bool kRequireValid = true;
+  SyncCompileAndExecuteAgainstReference(isolate(), wire_bytes, kRequireValid);
 }
 
 void ModuleGenerationTest::TestAll(int tier_mask, int debug_mask,
@@ -142,4 +168,6 @@ V8_FUZZ_TEST_F(ModuleGenerationTest, TestGC)
 V8_FUZZ_TEST_F(ModuleGenerationTest, TestMVP)
     .WithDomains(tier_mask_domain(), debug_mask_domain(), wire_bytes_domain());
 
+V8_FUZZ_TEST_F(ModuleGenerationTest, TestRevec)
+    .WithDomains(tier_mask_domain(), debug_mask_domain(), wire_bytes_domain());
 }  // namespace v8::internal::wasm::fuzzing

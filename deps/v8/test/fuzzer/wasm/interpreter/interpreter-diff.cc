@@ -11,6 +11,7 @@
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "src/base/unique-array.h"
 #include "src/execution/isolate-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
@@ -32,12 +33,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // We reduce the maximum memory size and table size of WebAssembly instances
   // to avoid OOMs in the fuzzer.
-  v8_flags.wasm_max_mem_pages = 32;
-  v8_flags.wasm_max_table_size = 100;
+  v8_flags.wasm_max_mem_pages.Set(32);
+  v8_flags.wasm_max_table_size.Set(100);
 
   // We need to reset jitless flags set by a previous run.
-  v8::internal::v8_flags.jitless = false;
-  v8::internal::v8_flags.wasm_jitless = false;
+  v8::internal::v8_flags.jitless.Set(false);
+  v8::internal::v8_flags.wasm_jitless.Set(false);
   FlagList::EnforceFlagImplications();
 
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
@@ -68,7 +69,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       GetWasmEngine()
           ->SyncCompile(i_isolate, enabled_features,
                         fuzzing::CompileTimeImportsForFuzzing(), &thrower,
-                        v8::base::OwnedCopyOf(wire_bytes.module_bytes()))
+                        v8::base::UniqueCopyOf(wire_bytes.module_bytes()))
           .ToHandle(&module_object);
 
   if (v8_flags.wasm_fuzzer_gen_test) {

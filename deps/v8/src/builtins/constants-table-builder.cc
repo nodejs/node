@@ -52,7 +52,7 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   // is still needed since the map data structure is still being concurrently
   // accessed.
   base::MutexGuard guard(&mutex_);
-  if (ThreadId::Current() != isolate_->thread_id()) {
+  if (base::ThreadId::Current() != isolate_->thread_id()) {
     auto find_result = map_.Find(object);
     DCHECK_NOT_NULL(find_result);
     return *find_result;

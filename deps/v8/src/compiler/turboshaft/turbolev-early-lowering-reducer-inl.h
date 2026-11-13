@@ -240,7 +240,9 @@ class TurbolevEarlyLoweringReducer : public Next {
           transition_source.elements_kind(), transition_target.elements_kind());
       IF (__ TaggedEqual(map, __ HeapConstant(transition_source.object()))) {
         if (is_simple) {
-          __ StoreField(object, AccessBuilder::ForMap(), target_map);
+          FieldAccess access = AccessBuilder::ForMap();
+          access.maybe_initializing_or_transitioning_store = true;
+          __ StoreField(object, access, target_map);
         } else {
           __ template CallRuntime<runtime::TransitionElementsKind>(
               __ NoContextConstant(), {.object = V<HeapObject>::Cast(object),
@@ -442,8 +444,9 @@ class TurbolevEarlyLoweringReducer : public Next {
         __ FinishInitialization(std::move(new_property_array));
 
     // Replace the old property array in {object}.
-    __ StoreField(object, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                  initialized_new_property_array);
+    FieldAccess access = AccessBuilder::ForJSObjectPropertiesOrHash();
+    access.maybe_initializing_or_transitioning_store = true;
+    __ StoreField(object, access, initialized_new_property_array);
 
     return initialized_new_property_array;
   }
@@ -455,6 +458,10 @@ class TurbolevEarlyLoweringReducer : public Next {
         generator, offsetof(JSGeneratorObject, parameters_and_registers_));
     for (int i = 0; static_cast<size_t>(i) < parameters_and_registers.size();
          i++) {
+      if (__ matcher().MatchRootConstant(parameters_and_registers[i],
+                                         RootIndex::kOptimizedOut, isolate_)) {
+        continue;
+      }
       __ Store(array, parameters_and_registers[i], StoreOp::Kind::TaggedBase(),
                MemoryRepresentation::AnyTagged(),
                WriteBarrierKind::kFullWriteBarrier,
@@ -470,8 +477,8 @@ class TurbolevEarlyLoweringReducer : public Next {
              offsetof(JSGeneratorObject, input_or_debug_pos_));
 
     __ Store(generator, context, StoreOp::Kind::TaggedBase(),
-             MemoryRepresentation::AnyTagged(),
-             WriteBarrierKind::kFullWriteBarrier,
+             MemoryRepresentation::TaggedPointer(),
+             WriteBarrierKind::kPointerWriteBarrier,
              offsetof(JSGeneratorObject, context_));
   }
 

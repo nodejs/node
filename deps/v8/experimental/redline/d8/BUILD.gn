@@ -1,0 +1,38 @@
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../gni/v8.gni")
+
+# The code that V8 and d8 link for Redline (v8_redline=true): the REPRL file
+# descriptors, the redline() builtin and the coverage runtime. It started as a
+# copy of src/fuzzilli, so that Redline can change it without changes to
+# Fuzzilli.
+if (v8_redline) {
+  assert(!v8_fuzzilli, "v8_redline and v8_fuzzilli exclude each other")
+
+  # The module constructors of the compiler call the coverage runtime before
+  # the static initializers run (see cov.cc).
+  config("v8_redline_config") {
+    cflags = [ "-Wglobal-constructors" ]
+  }
+
+  v8_source_set("v8_redline") {
+    visibility = [ "../../..:*" ]
+    sources = [
+      "cov.cc",
+      "cov.h",
+      "redline.cc",
+      "redline.h",
+    ]
+    configs = [
+      "../../..:internal_config_base",
+      "../../..:internal_config",
+      ":v8_redline_config",
+    ]
+    deps = [
+      "../../..:v8_internal_headers",
+      "../../..:v8_libbase",
+    ]
+  }
+}

@@ -9,22 +9,18 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_EXPM1_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXPM1_H
 
-#include "common_constants.h" // Lookup tables EXP_M1 and EXP_M2.
-#include "exp_constants.h"
 #include "src/__support/CPP/bit.h"
-#include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/double_double.h"
 #include "src/__support/FPUtil/dyadic_float.h"
 #include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
-#include "src/__support/FPUtil/rounding_mode.h"
-#include "src/__support/FPUtil/triple_double.h"
 #include "src/__support/common.h"
 #include "src/__support/integer_literals.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h" // LIBC_UNLIKELY
+#include "src/__support/math/exp_constants.h"
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -37,7 +33,6 @@ namespace expm1_internal {
 #endif
 
 using fputil::DoubleDouble;
-using fputil::TripleDouble;
 using DFloat128 = typename fputil::DyadicFloat<128>;
 
 using LIBC_NAMESPACE::operator""_u128;
@@ -63,8 +58,6 @@ LIBC_INLINE_VAR constexpr double MLOG_2_EXP2_M12_HI = -0x1.62e42ffp-13;
 LIBC_INLINE_VAR constexpr double MLOG_2_EXP2_M12_MID = 0x1.718432a1b0e26p-47;
 LIBC_INLINE_VAR constexpr double MLOG_2_EXP2_M12_MID_30 = 0x1.718432ap-47;
 LIBC_INLINE_VAR constexpr double MLOG_2_EXP2_M12_LO = 0x1.b0e2633fe0685p-79;
-
-using namespace common_constants_internal;
 
 // Polynomial approximations with double precision:
 // Return expm1(dx) / x ~ 1 + dx / 2 + dx^2 / 6 + dx^3 / 24.
@@ -264,16 +257,8 @@ LIBC_INLINE double set_exceptional(double x) {
 
   // x >= round(log(MAX_NORMAL), D, RU) = 0x1.62e42fefa39fp+9 or +inf/nan
   // x is finite
-  if (x_u < 0x7ff0'0000'0000'0000ULL) {
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-    int rounding = fputil::quick_get_round();
-    if (rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO)
-      return FPBits::max_normal().get_val();
-#endif
-
-    fputil::set_errno_if_required(ERANGE);
-    fputil::raise_except_if_required(FE_OVERFLOW);
-  }
+  if (x_u < 0x7ff0'0000'0000'0000ULL)
+    return fputil::set_overflow<double>();
   // x is +inf or nan
   return x + FPBits::inf().get_val();
 }

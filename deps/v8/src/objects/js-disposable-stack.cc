@@ -288,7 +288,8 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
       }
       isolate->clear_internal_exception();
       isolate->clear_pending_message();
-      JSPromise::Reject(outer_promise, exception);
+      MAYBE_RETURN(JSPromise::Reject(outer_promise, exception),
+                   Nothing<bool>());
     }
   } while (!done);
 

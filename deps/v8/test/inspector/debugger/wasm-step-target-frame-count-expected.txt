@@ -1,0 +1,17 @@
+Regression test for crbug.com/583832157 case 3 (Wasm stepping across throws/traps).
+
+Running test: testSubcaseA
+Subcase A: stepOver across Wasm trap:
+Paused in: $wasmFnA
+Paused after stepOver in: $wasmFnA
+Paused after second stepOver in: jsCallerA
+
+Running test: testSubcaseB
+Subcase B: stepOut from Wasm callee that traps:
+Paused in: $calleeB
+Paused after stepOut in: jsCallerB
+
+Running test: testSubcaseC
+Subcase C: stepOut from Wasm to JS with internal catch:
+Paused in: $wasmFnC
+Paused after stepOut in: jsCallerC

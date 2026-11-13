@@ -147,9 +147,15 @@ namespace v8::internal::compiler::turboshaft {
 // B.or_, it means that all of the maps of A have a bit that none of the maps of
 // B have, ie, A and B are guaranteed to not have a map in common.
 using MapMask = uint64_t;
+constexpr MapMask kStringMapMask = 1;
 struct MapMaskAndOr {
   MapMask or_ = 0;
   MapMask and_ = -1ull;
+
+  bool is_empty() const { return or_ == 0 && and_ == -1ull; }
+  bool could_be_string() const {
+    return is_empty() || (or_ & kStringMapMask) != 0;
+  }
 
   bool operator==(const MapMaskAndOr& other) const {
     return or_ == other.or_ && and_ == other.and_;
@@ -157,19 +163,21 @@ struct MapMaskAndOr {
 
   bool operator!=(const MapMaskAndOr& other) const { return !(*this == other); }
 };
-inline bool is_empty(MapMaskAndOr minmax) {
-  return minmax.or_ == 0 && minmax.and_ == -1ull;
-}
+inline bool is_empty(MapMaskAndOr minmax) { return minmax.is_empty(); }
 inline MapMask ComputeMapHash(MapRef map) {
   // `map.hash_value()` is probably not a good enough hash, since most user maps
   // will have the same upper bits, so we re-hash. We're using xorshift64* (from
   // "An experimental exploration of Marsaglia’s xorshift generators, scrambled"
   // by Vigna in ACM Transactions on Mathematical Software, Volume 42).
+  // Reserve bit 0 to record whether {map} is a String map (which GC can
+  // transition in-place).
   MapMask hash = map.hash_value();
   hash ^= hash >> 12;
   hash ^= hash << 25;
   hash ^= hash >> 27;
-  return hash * 0x2545f4914f6cdd1d;
+  hash = (hash * 0x2545f4914f6cdd1d) & ~kStringMapMask;
+  if (map.IsStringMap()) hash |= kStringMapMask;
+  return hash;
 }
 inline MapMaskAndOr ComputeMinMaxHash(ZoneRefSet<Map> maps) {
   MapMaskAndOr minmax;
@@ -185,7 +193,7 @@ inline MapMaskAndOr CombineMinMax(MapMaskAndOr a, MapMaskAndOr b) {
 }
 // Returns true if {a} and {b} could have a map in common.
 inline bool CouldHaveSameMap(MapMaskAndOr a, MapMaskAndOr b) {
-  return ((a.and_ & b.or_) == a.and_) || ((b.and_ & a.or_) == b.and_);
+  return ((a.and_ & b.or_) == a.and_) && ((b.and_ & a.or_) == b.and_);
 }
 
 struct MemoryAddress {
@@ -516,6 +524,12 @@ class MemoryContentTable
   }
 
   void Insert(const StoreOp& store) {
+    if (store.stored_rep == MemoryRepresentation::TrustedPointer()) {
+      // We do not track stores of trusted pointers in MemoryContentTable
+      // because LoadTrustedPointerOp expects any entry with
+      // MemoryRepresentation::TrustedPointer() to be a LoadTrustedPointerOp.
+      return;
+    }
     OpIndex base = ResolveBase(store.base());
     OptionalOpIndex index = store.index();
     int32_t offset = store.offset;
@@ -600,38 +614,22 @@ class MemoryContentTable
          it != offset_keys->second.end();) {
       Key key = *it;
       DCHECK_EQ(kMapOffset, key.data().mem.offset);
-      // TODO(dmercadier): check known maps for key.data().mem.base and don't
-      // invalidate if maps cannot be string maps.
+      DCHECK(!key.data().mem.index.valid());
+      if (!object_maps_.Get(key.data().mem.base).could_be_string()) {
+        ++it;
+        continue;
+      }
       it = offset_keys->second.RemoveAt(it);
       TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
       Set(key, OpIndex::Invalid());
     }
   }
 
-  void InvalidateAtOffset(int32_t offset, OpIndex base) {
-    MapMaskAndOr base_maps = object_maps_.Get(base);
-    auto offset_keys = offset_keys_.find(offset);
-    if (offset_keys == offset_keys_.end()) return;
-    for (auto it = offset_keys->second.begin();
-         it != offset_keys->second.end();) {
-      Key key = *it;
-      DCHECK_EQ(offset, key.data().mem.offset);
-      // It can overwrite previous stores to any base (except non-aliasing
-      // ones).
-      if (non_aliasing_objects_.Get(key.data().mem.base)) {
-        ++it;
-        continue;
-      }
-      if (!BasesCouldAlias(base, base_maps, key)) {
-        TRACE(">>>> InvalidateAtOffset: not invalidating thanks for maps: "
-              << key.data().mem);
-        ++it;
-        continue;
-      }
-      it = offset_keys->second.RemoveAt(it);
-      TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
-      Set(key, OpIndex::Invalid());
+  OpIndex ResolveBase(OpIndex base) {
+    while (replacements_[base].IsLoadElimination()) {
+      base = replacements_[base].replacement();
     }
+    return base;
   }
 
  private:
@@ -704,6 +702,32 @@ class MemoryContentTable
     SetNoNotify(key, value);
   }
 
+  void InvalidateAtOffset(int32_t offset, OpIndex base) {
+    MapMaskAndOr base_maps = object_maps_.Get(base);
+    auto offset_keys = offset_keys_.find(offset);
+    if (offset_keys == offset_keys_.end()) return;
+    for (auto it = offset_keys->second.begin();
+         it != offset_keys->second.end();) {
+      Key key = *it;
+      DCHECK_EQ(offset, key.data().mem.offset);
+      // It can overwrite previous stores to any base (except non-aliasing
+      // ones).
+      if (non_aliasing_objects_.Get(key.data().mem.base)) {
+        ++it;
+        continue;
+      }
+      if (!BasesCouldAlias(base, base_maps, key)) {
+        TRACE(">>>> InvalidateAtOffset: not invalidating thanks for maps: "
+              << key.data().mem);
+        ++it;
+        continue;
+      }
+      it = offset_keys->second.RemoveAt(it);
+      TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
+      Set(key, OpIndex::Invalid());
+    }
+  }
+
   bool BasesCouldAlias(OpIndex base, MapMaskAndOr base_maps, Key other) {
     return BasesCouldAlias(base, base_maps, other.data().mem.base);
   }
@@ -716,13 +740,6 @@ class MemoryContentTable
     if (is_empty(other_maps)) return true;
 
     return CouldHaveSameMap(base_maps, other_maps);
-  }
-
-  OpIndex ResolveBase(OpIndex base) {
-    while (replacements_[base].IsLoadElimination()) {
-      base = replacements_[base].replacement();
-    }
-    return base;
   }
 
   void AddKeyInBaseOffsetMaps(Key key) {
@@ -840,13 +857,11 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessAssumeMap(OpIndex op_idx, const AssumeMapOp& op);
   void ProcessChange(OpIndex op_idx, const ChangeOp& change);
-#ifdef V8_ENABLE_WEBASSEMBLY
-  void ProcessWasmStackCheck(OpIndex op_idx, const WasmStackCheckOp& op);
-#endif
 
   void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
 
   void WipeAllMaps();
+  void WipeStringMaps();
 
   // BeginBlock initializes the various SnapshotTables for {block}, and returns
   // true if {block} is a loop that should be revisited.
@@ -962,7 +977,11 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                          Asm().output_graph().IsTurbolev()));
         }
 #if DEBUG
-        if (v8_flags.turboshaft_verify_load_elimination) {
+        // We cannot verify loads with a shared base: Although it is valid to
+        // eliminate them if there is no intervening atomic operation, another
+        // thread could still modify the loaded value between two loads.
+        if (v8_flags.turboshaft_verify_load_elimination &&
+            !load.kind.shared_base) {
           // When the debug flag {turboshaft_verify_load_elimination} is used,
           // we perform the original load and assert that it's indeed equal to
           // the replacement that we are using.

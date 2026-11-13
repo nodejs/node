@@ -1,0 +1,19 @@
+Tests that side-effect-free evaluation enforces side-effect checks in createExceptionDetails
+
+Running test: testRuntimeEvaluate
+Case 1 (Runtime.evaluate): sideEffects = []
+Case 2 (Runtime.evaluate): sideEffects = []
+Case 3 (Runtime.evaluate): arrayLikeErr.length = 2
+Case 3 (Runtime.evaluate): descriptionsMatch = true
+Case 4 (Runtime.evaluate): objectWithMutatingPreview.length = 2
+Case 4 (Runtime.evaluate): subtype = error
+Case 4 (Runtime.evaluate): descriptionsMatch = true
+
+Running test: testDebuggerEvaluateOnCallFrame
+Case 1 (Debugger.evaluateOnCallFrame): sideEffects = []
+Case 2 (Debugger.evaluateOnCallFrame): sideEffects = []
+Case 3 (Debugger.evaluateOnCallFrame): arrayLikeErr.length = 2
+Case 3 (Debugger.evaluateOnCallFrame): descriptionsMatch = true
+Case 4 (Debugger.evaluateOnCallFrame): objectWithMutatingPreview.length = 2
+Case 4 (Debugger.evaluateOnCallFrame): subtype = error
+Case 4 (Debugger.evaluateOnCallFrame): descriptionsMatch = true

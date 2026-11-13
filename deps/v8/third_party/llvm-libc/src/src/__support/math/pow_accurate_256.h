@@ -14,801 +14,499 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_POW_ACCURATE_256_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_POW_ACCURATE_256_H
 
-#include "hdr/errno_macros.h"
-#include "hdr/fenv_macros.h"
 #include "src/__support/CPP/bit.h"
-#include "src/__support/FPUtil/FEnvImpl.h"
-#include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/dyadic_float.h"
-#include "src/__support/FPUtil/multiply_add.h"
-#include "src/__support/FPUtil/nearest_integer.h"
-#include "src/__support/FPUtil/rounding_mode.h"
+#include "src/__support/big_int.h"
 #include "src/__support/common.h"
+#include "src/__support/frac128.h"
 #include "src/__support/frac256.h"
 #include "src/__support/frac64.h"
-#include "src/__support/integer_literals.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
-#include "src/__support/macros/properties/cpu_features.h"
 #include "src/__support/math/pow_utils.h"
-#include "src/__support/uint128.h"
+#include "src/__support/math_extras.h"
+#include "src/__support/sign.h"
 
 namespace LIBC_NAMESPACE_DECL {
 namespace math {
 namespace pow_internal {
 
 using DFloat256 = typename fputil::DyadicFloat<256>;
-using Mantissa256 = typename DFloat256::MantissaType;
+
+// Lookup table for -log2(R_1[i]) for i = 0..16 as Frac256 (lsb = 2^-255),
+// where R_1[i] = RD_SMALL_K[i] * 2^-6.
+LIBC_INLINE_VAR constexpr Frac256 LOG2_R1_FRAC256[17] = {
+    // lsb = 2^-255
+    Frac256({0x0000000000000000ULL, 0x0000000000000000ULL,
+             0x0000000000000000ULL, 0x0000000000000000ULL}), // i = 0
+    Frac256({0x9e9fded86733d3caULL, 0xbaad60b1bf6bcd42ULL,
+             0x9da288fc615a727dULL, 0x0beb024b67dda633ULL}), // i = 1
+    Frac256({0x6816ff4ab1e1af50ULL, 0x20909dd35a2a212aULL,
+             0x8720de5377caf325ULL, 0x1563dc29ffacb20cULL}), // i = 2
+    Frac256({0x4627a78c47089d0dULL, 0x4892260a8c79779fULL,
+             0x8fef64f0f62e7b46ULL, 0x1f5fd8a9063e3490ULL}), // i = 3
+    Frac256({0x9d7b13b46dda1849ULL, 0x885dce30d5e9e813ULL,
+             0xc9d0b5ca5a8e7bb5ULL, 0x29edf7659d8b30f1ULL}), // i = 4
+    Frac256({0x4429d9e262f3c8c6ULL, 0xc7395ab7fe8e9835ULL,
+             0xd536fc5bec1a57b8ULL, 0x315130157f7a64ccULL}), // i = 5
+    Frac256({0xe91dc50aab435aa9ULL, 0xe06bcb114a0f1719ULL,
+             0xf6a2b59276887aabULL, 0x3cfbebfca715669dULL}), // i = 6
+    Frac256({0x3ad4311182915175ULL, 0x60c67a245f78bb52ULL,
+             0x8283ccdf555594a0ULL, 0x4531583f9a2be203ULL}), // i = 7
+    Frac256({0xe61b71e474e99f75ULL, 0x75abfd08dec73401ULL,
+             0xd7220e04ebb0e2a4ULL, 0x497028118efabeb7ULL}), // i = 8
+    Frac256({0x2e147034099ccfcfULL, 0xb03b7d7e6bd0493fULL,
+             0xe55be97611f87779ULL, 0x523bbc64c5e64350ULL}), // i = 9
+    Frac256({0xf662658135c18184ULL, 0x5f0bcac4e6cfec7bULL,
+             0x748d68b767f88088ULL, 0x5b77f0a9e3f18cfbULL}), // i = 10
+    Frac256({0xa609c77144ded04cULL, 0xb30a91252b56f94aULL,
+             0x572667587b10ca0dULL, 0x6043e946fd97f5dcULL}), // i = 11
+    Frac256({0x5509d9aded608bccULL, 0xdf7d4115ebc0ee87ULL,
+             0x1ee1343fe7c9cb4aULL, 0x6530a1d24b136c10ULL}), // i = 12
+    Frac256({0x7ea793f02baad929ULL, 0xb0c4015f8fdff17dULL,
+             0xd843902f5aad7542ULL, 0x6f73a77325861c69ULL}), // i = 13
+    Frac256({0xdb6ddbdb00d73945ULL, 0x1ad7c182a716c033ULL,
+             0x99d63ecf5dd4529eULL, 0x74ce04829b7674c1ULL}), // i = 14
+    Frac256({0xfce168eaef943079ULL, 0xce4c86d28e4be331ULL,
+             0xb27e43da520fbdb7ULL, 0x7a514b229c409e33ULL}), // i = 15
+    Frac256({0x0000000000000000ULL, 0x0000000000000000ULL,
+             0x0000000000000000ULL, 0x8000000000000000ULL}), // i = 16
+};
+
+// Lookup table for -log2(R_2[k2]) for k2 = -4..4 as two's-complement Frac256
+// (lsb = 2^-255), where R_2[k2] = (128 - k2) * 2^-7.
+LIBC_INLINE_VAR constexpr Frac256 LOG2_R2_FRAC256[9] = {
+    // lsb = 2^-255
+    Frac256({0xfce168eaef943079ULL, 0xce4c86d28e4be331ULL,
+             0xb27e43da520fbdb7ULL, 0xfa514b229c409e33ULL}), // k2 = -4
+    Frac256({0x59576b46a119898aULL, 0x254008aeb4167a33ULL,
+             0x9faebec15b2e2b43ULL, 0xfbb8cb8abb32fb44ULL}), // k2 = -3
+    Frac256({0x10e7d4a6c2ef9745ULL, 0x3ead121a489569ffULL,
+             0xb23b03bdcfdea0d7ULL, 0xfd230d2f47a5baceULL}), // k2 = -2
+    Frac256({0xa828a9bde1ec7e79ULL, 0xe33209b70d9a5be1ULL,
+             0x071c84ffe86b0bbbULL, 0xfe901af4910f7ae8ULL}), // k2 = -1
+    Frac256({0x0000000000000000ULL, 0x0000000000000000ULL,
+             0x0000000000000000ULL, 0x0000000000000000ULL}), // k2 = 0
+    Frac256({0x6e26f44a7ba5ed8aULL, 0xd4a6b5a62ff68790ULL,
+             0xb5d184a2c615b70aULL, 0x0172c7ba20f73275ULL}), // k2 = 1
+    Frac256({0x262f5ca40b7fa26cULL, 0x3ea8c6b85ced9bdaULL,
+             0xca906c23ef817e0bULL, 0x02e87dd0c3e6aac6ULL}), // k2 = 2
+    Frac256({0x95b7f4fcee92de52ULL, 0xe775fc0ab1c9f028ULL,
+             0x48f836042de0dc32ULL, 0x04612e39315abe0aULL}), // k2 = 3
+    Frac256({0xa3a1e195dfe2d23bULL, 0xfc9f0716c9c77bc6ULL,
+             0x7970e03f821c75d5ULL, 0x05dce53276563557ULL}), // k2 = 4
+};
 
 // Polynomial approximation for log2(1 + dx):
-// For dx in [-2^-8, 2^-7], we approximate:
+// For |dx| <= 131 / 32768 < 2^-7.96, we approximate:
 //   P(x) ~ log2(1 + x) / (2 * x)
 // then:
 //   log2(1 + dx) = 2 * dx * P(dx).
 //
 // Minimax polynomial coefficients generated by Sollya with:
 // > prec = 512;
-// > P = fpminimax(log2(1 + x) / (2 * x), 30, [|255...|], [-2^(-8), 2^(-7)],
-//                 fixed);
-// > for i from 0 to 30 do {
-//     c = coeff(P, i);
-//     c_int = round(abs(c) * 2^255, 512, RN);
-//     print(c_int);
-//   };
-// > dirtyinfnorm(log2(1 + x) - 2 * x * P, [-2^(-8), 2^(-7)]);
-//   0x1.bb204...p-270 < 2^-266.
+// > P = fpminimax(log2(1 + x) / (2 * x), 28, [|256...|], [-131/32768,
+//                 131/32768], fixed);
+// > dirtyinfnorm(log2(1 + x) - 2 * x * P, [-131/32768, 131/32768]);
+//   0x1.f78ee...p-271 < 2^-270.
 //
-// Expanding P(x) in Horner form:
-//   P(x) = a_0 - a_1 * x + a_2 * x^2 - a_3 * x^3 + ...
-// We store the absolute values of the coefficients |a_k| as Frac256.
-//
-// With y = |dx|,
-// - if dx >= 0:
-//   P(y) = |a_0| - y * (|a_1| - y * (|a_2| - ...))
-// - if dx < 0:
-//   P(-y) = |a_0| + y * (|a_1| + y * (|a_2| + ...))
-LIBC_INLINE_VAR constexpr Frac256 LOG2_POLY_256[31] = {
-    Frac256({0x45928b3668d09924ULL, 0x75abbd546eb4ad2cULL,
-             0xdf43ff68348e9f44ULL, 0x5c551d94ae0bf85dULL}), // a_0
-    Frac256({0x22c9459b34684c8aULL, 0x3ad5deaa375a5696ULL,
-             0xefa1ffb41a474fa2ULL, 0x2e2a8eca5705fc2eULL}), // a_1
-    Frac256({0x1730d91222eb39a3ULL, 0x27393f1c24e6e464ULL,
-             0x9fc15522bc2f8a6cULL, 0x1ec709dc3a03fd74ULL}), // a_2
-    Frac256({0x1164a2cd9b640d52ULL, 0x1d6aef551bad2b4bULL,
-             0x77d0ffda0d23a7d1ULL, 0x171547652b82fe17ULL}), // a_3
-    Frac256({0xa783b5e0b932720eULL, 0x1788bf77495755d5ULL,
-             0x2ca73314d74fb974ULL, 0x12776c50ef9bfe79ULL}), // a_4
-    Frac256({0x0b986b9531f9d509ULL, 0x139c9f8e12737232ULL,
-             0x4fe0aa915e17c536ULL, 0x0f6384ee1d01febaULL}), // a_5
-    Frac256({0x97a9d262490024e5ULL, 0x10cf6430a219cf98ULL,
-             0xb22e490ee2efcd9cULL, 0x0d30bb153d6f6c9fULL}), // a_6
-    Frac256({0x8a48b0b4c37bacd5ULL, 0x8eb577aa8dd695a4ULL,
-             0xbbe87fed0691d3e8ULL, 0x0b8aa3b295c17f0bULL}), // a_7
-    Frac256({0xb0583590fcb47a20ULL, 0x62686a5eb6f7bc5bULL,
-             0x354071b63eba8379ULL, 0x0a42589ebe01547cULL}), // a_8
-    Frac256({0xed3f5ebc7c98a745ULL, 0x0bc45fbba4b78402ULL,
-             0x9653998a6ba7dcbaULL, 0x093bb62877cdff3cULL}), // a_9
-    Frac256({0x7359984444b13a62ULL, 0x96556e4d1cd07a22ULL,
-             0x2b91d166906a0e7aULL, 0x0864d424ca011694ULL}), // a_10
-    Frac256({0x33fa41c7bb5906d1ULL, 0x09ce4f8602a57acbULL,
-             0x27f05548af0be29bULL, 0x07b1c2770e80ff5dULL}), // a_11
-    Frac256({0x3cd309be8234c315ULL, 0xf55cdd54ec97ae7fULL,
-             0x388f13a58de39618ULL, 0x071a3d5a34c5d807ULL}), // a_12
-    Frac256({0xa481c98db0b1aff6ULL, 0x093722cc884edbbfULL,
-             0xd91724877177e6ceULL, 0x06985d8a9eb7b64fULL}), // a_13
-    Frac256({0xc5ebfbd7f8f11467ULL, 0xba98bfd7dd3b3734ULL,
-             0xb98d1106f26fe87aULL, 0x0627cec5a533ff7dULL}), // a_14
-    Frac256({0x8f5b01e8d6775018ULL, 0x761efcd442a1522bULL,
-             0xddf43ff68348e853ULL, 0x05c551d94ae0bf85ULL}), // a_15
-    Frac256({0xaa2b7924b8634b56ULL, 0x0bb2cd446fa9eca9ULL,
-             0xd0e5e1d8f4097fddULL, 0x056e6b26dd0fc350ULL}), // a_16
-    Frac256({0x5a3861ff74fe9726ULL, 0x67655566edd6ee5dULL,
-             0x1aa038db217aa2f2ULL, 0x05212c4f5f00aa3eULL}), // a_17
-    Frac256({0x8e5b3868f6fd9a2bULL, 0x86ad9ad6b3808b9dULL,
-             0x26b2bc9961df0451ULL, 0x04dc0f07d343ff99ULL}), // a_18
-    Frac256({0xd5aff98461aaaa10ULL, 0x6d86f9b7f2a0e47bULL,
-             0x4b29cb04bafb62c9ULL, 0x049ddb143be6ff9eULL}), // a_19
-    Frac256({0x73e005b24f0b5921ULL, 0x79754c39f3650d18ULL,
-             0x3b6462eeb984c6bfULL, 0x046593b1bf252435ULL}), // a_20
-    Frac256({0xbfe649c5ee1a2476ULL, 0xa979d5e9dd8792fcULL,
-             0x16a5af95b3d52886ULL, 0x04326a1265008b4aULL}), // a_21
-    Frac256({0xb240c3c658e84513ULL, 0x5a0dc3a6d6dcfbcbULL,
-             0x3250ee4b9aa7a10cULL, 0x0403b35f8200853cULL}), // a_22
-    Frac256({0xa79c9e1b001812d1ULL, 0xc371e02ecf7b2649ULL,
-             0xbc02b8b45c8cbd91ULL, 0x03d8e13b87407f7cULL}), // a_23
-    Frac256({0x396cbdb266e04da2ULL, 0xf42521f706b70fb3ULL,
-             0xc4949cec1b5b8eb0ULL, 0x03b17c102febc7f2ULL}), // a_24
-    Frac256({0x623e4d738fe3f137ULL, 0x6d666a8379a8770dULL,
-             0xddbb37796ef31775ULL, 0x038d1ead1a5f0977ULL}), // a_25
-    Frac256({0x90aab3e1d0b7c642ULL, 0x65353252593e6d5bULL,
-             0x0a50523f5de27e92ULL, 0x036b72dfa00d56f3ULL}), // a_26
-    Frac256({0x57b2859b2032fbedULL, 0xe13ac78494bc3804ULL,
-             0xc717595704ee1587ULL, 0x034c2ec97b40b274ULL}), // a_27
-    Frac256({0xaacab0e905a586e3ULL, 0x4c5437b1d3769115ULL,
-             0x3db148838720c9e9ULL, 0x032f124ccfb211fcULL}), // a_28
-    Frac256({0xb0f6f05d9338d95fULL, 0x43c399e43c54795fULL,
-             0x44b5111834acb3d6ULL, 0x031357dab283c21cULL}), // a_29
-    Frac256({0x676b154931b3d988ULL, 0x8e0bff4ea0623d39ULL,
-             0xe8a2fa21caed0f90ULL, 0x02d819fe5a43f238ULL}), // a_30
+// Coefficients are stored in 3 precision tiers matching their Horner stages:
+// - Degrees 0..7 in Frac256 (lsb = 2^-256)
+// - Degrees 8..16 in Frac128 (lsb = 2^-128)
+// - Degrees 17..28 in Frac64 (lsb = 2^-64)
+LIBC_INLINE_VAR constexpr Frac256 LOG2_POLY_256[8] = {
+    // lsb = 2^-256
+    Frac256({0x8b25166cd1a13248ULL, 0xeb577aa8dd695a58ULL,
+             0xbe87fed0691d3e88ULL, 0xb8aa3b295c17f0bbULL}), // a_0
+    Frac256({0x45928b3668d0990fULL, 0x75abbd546eb4ad2cULL,
+             0xdf43ff68348e9f44ULL, 0x5c551d94ae0bf85dULL}), // a_1
+    Frac256({0x2e61b22445ceb3f3ULL, 0x4e727e3849cdc8c8ULL,
+             0x3f82aa45785f14d8ULL, 0x3d8e13b87407fae9ULL}), // a_2
+    Frac256({0x22c9459b3f6eb564ULL, 0x3ad5deaa375a5696ULL,
+             0xefa1ffb41a474fa2ULL, 0x2e2a8eca5705fc2eULL}), // a_3
+    Frac256({0x4f076da17511bc00ULL, 0x2f117eee92aeababULL,
+             0x594e6629ae9f72e8ULL, 0x24eed8a1df37fcf2ULL}), // a_4
+    Frac256({0x172f21933a77f0c1ULL, 0x27393f1c24e6e464ULL,
+             0x9fc15522bc2f8a6cULL, 0x1ec709dc3a03fd74ULL}), // a_5
+    Frac256({0x05837685e5671b1aULL, 0x219ec86144339f31ULL,
+             0x645c921dc5df9b38ULL, 0x1a61762a7aded93fULL}), // a_6
+    Frac256({0xfa3f8f34cb3f2ee5ULL, 0x1d6aef551bad2b6aULL,
+             0x77d0ffda0d23a7d1ULL, 0x171547652b82fe17ULL}), // a_7
 };
 
-// Polynomial approximation for (2^x - 1) / x:
-// For x in [-2^-8, 2^-7], we approximate:
-//   P(x) ~ (2^x - 1) / x
-// then:
-//   2^x = 1 + x * P(x).
-//
-// Minimax polynomial coefficients generated by Sollya with:
-// > prec = 512;
-// > P = fpminimax((2^x - 1) / x, 21, [|255...|], [-2^(-8), 2^(-7)], fixed);
-// > for i from 0 to 21 do {
-//     c = coeff(P, i);
-//     c_int = round(abs(c) * 2^255, 512, RN);
-//     print(c_int);
-//   };
-// > dirtyinfnorm(2^x - (1 + x * P), [-2^(-8), 2^(-7)]);
-//   0x1.1554a...p-269 < 2^-268.
-//
-// Expanding P(x) in Horner form:
-//   P(x) = c_0 + c_1 * x + c_2 * x^2 + ...
-// where c_k ~ (log(2))^(k+1) / (k+1)! are all positive.
-//
-// With u = |x|,
-// - if x >= 0:
-//   P(u) = c_0 + u * (c_1 + u * (c_2 + ...))
-// - if x < 0:
-//   P(-u) = c_0 - u * (c_1 - u * (c_2 - ...))
-LIBC_INLINE_VAR constexpr Frac256 EXP2_POLY_256[22] = {
-    Frac256({0xc5068badc5d57d16ULL, 0xa079a193394c5b16ULL,
-             0xe4f1d9cc01f97b57ULL, 0x58b90bfbe8e7bcd5ULL}), // c_0
-    Frac256({0xc2be93bbb1396e6eULL, 0xa3a2751c30ce69d4ULL,
-             0x6f16b06ec9735fcaULL, 0x1ebfbdff82c58ea8ULL}), // c_1
-    Frac256({0x4753198ade221489ULL, 0xa7ae23a226d00887ULL,
-             0xcce9d8aeccaf4b7bULL, 0x071ac235c1282fe2ULL}), // c_2
-    Frac256({0x699b709699e59d1cULL, 0x72478ea53e63911dULL,
-             0x9ccbbe0b53eeac50ULL, 0x013b2ab6fba4e772ULL}), // c_3
-    Frac256({0xc8cdc3747ffed019ULL, 0x60aed94d2dce32e1ULL,
-             0x20e2fed34a297d86ULL, 0x002bb0ffcf14ce62ULL}), // c_4
-    Frac256({0x549592ed6dd93585ULL, 0xcfb314ffccc47bb0ULL,
-             0xdbd2c2a261ac8d07ULL, 0x00050c244be1b1e1ULL}), // c_5
-    Frac256({0x5d0fe48ff2c6f3f5ULL, 0x4ace1152e8810feeULL,
-             0x1a1ac547321f639aULL, 0x00007ff2ff1622c3ULL}), // c_6
-    Frac256({0x7d81cc760a6cb8d0ULL, 0x2586e1a0f7107ab9ULL,
-             0x11fec7ff3036d3beULL, 0x00000b160111d2e4ULL}), // c_7
-    Frac256({0x08c1c3fcab2a43d5ULL, 0x84518cb8caa9ba63ULL,
-             0x3e1ed253872d27fcULL, 0x000000da929e9cafULL}), // c_8
-    Frac256({0x4cefc19f553e7564ULL, 0xb4ce2a0608a16541ULL,
-             0xc764fb7ed0eca973ULL, 0x0000000f267a8ac5ULL}), // c_9
-    Frac256({0x561e9aeb9041ed25ULL, 0x90a4edc7b3b041c3ULL,
-             0x8dd92607abccaf23ULL, 0x00000000f465639aULL}), // c_10
-    Frac256({0x277d61ed12e707bcULL, 0xd17730e76ad24fc6ULL,
-             0x7e14c2f15ab43f0bULL, 0x000000000e1deb28ULL}), // c_11
-    Frac256({0xd72a83926cf51bcaULL, 0x7b8d8d1512799500ULL,
-             0x8b3687cb140d6180ULL, 0x0000000000c0b0c9ULL}), // c_12
-    Frac256({0xd3a3f9891ddac9deULL, 0x2ae5760179b7f299ULL,
-             0x26ac3c54b9f8a1b1ULL, 0x0000000000098a4bULL}), // c_13
-    Frac256({0xa41178da4233dfdbULL, 0xfc55ac7cb3287dbcULL,
-             0xa10ec1008799ec55ULL, 0x00000000000070dbULL}), // c_14
-    Frac256({0xbd533bacbc8f3ab8ULL, 0x93b765826d13ae70ULL,
-             0xa26b9e7e2ce48e3fULL, 0x00000000000004e3ULL}), // c_15
-    Frac256({0xe33450363b8c0d3bULL, 0xc09a8ea3f919a324ULL,
-             0x088968384b4faac9ULL, 0x0000000000000033ULL}), // c_16
-    Frac256({0x2bf8d71ab53ade5eULL, 0x48f9567d04173c92ULL,
-             0xf7176bdb43695d72ULL, 0x0000000000000001ULL}), // c_17
-    Frac256({0x52f008e29e649d62ULL, 0x79d54d84b16ad619ULL,
-             0x125a7ecb835b4a46ULL, 0x0000000000000000ULL}), // c_18
-    Frac256({0x3e1c2787b4d48f1bULL, 0x3588e474c82d686bULL,
-             0x00a2d6625a829f19ULL, 0x0000000000000000ULL}), // c_19
-    Frac256({0x5e8c8f1088f16459ULL, 0xc735fd5e15f67f2eULL,
-             0x00055ff17b41b4b0ULL, 0x0000000000000000ULL}), // c_20
-    Frac256({0xfd5b04031fd9182dULL, 0x8d6a9e1233c035ddULL,
-             0x00002b59f51f6ec7ULL, 0x0000000000000000ULL}), // c_21
+LIBC_INLINE_VAR constexpr Frac128 LOG2_POLY_128[9] = {
+    // lsb = 2^-128
+    Frac128({0x6a80e36c7d7506f2ULL, 0x1484b13d7c02a8f8ULL}), // a_8
+    Frac128({0x2ca73314d74fb974ULL, 0x12776c50ef9bfe79ULL}), // a_9
+    Frac128({0x5723a2cd20d41cf5ULL, 0x10c9a84994022d28ULL}), // a_10
+    Frac128({0x4fe0aa915e17c536ULL, 0x0f6384ee1d01febaULL}), // a_11
+    Frac128({0x711e274b1bc72c31ULL, 0x0e347ab4698bb00eULL}), // a_12
+    Frac128({0xb22e490ee2efcd9bULL, 0x0d30bb153d6f6c9fULL}), // a_13
+    Frac128({0x731a220de4dfd03eULL, 0x0c4f9d8b4a67fefbULL}), // a_14
+    Frac128({0xbbe87fed0692488aULL, 0x0b8aa3b295c17f0bULL}), // a_15
+    Frac128({0xa1cbc3b1e9a2722bULL, 0x0adcd64dba1f86a1ULL}), // a_16
 };
 
-// Lookup table for 2^(i / 64) for i = 0..63 as Frac256.
-// Bit 255 represents 2^0 = 1, bits 254..0 represent the fractional part.
-// Generated by Sollya with:
-// > prec = 512;
-// > for i from 0 to 63 do {
-//     v = round(2^(i / 64) * 2^255, 256, RN);
-//     print(v);
-//   };
-LIBC_INLINE_VAR constexpr Frac256 EXP2_MID_FRAC256[64] = {
-    Frac256({0x0000000000000000ULL, 0x0000000000000000ULL,
-             0x0000000000000000ULL, 0x8000000000000000ULL}),
-    Frac256({0xd08075ac1f200e4cULL, 0x9eb851655e2e5c4dULL,
-             0x7be56527bd14def4ULL, 0x8164d1f3bc030773ULL}),
-    Frac256({0x2502f15067378a17ULL, 0x29f1a4afbefa5d7cULL,
-             0x3e2a475b46520bffULL, 0x82cd8698ac2ba1d7ULL}),
-    Frac256({0x806bddad09d9c4a3ULL, 0x0d96b414ec4c9d06ULL,
-             0x1af92eca13fd1582ULL, 0x843a28c3acde4046ULL}),
-    Frac256({0x5d42b362af1ee859ULL, 0x148a0459e7585151ULL,
-             0xc5c95b8c2154c1b2ULL, 0x85aac367cc487b14ULL}),
-    Frac256({0x5229a7352c9b247bULL, 0x259ac58894f4fcb3ULL,
-             0x3a1727c57b52a956ULL, 0x871f61969e8d1010ULL}),
-    Frac256({0x8bc3587fb118c94dULL, 0xe623d58b3772ba13ULL,
-             0x5df8d76c98c67562ULL, 0x88980e8092da8527ULL}),
-    Frac256({0xe9c32d22e935007dULL, 0x259c4df53d76e910ULL,
-             0x080ca1d92c3680c2ULL, 0x8a14d575496efd9aULL}),
-    Frac256({0x91e135ee84a3f734ULL, 0x1aa84ffbebac349fULL,
-             0xfbe4628758a53c90ULL, 0x8b95c1e3ea8bd6e6ULL}),
-    Frac256({0x724a166325437476ULL, 0x183926ae7d718dc2ULL,
-             0xb4c7b4968e41ad36ULL, 0x8d1adf5b7e5ba9e5ULL}),
-    Frac256({0xeb90ce3700bf59b6ULL, 0xa11037230b367828ULL,
-             0x2dc0144c8783d4c5ULL, 0x8ea4398b45cd53c0ULL}),
-    Frac256({0x6f398dfe3f7903f1ULL, 0x43e90e15c2002132ULL,
-             0x775814a8494e87e2ULL, 0x9031dc431466b1dcULL}),
-    Frac256({0xf1203caf65bfb9b9ULL, 0x1942b34816fb4f26ULL,
-             0x0fd6d8e0ae5ac9d8ULL, 0x91c3d373ab11c336ULL}),
-    Frac256({0x583eab6852a22bb1ULL, 0x2748c36eeaffa273ULL,
-             0xd339940e9d924ee7ULL, 0x935a2b2f13e6e92bULL}),
-    Frac256({0x035fb634c2e63a0fULL, 0x4856046901ff6c05ULL,
-             0x2e8afad12551de54ULL, 0x94f4efa8fef70961ULL}),
-    Frac256({0x9a22b1526bb6a2e4ULL, 0xe0e68d9f200c5358ULL,
-             0x48ea9b683a9c22c4ULL, 0x96942d3720185a00ULL}),
-    Frac256({0xd78b65cbefa7bb70ULL, 0x5e139a1b14fa8178ULL,
-             0x46ad23182e42f6f6ULL, 0x9837f0518db8a96fULL}),
-    Frac256({0x1560e51a5df911dcULL, 0x8ac981ca9ceca6b3ULL,
-             0xe43086cb34b5fcaeULL, 0x99e0459320b7fa64ULL}),
-    Frac256({0x9769d9b0a908a786ULL, 0x0928b5fce34cdf21ULL,
-             0xa2a817a2a3cc3f1fULL, 0x9b8d39b9d54e5538ULL}),
-    Frac256({0x33a6fe2d4fd53e8aULL, 0x1ff17c29677589a0ULL,
-             0xde494cf050e99b0bULL, 0x9d3ed9a72cffb750ULL}),
-    Frac256({0x21f977fe7c7fa118ULL, 0x65c15c122133e2a2ULL,
-             0xa0911f09ebb9fdd1ULL, 0x9ef5326091a111adULL}),
-    Frac256({0x9f33f7bc78dc629fULL, 0x782a0735d02b1a20ULL,
-             0x192dc79edb0fd9a9ULL, 0xa0b0510fb9714fc2ULL}),
-    Frac256({0x5a7a799221808de9ULL, 0x9da4384dbc2c8eaeULL,
-             0x9b7a04ef80cfdea7ULL, 0xa27043030c496818ULL}),
-    Frac256({0x4c72418596cc5bd0ULL, 0xbae743abfbc07376ULL,
-             0x0d1db4831781e1eeULL, 0xa43515ae09e6809eULL}),
-    Frac256({0x2589c98a8290d3f0ULL, 0x1dd170ace2bcfc17ULL,
-             0x1cbd7f621710701bULL, 0xa5fed6a9b15138eaULL}),
-    Frac256({0xdd30939a1d1e929cULL, 0x01424bd194d3999eULL,
-             0x9ec5b4d5039f72afULL, 0xa7cd93b4e9653569ULL}),
-    Frac256({0x325c9e2203504517ULL, 0x3951f214c02d824aULL,
-             0x541e24ec3531fa73ULL, 0xa9a15ab4ea7c0ef8ULL}),
-    Frac256({0x967357d6b36df9f8ULL, 0x7ad59ec00ebe6393ULL,
-             0x658023b2759e0079ULL, 0xab7a39b5a93ed337ULL}),
-    Frac256({0xb165f141833a67daULL, 0x6be409407034fdedULL,
-             0x4980a8c8f59a2ec4ULL, 0xad583eea42a14ac6ULL}),
-    Frac256({0x5a8c73beaa946990ULL, 0xa4502c14f429ded9ULL,
-             0xdf26101ccbb35032ULL, 0xaf3b78ad690a4374ULL}),
-    Frac256({0x97ced890d5b0b0c0ULL, 0x757cfb9913adc577ULL,
-             0x87d037e96d215d8eULL, 0xb123f581d2ac258fULL}),
-    Frac256({0xba1e54cf684354dfULL, 0xfa6e051d6f8bc3ffULL,
-             0x3ecf14dc798a519bULL, 0xb311c412a9112489ULL}),
-    Frac256({0xed17ac8583339915ULL, 0x1d6f60ba893ba84cULL,
-             0x597d89b3754abe9fULL, 0xb504f333f9de6484ULL}),
-    Frac256({0x20850e774a86cd8fULL, 0xf88abbe777df360eULL,
-             0x07165f0ddd541a59ULL, 0xb6fd91e328d17791ULL}),
-    Frac256({0x322d7893ed4da9a8ULL, 0xa5ab16cf451056edULL,
-             0x1b879778566b65a1ULL, 0xb8fbaf4762fb9ee9ULL}),
-    Frac256({0x6c373a75c2828202ULL, 0x02f30d0bdcaa516dULL,
-             0x74d519d24593838cULL, 0xbaff5ab2133e45fbULL}),
-    Frac256({0x0d9a4be023ece032ULL, 0x15b34bbcb0298f41ULL,
-             0xa8811fb66d0faf7aULL, 0xbd08a39f580c36beULL}),
-    Frac256({0x83ea957596be426dULL, 0xa13fc7e6faf9c830ULL,
-             0xe815d0abcbf0b850ULL, 0xbf1799b67a731082ULL}),
-    Frac256({0xdefefee72ae7a33dULL, 0x6b2e5dd607a9969cULL,
-             0x7c457d59a50087b5ULL, 0xc12c4cca66709456ULL}),
-    Frac256({0x5b718d616c4fef19ULL, 0x6b9f89b7dabbcb2bULL,
-             0x20ec856128b83a42ULL, 0xc346ccda24976407ULL}),
-    Frac256({0xc7686006e4e6c093ULL, 0x6b0f939998251a36ULL,
-             0x3e2ad0c964dd9f37ULL, 0xc5672a115506daddULL}),
-    Frac256({0xcea65224bc9900d0ULL, 0x4da570a2c574a304ULL,
-             0xc13a2e3976c0277eULL, 0xc78d74c8abb9b15cULL}),
-    Frac256({0xf4dd023ff93c7ffbULL, 0x257ac0db1f419377ULL,
-             0x80e1f92a0511697eULL, 0xc9b9bd866e2f27a2ULL}),
-    Frac256({0x639aa6f940962626ULL, 0xeb8a25b7b40c0426ULL,
-             0xf4907c8f45ebf6dcULL, 0xcbec14fef2727c5cULL}),
-    Frac256({0x2bbd398af35c079fULL, 0x6f28610b8c36485aULL,
-             0xe235838f95f2c6edULL, 0xce248c151f8480e3ULL}),
-    Frac256({0x2a33269ab05c3e5dULL, 0x11546d3ea28976d6ULL,
-             0xd6d45c6559a4d502ULL, 0xd06333daef2b2594ULL}),
-    Frac256({0xfa7663033f05357bULL, 0x52029c0b81f7be57ULL,
-             0x12248e57c3de4028ULL, 0xd2a81d91f12ae45aULL}),
-    Frac256({0xfa628009459a2417ULL, 0xb8e7a32e5783da5cULL,
-             0x5921deffa6262c5aULL, 0xd4f35aabcfedfa1fULL}),
-    Frac256({0xb5c13ada0e77829aULL, 0x1d733af522058b16ULL,
-             0x39a68bb9902d3fdeULL, 0xd744fccad69d6af4ULL}),
-    Frac256({0xb70cfbb1bdf6eb5dULL, 0xc0edda4d891be43dULL,
-             0xfe873deca3e12babULL, 0xd99d15c278afd7b5ULL}),
-    Frac256({0x613b0d1dbfa0d717ULL, 0x481e1ab725b12d56ULL,
-             0x3d840d5a9e29aa64ULL, 0xdbfbb797daf23755ULL}),
-    Frac256({0xcc2490c8643ef6b4ULL, 0x01438495eacdf256ULL,
-             0xdd07a2d9e8466859ULL, 0xde60f4825e0e9123ULL}),
-    Frac256({0x1cb99d3f1ff298a2ULL, 0x224b251b33092002ULL,
-             0x065895048dd333caULL, 0xe0ccdeec2a94e111ULL}),
-    Frac256({0xfa8fcbb2e85b853fULL, 0xf358a8d368fceaeaULL,
-             0x09bfe90795980eecULL, 0xe33f8972be8a5a51ULL}),
-    Frac256({0xcefcd5b62a14b818ULL, 0xaacd6065b6e9f6acULL,
-             0x1e5e8f4a4edbb0ecULL, 0xe5b906e77c8348a8ULL}),
-    Frac256({0x3a1c6473409c261dULL, 0xfe312f84fa665204ULL,
-             0x791790d0ac70c7ddULL, 0xe8396a503c4bdc68ULL}),
-    Frac256({0x17d8d1e8ca31880bULL, 0xc4faace043b7f91cULL,
-             0xd02d75b3706e54faULL, 0xeac0c6e7dd24392eULL}),
-    Frac256({0xc8e7c95b06416e6dULL, 0x3787630a764ae4c9ULL,
-             0x600d2db6a64bfb12ULL, 0xed4f301ed9942b84ULL}),
-    Frac256({0x9392870834f21a53ULL, 0xd4a277eaddaa925cULL,
-             0x46561cf6948db912ULL, 0xefe4b99bdcdaf5cbULL}),
-    Frac256({0x7c43b0ea5d43228dULL, 0x2cf0b49df0bd70e9ULL,
-             0xe8980a9cc8f47a4bULL, 0xf281773c59ffb139ULL}),
-    Frac256({0xbdd80329364aa2a0ULL, 0x6f510308677709f5ULL,
-             0x7b9d0c7aed980fc3ULL, 0xf5257d152486cc2cULL}),
-    Frac256({0xef6797b5a11efb7cULL, 0xe914ffb4723793f1ULL,
-             0xfe90d496d60fb6eaULL, 0xf7d0df730ad13bb8ULL}),
-    Frac256({0x4844b29bf4af18e8ULL, 0x8006fe21a95d14dcULL,
-             0x7c25bb14315d7fccULL, 0xfa83b2db722a033aULL}),
-    Frac256({0x9d2285b6754edd61ULL, 0x061b7bb285a60791ULL,
-             0x853f3a5931e0ee03ULL, 0xfd3e0c0cf486c174ULL}),
+LIBC_INLINE_VAR constexpr Frac64 LOG2_POLY_64[12] = {
+    // lsb = 2^-64
+    Frac64(0x0a42589ebe01547cULL), // a_17
+    Frac64(0x09b81e0fa687ff32ULL), // a_18
+    Frac64(0x093bb62877cdff3cULL), // a_19
+    Frac64(0x08cb27637e4a486aULL), // a_20
+    Frac64(0x0864d424ca011692ULL), // a_21
+    Frac64(0x080766bf04010878ULL), // a_22
+    Frac64(0x07b1c2770e823fbfULL), // a_23
+    Frac64(0x0762f82060d60050ULL), // a_24
+    Frac64(0x071a3d5995afd976ULL), // a_25
+    Frac64(0x06d6e5744c41469bULL), // a_26
+    Frac64(0x06988c480b11e361ULL), // a_27
+    Frac64(0x06681a21fa0d204cULL), // a_28
 };
 
-// Lookup table for -log2(RD[i]) for i = 0..127 as Frac256,
-// where RD[i] = 2^-8 * ceil(2^8 * (1 - 2^-8) / (1 + i * 2^-7)) is the argument
-// reduction constant from common_constants.h.
-// Generated by Sollya with:
-// > prec = 512;
-// > for i from 0 to 127 do {
-//     rd = 2^(-8) * ceil(2^8 * (1 - 2^(-8)) / (1 + i * 2^(-7)));
-//     v = round(-log2(rd) * 2^255, 256, RN);
-//     print(v);
-//   };
-LIBC_INLINE_VAR constexpr Frac256 LOG2_RD_FRAC256[128] = {
-    Frac256({0x0000000000000000ULL, 0x0000000000000000ULL,
-             0x0000000000000000ULL, 0x0000000000000000ULL}),
-    Frac256({0x6e26f44a7ba5ed8aULL, 0xd4a6b5a62ff68790ULL,
-             0xb5d184a2c615b70aULL, 0x0172c7ba20f73275ULL}),
-    Frac256({0x262f5ca40b7fa26cULL, 0x3ea8c6b85ced9bdaULL,
-             0xca906c23ef817e0bULL, 0x02e87dd0c3e6aac6ULL}),
-    Frac256({0x95b7f4fcee92de52ULL, 0xe775fc0ab1c9f028ULL,
-             0x48f836042de0dc32ULL, 0x04612e39315abe0aULL}),
-    Frac256({0xa3a1e195dfe2d23bULL, 0xfc9f0716c9c77bc6ULL,
-             0x7970e03f821c75d5ULL, 0x05dce53276563557ULL}),
-    Frac256({0xf021a80d769faed4ULL, 0x1dc18a2c9aa3711eULL,
-             0x155660710eb2a091ULL, 0x075baf47c7faff81ULL}),
-    Frac256({0xa1c8545273e2d13eULL, 0x2c217796c1fcdb43ULL,
-             0x631514aef39ce630ULL, 0x08dd9953002a4e86ULL}),
-    Frac256({0x75a862230522a2eaULL, 0xc18cf448bef176a4ULL,
-             0x050799beaaab2940ULL, 0x0a62b07f3457c407ULL}),
-    Frac256({0x9e9fded86733d3caULL, 0xbaad60b1bf6bcd42ULL,
-             0x9da288fc615a727dULL, 0x0beb024b67dda633ULL}),
-    Frac256({0x754ee58441dbf839ULL, 0xe1725598f1deb4d6ULL,
-             0xf22dbbaced44516cULL, 0x0cb0657cd5dbe4f6ULL}),
-    Frac256({0xef894f2363f702c4ULL, 0x4cea550b2568cf82ULL,
-             0x0d939dceecdd9ce0ULL, 0x0e3da945b878e27dULL}),
-    Frac256({0xe96924afd238c8c9ULL, 0x57c3feaa2020e02eULL,
-             0x99596a8e2e84c8f4ULL, 0x0fce4aee0e88b274ULL}),
-    Frac256({0xb86f9d5aa2c46088ULL, 0xcc91d77315a3145bULL,
-             0xa487dfb264b2a99fULL, 0x1097e38ce606492bULL}),
-    Frac256({0x6ffb458008d61f66ULL, 0x7d13d9c8e8a9007cULL,
-             0xd23af3271ce44c70ULL, 0x122dadc2ab3496d2ULL}),
-    Frac256({0xc5b06c09a5744f6fULL, 0x2d931f14daa7bc7cULL,
-             0x644ac793db28c412ULL, 0x13c6fb650cde50a1ULL}),
-    Frac256({0xb70ec311ae623b5fULL, 0x47a2302a7c41bfa9ULL,
-             0xa74a794230202b5bULL, 0x1494f863b8df34baULL}),
-    Frac256({0x319dd5425ceb6df9ULL, 0x2cace034400340f2ULL,
-             0xa7d70047ddacbac0ULL, 0x1633a8bf437ce10aULL}),
-    Frac256({0xbd7cbee513e8b29cULL, 0x623a9d853e546763ULL,
-             0x19cb9577a5aea7b3ULL, 0x17046031c79f84beULL}),
-    Frac256({0xa214ecf13179e463ULL, 0x639cad5bff474c1aULL,
-             0x6a9b7e2df60d2bdcULL, 0x18a8980abfbd3266ULL}),
-    Frac256({0x549b2f738887ca0dULL, 0x13e96e51cbcddd86ULL,
-             0xaa32d50b40cf8ce7ULL, 0x197c1cb13c7ec085ULL}),
-    Frac256({0x0fc30982c995dbc4ULL, 0x0c5d7f995f1384d0ULL,
-             0xde69308bc912aa0fULL, 0x1b2602497d53458cULL}),
-    Frac256({0x1766d8107cc2463bULL, 0xadedce27f01160b5ULL,
-             0xf02bdee0b9f5de06ULL, 0x1bfc67a7fff4cc06ULL}),
-    Frac256({0x911ae4dceeb91543ULL, 0xa0018a21469a1f11ULL,
-             0x4574e09b954ede83ULL, 0x1dac22d3e441d2feULL}),
-    Frac256({0x45b6ce87115cb69eULL, 0x603bb472c90ec7e1ULL,
-             0xe40c5e6d7829a1b2ULL, 0x1e857d3d361367bdULL}),
-    Frac256({0xc2ae18e36f1a943bULL, 0xc2d3510c6f5fd964ULL,
-             0x44ca200650512c0aULL, 0x203b3779f4c3a8bbULL}),
-    Frac256({0x5063aa93fcadc0b9ULL, 0x4805be54f509252bULL,
-             0x552203798e04bf52ULL, 0x21179c1b2bf46fd8ULL}),
-    Frac256({0x6f2dba8b95f5c7c9ULL, 0x2079020c8a004162ULL,
-             0x6a1f00babcdb8b0aULL, 0x22d380a6c7e2b0e4ULL}),
-    Frac256({0xe7d3c5ed0de90057ULL, 0x49c1a6f5afa47381ULL,
-             0xa60108dfb23650c7ULL, 0x23b30593aa4e106bULL}),
-    Frac256({0x40b4cbc998adb82dULL, 0x1e4a0e0dbeb3195dULL,
-             0x083e072a57679e5aULL, 0x24939a56279ad89aULL}),
-    Frac256({0x34552da7c8bea27fULL, 0xf185be16b7fcc49cULL,
-             0x4492f1bc6b3e5770ULL, 0x2657fdc6e1dcd0cbULL}),
-    Frac256({0x6d3834bd854918b2ULL, 0xbb77e46da7b566d9ULL,
-             0x5697a3886ffcccdaULL, 0x273bd1c2ab3edefeULL}),
-    Frac256({0xb402daaee365795fULL, 0x06e4fbd9714b80fbULL,
-             0xd394fe8cca7d9625ULL, 0x2820c02f87d9451cULL}),
-    Frac256({0x9d7b13b46dda1849ULL, 0x885dce30d5e9e813ULL,
-             0xc9d0b5ca5a8e7bb5ULL, 0x29edf7659d8b30f1ULL}),
-    Frac256({0x121032713a5003c9ULL, 0xe0b08724e7f04c97ULL,
-             0x3cd6715512f1784cULL, 0x2ad645cd6af1c939ULL}),
-    Frac256({0x9c9cd255e7b18d6eULL, 0x58b9b632cfed6a65ULL,
-             0x5adb21d3765b875dULL, 0x2bbfb9e3dd5c1c88ULL}),
-    Frac256({0x362e0218efac2fa7ULL, 0x10fb850fefe496c5ULL,
-             0x4840199e302970e4ULL, 0x2caa569330c4eed6ULL}),
-    Frac256({0xb9254dfdf461e98cULL, 0x9a4ea80721314ac5ULL,
-             0xdb502402c94092ccULL, 0x2d961ed0cb91d406ULL}),
-    Frac256({0xbeeea0c45c970f7eULL, 0x3bd29380bd1f0b11ULL,
-             0xe278bad54ec9e6cfULL, 0x2f713e059e555a63ULL}),
-    Frac256({0x6f816641264b17aeULL, 0xf3f42009108dab4eULL,
-             0x7561496ab4e4b293ULL, 0x30609b21823fa654ULL}),
-    Frac256({0x4429d9e262f3c8c6ULL, 0xc7395ab7fe8e9835ULL,
-             0xd536fc5bec1a57b8ULL, 0x315130157f7a64ccULL}),
-    Frac256({0xd2f50c802ff2764aULL, 0xac331ec8776891deULL,
-             0xe2357ab8cc98c9eeULL, 0x3243001249ba76feULL}),
-    Frac256({0x13bf99bcdd15e820ULL, 0x0c891fcfa03fdd31ULL,
-             0x51b7e816f77f7b63ULL, 0x33360e552d8d64deULL}),
-    Frac256({0xc20d37d96d02df04ULL, 0x6d860cae2ed327dfULL,
-             0x2ffa76fafcba2917ULL, 0x351ff2e30214bc30ULL}),
-    Frac256({0x85fb7f8ad3538e0dULL, 0x03d2c5dcbd9ccc4aULL,
-             0x1ec47c7145831457ULL, 0x3616cfe9e8d01feaULL}),
-    Frac256({0x829c6e703f0fc512ULL, 0x0031e528bbef9eadULL,
-             0xc4ce7959dfb11374ULL, 0x370ef8af6360dfdfULL}),
-    Frac256({0xe83c947d78828170ULL, 0xac2ed3668bc0c3b9ULL,
-             0xfa8ae31eec3ba722ULL, 0x380870b3c5fb66f6ULL}),
-    Frac256({0x0cd67db0d807d403ULL, 0x0a9caaa68f883accULL,
-             0x2bb1588cc9e47f8eULL, 0x39033b85a8bfc871ULL}),
-    Frac256({0x16420cec83688abaULL, 0x7b9e3ba7068f7b86ULL,
-             0x1c5a0baeb329e73eULL, 0x39ff5cc235a256c5ULL}),
-    Frac256({0x65af196f4ce5b140ULL, 0x6a2513c4f89aa3a6ULL,
-             0xa96b573a7ed69eedULL, 0x3afcd815786af187ULL}),
-    Frac256({0x319c80ace7918092ULL, 0x2ca495197c5993eaULL,
-             0x8c8946414c6a14b1ULL, 0x3bfbb13ab0dc5613ULL}),
-    Frac256({0xe91dc50aab435aa9ULL, 0xe06bcb114a0f1719ULL,
-             0xf6a2b59276887aabULL, 0x3cfbebfca715669dULL}),
-    Frac256({0x63d58c2be0e5b043ULL, 0x99a78444f0d00323ULL,
-             0x930f8ba9f0570f47ULL, 0x3dfd8c36023f0ab6ULL}),
-    Frac256({0xd66a1a98fa3886e2ULL, 0x55226b72b74410b6ULL,
-             0xaf2e6fea614b834dULL, 0x3f0095d1a19a0331ULL}),
-    Frac256({0x88c9482df3a84033ULL, 0x25aa4f7373799779ULL,
-             0x670197a0e8f3ba74ULL, 0x40050ccaf800ca8cULL}),
-    Frac256({0x60ad16b1d436b2cfULL, 0x28336d5fee3ef522ULL,
-             0xcd9cfff75e149b95ULL, 0x410af52e69f26263ULL}),
-    Frac256({0x14359d48fe9047deULL, 0x1991256093b9dc1cULL,
-             0xc3fcaf8df7db7c03ULL, 0x42125319ae3bbf05ULL}),
-    Frac256({0x16fadce756865ed5ULL, 0xbae450ac5754344aULL,
-             0x5cc3da171dd99950ULL, 0x431b2abc31565be7ULL}),
-    Frac256({0x8492c2612d5a8759ULL, 0x34ee848b0b781887ULL,
-             0x89cd3dd41df9689bULL, 0x442580577b936762ULL}),
-    Frac256({0x3ad4311182915175ULL, 0x60c67a245f78bb52ULL,
-             0x8283ccdf555594a0ULL, 0x4531583f9a2be203ULL}),
-    Frac256({0x5b3a3aef25dbcdefULL, 0xfdeb5563207896e0ULL,
-             0x45eba230bf4dbea8ULL, 0x463eb6db8b4f066dULL}),
-    Frac256({0x32087d5975d8fe6bULL, 0xea99e677177c285cULL,
-             0x02356a22199e7587ULL, 0x474da0a5ad495303ULL}),
-    Frac256({0x04a7b4a6562b4343ULL, 0xddd02924cf83def7ULL,
-             0x77a639bfdd27aeb2ULL, 0x485e1a2c30df9ea9ULL}),
-    Frac256({0xe61b71e474e99f75ULL, 0x75abfd08dec73401ULL,
-             0xd7220e04ebb0e2a4ULL, 0x497028118efabeb7ULL}),
-    Frac256({0x2a2437241ee48e55ULL, 0x8e16aa8188fd490aULL,
-             0xb71b554e74851c3cULL, 0x4a83cf0d01c16e3cULL}),
-    Frac256({0xb80082d9fb082e0aULL, 0x67ff158637af6596ULL,
-             0x077e50d0c2749c04ULL, 0x4b9913eb013f5ec5ULL}),
-    Frac256({0xb80082d9fb082e0aULL, 0x67ff158637af6596ULL,
-             0x077e50d0c2749c04ULL, 0x4b9913eb013f5ec5ULL}),
-    Frac256({0x68aa5b4f917d44ffULL, 0xe30b7c2d6ff98938ULL,
-             0x8925e378d67caee1ULL, 0x4caffb8dc3b9a196ULL}),
-    Frac256({0x642224ca9e7cc367ULL, 0xd122ba0a2e1a73faULL,
-             0x9a95f528f2c754f3ULL, 0x4dc88aedc1d1ee96ULL}),
-    Frac256({0x313b1a081bc4ea73ULL, 0x09c491c06681cc48ULL,
-             0x9336b66e4ac8a9deULL, 0x4ee2c71a3e9bb4b6ULL}),
-    Frac256({0x63d1c43831c10bdaULL, 0xf4272036db2b8f69ULL,
-             0xa293ec16410a6ee4ULL, 0x4ffeb539d3c7579aULL}),
-    Frac256({0xd9740fe9e9c5253fULL, 0x1b73dad61ee48894ULL,
-             0x202655dbb6b0071eULL, 0x511c5a8b02098837ULL}),
-    Frac256({0xd9740fe9e9c5253fULL, 0x1b73dad61ee48894ULL,
-             0x202655dbb6b0071eULL, 0x511c5a8b02098837ULL}),
-    Frac256({0x2e147034099ccfcfULL, 0xb03b7d7e6bd0493fULL,
-             0xe55be97611f87779ULL, 0x523bbc64c5e64350ULL}),
-    Frac256({0x58e4c41655df5f19ULL, 0x740e9519cc12e4a0ULL,
-             0xbb0e246ec2cef169ULL, 0x535ce0373108b235ULL}),
-    Frac256({0x0834df65b40b7c12ULL, 0xb61832b8bb4c9f7fULL,
-             0xbfe9dbebf2e8a45dULL, 0x547fcb8c0852f0c0ULL}),
-    Frac256({0x8b32b1fbdcbd3f0cULL, 0x4408786d49566334ULL,
-             0x613e33c06c95a688ULL, 0x55a4840766d29904ULL}),
-    Frac256({0xdc92a6fefa30f4c6ULL, 0x4d2754039098a562ULL,
-             0x6da8120164a04966ULL, 0x56cb0f6865c8ea03ULL}),
-    Frac256({0xdc92a6fefa30f4c6ULL, 0x4d2754039098a562ULL,
-             0x6da8120164a04966ULL, 0x56cb0f6865c8ea03ULL}),
-    Frac256({0x313af26502f8a6cdULL, 0x8dff0ebab8d36942ULL,
-             0x9a1977b5b995b421ULL, 0x57f37389c9f76d14ULL}),
-    Frac256({0x2d7c1749f6f423c0ULL, 0xdf64485cf695a7a3ULL,
-             0xdd9926d3f02373c8ULL, 0x591db662b664264cULL}),
-    Frac256({0xaa7293ec76e59d5bULL, 0xc74c7f4741bb1f6fULL,
-             0xd90b84e721864711ULL, 0x5a49de0764caa121ULL}),
-    Frac256({0xaa7293ec76e59d5bULL, 0xc74c7f4741bb1f6fULL,
-             0xd90b84e721864711ULL, 0x5a49de0764caa121ULL}),
-    Frac256({0xf662658135c18184ULL, 0x5f0bcac4e6cfec7bULL,
-             0x748d68b767f88088ULL, 0x5b77f0a9e3f18cfbULL}),
-    Frac256({0x80348894da13c701ULL, 0x49c65b1a5a602129ULL,
-             0xe718f240e6bcbf3cULL, 0x5ca7f49adc1f1f5aULL}),
-    Frac256({0xdce91e02b40b35d8ULL, 0xc46327805ec0076cULL,
-             0xed1f4b0d4b62c07cULL, 0x5dd9f04a59e91469ULL}),
-    Frac256({0xdce91e02b40b35d8ULL, 0xc46327805ec0076cULL,
-             0xed1f4b0d4b62c07cULL, 0x5dd9f04a59e91469ULL}),
-    Frac256({0x5f884b8ddadcf74dULL, 0xf5e3dadf04bd0ff3ULL,
-             0xf9cb2cc55748a4ccULL, 0x5f0dea489f9fed21ULL}),
-    Frac256({0xa609c77144ded04cULL, 0xb30a91252b56f94aULL,
-             0x572667587b10ca0dULL, 0x6043e946fd97f5dcULL}),
-    Frac256({0xa609c77144ded04cULL, 0xb30a91252b56f94aULL,
-             0x572667587b10ca0dULL, 0x6043e946fd97f5dcULL}),
-    Frac256({0xf93ce8eff413527cULL, 0x8554c2c17f944fa1ULL,
-             0x360c2ae2103c7c0dULL, 0x617bf418b195b338ULL}),
-    Frac256({0x7b3285d76164c890ULL, 0x07d4b4b5500472a5ULL,
-             0x0b4a9afdc5fabbe4ULL, 0x62b611b3cda69037ULL}),
-    Frac256({0x7b3285d76164c890ULL, 0x07d4b4b5500472a5ULL,
-             0x0b4a9afdc5fabbe4ULL, 0x62b611b3cda69037ULL}),
-    Frac256({0x599f2a65c6ef7dd4ULL, 0x3edbea325add2accULL,
-             0x1d9267663010bca1ULL, 0x63f2493226b211bfULL}),
-    Frac256({0x5509d9aded608bccULL, 0xdf7d4115ebc0ee87ULL,
-             0x1ee1343fe7c9cb4aULL, 0x6530a1d24b136c10ULL}),
-    Frac256({0x5509d9aded608bccULL, 0xdf7d4115ebc0ee87ULL,
-             0x1ee1343fe7c9cb4aULL, 0x6530a1d24b136c10ULL}),
-    Frac256({0x063711bbcff6a7caULL, 0x34bf67662d61c015ULL,
-             0x05317356e8d480d0ULL, 0x667122f8818f20fdULL}),
-    Frac256({0xdb09e5e814c87f43ULL, 0x829344b50240232cULL,
-             0x2ddb71189c56a8f0ULL, 0x67b3d42fd0fc4d02ULL}),
-    Frac256({0xdb09e5e814c87f43ULL, 0x829344b50240232cULL,
-             0x2ddb71189c56a8f0ULL, 0x67b3d42fd0fc4d02ULL}),
-    Frac256({0x4c8dec7f0307142cULL, 0xca3b2dcc7941a5dfULL,
-             0x3fe30528818495d6ULL, 0x68f8bd2b10fd80d6ULL}),
-    Frac256({0x841a6fb2da05be09ULL, 0xdb0c195c5da64fbfULL,
-             0x5ff4edf5f974522eULL, 0x6a3fe5c604297860ULL}),
-    Frac256({0x841a6fb2da05be09ULL, 0xdb0c195c5da64fbfULL,
-             0x5ff4edf5f974522eULL, 0x6a3fe5c604297860ULL}),
-    Frac256({0x6f295eb94b4ff3f4ULL, 0x524c383b17757feeULL,
-             0xc716be9bc093ec11ULL, 0x6b8956067c08b2ceULL}),
-    Frac256({0xd50c7b85bba151bcULL, 0x6ac0ed3b39116e44ULL,
-             0xae0d3f8a58b459b2ULL, 0x6cd5161d8751e5e0ULL}),
-    Frac256({0xd50c7b85bba151bcULL, 0x6ac0ed3b39116e44ULL,
-             0xae0d3f8a58b459b2ULL, 0x6cd5161d8751e5e0ULL}),
-    Frac256({0xcee3b58a450ab308ULL, 0x7822b754be5b62abULL,
-             0x5babcf87c69ea8a5ULL, 0x6e232e68aad484a1ULL}),
-    Frac256({0xcee3b58a450ab308ULL, 0x7822b754be5b62abULL,
-             0x5babcf87c69ea8a5ULL, 0x6e232e68aad484a1ULL}),
-    Frac256({0x7ea793f02baad929ULL, 0xb0c4015f8fdff17dULL,
-             0xd843902f5aad7542ULL, 0x6f73a77325861c69ULL}),
-    Frac256({0xe19972fa315f9621ULL, 0xd5e23a4c7b4973b0ULL,
-             0xa1251311eb06fd8aULL, 0x70c689f7402d26f1ULL}),
-    Frac256({0xe19972fa315f9621ULL, 0xd5e23a4c7b4973b0ULL,
-             0xa1251311eb06fd8aULL, 0x70c689f7402d26f1ULL}),
-    Frac256({0xab2afce4184639aeULL, 0x4df1d7bf78e23ef9ULL,
-             0x269d2c8d7342a3c3ULL, 0x721bdedfa92a22ceULL}),
-    Frac256({0xab2afce4184639aeULL, 0x4df1d7bf78e23ef9ULL,
-             0x269d2c8d7342a3c3ULL, 0x721bdedfa92a22ceULL}),
-    Frac256({0x261c1d2c4d56a905ULL, 0xb94dd8c8f0834794ULL,
-             0xc6e6db59262e2e6fULL, 0x7373af48dce652a8ULL}),
-    Frac256({0xdb6ddbdb00d73945ULL, 0x1ad7c182a716c033ULL,
-             0x99d63ecf5dd4529eULL, 0x74ce04829b7674c1ULL}),
-    Frac256({0xdb6ddbdb00d73945ULL, 0x1ad7c182a716c033ULL,
-             0x99d63ecf5dd4529eULL, 0x74ce04829b7674c1ULL}),
-    Frac256({0x22ba4e8b413991d3ULL, 0x95b97a0e1d121d02ULL,
-             0xfd9776f25acec4acULL, 0x762ae8116c071e93ULL}),
-    Frac256({0x22ba4e8b413991d3ULL, 0x95b97a0e1d121d02ULL,
-             0xfd9776f25acec4acULL, 0x762ae8116c071e93ULL}),
-    Frac256({0x7420ca3f82a950a2ULL, 0xa3757861c1116ee5ULL,
-             0x1845a2a3336f47ccULL, 0x778a63b02eb032a6ULL}),
-    Frac256({0x7420ca3f82a950a2ULL, 0xa3757861c1116ee5ULL,
-             0x1845a2a3336f47ccULL, 0x778a63b02eb032a6ULL}),
-    Frac256({0x481eb4627658b4afULL, 0x16a73e812a9e4565ULL,
-             0xc1c1e586711df5eaULL, 0x78ec8151bd552842ULL}),
-    Frac256({0x481eb4627658b4afULL, 0x16a73e812a9e4565ULL,
-             0xc1c1e586711df5eaULL, 0x78ec8151bd552842ULL}),
-    Frac256({0xfce168eaef943079ULL, 0xce4c86d28e4be331ULL,
-             0xb27e43da520fbdb7ULL, 0x7a514b229c409e33ULL}),
-    Frac256({0xfce168eaef943079ULL, 0xce4c86d28e4be331ULL,
-             0xb27e43da520fbdb7ULL, 0x7a514b229c409e33ULL}),
-    Frac256({0x59576b46a119898aULL, 0x254008aeb4167a33ULL,
-             0x9faebec15b2e2b43ULL, 0x7bb8cb8abb32fb44ULL}),
-    Frac256({0x59576b46a119898aULL, 0x254008aeb4167a33ULL,
-             0x9faebec15b2e2b43ULL, 0x7bb8cb8abb32fb44ULL}),
-    Frac256({0x10e7d4a6c2ef9745ULL, 0x3ead121a489569ffULL,
-             0xb23b03bdcfdea0d7ULL, 0x7d230d2f47a5baceULL}),
-    Frac256({0x10e7d4a6c2ef9745ULL, 0x3ead121a489569ffULL,
-             0xb23b03bdcfdea0d7ULL, 0x7d230d2f47a5baceULL}),
-    Frac256({0xa828a9bde1ec7e79ULL, 0xe33209b70d9a5be1ULL,
-             0x071c84ffe86b0bbbULL, 0x7e901af4910f7ae8ULL}),
-    Frac256({0x0000000000000000ULL, 0x0000000000000000ULL,
-             0x0000000000000000ULL, 0x8000000000000000ULL}),
+// Polynomial coefficients c_k ~ (log(2))^(k+1) / (k+1)! for 2^u - 1 = u * P(u)
+// on |u| < 2^-7.29, stored in 2 precision tiers:
+// - Degrees 0..9 in Frac256 (lsb = 2^-256)
+// - Degrees 10..19 in Frac128 (lsb = 2^-128)
+LIBC_INLINE_VAR constexpr Frac256 EXP2_POLY_256[10] = {
+    // lsb = 2^-256
+    Frac256({0x8a0d175b8baafa2cULL, 0x40f343267298b62dULL,
+             0xc9e3b39803f2f6afULL, 0xb17217f7d1cf79abULL}), // c_0
+    Frac256({0x857d27776272dcddULL, 0x4744ea38619cd3a9ULL,
+             0xde2d60dd92e6bf95ULL, 0x3d7f7bff058b1d50ULL}), // c_1
+    Frac256({0x8ea63315bc46c28dULL, 0x4f5c47444da0110eULL,
+             0x99d3b15d995e96f7ULL, 0x0e35846b82505fc5ULL}), // c_2
+    Frac256({0xd336e12d33c302bfULL, 0xe48f1d4a7cc7223aULL,
+             0x39977c16a7dd58a0ULL, 0x0276556df749cee5ULL}), // c_3
+    Frac256({0x919b86d5480c127eULL, 0xc15db29a5b9c65c3ULL,
+             0x41c5fda69452fb0cULL, 0x005761ff9e299cc4ULL}), // c_4
+    Frac256({0xa92b25fedad56f0dULL, 0x9f6629ff9988f760ULL,
+             0xb7a58544c3591a0fULL, 0x000a184897c363c3ULL}), // c_5
+    Frac256({0xba623264ff59063bULL, 0x959c22a5d1021fdcULL,
+             0x34358a8e643ec734ULL, 0x0000ffe5fe2c4586ULL}), // c_6
+    Frac256({0xfab6439a0b2d00d1ULL, 0x4b0dc341ee20f572ULL,
+             0x23fd8ffe606da77cULL, 0x0000162c0223a5c8ULL}), // c_7
+    Frac256({0xe715fa54922e6ef4ULL, 0x08a319719553744cULL,
+             0x7c3da4a70e5a4ff9ULL, 0x000001b5253d395eULL}), // c_8
+    Frac256({0x308d164959a6077dULL, 0x699c540c1142cae1ULL,
+             0x8ec9f6fda1d952e7ULL, 0x0000001e4cf5158bULL}), // c_9
 };
 
-// Accurate log2(x) in 256-bit precision reusing range reduction from fast pass:
-//   x = 2^x_e * m_x, with 1 <= m_x < 2
-//   r = RD[idx_x]
-//   dx = r * m_x - 1, with -2^-8 <= dx < 2^-7
-//   log2(x) = x_e + (-log2(r)) + log2(1 + dx).
-// The value -log2(r) is provided by LOG2_RD_FRAC256[idx_x].
-// log2(1 + dx) is evaluated with a degree-30 minimax polynomial using a 3-tier
-// Horner scheme (Frac64, Frac128, and Frac256).
-LIBC_INLINE DFloat256 log2_f256(int x_e, unsigned idx_x, double dx) {
-  using FPBits = fputil::FPBits<double>;
+LIBC_INLINE_VAR constexpr Frac128 EXP2_POLY_128[10] = {
+    // lsb = 2^-128
+    Frac128({0x1bb24c0f57995e47ULL, 0x00000001e8cac735ULL}), // c_10
+    Frac128({0xfc2985e2b5687e18ULL, 0x000000001c3bd650ULL}), // c_11
+    Frac128({0x166d0f96281ac301ULL, 0x0000000001816193ULL}), // c_12
+    Frac128({0x4d5878a973f14362ULL, 0x0000000000131496ULL}), // c_13
+    Frac128({0x421d82010f33d8acULL, 0x000000000000e1b7ULL}), // c_14
+    Frac128({0x44d73cfc59c91c7fULL, 0x00000000000009c7ULL}), // c_15
+    Frac128({0x1112d070969f5587ULL, 0x0000000000000066ULL}), // c_16
+    Frac128({0xee2ed7b686d2bae6ULL, 0x0000000000000003ULL}), // c_17
+    Frac128({0x24b4fd9706b8c9b6ULL, 0x0000000000000000ULL}), // c_18
+    Frac128({0x0145acc4b5051358ULL, 0x0000000000000000ULL}), // c_19
+};
 
-  if (dx == 0.0) {
-    Frac256 log2_m = LOG2_RD_FRAC256[idx_x];
-    DFloat256 m_df(Sign::POS, -255, log2_m);
-    return fputil::quick_add(DFloat256(static_cast<double>(x_e)), m_df);
-  }
-
-  double abs_dx = (dx < 0.0) ? -dx : dx;
-  FPBits bits(abs_dx);
-  // Append hidden bit.
-  uint64_t mant = bits.get_mantissa() | (1ULL << 52);
-  int shift = 255 + bits.get_exponent() - 52;
-  Frac256 y =
-      (shift >= 0) ? Frac256((UInt<256>(mant) << shift).val) : Frac256(0);
-
-  // Evaluate log2(1 + dx) using Horner scheme in 3 stages:
-  // - Degree 18-30: 64-bit precision evaluation.
-  // - Degree 8-17: 128-bit precision evaluation.
-  // - Degree 0-7: 256-bit precision evaluation.
-  //
-  // Since y = |dx| <= 2^-7, truncation errors at degree k is bounded by:
-  //   y^k <= 2^(-7k).
-  //
-  // Step 1: 64-bit evaluation, truncation error at degree 18 is bounded by:
-  //   2^-63 * y^18 <= 2^-189.
-  Frac64 y64 = y.to_frac64();
-  Frac64 p64 = LOG2_POLY_256[30].to_frac64();
-  if (dx >= 0.0) {
-    for (int k = 29; k >= 18; --k)
-      p64 = LOG2_POLY_256[k].to_frac64() - ((p64 * y64) << 1);
-  } else {
-    for (int k = 29; k >= 18; --k)
-      p64 = LOG2_POLY_256[k].to_frac64() + ((p64 * y64) << 1);
-  }
-
-  // Step 2: 128-bit evaluation, truncation error at degree 8 is bounded by:
-  //   2^-127 * y^8 <= 2^-183.
-  Frac128 y128 = y.to_frac128();
-  Frac128 p128({0, p64.val[0]});
-  if (dx >= 0.0) {
-    for (int k = 17; k >= 8; --k)
-      p128 = LOG2_POLY_256[k].to_frac128() - ((p128 * y128) << 1);
-  } else {
-    for (int k = 17; k >= 8; --k)
-      p128 = LOG2_POLY_256[k].to_frac128() + ((p128 * y128) << 1);
-  }
-
-  // Step 3: 256-bit evaluation.
-  Frac256 p({0, 0, p128.val[0], p128.val[1]});
-  if (dx >= 0.0) {
-    for (int k = 7; k >= 0; --k)
-      p = LOG2_POLY_256[k] - ((p * y) << 1);
-  } else {
-    for (int k = 7; k >= 0; --k)
-      p = LOG2_POLY_256[k] + ((p * y) << 1);
-  }
-
-  // log2(1 + dx) = 2 * y * P(y):
-  Frac256 log2_1p = (y * p) << 2;
-  Frac256 log2_rd = LOG2_RD_FRAC256[idx_x];
-  Frac256 log2_m = (dx >= 0.0) ? (log2_rd + log2_1p) : (log2_rd - log2_1p);
-
-  DFloat256 m_df(Sign::POS, -255, log2_m);
-  return fputil::quick_add(DFloat256(static_cast<double>(x_e)), m_df);
+// Exact 2-step integer range reduction for m_x = 1 + x_mant * 2^-52 in [1, 2):
+//   idx1 = round(x_mant * 2^-48) in [0, 16],  r1 = RD_SMALL_K[idx1] * 2^-6
+//   d1   = r1 * m_x - 1 = (mant_x * RD_SMALL_K[idx1] - 2^58) * 2^-58
+//   k2   = round(d1 * 2^7) in [-4, 4],        r2 = (128 - k2) * 2^-7
+//   dx   = r1 * r2 * m_x - 1 = dx_int * 2^-65, with |dx| < 2^-7.96.
+LIBC_INLINE int64_t log2_range_reduce(uint64_t x_mant, unsigned &idx1,
+                                      int &k2) {
+  uint64_t mant_x = x_mant | (1ULL << 52); // lsb = 2^-52
+  idx1 = static_cast<unsigned>((x_mant + (1ULL << 47)) >> 48);
+  int64_t d1 = static_cast<int64_t>(mant_x * RD_SMALL_K[idx1]) -
+               (1LL << 58);                                      // lsb = 2^-58
+  k2 = static_cast<int>((d1 + (1LL << 50)) >> 51);               // lsb = 2^-7
+  return (d1 << 7) - (static_cast<int64_t>(k2) << 58) - d1 * k2; // lsb = 2^-65
 }
 
-// Range reduction:
-//   k = round(z * 64)
-//   hi = k >> 6
-//   idx = k & 0x3f
-//   lo = z - k * 2^-6, with |lo| <= 2^-7.
+// Multiply a in-place by 64-bit b and return the high 64-bit word.
+template <size_t N>
+LIBC_ALWAYS_INLINE uint64_t mul_uint64(UInt<N> &a, uint64_t b) {
+  uint64_t carry = 0;
+  for (size_t i = 0; i < N / 64; ++i) {
+    auto prod = multiword::mul2(a.val[i], b);
+    uint64_t c = 0;
+    a.val[i] = add_with_carry<uint64_t>(prod[0], carry, 0, c);
+    carry = prod[1] + c;
+  }
+  return carry;
+}
+
+// Construct a normalized DyadicFloat<N> from a mantissa whose MSB is at bit
+// N - 1 or N - 2 (at most a 1-bit left shift).
+template <size_t N>
+LIBC_ALWAYS_INLINE fputil::DyadicFloat<N> df_norm_1bit(Sign sign, int exp,
+                                                       const UInt<N> &m) {
+  fputil::DyadicFloat<N> r;
+  r.sign = sign;
+  if (m.val[N / 64 - 1] >> 63) {
+    r.exponent = exp;
+    r.mantissa = m;
+  } else {
+    r.exponent = exp - 1;
+    r.mantissa = m + m;
+  }
+  return r;
+}
+
+// Convert an int to a normalized DyadicFloat<N>.
+template <size_t N>
+LIBC_ALWAYS_INLINE fputil::DyadicFloat<N> df_from_int(int x) {
+  fputil::DyadicFloat<N> r;
+  r.mantissa = UInt<N>(0);
+  if (LIBC_UNLIKELY(x == 0)) {
+    r.sign = Sign::POS;
+    r.exponent = 0;
+    return r;
+  }
+  uint32_t m = static_cast<uint32_t>(x < 0 ? -static_cast<int64_t>(x) : x);
+  int lz = cpp::countl_zero(m);
+  r.sign = (x < 0) ? Sign::NEG : Sign::POS;
+  r.exponent = 31 - lz - static_cast<int>(N - 1);
+  r.mantissa.val[N / 64 - 1] = static_cast<uint64_t>(m) << (lz + 32);
+  return r;
+}
+
+// Combine integer exponent x_e and fractional mantissa log2_m in (0, 1)
+// (lsb = 2^-(N - 1)) into a normalized DyadicFloat<N>.
+template <size_t N>
+LIBC_INLINE fputil::DyadicFloat<N> combine_log2_df(int x_e,
+                                                   const UInt<N> &log2_m) {
+  Sign sign = Sign::POS;
+  uint32_t m = static_cast<uint32_t>(x_e);
+  UInt<N> frac = log2_m;
+  if (x_e < 0) {
+    sign = Sign::NEG;
+    m = static_cast<uint32_t>(-x_e - 1);
+    frac = (UInt<N>(1) << (N - 1)) - log2_m;
+  }
+
+  fputil::DyadicFloat<N> r;
+  r.sign = sign;
+  if (m == 0) {
+    // Near-1.0 inputs already returned early, so frac > 2^(N - 9) and lz is
+    // strictly in [1, 8].
+    int lz = cpp::countl_zero(frac.val[N / 64 - 1]);
+    int rsh = 64 - lz;
+    r.exponent = -static_cast<int>(N - 1) - lz;
+    r.mantissa.val[0] = frac.val[0] << lz;
+    LIBC_LOOP_NOUNROLL
+    for (size_t i = 1; i < N / 64; ++i)
+      r.mantissa.val[i] = (frac.val[i] << lz) | (frac.val[i - 1] >> rsh);
+    return r;
+  }
+  int bw = 32 - cpp::countl_zero(m);
+  r.exponent = -static_cast<int>(N) + bw;
+  if (bw == 1) {
+    r.mantissa = frac;
+    r.mantissa.val[N / 64 - 1] |= 1ULL << 63;
+    return r;
+  }
+  int shr = bw - 1;
+  int shl = 64 - shr;
+  LIBC_LOOP_NOUNROLL
+  for (size_t i = 0; i < N / 64 - 1; ++i)
+    r.mantissa.val[i] = (frac.val[i] >> shr) | (frac.val[i + 1] << shl);
+  r.mantissa.val[N / 64 - 1] =
+      (frac.val[N / 64 - 1] >> shr) | (static_cast<uint64_t>(m) << (64 - bw));
+  return r;
+}
+
+// Accurate log2(x) in 256-bit precision using 2-step integer range reduction:
+//   x = 2^x_e * m_x, with 1 <= m_x < 2
+//   log2(x) = x_e + (-log2(r1)) + (-log2(r2)) + log2(1 + dx).
+// log2(1 + dx) is evaluated with a degree-28 minimax polynomial using a 3-tier
+// Horner scheme (Frac64, Frac128, and Frac256).
+LIBC_COLD LIBC_INLINE DFloat256 log2_f256(int x_e, uint64_t x_mant) {
+  if (LIBC_UNLIKELY(x_mant == 0))
+    return df_from_int<256>(x_e);
+
+  unsigned idx1 = 0;
+  int k2 = 0;
+  int64_t dx_int = log2_range_reduce(x_mant, idx1, k2); // lsb = 2^-65
+  bool dx_is_neg = (dx_int < 0);
+  uint64_t abs_dx =
+      static_cast<uint64_t>(dx_is_neg ? -dx_int : dx_int); // lsb = 2^-65
+
+  Frac64 y64(abs_dx >> 1);                      // lsb = 2^-64
+  Frac128 y128({abs_dx << 63, abs_dx >> 1});    // lsb = 2^-128
+  Frac256 y({0, 0, abs_dx << 63, abs_dx >> 1}); // lsb = 2^-256
+
+  // Step 1: 64-bit evaluation for degrees 17..28 (|dx|^17 < 2^-135.4):
+  Frac64 p64 = LOG2_POLY_64[11]; // lsb = 2^-64
+  LIBC_LOOP_NOUNROLL
+  for (int k = 10; k >= 0; --k) {
+    Frac64 py = p64 * y64;
+    p64 = dx_is_neg ? (LOG2_POLY_64[k] + py)
+                    : (LOG2_POLY_64[k] - py); // lsb = 2^-64
+  }
+
+  // Step 2: 128-bit evaluation for degrees 8..16 (|dx|^8 < 2^-63.7):
+  Frac128 p128({0, p64.val[0]}); // lsb = 2^-128
+  LIBC_LOOP_NOUNROLL
+  for (int k = 8; k >= 0; --k) {
+    Frac128 py = p128 * y128;
+    p128 = dx_is_neg ? (LOG2_POLY_128[k] + py)
+                     : (LOG2_POLY_128[k] - py); // lsb = 2^-128
+  }
+
+  // Step 3: 256-bit evaluation for degrees 0..7:
+  Frac256 p({0, 0, p128.val[0], p128.val[1]}); // lsb = 2^-256
+  LIBC_LOOP_NOUNROLL
+  for (int k = 7; k >= 0; --k) {
+    Frac256 py = p * y;
+    p = dx_is_neg ? (LOG2_POLY_256[k] + py)
+                  : (LOG2_POLY_256[k] - py); // lsb = 2^-256
+  }
+
+  // Normalize abs_dx before multiplying by p so near-1.0 inputs (x_e - log2(r)
+  // == 0) retain full 256-bit precision without shifting out low bits.
+  int lz = cpp::countl_zero(abs_dx);
+  uint64_t norm_dx = abs_dx << lz;                        // lsb = 2^-(65 + lz)
+  Frac256 norm_log2_1p = Frac256({0, 0, 0, norm_dx}) * p; // lsb = 2^-(256 + lz)
+  if (LIBC_UNLIKELY((x_e == 0 && idx1 == 0 && k2 == 0) ||
+                    (x_e == -1 && idx1 == 16 && k2 == 0))) {
+    return df_norm_1bit<256>(dx_is_neg ? Sign::NEG : Sign::POS, -256 - lz,
+                             UInt<256>(norm_log2_1p.val));
+  }
+
+  Frac256 log2_1p = norm_log2_1p >> static_cast<size_t>(lz + 1); // lsb = 2^-255
+  Frac256 log2_rd =
+      LOG2_R1_FRAC256[idx1] + LOG2_R2_FRAC256[k2 + 4]; // lsb = 2^-255
+  Frac256 log2_m =
+      dx_is_neg ? (log2_rd - log2_1p) : (log2_rd + log2_1p); // lsb = 2^-255
+
+  return combine_log2_df<256>(x_e, UInt<256>(log2_m.val));
+}
+
+// Accurate 2^z in 256-bit precision reusing LOG2_R1_FRAC256 and LOG2_R2_FRAC256
+// for range reduction:
+//   z = hi - f, with hi = ceil(z) and f in [0, 1)
+//   f ~ -log2(R_1[idx1] * R_2[k2])
+//   u = (-log2(R_1[idx1]) - log2(R_2[k2])) - f, with |u| < 2^-7.29.
 // Then:
-//   2^z = 2^hi * EXP2_MID_FRAC256[idx] * 2^lo
-//       = 2^hi * EXP2_MID_FRAC256[idx] * (1 + lo * P(lo)).
-LIBC_INLINE DFloat256 exp2_f256(const DFloat256 &z) {
-  double z_d = static_cast<double>(z);
-  double z_scaled = z_d * 64.0;
-  double kd = fputil::nearest_integer(z_scaled);
-  int k = static_cast<int>(kd);
-
-  int hi = k >> 6;
-  unsigned idx = static_cast<unsigned>(k & 0x3f);
-
-  DFloat256 kd_f256(kd * 0x1.0p-6);
-  DFloat256 lo = fputil::quick_add(z, -kd_f256);
-
-  Frac256 m = EXP2_MID_FRAC256[idx];
-  if (LIBC_UNLIKELY(lo.mantissa.is_zero()))
-    return DFloat256(Sign::POS, hi - 255, m);
-
-  bool lo_is_neg = (lo.sign == Sign::NEG);
-  int shift = -255 - lo.exponent;
-  Frac256 u = (shift < 256) ? Frac256((lo.mantissa >> shift).val) : Frac256(0);
-
-  // Evaluate 2^lo - 1 = lo * P(lo) using Horner scheme in 3 stages:
-  // - Degree 12-21: 64-bit precision evaluation.
-  // - Degree 6-11: 128-bit precision evaluation.
-  // - Degree 0-5: 256-bit precision evaluation.
-  //
-  // Since u = |lo| <= 2^-7, truncation errors at degree i is bounded by:
-  //   u^i <= 2^(-7i).
-  //
-  // Step 1: 64-bit evaluation, truncation error at degree 12 is bounded by:
-  //   2^-63 * u^12 <= 2^-147.
-  Frac64 u64 = u.to_frac64();
-  Frac64 p64 = EXP2_POLY_256[21].to_frac64();
-  if (lo_is_neg) {
-    for (int i = 20; i >= 12; --i)
-      p64 = EXP2_POLY_256[i].to_frac64() - ((p64 * u64) << 1);
+//   2^z = 2^(hi - 13) * (RD_SMALL_K[idx1] * (128 - k2)) * 2^u.
+LIBC_COLD LIBC_INLINE DFloat256 exp2_f256(const DFloat256 &z) {
+  // Callers guarantee 2^-54 <= |z| < 1076 < 2^11, so e in [-54, 10].
+  int e = z.exponent + 255;
+  int int_z = 0;
+  UInt<256> frac_z;
+  const auto &m = z.mantissa.val;
+  if (e > 0) {
+    int shr = 64 - e;
+    int_z = static_cast<int>(m[3] >> (shr - 1));
+    frac_z = UInt<256>({m[0] << e, (m[1] << e) | (m[0] >> shr),
+                        (m[2] << e) | (m[1] >> shr),
+                        ((m[3] << e) | (m[2] >> shr)) &
+                            0x7fff'ffff'ffff'ffffULL}); // lsb = 2^-255
+  } else if (e == 0) {
+    int_z = 1;
+    frac_z = UInt<256>(
+        {m[0], m[1], m[2], m[3] & 0x7fff'ffff'ffff'ffffULL}); // lsb = 2^-255
   } else {
-    for (int i = 20; i >= 12; --i)
-      p64 = EXP2_POLY_256[i].to_frac64() + ((p64 * u64) << 1);
+    int shr = -e;
+    int shl = 64 - shr;
+    frac_z =
+        UInt<256>({(m[0] >> shr) | (m[1] << shl), (m[1] >> shr) | (m[2] << shl),
+                   (m[2] >> shr) | (m[3] << shl), m[3] >> shr}); // lsb = 2^-255
   }
 
-  // Step 2: 128-bit evaluation, truncation error at degree 6 is bounded by:
-  //   2^-127 * u^6 <= 2^-169.
-  Frac128 u128 = u.to_frac128();
-  Frac128 p128({0, p64.val[0]});
-  if (lo_is_neg) {
-    for (int i = 11; i >= 6; --i)
-      p128 = EXP2_POLY_256[i].to_frac128() - ((p128 * u128) << 1);
-  } else {
-    for (int i = 11; i >= 6; --i)
-      p128 = EXP2_POLY_256[i].to_frac128() + ((p128 * u128) << 1);
+  int hi = -int_z;
+  Frac256 f(frac_z.val); // lsb = 2^-255
+  if (z.sign != Sign::NEG) {
+    if (frac_z.is_zero()) {
+      hi = int_z;
+    } else {
+      hi = int_z + 1;
+      f = Frac256(((UInt<256>(1) << 255) - frac_z).val);
+    }
   }
 
-  // Step 3: 256-bit evaluation.
-  Frac256 p({0, 0, p128.val[0], p128.val[1]});
-  if (lo_is_neg) {
-    for (int i = 5; i >= 0; --i)
-      p = EXP2_POLY_256[i] - ((p * u) << 1);
-  } else {
-    for (int i = 5; i >= 0; --i)
-      p = EXP2_POLY_256[i] + ((p * u) << 1);
+  // Direct integer index approximation for idx1 = round(16 * (2^f - 1)) in
+  // [0, 16] and k2 = round((f + log2(R_1[idx1])) * 128 * ln(2)) in [-4, 4]:
+  uint64_t q = f.val[3] >> 47; // lsb = 2^-16
+  uint64_t p2 = 15512 + ((q * 4561) >> 16);
+  uint64_t p1 = 45462 + ((q * p2) >> 16);
+  unsigned idx1 = static_cast<unsigned>((q * p1 + (1ULL << 27)) >> 28);
+
+  int64_t rem_hi = static_cast<int64_t>(f.val[3]) -
+                   static_cast<int64_t>(LOG2_R1_FRAC256[idx1].val[3]);
+  int k2 = static_cast<int>(((rem_hi >> 32) * 5814539LL + (1LL << 46)) >> 47);
+  if (k2 < -4)
+    k2 = -4;
+  if (k2 > 4)
+    k2 = 4;
+
+  Frac256 log2_rd =
+      LOG2_R1_FRAC256[idx1] + LOG2_R2_FRAC256[k2 + 4]; // lsb = 2^-255
+  Frac256 u_signed = log2_rd - f;                      // lsb = 2^-255
+  bool u_is_neg = (u_signed.val[3] >> 63) != 0;
+  Frac256 abs_u = u_is_neg ? (Frac256(0) - u_signed) : u_signed;
+  Frac256 u = abs_u << 1; // lsb = 2^-256
+
+  // Step 1: 128-bit evaluation for degrees 10..19:
+  Frac128 u128 = u.to_frac128();   // lsb = 2^-128
+  Frac128 p128 = EXP2_POLY_128[9]; // lsb = 2^-128
+  LIBC_LOOP_NOUNROLL
+  for (int i = 8; i >= 0; --i) {
+    Frac128 pu = p128 * u128;
+    p128 = u_is_neg ? (EXP2_POLY_128[i] - pu)
+                    : (EXP2_POLY_128[i] + pu); // lsb = 2^-128
+  }
+
+  // Step 2: 256-bit evaluation for degrees 0..9:
+  Frac256 p({0, 0, p128.val[0], p128.val[1]}); // lsb = 2^-256
+  LIBC_LOOP_NOUNROLL
+  for (int i = 9; i >= 0; --i) {
+    Frac256 pu = p * u;
+    p = u_is_neg ? (EXP2_POLY_256[i] - pu)
+                 : (EXP2_POLY_256[i] + pu); // lsb = 2^-256
   }
 
   // Reconstruction:
-  //   t = u * P(u) ~ 2^u - 1 as Frac256
-  //   mt = m * t ~ m * (2^u - 1) as Frac256
-  //   m_final = m +- mt ~ m * (1 +- t) ~ m * 2^lo
-  Frac256 t = (u * p) << 1;
-  Frac256 mt = (m * t) << 1;
-  Frac256 m_final = lo_is_neg ? (m - mt) : (m + mt);
+  //   2^z = 2^(hi - 13) * m_int * (1 +- t)
+  //       = 2^hi * (m_int * 2^-13) * (1 +- t).
+  Frac256 t = u * p; // lsb = 2^-256
+  uint64_t m_int =
+      static_cast<uint64_t>(RD_SMALL_K[idx1]) * static_cast<uint64_t>(128 - k2);
+  UInt<256> m_256({0, 0, 0, m_int << 50}); // lsb = 2^-255
+  Frac256 mt = Frac256(m_256.val) * t;     // lsb = 2^-255
+  UInt<256> m_final = u_is_neg ? (m_256 - UInt<256>(mt.val))
+                               : (m_256 + UInt<256>(mt.val)); // lsb = 2^-255
 
-  if ((m_final.val[3] & (1ULL << 63)) == 0) {
-    m_final = m_final << 1;
-    --hi;
-  }
-
-  return DFloat256(Sign::POS, hi - 255, m_final);
+  return df_norm_1bit<256>(Sign::POS, hi - 255, m_final);
 }
 
-// Accurate pow(x, y) reusing range reduction parameters in 256-bit precision.
-// Lauter & Lefevre (2009) showed that if x^y is not an exact 54-bit number, the
-// distance to the nearest 54-bit boundary is at least:
-//   |x^y - o_54(x^y)| / x^y >= 2^-114.
-// Since exact 54-bit boundaries are already handled in pow_accurate, the
-// 256-bit evaluation with error < 2^-250 is sufficient to correctly round all
-// remaining cases.
-LIBC_INLINE double pow_accurate_256(double y, bool is_neg, int x_e,
-                                    unsigned idx_x, double dx) {
-  DFloat256 log2_x = log2_f256(x_e, idx_x, dx);
-  DFloat256 y_f256(y);
-  DFloat256 z = fputil::quick_mul(y_f256, log2_x);
+// Accurate pow(x, y) evaluating z = y * log2(x) and 2^z in 256-bit precision,
+// folded with sticky bit into a normalized DyadicFloat<128> for rounding.
+LIBC_COLD LIBC_NOINLINE LIBC_INLINE fputil::DyadicFloat<128>
+pow_accurate_256(Sign y_sign, int exp_y, uint64_t mant_y, bool is_neg, int x_e,
+                 uint64_t x_mant) {
+  DFloat256 log2_x = log2_f256(x_e, x_mant);
+  uint64_t z_hi = mul_uint64(log2_x.mantissa, mant_y);
+  const auto &lm = log2_x.mantissa.val;
 
-  // For 0 < |z| <= 2^-55, x^y is between 1 - 2^-54 and 1 + 2^-53.
-  if (LIBC_UNLIKELY(!z.mantissa.is_zero() && z.exponent + 255 <= -55)) {
-    volatile double one = 1.0;
-    volatile double eps = (z.sign == Sign::NEG) ? -0x1.0p-100 : 0x1.0p-100;
-    double res = one + eps;
-    return is_neg ? -res : res;
+  DFloat256 z;
+  z.sign = (y_sign == log2_x.sign) ? Sign::POS : Sign::NEG;
+  if (z_hi >> 63) {
+    z.exponent = log2_x.exponent + exp_y + 1;
+    z.mantissa = UInt<256>({lm[1], lm[2], lm[3], z_hi});
+  } else {
+    z.exponent = log2_x.exponent + exp_y;
+    z.mantissa =
+        UInt<256>({(lm[1] << 1) | (lm[0] >> 63), (lm[2] << 1) | (lm[1] >> 63),
+                   (lm[3] << 1) | (lm[2] >> 63), (z_hi << 1) | (lm[3] >> 63)});
   }
 
   DFloat256 r = exp2_f256(z);
-  if (is_neg)
-    r.sign = Sign::NEG;
-
-  int unbiased_exp = r.exponent + 255;
-  if (LIBC_UNLIKELY(unbiased_exp >= 1024))
-    return set_overflow(is_neg);
-
-  double res = static_cast<double>(r);
-  if (LIBC_UNLIKELY(fputil::FPBits<double>(res).is_inf()))
-    return set_overflow(is_neg);
-
-  return res;
+  fputil::DyadicFloat<128> r128;
+  r128.sign = is_neg ? Sign::NEG : Sign::POS;
+  r128.exponent = r.exponent + 128;
+  uint64_t sticky = (r.mantissa.val[0] | r.mantissa.val[1]) != 0;
+  r128.mantissa = UInt<128>({r.mantissa.val[2] | sticky, r.mantissa.val[3]});
+  return r128;
 }
 
 } // namespace pow_internal

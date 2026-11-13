@@ -16,6 +16,7 @@
 
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/double_double.h"
+#include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/nearest_integer.h"
 #include "src/__support/common.h"
@@ -31,19 +32,23 @@ namespace LIBC_NAMESPACE_DECL {
 namespace math {
 
 LIBC_INLINE double pow(double x, double y) {
+  using namespace common_constants_internal;
   using namespace pow_internal;
   using FPBits = fputil::FPBits<double>;
 
   FPBits xbits(x), ybits(y);
   uint64_t x_u = xbits.uintval();
-  uint64_t y_u = ybits.uintval();
   uint64_t y_a = ybits.abs().uintval();
+
+#ifndef LIBC_MATH_HAS_SMALL_TABLES
+  uint64_t y_u = ybits.uintval();
 
   if (LIBC_UNLIKELY((x_u & 0x0003'FFFF'FFFF'FFFF) == 0 ||
                     (y_u & 0x000F'FFFF'FFFF'FFFF) == 0)) {
     if (auto r = check_special_inputs(x, y); LIBC_UNLIKELY(r.has_value()))
       return r.value();
   }
+#endif // !LIBC_MATH_HAS_SMALL_TABLES
 
   double e_x = static_cast<double>(xbits.get_exponent());
   uint64_t x_mant = xbits.get_mantissa();
@@ -51,6 +56,9 @@ LIBC_INLINE double pow(double x, double y) {
   double sign_d = 1.0;
 
   if (LIBC_UNLIKELY(y_a <= Y_LOWER_BOUND || y_a >= Y_UPPER_BOUND ||
+#ifdef LIBC_MATH_HAS_SMALL_TABLES
+                    x_u == FPBits::one().uintval() ||
+#endif // LIBC_MATH_HAS_SMALL_TABLES
                     x_u >= FPBits::inf().uintval() ||
                     x_u < FPBits::min_normal().uintval())) {
     if (auto r = check_exceptional_cases(x, y, e_x, x_mant, is_neg, sign_d);
@@ -232,12 +240,12 @@ LIBC_INLINE double pow(double x, double y) {
   if (LIBC_UNLIKELY(FPBits(y6_log2_x.hi).abs().get_val() >= UPPER_EXP_BOUND)) {
     if (FPBits(y6_log2_x.hi).sign() == Sign::POS) {
       if (y6_log2_x.hi > 1024.0 * SCALE)
-        return set_overflow(is_neg);
+        return fputil::set_overflow<double>(is_neg ? Sign::NEG : Sign::POS);
       scale = 0x1.0p600;
       y6_log2_x.hi -= 600.0 * SCALE;
     } else {
       if (y6_log2_x.hi < -1076.0 * SCALE)
-        return set_underflow(is_neg);
+        return fputil::set_underflow<double>(is_neg ? Sign::NEG : Sign::POS);
       scale = 0x1.0p-600;
       y6_log2_x.hi += 600.0 * SCALE;
     }

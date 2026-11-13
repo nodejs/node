@@ -19,12 +19,21 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
 
   isolate->RunAllPromiseHooks(PromiseHookType::kResolve, promise,
                               isolate->factory()->undefined_value());
+  if (isolate->CheckTerminationAfterCallback()) {
+    return ReadOnlyRoots(isolate).exception();
+  }
   isolate->debug()->OnPromiseReject(promise, value);
+  if (isolate->CheckTerminationAfterCallback()) {
+    return ReadOnlyRoots(isolate).exception();
+  }
 
   // Report only if we don't actually have a handler.
   if (!promise->has_handler()) {
     isolate->ReportPromiseReject(promise, value,
                                  v8::kPromiseRejectWithNoHandler);
+    if (isolate->CheckTerminationAfterCallback()) {
+      return ReadOnlyRoots(isolate).exception();
+    }
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -37,6 +46,9 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   CHECK(!promise->has_handler());
   isolate->ReportPromiseReject(promise, DirectHandle<Object>(),
                                v8::kPromiseHandlerAddedAfterReject);
+  if (isolate->CheckTerminationAfterCallback()) {
+    return ReadOnlyRoots(isolate).exception();
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -57,6 +69,7 @@ RUNTIME_FUNCTION(Runtime_PerformMicrotaskCheckpoint) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   MicrotasksScope::PerformCheckpoint(reinterpret_cast<v8::Isolate*>(isolate));
+  RETURN_FAILURE_IF_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -121,7 +134,9 @@ RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
   DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
   DirectHandle<Object> parent = args.at(1);
   isolate->RunPromiseHook(PromiseHookType::kInit, promise, parent);
-  RETURN_FAILURE_IF_EXCEPTION(isolate);
+  if (isolate->CheckTerminationAfterCallback()) {
+    return ReadOnlyRoots(isolate).exception();
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -131,7 +146,9 @@ RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {
   DirectHandle<JSReceiver> promise = args.at<JSReceiver>(0);
   if (IsJSPromise(*promise)) {
     isolate->OnPromiseBefore(Cast<JSPromise>(promise));
-    RETURN_FAILURE_IF_EXCEPTION(isolate);
+    if (isolate->CheckTerminationAfterCallback()) {
+      return ReadOnlyRoots(isolate).exception();
+    }
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -142,7 +159,9 @@ RUNTIME_FUNCTION(Runtime_PromiseHookAfter) {
   DirectHandle<JSReceiver> promise = args.at<JSReceiver>(0);
   if (IsJSPromise(*promise)) {
     isolate->OnPromiseAfter(Cast<JSPromise>(promise));
-    RETURN_FAILURE_IF_EXCEPTION(isolate);
+    if (isolate->CheckTerminationAfterCallback()) {
+      return ReadOnlyRoots(isolate).exception();
+    }
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -153,8 +172,12 @@ RUNTIME_FUNCTION(Runtime_RejectPromise) {
   DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
   DirectHandle<Object> reason = args.at(1);
   DirectHandle<Boolean> debug_event = args.at<Boolean>(2);
-  return *JSPromise::Reject(promise, reason,
-                            Object::BooleanValue(*debug_event, isolate));
+  DirectHandle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSPromise::Reject(promise, reason,
+                        Object::BooleanValue(*debug_event, isolate)));
+  return *result;
 }
 
 RUNTIME_FUNCTION(Runtime_ResolvePromise) {

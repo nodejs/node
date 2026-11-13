@@ -27,6 +27,8 @@
 
 #include "test/cctest/cctest.h"
 
+#include <array>
+
 #include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
 #include "include/v8-array-buffer.h"
@@ -54,7 +56,6 @@
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/print-extension.h"
 #include "test/cctest/profiler-extension.h"
-#include "test/cctest/trace-extension.h"
 
 #ifdef V8_USE_PERFETTO
 #include "src/tracing/trace-event.h"
@@ -136,7 +137,7 @@ void CcTest::Run(const char* snapshot_directory) {
                                custom_v8_flags_.length());
   }
   // TODO(12887): Fix tests to avoid changing flag values after initialization.
-  i::v8_flags.freeze_flags_after_init = false;
+  i::v8_flags.freeze_flags_after_init.Set(false);
 
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(snapshot_directory);
@@ -153,7 +154,6 @@ void CcTest::Run(const char* snapshot_directory) {
 
   v8::RegisterExtension(std::make_unique<i::PrintExtension>());
   v8::RegisterExtension(std::make_unique<i::ProfilerExtension>());
-  v8::RegisterExtension(std::make_unique<i::TraceExtension>());
 
   if (!initialize_) {
     CHECK_NE(initialization_state_, kInitialized);
@@ -226,9 +226,9 @@ i::Handle<i::String> CcTest::MakeString(const char* str) {
 }
 
 i::Handle<i::String> CcTest::MakeName(const char* str, int suffix) {
-  v8::base::EmbeddedVector<char, 128> buffer;
+  std::array<char, 128> buffer;
   v8::base::SNPrintF(buffer, "%s%d", str, suffix);
-  return CcTest::MakeString(buffer.begin());
+  return CcTest::MakeString(buffer.data());
 }
 
 v8::base::RandomNumberGenerator* CcTest::random_number_generator() {
@@ -410,18 +410,6 @@ int main(int argc, char* argv[]) {
   test->Run(argv[0]);
 
   return 0;
-}
-
-std::vector<const RegisterThreadedTest*> RegisterThreadedTest::tests_;
-
-bool IsValidUnwrapObject(v8::Object* object) {
-  i::Address addr = i::ValueHelper::ValueAsAddress(object);
-  auto instance_type = i::Internals::GetInstanceType(addr);
-  return (v8::base::IsInRange(instance_type,
-                              i::Internals::kFirstJSApiObjectType,
-                              i::Internals::kLastJSApiObjectType) ||
-          instance_type == i::Internals::kJSObjectType ||
-          instance_type == i::Internals::kJSSpecialApiObjectType);
 }
 
 v8::PageAllocator* TestPlatform::GetPageAllocator() {

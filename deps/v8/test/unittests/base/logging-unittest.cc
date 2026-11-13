@@ -4,8 +4,11 @@
 
 #include "src/base/logging.h"
 
+#include <atomic>
 #include <cstdint>
+#include <thread>
 
+#include "src/base/debug/stack_trace.h"
 #include "src/objects/smi.h"
 #include "testing/gtest-support.h"
 
@@ -284,6 +287,25 @@ TEST(LoggingDeathTest, OutputLongValues) {
 TEST(LoggingDeathTest, FatalKills) {
   ASSERT_DEATH_IF_SUPPORTED(FATAL("Dread pirate"),
                             FailureMessage("Dread pirate"));
+}
+
+TEST(LoggingTest, ConcurrentDisableSignalStackDump) {
+  std::atomic<int> ready{0};
+  std::thread t([&] {
+    ready.fetch_add(1, std::memory_order_relaxed);
+    while (ready.load(std::memory_order_relaxed) < 2) {
+    }
+    for (int i = 0; i < 100; ++i) {
+      v8::base::debug::DisableSignalStackDump();
+    }
+  });
+  ready.fetch_add(1, std::memory_order_relaxed);
+  while (ready.load(std::memory_order_relaxed) < 2) {
+  }
+  for (int i = 0; i < 100; ++i) {
+    v8::base::debug::DisableSignalStackDump();
+  }
+  t.join();
 }
 
 TEST(LoggingDeathTest, DcheckIsOnlyFatalInDebug) {

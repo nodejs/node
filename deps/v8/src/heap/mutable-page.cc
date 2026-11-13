@@ -259,11 +259,8 @@ bool MutablePage::ContainsAnySlots() const {
 
 int MutablePage::ComputeFreeListsLength() {
   int length = 0;
-  for (int cat = kFirstCategory; cat <= owner()->free_list()->last_category();
-       cat++) {
-    if (categories_[cat] != nullptr) {
-      length += categories_[cat]->FreeListLength();
-    }
+  for (int cat = kFirstCategory; cat <= FreeList::kLastCategory; cat++) {
+    length += categories_[cat].FreeListLength();
   }
   return length;
 }

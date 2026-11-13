@@ -1,0 +1,12 @@
+Tests that deoptimization due to debug breaks works for inlined functions compiled before debugger is attached.
+Paused #1:
+h (test.js:14:2)
+g (test.js:9:2)
+f (test.js:4:2)
+(anonymous) (:0:0)
+Paused #2:
+g (test.js:10:10)
+f (test.js:4:2)
+(anonymous) (:0:0)
+count: 5
+break_count: 2

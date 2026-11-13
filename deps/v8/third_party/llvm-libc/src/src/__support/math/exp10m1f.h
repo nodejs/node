@@ -9,7 +9,7 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_EXP10M1F_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXP10M1F_H
 
-#include "exp10f_utils.h"
+#include "hdr/errno_macros.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/PolyEval.h"
@@ -17,9 +17,9 @@
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/common.h"
-#include "src/__support/libc_errno.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
+#include "src/__support/math/exp10f_utils.h"
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -114,18 +114,10 @@ LIBC_INLINE float exp10m1f(float x) {
 
   // When x >= log10(2^128), or x is nan
   if (LIBC_UNLIKELY(xbits.is_pos() && x_u >= 0x421a'209bU)) {
-    if (xbits.is_finite()) {
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      int rounding = fputil::quick_get_round();
-      if (rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO)
-        return FPBits::max_normal().get_val();
-#endif
+    if (xbits.is_finite())
+      return fputil::set_overflow<float>();
 
-      fputil::set_errno_if_required(ERANGE);
-      fputil::raise_except_if_required(FE_OVERFLOW);
-    }
-
-    // x >= log10(2^128) and 10^x - 1 rounds to +inf, or x is +inf or nan
+    // x is +inf or nan
     return x + FPBits::inf().get_val();
   }
 

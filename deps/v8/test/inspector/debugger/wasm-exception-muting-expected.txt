@@ -1,0 +1,8 @@
+Test setting "Never Pause Here" breakpoint in Wasm.
+Running a().
+Break at $a:1:30:
+Exception thrown
+Returned from wasm.
+Running a().
+Exception thrown
+Returned from wasm.

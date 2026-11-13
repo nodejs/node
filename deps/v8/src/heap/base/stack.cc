@@ -38,7 +38,7 @@ bool Stack::IsOnStack(const void* slot) {
   }
 #endif  // V8_USE_SAFE_STACK
   return v8::base::Stack::GetCurrentStackPosition() <= slot &&
-         slot <= v8::base::Stack::GetStackStartUnchecked();
+         slot <= v8::base::Stack::GetStackStart();
 }
 
 namespace {
@@ -207,7 +207,7 @@ void Stack::IterateBackgroundStacks(StackVisitor* visitor) const {
 // static
 bool Stack::IsOnCurrentStack(const void* ptr) {
   DCHECK_NOT_NULL(ptr);
-  const void* current_stack_start = v8::base::Stack::GetStackStartUnchecked();
+  const void* current_stack_start = v8::base::Stack::GetStackStart();
   const void* current_stack_top = v8::base::Stack::GetCurrentStackPosition();
   return ptr <= current_stack_start && ptr >= current_stack_top;
 }

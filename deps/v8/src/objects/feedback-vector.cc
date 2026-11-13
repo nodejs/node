@@ -231,7 +231,7 @@ DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 
   // Pre-allocate the cells s.t. we can initialize `result` without further
   // allocation.
-  DirectHandleVector<FeedbackCell> cells(isolate);
+  DirectHandleSmallVector<FeedbackCell, 8> cells(isolate);
   cells.reserve(length);
   for (uint32_t i = 0; i < length; i++) {
     DirectHandle<FeedbackCell> cell = isolate->factory()->NewNoClosuresCell();
@@ -392,15 +392,7 @@ void FeedbackVector::AddToVectorsForProfilingTools(
 }
 
 void FeedbackVector::set_tiering_in_progress(bool in_progress) {
-  set_flags(TieringInProgressBit::update(flags(), in_progress));
-}
-
-void FeedbackVector::reset_flags() {
-  set_flags(
-      TieringInProgressBit::encode(false) |
-      OsrTieringInProgressBit::encode(false) |
-      MaybeHasMaglevOsrCodeBit::encode(false) |
-      MaybeHasTurbofanOsrCodeBit::encode(false));
+  set_flags(flags().with_tiering_in_progress(in_progress));
 }
 
 void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
@@ -423,19 +415,18 @@ void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
 }
 
 bool FeedbackVector::osr_tiering_in_progress() {
-  return OsrTieringInProgressBit::decode(flags());
+  return flags().osr_tiering_in_progress();
 }
 
 void FeedbackVector::set_osr_tiering_in_progress(bool osr_in_progress) {
-  set_flags(OsrTieringInProgressBit::update(flags(), osr_in_progress));
+  set_flags(flags().with_osr_tiering_in_progress(osr_in_progress));
 }
 
-bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
-  if (!shared_function_info()->HasFeedbackMetadata()) return false;
+void FeedbackVector::ClearICAndLiteralSlots(Isolate* isolate) {
+  if (!shared_function_info()->HasFeedbackMetadata()) return;
   Tagged<MaybeObject> uninitialized_sentinel =
       FeedbackVector::RawUninitializedSentinel(isolate);
 
-  bool feedback_updated = false;
   DisallowGarbageCollection no_gc;
   FeedbackMetadataIterator iter(metadata(), no_gc);
   while (iter.HasNext()) {
@@ -444,10 +435,9 @@ bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
     Tagged<MaybeObject> obj = Get(slot);
     if (obj != uninitialized_sentinel) {
       FeedbackNexus nexus(isolate, this, slot);
-      feedback_updated |= nexus.Clear(behavior);
+      nexus.Clear();
     }
   }
-  return feedback_updated;
 }
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
@@ -609,28 +599,18 @@ void FeedbackNexus::ConfigureUninitialized() {
   }
 }
 
-bool FeedbackNexus::Clear(ClearBehavior behavior) {
-  bool feedback_updated = false;
-
+void FeedbackNexus::Clear() {
   switch (kind()) {
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kForIn:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kTypeOf:
-      if (V8_LIKELY(behavior == ClearBehavior::kDefault)) {
-        // We don't clear these, either.
-      } else if (!IsCleared()) {
-        DCHECK_EQ(behavior, ClearBehavior::kClearAll);
-        SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
-        feedback_updated = true;
-      }
+    case FeedbackSlotKind::kStringAddAndInternalize:
+      // We don't clear these.
       break;
 
     case FeedbackSlotKind::kLiteral:
-      if (!IsCleared()) {
-        SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
-        feedback_updated = true;
-      }
+      SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
       break;
 
     case FeedbackSlotKind::kSetNamedSloppy:
@@ -652,27 +632,14 @@ bool FeedbackNexus::Clear(ClearBehavior behavior) {
     case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
     case FeedbackSlotKind::kCloneObject:
     case FeedbackSlotKind::kJumpLoop:
-      if (!IsCleared()) {
+      if (!IsUninitialized()) {
         ConfigureUninitialized();
-        feedback_updated = true;
-      }
-      break;
-
-    case FeedbackSlotKind::kStringAddAndInternalize:
-      if (V8_LIKELY(behavior == ClearBehavior::kDefault)) {
-        // We don't clear these, either.
-      } else if (!IsCleared()) {
-        DCHECK_EQ(behavior, ClearBehavior::kClearAll);
-        SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER, UninitializedSentinel(),
-                    SKIP_WRITE_BARRIER);
-        feedback_updated = true;
       }
       break;
 
     case FeedbackSlotKind::kInvalid:
       UNREACHABLE();
   }
-  return feedback_updated;
 }
 
 bool FeedbackNexus::ConfigureMegamorphic() {
@@ -1323,7 +1290,7 @@ KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   if (GetKeyType() == IcCheckType::kProperty) {
     return KeyedAccessLoadMode::kInBounds;
   }
-  MapsAndHandlers maps_and_handlers(isolate_);
+  MapsAndHandlers maps_and_handlers(config()->isolate());
   ExtractMapsAndHandlers(&maps_and_handlers);
   KeyedAccessLoadMode mode = KeyedAccessLoadMode::kInBounds;
   for (auto [_, handler] : maps_and_handlers) {
@@ -1391,7 +1358,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 
   if (GetKeyType() == IcCheckType::kProperty) return mode;
 
-  MapsAndHandlers maps_and_handlers(isolate_);
+  MapsAndHandlers maps_and_handlers(config()->isolate());
   ExtractMapsAndHandlers(&maps_and_handlers);
   for (auto [_, maybe_code_handler] : maps_and_handlers) {
     // The first handler that isn't the slow handler will have the bits we need.
@@ -1442,14 +1409,14 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 
 bool FeedbackNexus::IsOneMapManyNames() const {
   // "1 map, many names" mode is currently only used for Wasm maps, and
-  // {IsWasmObjectMap} is currently only defined for Wasm-enabled builds.
+  // {IsAnyWasmObjectMap} is currently only defined for Wasm-enabled builds.
 #if V8_ENABLE_WEBASSEMBLY
   if (!IsKeyedLoadICKind(kind()) && !IsKeyedStoreICKind(kind())) return false;
   auto pair = GetFeedbackPair();
   Tagged<HeapObject> heap_object;
   if (!pair.first.GetHeapObjectIfWeak(&heap_object)) return false;
   if (!IsMap(heap_object)) return false;
-  if (!IsWasmObjectMap(Cast<Map>(heap_object))) return false;
+  if (!IsAnyWasmObjectMap(Cast<Map>(heap_object))) return false;
   if (!IsSmi(pair.second)) return false;
   Tagged<Smi> handler = pair.second.ToSmi();
   return handler == LoadHandler::LoadGeneric() ||

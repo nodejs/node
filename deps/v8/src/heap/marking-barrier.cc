@@ -23,7 +23,7 @@
 #include "src/heap/safepoint.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/heap-object.h"
-#include "src/objects/js-array-buffer.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -41,11 +41,11 @@ MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
 
 MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 
-void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
+void MarkingBarrier::Write(Tagged<HeapObject> host, TrustedPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(is_activated_ || shared_heap_worklists_.has_value());
-  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+  DCHECK(is_activated_ || is_shared());
+  DCHECK_IMPLIES(is_not_major(), is_shared());
 
   // An indirect pointer slot can only contain a Smi if it is uninitialized (in
   // which case the vaue will be Smi::zero()). However, at this point the slot
@@ -59,7 +59,7 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   // space. No other edges indirect pointers are currently possible in shared
   // space.
   DCHECK_IMPLIES(
-      HeapLayout::InWritableSharedSpace(host),
+      TrustedHeapLayout::InWritableSharedSpace(host),
       MemoryChunk::FromHeapObject(value)->Metadata()->owner()->identity() ==
           SHARED_TRUSTED_SPACE);
 
@@ -68,16 +68,19 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   DCHECK(!HeapLayout::InYoungGeneration(value));
 
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
-    if (HeapLayout::InWritableSharedSpace(value)) {
+    if (TrustedHeapLayout::InWritableSharedSpace(value)) {
+      if (!is_shared()) return;
       // References to the shared trusted space may only originate from the
       // shared space.
-      CHECK(HeapLayout::InWritableSharedSpace(host));
+      CHECK(TrustedHeapLayout::InWritableSharedSpace(host));
       DCHECK(MemoryChunk::FromHeapObject(value)->Metadata()->is_trusted());
       MarkValueShared(value);
     } else {
+      if (is_not_major()) return;
       MarkValueLocal(value);
     }
   } else {
+    if (is_not_major()) return;
     MarkValueLocal(value);
   }
 
@@ -110,7 +113,7 @@ void MarkingBarrier::Write(Tagged<InstructionStream> host,
                            RelocInfo* reloc_info, Tagged<HeapObject> value) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!HeapLayout::InWritableSharedSpace(host));
-  DCHECK(is_activated_ || shared_heap_worklists_.has_value());
+  DCHECK(is_activated_ || is_shared());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   MarkValue(host, value);
@@ -120,7 +123,7 @@ void MarkingBarrier::Write(Tagged<InstructionStream> host,
     if (is_main_thread_barrier_) {
       // An optimization to avoid allocating additional typed slots for the
       // main thread.
-      major_collector_->RecordRelocSlot(host, reloc_info, value);
+      MarkCompactCollector::RecordRelocSlot(host, reloc_info, value);
     } else {
       RecordRelocSlot(host, reloc_info, value);
     }
@@ -131,10 +134,11 @@ void MarkingBarrier::Write(Tagged<JSArrayBuffer> host,
                            ArrayBufferExtension* extension) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!HeapLayout::InWritableSharedSpace(host));
-  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+  DCHECK(is_activated_);
 
   if (is_minor()) {
-    if (HeapLayout::InYoungGeneration(host)) {
+    if (extension->age() == ArrayBufferExtension::Age::kYoung) {
+      DCHECK(HeapLayout::InYoungGeneration(host));
       extension->YoungMark();
     }
   } else {
@@ -175,7 +179,7 @@ void SetGenerationPageFlags(Space* space, MarkingMode marking_mode) {
                        std::is_same_v<Space, TrustedLargeObjectSpace> ||
                        std::is_same_v<Space, CodeLargeObjectSpace>) {
     for (auto* p : *space) {
-      DCHECK(p->Chunk()->IsLargePage());
+      DCHECK(p->is_large());
       p->SetOldGenerationPageFlags(marking_mode);
     }
   } else if constexpr (std::is_same_v<Space, NewSpace>) {
@@ -185,7 +189,7 @@ void SetGenerationPageFlags(Space* space, MarkingMode marking_mode) {
   } else {
     static_assert(std::is_same_v<Space, NewLargeObjectSpace>);
     for (auto* p : *space) {
-      DCHECK(p->Chunk()->IsLargePage());
+      DCHECK(p->is_large());
       p->SetYoungGenerationPageFlags(marking_mode);
     }
   }
@@ -278,11 +282,12 @@ void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting) {
   });
 
   if (heap->isolate()->is_shared_space_isolate()) {
+    heap->SetIsSharedMarkingFlag(true);
     heap->isolate()->global_safepoint()->IterateClientIsolates(
         [](Isolate* client) {
           // Force the RecordWrite builtin into the incremental marking code
           // path.
-          client->heap()->SetIsMarkingFlag(true);
+          client->heap()->SetIsSharedMarkingFlag(true);
           client->heap()->safepoint()->IterateLocalHeaps(
               [](LocalHeap* local_heap) {
                 local_heap->marking_barrier()->ActivateShared();
@@ -311,7 +316,7 @@ void MarkingBarrier::Activate(bool is_compacting, MarkingMode marking_mode) {
 }
 
 void MarkingBarrier::ActivateShared() {
-  DCHECK(!shared_heap_worklists_.has_value());
+  DCHECK(!is_shared());
   Isolate* shared_isolate = isolate()->shared_space_isolate();
   shared_heap_worklists_.emplace(
       shared_isolate->heap()->mark_compact_collector()->marking_worklists());
@@ -326,14 +331,10 @@ void MarkingBarrier::DeactivateAll(Heap* heap) {
   });
 
   if (heap->isolate()->is_shared_space_isolate()) {
+    heap->SetIsSharedMarkingFlag(false);
     heap->isolate()->global_safepoint()->IterateClientIsolates(
         [](Isolate* client) {
-          // We can't just simply disable the marking barrier for all clients. A
-          // client may still need it to be set for incremental marking in the
-          // local heap.
-          const bool is_marking =
-              client->heap()->incremental_marking()->IsMarking();
-          client->heap()->SetIsMarkingFlag(is_marking);
+          client->heap()->SetIsSharedMarkingFlag(false);
           client->heap()->safepoint()->IterateLocalHeaps(
               [](LocalHeap* local_heap) {
                 local_heap->marking_barrier()->DeactivateShared();
@@ -423,7 +424,7 @@ Isolate* MarkingBarrier::isolate() const { return heap_->isolate(); }
 void MarkingBarrier::AssertMarkingIsActivated() const { DCHECK(is_activated_); }
 
 void MarkingBarrier::AssertSharedMarkingIsActivated() const {
-  DCHECK(shared_heap_worklists_.has_value());
+  DCHECK(is_shared());
 }
 #endif  // DEBUG
 

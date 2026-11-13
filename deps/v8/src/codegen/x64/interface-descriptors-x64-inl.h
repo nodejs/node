@@ -67,7 +67,8 @@ constexpr auto TSANStoreDescriptor::registers() {
 
 // static
 constexpr auto TSANLoadDescriptor::registers() {
-  return RegisterArray(kCArgRegs[0], kReturnRegister0);
+  return RegisterArray(kCArgRegs[0], kCArgRegs[1], kCArgRegs[2],
+                       kReturnRegister0);
 }
 #endif  // V8_IS_TSAN
 
@@ -154,8 +155,10 @@ constexpr Register StoreTransitionDescriptor::MapRegister() { return r11; }
 constexpr Register CallApiGetterDescriptor::NameRegister() {
   return kCArgRegs[0];
 }
+#if !V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
 // static
 constexpr Register CallApiGetterDescriptor::CallbackRegister() { return rbx; }
+#endif  // !V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
 
 // static
 constexpr Register GrowArrayElementsDescriptor::ObjectRegister() { return rax; }

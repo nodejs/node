@@ -89,8 +89,8 @@ LIBC_INLINE constexpr float16 cbrtf16(float16 x) {
   // cbrtf16(0) = 0, cbrtf16(NaN) = NaN
   if (LIBC_UNLIKELY(x_abs == 0 || x_abs >= 0x7C00)) {
     if (x_bits.is_signaling_nan()) {
-      fputil::raise_except(FE_INVALID);
-      return FPBits::quiet_nan().uintval();
+      fputil::raise_except_if_required(FE_INVALID);
+      return FPBits::quiet_nan().get_val();
     }
     return x;
   }

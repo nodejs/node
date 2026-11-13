@@ -1,0 +1,6 @@
+Tests enable-disable.
+compileCount != 0: true
+after second enable: true
+after disable: true
+after second disable: true
+after re-enable: true

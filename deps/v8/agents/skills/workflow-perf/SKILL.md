@@ -151,6 +151,12 @@ better:
 
 - Propose a V8 change to improve performance (e.g., specialized builtin,
   improved optimization pass).
+- **Check & Update Documentation (`docs/`)**: Before committing or uploading an
+  optimization CL, search `docs/` (`git --no-pager grep` across `docs/`) to
+  check whether the change adds or modifies compiler passes, IR nodes,
+  bytecodes, object layouts, IC/tiering heuristics, flags, or cross-tier
+  invariants covered in `docs/`. Update the relevant `.md` file(s) in the same
+  CL so `docs/` stays synchronized with `src/`.
 - **Verification on Pinpoint (Preferred)**:
   - Commit changes to a local branch.
   - Use the automation script to upload a CL and start a Pinpoint job:

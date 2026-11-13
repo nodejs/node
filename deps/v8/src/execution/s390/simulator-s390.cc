@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include <array>
 #include <cmath>
 
 #include "src/base/bits.h"
@@ -193,19 +194,16 @@ void S390Debugger::Debug() {
   // Unset breakpoint while running in the debugger shell, making it invisible
   // to all commands.
   UndoBreakpoint();
-  // Disable tracing while simulating
-  bool trace = v8_flags.trace_sim;
-  v8_flags.trace_sim = false;
 
   while (!done && !sim_->has_bad_pc()) {
     if (last_pc != sim_->get_pc()) {
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       // use a reasonably large buffer
-      v8::base::EmbeddedVector<char, 256> buffer;
+      std::array<char, 256> buffer;
       dasm.InstructionDecode(buffer,
                              reinterpret_cast<uint8_t*>(sim_->get_pc()));
-      PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(), buffer.begin());
+      PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(), buffer.data());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -242,7 +240,7 @@ void S390Debugger::Debug() {
           disasm::NameConverter converter;
           disasm::Disassembler dasm(converter);
           // use a reasonably large buffer
-          v8::base::EmbeddedVector<char, 256> buffer;
+          std::array<char, 256> buffer;
 
           if (GetValue(arg1, &value)) {
             // Interpret a numeric argument as the number of instructions to
@@ -251,7 +249,7 @@ void S390Debugger::Debug() {
               dasm.InstructionDecode(
                   buffer, reinterpret_cast<uint8_t*>(sim_->get_pc()));
               PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
-                     buffer.begin());
+                     buffer.data());
               sim_->ExecuteInstruction(
                   reinterpret_cast<Instruction*>(sim_->get_pc()));
             }
@@ -261,14 +259,14 @@ void S390Debugger::Debug() {
             while (!sim_->has_bad_pc()) {
               dasm.InstructionDecode(
                   buffer, reinterpret_cast<uint8_t*>(sim_->get_pc()));
-              char* mnemonicStart = buffer.begin();
+              char* mnemonicStart = buffer.data();
               while (*mnemonicStart != 0 && *mnemonicStart != ' ')
                 mnemonicStart++;
               SScanF(mnemonicStart, "%s", mnemonic);
               if (!strcmp(arg1, mnemonic)) break;
 
               PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
-                     buffer.begin());
+                     buffer.data());
               sim_->ExecuteInstruction(
                   reinterpret_cast<Instruction*>(sim_->get_pc()));
             }
@@ -443,7 +441,7 @@ void S390Debugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // use a reasonably large buffer
-        v8::base::EmbeddedVector<char, 256> buffer;
+        std::array<char, 256> buffer;
 
         uint8_t* prev = nullptr;
         uint8_t* cur = nullptr;
@@ -483,7 +481,7 @@ void S390Debugger::Debug() {
           prev = cur;
           cur += dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(prev),
-                 buffer.begin());
+                 buffer.data());
           numInstructions--;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -639,8 +637,6 @@ void S390Debugger::Debug() {
   // Reinstall breakpoint to stop execution and enter the debugger shell when
   // hit.
   RedoBreakpoint();
-  // Restore tracing
-  v8_flags.trace_sim = trace;
 
 #undef COMMAND_SIZE
 #undef ARG_SIZE
@@ -1108,6 +1104,7 @@ void Simulator::EvalTableInit() {
   EvalTable[LTEBR] = &Simulator::Evaluate_LTEBR;
   EvalTable[LCEBR] = &Simulator::Evaluate_LCEBR;
   EvalTable[LDEBR] = &Simulator::Evaluate_LDEBR;
+  EvalTable[LDER] = &Simulator::Evaluate_LDER;
   EvalTable[LXDBR] = &Simulator::Evaluate_LXDBR;
   EvalTable[LXEBR] = &Simulator::Evaluate_LXEBR;
   EvalTable[MXDBR] = &Simulator::Evaluate_MXDBR;
@@ -1538,6 +1535,7 @@ void Simulator::EvalTableInit() {
   EvalTable[CGRB] = &Simulator::Evaluate_CGRB;
   EvalTable[CGIB] = &Simulator::Evaluate_CGIB;
   EvalTable[CIB] = &Simulator::Evaluate_CIB;
+  EvalTable[LDE] = &Simulator::Evaluate_LDE;
   EvalTable[LDEB] = &Simulator::Evaluate_LDEB;
   EvalTable[LXDB] = &Simulator::Evaluate_LXDB;
   EvalTable[LXEB] = &Simulator::Evaluate_LXEB;
@@ -2501,10 +2499,10 @@ void Simulator::ExecuteInstruction(Instruction* instr, bool auto_incr_pc) {
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // use a reasonably large buffer
-    v8::base::EmbeddedVector<char, 256> buffer;
+    std::array<char, 256> buffer;
     dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
     PrintF("%05" PRId64 "  %08" V8PRIxPTR "  %s\n", icount_,
-           reinterpret_cast<intptr_t>(instr), buffer.begin());
+           reinterpret_cast<intptr_t>(instr), buffer.data());
 
     // Flush stdout to prevent incomplete file output during abnormal exits
     // This is caused by the output being buffered before being written to file
@@ -7187,6 +7185,15 @@ EVALUATE(LDEBR) {
   return length;
 }
 
+EVALUATE(LDER) {
+  DCHECK_OPCODE(LDER);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  float fval = get_fpr<float>(r2);
+  set_fpr<uint64_t>(r1, 0);
+  set_fpr<float>(r1, fval);
+  return length;
+}
+
 EVALUATE(LXDBR) {
   UNIMPLEMENTED();
   USE(instr);
@@ -11035,6 +11042,18 @@ EVALUATE(CIB) {
   UNIMPLEMENTED();
   USE(instr);
   return 0;
+}
+
+EVALUATE(LDE) {
+  DCHECK_OPCODE(LDE);
+  DECODE_RXE_INSTRUCTION(r1, b2, x2, d2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2;
+  float fval = ReadFloat(addr);
+  set_fpr<uint64_t>(r1, 0);
+  set_fpr<float>(r1, fval);
+  return length;
 }
 
 EVALUATE(LDEB) {

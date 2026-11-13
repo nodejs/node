@@ -1,0 +1,5 @@
+Tests evaluateOnCallFrame with nested let bindings.
+frame(0).scope(0).evaluate("a"): 2
+frame(0).scope(1).evaluate("a"): 1
+this = 2 throws: true
+hasException: false

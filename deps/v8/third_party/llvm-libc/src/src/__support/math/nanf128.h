@@ -1,18 +1,20 @@
-//===-- Implementation header for nanf128 -----------------------*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+///
+/// \file
+/// Implementation header for nanf128.
+///
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_NANF128_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_NANF128_H
 
-#include "include/llvm-libc-types/float128.h"
-
-#ifdef LIBC_TYPES_HAS_NATIVE_FLOAT128
-
+#include "src/__support/FPUtil/float128.h"
 #include "src/__support/libc_errno.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/str_to_float.h"
@@ -20,8 +22,10 @@
 namespace LIBC_NAMESPACE_DECL {
 namespace math {
 
-LIBC_INLINE constexpr float128 nanf128(const char *arg) {
-  auto result = internal::strtonan<float128>(arg);
+using LIBC_NAMESPACE::fputil::Float128;
+
+LIBC_INLINE constexpr Float128 nanf128(const char *arg) {
+  auto result = internal::strtonan<Float128>(arg);
   if (result.has_error())
     libc_errno = result.error;
   return result.value;
@@ -29,7 +33,5 @@ LIBC_INLINE constexpr float128 nanf128(const char *arg) {
 
 } // namespace math
 } // namespace LIBC_NAMESPACE_DECL
-
-#endif // LIBC_TYPES_HAS_NATIVE_FLOAT128
 
 #endif // LLVM_LIBC_SRC___SUPPORT_MATH_NANF128_H

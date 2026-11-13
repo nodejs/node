@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_GC_TRACER_H_
 #define V8_HEAP_GC_TRACER_H_
 
+#include <memory>
 #include <optional>
 
 #include "include/v8-metrics.h"
@@ -15,7 +16,6 @@
 #include "src/heap/base/bytes.h"
 #include "src/init/heap-symbols.h"
 #include "src/logging/counters.h"
-#include "src/tracing/trace-event.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
@@ -218,6 +218,9 @@ class V8_EXPORT_PRIVATE GCTracer {
     // Memory reduction flag set.
     bool reduce_memory = false;
 
+    // Whether the GC had to consider stacks (main thread or background).
+    bool gc_with_stack = false;
+
     // Currently in loading state.
     bool is_loading = false;
 
@@ -339,8 +342,6 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   GCTracer(const GCTracer&) = delete;
   GCTracer& operator=(const GCTracer&) = delete;
-
-  perfetto::NamedTrack tracing_track() const { return parent_track_; }
 
   V8_INLINE CollectionEpoch CurrentEpoch() const;
 
@@ -681,10 +682,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   mutable base::Mutex background_scopes_mutex_;
   base::TimeDelta background_scopes_[Scope::NUMBER_OF_SCOPES];
 
-  perfetto::NamedTrack parent_track_;
-  perfetto::NamedTrack phase_track_;
-  perfetto::NamedTrack state_track_;
-  perfetto::NamedTrack priority_track_;
+  struct NamedTracks;
+  std::unique_ptr<NamedTracks> named_tracks_;
 
   FRIEND_TEST(GCTracerTest, AllocationThroughput);
   FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);
@@ -692,6 +691,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, BackgroundMajorMCScope);
   FRIEND_TEST(GCTracerTest, CyclePriorities);
   FRIEND_TEST(GCTracerTest, EmbedderAllocationThroughput);
+  FRIEND_TEST(GCTracerTest, HighAllocationRateWithEmbedderAllocation);
   FRIEND_TEST(GCTracerTest, MultithreadedBackgroundScope);
   FRIEND_TEST(GCTracerTest, NewSpaceAllocationThroughput);
   FRIEND_TEST(GCTracerTest, PerGenerationAllocationThroughput);
@@ -700,6 +700,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, IncrementalMarkingDetails);
   FRIEND_TEST(GCTracerTest, IncrementalScope);
   FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
+  FRIEND_TEST(GCTracerTest, LowAllocationRateWithZeroEmbedderAllocation);
   FRIEND_TEST(GCTracerTest, MutatorUtilization);
   FRIEND_TEST(GCTracerTest, RecordMarkCompactHistograms);
   FRIEND_TEST(GCTracerTest, RecordScavengerHistograms);

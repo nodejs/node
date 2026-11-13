@@ -10,11 +10,11 @@ include_rules = [
 ]
 
 specific_include_rules = {
-  "isolate-data\.cc": [
+  "isolate-data\\.cc": [
     "+src/execution/isolate.h",
     "+src/heap/heap.h",
   ],
-  "task-runner\.cc": [
+  "task-runner\\.cc": [
     "+src/heap/local-heap-inl.h",
   ],
 }

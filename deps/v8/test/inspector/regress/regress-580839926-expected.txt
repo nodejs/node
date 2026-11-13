@@ -1,0 +1,3 @@
+Regression test for crbug.com/580839926.
+go(1) returned: 11
+prepareStackTraceCalls: 0

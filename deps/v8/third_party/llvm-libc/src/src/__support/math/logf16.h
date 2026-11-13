@@ -100,6 +100,7 @@ LIBC_INLINE float16 logf16(float16 x) {
 
     // log(+/-0) = −inf
     if ((x_u & 0x7fffU) == 0U) {
+      fputil::set_errno_if_required(ERANGE);
       fputil::raise_except_if_required(FE_DIVBYZERO);
       return FPBits::inf(Sign::NEG).get_val();
     }

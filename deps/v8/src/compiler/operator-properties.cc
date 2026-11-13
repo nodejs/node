@@ -134,7 +134,6 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
       CONTROL_OP_LIST(CASE)
       MACHINE_OP_LIST(CASE)
       MACHINE_SIMD128_OP_LIST(CASE)
-      IF_SIMD256(MACHINE_SIMD256_OP_LIST, CASE)
       SIMPLIFIED_OP_LIST(CASE)
       break;
 #undef CASE
@@ -200,6 +199,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSCreateObject:
     case IrOpcode::kJSCloneObject:
     case IrOpcode::kJSCreateGeneratorObject:
+    case IrOpcode::kJSGetTemplateObject:
 
     // Property access operations
     case IrOpcode::kJSDeleteProperty:

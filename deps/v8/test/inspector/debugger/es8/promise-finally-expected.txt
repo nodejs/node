@@ -1,0 +1,4 @@
+Tests promise-finally with break on exception.
+step: 1
+exception: null
+caughtException: true

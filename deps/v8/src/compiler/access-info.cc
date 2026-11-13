@@ -56,15 +56,14 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
   if (IsJSObjectMap(*map.object())) {
     if (map.is_dictionary_map()) {
       if (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return false;
-      return access_mode == AccessMode::kLoad &&
-             map.object()->is_prototype_map();
+      return access_mode == AccessMode::kLoad && map.is_prototype_map();
     }
     return !map.has_named_interceptor() &&
            // TODO(verwaest): Allowlist contexts to which we have access.
            !map.is_access_check_needed();
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (IsWasmObjectMap(*map.object())) {
+  if (IsAnyWasmObjectMap(*map.object())) {
     DCHECK(!map.has_named_interceptor());
     DCHECK(!map.is_access_check_needed());
     // Accesses to Wasm objects all go through the prototype chain, but
@@ -492,13 +491,16 @@ bool AccessInfoFactory::ObjectIsSuitableProxyTarget(KeyType key_type,
   // of other Proxy traps. So we also support objects where we can register
   // sufficient code dependencies to get a deopt if the object gains elements.
   //
-  // For now, we support objects that are currently empty, have a stable map,
-  // and have fast elements (which are always configurable and writable) by
-  // installing a dependency on their map stability. Adding properties or
-  // elements with non-default attributes would cause a map transition and
-  // loss of stability.
-  if (map.is_stable() && map.NumberOfOwnDescriptors() == 0 &&
+  // For now, we support ordinary objects that are currently empty, have a
+  // stable map, and have fast elements (which are always configurable and
+  // writable) by installing a dependency on their map stability. Adding
+  // properties or elements with non-default attributes would cause a map
+  // transition and loss of stability.
+  if (!IsCustomElementsReceiverInstanceType(map.instance_type()) &&
+      map.is_stable() && map.NumberOfOwnDescriptors() == 0 &&
       IsFastElementsKind(map.elements_kind())) {
+    DCHECK(!IsSpecialReceiverInstanceType(map.instance_type()));
+    DCHECK(!map.is_dictionary_map());
     dependencies()->DependOnStableMap(map);
     return true;
   }
@@ -520,7 +522,7 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
     return ElementAccessInfo({{map}, zone()}, map.elements_kind(), zone());
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (map.IsWasmObjectMap() &&
+  if (map.IsAnyWasmObjectMap() &&
       (access_mode == AccessMode::kLoad || access_mode == AccessMode::kStore)) {
     // See if there is a Proxy on the prototype chain that will handle
     // element accesses.
@@ -556,9 +558,11 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         if (!maybe_handler->IsJSObject()) return {};
         JSObjectRef handler = maybe_handler.value().AsJSObject();
         MapRef handler_map = handler.map(broker());
-        // We could implement support for dictionary-mode handlers, but it's
-        // probably not worth it.
-        if (handler_map.is_dictionary_map()) return {};
+        // We could implement support for dictionary-mode or unstable handlers,
+        // but it's probably not worth it.
+        if (handler_map.is_dictionary_map() || !handler_map.is_stable()) {
+          return {};
+        }
         NameRef trap_name = access_mode == AccessMode::kLoad
                                 ? broker()->get_string()
                                 : broker()->set_string();
@@ -567,7 +571,10 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         if (!trap_info.IsFastDataConstant()) return {};
         Representation repr = trap_info.field_representation();
         if (!repr.IsHeapObject() && !repr.IsTagged()) return {};
-        OptionalObjectRef trap = handler.GetOwnFastConstantDataProperty(
+        OptionalJSObjectRef trap_holder = trap_info.holder();
+        JSObjectRef trap_holder_ref =
+            trap_holder.has_value() ? trap_holder.value() : handler;
+        OptionalObjectRef trap = trap_holder_ref.GetOwnFastConstantDataProperty(
             broker(), repr, trap_info.field_index(), dependencies());
         if (!trap.has_value()) return {};
         ObjectRef trap_value = trap.value();
@@ -607,10 +614,18 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         }
 
         // Finally: all good!
+        trap_info.RecordDependencies(dependencies());
+        if (trap_holder.has_value()) {
+          dependencies()->DependOnStablePrototypeChains(
+              trap_info.lookup_start_object_maps(), kStartAtReceiver,
+              trap_holder.value());
+        } else {
+          dependencies()->DependOnStableMap(handler_map);
+        }
         bool string_keys = key_type == wasm::kWasmExternRef;
         return ElementAccessInfo(map, trap_value, target, string_keys, zone());
       }
-      if (proto_map.IsWasmObjectMap()) {
+      if (proto_map.IsAnyWasmObjectMap()) {
         // Wasm objects are opaque and frozen, so we can safely skip over them.
         prototype = proto_map.prototype(broker());
         continue;
@@ -779,9 +794,12 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   InstanceType holder_instance_type = holder_map.instance_type();
   if (holder_instance_type == JS_MODULE_NAMESPACE_TYPE ||
       holder_instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE) {
-    DCHECK(holder_map.object()->is_prototype_map());
-    DirectHandle<PrototypeInfo> proto_info = broker->CanonicalPersistentHandle(
-        Cast<PrototypeInfo>(holder_map.object()->prototype_info()));
+    DCHECK(holder_map.is_prototype_map());
+    Tagged<PrototypeInfo> proto_info;
+    if (!TryCast(holder_map.object()->prototype_info(kAcquireLoad),
+                 &proto_info)) {
+      return PropertyAccessInfo::Invalid(zone);
+    }
     DirectHandle<JSModuleNamespace> module_namespace =
         broker->CanonicalPersistentHandle(
             Cast<JSModuleNamespace>(proto_info->module_namespace()));
@@ -923,7 +941,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
     InternalIndex dictionary_index, AccessMode access_mode,
     PropertyDetails details) const {
   CHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
-  DCHECK(holder.map(broker()).object()->is_prototype_map());
+  DCHECK(holder.map(broker()).is_prototype_map());
   DCHECK_EQ(access_mode, AccessMode::kLoad);
 
   // We can only inline accesses to constant properties.
@@ -950,7 +968,7 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
     InternalIndex* index_out, PropertyDetails* details_out) const {
   if (map.is_dictionary_map()) {
     DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
-    DCHECK(map.object()->is_prototype_map());
+    DCHECK(map.is_prototype_map());
 
     DisallowGarbageCollection no_gc;
 
@@ -1213,7 +1231,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && holder.has_value()) {
       // At this point, we are past the first loop iteration.
-      DCHECK(holder->object()->map()->is_prototype_map());
+      DCHECK(holder->map(broker()).is_prototype_map());
       DCHECK(!holder->map(broker()).equals(receiver_map));
 
       fast_mode_prototype_on_chain =

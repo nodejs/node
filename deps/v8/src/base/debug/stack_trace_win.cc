@@ -15,9 +15,12 @@
 #endif
 
 #include <windows.h>
+
+// This has to come after windows.h.
 #include <dbghelp.h>
 #include <stddef.h>
 
+#include <atomic>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -35,14 +38,14 @@ namespace {
 // exception. Only used in unit tests.
 LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = nullptr;
 
-bool g_dump_stack_in_signal_handler = true;
+std::atomic<bool> g_dump_stack_in_signal_handler{true};
 bool g_initialized_symbols = false;
 DWORD g_init_error = ERROR_SUCCESS;
 
 // Prints the exception call stack.
 // This is the unit tests exception filter.
 long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {  // NOLINT
-  if (g_dump_stack_in_signal_handler) {
+  if (g_dump_stack_in_signal_handler.load(std::memory_order_relaxed)) {
     debug::StackTrace(info).Print();
   }
   if (g_previous_filter) return g_previous_filter(info);
@@ -162,7 +165,7 @@ bool EnableInProcessStackDumping() {
   // Add stack dumping support on exception on windows. Similar to OS_POSIX
   // signal() handling in process_util_posix.cc.
   g_previous_filter = SetUnhandledExceptionFilter(&StackDumpExceptionFilter);
-  g_dump_stack_in_signal_handler = true;
+  g_dump_stack_in_signal_handler.store(true, std::memory_order_relaxed);
 
   // Need to initialize symbols early in the process or else this fails on
   // swarming (since symbols are in different directory than in the exes) and
@@ -171,7 +174,7 @@ bool EnableInProcessStackDumping() {
 }
 
 void DisableSignalStackDump() {
-  g_dump_stack_in_signal_handler = false;
+  g_dump_stack_in_signal_handler.store(false, std::memory_order_relaxed);
 }
 
 StackTrace::StackTrace() {

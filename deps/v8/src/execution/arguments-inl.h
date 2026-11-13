@@ -12,6 +12,7 @@
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"  // TODO(jkummerow): Just smi-inl.h.
 #include "src/objects/tagged-index.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {

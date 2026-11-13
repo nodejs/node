@@ -48,6 +48,32 @@ size_t ActiveSystemPages::Add(uintptr_t start, uintptr_t end,
   return added_pages.count();
 }
 
+size_t ActiveSystemPages::Remove(uintptr_t start, uintptr_t end,
+                                 size_t page_size_bits) {
+  const size_t page_size = 1 << page_size_bits;
+
+  DCHECK_LE(start, end);
+  DCHECK_LE(end, kMaxPages * page_size);
+
+  // Make sure we actually get the bitcount as argument.
+  DCHECK_LT(page_size_bits, sizeof(uintptr_t) * CHAR_BIT);
+
+  const uintptr_t start_page_bit = RoundUp(start, page_size) >> page_size_bits;
+  const uintptr_t end_page_bit = RoundDown(end, page_size) >> page_size_bits;
+  if (start_page_bit >= end_page_bit) {
+    return 0;
+  }
+
+  const uintptr_t bits = end_page_bit - start_page_bit;
+  DCHECK_LE(bits, kMaxPages);
+  const bitset_t mask = bits == kMaxPages
+                            ? int64_t{-1}
+                            : ((uint64_t{1} << bits) - 1) << start_page_bit;
+  const bitset_t removed_pages = value_ & mask;
+  value_ &= ~mask;
+  return removed_pages.count();
+}
+
 size_t ActiveSystemPages::Reduce(ActiveSystemPages updated_value) {
   DCHECK_EQ(~value_ & updated_value.value_, 0);
   const bitset_t removed_pages(value_ & ~updated_value.value_);

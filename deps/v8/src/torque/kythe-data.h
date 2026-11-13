@@ -36,7 +36,14 @@ class KytheConsumer {
   virtual ~KytheConsumer() = 0;
 
   virtual kythe_entity_t AddDefinition(Kind kind, std::string name,
-                                       KythePosition pos) = 0;
+                                       KythePosition pos) {
+    return 0;
+  }
+  virtual kythe_entity_t AddDefinition(Kind kind, std::string name,
+                                       KythePosition pos, bool is_extern,
+                                       std::string readable_name) {
+    return AddDefinition(kind, std::move(name), pos);
+  }
 
   virtual void AddUse(Kind kind, kythe_entity_t entity,
                       KythePosition use_pos) = 0;
@@ -95,7 +102,6 @@ class KytheData : public base::ContextualClass<KytheData> {
   std::unordered_map<const Value*, kythe_entity_t> constants_;
   std::unordered_map<Callable*, kythe_entity_t> callables_;
 
-  std::unordered_map<const Field*, std::set<SourcePosition>> field_uses_;
   std::unordered_map<uint64_t, kythe_entity_t> local_bindings_;
   std::unordered_map<const Declarable*, kythe_entity_t> types_;
   std::unordered_map<const Field*, kythe_entity_t> class_fields_;

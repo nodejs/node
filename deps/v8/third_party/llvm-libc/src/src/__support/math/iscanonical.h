@@ -17,8 +17,7 @@ namespace math {
 
 #undef iscanonical
 LIBC_INLINE constexpr int iscanonical(double x) {
-  double temp{};
-  return fputil::canonicalize(temp, x) == 0;
+  return fputil::iscanonical_impl(x);
 }
 
 } // namespace math

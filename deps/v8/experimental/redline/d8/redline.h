@@ -1,0 +1,44 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef V8_EXPERIMENTAL_REDLINE_D8_REDLINE_H_
+#define V8_EXPERIMENTAL_REDLINE_D8_REDLINE_H_
+
+#include "include/v8-extension.h"
+#include "include/v8-local-handle.h"
+#include "src/base/strings.h"
+
+// REPRL = read-eval-print-reset-loop
+// These file descriptors are being opened when Redline uses fork & execve to
+// run V8.
+#define REPRL_CRFD 100  // Control read file descriptor
+#define REPRL_CWFD 101  // Control write file descriptor
+#define REPRL_DRFD 102  // Data read file descriptor
+#define REPRL_DWFD 103  // Data write file descriptor
+
+namespace v8 {
+namespace internal {
+
+class RedlineExtension : public v8::Extension {
+ public:
+  explicit RedlineExtension(const char* fun_name)
+      : v8::Extension("v8/redline",
+                      BuildSource(buffer_, sizeof(buffer_), fun_name)) {}
+  v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name) override;
+  static void Redline(const v8::FunctionCallbackInfo<v8::Value>& info);
+
+ private:
+  static const char* BuildSource(char* buf, size_t size, const char* fun_name) {
+    base::SNPrintF({buf, size}, "native function %s();", fun_name);
+    return buf;
+  }
+
+  char buffer_[50];
+};
+
+}  // namespace internal
+}  // namespace v8
+
+#endif  // V8_EXPERIMENTAL_REDLINE_D8_REDLINE_H_

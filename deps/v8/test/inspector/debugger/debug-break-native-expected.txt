@@ -1,0 +1,8 @@
+Tests that stepping into native functions does not break inside natives.
+  debugger;                        // break
+  new Error("123").stack;          // break
+  Math.sin(0);                     // break
+  f("this should break");          // break
+  return x;                        // break
+  return x;                        // break
+  return 0;                        // break stop

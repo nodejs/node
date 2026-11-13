@@ -97,6 +97,14 @@ general debugging approach for tracked issues.
 - **Deep Reasoning**: If the root cause isn't fully understood, spawn a subagent
   to reason deeper about why the failing line exists and what invariant it's
   protecting.
+- **Check & Update Documentation (`docs/`)**: Search `docs/`
+  (`git --no-pager grep` across `docs/`) to check whether the bug fix or newly
+  uncovered invariant changes, expands, or corrects any V8 architecture, data
+  structure, pipeline pass, bytecode/IR node, flag, or cross-tier contract
+  documented in `docs/` (or whether any `docs/` file read during triage had
+  stale symbols or invariants). Update the relevant `.md` file(s) in `docs/` as
+  part of the fix (keep `docs/security/triaging.md` unchanged unless explicitly
+  requested by the user).
 - **Verify**: Confirm with tests and `d8` flags. Run tests on both debug and
   release builds if possible to ensure no assertions are violated and
   performance is not regressed.
@@ -106,7 +114,8 @@ general debugging approach for tracked issues.
 Before committing or uploading, you MUST present the proposed solution to the
 user for review.
 
-- **Present the Diff**: Show the exact code changes proposed.
+- **Present the Diff**: Show the exact code changes proposed (and any
+  accompanying `docs/` updates).
 - **Present the Test**: Show the working regression test file and where it will
   be placed. A bug fix must **always** be accompanied by a working regression
   test. Proposing a fix without a reproducer is strictly forbidden unless the
@@ -126,14 +135,15 @@ Once the fix is approved by the user:
 - **Issue Association in Commits**:
 
   - The commit message must follow the V8 convention.
-  - It MUST include a `Bug: <issue_id>` line at the bottom.
+  - When a CL fixes a bug, it MUST include a `Fixed: <issue_id>` line at the
+    bottom (rather than `Bug: <issue_id>`).
   - Example Commit Message:
     ```
     [compiler] Fix crash in Turboshaft during loop unrolling
 
     The loop unroller failed to handle cases where...
 
-    Bug: 12345
+    Fixed: 12345
     ```
 
 - **Test Naming and Placement**:
@@ -156,6 +166,8 @@ Once the fix is approved by the user:
 
 - **Finalization and Upload**:
 
+  - Verify that any affected `.md` files in `docs/` have been updated to match
+    the code changes.
   - Run `git cl format` to ensure style compliance.
   - Create the commit locally.
   - Follow git-cl rules to upload the change list (CL) to Gerrit.

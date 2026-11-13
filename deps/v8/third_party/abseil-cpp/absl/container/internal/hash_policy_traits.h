@@ -166,9 +166,6 @@ template <class Policy, class = void>
 #endif
   }
 
-  // Whether small object optimization is enabled. True by default.
-  static constexpr bool soo_enabled() { return soo_enabled_impl(Rank1{}); }
-
  private:
   template <class Hash, bool kIsAbsl, size_t kSeedShift>
   static size_t hash_slot_fn_non_type_erased(const void* hash_fn, void* slot,
@@ -178,18 +175,6 @@ template <class Policy, class = void>
             *static_cast<const Hash*>(hash_fn), seed},
         Policy::element(static_cast<slot_type*>(slot)));
   }
-
-  // Use go/ranked-overloads for dispatching. Rank1 is preferred.
-  struct Rank0 {};
-  struct Rank1 : Rank0 {};
-
-  // Use auto -> decltype as an enabler.
-  template <class P = Policy>
-  static constexpr auto soo_enabled_impl(Rank1) -> decltype(P::soo_enabled()) {
-    return P::soo_enabled();
-  }
-
-  static constexpr bool soo_enabled_impl(Rank0) { return true; }
 };
 
 }  // namespace container_internal

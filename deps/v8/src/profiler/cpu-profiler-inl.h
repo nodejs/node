@@ -56,15 +56,15 @@ void ReportBuiltinEventRecord::UpdateCodeMap(
   if (builtin == Builtin::kJSToWasmWrapper) {
     // Make sure to add the generic js-to-wasm wrapper builtin, because that
     // one is supposed to show up in profiles.
-    entry = instruction_stream_map->code_entries().Create(
-        LogEventListener::CodeTag::kBuiltin, "js-to-wasm");
+    entry = CodeEntryStorage::Create(LogEventListener::CodeTag::kBuiltin,
+                                     "js-to-wasm");
     instruction_stream_map->AddCode(instruction_start, entry, instruction_size);
   }
   if (builtin == Builtin::kWasmToJsWrapperCSA) {
     // Make sure to add the generic wasm-to-js wrapper builtin, because that
     // one is supposed to show up in profiles.
-    entry = instruction_stream_map->code_entries().Create(
-        LogEventListener::CodeTag::kBuiltin, "wasm-to-js");
+    entry = CodeEntryStorage::Create(LogEventListener::CodeTag::kBuiltin,
+                                     "wasm-to-js");
     instruction_stream_map->AddCode(instruction_start, entry, instruction_size);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -173,6 +173,7 @@ import hjson
 import json
 import logging
 import math
+import mmap
 import os
 import psutil
 import re
@@ -201,6 +202,7 @@ INFRA_FAILURE_RETCODE = 87
 MIN_RUNS_FOR_CONFIDENCE = 10
 
 WARMUP_CACHE_FILE = Path.cwd() / 'cache' / 'v8_perf' / 'warmup_cache.json'
+MIN_FREE_MEMORY_BYTES = 512 * 1024 * 1024
 
 
 def GeometricMean(values):
@@ -944,8 +946,41 @@ class CachedWarmupManager(WarmupManager):
     self.cache = dict(
         (k, v) for k, v in self.cache.items() if self.is_warmed_up(v))
 
+  def maybe_reclaim_vm_pages(self):
+    """Ensure enough physical pages are in the OS free list before a run.
+
+    On macOS (XNU), long-running bots accumulate inactive file cache and
+    compressed pages, leaving vm_page_queue_free (psutil.virtual_memory().free)
+    low. When a benchmark then allocates a large burst of memory (e.g. 223 MB of
+    MAP_JIT code space in Wasm/PsWeb-202109-Liftoff), the first iteration stalls
+    while synchronously reclaiming pages. Touching one byte per page in an
+    anonymous mmap and immediately munmapping it forces the kernel to reclaim
+    physical pages into the free list beforehand.
+    """
+    vm = psutil.virtual_memory()
+    target_free_bytes = min(MIN_FREE_MEMORY_BYTES, vm.total // 4)
+    if vm.free >= target_free_bytes:
+      return
+
+    page_size = mmap.PAGESIZE
+    alloc_bytes = ((target_free_bytes + page_size - 1) // page_size) * page_size
+    num_pages = alloc_bytes // page_size
+    mib = 1024 * 1024
+    logging.info(f'Reclaiming {alloc_bytes // mib} MiB of VM pages '
+                 f'(free: {vm.free // mib} MiB).')
+    with mmap.mmap(-1, alloc_bytes) as mm:
+      with memoryview(mm) as mv:
+        mv[::page_size] = b'\x01' * num_pages
+    free_after = psutil.virtual_memory().free
+    logging.info(f'Free memory after reclamation: {free_after // mib} MiB.')
+    if free_after < target_free_bytes:
+      logging.warning(
+          f'Free memory after reclamation ({free_after // mib} MiB) is still '
+          f'below target ({target_free_bytes // mib} MiB).')
+
   def maybe_warm_up(self, name, warmup_fun):
     if self.is_warmed_up(self.cache.get(name, 0)):
+      self.maybe_reclaim_vm_pages()
       return
 
     logging.info(f'Warm-up run of {name} - disregarding output.')

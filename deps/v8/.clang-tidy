@@ -19,7 +19,8 @@
                     modernize-use-override,
                     performance-inefficient-vector-operation,
                     performance-trivially-destructible,
-                    performance-unnecessary-copy-initialization'
+                    performance-unnecessary-copy-initialization,
+                    readability-static-accessed-through-instance'
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
 AnalyzeTemporaryDtors: false

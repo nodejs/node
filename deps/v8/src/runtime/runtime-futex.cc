@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/common/globals.h"
+#include "src/execution/arguments-inl.h"
 #include "src/execution/futex-emulation.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-buffer-inl.h"

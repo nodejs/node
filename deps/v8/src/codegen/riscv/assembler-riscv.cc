@@ -34,6 +34,9 @@
 
 #include "src/codegen/riscv/assembler-riscv.h"
 
+#include <algorithm>
+#include <array>
+
 #include "src/base/bits.h"
 #include "src/base/cpu/cpu.h"
 #include "src/codegen/assembler-inl.h"
@@ -49,7 +52,7 @@ namespace internal {
 
 #ifdef CAN_USE_RVA23U64_INSTRUCTIONS
 static const CpuFeatureSet kRVA23U64 =
-    CpuFeatureSet{} | RVC | ZFA | ZBB | ZBS | ZBA | ZICOND | ZCB;
+    CpuFeatureSet{} | RVC | ZFA | ZBB | ZBS | ZBA | ZICOND | ZCB | RVV;
 #endif
 // Get the CPU features enabled by the build. For cross compilation the
 // preprocessor symbols __riscv_f and __riscv_d
@@ -57,11 +60,12 @@ static const CpuFeatureSet kRVA23U64 =
 // snapshot.
 constexpr CpuFeatureSet CpuFeaturesImpliedByCompiler() {
   CpuFeatureSet features;
+
 #if defined(__riscv_f) && defined(__riscv_d)
   features.Add(FPU);
 #endif  // def __riscv_f
 
-#if (defined __riscv_vector) && (__riscv_v >= 1000000)
+#if ((defined __riscv_vector) && (__riscv_v >= 1000000))
   features.Add(RVV);
 #endif  // def __riscv_vector && __riscv_v >= 1000000
 
@@ -94,19 +98,17 @@ constexpr CpuFeatureSet CpuFeaturesImpliedByCompiler() {
 
 #ifdef RISCV_TARGET_SIMULATOR
 static CpuFeatureSet SimulatorFeatures() {
+  // The base ISA (F, D, C) and the extensions selected by the build
+  // configuration (see BUILD.gn, e.g. the rv64gc / rva23u64 profiles and the
+  // riscv_use_* switches) are contributed by CpuFeaturesImpliedByCompiler().
+  // This function only exposes the extra features the RISC-V simulator always
+  // provides and for which there is no GN switch.
   CpuFeatureSet features;
-  features.Add(RVV);
-  features.Add(ZBA);
-  features.Add(ZBB);
-  features.Add(ZBS);
-  features.Add(ZICOND);
-  features.Add(ZICFISS);
   features.Add(FPU);
+  features.Add(RVC);
   features.Add(ZFH);
   features.Add(ZVFH);
-  features.Add(ZFA);
-  features.Add(RVC);
-  features.Add(ZCB);
+  features.Add(ZICFISS);
   return features;
 }
 #endif
@@ -213,15 +215,15 @@ uint32_t RelocInfo::wasm_call_tag() const {
 Operand::Operand(Handle<HeapObject> handle, RelocInfo::Mode rmode)
     : rm_(no_reg), rmode_(rmode) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rmode) || RelocInfo::IsNoInfo(rmode));
-  value_.immediate = static_cast<intptr_t>(handle.address());
+  immediate_ = static_cast<intptr_t>(handle.address());
 }
 
 Operand Operand::EmbeddedNumber(double value) {
   int32_t smi;
   if (DoubleToSmiInteger(value, &smi)) return Operand(Smi::FromInt(smi));
   Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
-  result.is_heap_number_request_ = true;
-  result.value_.heap_number_request = HeapNumberRequest(value);
+  result.heap_number_request_.emplace(value);
+  DCHECK(result.IsHeapNumberRequest());
   return result;
 }
 
@@ -257,10 +259,10 @@ Assembler::Assembler(const AssemblerOptions& options,
       constpool_(this) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
+  trampoline_emitted_ = v8_flags.force_long_branches;
   trampoline_check_ = v8_flags.force_long_branches
                           ? kMaxInt
                           : kMaxBranchOffset - BlockPoolsScope::kGap;
-  CHECK(!v8_flags.force_long_branches || is_trampoline_emitted());
 }
 
 void Assembler::StartBlockPools(int margin) {
@@ -540,10 +542,10 @@ void Assembler::DisassembleInstructionHelper(uint8_t* pc) {
   CHECK(v8_flags.riscv_debug);
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  base::EmbeddedVector<char, 128> disasm_buffer;
+  std::array<char, 128> disasm_buffer;
 
   disasm.InstructionDecode(disasm_buffer, pc);
-  DEBUG_PRINTF("%s\n", disasm_buffer.begin());
+  DEBUG_PRINTF("%s\n", disasm_buffer.data());
 }
 
 void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
@@ -660,6 +662,11 @@ void Assembler::bind_to(Label* L, int pos) {
   }
 
   int trampoline_pos = kInvalidSlotPos;
+  // The far-jump pool the last far jump went through, and this label's slot
+  // in it. Fixups are visited latest first, so the pools come in descending
+  // order and a slot serves every far jump in front of its pool.
+  size_t far_pool = far_jump_pools_.size();
+  int far_slot = kInvalidSlotPos;
   while (L->is_linked()) {
     int fixup_pos = L->pos();
     int dist = pos - fixup_pos;
@@ -683,7 +690,31 @@ void Assembler::bind_to(Label* L, int pos) {
         }
         target_at_put(fixup_pos, pos, false);
       } else if (IsJal(instr)) {
-        if (dist > kMaxJumpOffset) {
+        if (is_trampoline_emitted() && fixup_pos >= trampoline_.end()) {
+          // A jump emitted after the trampoline pool. The first far-jump
+          // pool after it is within its reach; with none yet, the label is.
+          size_t k = std::upper_bound(far_jump_pools_.begin(),
+                                      far_jump_pools_.end(), fixup_pos,
+                                      [](int fixup, const Trampoline& pool) {
+                                        return fixup < pool.start();
+                                      }) -
+                     far_jump_pools_.begin();
+          if (k == far_jump_pools_.size()) {
+            far_jumps_pending_--;
+            UpdateFarJumpCheck();
+            CHECK_LE(dist, kMaxJumpOffset);
+          } else if (dist > kMaxJumpOffset) {
+            if (k != far_pool) {
+              far_pool = k;
+              far_slot = far_jump_pools_[k].take_slot();
+              CHECK_NE(far_slot, kInvalidSlotPos);
+            }
+            CHECK_LE(far_slot - fixup_pos, kMaxJumpOffset);
+            DEBUG_PRINTF("\t\tfar jump pool: %d\n", far_slot);
+            target_at_put(fixup_pos, far_slot, false);
+            fixup_pos = far_slot;
+          }
+        } else if (dist > kMaxJumpOffset) {
           if (trampoline_pos == kInvalidSlotPos) {
             trampoline_pos = GetTrampolineEntry(fixup_pos);
           }
@@ -816,7 +847,15 @@ int32_t Assembler::branch_long_offset(Label* L) {
 }
 
 int32_t Assembler::branch_offset_helper(Label* L, OffsetSize bits) {
+  // Past the trampoline pool, a jump to a label not yet bound relies on a
+  // far-jump pool in case the label is bound beyond its reach.
+  bool far_jump = bits == OffsetSize::kOffset21 && !L->is_bound() &&
+                  is_trampoline_emitted();
+  if (far_jump) RecordFarJump();
   int32_t offset = branch_long_offset(L);
+  // The jump also holds the link to the label's previous use, which must be
+  // in reach; a caller that cannot tell has to use BranchLong.
+  CHECK(!far_jump || is_intn(offset, bits));
   DCHECK(is_intn(offset, bits));
   DEBUG_PRINTF("\toffset = %d\n", offset);
   return offset;
@@ -1152,7 +1191,10 @@ void Assembler::stop(uint32_t code) {
   DCHECK_GT(code, kMaxWatchpointCode);
   DCHECK_LE(code, kMaxStopCode);
 #if defined(V8_HOST_ARCH_RISCV64) || defined(V8_HOST_ARCH_RISCV32)
-  break_(0x54321);
+  // break_() follows the ebreak with a lui carrying the code for the
+  // simulator. Running natively there is no simulator to read it, and the
+  // trap ends execution at the ebreak.
+  ebreak();
 #else  // V8_HOST_ARCH_RISCV64 || V8_HOST_ARCH_RISCV32
   break_(code, true);
 #endif
@@ -1345,9 +1387,12 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 }
 
 void Assembler::CheckTrampolinePool() {
-  // Once we've emitted the trampoline pool, we bump the next check position,
-  // so we shouldn't get here again.
-  CHECK(!is_trampoline_emitted());
+  // Once we've emitted the trampoline pool, the only checks left are for the
+  // far-jump pools that keep later jumps in range.
+  if (is_trampoline_emitted()) {
+    EmitFarJumpPool();
+    return;
+  }
 
   // Some small sequences of instructions must not be broken up by the
   // insertion of a trampoline pool; such sequences are protected by increasing
@@ -1374,10 +1419,11 @@ void Assembler::CheckTrampolinePool() {
     USE(pc_offset_for_safepoint_before);  // Only used in DCHECK below.
 
     // As we are only going to emit the trampoline pool once, we do not have
-    // to check ever again. To avoid recursive emissions occurring when the
-    // pools are blocked below, we *eagerly* set the next check position to
-    // something we will never reach.
+    // to check for it ever again. To avoid recursive emissions occurring when
+    // the pools are blocked below, we *eagerly* set the next check position
+    // to something we will never reach.
     trampoline_check_ = kMaxInt;
+    trampoline_emitted_ = true;
 
     // By construction, we know that any branch or jump up until this point
     // can reach the last entry in the trampoline pool. Therefore, we can
@@ -1411,6 +1457,58 @@ void Assembler::CheckTrampolinePool() {
     // move next trampoline check to maximum.
     trampoline_check_ = pc_offset() + kMaxBranchOffset - BlockPoolsScope::kGap;
   }
+}
+
+void Assembler::RecordFarJump() {
+  if (far_jumps_pending_++ == 0) far_jumps_start_ = pc_offset();
+  UpdateFarJumpCheck();
+}
+
+void Assembler::UpdateFarJumpCheck() {
+  DCHECK(is_trampoline_emitted());
+  DCHECK_GE(far_jumps_pending_, 0);
+  // The pool has to end within a jump's reach of the first pending jump,
+  // leaving room for what a scope blocking the pools may still emit.
+  trampoline_check_ = far_jumps_pending_ == 0
+                          ? kMaxInt
+                          : far_jumps_start_ + kMaxJumpOffset -
+                                kTrampolinePoolOverhead -
+                                far_jumps_pending_ * kTrampolineSlotsSize -
+                                BlockPoolsScope::kGap;
+}
+
+void Assembler::EmitFarJumpPool() {
+  // While the pools are blocked, the check runs again when they are not.
+  if (pools_blocked()) return;
+  int count = far_jumps_pending_;
+  if (count == 0) {
+    trampoline_check_ = kMaxInt;
+    return;
+  }
+  // One slot per pending jump, which is at least one per label they jump to,
+  // laid out like the trampoline pool's.
+  int size = kTrampolinePoolOverhead + count * kTrampolineSlotsSize;
+  DEBUG_PRINTF("inserting far jump pool at %p (%d) with size %d\n",
+               reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
+               pc_offset(), size);
+  int pc_offset_for_safepoint_before = pc_offset_for_safepoint();
+  USE(pc_offset_for_safepoint_before);  // Only used in DCHECK below.
+
+  // Every pending jump can reach this pool, so the next one waits for new
+  // jumps. Clearing the count first also keeps the emission below from
+  // triggering another.
+  far_jumps_pending_ = 0;
+  trampoline_check_ = kMaxInt;
+  BlockPoolsScope block_pools(this, size);
+  j(size);
+  int pool_start = pc_offset();
+  for (int i = 0; i < count; i++) {
+    auipc(t6, 0);
+    jr(t6, 0);
+  }
+  far_jump_pools_.emplace_back(pool_start, count);
+  DCHECK_EQ(pc_offset() - pool_start, count * kTrampolineSlotsSize);
+  DCHECK_EQ(pc_offset_for_safepoint(), pc_offset_for_safepoint_before);
 }
 
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
@@ -1652,7 +1750,9 @@ bool Assembler::IsConstantPoolAt(Instruction* instr) {
 
 int Assembler::ConstantPoolSizeAt(Instruction* instr) {
   if (IsConstantPoolAt(instr)) {
-    return instr->Imm20UValue();
+    // The AUIPC immediate is an unsigned metadata field here. The marker is
+    // followed by a guard and is not executed.
+    return static_cast<int>(instr->Imm20UValueUnsigned());
   } else {
     return -1;
   }

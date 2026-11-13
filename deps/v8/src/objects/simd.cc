@@ -925,6 +925,64 @@ void Uint8ArrayToHexFastWithNeon(const char* bytes, uint8_t* output,
 
 #ifdef V8_ENABLE_SIMD_SVE
 
+#if V8_TARGET_ARCH_ARM64
+
+#define TARGET_SME2 \
+  __arm_locally_streaming __arm_new("zt0") __attribute__((target("sme2")))
+
+// Input size at which we switch to SME- / streaming SVE-based algorithms; the
+// SMSTART and SMSTOP instructions have a fixed cost.
+#if V8_OS_DARWIN
+constexpr size_t sme_size_threshold = 191;
+#else
+// TODO(Anton Kirilov): Determine a reasonable value on real hardware.
+constexpr size_t sme_size_threshold = std::numeric_limits<size_t>::max();
+#endif  // V8_OS_DARWIN
+
+// Size of the ZT0 register in bytes.
+constexpr size_t zt0_size = 64;
+
+// VLA implementation
+TARGET_SME2 void Uint8ArrayToHexFastWithSME2(const uint8_t* bytes,
+                                             uint8_t* output, size_t length) {
+  const auto all_true_predicate = __builtin_sve_svptrue_pat_b8(sv_all);
+  const uint64_t len = static_cast<uint64_t>(length);
+  uint16_t* const out = reinterpret_cast<uint16_t*>(output);
+  const uint64_t step = __builtin_sve_svcntb_pat(sv_all);
+  alignas(zt0_size) static constexpr uint8_t table[zt0_size] = {
+      '0', 0, 0, 0, '1', 0, 0, 0, '2', 0, 0, 0, '3', 0, 0, 0,
+      '4', 0, 0, 0, '5', 0, 0, 0, '6', 0, 0, 0, '7', 0, 0, 0,
+      '8', 0, 0, 0, '9', 0, 0, 0, 'a', 0, 0, 0, 'b', 0, 0, 0,
+      'c', 0, 0, 0, 'd', 0, 0, 0, 'e', 0, 0, 0, 'f', 0, 0, 0,
+  };
+
+  __builtin_sme_svldr_zt(0, table);
+
+  for (uint64_t i = 0;; i += step) {
+    const auto governing_predicate = __builtin_sve_svwhilelt_b8_u64(i, len);
+
+    if (!__builtin_sve_svptest_first(all_true_predicate, governing_predicate)) {
+      break;
+    }
+
+    const auto counter = __builtin_sve_svwhilelt_c16_u64(i, len, 2);
+    const auto input = __builtin_sve_svld1_u8(governing_predicate, bytes + i);
+    // Map each nibble to a hex digit.
+    auto high_half = __builtin_sve_reinterpret_u16_u8(
+        __builtin_sme_svluti4_lane_zt_u8(0, input, 1));
+    auto low_half = __builtin_sve_reinterpret_u16_u8(
+        __builtin_sme_svluti4_lane_zt_u8(0, input, 0));
+
+    // The hex digits are in little-endian order after mapping.
+    low_half = __builtin_sve_svrevb_u16_x(all_true_predicate, low_half);
+    high_half = __builtin_sve_svrevb_u16_x(all_true_predicate, high_half);
+    __builtin_sve_svst1_u16_x2(
+        counter, out + i, __builtin_sve_svcreate2_u16(low_half, high_half));
+  }
+}
+
+#endif  // V8_TARGET_ARCH_ARM64
+
 // VLA implementation
 TARGET_SVE void Uint8ArrayToHexFastWithSVE(const uint8_t* bytes,
                                            uint8_t* output, size_t length) {
@@ -990,9 +1048,25 @@ Tagged<Object> Uint8ArrayToHex(const char* bytes, size_t length,
     uint8_t* const output = string_output->GetChars(no_gc);
 
 #ifdef V8_ENABLE_SIMD_SVE
+    const uint8_t* const input = reinterpret_cast<const uint8_t*>(bytes);
+
+#if V8_TARGET_ARCH_ARM64
+    DCHECK_IMPLIES(CpuFeatures::IsSupported(SME2),
+                   CpuFeatures::IsSupported(SME));
+
+    // Streaming SVE mode execution is unlikely to be beneficial if the
+    // streaming SVE vector length is lower than or equal to the non-streaming
+    // one, but the mode switch has a fixed cost.
+    if (length > sme_size_threshold && CpuFeatures::IsSupported(SME2) &&
+        (!CpuFeatures::IsSupported(SVE) ||
+         CpuFeatures::streaming_vlen() > CpuFeatures::vlen())) {
+      Uint8ArrayToHexFastWithSME2(input, output, length);
+      return *string_output;
+    }
+#endif  // V8_TARGET_ARCH_ARM64
+
     if (get_vectorization_kind() == SimdKinds::kSVE) {
-      Uint8ArrayToHexFastWithSVE(reinterpret_cast<const uint8_t*>(bytes),
-                                 output, length);
+      Uint8ArrayToHexFastWithSVE(input, output, length);
       return *string_output;
     }
 #endif  // V8_ENABLE_SIMD_SVE
@@ -1185,7 +1259,7 @@ bool Uint8ArrayFromHexWithSSE(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_low_nibbles.has_value()) {
-      return false;
+      break;
     }
     __m128i uint8_low_nibbles = maybe_uint8_low_nibbles.value();
 
@@ -1197,7 +1271,7 @@ bool Uint8ArrayFromHexWithSSE(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_high_nibbles.has_value()) {
-      return false;
+      break;
     }
     __m128i uint8_high_nibbles = maybe_uint8_high_nibbles.value();
 
@@ -1309,8 +1383,9 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
     if constexpr (std::is_same_v<T, const base::uc16>) {
       uint8x16_t second_part_first_batch =
           vld1q_u8(reinterpret_cast<const uint8_t*>(&input_vector[i + 8]));
+      // Saturate non-Latin-1 code units so hex validation rejects them.
       first_batch =
-          vmovn_high_u16(vmovn_u16(first_batch), second_part_first_batch);
+          vqmovn_high_u16(vqmovn_u16(first_batch), second_part_first_batch);
     }
 
     // Load second batch of 16 hex characters into a Neon register
@@ -1322,8 +1397,9 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
     if constexpr (std::is_same_v<T, const base::uc16>) {
       uint8x16_t second_part_second_batch =
           vld1q_u8(reinterpret_cast<const uint8_t*>(&input_vector[i + 24]));
+      // Saturate non-Latin-1 code units so hex validation rejects them.
       second_batch =
-          vmovn_high_u16(vmovn_u16(second_batch), second_part_second_batch);
+          vqmovn_high_u16(vqmovn_u16(second_batch), second_part_second_batch);
     }
 
     // low nibbles are values with even indexes in fist_batch.
@@ -1359,7 +1435,7 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_low_nibbles.has_value()) {
-      return false;
+      break;
     }
     uint8x16_t uint8_low_nibbles = maybe_uint8_low_nibbles.value();
 
@@ -1371,7 +1447,7 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_high_nibbles.has_value()) {
-      return false;
+      break;
     }
     uint8x16_t uint8_high_nibbles = maybe_uint8_high_nibbles.value();
 

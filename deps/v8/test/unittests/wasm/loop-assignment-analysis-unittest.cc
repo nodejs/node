@@ -23,7 +23,6 @@ namespace wasm {
 class WasmLoopAssignmentAnalyzerTest : public TestWithZone {
  public:
   WasmLoopAssignmentAnalyzerTest() : num_locals(0) {}
-  TestSignatures sigs;
   uint32_t num_locals;
 
   BitVector* Analyze(const uint8_t* start, const uint8_t* end,

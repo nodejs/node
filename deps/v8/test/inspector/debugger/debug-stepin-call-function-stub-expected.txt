@@ -1,0 +1,7 @@
+Tests stepping into call function stub.
+testFunction run 0: reached='return "s";  // expected line', state=3
+testFunction run 1: reached='return "s";  // expected line', state=3
+testFunction run 2: reached='return "s";  // expected line', state=3
+testFunction2 run 0: reached='return "s2";  // expected line', state=3
+testFunction2 run 1: reached='return "s2";  // expected line', state=3
+testFunction2 run 2: reached='return "s2";  // expected line', state=3

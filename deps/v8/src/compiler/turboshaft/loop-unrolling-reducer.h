@@ -338,7 +338,7 @@ class LoopStackCheckElisionReducer : public Next {
 
 #if V8_ENABLE_WEBASSEMBLY
   V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(
-      V<Any> ig_idx, const WasmStackCheckOp& stack_check) {
+      V<None> ig_idx, const WasmStackCheckOp& stack_check) {
     if (skip_next_stack_check_ &&
         stack_check.kind == WasmStackCheckOp::Kind::kLoop) {
       skip_next_stack_check_ = false;
@@ -448,7 +448,7 @@ class LoopUnrollingReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(V<Any> ig_idx,
+  V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(V<None> ig_idx,
                                              const WasmStackCheckOp& check) {
     if (ShouldSkipOptimizationStep() || !skip_next_stack_check_) {
       return Next::ReduceInputGraphWasmStackCheck(ig_idx, check);

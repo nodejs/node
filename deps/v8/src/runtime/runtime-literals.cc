@@ -8,7 +8,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/handles/maybe-handles.h"
-#include "src/objects/allocation-site-scopes-inl.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/casting.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/field-type.h"
@@ -80,7 +80,7 @@ template <class ContextObject>
 MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     Handle<JSObject> object) {
   Isolate* isolate = this->isolate();
-  bool copying = ContextObject::kCopying;
+  constexpr bool copying = ContextObject::kCopying;
 
   {
     StackLimitCheck check(isolate);
@@ -97,11 +97,11 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   }
 
   Handle<JSObject> copy;
-  if (copying) {
+  if constexpr (copying) {
     // JSFunction objects are not allowed to be in normal boilerplates at all.
     DCHECK(!IsJSFunction(*object));
     DirectHandle<AllocationSite> site_to_pass;
-    if (site_context()->ShouldCreateMemento(object)) {
+    if (site_context()->ShouldTrackAllocationSite(object)) {
       site_to_pass = site_context()->current();
     }
     copy = isolate->factory()->CopyJSObjectWithAllocationSite(object,
@@ -132,8 +132,13 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
                                      VisitElementOrProperty(copy, value));
           if (copying) copy->FastPropertyAtPut(index, *value);
         } else if (copying && details.representation().IsDouble()) {
-          uint64_t double_value = Cast<HeapNumber>(raw)->value_as_bits();
-          auto value = isolate->factory()->NewHeapNumberFromBits(double_value);
+          Handle<UnionOf<HeapNumber, UninitializedHeapNumber>> value;
+          if (IsUninitializedHeapNumber(raw)) {
+            value = isolate->factory()->NewUninitializedHeapNumber();
+          } else {
+            uint64_t bits = Cast<HeapNumber>(raw)->value_as_bits();
+            value = isolate->factory()->NewHeapNumberFromBits(bits);
+          }
           copy->FastPropertyAtPut(index, *value);
         }
       }
@@ -151,15 +156,22 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           if (copying) dict->ValueAtPut(i, *value);
         }
       } else {
+        // Iterate in enumeration order so traversal stays in sync with the
+        // nested AllocationSite list built by DeepWalk if a fast boilerplate is
+        // later normalized to a NameDictionary by JSObject::MigrateInstance.
         DirectHandle<NameDictionary> dict(copy->property_dictionary(), isolate);
-        for (InternalIndex i : dict->IterateEntries()) {
-          Tagged<Object> raw = dict->ValueAt(i);
+        DirectHandle<FixedArray> key_indices =
+            NameDictionary::IterationIndices(isolate, dict);
+        uint32_t key_indices_len = key_indices->ulength().value();
+        for (uint32_t i = 0; i < key_indices_len; i++) {
+          InternalIndex key_index(Smi::ToInt(key_indices->get(i)));
+          Tagged<Object> raw = dict->ValueAt(key_index);
           if (!IsJSObject(raw)) continue;
-          DCHECK(IsName(dict->KeyAt(i)));
+          DCHECK(IsName(dict->KeyAt(key_index)));
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                      VisitElementOrProperty(copy, value));
-          if (copying) dict->ValueAtPut(i, *value);
+          if (copying) dict->ValueAtPut(key_index, *value);
         }
       }
     }
@@ -177,8 +189,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
-    case HOLEY_ELEMENTS:
-    case SHARED_ARRAY_ELEMENTS: {
+    case HOLEY_ELEMENTS: {
       DirectHandle<FixedArray> elements(Cast<FixedArray>(copy->elements()),
                                         isolate);
       uint32_t elements_len = elements->ulength().value();
@@ -242,6 +253,85 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   return copy;
 }
 
+// AllocationSiteContext is the base class for walking and copying a nested
+// boilerplate with AllocationSite tracking support.
+class AllocationSiteContext {
+ public:
+  explicit AllocationSiteContext(Isolate* isolate) { isolate_ = isolate; }
+
+  DirectHandle<AllocationSite> top() { return top_; }
+  DirectHandle<AllocationSite> current() { return current_; }
+
+  Isolate* isolate() { return isolate_; }
+
+ protected:
+  void update_current_site(Tagged<AllocationSite> site) {
+    current_.PatchValue(site);
+  }
+
+  void InitializeTraversal(Handle<AllocationSite> site) {
+    top_ = site;
+    // {current_} is updated in place to not create unnecessary Handles, hence
+    // we initially need a separate handle.
+    current_ = Handle<AllocationSite>::New(*top_, isolate());
+  }
+
+ private:
+  Isolate* isolate_;
+  Handle<AllocationSite> top_;
+  Handle<AllocationSite> current_;
+};
+
+// AllocationSiteUsageContext aids in tracking AllocationSites for components of
+// a copied object literal.
+class AllocationSiteUsageContext : public AllocationSiteContext {
+ public:
+  AllocationSiteUsageContext(Isolate* isolate, Handle<AllocationSite> site,
+                             bool activated)
+      : AllocationSiteContext(isolate),
+        top_site_(site),
+        activated_(activated) {}
+
+  Handle<AllocationSite> EnterNewScope() {
+    if (top().is_null()) {
+      InitializeTraversal(top_site_);
+    } else {
+      // Advance current site
+      Tagged<Object> nested_site = current()->nested_site();
+      // Something is wrong if we advance to the end of the list here.
+      update_current_site(Cast<AllocationSite>(nested_site));
+    }
+    return Handle<AllocationSite>(*current(), isolate());
+  }
+
+  void ExitScope(DirectHandle<AllocationSite> scope_site,
+                 DirectHandle<JSObject> object) {
+    // This assert ensures that we are pointing at the right sub-object in a
+    // recursive walk of a nested literal.
+    DCHECK(object.is_null() || *object == scope_site->boilerplate());
+  }
+
+  bool ShouldTrackAllocationSite(DirectHandle<JSObject> object) {
+    if (activated_ &&
+        AllocationSite::CanTrack(object->map()->instance_type())) {
+      if (AllocationSite::ShouldTrack(object->GetElementsKind())) {
+        if (v8_flags.trace_creation_allocation_sites) {
+          PrintF("*** Tracking AllocationSite for JSArray %p\n",
+                 reinterpret_cast<void*>(object->ptr()));
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static constexpr bool kCopying = true;
+
+ private:
+  Handle<AllocationSite> top_site_;
+  bool activated_;
+};
+
 // AllocationSiteCreationContext aids in the creation of AllocationSites to
 // accompany object literals.
 class AllocationSiteCreationContext : public AllocationSiteContext {
@@ -254,21 +344,21 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
     if (top().is_null()) {
       // We are creating the top level AllocationSite as opposed to a nested
       // AllocationSite.
-      InitializeTraversal(isolate()->factory()->NewAllocationSite(true));
+      InitializeTraversal(isolate()->factory()->NewAllocationSite());
       scope_site = Handle<AllocationSite>(*top(), isolate());
       if (v8_flags.trace_creation_allocation_sites) {
-        PrintF("*** Creating top level %s AllocationSite %p\n", "Fat",
+        PrintF("*** Creating top level AllocationSite %p\n",
                reinterpret_cast<void*>(scope_site->ptr()));
       }
     } else {
       DCHECK(!current().is_null());
-      scope_site = isolate()->factory()->NewAllocationSite(false);
+      scope_site = isolate()->factory()->NewAllocationSite();
       if (v8_flags.trace_creation_allocation_sites) {
         PrintF(
-            "*** Creating nested %s AllocationSite (top, current, new) (%p, "
+            "*** Creating nested AllocationSite (top, current, new) (%p, "
             "%p, "
             "%p)\n",
-            "Slim", reinterpret_cast<void*>(top()->ptr()),
+            reinterpret_cast<void*>(top()->ptr()),
             reinterpret_cast<void*>(current()->ptr()),
             reinterpret_cast<void*>(scope_site->ptr()));
       }
@@ -297,7 +387,7 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
       }
     }
   }
-  static const bool kCopying = false;
+  static constexpr bool kCopying = false;
 };
 
 MaybeDirectHandle<JSObject> DeepWalk(
@@ -728,12 +818,15 @@ MaybeDirectHandle<JSObject> CreateLiteral(Isolate* isolate,
     vector->SynchronizedSet(literals_slot, *site);
   }
 
-  static_assert(static_cast<int>(ObjectLiteral::kDisableMementos) ==
-                static_cast<int>(ArrayLiteral::kDisableMementos));
-  bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
+  static_assert(
+      static_cast<int>(ObjectLiteral::kDisableAllocationSiteTracking) ==
+      static_cast<int>(ArrayLiteral::kDisableAllocationSiteTracking));
+  bool track_allocation_site =
+      (flags & ObjectLiteral::kDisableAllocationSiteTracking) == 0;
 
   // Copy the existing boilerplate.
-  AllocationSiteUsageContext usage_context(isolate, site, enable_mementos);
+  AllocationSiteUsageContext usage_context(isolate, site,
+                                           track_allocation_site);
   usage_context.EnterNewScope();
   MaybeDirectHandle<JSObject> copy = DeepCopy(boilerplate, &usage_context);
   usage_context.ExitScope(site, boilerplate);
@@ -961,7 +1054,6 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
     Tagged<Map> js_proto_map = js_proto->map();
     if (IsCustomElementsReceiverMap(js_proto_map) ||
         IsJSTypedArrayMap(js_proto_map) ||
-        IsAlwaysSharedSpaceJSObjectMap(js_proto_map) ||
         js_proto_map->is_access_check_needed() ||
         js_proto_map->has_named_interceptor() ||
         js_proto_map->has_indexed_interceptor() ||

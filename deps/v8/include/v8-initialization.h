@@ -88,6 +88,22 @@ class V8_EXPORT V8 {
   static void SetFatalErrorHandler(V8FatalErrorCallback that);
 
   /**
+   * Enables the host application to provide a process-wide mechanism for
+   * allocating crash keys and setting/updating string values for them.
+   * Should be called before initializing any Isolate so that isolate and heap
+   * crash keys are recorded during Isolate initialization.
+   *
+   * Each call to `allocate` is expected to allocate a new crash key whose
+   * `CrashKey` handle remains valid for the lifetime of the process. V8 caches
+   * the returned handle when a crash key is updated multiple times. Both
+   * callbacks may be invoked concurrently from multiple Isolates/threads
+   * (V8 synchronizes concurrent `set` calls on the same `CrashKey`). Either
+   * both callbacks must be non-null, or both must be nullptr to unregister.
+   */
+  static void SetCrashKeyCallbacks(AllocateCrashKeyCallback allocate,
+                                   SetCrashKeyCallback set);
+
+  /**
    * Sets V8 flags from a string.
    */
   static void SetFlagsFromString(const char* str);

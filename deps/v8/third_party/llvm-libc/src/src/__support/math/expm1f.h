@@ -9,12 +9,9 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_EXPM1F_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXPM1F_H
 
-#include "common_constants.h" // Lookup tables EXP_M1 and EXP_M2.
-#include "src/__support/FPUtil/BasicOperations.h"
-#include "src/__support/FPUtil/FEnvImpl.h"
-#include "src/__support/FPUtil/FMA.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/PolyEval.h"
+#include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/nearest_integer.h"
 #include "src/__support/FPUtil/rounding_mode.h"
@@ -22,6 +19,7 @@
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"            // LIBC_UNLIKELY
 #include "src/__support/macros/properties/cpu_features.h" // LIBC_TARGET_CPU_HAS_FMA
+#include "src/__support/math/common_constants.h" // Lookup tables EXP_M1 and EXP_M2.
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -80,16 +78,8 @@ LIBC_INLINE float expm1f(float x) {
     } else {
       // x >= 89 or nan
       if (xbits.uintval() >= 0x42b2'0000) {
-        if (xbits.uintval() < 0x7f80'0000U) {
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-          int rounding = fputil::quick_get_round();
-          if (rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO)
-            return FPBits::max_normal().get_val();
-#endif
-
-          fputil::set_errno_if_required(ERANGE);
-          fputil::raise_except_if_required(FE_OVERFLOW);
-        }
+        if (xbits.uintval() < 0x7f80'0000U)
+          return fputil::set_overflow<float>();
         return x + FPBits::inf().get_val();
       }
     }

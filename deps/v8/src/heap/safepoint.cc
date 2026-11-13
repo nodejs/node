@@ -41,7 +41,7 @@ void IsolateSafepoint::EnterLocalSafepointScope() {
   if (++active_safepoint_scopes_ > 1) return;
 
   // Local safepoint can only be initiated on the isolate's main thread.
-  DCHECK_EQ(ThreadId::Current(), isolate()->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate()->thread_id());
 
   TimedHistogramScope timer(isolate()->counters()->gc_time_to_safepoint());
   TRACE_GC(heap_->tracer(), GCTracer::Scope::TIME_TO_SAFEPOINT);

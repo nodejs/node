@@ -18,6 +18,10 @@ namespace internal {
 
 Address LocalIsolate::cage_base() const { return isolate_->cage_base(); }
 
+const IsolateData* LocalIsolate::isolate_data() const {
+  return isolate_->isolate_data();
+}
+
 Address LocalIsolate::code_cage_base() const {
   return isolate_->code_cage_base();
 }

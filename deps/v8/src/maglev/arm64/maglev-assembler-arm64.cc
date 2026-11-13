@@ -269,12 +269,12 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Register result, Register char_code,
                                          Register scratch,
                                          CharCodeMaskMode mask_mode) {
-  AssertZeroExtended(char_code);
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
   if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
     And(char_code, char_code, Immediate(0xFFFF));
   }
+  AssertZeroExtended(char_code);
   Cmp(char_code, Immediate(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       hi,
@@ -432,6 +432,24 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   {
     TemporaryRegisterScope temps(this);
     Register offset = temps.AcquireScratch();
+
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+      Label unwrap_sliced;
+#if V8_STATIC_ROOTS_BOOL
+      CompareInt32AndJumpIf(map, StaticReadOnlyRoot::kSlicedOneByteStringMap,
+                            kEqual, &unwrap_sliced, Label::kNear);
+#else
+      TestAndBranchIfAnySet(instance_type, kOneByteStringTag, &unwrap_sliced);
+#endif
+      // Unwrapping a two-byte SlicedString loses its end bound; if {index} is
+      // the last code unit of the slice, fall back to the runtime before
+      // unwrapping.
+      Ldr(scratch1.W(), FieldMemOperand(string, offsetof(String, length_)));
+      Add(offset.W(), index.W(), Immediate(1));
+      CompareAndBranch(offset.W(), scratch1.W(), kUnsignedGreaterThanEqual,
+                       deferred_runtime_call);
+      bind(&unwrap_sliced);
+    }
 
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));

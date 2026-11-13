@@ -296,11 +296,15 @@ void IncrementalStringBuilder::Extend() {
   current_index_ = 0;
 }
 
-MaybeDirectHandle<String> IncrementalStringBuilder::Finish() {
+MaybeDirectHandle<String> IncrementalStringBuilder::Finish(
+    ShouldThrow should_throw) {
   ShrinkCurrentPart();
   Accumulate(current_part());
   if (overflowed_) {
-    THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError());
+    if (should_throw == kThrowOnError) {
+      THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError());
+    }
+    return {};
   }
   if (isolate()->serializer_enabled()) {
     return factory()->InternalizeString(

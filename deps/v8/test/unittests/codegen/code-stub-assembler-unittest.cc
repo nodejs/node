@@ -158,5 +158,43 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListElementsEquivalent) {
   }
 }
 
+TARGET_TEST_F(CodeStubAssemblerTest, ShortCircuitLogicalOps) {
+  DirectHandle<Code> code;
+  {
+    compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
+    CodeStubAssembler assembler(tester.state());
+    TNode<MaybeObject> weak_undef = __ MakeWeak(__ UndefinedConstant());
+
+    // Without short-circuiting, CAST(weak_undef) in the un-taken branches would
+    // fail the CSA_DCHECK in CAST(MaybeObject).
+    TNode<BoolT> and_false = __ LogicalAnd(__ IsStrong(weak_undef), [&] {
+      return __ IsUndefined(__ CAST(weak_undef));
+    });
+    TNode<BoolT> or_true = __ LogicalOr(__ IsWeakOrCleared(weak_undef), [&] {
+      return __ IsUndefined(__ CAST(weak_undef));
+    });
+    TNode<BoolT> any_true = __ LogicalAny(
+        __ IsStrong(weak_undef),
+        [&] {
+          return __ LogicalAnd(__ IsStrong(weak_undef), [&] {
+            return __ IsUndefined(__ CAST(weak_undef));
+          });
+        },
+        [&] { return __ IsWeakOrCleared(weak_undef); },
+        [&] { return __ IsUndefined(__ CAST(weak_undef)); });
+
+    TNode<BoolT> ok = __ LogicalAnd(__ Word32BinaryNot(and_false),
+                                    __ LogicalAnd(or_true, any_true));
+    __ Return(__ SelectBooleanConstant(ok));
+    code = tester.GenerateCodeCloseAndEscape();
+  }
+
+  compiler::FunctionTester ft(i_isolate(), code, 0);
+  DirectHandle<Oddball> result = ft.CallChecked<Oddball>();
+  EXPECT_TRUE(IsTrue(*result));
+}
+
+#undef __
+
 }  // namespace internal
 }  // namespace v8

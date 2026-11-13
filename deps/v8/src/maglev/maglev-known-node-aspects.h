@@ -9,8 +9,10 @@
 #include <utility>
 
 #include "src/base/logging.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/common/globals.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-kna-map.h"
 #include "src/maglev/maglev-node-type.h"
 #include "src/objects/contexts.h"
 
@@ -23,14 +25,18 @@ struct LoopEffects;
 class KnownNodeAspects;
 class TraceLogger;
 
-enum class EnsureTypeResult { kAlreadyHadType, kTypeUpdated, kContradiction };
+enum class V8_NODISCARD EnsureTypeResult {
+  kAlreadyHadType,
+  kTypeUpdated,
+  kContradiction
+};
 using UpdateTypeOnContradiction =
     base::StrongAlias<struct UpdateTypeOnContradictionTag, bool>;
 
 using PossibleMaps = compiler::ZoneRefSet<Map>;
 
 #ifdef DEBUG
-bool IsStringRootIndex(RootIndex index);
+V8_EXPORT_PRIVATE bool IsStringRootIndex(RootIndex index);
 
 inline bool IsInternalizedStringConstant(ValueNode* node) {
   if (auto constant = node->TryCast<HeapConstant>()) {
@@ -56,20 +62,6 @@ inline bool IsNonInternalizedStringConstant(ValueNode* node) {
 class NodeInfo {
  public:
   NodeInfo() = default;
-
-  struct ClearUnstableMapsOnCopy {
-    const NodeInfo& val;
-  };
-  explicit NodeInfo(ClearUnstableMapsOnCopy other) V8_NOEXCEPT {
-    type_ = other.val.type_;
-    alternative_ = other.val.alternative_;
-    if (other.val.possible_maps_are_known_) {
-      possible_maps_ = other.val.possible_maps_;
-      possible_maps_are_known_ = true;
-      any_map_is_unstable_ = other.val.any_map_is_unstable_;
-      OnSideEffect();
-    }
-  }
 
   NodeType type() const { return type_; }
   void set_type(NodeType type) { type_ = type; }
@@ -176,7 +168,7 @@ class NodeInfo {
 #undef API
 #undef ALTERNATIVES
 
-    ValueNode* get(UseRepresentation repr) {
+    ValueNode* get(UseRepresentation repr) const {
       switch (repr) {
         case UseRepresentation::kTagged:
         case UseRepresentation::kTaggedForNumberToString:
@@ -197,6 +189,8 @@ class NodeInfo {
     }
 
     bool has_none() const { return store_ == AlternativeNodes().store_; }
+
+    bool operator==(const AlternativeNodes&) const = default;
 
     void MergeWith(const AlternativeNodes& other) {
       for (size_t i = 0; i < Kind::kNumberOfAlternatives; ++i) {
@@ -359,6 +353,8 @@ class NodeInfo {
   // dependencies when transitioning.)
   bool any_map_is_unstable() const { return any_map_is_unstable_; }
 
+  bool operator==(const NodeInfo&) const = default;
+
  private:
   NodeType type_ = NodeType::kUnknown;
 
@@ -376,38 +372,50 @@ class NodeInfo {
 };
 
 class KnownNodeAspects {
+  struct AvailableExpression {
+    NodeBase* node;
+    uint32_t effect_epoch;
+    bool operator==(const AvailableExpression&) const = default;
+  };
+  using AvailableExpressionsMap = KnaMap<uint32_t, AvailableExpression>;
+  using TaggedKeyedPropertiesMap =
+      KnaMap<std::pair<ValueNode*, ValueNode*>, ValueNode*>;
+
  public:
   // Permanently valid if checked in a dominator.
-  using NodeInfos = ZoneMap<ValueNode*, NodeInfo>;
+  using NodeInfos = KnaMap<ValueNode*, NodeInfo>;
 
-  // Copy constructor is defaulted but private so that we explicitly call the
-  // Clone method.
+  struct KNAPool;
+  struct Deleter {
+    inline void operator()(KnownNodeAspects* kna) const noexcept;
+  };
+  using Ptr = std::unique_ptr<KnownNodeAspects, Deleter>;
+
+  static inline Ptr New(KNAPool* pool);
+
   KnownNodeAspects& operator=(const KnownNodeAspects& other) = delete;
   KnownNodeAspects(KnownNodeAspects&& other) = delete;
   KnownNodeAspects& operator=(KnownNodeAspects&& other) = delete;
 
-  KnownNodeAspects* Clone(Zone* zone) const {
-    return zone->New<KnownNodeAspects>(*this);
-  }
+  inline Ptr Clone() const;
 
   // Unwraps identities and single-input phis in the node-valued keys of the
   // aspect maps (node_infos_ keys, loaded-property object keys and context-slot
   // context keys), rebuilding them and combining node_infos entries whose keys
   // collide afterwards. Used at loop headers to normalize the cached backedge
   // KNA before merging it into the forward KNA.
-  void UnwrapIdentitiesAndPhisInKeys(Zone* zone);
+  void UnwrapIdentitiesAndPhisInKeys();
 
   // Loop headers can safely clone the node types, since those won't be
   // invalidated in the loop body, and similarly stable maps will have
   // dependencies installed. Unstable maps however might be invalidated by
   // calls, and we don't know about these until it's too late.
-  KnownNodeAspects* CloneForLoopHeader(bool optimistic_initial_state,
-                                       LoopEffects* loop_effects,
-                                       Zone* zone) const;
+  Ptr CloneForLoopHeader(bool optimistic_initial_state,
+                         LoopEffects* loop_effects) const;
 
   void ClearUnstableNodeAspectsForStoreMap(StoreMap* node,
                                            bool is_tracing_enabled);
-  void ClearUnstableNodeAspectsForMigration(Node* node,
+  void ClearUnstableNodeAspectsForMigration(ValueNode* object,
                                             bool is_tracing_enabled);
   void ClearUnstableNodeAspectsForElementsTransition(
       const ZoneVector<compiler::MapRef>& transition_sources,
@@ -428,9 +436,8 @@ class KnownNodeAspects {
     // same map. Unstable maps can also transition to stable ones, so we have to
     // clear _all_ maps for a node if it had _any_ unstable map.
     if (!side_effects_require_invalidation_) return;
-    for (auto& it : node_infos_) {
-      it.second.OnSideEffect();
-    }
+    node_infos_.MutateValues(
+        [](ValueNode*, NodeInfo& info) { info.OnSideEffect(); });
     side_effects_require_invalidation_ = false;
   }
 
@@ -438,9 +445,9 @@ class KnownNodeAspects {
   bool MarkMapsStaleIfAny(const Function& condition) {
     if (!side_effects_require_invalidation_) return false;
     bool any_stale = false;
-    for (auto& it : node_infos_) {
-      any_stale |= it.second.MarkMapsStaleIfAny(condition);
-    }
+    node_infos_.MutateValues([&](ValueNode*, NodeInfo& info) {
+      any_stale |= info.MarkMapsStaleIfAny(condition);
+    });
     return any_stale;
   }
 
@@ -459,11 +466,18 @@ class KnownNodeAspects {
     virtual_objects_ = {};
   }
 
+  // Returned `NodeInfo*` pointers (from `TryGetInfoFor`,
+  // `TryGetMutableInfoFor`, and `GetOrCreateInfoFor`) point directly into
+  // `node_infos_` storage and are invalidated by any subsequent insertion,
+  // erasure, merge, or `Clone()` on this `KnownNodeAspects` (including emitted
+  // IR nodes that trigger `MarkPossibleSideEffect`).
   const NodeInfo* TryGetInfoFor(ValueNode* node) const {
-    return const_cast<KnownNodeAspects*>(this)->TryGetInfoFor(node);
+    auto info_it = FindInfo(node);
+    if (!IsValid(info_it)) return nullptr;
+    return &info_it->second;
   }
 
-  NodeInfo* TryGetInfoFor(ValueNode* node) {
+  NodeInfo* TryGetMutableInfoFor(ValueNode* node) {
     auto info_it = FindInfo(node);
     if (!IsValid(info_it)) return nullptr;
     return &info_it->second;
@@ -477,25 +491,29 @@ class KnownNodeAspects {
     return nullptr;
   }
 
+  // Note: the returned `NodeInfo*` is invalidated by subsequent insertions,
+  // erasures, merges, or `Clone()` on `KnownNodeAspects`.
   NodeInfo* GetOrCreateInfoFor(compiler::JSHeapBroker* broker,
                                ValueNode* node) {
-    node = UnwrapNode(node);
-    auto info_it = node_infos_.find(node);
-    if (IsValid(info_it)) return &info_it->second;
-    auto res = &node_infos_.emplace(node, NodeInfo()).first->second;
-    res->IntersectType(node->GetStaticType(broker));
+    node = GetCanonical(node);
+    auto [info_it, inserted] = node_infos_.try_emplace(node);
+    NodeInfo* res = &info_it->second;
+    if (inserted) {
+      res->IntersectType(node->GetStaticType(broker));
+    }
     return res;
   }
 
-  ValueNode* TryGetAlternativeFor(ValueNode* node, UseRepresentation repr) {
+  ValueNode* TryGetAlternativeFor(ValueNode* node,
+                                  UseRepresentation repr) const {
     auto info_it = FindInfo(node);
     if (!IsValid(info_it)) return nullptr;
     return info_it->second.alternative().get(repr);
   }
 
-  std::optional<PossibleMaps> TryGetPossibleMaps(ValueNode* node) {
+  std::optional<PossibleMaps> TryGetPossibleMaps(ValueNode* node) const {
     DCHECK_NOT_NULL(node);
-    if (NodeInfo* info = TryGetInfoFor(node)) {
+    if (const NodeInfo* info = TryGetInfoFor(node)) {
       if (info->possible_maps_are_known()) {
         return info->possible_maps();
       }
@@ -504,36 +522,31 @@ class KnownNodeAspects {
     return {};
   }
 
-  bool CheckType(compiler::JSHeapBroker* broker, ValueNode* node, NodeType type,
-                 NodeType* current_type = nullptr) {
-    NodeType static_type = node->GetStaticType(broker);
-    if (current_type) *current_type = static_type;
-    if (NodeTypeIs(static_type, type)) return true;
-    if (IsEmptyNodeType(IntersectType(static_type, type))) return false;
-    const NodeInfo* node_info = TryGetInfoFor(node);
-    if (!node_info) return false;
-    if (current_type) *current_type = node_info->type();
-    return NodeTypeIs(node_info->type(), type);
+  V8_NODISCARD bool CheckType(compiler::JSHeapBroker* broker, ValueNode* node,
+                              NodeType type,
+                              NodeType* current_type = nullptr) const {
+    if (!current_type && node->StaticTypeIs(broker, type)) return true;
+    NodeType known_type = GetTypeUnchecked(broker, node);
+    if (current_type) *current_type = known_type;
+    return NodeTypeIs(known_type, type);
   }
 
-  NodeType CheckTypes(compiler::JSHeapBroker* broker, ValueNode* node,
-                      std::initializer_list<NodeType> types) {
-    const NodeInfo* node_info = TryGetInfoFor(node);
+  V8_NODISCARD NodeType
+  CheckTypes(compiler::JSHeapBroker* broker, ValueNode* node,
+             std::initializer_list<NodeType> types) const {
+    NodeType known_type = GetTypeUnchecked(broker, node);
     for (NodeType type : types) {
-      if (node->StaticTypeIs(broker, type)) return type;
-      if (node_info) {
-        if (NodeTypeIs(node_info->type(), type)) return type;
-      }
+      if (NodeTypeIs(known_type, type)) return type;
     }
     return NodeType::kUnknown;
   }
 
-  bool MayBeNullOrUndefined(compiler::JSHeapBroker* broker, ValueNode* node) {
-    NodeType static_type = node->GetStaticType(broker);
-    if (!NodeTypeMayBeNullOrUndefined(static_type)) return false;
-    const NodeInfo* node_info = TryGetInfoFor(node);
-    if (!node_info) return true;
-    return NodeTypeMayBeNullOrUndefined(node_info->type());
+  bool MayBeNullOrUndefined(compiler::JSHeapBroker* broker,
+                            ValueNode* node) const {
+    if (!NodeTypeMayBeNullOrUndefined(node->GetStaticType(broker))) {
+      return false;
+    }
+    return NodeTypeMayBeNullOrUndefined(GetTypeUnchecked(broker, node));
   }
 
   bool IsEmptyNodeType(NodeType type) const {
@@ -584,43 +597,52 @@ class KnownNodeAspects {
 
   // Maps key->object->value, so that stores to a key can invalidate all loads
   // of that key (in case the objects are aliasing).
-  using LoadedPropertyMap =
-      ZoneMap<PropertyKey, ZoneMap<ValueNode*, ValueNode*>>;
+  using PropertyObjectMap = KnaMap<ValueNode*, ValueNode*>;
+  using LoadedPropertyMap = KnaMap<PropertyKey, PropertyObjectMap>;
 
   using LoadedContextSlotsKey = std::tuple<ValueNode*, int>;
-  using LoadedContextSlots = ZoneMap<LoadedContextSlotsKey, ValueNode*>;
+  using LoadedContextSlots = KnaMap<LoadedContextSlotsKey, ValueNode*>;
 
   ValueNode* TryFindLoadedProperty(ValueNode* lookup_start_object,
-                                   PropertyKey name) {
+                                   PropertyKey name) const {
     return TryFindLoadedProperty(loaded_properties_, lookup_start_object, name);
   }
   ValueNode* TryFindLoadedConstantProperty(ValueNode* lookup_start_object,
-                                           PropertyKey name) {
+                                           PropertyKey name) const {
     return TryFindLoadedProperty(loaded_constant_properties_,
                                  lookup_start_object, name);
   }
   ValueNode* TryFindLoadedProperty(ValueNode* lookup_start_object,
-                                   PropertyKey name, bool is_const) {
-    if (is_const) {
-      return TryFindLoadedConstantProperty(lookup_start_object, name);
+                                   PropertyKey name,
+                                   PropertyConstness constness) const {
+    switch (constness) {
+      case PropertyConstness::kConst:
+        return TryFindLoadedConstantProperty(lookup_start_object, name);
+      case PropertyConstness::kMutable:
+        return TryFindLoadedProperty(lookup_start_object, name);
     }
-    return TryFindLoadedProperty(lookup_start_object, name);
   }
 
-  ZoneMap<ValueNode*, ValueNode*>& GetLoadedPropertiesForKey(Zone* zone,
-                                                             bool is_const,
-                                                             PropertyKey key) {
-    LoadedPropertyMap& properties =
-        is_const ? loaded_constant_properties_ : loaded_properties_;
+  // Note: the returned `PropertyObjectMap&` reference is invalidated by
+  // subsequent insertions, erasures, merges, or `Clone()` on the outer
+  // `LoadedPropertyMap`.
+  PropertyObjectMap& GetLoadedPropertiesForKey(PropertyConstness constness,
+                                               PropertyKey key) {
+    LoadedPropertyMap& properties = constness == PropertyConstness::kConst
+                                        ? loaded_constant_properties_
+                                        : loaded_properties_;
     // Try to get loaded_properties[key] if it already exists, otherwise
-    // construct loaded_properties[key] = ZoneMap{zone()}.
-    return properties.try_emplace(key, zone).first->second;
+    // construct loaded_properties[key] = PropertyObjectMap{pool}.
+    return properties.try_emplace(key, &pool_->property_object_pool)
+        .first->second;
   }
 
   bool ClearLoadedPropertiesForKey(PropertyKey key) {
-    auto it = loaded_properties_.find(key);
+    auto it = std::as_const(loaded_properties_).find(key);
     if (it != loaded_properties_.end()) {
-      it->second.clear();
+      if (!it->second.empty()) {
+        loaded_properties_.find(key)->second.clear();
+      }
       return true;
     }
     return false;
@@ -629,7 +651,7 @@ class KnownNodeAspects {
   // Cache of LoadFixedArrayElement results keyed by (elements, index). Any
   // write that does not pass PreservesTaggedKeyedProperties clears it.
   LoadFixedArrayElement* TryFindTaggedKeyedProperty(ValueNode* elements,
-                                                    ValueNode* index) {
+                                                    ValueNode* index) const {
     auto it = loaded_tagged_keyed_properties_.find(
         {elements->UnwrapIdentities(), index->UnwrapIdentities()});
     if (it == loaded_tagged_keyed_properties_.end()) return nullptr;
@@ -659,7 +681,7 @@ class KnownNodeAspects {
   NodeT* FindExpression(uint32_t hash,
                         std::array<ValueNode*, NodeT::kInputCount>& inputs,
                         Args&&... args) {
-    auto it = available_expressions_.find(hash);
+    auto it = std::as_const(available_expressions_).find(hash);
     if (it == available_expressions_.end()) return nullptr;
 
     static constexpr Opcode op = Node::opcode_of<NodeT>;
@@ -667,7 +689,7 @@ class KnownNodeAspects {
 
     if (candidate->Is<Identity>()) {
       // This expression was removed from the graph. Do not reuse it.
-      available_expressions_.erase(it);
+      available_expressions_.erase(hash);
       return nullptr;
     }
 
@@ -696,7 +718,7 @@ class KnownNodeAspects {
       }
     }
     if (!epoch_check) {
-      available_expressions_.erase(it);
+      available_expressions_.erase(hash);
     }
     return nullptr;
   }
@@ -747,16 +769,23 @@ class KnownNodeAspects {
   // Returns the value in the cache if exists without adding a new cache entry.
   ValueNode* TryGetContextCachedValue(ValueNode* context, int offset,
                                       MaybeAssignedFlag assigned) {
-    auto map = (assigned == kMaybeAssigned) ? loaded_context_slots_
-                                            : loaded_context_constants_;
-    auto it = map.find({context, offset});
+    auto& map = (assigned == kMaybeAssigned) ? loaded_context_slots_
+                                             : loaded_context_constants_;
+    auto it = std::as_const(map).find({context, offset});
     if (it == map.end()) return nullptr;
-    if (it->second) {
-      it->second = it->second->UnwrapIdentities();
+    ValueNode* value = it->second;
+    if (value) {
+      ValueNode* unwrapped = value->UnwrapIdentities();
+      if (unwrapped != value) [[unlikely]] {
+        map.find({context, offset})->second = unwrapped;
+        return unwrapped;
+      }
     }
-    return it->second;
+    return value;
   }
-  // Returns the value in the cache and add a new entry.
+  // Returns a reference to the cached value, inserting a default entry if not
+  // present. The returned `ValueNode*&` reference is invalidated by subsequent
+  // insertions, erasures, merges, or `Clone()` on the context cache map.
   ValueNode*& GetContextCachedValue(ValueNode* context, int offset,
                                     MaybeAssignedFlag assigned) {
     ValueNode*& cached_value =
@@ -769,12 +798,12 @@ class KnownNodeAspects {
     return cached_value;
   }
   bool HasContextCacheValue(ValueNode* context, int offset,
-                            MaybeAssignedFlag assigned) {
+                            MaybeAssignedFlag assigned) const {
     return (assigned == kMaybeAssigned)
                ? loaded_context_slots_.contains({context, offset})
                : loaded_context_constants_.contains({context, offset});
   }
-  bool IsContextCacheEmpty(MaybeAssignedFlag assigned) {
+  bool IsContextCacheEmpty(MaybeAssignedFlag assigned) const {
     return (assigned == kMaybeAssigned) ? loaded_context_slots_.empty()
                                         : loaded_context_constants_.empty();
   }
@@ -823,7 +852,8 @@ class KnownNodeAspects {
                          std::is_same_v<NodeT,
                                         CheckMapsWithMigrationAndDeopt> ||
                          std::is_same_v<NodeT, MigrateMapIfNeeded>) {
-      ClearUnstableNodeAspectsForMigration(node, is_tracing_enabled);
+      ClearUnstableNodeAspectsForMigration(node->ReceiverInput().node(),
+                                           is_tracing_enabled);
     } else if constexpr (std::is_same_v<NodeT, StoreMap>) {
       ClearUnstableNodeAspectsForStoreMap(node, is_tracing_enabled);
     } else if constexpr (std::is_same_v<NodeT, TransitionElementsKind> ||
@@ -844,61 +874,76 @@ class KnownNodeAspects {
   void Print(std::ostream& os) const;
   void Print() const { return Print(std::cout); }
 
-  explicit KnownNodeAspects(Zone* zone)
-      : loaded_constant_properties_(zone),
-        loaded_properties_(zone),
-        loaded_tagged_keyed_properties_(zone),
-        loaded_context_constants_(zone),
-        loaded_context_slots_(zone),
-        available_expressions_(zone),
-        side_effects_require_invalidation_(false),
-        may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNever),
-        effect_epoch_(0),
-        node_infos_(zone),
-        virtual_objects_() {}
+  // Shared per-compilation pool container for KnownNodeAspects and its KnaMap
+  // instances, allowing destroyed or merged KnownNodeAspects to recycle storage
+  // across basic blocks.
+  struct KNAPool {
+    explicit KNAPool(Zone* zone)
+        : zone(zone),
+          node_infos_pool(zone),
+          property_object_pool(zone),
+          loaded_property_pool(zone),
+          tagged_keyed_pool(zone),
+          context_slots_pool(zone),
+          available_expressions_pool(zone) {}
+
+    template <typename... Args>
+    Ptr New(Args&&... args) {
+      void* mem;
+      if (free_kna != nullptr) {
+        mem = free_kna;
+        free_kna = free_kna->next;
+        ASAN_UNPOISON_MEMORY_REGION(
+            reinterpret_cast<char*>(mem) + sizeof(FreeKna),
+            sizeof(KnownNodeAspects) - sizeof(FreeKna));
+      } else {
+        mem = zone->Allocate<KnownNodeAspects>(sizeof(KnownNodeAspects));
+      }
+      return Ptr(new (mem) KnownNodeAspects(std::forward<Args>(args)...));
+    }
+
+    void Free(KnownNodeAspects* kna) noexcept {
+      static_assert(sizeof(KnownNodeAspects) >= sizeof(FreeKna));
+      static_assert(alignof(KnownNodeAspects) >= alignof(FreeKna));
+      static_assert(alignof(KnownNodeAspects) <= 8);
+      free_kna = new (kna) FreeKna{free_kna};
+      ASAN_POISON_MEMORY_REGION(
+          reinterpret_cast<char*>(free_kna) + sizeof(FreeKna),
+          sizeof(KnownNodeAspects) - sizeof(FreeKna));
+    }
+
+    struct FreeKna {
+      FreeKna* next;
+    };
+
+    Zone* zone;
+    FreeKna* free_kna = nullptr;
+    NodeInfos::Pool node_infos_pool;
+    PropertyObjectMap::Pool property_object_pool;
+    LoadedPropertyMap::Pool loaded_property_pool;
+    TaggedKeyedPropertiesMap::Pool tagged_keyed_pool;
+    LoadedContextSlots::Pool context_slots_pool;
+    AvailableExpressionsMap::Pool available_expressions_pool;
+  };
 
  private:
   EnsureTypeResult EnsureTypeHelper(
       compiler::JSHeapBroker* broker, ValueNode* node, NodeType type,
       NodeType* old_type,
       UpdateTypeOnContradiction update_type_on_contradiction) {
-    NodeType static_type = node->GetStaticType(broker);
-    if (old_type) *old_type = static_type;
-    if (NodeTypeIs(static_type, type, NodeTypeIsVariant::kAllowNone)) {
-      if (static_type == NodeType::kNone) {
-        return EnsureTypeResult::kContradiction;
-      }
-      return EnsureTypeResult::kAlreadyHadType;
-    }
-    NodeInfo* known_info = update_type_on_contradiction
-                               ? GetOrCreateInfoFor(broker, node)
-                               : TryGetInfoFor(node);
-    NodeType current_type = static_type;
-    if (known_info) {
-      current_type = known_info->type();
-      if (old_type) *old_type = current_type;
-      if (NodeTypeIs(current_type, type, NodeTypeIsVariant::kAllowNone)) {
-        if (current_type == NodeType::kNone) {
-          return EnsureTypeResult::kContradiction;
-        }
-        return EnsureTypeResult::kAlreadyHadType;
-      }
-    }
+    NodeType current_type = GetTypeUnchecked(broker, node);
+    if (old_type) *old_type = current_type;
     NodeType new_type = IntersectType(current_type, type);
-    if (auto phi = node->TryCast<Phi>()) {
-      new_type = IntersectType(new_type, phi->type());
-    }
-    if (new_type == NodeType::kNone) {
+    if (IsEmptyNodeType(new_type)) {
       if (update_type_on_contradiction) {
-        DCHECK_NOT_NULL(known_info);
-        known_info->set_type(NodeType::kNone);
+        GetOrCreateInfoFor(broker, node)->set_type(NodeType::kNone);
       }
       return EnsureTypeResult::kContradiction;
     }
-    if (!known_info) {
-      known_info = GetOrCreateInfoFor(broker, node);
+    if (NodeTypeIs(current_type, type)) {
+      return EnsureTypeResult::kAlreadyHadType;
     }
-    known_info->set_type(new_type);
+    GetOrCreateInfoFor(broker, node)->IntersectType(new_type);
     return EnsureTypeResult::kTypeUpdated;
   }
 
@@ -914,11 +959,6 @@ class KnownNodeAspects {
       std::numeric_limits<uint32_t>::max();
   static constexpr uint32_t kEffectEpochOverflow =
       kEffectEpochForPureInstructions - 1;
-
-  struct AvailableExpression {
-    NodeBase* node;
-    uint32_t effect_epoch;
-  };
 
   // These can call GetTypeUnchecked directly. Other uses should ideally go
   // through MaglevReducer::GetType or similar and add type assertions if
@@ -963,6 +1003,7 @@ class KnownNodeAspects {
     return actual_type;
   }
 
+  KNAPool* pool_;
   // Valid across side-effecting calls, as long as we install a dependency.
   LoadedPropertyMap loaded_constant_properties_;
   // Flushed after side-effecting calls.
@@ -971,14 +1012,13 @@ class KnownNodeAspects {
   // does not pass PreservesTaggedKeyedProperties. Bounded by
   // kMaxTaggedKeyedProperties, since the map is copied at every clone.
   static constexpr size_t kMaxTaggedKeyedProperties = 100;
-  ZoneMap<std::pair<ValueNode*, ValueNode*>, ValueNode*>
-      loaded_tagged_keyed_properties_;
+  TaggedKeyedPropertiesMap loaded_tagged_keyed_properties_;
   // Unconditionally valid across side-effecting calls.
-  ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_constants_;
+  LoadedContextSlots loaded_context_constants_;
   // Flushed after side-effecting calls.
   LoadedContextSlots loaded_context_slots_;
   // For CSE.
-  ZoneMap<uint32_t, AvailableExpression> available_expressions_;
+  AvailableExpressionsMap available_expressions_;
   // This is an optimization. We track whether any NodeInfos require work on
   // side effects. If not, we don't even iterate over NodeInfos.
   bool side_effects_require_invalidation_;
@@ -987,25 +1027,33 @@ class KnownNodeAspects {
   // conservative about updating the state on stores.
   ContextSlotLoadsAlias may_have_aliasing_contexts_;
   uint32_t effect_epoch_;
-  // TODO(leszeks): Store these more efficiently than with std::map -- in
-  // particular, clear out entries that are no longer reachable, perhaps also
-  // allow lookup by interpreter register rather than by node pointer.
   NodeInfos node_infos_;
   VirtualObjectList virtual_objects_;
 
-  friend KnownNodeAspects* Zone::New<KnownNodeAspects, const KnownNodeAspects&>(
-      const KnownNodeAspects&);
+  friend struct KNAPool;
+  explicit KnownNodeAspects(KNAPool* pool)
+      : pool_(pool),
+        loaded_constant_properties_(&pool_->loaded_property_pool),
+        loaded_properties_(&pool_->loaded_property_pool),
+        loaded_tagged_keyed_properties_(&pool_->tagged_keyed_pool),
+        loaded_context_constants_(&pool_->context_slots_pool),
+        loaded_context_slots_(&pool_->context_slots_pool),
+        available_expressions_(&pool_->available_expressions_pool),
+        side_effects_require_invalidation_(false),
+        may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNever),
+        effect_epoch_(0),
+        node_infos_(&pool_->node_infos_pool),
+        virtual_objects_() {}
+  // Copy constructor is defaulted but private so that we explicitly call the
+  // Clone method.
   KnownNodeAspects(const KnownNodeAspects& other) V8_NOEXCEPT = default;
-  // Copy constructor for CloneForLoopHeader
-  friend KnownNodeAspects* Zone::New<KnownNodeAspects, const KnownNodeAspects&,
-                                     bool&, LoopEffects*&, Zone*&>(
-      const KnownNodeAspects&, bool&, maglev::LoopEffects*&, Zone*&);
+  // Copy constructor for CloneForLoopHeader.
   KnownNodeAspects(const KnownNodeAspects& other, bool optimistic_initial_state,
-                   LoopEffects* loop_effects, Zone* zone);
+                   LoopEffects* loop_effects);
 
   ValueNode* TryFindLoadedProperty(const LoadedPropertyMap& properties,
                                    ValueNode* lookup_start_object,
-                                   PropertyKey name) {
+                                   PropertyKey name) const {
     auto props_for_name = properties.find(name);
     if (props_for_name == properties.end()) return nullptr;
 
@@ -1015,58 +1063,40 @@ class KnownNodeAspects {
     return it->second->UnwrapIdentities();
   }
 
-  // Only unwrap conversions that preserve `NodeType` invariants across
-  // representations (e.g. `kSmi` means Smi-tagged for tagged values, but only
-  // Smi-sized for untagged values).
-  // TODO(496266449): Remove once `kTagged` is split into `kSmi` and
-  // `kTaggedPointer` representations.
-  static ValueNode* UnwrapNode(ValueNode* node) {
-    while (true) {
-      if (node->Is<Identity>() || node->Is<ReturnedValue>()) {
-        node = node->input_node(0);
-        continue;
-      }
-      if (!node->is_conversion()) break;
-      switch (node->opcode()) {
-        case Opcode::kCheckedNumberToInt32:
-        case Opcode::kCheckedNumberToFloat64:
-        case Opcode::kUnsafeNumberToFloat64:
-        case Opcode::kCheckedObjectToIndex:
-        case Opcode::kUnsafeInt32ToUint32:
-          return node;
-        // kForceHeapNumber allocates a HeapNumber even for Smi-sized inputs.
-        case Opcode::kInt32ToNumber:
-          if (node->Cast<Int32ToNumber>()->conversion_mode() ==
-              NumberConversionMode::kForceHeapNumber) {
-            return node;
-          }
-          break;
-        case Opcode::kFloat64ToTagged:
-          if (node->Cast<Float64ToTagged>()->conversion_mode() ==
-              NumberConversionMode::kForceHeapNumber) {
-            return node;
-          }
-          break;
-        case Opcode::kHoleyFloat64ToTagged:
-          if (node->Cast<HoleyFloat64ToTagged>()->conversion_mode() ==
-              NumberConversionMode::kForceHeapNumber) {
-            return node;
-          }
-          break;
-        default:
-          break;
-      }
-      node = node->input_node(0);
+  // GetCanonical is used to ensure that nodes in the same conversion chain (eg,
+  // a `NumberToInt32` flowing into a `Int32ToFloat64` for instance) share the
+  // same NodeInfo. To do so, GetCanonical Unwraps identities and conversions.
+  // There is a subteltly though: GetCanonical doesn't Unwrap through Tagged
+  // nodes, because information about one tagged node at the end of a
+  // conversion/identity-chain doesn't necessarily apply to tagged nodes at the
+  // beginning of the chain. For instance, consider:
+  //
+  //   n1: Param
+  //   n2: NumberToInt32(n1)
+  //   n3: CheckedSmiTagInt32(n2)
+  //
+  // Here, n3 has NodeType::kSmi, but propagating to n1 would be wrong, since n1
+  // could be a smi-ranged HeapNumber.
+  // TODO(496266449): Simply use `Unwrap` once `kTagged` is split into
+  // `kTaggedSigned` and `kTaggedPointer` representations.
+  static ValueNode* GetCanonical(ValueNode* node) {
+    node = node->UnwrapIdentitiesAndReturnedValues();
+    if (node->is_tagged()) return node;
+    while (node->is_conversion()) {
+      ValueNode* input =
+          node->input_node(0)->UnwrapIdentitiesAndReturnedValues();
+      if (input->is_tagged()) break;
+      node = input;
     }
     return node;
   }
 
   NodeInfos::iterator FindInfo(ValueNode* node) {
-    node = UnwrapNode(node);
+    node = GetCanonical(node);
     return node_infos_.find(node);
   }
   NodeInfos::const_iterator FindInfo(ValueNode* node) const {
-    node = UnwrapNode(node);
+    node = GetCanonical(node);
     return node_infos_.find(node);
   }
   bool IsValid(NodeInfos::iterator& it) { return it != node_infos_.end(); }
@@ -1074,6 +1104,22 @@ class KnownNodeAspects {
     return it != node_infos_.end();
   }
 };
+
+inline void KnownNodeAspects::Deleter::operator()(
+    KnownNodeAspects* kna) const noexcept {
+  KNAPool* pool = kna->pool_;
+  kna->~KnownNodeAspects();
+  pool->Free(kna);
+}
+
+// static
+inline KnownNodeAspects::Ptr KnownNodeAspects::New(KNAPool* pool) {
+  return pool->New(pool);
+}
+
+inline KnownNodeAspects::Ptr KnownNodeAspects::Clone() const {
+  return pool_->New(*this);
+}
 
 std::ostream& operator<<(std::ostream& os, const KnownNodeAspects& aspects);
 

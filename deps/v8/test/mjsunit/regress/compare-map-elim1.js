@@ -32,13 +32,16 @@ function foo(o) {
   return o.foo1;
 };
 %PrepareFunctionForOptimization(foo);
+var call_foo2 = false;
 function getter() {
-  return this.x + this.z + foo2(this);
+  return this.x + this.z + (call_foo2 ? foo2(this) : 0);
 }
+%PrepareFunctionForOptimization(getter);
 
 function foo2(o) {
   return o.a;
 }
+%PrepareFunctionForOptimization(foo2);
 
 var o1 = {z: 0, x: 1};
 var o2 = {z: 0, a: 1.5, x: 1};
@@ -49,9 +52,12 @@ Object.defineProperty(o2, 'foo1', {get: getter});
 foo(o1);
 foo(o1);
 foo(o2);
-%ClearFunctionFeedback(foo2);
+// Defer calling `foo2` until after `foo` has warmed on `o1`/`o2` so `foo2`
+// keeps `{o2, o3}` feedback without desynchronizing `getter`'s CallIC.
+call_foo2 = true;
 foo2(o2);
 foo2(o2);
 foo2(o3);
+foo(o2);
 %OptimizeFunctionOnNextCall(foo);
 foo(o1);

@@ -1,0 +1,2 @@
+Tests stepping through multiple var/let/const declarations.
+log: ["a0","b9","c9","e9","f4","g9","h11","i11","j11","l11","n11","o6","p11","q11","r13","s13","t13","u2","v3"]

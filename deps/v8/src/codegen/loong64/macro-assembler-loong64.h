@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/loong64/assembler-loong64.h"
 #include "src/common/globals.h"
@@ -294,7 +295,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // validate the parameter count at runtime. Instead, we should replace them
   // with CallJSDispatchEntry that generates a call to a given (compile-time
   // constant) JSDispatchHandle.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
@@ -390,9 +392,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallEphemeronKeyBarrier(Register object, Operand offset,
                                SaveFPRegsMode fp_mode);
 
-  void CallIndirectPointerBarrier(Register object, Operand offset,
-                                  SaveFPRegsMode fp_mode,
-                                  IndirectPointerTag tag);
+  void CallTrustedPointerBarrier(Register object, Operand offset,
+                                 SaveFPRegsMode fp_mode, TrustedPointerTag tag);
 
   void CallRecordWriteStubSaveRegisters(
       Register object, Operand offset, SaveFPRegsMode fp_mode,
@@ -406,10 +407,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                                       SaveFPRegsMode fp_mode);
   void CallVerifySkippedWriteBarrierStub(Register object, Register value);
 
-  void CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+  void CallVerifySkippedTrustedWriteBarrierStubSaveRegisters(
       Register object, Register value, SaveFPRegsMode fp_mode);
-  void CallVerifySkippedIndirectWriteBarrierStub(Register object,
-                                                 Register value);
+  void CallVerifySkippedTrustedWriteBarrierStub(Register object,
+                                                Register value);
 
   // For a given |object| and |offset|:
   //   - Move |object| to |dst_object|.
@@ -524,12 +525,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void PushAll(DoubleRegList registers,
                       int stack_slot_size = kDoubleSize) {
     DCHECK_EQ(stack_slot_size, kDoubleSize);
+    if (registers.is_empty()) return;
     MultiPushFPU(registers);
   }
 
   inline void PopAll(DoubleRegList registers,
                      int stack_slot_size = kDoubleSize) {
     DCHECK_EQ(stack_slot_size, kDoubleSize);
+    if (registers.is_empty()) return;
     MultiPopFPU(registers);
   }
 
@@ -956,6 +959,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // LSX
   void Vst(VRegister vd, const MemOperand& vj, int* trap_pc = NULL);
   void Vld(VRegister vd, const MemOperand& vj, int* trap_pc = NULL);
+  void Vldrepl_b(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
+  void Vldrepl_h(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
+  void Vldrepl_w(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
+  void Vldrepl_d(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
+  void Vstelm_b(VRegister vd, const MemOperand& dst, uint8_t laneidx,
+                int* trap_pc = NULL);
+  void Vstelm_h(VRegister vd, const MemOperand& dst, uint8_t laneidx,
+                int* trap_pc = NULL);
+  void Vstelm_w(VRegister vd, const MemOperand& dst, uint8_t laneidx,
+                int* trap_pc = NULL);
+  void Vstelm_d(VRegister vd, const MemOperand& dst, uint8_t laneidx,
+                int* trap_pc = NULL);
   void Vmove(VRegister dst, VRegister src);
   void LoadSplat(LSXSize, VRegister dst, MemOperand src, int* trap_pc = NULL);
   void ExtAddPairwise(LSXDataType type, VRegister dst, VRegister src);
@@ -1047,8 +1062,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StoreTaggedField(Register src, const MemOperand& dst,
                         int* trap_pc = NULL);
 
-  void AtomicStoreTaggedField(Register dst, const MemOperand& src,
+  void AtomicStoreTaggedField(Register src, const MemOperand& dst,
                               int* trap_pc = NULL);
+  // Order-aware variant: seq_cst becomes an ordered atomic swap, acq_rel a
+  // plain store with a leading release barrier.
+  void AtomicStoreTaggedField(Register src, const MemOperand& dst,
+                              AtomicMemoryOrder order, int* trap_pc = NULL);
 
   void DecompressTaggedSigned(Register dst, const MemOperand& src,
                               int* trap_pc = NULL);
@@ -1087,8 +1106,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
   void LoadTrustedPointerField(Register destination, MemOperand field_operand,
-                               IndirectPointerTag tag);
-  // As above, but for kUnknownIndirectPointerTag. The type of the loaded object
+                               TrustedPointerTagRange tag_range);
+  // As above, but for kUnknownTrustedPointerTag. The type of the loaded object
   // is unknown, so this helper will check for a series of expected types and
   // jump to the given labels if the loaded object has a matching type. If the
   // field is null (with enabled sandbox) or a Smi (with disabled sandbox) and
@@ -1102,36 +1121,24 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       const std::initializer_list<std::tuple<InstanceType, Label*>>& cases,
       Label* is_unavailable = nullptr);
   // Store a trusted pointer field.
-  void StoreTrustedPointerField(Register value, MemOperand dst_field_operand);
+  void StoreTrustedPointerField(Register value, MemOperand dst_field_operand,
+                                int* trap_pc = NULL);
 
   // Load a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
-  // enabled, reference code objects through the code pointer table.
+  // enabled, reference code objects through the trusted pointer table.
   void LoadCodePointerField(Register destination, MemOperand field_operand) {
-    LoadTrustedPointerField(destination, field_operand,
-                            kCodeIndirectPointerTag);
+    LoadTrustedPointerField(destination, field_operand, kCodeTrustedPointerTag);
   }
   // Store a code pointer field.
   void StoreCodePointerField(Register value, MemOperand dst_field_operand) {
     StoreTrustedPointerField(value, dst_field_operand);
   }
 
-  // Loads an indirect pointer field.
-  // Only available when the sandbox is enabled, but always visible to avoid
-  // having to place the #ifdefs into the caller.
-  void LoadIndirectPointerField(Register destination, MemOperand field_operand,
-                                IndirectPointerTagRange tag_range);
-
-  // Store an indirect pointer field.
-  // Only available when the sandbox is enabled, but always visible to avoid
-  // having to place the #ifdefs into the caller.
-  void StoreIndirectPointerField(Register value, MemOperand dst_field_operand,
-                                 int* trap_pc = NULL);
-
 #ifdef V8_ENABLE_SANDBOX
-  // Retrieve the heap object referenced by the given indirect pointer handle.
-  void ResolveIndirectPointerHandle(Register destination, Register handle,
-                                    IndirectPointerTagRange tag_range);
+  // Retrieve the heap object referenced by the given trusted pointer handle.
+  void ResolveTrustedPointerHandle(Register destination, Register handle,
+                                   TrustedPointerTagRange tag_range);
 #endif
 
   void LoadEntrypointFromJSDispatchTable(Register destination,
@@ -1514,6 +1521,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Push a fixed frame, consisting of ra, fp.
   void PushCommonFrame(Register marker_reg = no_reg);
+
+  // Adjusts MemoryOperand for memory load/store.
+  void AdjustBaseAndOffset(MemOperand* src, UseScratchRegisterScope& temps);
+
+  // Adjusts MemOperand for VLDREPL.[BHWD].
+  void AdjustBaseAndOffsetVldrepl(MemOperand* src, LSXSize sz,
+                                  UseScratchRegisterScope& temps);
+
+  // Adjusts MemOperand for VSTELM.[BHWD].
+  void AdjustBaseAndOffsetVstelm(MemOperand* dst, LSXSize sz,
+                                 UseScratchRegisterScope& temps);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

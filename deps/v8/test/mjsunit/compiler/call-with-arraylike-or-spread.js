@@ -882,3 +882,72 @@
   assertFalse(sum_js_got_interpreted);
   assertOptimized(bar);
 })();
+
+// Test with 'arguments' passed to another inlined call before spread.
+(function () {
+  "use strict";
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
+  function get_len(a) {
+    let r = a.length;
+    return r + a.length + a.length + a.length + a.length;
+  }
+  function sum_js(a, b, c) {
+    sum_js_got_interpreted = %IsBeingInterpreted();
+    return a + b + c;
+  }
+  function foo() {
+    get_len(arguments);
+    return sum_js(...arguments);
+  }
+  function bar(a, b, c) {
+    return foo(c, b, a);
+  }
+
+  %PrepareFunctionForOptimization(get_len);
+  %PrepareFunctionForOptimization(sum_js);
+  %PrepareFunctionForOptimization(foo);
+  %PrepareFunctionForOptimization(bar);
+  assertEquals('cba', bar('a', 'b', 'c'));
+  assertTrue(sum_js_got_interpreted);
+
+  %OptimizeFunctionOnNextCall(bar);
+  assertEquals('cba', bar('a', 'b', 'c'));
+  assertFalse(sum_js_got_interpreted);
+  assertOptimized(bar);
+})();
+
+// Test with 'arguments' passed to a throwing inlined call before spread.
+(function () {
+  "use strict";
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
+  function always_throws(a) {
+    throw a.length;
+  }
+  function sum_js(a, b, c) {
+    sum_js_got_interpreted = %IsBeingInterpreted();
+    return a + b + c;
+  }
+  function foo() {
+    try {
+      always_throws(arguments);
+    } catch (e) {}
+    return sum_js(...arguments);
+  }
+  function bar(a, b, c) {
+    return foo(c, b, a);
+  }
+
+  %PrepareFunctionForOptimization(always_throws);
+  %PrepareFunctionForOptimization(sum_js);
+  %PrepareFunctionForOptimization(foo);
+  %PrepareFunctionForOptimization(bar);
+  assertEquals('cba', bar('a', 'b', 'c'));
+  assertTrue(sum_js_got_interpreted);
+
+  %OptimizeFunctionOnNextCall(bar);
+  assertEquals('cba', bar('a', 'b', 'c'));
+  assertFalse(sum_js_got_interpreted);
+  assertOptimized(bar);
+})();

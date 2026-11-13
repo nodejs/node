@@ -1,5 +1,5 @@
 specific_include_rules = {
-  "jump-table-assembler\.(cc|h)": [
+  "jump-table-assembler\\.(cc|h)": [
     # The JumpTableAssembler should not depend on any wasm-specific headers.
     # The only allowed include is 'src/codegen' for assembler headers.
     "-src",
@@ -7,22 +7,22 @@ specific_include_rules = {
     "+src/base/sanitizer/ubsan.h",
     "+src/wasm/jump-table-assembler.h",
   ],
-  "c-api\.cc": [
+  "c-api\\.cc": [
     "+include/libplatform/libplatform.h",
     "+third_party/wasm-api/wasm.h",
   ],
-  "c-api\.h": [
+  "c-api\\.h": [
     "+third_party/wasm-api/wasm.hh",
   ],
-  "turboshaft-graph-interface\.h": [
+  "turboshaft-graph-interface\\.h": [
     "+src/compiler/turboshaft/assembler.h",
     "+src/compiler/turboshaft/wasm-assembler-helpers.h",
   ],
-  "turboshaft-graph-interface-inl\.h": [
+  "turboshaft-graph-interface-inl\\.h": [
     "+src/compiler/turboshaft/define-assembler-macros.inc",
     "+src/compiler/turboshaft/undef-assembler-macros.inc",
   ],
-  "turboshaft-graph-interface\.cc": [
+  "turboshaft-graph-interface\\.cc": [
     "+src/compiler/turboshaft/builtin-call-descriptors.h",
     "+src/compiler/turboshaft/define-assembler-macros.inc",
     "+src/compiler/turboshaft/dataview-lowering-reducer.h",
@@ -31,36 +31,36 @@ specific_include_rules = {
     "+src/compiler/turboshaft/undef-assembler-macros.inc",
     "+src/compiler/turboshaft/variable-reducer.h",
   ],
-  "wasm-engine\.h": [
+  "wasm-engine\\.h": [
     # The WasmEngine may cache common call descriptors.
     "+src/compiler/wasm-call-descriptors.h",
   ],
-  "liftoff-assembler\.cc": [
+  "liftoff-assembler\\.cc": [
     # The LiftoffAssembler needs to know CallDescriptors.
     "+src/compiler/linkage.h",
   ],
-  "liftoff-assembler\.h": [
+  "liftoff-assembler\\.h": [
     "+src/compiler/write-barrier-kind.h",
   ],
-  "liftoff-assembler-(x64|arm64|loong64|mips64|riscv)-inl\.h": [
+  "liftoff-assembler-(x64|arm64|loong64|mips64|riscv)-inl\\.h": [
     # The LiftoffAssembler needs to know CallDescriptors.
     "+src/compiler/linkage.h",
   ],
-  "liftoff-assembler-(x64|ia32|s390|ppc)-inl\.h": [
+  "liftoff-assembler-(x64|ia32|s390|ppc)-inl\\.h": [
     # The LiftoffAssembler needs to know CallDescriptors.
     "+src/compiler/backend/simd-shuffle.h",
   ],
-  "liftoff-compiler\.cc": [
+  "liftoff-compiler\\.cc": [
     "-src/compiler",
     "+src/compiler/access-builder.h",
     "+src/compiler/wasm-compiler.h",
     "+src/compiler/backend/simd-shuffle.h",
   ],
-  "liftoff-compiler\.h": [
+  "liftoff-compiler\\.h": [
     "-src/compiler",
     "+src/compiler/write-barrier-kind.h",
   ],
-  "module-instantiate\.cc": [
+  "module-instantiate\\.cc": [
     "+src/compiler/fast-api-calls.h",
   ],
 }

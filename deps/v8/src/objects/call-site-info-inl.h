@@ -20,51 +20,46 @@ namespace v8 {
 namespace internal {
 
 #if V8_ENABLE_WEBASSEMBLY
-BOOL_GETTER(CallSiteInfo, flags, IsWasm, IsWasmBit::kShift)
+bool CallSiteInfo::IsWasm() const { return flags().is_wasm(); }
 #if V8_ENABLE_DRUMBRAKE
-BOOL_GETTER(CallSiteInfo, flags, IsWasmInterpretedFrame,
-            IsWasmInterpretedFrameBit::kShift)
+bool CallSiteInfo::IsWasmInterpretedFrame() const {
+  return flags().is_wasm_interpreted_frame();
+}
 #endif  // V8_ENABLE_DRUMBRAKE
-BOOL_GETTER(CallSiteInfo, flags, IsBuiltin, IsBuiltinBit::kShift)
+bool CallSiteInfo::IsBuiltin() const { return flags().is_builtin(); }
 #endif  // V8_ENABLE_WEBASSEMBLY
-BOOL_GETTER(CallSiteInfo, flags, IsStrict, IsStrictBit::kShift)
-BOOL_GETTER(CallSiteInfo, flags, IsConstructor, IsConstructorBit::kShift)
-BOOL_GETTER(CallSiteInfo, flags, IsAsync, IsAsyncBit::kShift)
+bool CallSiteInfo::IsStrict() const { return flags().is_strict(); }
+bool CallSiteInfo::IsConstructor() const { return flags().is_constructor(); }
+bool CallSiteInfo::IsAsync() const { return flags().is_async(); }
+
+CallSiteInfo::CallSiteInfo(
+    const AllocationWitness& witness, Tagged<JSAny> receiver_or_instance,
+    Tagged<Union<JSFunction, Smi>> function,
+    Tagged<Union<Code, BytecodeArray, Undefined>> code_object,
+    int code_offset_or_source_position, int flags)
+    : Struct(witness.roots().call_site_info_map()),
+      code_object_(witness, code_object),
+      receiver_or_instance_(witness, receiver_or_instance),
+      function_(witness, function),
+      code_offset_or_source_position_(
+          Smi::FromInt(code_offset_or_source_position)),
+      flags_(Flags(flags)) {}
 
 Tagged<HeapObject> CallSiteInfo::code_object(IsolateForSandbox isolate) const {
   // The field can contain either a Code or a BytecodeArray, so we need to use
-  // the kUnknownIndirectPointerTag. Since we can then no longer rely on the
+  // the kUnknownTrustedPointerTag. Since we can then no longer rely on the
   // type-checking mechanism of trusted pointers we need to perform manual type
   // checks afterwards.
   Tagged<Object> object = code_object_.Acquire_Load_maybe_empty(isolate);
   return CheckedCast<Union<Code, BytecodeArray>>(object);
 }
 
-void CallSiteInfo::set_code_object(
-    Tagged<Union<Code, BytecodeArray, Undefined>> maybe_code,
-    WriteBarrierMode mode) {
-  if (Tagged<Union<Code, BytecodeArray>> code; TryCast(maybe_code, &code)) {
-    code_object_.store(this, code, mode);
-  } else {
-    DCHECK(IsUndefined(maybe_code));
-    code_object_.clear(this);
-  }
-}
-
 Tagged<JSAny> CallSiteInfo::receiver_or_instance() const {
   return receiver_or_instance_.load();
-}
-void CallSiteInfo::set_receiver_or_instance(Tagged<JSAny> value,
-                                            WriteBarrierMode mode) {
-  receiver_or_instance_.store(this, value, mode);
 }
 
 Tagged<Union<JSFunction, Smi>> CallSiteInfo::function() const {
   return function_.load();
-}
-void CallSiteInfo::set_function(Tagged<Union<JSFunction, Smi>> value,
-                                WriteBarrierMode mode) {
-  function_.store(this, value, mode);
 }
 
 int CallSiteInfo::code_offset_or_source_position() const {
@@ -75,10 +70,8 @@ void CallSiteInfo::set_code_offset_or_source_position(int value,
   code_offset_or_source_position_.store(this, Smi::FromInt(value), mode);
 }
 
-int CallSiteInfo::flags() const { return flags_.load().value(); }
-void CallSiteInfo::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
-}
+CallSiteInfo::Flags CallSiteInfo::flags() const { return flags_.load(); }
+void CallSiteInfo::set_flags(Flags value) { flags_.store(value); }
 
 }  // namespace internal
 }  // namespace v8

@@ -1,0 +1,10 @@
+Regression test for crbug.com/583832157 case 1 (inlined Wasm trap).
+Running test:
+Waiting for first pause:
+Paused on exception in: $getFieldNull
+Stepping over:
+EVENT resumed
+Got event after stepOver: paused
+Paused in: run
+EVENT resumed
+Result: caught

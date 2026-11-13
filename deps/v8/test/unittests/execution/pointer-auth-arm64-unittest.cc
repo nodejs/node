@@ -180,8 +180,8 @@ TEST_F(PointerAuthArm64Test, SimulatorComputePAC) {
   uint64_t context = 0x477d469dec0b8762;
   Simulator::PACKey key = {0x84be85ce9804e94b, 0xec2802d4e0a488e9, -1};
 
-  uint64_t pac1 = simulator.ComputePAC(data1, context, key);
-  uint64_t pac2 = simulator.ComputePAC(data2, context, key);
+  uint64_t pac1 = Simulator::ComputePAC(data1, context, key);
+  uint64_t pac2 = Simulator::ComputePAC(data2, context, key);
 
   // NOTE: If the PAC implementation is changed, this may fail due to a hash
   // collision.
@@ -189,7 +189,7 @@ TEST_F(PointerAuthArm64Test, SimulatorComputePAC) {
 }
 
 TEST_F(PointerAuthArm64Test, SimulatorAddAndAuthPAC) {
-  i::v8_flags.sim_abort_on_bad_auth = false;
+  i::v8_flags.sim_abort_on_bad_auth.Set(false);
   Decoder<DispatchingDecoderVisitor>* decoder =
       new Decoder<DispatchingDecoderVisitor>();
   Simulator simulator(decoder);
@@ -200,16 +200,16 @@ TEST_F(PointerAuthArm64Test, SimulatorAddAndAuthPAC) {
   Simulator::PACKey key_b = {0xec1119e288704d13, 0xd7f6b76e1cea585e, 1};
 
   uint64_t ptr_a =
-      simulator.AddPAC(ptr, context, key_a, Simulator::kInstructionPointer);
+      Simulator::AddPAC(ptr, context, key_a, Simulator::kInstructionPointer);
 
   // Attempt to authenticate the pointer with PAC using different keys.
   uint64_t success =
-      simulator.AuthPAC(ptr_a, context, key_a, Simulator::kInstructionPointer);
+      Simulator::AuthPAC(ptr_a, context, key_a, Simulator::kInstructionPointer);
   uint64_t fail =
-      simulator.AuthPAC(ptr_a, context, key_b, Simulator::kInstructionPointer);
+      Simulator::AuthPAC(ptr_a, context, key_b, Simulator::kInstructionPointer);
 
   uint64_t pac_mask =
-      simulator.CalculatePACMask(ptr, Simulator::kInstructionPointer, 0);
+      Simulator::CalculatePACMask(ptr, Simulator::kInstructionPointer, 0);
 
   // NOTE: If the PAC implementation is changed, this may fail due to a hash
   // collision.
@@ -225,7 +225,7 @@ TEST_F(PointerAuthArm64Test, SimulatorAddAndStripPAC) {
 
   uint64_t ptr = 0xff00000012345678;
   uint64_t pac_mask =
-      simulator.CalculatePACMask(ptr, Simulator::kInstructionPointer, 0);
+      Simulator::CalculatePACMask(ptr, Simulator::kInstructionPointer, 0);
   uint64_t ptr_a = ptr | pac_mask;
 
   CHECK_EQ(simulator.StripPAC(ptr_a, Simulator::kInstructionPointer), ptr);

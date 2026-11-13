@@ -14,17 +14,23 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_POW_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_POW_H
 
+#include "hdr/errno_macros.h"
+#include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/double_double.h"
+#include "src/__support/FPUtil/except_value_utils.h"
+#include "src/__support/FPUtil/is_integer.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/nearest_integer.h"
 #include "src/__support/common.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
 #include "src/__support/macros/properties/cpu_features.h"
 #include "src/__support/math/common_constants.h"
 #include "src/__support/math/exp_constants.h"
 #include "src/__support/math/pow_utils.h"
+#include "src/__support/sign.h"
 
 #ifdef LIBC_MATH_HAS_SKIP_ACCURATE_PASS
 #include "src/__support/math/pow_fast.h"
@@ -135,6 +141,7 @@ namespace math {
 //   drift up to ~7.8 ULPs (bounded theoretically by ~16 ULPs).
 
 LIBC_INLINE double pow(double x, double y) {
+  using namespace common_constants_internal;
   using namespace pow_internal;
   using FPBits = fputil::FPBits<double>;
 
@@ -350,13 +357,13 @@ LIBC_INLINE double pow(double x, double y) {
   if (LIBC_UNLIKELY(FPBits(y6_log2_x.hi).abs().get_val() >= UPPER_EXP_BOUND)) {
     if (FPBits(y6_log2_x.hi).sign() == Sign::POS) {
       if (y6_log2_x.hi > 1025.0 * SCALE)
-        return set_overflow(is_neg);
+        return fputil::set_overflow<double>(is_neg ? Sign::NEG : Sign::POS);
       scale = 0x1.0p600;
       y6_log2_x.hi -= 600.0 * SCALE;
     } else {
       if (y6_log2_x.hi <= -1021.0 * SCALE) {
         if (y6_log2_x.hi < -1076.0 * SCALE)
-          return set_underflow(is_neg);
+          return fputil::set_underflow<double>(is_neg ? Sign::NEG : Sign::POS);
         is_denorm = true;
       } else {
         scale = 0x1.0p-600;
@@ -456,24 +463,17 @@ LIBC_INLINE double pow(double x, double y) {
       //    representable power of 2 in double precision).
       if (LIBC_UNLIKELY(x_mant == 0)) {
         double ex_y = e_x * y;
-        if (ex_y >= -1074.0 && pow_internal::is_integer(ex_y))
+        if (ex_y >= -1074.0 && fputil::is_integer(ex_y))
           return res;
       } else if (LIBC_UNLIKELY(y > 0.0 && y <= 35.0)) {
-        // 2. If x is not a power of 2, exact results in double precision can
-        //    only occur for 0 < y <= 35 (Lauter and Lefevre). If it falls on
-        //    an exact boundary, convert via DyadicFloat to ensure that
-        //    underflow and inexact exceptions are not signaled.
+        // 2. If x is not a power of 2, exact subnormal results in double
+        //    precision have odd exact_m and exact_exp >= -1074.
         uint64_t exact_m = 0;
         int exact_exp = 0;
-        if (pow_internal::is_exact_rounding_boundary(x, y, exact_m,
-                                                     exact_exp)) {
-          int l = 64 - cpp::countl_zero(exact_m);
-          pow_internal::DFloat128 exact_f128(
-              is_neg ? Sign::NEG : Sign::POS, exact_exp + l - 128,
-              pow_internal::MantissaType(exact_m) << (128 - l));
-          exact_f128.normalize();
-          return static_cast<double>(exact_f128);
-        }
+        if (pow_internal::is_exact_rounding_boundary(
+                static_cast<int>(e_x), x_mant, y, exact_m, exact_exp) &&
+            exact_exp >= -1074)
+          return res;
       }
 
       // Otherwise, the denormal or zero result is inexact, so we signal the
@@ -482,17 +482,20 @@ LIBC_INLINE double pow(double x, double y) {
       fputil::raise_underflow_except_if_required<double>();
       return res;
     }
-    return pow_accurate(x, y, is_neg, static_cast<int>(e_x), idx_x, dx);
+    return pow_accurate(y, is_neg, static_cast<int>(e_x), x_mant);
   }
 
   double upper = r.hi + (r.lo + err_r);
   double lower = r.hi + (r.lo - err_r);
   if (LIBC_LIKELY(upper == lower)) {
     double tmp1 = upper * exp2_hi;
+    if (LIBC_UNLIKELY(scale == 0x1.0p600 &&
+                      FPBits(tmp1).abs().get_val() >= 0x1.0p424))
+      return fputil::set_overflow<double>(is_neg ? Sign::NEG : Sign::POS);
     return tmp1 * scale;
   }
 
-  return pow_accurate(x, y, is_neg, static_cast<int>(e_x), idx_x, dx);
+  return pow_accurate(y, is_neg, static_cast<int>(e_x), x_mant);
 }
 
 } // namespace math

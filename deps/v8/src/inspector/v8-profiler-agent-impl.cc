@@ -252,6 +252,9 @@ Response V8ProfilerAgentImpl::setSamplingInterval(int interval) {
     return Response::ServerError(
         "Cannot change sampling interval when profiling.");
   }
+  if (interval <= 0) {
+    return Response::ServerError("Invalid sampling interval");
+  }
   m_state->setInteger(ProfilerAgentState::samplingInterval, interval);
   return Response::Success();
 }

@@ -1,0 +1,21 @@
+Tests regress-debug-code-recompilation.
+Setting and removing breakpoint #1
+function f() {
+  #a = 1;
+  b = 2;
+
+Setting and removing breakpoint #2
+function f() {
+  #a = 1;
+  b = 2;
+
+Setting and removing breakpoint #3
+function f() {
+  #a = 1;
+  b = 2;
+
+Setting and removing breakpoint #4
+function f() {
+  #a = 1;
+  b = 2;
+

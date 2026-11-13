@@ -1,0 +1,6 @@
+Checks that console.table argument wrapping stops after the column setup terminated execution.
+table: Error: e col
+{
+    code : -32000
+    message : Execution was terminated
+}

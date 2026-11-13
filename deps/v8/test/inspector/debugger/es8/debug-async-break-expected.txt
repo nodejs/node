@@ -1,0 +1,14 @@
+Tests debug-async-break.
+  try {
+    #await g();                   // B1
+  } catch (e) {}
+
+  } catch (e) {}
+  #assertEquals(2, break_count);  // B2
+  return 1;                      // B3
+
+  assertEquals(2, break_count);  // B2
+  #return 1;                      // B3
+}
+
+break_count: 3

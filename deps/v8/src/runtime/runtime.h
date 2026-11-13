@@ -70,12 +70,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(AtomicsOr, 3, 1)                                   \
   F(AtomicsSub, 3, 1)                                  \
   F(AtomicsXor, 3, 1)                                  \
-  F(SetAllowAtomicsWait, 1, 1)                         \
-  F(AtomicsLoadSharedStructOrArray, 2, 1)              \
-  F(AtomicsStoreSharedStructOrArray, 3, 1)             \
-  F(AtomicsExchangeSharedStructOrArray, 3, 1)          \
-  F(AtomicsCompareExchangeSharedStructOrArray, 4, 1)   \
-  F(AtomicsSynchronizationPrimitiveNumWaitersForTesting, 1, 1)
+  F(SetAllowAtomicsWait, 1, 1)
 
 #define FOR_EACH_INTRINSIC_BIGINT(F, I)                               \
   F(BigIntCompareToNumber, 3, 1)                                      \
@@ -84,7 +79,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BigIntEqualToNumber, 2, 1)                                        \
   F(BigIntEqualToString, 2, 1)                                        \
   F(BigIntExponentiate, 2, 1)                                         \
-  F(BigIntMaxBits, 0, 1)                                              \
   F(BigIntToNumber, 1, 1)                                             \
   F(BigIntUnaryOp, 2, 1)                                              \
   F(ToBigInt, 1, 1)                                                   \
@@ -130,7 +124,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(CompileOptimizedOSRFromMaglevInlined, 2, 1)                  \
   F(LogOrTraceOptimizedOSREntry, 0, 1)                           \
   F(CompileLazy, 1, 1)                                           \
-  F(CompileBaseline, 1, 1)                                       \
   F(InstallBaselineCode, 1, 1)                                   \
   F(InstallSFICode, 1, 1)                                        \
   F(NotifyDeoptimized, 0, 1)                                     \
@@ -179,11 +172,9 @@ constexpr bool CanTriggerGC(T... properties) {
   F(GetGeneratorScopeCount, 1, 1)               \
   F(GetGeneratorScopeDetails, 2, 1)             \
   F(HandleDebuggerStatement, 0, 1)              \
-  F(IsBreakOnException, 1, 1)                   \
   F(IterableForEach, 2, 1)                      \
   F(ProfileCreateSnapshotDataBlob, 0, 1)        \
   F(ScheduleBreak, 0, 1)                        \
-  F(ScriptLocationFromLine2, 4, 1)              \
   F(SetGeneratorScopeVariableValue, 4, 1)       \
   I(IncBlockCounter, 2, 1)
 
@@ -220,10 +211,8 @@ constexpr bool CanTriggerGC(T... properties) {
 #define FOR_EACH_INTRINSIC_FUNCTION(F, I)  \
   F(Call, -1 /* >= 2 */, 1)                \
   F(FunctionGetScriptSource, 1, 1)         \
-  F(FunctionGetScriptId, 1, 1)             \
   F(FunctionGetScriptSourcePosition, 1, 1) \
-  F(FunctionGetSourceCode, 1, 1)           \
-  F(FunctionIsAPIFunction, 1, 1)
+  F(FunctionGetSourceCode, 1, 1)
 
 #define FOR_EACH_INTRINSIC_GENERATOR(F, I) \
   I(AsyncFunctionAwait, 2, 1)              \
@@ -305,14 +294,13 @@ constexpr bool CanTriggerGC(T... properties) {
   F(NotifyContextCellStateWillChange, 1, 1,                \
     RuntimeCallProperty::kCannotTriggerGC)                 \
   F(NewError, 2, 1)                                        \
-  F(NewReferenceError, 2, 1)                               \
+  F(NewReferenceError, 1, 1)                               \
   F(NewTypeError, -1 /* [1, 4] */, 1)                      \
   F(OrdinaryHasInstance, 2, 1)                             \
   F(PropagateException, 0, 1)                              \
   F(ReportMessageFromMicrotask, 1, 1)                      \
   F(RunMicrotaskCallback, 2, 1)                            \
   F(PerformMicrotaskCheckpoint, 0, 1)                      \
-  F(SharedValueBarrierSlow, 1, 1)                          \
   F(StackGuard, 0, 1)                                      \
   F(HandleNoHeapWritesInterrupts, 0, 1)                    \
   F(StackGuardWithGap, 1, 1)                               \
@@ -374,6 +362,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(HandleExceptionsInDisposeDisposableStack, 3, 1)                    \
   F(HasFastPackedElements, 1, 1)                                       \
   F(HasInPrototypeChain, 2, 1)                                         \
+  F(HasPrivateMember, 2, 1)                                            \
   F(HasProperty, 2, 1)                                                 \
   F(InitializeDisposableStack, 0, 1)                                   \
   F(InternalSetPrototype, 2, 1)                                        \
@@ -453,7 +442,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ConstructInternalAggregateErrorHelper, -1 /* <= 5*/, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F, I) \
-  F(CheckProxyGetSetTrapResult, 2, 1)  \
+  F(CheckProxyGetSetTrapResult, 4, 1)  \
   F(CheckProxyHasTrapResult, 2, 1)     \
   F(CheckProxyDeleteTrapResult, 2, 1)  \
   F(GetPropertyWithReceiver, 3, 1)     \
@@ -493,7 +482,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(LoadLookupSlotForCall_Baseline, 2, 1)          \
                                                    \
   F(NewClosure, 2, 1)                              \
-  F(NewClosure_Tenured, 2, 1)                      \
   F(NewFunctionContext, 1, 1)                      \
   F(NewRestParameter, 1, 1)                        \
   F(NewSloppyArguments, 1, 1)                      \
@@ -560,16 +548,19 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BaselineOsr, -1, 1)                                                  \
   F(BenchMaglev, 2, 1)                                                   \
   F(BenchTurbofan, 2, 1)                                                 \
+  F(BigIntMaxBits, 0, 1)                                                 \
   F(BlockAt, 2, 1)                                                       \
   F(VerifyGetJSBuiltinState, 1, 1)                                       \
-  F(ClearFunctionFeedback, 1, 1)                                         \
   F(ClearMegamorphicStubCache, 0, 1)                                     \
+  F(CompileBaseline, 1, 1)                                               \
   F(CompleteInobjectSlackTracking, 1, 1)                                 \
   F(ConstructConsString, 2, 1)                                           \
   F(ConstructDouble, 2, 1)                                               \
   F(ConstructInternalizedString, 1, 1)                                   \
   F(ConstructSlicedString, 2, 1)                                         \
   F(ConstructThinString, 1, 1)                                           \
+  F(ConsumeCodeCache, 2, 1)                                              \
+  F(CopyFunctionWithFreshFeedback, 1, 1)                                 \
   F(CurrentFrameIsTurbofan, 0, 1)                                        \
   F(DebugPrint, -1, 1, RuntimeCallProperty::kCannotTriggerGC)            \
   F(DebugPrintCppHeapPointerTable, -1, 1)                                \
@@ -583,6 +574,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(DebugTrace, 0, 1)                                                    \
   F(DebugTraceMinimal, 0, 1)                                             \
   F(DeoptimizeFunction, 1, 1)                                            \
+  F(DisableEagerInlining, 1, 1)                                          \
   F(DisableOptimizationFinalization, 0, 1)                               \
   F(DisallowCodegenFromStrings, 1, 1)                                    \
   F(DisassembleFunction, 1, 1)                                           \
@@ -595,6 +587,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(GetBytecode, 1, 1)                                                   \
   F(ExhaustInterruptBudget, 1, 1)                                        \
   F(GetCallable, 1, 1)                                                   \
+  F(GetCodeCache, 1, 1)                                                  \
   F(GetFeedback, 1, 1)                                                   \
   F(GetFunctionForCurrentFrame, 0, 1)                                    \
   F(GetInitializerFunction, 1, 1)                                        \
@@ -663,7 +656,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(OptimizeFunctionOnNextCall, -1, 1)                                   \
   F(OptimizeOsr, -1, 1)                                                  \
   F(PrepareFunctionForOptimization, -1, 1)                               \
-  F(PretenureAllocationSite, 1, 1)                                       \
   F(PrintWithNameForAssert, 2, 1, RuntimeCallProperty::kCannotTriggerGC) \
   F(PromiseSpeciesProtector, 0, 1)                                       \
   F(RegExpSpeciesProtector, 0, 1)                                        \
@@ -686,6 +678,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ShareObject, 1, 1)                                                   \
   F(SimulateNewspaceFull, 0, 1)                                          \
   F(StringIsFlat, 1, 1)                                                  \
+  F(StringIsOneByteRepresentation, 1, 1)                                 \
   F(StringIteratorProtector, 0, 1)                                       \
   F(StringWrapperToPrimitiveProtector, 0, 1)                             \
   F(SystemBreak, 0, 1)                                                   \
@@ -724,7 +717,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ThrowWasmJSPISuspendError, 0, 1)                             \
   F(ThrowWasmFXSuspendError, 0, 1)                               \
   F(ThrowWasmError, 1, 1)                                        \
-  F(TrapHandlerThrowWasmError, 0, 1)                             \
   F(ThrowWasmStackOverflow, 0, 1)                                \
   F(WasmI32AtomicWait, 4, 1)                                     \
   F(WasmI64AtomicWait, 5, 1)                                     \
@@ -752,9 +744,10 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmTableFill, 5, 1)                                         \
   F(WasmJSToWasmObject, 2, 1)                                    \
   F(WasmWasmToJSObject, 1, 1)                                    \
+  F(WasmExternConvertAny, 1, 1)                                  \
   F(WasmCompileLazy, 2, 1)                                       \
   F(WasmAllocateFeedbackVector, 3, 1)                            \
-  F(WasmLiftoffDeoptFinish, 1, 1)                                \
+  F(WasmLiftoffDeoptFinish, 0, 1)                                \
   F(TierUpJSToWasmWrapper, 1, 1)                                 \
   F(IsWasmExternalFunction, 1, 1)                                \
   F(TierUpWasmToJSWrapper, 1, 1)                                 \
@@ -762,8 +755,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmDebugBreak, 0, 1)                                        \
   F(WasmAllocateDescriptorStruct, 4, 1)                          \
   F(WasmArrayCopy, 5, 1)                                         \
-  F(WasmArrayNewSegment, 5, 1)                                   \
-  F(WasmArrayInitSegment, 6, 1)                                  \
+  F(WasmArrayNewSegment, 6, 1)                                   \
+  F(WasmArrayInitSegment, 7, 1)                                  \
   F(WasmAllocateSuspender, 0, 1)                                 \
   F(WasmSuspended, 2, 1)                                         \
   F(WasmAllocateContinuation, 3, 1)                              \
@@ -796,45 +789,46 @@ constexpr bool CanTriggerGC(T... properties) {
           RuntimeCallProperty::kCannotTriggerGC)                 \
   F(WasmTypeAssertionFailed, 0, 1, RuntimeCallProperty::kCannotTriggerGC)
 
-#define FOR_EACH_INTRINSIC_WASM_TEST(F, I)                      \
-  F(BuildRefTypeBitfield, 2, 1)                                 \
-  F(CheckIsOnCentralStack, 0, 1)                                \
-  F(CountUnoptimizedWasmToJSWrapper, 1, 1)                      \
-  F(DisallowWasmCodegen, 1, 1)                                  \
-  F(EstimateCurrentMemoryConsumption, 0, 1)                     \
-  F(FlushLiftoffCode, 0, 1)                                     \
-  F(FreezeWasmLazyCompilation, 1, 1)                            \
-  F(GenerateWasmCompilationHints, 1, 1)                         \
-  F(GetWasmExceptionTagId, 2, 1)                                \
-  F(GetWasmExceptionValues, 1, 1)                               \
-  F(GetWasmRecoveredTrapCount, 0, 1)                            \
-  F(HasUnoptimizedWasmToJSWrapper, 1, 1)                        \
-  F(IsLiftoffFunction, 1, 1)                                    \
-  F(IsTurboFanFunction, 1, 1)                                   \
-  F(IsUncompiledWasmFunction, 1, 1)                             \
-  F(IsWasmCode, 1, 1)                                           \
-  F(IsWasmDebugFunction, 1, 1)                                  \
-  F(IsWasmPartialOOBWriteNoop, 0, 1)                            \
-  F(IsWasmTrapHandlerEnabled, 0, 1)                             \
-  F(SetWasmCompileControls, 2, 1)                               \
-  F(SetWasmInstantiateControls, 0, 1)                           \
-  F(WasmArray, 0, 1)                                            \
-  F(WasmCompiledExportWrappersCount, 0, 1)                      \
-  F(WasmDeoptsExecutedCount, 0, 1)                              \
-  F(WasmDeoptsExecutedForFunction, 1, 1)                        \
-  F(WasmEnterDebugging, 0, 1)                                   \
-  IF_V8_WASM_RANDOM_FUZZERS(F, WasmGenerateRandomModule, -1, 1) \
-  F(WasmGetNumberOfInstances, 1, 1)                             \
-  F(WasmLeaveDebugging, 0, 1)                                   \
-  F(WasmNumCodeSpaces, 1, 1)                                    \
-  F(WasmStruct, 0, 1)                                           \
-  F(WasmSwitchToTheCentralStackCount, 0, 1)                     \
-  F(WasmTierUpFunction, 1, 1)                                   \
-  F(WasmTraceEnter, 0, 1)                                       \
-  F(WasmTraceExit, 1, 1)                                        \
-  F(WasmTraceMemory, 1, 1)                                      \
-  F(WasmTriggerCodeGC, 0, 1)                                    \
-  F(WasmTraceGlobal, 1, 1)                                      \
+#define FOR_EACH_INTRINSIC_WASM_TEST(F, I)                           \
+  F(BuildRefTypeBitfield, 2, 1)                                      \
+  F(CheckIsOnCentralStack, 0, 1)                                     \
+  F(CountUnoptimizedWasmToJSWrapper, 1, 1)                           \
+  F(DisallowWasmCodegen, 1, 1)                                       \
+  F(EstimateCurrentMemoryConsumption, 0, 1)                          \
+  F(FlushLiftoffCode, 0, 1)                                          \
+  F(FreezeWasmLazyCompilation, 1, 1)                                 \
+  F(GenerateWasmCompilationHints, 1, 1)                              \
+  F(GetWasmExceptionTagId, 2, 1)                                     \
+  F(GetWasmExceptionValues, 1, 1)                                    \
+  F(GetWasmRecoveredTrapCount, 0, 1)                                 \
+  F(HasUnoptimizedWasmToJSWrapper, 1, 1)                             \
+  F(IsLiftoffFunction, 1, 1)                                         \
+  F(IsTurboFanFunction, 1, 1)                                        \
+  F(IsUncompiledWasmFunction, 1, 1)                                  \
+  F(IsWasmCode, 1, 1)                                                \
+  F(IsWasmDebugFunction, 1, 1)                                       \
+  F(IsWasmPartialOOBWriteNoop, 0, 1)                                 \
+  F(IsWasmTrapHandlerEnabled, 0, 1)                                  \
+  F(SetWasmCompileControls, 2, 1)                                    \
+  F(SetWasmInstantiateControls, 0, 1)                                \
+  F(WasmArray, 0, 1)                                                 \
+  F(WasmCompiledExportWrappersCount, 0, 1)                           \
+  F(WasmDeoptsExecutedCount, 0, 1)                                   \
+  F(WasmDeoptsExecutedForFunction, 1, 1)                             \
+  F(WasmEnterDebugging, 0, 1)                                        \
+  IF_V8_WASM_RANDOM_FUZZERS(F, WasmGenerateRandomModule, -1, 1)      \
+  IF_V8_WASM_RANDOM_FUZZERS(F, WasmGenerateRandomRevecModule, -1, 1) \
+  F(WasmGetNumberOfInstances, 1, 1)                                  \
+  F(WasmLeaveDebugging, 0, 1)                                        \
+  F(WasmNumCodeSpaces, 1, 1)                                         \
+  F(WasmStruct, 0, 1)                                                \
+  F(WasmSwitchToTheCentralStackCount, 0, 1)                          \
+  F(WasmTierUpFunction, 1, 1)                                        \
+  F(WasmTraceEnter, 0, 1)                                            \
+  F(WasmTraceExit, 1, 1)                                             \
+  F(WasmTraceMemory, 1, 1)                                           \
+  F(WasmTriggerCodeGC, 0, 1)                                         \
+  F(WasmTraceGlobal, 1, 1)                                           \
   F(WasmTriggerTierUpForTesting, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE_TEST(F, I) \
@@ -1052,6 +1046,15 @@ class Runtime : public AllStatic {
   GetObjectProperty(Isolate* isolate, DirectHandle<JSAny> lookup_start_object,
                     DirectHandle<Object> key, DirectHandle<JSAny> receiver = {},
                     bool* is_found = nullptr);
+
+  // Look up for a private member with a name matching "desc" and return
+  // whether it exists on "receiver". "desc" should be a #-prefixed string, in
+  // the case of private fields, it should match the description of the private
+  // name symbol. Throw an error if there are more than one matching private
+  // member (which would be ambiguous).
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
+  HasPrivateMember(Isolate* isolate, DirectHandle<JSReceiver> receiver,
+                   DirectHandle<String> desc);
 
   // Look up for a private member with a name matching "desc" and return its
   // value. "desc" should be a #-prefixed string, in the case of private fields,

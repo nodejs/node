@@ -19,11 +19,6 @@ extern builtin FastNewClosure(Context, SharedFunctionInfo, FeedbackCell):
     JSFunction;
 extern builtin FastNewObject(Context, JSFunction, JSReceiver): JSObject;
 
-extern enum AllocationSiteMode {
-  DONT_TRACK_ALLOCATION_SITE,
-  TRACK_ALLOCATION_SITE
-}
-
 const kIsShallow: constexpr int31
     generates 'AggregateLiteral::Flags::kIsShallow';
 const kEvalScope: constexpr ScopeType generates 'ScopeType::EVAL_SCOPE';
@@ -36,8 +31,7 @@ extern macro ConstructorBuiltinsAssembler::FastNewFunctionContext(
 extern macro ConstructorBuiltinsAssembler::CreateRegExpLiteral(
     HeapObject, TaggedIndex, Object, Smi, Context): JSRegExp;
 extern macro ConstructorBuiltinsAssembler::CreateShallowArrayLiteral(
-    FeedbackVector, TaggedIndex, Context,
-    constexpr AllocationSiteMode): HeapObject labels CallRuntime;
+    FeedbackVector, TaggedIndex, Context): HeapObject labels CallRuntime;
 extern macro ConstructorBuiltinsAssembler::CreateEmptyArrayLiteral(
     FeedbackVector, TaggedIndex, Context): HeapObject;
 extern macro ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
@@ -86,8 +80,7 @@ builtin CreateShallowArrayLiteral(
   try {
     const vector = Cast<FeedbackVector>(maybeFeedbackVector)
         otherwise CallRuntime;
-    return CreateShallowArrayLiteral(
-        vector, slot, context, AllocationSiteMode::TRACK_ALLOCATION_SITE)
+    return CreateShallowArrayLiteral(vector, slot, context)
         otherwise CallRuntime;
   } label CallRuntime deferred {
     tail runtime::CreateArrayLiteral(

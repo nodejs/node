@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/unique-array.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/logging/counters.h"
@@ -222,7 +223,7 @@ constexpr const uint8_t kAsciiEscapes[128]{
 
 template <typename CharT>
 MaybeDirectHandle<String> RegExpEscapeImpl(Isolate* isolate,
-                                           base::OwnedVector<CharT> source) {
+                                           base::UniqueArray<CharT> source) {
   char double_to_radix_chars[kDoubleToRadixMaxChars];
   base::Vector<char> double_to_radix_buffer =
       base::ArrayVector(double_to_radix_chars);
@@ -373,18 +374,18 @@ BUILTIN(RegExpEscape) {
   // the escaped string using IncrementalStringBuilder, which may allocate.
   str = String::Flatten(isolate, str);
   if (String::IsOneByteRepresentationUnderneath(*str)) {
-    base::OwnedVector<const uint8_t> copy;
+    base::UniqueArray<const uint8_t> copy;
     {
       DisallowGarbageCollection no_gc;
-      copy = base::OwnedCopyOf(str->GetFlatContent(no_gc).ToOneByteVector());
+      copy = base::UniqueCopyOf(str->GetFlatContent(no_gc).ToOneByteVector());
     }
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, escaped, RegExpEscapeImpl(isolate, std::move(copy)));
   } else {
-    base::OwnedVector<const base::uc16> copy;
+    base::UniqueArray<const base::uc16> copy;
     {
       DisallowGarbageCollection no_gc;
-      copy = base::OwnedCopyOf(str->GetFlatContent(no_gc).ToUC16Vector());
+      copy = base::UniqueCopyOf(str->GetFlatContent(no_gc).ToUC16Vector());
     }
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, escaped, RegExpEscapeImpl(isolate, std::move(copy)));

@@ -589,27 +589,27 @@ inline void MaglevAssembler::AddInt32(Register dst, Register src, int amount) {
 
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
   And(reg, Operand(mask));
-  LoadU32(reg, reg);
+  LoadS32(reg, reg);
 }
 
 inline void MaglevAssembler::AndInt32(Register dst, Register src, int mask) {
   And(dst, src, Operand(mask));
-  LoadU32(dst, dst);
+  LoadS32(dst, dst);
 }
 
 inline void MaglevAssembler::OrInt32(Register reg, int mask) {
   Or(reg, Operand(mask));
-  LoadU32(reg, reg);
+  LoadS32(reg, reg);
 }
 
 inline void MaglevAssembler::AndInt32(Register reg, Register other) {
   And(reg, other);
-  LoadU32(reg, reg);
+  LoadS32(reg, reg);
 }
 
 inline void MaglevAssembler::OrInt32(Register reg, Register other) {
   Or(reg, other);
-  LoadU32(reg, reg);
+  LoadS32(reg, reg);
 }
 
 inline void MaglevAssembler::ShiftLeft(Register reg, int amount) {
@@ -720,6 +720,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
   MacroAssembler::LoadF64(dst, n, scratch);
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  if (TryLoadRoot(dst, obj)) return;
   MacroAssembler::Move(dst, obj);
 }
 
@@ -742,7 +743,7 @@ void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
 }
 
 inline void MaglevAssembler::LoadInt32(Register dst, MemOperand src) {
-  LoadU32(dst, src);
+  LoadS32(dst, src);
 }
 
 inline void MaglevAssembler::StoreInt32(MemOperand dst, Register src) {
@@ -828,6 +829,9 @@ inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat64(
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
   // No 64-bit registers.
   LoadS32(dst, src);
+}
+inline void MaglevAssembler::ZeroExtend32To64Bits(Register dst, Register src) {
+  LoadU32(dst, src);
 }
 inline void MaglevAssembler::NegateInt32(Register val) {
   LoadS32(val, val);
@@ -1491,7 +1495,7 @@ inline void MaglevAssembler::LoadContextCellState(Register state,
 inline void MaglevAssembler::LoadContextCellInt32Value(Register value,
                                                        Register cell) {
   AssertContextCellState(cell, ContextCell::kInt32);
-  LoadU32(value, FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
+  LoadS32(value, FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
 }
 
 inline void MaglevAssembler::LoadContextCellFloat64Value(DoubleRegister value,
@@ -1575,8 +1579,15 @@ template <>
 inline void MaglevAssembler::MoveRepr(MachineRepresentation repr, Register dst,
                                       MemOperand src) {
   switch (repr) {
+    // Unlike x64 and arm64, where all 32-bit values are zero-extended
+    // and a 32-bit access suffices, kWord32 here covers both kInt32 and
+    // kUint32 values with different extensions: kInt32 values are
+    // sign-extended while kUint32 values are zero-extended. A 32-bit
+    // access can only apply one of those extensions when reloading a
+    // spilled value, so move the full 64 bits of the pointer-sized stack
+    // slot instead, preserving whichever extension the register already
+    // holds.
     case MachineRepresentation::kWord32:
-      return LoadU32(dst, src);
     case MachineRepresentation::kTagged:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTaggedSigned:
@@ -1591,7 +1602,6 @@ inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,
                                       MemOperand dst, Register src) {
   switch (repr) {
     case MachineRepresentation::kWord32:
-      return StoreU32(src, dst);
     case MachineRepresentation::kTagged:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTaggedSigned:

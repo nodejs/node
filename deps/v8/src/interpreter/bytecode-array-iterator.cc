@@ -38,10 +38,17 @@ BytecodeArrayIterator::BytecodeArrayIterator(
 BytecodeArrayIterator::BytecodeArrayIterator(
     Handle<BytecodeArray> bytecode_array, int initial_offset,
     DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND)
-    : bytecode_array_(bytecode_array),
+    : BytecodeArrayIterator(*bytecode_array, initial_offset, no_gc) {
+  bytecode_array_ = bytecode_array;
+}
+
+BytecodeArrayIterator::BytecodeArrayIterator(
+    Tagged<BytecodeArray> bytecode_array, int initial_offset,
+    DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND)
+    : bytecode_array_(),
       start_(reinterpret_cast<uint8_t*>(
-          bytecode_array_->GetFirstBytecodeAddress())),
-      end_(start_ + bytecode_array_->length()),
+          bytecode_array->GetFirstBytecodeAddress())),
+      end_(start_ + bytecode_array->length()),
       cursor_(start_),
       operand_scale_(OperandScale::kSingle),
       prefix_size_(0),
@@ -397,12 +404,14 @@ int BytecodeArrayIterator::GetAbsoluteOffset(int relative_offset) const {
 
 std::ostream& BytecodeArrayIterator::PrintCurrentBytecodeTo(
     std::ostream& os) const {
+  DCHECK(!bytecode_array_.is_null());
   return BytecodeDecoder::Decode(os, cursor_ - prefix_size_,
                                  bytecode_array_->constant_pool());
 }
 
 void BytecodeArrayIterator::UpdatePointers() {
   DisallowGarbageCollection no_gc;
+  DCHECK(!bytecode_array_.is_null());
   uint8_t* start =
       reinterpret_cast<uint8_t*>(bytecode_array_->GetFirstBytecodeAddress());
   if (start != start_) {

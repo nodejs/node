@@ -57,3 +57,50 @@ assertMaglevved(do_slice_0);
 // Passing something else than a string deopts.
 assertEquals("x", do_slice({slice: function() { return "x";}}));
 assertNotMaglevved(do_slice);
+
+// Constant indices take a shorter clamp in optimized code.
+function slice_const_start(str) {
+  return str.slice(2);
+}
+function slice_const_neg_start(str) {
+  return str.slice(-2);
+}
+function slice_const_both(str) {
+  return str.slice(1, -1);
+}
+function slice_const_zero_start(str) {
+  return str.slice(0, 3);
+}
+function slice_const_clamp(str) {
+  return str.slice(-100, 100);
+}
+function slice_const_empty(str) {
+  return str.slice(5, 2);
+}
+function slice_const_int32_extremes(str) {
+  return str.slice(-0x80000000, 0x7fffffff);
+}
+function slice_const_int32_max_start(str) {
+  return str.slice(0x7fffffff);
+}
+const const_cases = [
+  [slice_const_start, ["cdefg", "", "c"]],
+  [slice_const_neg_start, ["fg", "", "bc"]],
+  [slice_const_both, ["bcdef", "", "b"]],
+  [slice_const_zero_start, ["abc", "", "abc"]],
+  [slice_const_clamp, [s, "", "abc"]],
+  [slice_const_empty, ["", "", ""]],
+  [slice_const_int32_extremes, [s, "", "abc"]],
+  [slice_const_int32_max_start, ["", "", ""]],
+];
+for (const [f, expected] of const_cases) {
+  %PrepareFunctionForOptimization(f);
+  assertEquals(expected[0], f(s));
+  assertEquals(expected[1], f(""));
+  assertEquals(expected[2], f("abc"));
+  %OptimizeMaglevOnNextCall(f);
+  assertEquals(expected[0], f(s));
+  assertEquals(expected[1], f(""));
+  assertEquals(expected[2], f("abc"));
+  assertMaglevved(f);
+}

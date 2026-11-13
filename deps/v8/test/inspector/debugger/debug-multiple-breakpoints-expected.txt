@@ -1,0 +1,10 @@
+Tests setting multiple breakpoints at the same location.
+f hit count after bp1: 1
+duplicate bp in f has error: true
+f hit count after duplicate bp: 2
+f hit count after removeBreakpoint: 2
+g hit count after bp1: 1
+duplicate bp in g has error: true
+g hit count after duplicate bp: 2
+g hit count after removeBreakpoint: 2
+h hit count after 10 calls: 10

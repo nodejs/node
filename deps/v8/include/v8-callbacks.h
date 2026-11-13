@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <string>
+#include <string_view>
 
 #include "cppgc/common.h"
 #include "v8-data.h"          // NOLINT(build/include_directory)
@@ -195,6 +196,12 @@ using InterruptCallback = void (*)(Isolate* isolate, void* data);
 using PrintCurrentStackTraceFilterCallback =
     bool (*)(Isolate* isolate, Local<String> script_name);
 
+// Returns true to print a stack frame, or false to print "<redacted>" instead.
+// See the origin-aware overload of Message::PrintCurrentStackTrace for which
+// script is passed in.
+using PrintCurrentStackTraceWithOriginFilterCallback = bool (*)(
+    Isolate* isolate, Local<String> script_name, bool is_shared_cross_origin);
+
 /**
  * This callback is invoked when the heap size is close to the heap limit and
  * V8 is likely to abort with out-of-memory error.
@@ -247,6 +254,7 @@ using LogEventCallback = void (*)(const char* name,
                                   int /* LogEventStatus */ status);
 
 // --- Crashkeys Callback ---
+// Deprecated: use V8::SetCrashKeyCallbacks instead.
 enum class CrashKeyId {
   kIsolateAddress,
   kReadonlySpaceFirstPageAddress,
@@ -261,10 +269,20 @@ enum class CrashKeyId {
 
 using AddCrashKeyCallback = void (*)(CrashKeyId id, const std::string& value);
 
-// --- CrashKeyString Callbacks ---
+// --- CrashKey Callbacks ---
 using CrashKey = void*;
 enum class CrashKeySize { Size32, Size64, Size256, Size1024 };
 
+// Allocates a new crash key with the given `key` name and maximum value `size`.
+// Embedders do not need to deduplicate by `key` name: V8 caches the returned
+// `CrashKey` handle in static storage whenever a key may be updated multiple
+// times. Returns nullptr if crash keys are not supported or initialized.
+using AllocateCrashKeyCallback = CrashKey (*)(const char key[],
+                                              CrashKeySize size);
+using SetCrashKeyCallback = void (*)(CrashKey key, std::string_view value);
+
+// Deprecated: use AllocateCrashKeyCallback / SetCrashKeyCallback with
+// V8::SetCrashKeyCallbacks instead.
 using AllocateCrashKeyStringCallback =
     std::function<CrashKey(const char key[], CrashKeySize size)>;
 using SetCrashKeyStringCallback =
@@ -314,6 +332,8 @@ using FailedAccessCheckCallback = void (*)(Local<Object> target,
 
 // --- WebAssembly compilation callbacks ---
 using ExtensionCallback = bool (*)(const FunctionCallbackInfo<Value>&);
+using WasmModuleCallback = bool (*)(Isolate* isolate, Local<Value> source);
+using WasmInstanceCallback = bool (*)(Isolate* isolate, Local<Value> source);
 
 using AllowWasmCodeGenerationCallback = bool (*)(Local<Context> context,
                                                  Local<String> source);
@@ -488,6 +508,14 @@ using ArrayBufferDetachCallback = void (*)(Isolate* isolate,
 using PrepareStackTraceCallback = MaybeLocal<Value> (*)(Local<Context> context,
                                                         Local<Value> error,
                                                         Local<Array> sites);
+
+/**
+ * DynamicScriptCompiledFromEmbedderCallback is called when a dynamic script
+ * (such as from eval or the Function constructor) is compiled from the embedder
+ * without a calling user JavaScript frame on the stack.
+ */
+using DynamicScriptCompiledFromEmbedderCallback =
+    void (*)(Local<Context> context, int script_id);
 
 #if defined(V8_OS_WIN)
 /**

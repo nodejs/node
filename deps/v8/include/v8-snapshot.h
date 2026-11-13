@@ -212,7 +212,7 @@ class V8_EXPORT SnapshotCreator {
    *
    * \param context_data_serializer An optional callback used to serialize
    * context embedder data set by
-   * v8::Context::SetAlignedPointerInEmbedderData().
+   * v8::Context::SetAlignedPointerInEmbedderDataV2().
    *
    * \param api_wrapper_serializer An optional callback used to serialize API
    * wrapper references set via `v8::Object::Wrap()`.

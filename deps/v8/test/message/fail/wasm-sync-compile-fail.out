@@ -2,5 +2,6 @@
 new WebAssembly.Module(builder.toBuffer());
 ^
 CompileError: WebAssembly.Module(): Compiling function #0:"f" failed: expected 1 elements on the stack for fallthru, found 0 @+24
+    at new Module (<anonymous>)
     at *%(basename)s:9:1
 

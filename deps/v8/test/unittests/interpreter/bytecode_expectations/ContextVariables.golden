@@ -15,7 +15,7 @@ bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
-  /*   41 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   41 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
   /*   70 S> */ B(Return),
 ]
 constant pool: [
@@ -37,7 +37,7 @@ bytecodes: [
                 B(PushContext), R(0),
   /*   42 S> */ B(LdaSmi), I8(1),
   /*   42 E> */ B(StaCurrentContextSlotNoCell), C8(2),
-  /*   45 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   45 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
   /*   74 S> */ B(Return),
 ]
 constant pool: [
@@ -61,7 +61,7 @@ bytecodes: [
   /*   42 E> */ B(StaCurrentContextSlotNoCell), C8(2),
   /*   53 S> */ B(LdaSmi), I8(2),
   /*   53 E> */ B(StaCurrentContextSlotNoCell), C8(3),
-  /*   56 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   56 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
   /*   91 S> */ B(Return),
 ]
 constant pool: [
@@ -81,7 +81,7 @@ bytecode array length: 16
 bytecodes: [
   /*   30 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
-  /*   41 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   41 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
                 B(Star1),
   /*   64 E> */ B(CallUndefinedReceiver0), R(1), FBV(0),
   /*   68 S> */ B(LdaCurrentContextSlotNoCell), C8(2),
@@ -116,7 +116,7 @@ bytecodes: [
                 B(StaCurrentContextSlotNoCell), C8(2),
   /*   69 S> */ B(LdaSmi), I8(2),
   /*   69 E> */ B(StaCurrentContextSlotNoCell), C8(2),
-  /*   72 S> */ B(CreateClosure), U8(2:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   72 S> */ B(CreateClosure), U8(2:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
   /*  101 S> */ B(Return),
 ]
 constant pool: [

@@ -1,0 +1,3 @@
+Test wasm code coverage and frame inspection on break.
+has wésm: true
+coverage collected: true

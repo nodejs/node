@@ -535,14 +535,6 @@ bool is_inbounds(float_t v) {
 #define IF_SIMD128(V, ...)
 #endif  // V8_ENABLE_SIMD128
 
-#if V8_ENABLE_SIMD256
-// 256 bit simd cannot be enabled without 128 bit simd.
-static_assert(V8_ENABLE_SIMD128);
-#define IF_SIMD256(V, ...) EXPAND(V(__VA_ARGS__))
-#else
-#define IF_SIMD256(V, ...)
-#endif  // V8_ENABLE_SIMD256
-
 #ifdef V8_ENABLE_DRUMBRAKE
 #define IF_WASM_DRUMBRAKE(V, ...) EXPAND(V(__VA_ARGS__))
 #else
@@ -575,6 +567,12 @@ static_assert(V8_ENABLE_SIMD128);
 #else
 #define IF_SANDBOX(V, ...)
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_COMPRESS_POINTERS
+#define IF_COMPRESS_POINTERS(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_COMPRESS_POINTERS(V, ...)
+#endif  // V8_COMPRESS_POINTERS
 
 // Defines IF_INTL, to be used in macro lists for elements that should only be
 // there if INTL is enabled.
@@ -626,16 +624,6 @@ static_assert(V8_ENABLE_SIMD128);
 #define IF_V8_WASM_RANDOM_FUZZERS(V, ...)
 #define IF_NO_V8_WASM_RANDOM_FUZZERS(V, ...) EXPAND(V(__VA_ARGS__))
 #endif  // V8_WASM_RANDOM_FUZZERS
-
-#ifdef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
-#define IF_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS(V, ...) \
-  EXPAND(V(__VA_ARGS__))
-#define IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(V, ...)
-#else
-#define IF_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS(V, ...)
-#define IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(V, ...) \
-  EXPAND(V(__VA_ARGS__))
-#endif  // V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 
 #ifdef GOOGLE3
 // Disable FRIEND_TEST macro in Google3.

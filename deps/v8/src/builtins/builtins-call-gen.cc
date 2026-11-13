@@ -773,7 +773,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
               &receiver_done);
     TNode<Uint32T> function_template_info_flags = LoadObjectField<Uint32T>(
         function_template_info, offsetof(FunctionTemplateInfo, flag_));
-    Branch(IsSetWord32<FunctionTemplateInfo::AcceptAnyReceiverBit>(
+    Branch(IsSetWord32<FunctionTemplateInfo::Flags::AcceptAnyReceiverBit>(
                function_template_info_flags),
            &receiver_done, &receiver_needs_access_check);
 

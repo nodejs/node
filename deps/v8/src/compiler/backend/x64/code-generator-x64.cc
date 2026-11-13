@@ -33,8 +33,8 @@
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots-inl.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"
@@ -298,6 +298,46 @@ bool HasRegisterInput(Instruction* instr, size_t index) {
   return instr->InputAt(index)->IsRegister();
 }
 
+// Returns the number of padding slots (0 or 1) that must be reserved in
+// addition to {extra_slots} slots that the caller is about to push, so that
+// rsp is correctly aligned at the call. Must be called while assembling the
+// instruction that triggers the call, since it inspects the current
+// {FrameAccessState}:
+//
+//  When V8_X64_16BYTE_STACK_ALIGNMENT_BOOL is true:
+//  - With a frame, the total frame size is even after Frame::AlignFrame, so
+//    rsp is aligned in the body of the function.
+//  - Without a frame, only the return address has been pushed since the
+//    (aligned) call into this code, so rsp is misaligned by 8.
+//  - {sp_delta} counts the slots pushed since then.
+//
+// Always returns 0 when the flag is off.
+int CallAlignmentPaddingSlots(FrameAccessState* state, int extra_slots = 0) {
+  if constexpr (!V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) return 0;
+  int unaligned_slots =
+      (state->has_frame() ? 0 : kReturnAddressStackSlotCount) +
+      state->sp_delta() + extra_slots;
+  return unaligned_slots & 1;
+}
+
+// If {needs_padding} is true, emits code to reserve a stack padding slot on
+// construction and reclaim it on destruction.
+class V8_NODISCARD AlignStackForOutOfLineCallScope {
+ public:
+  AlignStackForOutOfLineCallScope(MacroAssembler* masm, bool needs_padding)
+      : masm_(masm), needs_padding_(needs_padding) {
+    DCHECK_IMPLIES(needs_padding_, V8_X64_16BYTE_STACK_ALIGNMENT_BOOL);
+    if (needs_padding_) masm_->AllocateStackSpace(kSystemPointerSize);
+  }
+  ~AlignStackForOutOfLineCallScope() {
+    if (needs_padding_) masm_->addq(rsp, Immediate(kSystemPointerSize));
+  }
+
+ private:
+  MacroAssembler* const masm_;
+  const bool needs_padding_;
+};
+
 class OutOfLineLoadFloat32NaN final : public OutOfLineCode {
  public:
   OutOfLineLoadFloat32NaN(CodeGenerator* gen, XMMRegister result)
@@ -339,13 +379,25 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
 #endif  // V8_ENABLE_WEBASSEMBLY
         unwinding_info_writer_(unwinding_info_writer),
         isolate_(gen->isolate()),
-        zone_(gen->zone()) {
+        zone_(gen->zone()),
+        stack_space_(kDoubleSize +
+                     CallAlignmentPaddingSlots(gen->frame_access_state(), 1) *
+                         kSystemPointerSize) {
   }
 
   void Generate() final {
-    __ AllocateStackSpace(kDoubleSize);
+    // Stack layout at the call to DoubleToI:
+    //
+    //   [padding]          <- only with 16-byte stack alignment, if needed
+    //   input double       <- rsp (16-byte aligned with the flag on)
+    //   (return address)   <- pushed by the call
+    //
+    // The double has to be at [rsp] (the builtin reads it at a fixed offset
+    // above its return address), so the padding goes above it, at the
+    // highest address, like argument padding elsewhere.
+    __ AllocateStackSpace(stack_space_);
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                      kDoubleSize);
+                                                      stack_space_);
     __ Movsd(MemOperand(rsp, 0), input_);
 #if V8_ENABLE_WEBASSEMBLY
     if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
@@ -364,9 +416,9 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
       __ CallBuiltin(Builtin::kDoubleToI);
     }
     __ movl(result_, MemOperand(rsp, 0));
-    __ addq(rsp, Immediate(kDoubleSize));
+    __ addq(rsp, Immediate(stack_space_));
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                      -kDoubleSize);
+                                                      -stack_space_);
   }
 
  private:
@@ -378,6 +430,8 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
   UnwindingInfoWriter* const unwinding_info_writer_;
   Isolate* isolate_;
   Zone* zone_;
+  // Bytes reserved below rsp around the call (input slot + optional padding).
+  const int stack_space_;
 };
 
 class OutOfLineRecordWrite final : public OutOfLineCode {
@@ -386,7 +440,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       CodeGenerator* gen, Register object, Operand operand, Register value,
       Register scratch0, Register scratch1, RecordWriteMode mode,
       StubCallMode stub_mode,
-      IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag)
+      TrustedPointerTag trusted_pointer_tag = kTrustedPointerNullTag)
       : OutOfLineCode(gen),
         object_(object),
         operand_(operand),
@@ -398,7 +452,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
         zone_(gen->zone()),
-        indirect_pointer_tag_(indirect_pointer_tag) {
+        trusted_pointer_tag_(trusted_pointer_tag),
+        needs_stack_padding_(
+            CallAlignmentPaddingSlots(gen->frame_access_state()) != 0) {
     DCHECK(!AreAliased(object, scratch0, scratch1));
     DCHECK(!AreAliased(value, scratch0, scratch1));
   }
@@ -411,13 +467,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     // When storing an indirect pointer, the value will always be a
     // full/decompressed pointer.
     if (COMPRESS_POINTERS_BOOL &&
-        mode_ != RecordWriteMode::kValueIsIndirectPointer) {
+        mode_ != RecordWriteMode::kValueIsTrustedPointer) {
       __ DecompressTagged(value_, value_);
     }
 
     // No need to check value page flags with the indirect pointer write barrier
     // because the value is always an ExposedTrustedObject.
-    if (mode_ != RecordWriteMode::kValueIsIndirectPointer) {
+    if (mode_ != RecordWriteMode::kValueIsTrustedPointer) {
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
       // TODO(333906585): Optimize this path.
       Label stub_call_with_decompressed_value;
@@ -433,7 +489,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
       __ bind(&stub_call_);
       if (COMPRESS_POINTERS_BOOL &&
-          mode_ != RecordWriteMode::kValueIsIndirectPointer) {
+          mode_ != RecordWriteMode::kValueIsTrustedPointer) {
         __ DecompressTagged(value_, value_);
       }
 
@@ -451,14 +507,18 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
 
+    // Keep rsp 16-byte aligned at the stub call (16-byte stack alignment
+    // only). Note that {operand_} was already materialized into {scratch1_}
+    // above, so moving rsp here is safe even if it is rsp-relative.
+    AlignStackForOutOfLineCallScope align_stack(masm(), needs_stack_padding_);
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
-    } else if (mode_ == RecordWriteMode::kValueIsIndirectPointer) {
-      // We must have a valid indirect pointer tag here. Otherwise, we risk not
+    } else if (mode_ == RecordWriteMode::kValueIsTrustedPointer) {
+      // We must have a valid trusted pointer tag here. Otherwise, we risk not
       // invoking the correct write barrier, which may lead to subtle issues.
-      CHECK(IsValidIndirectPointerTag(indirect_pointer_tag_));
-      __ CallIndirectPointerBarrier(object_, scratch1_, save_fp_mode,
-                                    indirect_pointer_tag_);
+      CHECK(IsValidTrustedPointerTag(trusted_pointer_tag_));
+      __ CallTrustedPointerBarrier(object_, scratch1_, save_fp_mode,
+                                   trusted_pointer_tag_);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
@@ -483,7 +543,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   StubCallMode const stub_mode_;
 #endif  // V8_ENABLE_WEBASSEMBLY
   Zone* zone_;
-  IndirectPointerTag indirect_pointer_tag_;
+  TrustedPointerTag trusted_pointer_tag_;
+  const bool needs_stack_padding_;
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
   Label stub_call_;
 #endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
@@ -497,7 +558,9 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
         object_(object),
         value_(value),
         scratch_(scratch),
-        zone_(gen->zone()) {}
+        zone_(gen->zone()),
+        needs_stack_padding_(
+            CallAlignmentPaddingSlots(gen->frame_access_state()) != 0) {}
 
   void Generate() final {
     if (COMPRESS_POINTERS_BOOL) {
@@ -510,6 +573,7 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
 
+    AlignStackForOutOfLineCallScope align_stack(masm(), needs_stack_padding_);
     __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
                                                       save_fp_mode);
   }
@@ -519,30 +583,35 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
   Register const value_;
   Register const scratch_;
   Zone* zone_;
+  const bool needs_stack_padding_;
 };
 
-class OutOfLineVerifySkippedIndirectWriteBarrier final : public OutOfLineCode {
+class OutOfLineVerifySkippedTrustedWriteBarrier final : public OutOfLineCode {
  public:
-  OutOfLineVerifySkippedIndirectWriteBarrier(CodeGenerator* gen,
-                                             Register object, Register value)
+  OutOfLineVerifySkippedTrustedWriteBarrier(CodeGenerator* gen, Register object,
+                                            Register value)
       : OutOfLineCode(gen),
         object_(object),
         value_(value),
-        zone_(gen->zone()) {}
+        zone_(gen->zone()),
+        needs_stack_padding_(
+            CallAlignmentPaddingSlots(gen->frame_access_state()) != 0) {}
 
   void Generate() final {
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
 
-    __ CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(object_, value_,
-                                                              save_fp_mode);
+    AlignStackForOutOfLineCallScope align_stack(masm(), needs_stack_padding_);
+    __ CallVerifySkippedTrustedWriteBarrierStubSaveRegisters(object_, value_,
+                                                             save_fp_mode);
   }
 
  private:
   Register const object_;
   Register const value_;
   Zone* zone_;
+  const bool needs_stack_padding_;
 };
 
 template <std::memory_order order>
@@ -571,8 +640,8 @@ int EmitStore(MacroAssembler* masm, Operand operand, Register value,
       case MachineRepresentation::kSandboxedPointer:
         masm->StoreSandboxedPointerField(operand, value);
         break;
-      case MachineRepresentation::kIndirectPointer:
-        masm->StoreIndirectPointerField(operand, value);
+      case MachineRepresentation::kTrustedPointer:
+        masm->StoreTrustedPointerField(operand, value);
         break;
       default:
         UNREACHABLE();
@@ -747,7 +816,9 @@ class OutOfLineTSANStore : public OutOfLineCode {
 #endif  // V8_ENABLE_WEBASSEMBLY
         size_(size),
         memory_order_(order),
-        zone_(gen->zone()) {
+        zone_(gen->zone()),
+        needs_stack_padding_(
+            CallAlignmentPaddingSlots(gen->frame_access_state()) != 0) {
     DCHECK(!AreAliased(value, scratch0));
   }
 
@@ -757,6 +828,10 @@ class OutOfLineTSANStore : public OutOfLineCode {
                                             : SaveFPRegsMode::kIgnore;
     __ leaq(scratch0_, operand_);
 
+    // Keep rsp 16-byte aligned at the stub call (16-byte stack alignment
+    // only). Note that {operand_} was already materialized into {scratch0_}
+    // above, so moving rsp here is safe even if it is rsp-relative.
+    AlignStackForOutOfLineCallScope align_stack(masm(), needs_stack_padding_);
 #if V8_ENABLE_WEBASSEMBLY
     if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
@@ -783,6 +858,7 @@ class OutOfLineTSANStore : public OutOfLineCode {
   int size_;
   const std::memory_order memory_order_;
   Zone* zone_;
+  const bool needs_stack_padding_;
 };
 
 void EmitTSANStoreOOL(Zone* zone, CodeGenerator* codegen, MacroAssembler* masm,
@@ -813,13 +889,12 @@ Register GetTSANValueRegister(MacroAssembler* masm, Register value,
     masm->movq(value_reg, value);
     masm->EncodeSandboxedPointer(value_reg);
     return value_reg;
-  } else if (rep == MachineRepresentation::kIndirectPointer) {
+  } else if (rep == MachineRepresentation::kTrustedPointer) {
     // Indirect pointer fields contain an index to a pointer table entry, which
     // is obtained from the referenced object.
     Register value_reg = i.TempRegister(1);
-    masm->movl(value_reg,
-               FieldOperand(value, offsetof(ExposedTrustedObject,
-                                            self_indirect_pointer_)));
+    masm->movl(value_reg, FieldOperand(value, offsetof(ExposedTrustedObject,
+                                                       self_trusted_pointer_)));
     return value_reg;
   }
   return value;
@@ -839,12 +914,12 @@ Register GetTSANValueRegister<std::memory_order_relaxed>(
   if (rep == MachineRepresentation::kSandboxedPointer) {
     // SandboxedPointers need to be encoded.
     masm->EncodeSandboxedPointer(value_reg);
-  } else if (rep == MachineRepresentation::kIndirectPointer) {
+  } else if (rep == MachineRepresentation::kTrustedPointer) {
     // Indirect pointer fields contain an index to a pointer table entry, which
     // is obtained from the referenced object.
     masm->movl(value_reg,
                FieldOperand(value_reg, offsetof(ExposedTrustedObject,
-                                                self_indirect_pointer_)));
+                                                self_trusted_pointer_)));
   }
   return value_reg;
 }
@@ -907,15 +982,20 @@ void EmitTSANAwareStore(Zone* zone, CodeGenerator* codegen,
 class OutOfLineTSANRelaxedLoad final : public OutOfLineCode {
  public:
   OutOfLineTSANRelaxedLoad(CodeGenerator* gen, Operand operand,
-                           Register scratch0, StubCallMode stub_mode, int size)
+                           Register scratch0,
+                           std::optional<SharedBaseTsanArgument> shared_base,
+                           StubCallMode stub_mode, int size)
       : OutOfLineCode(gen),
         operand_(operand),
         scratch0_(scratch0),
+        shared_base_(shared_base),
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
         size_(size),
-        zone_(gen->zone()) {
+        zone_(gen->zone()),
+        needs_stack_padding_(
+            CallAlignmentPaddingSlots(gen->frame_access_state()) != 0) {
   }
 
   void Generate() final {
@@ -924,35 +1004,41 @@ class OutOfLineTSANRelaxedLoad final : public OutOfLineCode {
                                             : SaveFPRegsMode::kIgnore;
     __ leaq(scratch0_, operand_);
 
+    // Keep rsp 16-byte aligned at the stub call (16-byte stack alignment
+    // only). Note that {operand_} was already materialized into {scratch0_}
+    // above, so moving rsp here is safe even if it is rsp-relative.
+    AlignStackForOutOfLineCallScope align_stack(masm(), needs_stack_padding_);
 #if V8_ENABLE_WEBASSEMBLY
     if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
-      __ CallTSANRelaxedLoadStub(scratch0_, save_fp_mode, size_,
+      __ CallTSANRelaxedLoadStub(scratch0_, shared_base_, save_fp_mode, size_,
                                  StubCallMode::kCallWasmRuntimeStub);
       return;
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    __ CallTSANRelaxedLoadStub(scratch0_, save_fp_mode, size_,
+    __ CallTSANRelaxedLoadStub(scratch0_, shared_base_, save_fp_mode, size_,
                                StubCallMode::kCallBuiltinPointer);
   }
 
  private:
   Operand const operand_;
   Register const scratch0_;
+  std::optional<SharedBaseTsanArgument> const shared_base_;
 #if V8_ENABLE_WEBASSEMBLY
   StubCallMode const stub_mode_;
 #endif  // V8_ENABLE_WEBASSEMBLY
   int size_;
   Zone* zone_;
+  const bool needs_stack_padding_;
 };
 
-void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
-                                    MacroAssembler* masm, Operand operand,
-                                    X64OperandConverter& i, StubCallMode mode,
-                                    int size) {
+void EmitTSANRelaxedLoadOOLIfNeeded(
+    Zone* zone, CodeGenerator* codegen, MacroAssembler* masm, Operand operand,
+    std::optional<SharedBaseTsanArgument> shared_base, X64OperandConverter& i,
+    StubCallMode mode, int size) {
   // The FOR_TESTING code doesn't initialize the root register. We can't call
   // the TSAN builtin since we need to load the external reference through the
   // root register.
@@ -961,8 +1047,8 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
   if (codegen->code_kind() == CodeKind::FOR_TESTING) return;
 
   Register scratch0 = i.TempRegister(0);
-  auto tsan_ool = zone->New<OutOfLineTSANRelaxedLoad>(codegen, operand,
-                                                      scratch0, mode, size);
+  auto tsan_ool = zone->New<OutOfLineTSANRelaxedLoad>(
+      codegen, operand, scratch0, shared_base, mode, size);
   masm->jmp(tsan_ool->entry());
   masm->bind(tsan_ool->exit());
 }
@@ -1008,10 +1094,10 @@ void EmitTSANAwareStore(Zone* zone, CodeGenerator* codegen,
   }
 }
 
-void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
-                                    MacroAssembler* masm, Operand operand,
-                                    X64OperandConverter& i, StubCallMode mode,
-                                    int size) {}
+void EmitTSANRelaxedLoadOOLIfNeeded(
+    Zone* zone, CodeGenerator* codegen, MacroAssembler* masm, Operand operand,
+    std::optional<SharedBaseTsanArgument> shared_base, X64OperandConverter& i,
+    StubCallMode mode, int size) {}
 #endif  // V8_IS_TSAN
 
 }  // namespace
@@ -1592,6 +1678,35 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                              int first_unused_slot_offset) {
   AdjustStackPointerForTailCall(instr, masm(), linkage(), info(),
                                 frame_access_state(), first_unused_slot_offset);
+
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // For 16-byte stack alignment, stack arguments are padded to an even
+    // number of slots, with the optional padding slot above the last
+    // parameter. Stack adjustment has already sized the argument area
+    // (including padding) above the return address at rsp; now that gap moves
+    // are complete, zero the padding slot so the GC sees a valid Smi instead
+    // of a stale value.
+    //
+    // Tier-up tail calls reuse the caller's incoming arguments and padding
+    // as-is, and the slot above the formal parameters may hold an extra
+    // argument, so leave it untouched.
+    if (!instr->HasCallDescriptorFlag(CallDescriptor::kIsTailCallForTierUp)) {
+      DCHECK_EQ((first_unused_slot_offset - kReturnAddressStackSlotCount) % 2,
+                0);
+      DCHECK(instr->IsTailCall());
+      X64OperandConverter g(this, instr);
+      // InstructionSelector::VisitTailCall appends two trailing immediates:
+      // {unpadded_stack_param_slots} (InputCount() - 2), followed by
+      // {first_unused_slot_offset} (InputCount() - 1).
+      int unpadded_stack_param_slots = g.InputInt32(instr->InputCount() - 2);
+      if (ShouldPadArguments(unpadded_stack_param_slots)) {
+        __ movq(Operand(rsp, (kReturnAddressStackSlotCount +
+                              unpadded_stack_param_slots) *
+                                 kSystemPointerSize),
+                Immediate(0));
+      }
+    }
+  }
 }
 
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
@@ -1653,6 +1768,20 @@ void CodeGenerator::AssemblePlaceHolderForLazyDeopt(Instruction* instr) {
     __ Nop(MacroAssembler::kIntraSegmentJmpInstrSize);
   }
 }
+
+namespace {
+std::optional<SharedBaseTsanArgument> MakeSharedBaseTsanArgument(
+    Instruction* instr, X64OperandConverter& i) {
+  if (!instr->shared_base()) return {};
+  // For those two modes, the cage base is used as a base for the load, and the
+  // first register argument (the object) is used as the index. For that reason,
+  // the object is kept compressed, so we must uncompress it before passing it
+  // to the builtin.
+  bool must_decompress_pointer = instr->addressing_mode() == kMode_MCR ||
+                                 instr->addressing_mode() == kMode_MCRI;
+  return {{i.InputRegister(0), must_decompress_pointer}};
+}
+}  // namespace
 
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
@@ -1801,8 +1930,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallJSFunction: {
       static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-      uint32_t num_arguments =
-          i.InputUint32(instr->JSCallArgumentCountInputIndex());
+      uint32_t expected_parameter_count =
+          i.InputUint32(instr->JSCallExpectedParameterCountInputIndex());
       if (HasImmediateInput(instr, 0)) {
         Handle<HeapObject> constant =
             i.ToConstant(instr->InputAt(0)).ToHeapObject();
@@ -1812,7 +1941,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             Builtin builtin = function->shared()->builtin_id();
             // Defer signature mismatch abort to run-time as optimized
             // unreachable calls can have mismatched signatures.
-            if (Builtins::IsCompatibleJSBuiltin(builtin, num_arguments)) {
+            if (Builtins::IsCompatibleJSBuiltin(builtin,
+                                                expected_parameter_count)) {
               __ CallBuiltin(builtin);
             } else {
               __ Abort(AbortReason::kJSSignatureMismatch);
@@ -1824,7 +1954,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                     dispatch_handle);
             // Defer signature mismatch abort to run-time as optimized
             // unreachable calls can have mismatched signatures.
-            if (num_arguments >= expected) {
+            if (expected_parameter_count == expected) {
               __ RecordJSDispatchHandle(dispatch_handle, expected);
               __ CallJSDispatchEntry(dispatch_handle, expected);
             } else {
@@ -1832,7 +1962,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             }
           }
         } else {
-          __ CallJSFunction(kJavaScriptCallTargetRegister, num_arguments);
+          __ CallJSFunction(kJavaScriptCallTargetRegister,
+                            expected_parameter_count);
         }
       } else {
         Register func = i.InputRegister(0);
@@ -1842,7 +1973,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                         FieldOperand(func, offsetof(JSFunction, context_)));
           __ Assert(equal, AbortReason::kWrongFunctionContext);
         }
-        __ CallJSFunction(func, num_arguments);
+        __ CallJSFunction(func, expected_parameter_count);
       }
       frame_access_state()->ClearSPDelta();
       RecordCallPosition(instr);
@@ -1968,6 +2099,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(masm(), StackFrame::NO_FRAME_TYPE);
+        // 16-byte stack alignment: this instruction is not marked as a call,
+        // so it can appear in frameless code where rsp is misaligned by 8.
+        // Re-align it so that the call does not trip the alignment check in
+        // debug code. The call never returns, so the padding is never
+        // dropped.
+        if (CallAlignmentPaddingSlots(frame_access_state()) != 0) {
+          __ AllocateStackSpace(kSystemPointerSize);
+        }
         __ CallBuiltin(Builtin::kAbortCSADcheck);
       }
       __ int3();
@@ -2084,7 +2223,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // here.
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
-      DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
+      DCHECK_NE(mode, RecordWriteMode::kValueIsTrustedPointer);
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -2140,11 +2279,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(index);
 
       DCHECK(v8_flags.verify_write_barriers);
-      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-          this, object, value, i.TempRegister(0));
-      __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
-      __ JumpIfNotSmi(value, ool->entry());
-      __ bind(ool->exit());
+      if (CheckSmiField::decode(instr->opcode())) {
+        Condition is_smi = __ CheckSmi(value);
+        __ Check(is_smi, AbortReason::kTaggedSignedNotSmi);
+      } else {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+            this, object, value, i.TempRegister(0));
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
 
       if (arch_opcode == kArchStoreSkippedWriteBarrier) {
         EmitTSANAwareStore(zone(), this, masm(), operand, value, i,
@@ -2160,16 +2304,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kArchStoreIndirectWithWriteBarrier: {
+    case kArchStoreTrustedWithWriteBarrier: {
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
-      DCHECK_EQ(mode, RecordWriteMode::kValueIsIndirectPointer);
+      DCHECK_EQ(mode, RecordWriteMode::kValueIsTrustedPointer);
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index++);
-      IndirectPointerTag tag =
-          static_cast<IndirectPointerTag>(i.InputInt64(index));
-      DCHECK(IsValidIndirectPointerTag(tag));
+      TrustedPointerTag tag =
+          static_cast<TrustedPointerTag>(i.InputInt64(index));
+      DCHECK(IsValidTrustedPointerTag(tag));
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
 
@@ -2178,31 +2322,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           DetermineStubCallMode(), tag);
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
-          MachineRepresentation::kIndirectPointer, instr);
+          MachineRepresentation::kTrustedPointer, instr);
       __ JumpIfMarking(ool->entry());
       __ bind(ool->exit());
       break;
     }
-    case kArchStoreIndirectSkippedWriteBarrier: {
+    case kArchStoreTrustedSkippedWriteBarrier: {
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index++);
 #if DEBUG
-      IndirectPointerTag tag =
-          static_cast<IndirectPointerTag>(i.InputInt64(index));
-      DCHECK(IsValidIndirectPointerTag(tag));
+      TrustedPointerTag tag =
+          static_cast<TrustedPointerTag>(i.InputInt64(index));
+      DCHECK(IsValidTrustedPointerTag(tag));
 #endif  // DEBUG
 
       DCHECK(v8_flags.verify_write_barriers);
-      auto ool = zone()->New<OutOfLineVerifySkippedIndirectWriteBarrier>(
+      auto ool = zone()->New<OutOfLineVerifySkippedTrustedWriteBarrier>(
           this, object, value);
       __ jmp(ool->entry());
       __ bind(ool->exit());
 
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
-          MachineRepresentation::kIndirectPointer, instr);
+          MachineRepresentation::kTrustedPointer, instr);
       break;
     }
     case kX64MFence:
@@ -2569,9 +2713,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEFloat32Div:
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_SSE_BINOP(divss);
-      // Don't delete this mov. It may improve performance on some CPUs,
-      // when there is a (v)mulss depending on the result.
-      __ movaps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
     case kSSEFloat32Sqrt:
       ASSEMBLE_SSE_UNOP(sqrtss);
@@ -2619,9 +2760,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEFloat64Div:
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_SSE_BINOP(divsd);
-      // Don't delete this mov. It may improve performance on some CPUs,
-      // when there is a (v)mulsd depending on the result.
-      __ Movapd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
     case kSSEFloat64Mod: {
       __ AllocateStackSpace(kDoubleSize);
@@ -3136,9 +3274,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAVXFloat32Div:
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_AVX_BINOP(vdivss);
-      // Don't delete this mov. It may improve performance on some CPUs,
-      // when there is a (v)mulss depending on the result.
-      __ Movaps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
     case kAVXFloat64Cmp: {
       CpuFeatureScope avx_scope(masm(), AVX);
@@ -3164,9 +3299,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAVXFloat64Div:
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_AVX_BINOP(vdivsd);
-      // Don't delete this mov. It may improve performance on some CPUs,
-      // when there is a (v)mulsd depending on the result.
-      __ Movapd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
     case kX64Float32Abs: {
       __ Absps(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -3309,8 +3441,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEFloat64SilenceNaN:
-      __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Subsd(i.InputDoubleRegister(0), kScratchDoubleReg);
+      __ CanonicalizeNaN(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kX64Movsxbl:
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
@@ -3388,8 +3519,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (HasAddressingMode(instr)) {
           Operand address(i.MemoryOperand());
           __ movl(i.OutputRegister(), address);
-          EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
-                                         DetermineStubCallMode(), kInt32Size);
+          EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address,
+                                         MakeSharedBaseTsanArgument(instr, i),
+                                         i, DetermineStubCallMode(),
+                                         kInt32Size);
         } else {
           if (HasRegisterInput(instr, 0)) {
             __ movl(i.OutputRegister(), i.InputRegister(0));
@@ -3424,11 +3557,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register base = i.InputRegister(0);
       int32_t offset = i.InputInt32(1);
       Register table = i.InputRegister(2);
-      IndirectPointerTag first =
-          static_cast<IndirectPointerTag>(i.InputInt32(3));
-      IndirectPointerTag last =
-          static_cast<IndirectPointerTag>(i.InputInt32(4));
-      IndirectPointerTagRange tag_range(first, last);
+      TrustedPointerTag first = static_cast<TrustedPointerTag>(i.InputInt32(3));
+      TrustedPointerTag last = static_cast<TrustedPointerTag>(i.InputInt32(4));
+      TrustedPointerTagRange tag_range(first, last);
 
       Register destination = i.OutputRegister();
       Register handle = i.TempRegister(0);
@@ -3439,9 +3570,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       static_assert(kTrustedPointerTableEntrySizeLog2 == times_8);
       __ movq(destination, Operand{table, handle, times_8, 0});
 
-      if (IsFastIndirectPointerTagRange(tag_range)) {
-        uint64_t mask =
-            ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+      if (IsFastTrustedPointerTagRange(tag_range)) {
+        uint64_t mask = ComputeUntaggingMaskForFastTrustedPointerTag(tag_range);
         __ movq(kScratchRegister, Immediate64(mask));
         __ andq(destination, kScratchRegister);
       } else {
@@ -3470,7 +3600,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       Operand address(i.MemoryOperand());
       __ DecompressTaggedSigned(i.OutputRegister(), address);
-      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
+      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address,
+                                     MakeSharedBaseTsanArgument(instr, i), i,
                                      DetermineStubCallMode(), kTaggedSize);
       break;
     }
@@ -3479,7 +3610,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       Operand address(i.MemoryOperand());
       __ DecompressTagged(i.OutputRegister(), address);
-      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
+      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address,
+                                     MakeSharedBaseTsanArgument(instr, i), i,
                                      DetermineStubCallMode(), kTaggedSize);
       break;
     }
@@ -3506,11 +3638,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CHECK(instr->HasOutput());
       Operand address(i.MemoryOperand());
       __ DecompressProtected(i.OutputRegister(), address);
-      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
+      DCHECK(!instr->shared_base());
+      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, {}, i,
                                      DetermineStubCallMode(), kTaggedSize);
       break;
     }
-    case kX64MovqStoreIndirectPointer: {
+    case kX64MovqStoreTrustedPointer: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -3518,7 +3651,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value(i.InputRegister(index));
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
-          MachineRepresentation::kIndirectPointer, instr);
+          MachineRepresentation::kTrustedPointer, instr);
       break;
     }
     case kX64MovqDecodeSandboxedPointer: {
@@ -3527,7 +3660,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register dst = i.OutputRegister();
       __ movq(dst, address);
       __ DecodeSandboxedPointer(dst);
-      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
+      DCHECK(!instr->shared_base());
+      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, {}, i,
                                      DetermineStubCallMode(),
                                      kSystemPointerSize);
       break;
@@ -3548,7 +3682,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
         Operand address(i.MemoryOperand());
         __ movq(i.OutputRegister(), address);
-        EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
+        EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address,
+                                       MakeSharedBaseTsanArgument(instr, i), i,
                                        DetermineStubCallMode(), kInt64Size);
       } else {
         size_t index = 0;
@@ -3822,12 +3957,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
-            CpuFeatureScope f16c_scope(masm(), F16C);
-            CpuFeatureScope avx2_scope(masm(), AVX2);
-            __ vcvtps2ph(i.OutputDoubleRegister(0), i.InputDoubleRegister(0),
-                         0);
-            __ vpbroadcastw(i.OutputSimd128Register(),
-                            i.OutputDoubleRegister(0));
+            __ F16x8Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0));
             break;
           }
           case LaneSize::kL32: {
@@ -3968,12 +4098,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x8Sqrt
-            CpuFeatureScope f16c_scope(masm(), F16C);
-            CpuFeatureScope avx_scope(masm(), AVX);
-
-            __ vcvtph2ps(kScratchSimd256Reg, src);
-            __ vsqrtps(kScratchSimd256Reg, kScratchSimd256Reg);
-            __ vcvtps2ph(dst, kScratchSimd256Reg, 0);
+            if (UseAvx10_1()) {
+              CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
+              __ vsqrtph(dst, src);
+            } else {
+              CpuFeatureScope f16c_scope(masm(), F16C);
+              CpuFeatureScope avx_scope(masm(), AVX);
+              __ vcvtph2ps(kScratchSimd256Reg, src);
+              __ vsqrtps(kScratchSimd256Reg, kScratchSimd256Reg);
+              __ vcvtps2ph(dst, kScratchSimd256Reg, 0);
+            }
             break;
           }
           case LaneSize::kL32: {
@@ -4019,7 +4153,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case LaneSize::kL16:
             // F16x8Add
-            ASSEMBLE_SIMD_F16x8_BINOP(vaddps);
+            if (UseAvx10_1()) {
+              CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
+              __ vaddph(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        i.InputSimd128Register(1));
+            } else {
+              ASSEMBLE_SIMD_F16x8_BINOP(vaddps);
+            }
             break;
           case LaneSize::kL32: {
             // F32x4Add
@@ -4061,7 +4201,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case LaneSize::kL16:
             // F16x8Sub
-            ASSEMBLE_SIMD_F16x8_BINOP(vsubps);
+            if (UseAvx10_1()) {
+              CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
+              __ vsubph(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        i.InputSimd128Register(1));
+            } else {
+              ASSEMBLE_SIMD_F16x8_BINOP(vsubps);
+            }
             break;
           case LaneSize::kL32: {
             // F32x4Sub
@@ -4103,7 +4249,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case LaneSize::kL16:
             // F16x8Mul
-            ASSEMBLE_SIMD_F16x8_BINOP(vmulps);
+            if (UseAvx10_1()) {
+              CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
+              __ vmulph(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        i.InputSimd128Register(1));
+            } else {
+              ASSEMBLE_SIMD_F16x8_BINOP(vmulps);
+            }
             break;
           case LaneSize::kL32: {
             // F32x4Mul
@@ -4146,7 +4298,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case LaneSize::kL16:
             // F16x8Div
-            ASSEMBLE_SIMD_F16x8_BINOP(vdivps);
+            if (UseAvx10_1()) {
+              CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
+              __ vdivph(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                        i.InputSimd128Register(1));
+            } else {
+              ASSEMBLE_SIMD_F16x8_BINOP(vdivps);
+            }
             break;
           case LaneSize::kL32: {
             // F32x4Div
@@ -4493,11 +4651,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cvtdq2pd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kX64F64x4ConvertI32x4S: {
-      CpuFeatureScope avx_scope(masm(), AVX);
-      __ vcvtdq2pd(i.OutputSimd256Register(), i.InputSimd128Register(0));
-      break;
-    }
     case kX64F64x2ConvertLowI32x4U: {
       __ F64x2ConvertLowI32x4U(i.OutputSimd128Register(),
                                i.InputSimd128Register(0), kScratchRegister);
@@ -4514,11 +4667,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64F32x4DemoteF64x2Zero: {
       __ Cvtpd2ps(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kX64F32x4DemoteF64x4: {
-      CpuFeatureScope avx_scope(masm(), AVX);
-      __ vcvtpd2ps(i.OutputSimd128Register(), i.InputSimd256Register(0));
       break;
     }
     case kX64I32x4TruncSatF64x2SZero: {
@@ -4543,10 +4691,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8SConvertF16x8: {
-      CpuFeatureScope avx_scope(masm(), AVX);
-      CpuFeatureScope f16c_scope(masm(), F16C);
-      CpuFeatureScope avx2_scope(masm(), AVX2);
-
       YMMRegister ydst =
           YMMRegister::from_code(i.OutputSimd128Register().code());
       __ I16x8SConvertF16x8(ydst, i.InputSimd128Register(0), kScratchSimd256Reg,
@@ -4554,31 +4698,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8UConvertF16x8: {
-      CpuFeatureScope avx_scope(masm(), AVX);
-      CpuFeatureScope f16c_scope(masm(), F16C);
-      CpuFeatureScope avx2_scope(masm(), AVX2);
-
       YMMRegister ydst =
           YMMRegister::from_code(i.OutputSimd128Register().code());
       __ I16x8TruncF16x8U(ydst, i.InputSimd128Register(0), kScratchSimd256Reg);
       break;
     }
     case kX64F16x8SConvertI16x8: {
-      CpuFeatureScope f16c_scope(masm(), F16C);
-      CpuFeatureScope avx_scope(masm(), AVX);
-      CpuFeatureScope avx2_scope(masm(), AVX2);
-      __ vpmovsxwd(kScratchSimd256Reg, i.InputSimd128Register(0));
-      __ vcvtdq2ps(kScratchSimd256Reg, kScratchSimd256Reg);
-      __ vcvtps2ph(i.OutputSimd128Register(), kScratchSimd256Reg, 0);
+      __ F16x8SConvertI16x8(i.OutputSimd128Register(),
+                            i.InputSimd128Register(0), kScratchSimd256Reg);
       break;
     }
     case kX64F16x8UConvertI16x8: {
-      CpuFeatureScope f16c_scope(masm(), F16C);
-      CpuFeatureScope avx_scope(masm(), AVX);
-      CpuFeatureScope avx2_scope(masm(), AVX2);
-      __ vpmovzxwd(kScratchSimd256Reg, i.InputSimd128Register(0));
-      __ vcvtdq2ps(kScratchSimd256Reg, kScratchSimd256Reg);
-      __ vcvtps2ph(i.OutputSimd128Register(), kScratchSimd256Reg, 0);
+      __ F16x8UConvertI16x8(i.OutputSimd128Register(),
+                            i.InputSimd128Register(0), kScratchSimd256Reg);
       break;
     }
     case kX64F16x8DemoteF32x4Zero: {
@@ -4670,6 +4802,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F16x8Qfma: {
+      if (UseAvx10_1()) {
+        CpuFeatureScope avx10_scope(masm(), AVX10_1);
+        DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+        if (instr->InputAt(2)->IsSimd128Register()) {
+          __ vfmadd213ph(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                         i.InputSimd128Register(2));
+        } else {
+          __ vfmadd213ph(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                         i.InputOperand(2));
+        }
+        break;
+      }
       YMMRegister ydst =
           YMMRegister::from_code(i.OutputSimd128Register().code());
       __ F16x8Qfma(ydst, i.InputSimd128Register(0), i.InputSimd128Register(1),
@@ -4678,6 +4822,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F16x8Qfms: {
+      if (UseAvx10_1()) {
+        CpuFeatureScope avx10_scope(masm(), AVX10_1);
+        DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+        if (instr->InputAt(2)->IsSimd128Register()) {
+          __ vfnmadd213ph(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                          i.InputSimd128Register(2));
+        } else {
+          __ vfnmadd213ph(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                          i.InputOperand(2));
+        }
+        break;
+      }
       YMMRegister ydst =
           YMMRegister::from_code(i.OutputSimd128Register().code());
       __ F16x8Qfms(ydst, i.InputSimd128Register(0), i.InputSimd128Register(1),
@@ -4709,12 +4865,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Minph: {
       DCHECK_EQ(VectorLengthField::decode(opcode), VectorLength::kV128);
-      ASSEMBLE_SIMD_F16x8_BINOP(vminps);
+      if (UseAvx10_1()) {
+        CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
+        __ vminph(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      } else {
+        ASSEMBLE_SIMD_F16x8_BINOP(vminps);
+      }
       break;
     }
     case kX64Maxph: {
       DCHECK_EQ(VectorLengthField::decode(opcode), VectorLength::kV128);
-      ASSEMBLE_SIMD_F16x8_BINOP(vmaxps);
+      if (UseAvx10_1()) {
+        CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
+        __ vmaxph(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      } else {
+        ASSEMBLE_SIMD_F16x8_BINOP(vmaxps);
+      }
       break;
     }
     case kX64F32x8Pmin: {
@@ -4755,10 +4923,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F16x8Round: {
-      CpuFeatureScope f16c_scope(masm(), F16C);
-      CpuFeatureScope avx_scope(masm(), AVX);
       RoundingMode const mode =
           static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
+      if (UseAvx10_1()) {
+        CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
+        __ vrndscaleph(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                       mode);
+        break;
+      }
+      CpuFeatureScope f16c_scope(masm(), F16C);
+      CpuFeatureScope avx_scope(masm(), AVX);
       __ vcvtph2ps(kScratchSimd256Reg, i.InputSimd128Register(0));
       __ vroundps(kScratchSimd256Reg, kScratchSimd256Reg, mode);
       __ vcvtps2ph(i.OutputSimd128Register(), kScratchSimd256Reg, 0);
@@ -8370,56 +8544,55 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   if (!saves.is_empty()) {  // Save callee-saved registers.
     frame->AllocateSavedCalleeRegisterSlots(saves.Count());
   }
-  if (v8_flags.enforce_x64_16byte_alignment) {
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
     frame->AlignFrame(2 * kSystemPointerSize);
   }
 }
 
 void CodeGenerator::AssembleConstructFrame() {
+  DCHECK(frame_access_state()->has_frame());
   auto call_descriptor = linkage()->GetIncomingDescriptor();
 
-  if (v8_flags.enforce_x64_16byte_alignment) {
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
     // The frame has been previously padded in CodeGenerator::FinishFrame().
     DCHECK_EQ(frame()->GetTotalFrameSlotCount() % 2, 0);
     DCHECK_EQ(frame()->GetReturnSlotCount() % 2, 0);
   }
 
-  if (frame_access_state()->has_frame()) {
-    int pc_base = __ pc_offset();
+  int pc_base = __ pc_offset();
 
-    if (call_descriptor->IsCFunctionCall()) {
-      __ pushq(rbp);
-      __ movq(rbp, rsp);
+  if (call_descriptor->IsCFunctionCall()) {
+    __ pushq(rbp);
+    __ movq(rbp, rsp);
 #if V8_ENABLE_WEBASSEMBLY
-      if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
-        __ Push(Immediate(StackFrame::TypeToMarker(StackFrame::C_WASM_ENTRY)));
-        // Reserve stack space for saving the c_entry_fp later.
-        __ AllocateStackSpace(kSystemPointerSize);
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
-    } else if (call_descriptor->IsJSFunctionCall()) {
-      __ Prologue();
-    } else {
-      __ StubPrologue(info()->GetOutputStackFrameType());
-#if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsAnyWasmFunctionCall() ||
-          call_descriptor->IsWasmImportWrapper() ||
-          call_descriptor->IsWasmCapiFunction()) {
-        // For import wrappers and C-API functions, this stack slot is only used
-        // for printing stack traces in V8. Also, it holds a WasmImportData
-        // instead of the trusted instance data, which is taken care of in the
-        // frames accessors.
-        __ pushq(kWasmImplicitArgRegister);
-      }
-      if (call_descriptor->IsWasmCapiFunction()) {
-        // Reserve space for saving the PC later.
-        __ AllocateStackSpace(kSystemPointerSize);
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
+    if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
+      __ Push(Immediate(StackFrame::TypeToMarker(StackFrame::C_WASM_ENTRY)));
+      // Reserve stack space for saving the c_entry_fp later.
+      __ AllocateStackSpace(kSystemPointerSize);
     }
-
-    unwinding_info_writer_.MarkFrameConstructed(pc_base);
+#endif  // V8_ENABLE_WEBASSEMBLY
+  } else if (call_descriptor->IsJSFunctionCall()) {
+    __ Prologue();
+  } else {
+    __ StubPrologue(info()->GetOutputStackFrameType());
+#if V8_ENABLE_WEBASSEMBLY
+    if (call_descriptor->IsAnyWasmFunctionCall() ||
+        call_descriptor->IsWasmImportWrapper() ||
+        call_descriptor->IsWasmCapiFunction()) {
+      // For import wrappers and C-API functions, this stack slot is only used
+      // for printing stack traces in V8. Also, it holds a WasmImportData
+      // instead of the trusted instance data, which is taken care of in the
+      // frames accessors.
+      __ pushq(kWasmImplicitArgRegister);
+    }
+    if (call_descriptor->IsWasmCapiFunction()) {
+      // Reserve space for saving the PC later.
+      __ AllocateStackSpace(kSystemPointerSize);
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
+
+  unwinding_info_writer_.MarkFrameConstructed(pc_base);
   int required_slots =
       frame()->GetTotalFrameSlotCount() - frame()->GetFixedSlotCount();
 
@@ -8449,76 +8622,115 @@ void CodeGenerator::AssembleConstructFrame() {
   const RegList saves = call_descriptor->CalleeSavedRegisters();
   const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
 
-  if (required_slots > 0) {
-    DCHECK(frame_access_state()->has_frame());
 #if V8_ENABLE_WEBASSEMBLY
-    int32_t stack_space =
-        required_slots * kSystemPointerSize + GetStackCheckOffset();
-    if (info()->IsWasm() && stack_space > 4 * KB) {
-      // For WebAssembly functions with big frames we have to do the stack
-      // overflow check before we construct the frame. Otherwise we may not
-      // have enough space on the stack to call the runtime for the stack
-      // overflow.
-      Label done;
+  const bool is_js_to_wasm = code_kind() == CodeKind::JS_TO_WASM_FUNCTION;
+  DCHECK_GE(required_slots, 0);
+  size_t stack_space =
+      static_cast<size_t>(required_slots) * kSystemPointerSize +
+      GetStackCheckOffset();
+  if (is_js_to_wasm || (info()->IsWasm() && stack_space > 4 * KB)) {
+    // For WebAssembly functions with big frames we have to do the stack
+    // overflow check before we allocate the frame slots. Otherwise we may not
+    // have enough space on the stack to call the runtime for the stack
+    // overflow.
+    // For compiled JS-to-Wasm wrappers, we unconditionally emit a stack check
+    // here because they are entered directly from JavaScript without an
+    // Ignition bytecode stack check, and may be invoked near stack exhaustion.
+    Label done;
 
-      // If the frame is bigger than the stack, we throw the stack overflow
-      // exception unconditionally. Thereby we can avoid the integer overflow
-      // check in the condition code.
-      if (stack_space < v8_flags.stack_size * KB) {
+    // If the frame is bigger than the stack, we throw the stack overflow
+    // exception unconditionally. Thereby we can avoid the integer overflow
+    // check in the condition code.
+    if (stack_space < static_cast<size_t>(v8_flags.stack_size) * KB) {
+      if (stack_space == 0) {
+        __ cmpq(rsp, __ StackLimitAsOperand(StackLimitKind::kRealStackLimit));
+      } else {
         __ movq(kScratchRegister,
                 __ StackLimitAsOperand(StackLimitKind::kRealStackLimit));
-        __ addq(kScratchRegister, Immediate(stack_space));
+        __ addq(kScratchRegister, Immediate(static_cast<int32_t>(stack_space)));
         __ cmpq(rsp, kScratchRegister);
-        __ j(above_equal, &done, Label::kNear);
       }
-
-      if (v8_flags.wasm_growable_stacks) {
-        RegList regs_to_save;
-        regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
-        regs_to_save.set(
-            WasmHandleStackOverflowDescriptor::FrameBaseRegister());
-        for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
-        __ PushAll(regs_to_save);
-        DoubleRegList fp_regs_to_save;
-        for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
-        __ PushAll(fp_regs_to_save);
-        __ movq(WasmHandleStackOverflowDescriptor::GapRegister(),
-                Immediate(stack_space));
-        __ movq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), rbp);
-        __ addq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(),
-                Immediate(static_cast<int32_t>(
-                    call_descriptor->ParameterSlotCount() * kSystemPointerSize +
-                    CommonFrameConstants::kFixedFrameSizeAboveFp)));
-        __ near_call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
-                     RelocInfo::WASM_STUB_CALL);
-        // If the call successfully grew the stack, we don't expect it to have
-        // allocated any heap objects or otherwise triggered any GC.
-        // If it was not able to grow the stack, it may have triggered a GC when
-        // allocating the stack overflow exception object, but the call did not
-        // return in this case.
-        // So either way, we can just record an empty safepoint here.
-        RecordSafepointWithoutTaggedSlots();
-        __ PopAll(fp_regs_to_save);
-        __ PopAll(regs_to_save);
-      } else {
-        __ near_call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
-                     RelocInfo::WASM_STUB_CALL);
-        // The call does not return, hence we can ignore any references and just
-        // define an empty safepoint.
-        RecordSafepointWithoutTaggedSlots();
-        __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
-      }
-      __ bind(&done);
+      // With 16-byte stack alignment, the slow path below may be a few bytes
+      // longer (padding around the calls), so don't rely on a near jump.
+      __ j(above_equal, &done,
+           V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? Label::kFar : Label::kNear);
     }
+
+    // rsp is only aligned here if the fixed frame header below rbp
+    // that the prologue pushed above has an even number of slots. That is the
+    // case for wasm frames,  but not for JS-to-wasm wrappers, which use the JS
+    // frame header. Push a padding slot for the calls below in that case.
+    const bool pad_for_stack_check_call =
+        V8_X64_16BYTE_STACK_ALIGNMENT_BOOL &&
+        (frame()->GetFixedSlotCount() -
+         StandardFrameConstants::kFixedSlotCountAboveFp) %
+                2 !=
+            0;
+    if (pad_for_stack_check_call) {
+      __ AllocateStackSpace(kSystemPointerSize);
+    }
+
+    if (is_js_to_wasm) {
+      __ CallRuntime(Runtime::kThrowStackOverflow);
+      // RecordSafepointWithoutTaggedSlots is safe here because no tagged spill
+      // slots or parameters have been allocated on the stack frame yet.
+      RecordSafepointWithoutTaggedSlots();
+      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromThrow);
+    } else if (v8_flags.wasm_growable_stacks) {
+      RegList regs_to_save;
+      regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
+      regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+      regs_to_save.set(
+          WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister());
+      for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
+      __ PushAll(regs_to_save);
+      DoubleRegList fp_regs_to_save;
+      for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
+      __ PushAll(fp_regs_to_save);
+      __ movq(WasmHandleStackOverflowDescriptor::GapRegister(),
+              Immediate(static_cast<int32_t>(stack_space)));
+      __ movq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), rbp);
+      __ addq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(),
+              Immediate(static_cast<int32_t>(
+                  (call_descriptor->ParameterSlotCount() +
+                   call_descriptor->ReturnSlotCount()) *
+                      kSystemPointerSize +
+                  CommonFrameConstants::kFixedFrameSizeAboveFp)));
+      __ movq(WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister(),
+              Immediate(static_cast<int32_t>(
+                  call_descriptor->ParameterSlotCount() * kSystemPointerSize)));
+      __ near_call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
+                   RelocInfo::WASM_STUB_CALL);
+      // If the call successfully grew the stack, we don't expect it to have
+      // allocated any heap objects or otherwise triggered any GC.
+      // If it was not able to grow the stack, it may have triggered a GC when
+      // allocating the stack overflow exception object, but the call did not
+      // return in this case.
+      // So either way, we can just record an empty safepoint here.
+      RecordSafepointWithoutTaggedSlots();
+      __ PopAll(fp_regs_to_save);
+      __ PopAll(regs_to_save);
+      if (pad_for_stack_check_call) {
+        __ addq(rsp, Immediate(kSystemPointerSize));
+      }
+    } else {
+      __ near_call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+                   RelocInfo::WASM_STUB_CALL);
+      // The call does not return, hence we can ignore any references and just
+      // define an empty safepoint.
+      RecordSafepointWithoutTaggedSlots();
+      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+    }
+    __ bind(&done);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    // Skip callee-saved and return slots, which are created below.
-    required_slots -= saves.Count();
-    required_slots -= saves_fp.Count() * (kQuadWordSize / kSystemPointerSize);
-    required_slots -= frame()->GetReturnSlotCount();
-    if (required_slots > 0) {
-      __ AllocateStackSpace(required_slots * kSystemPointerSize);
-    }
+  // Skip callee-saved and return slots, which are created below.
+  required_slots -= saves.Count();
+  required_slots -= saves_fp.Count() * (kQuadWordSize / kSystemPointerSize);
+  required_slots -= frame()->GetReturnSlotCount();
+  if (required_slots > 0) {
+    __ AllocateStackSpace(required_slots * kSystemPointerSize);
   }
 
   if (!saves_fp.is_empty()) {  // Save callee-saved XMM registers.
@@ -8596,31 +8808,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (call_descriptor->IsAnyWasmFunctionCall() &&
-      v8_flags.wasm_growable_stacks) {
-    __ cmpq(
-        MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset),
-        Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-    Label done;
-    __ j(not_equal, &done);
-    RegList regs_to_save;
-    for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
-    __ PushAll(regs_to_save);
-    DoubleRegList fp_regs_to_save;
-    for (auto reg : wasm::kFpReturnRegisters) fp_regs_to_save.set(reg);
-    __ PushAll(fp_regs_to_save);
-    __ PrepareCallCFunction(1);
-    __ LoadAddress(kCArgRegs[0], ExternalReference::isolate_address());
-    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
-    // Restore old FP. We don't need to restore old SP explicitly, because
-    // it will be restored from FP inside of AssembleDeconstructFrame.
-    __ movq(rbp, kReturnRegister0);
-    __ PopAll(fp_regs_to_save);
-    __ PopAll(regs_to_save);
-    __ bind(&done);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   Register argc_reg = rcx;
   // Functions with JS linkage have at least one parameter (the receiver).
@@ -8668,7 +8855,10 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
     __ cmpq(argc_reg, Immediate(parameter_slots));
     __ j(greater, &mismatch_return, Label::kNear);
-    __ Ret(parameter_slots * kSystemPointerSize, scratch_reg);
+    // With 16-byte stack alignment, also drop the caller's padding slot (like
+    // DropArguments below and like arm64).
+    __ Ret(AddArgumentPaddingSlots(parameter_slots) * kSystemPointerSize,
+           scratch_reg);
     __ bind(&mismatch_return);
     __ DropArguments(argc_reg, scratch_reg);
     // We use a return instead of a jump for better return address prediction.
@@ -8677,7 +8867,11 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     Register scratch_reg = r10;
     DCHECK(!call_descriptor->CalleeSavedRegisters().has(scratch_reg));
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
-    size_t pop_size = (parameter_slots + additional_count) * kSystemPointerSize;
+    // With 16-byte stack alignment, the caller pushed a padding slot above an
+    // odd number of stack arguments. Like on arm64, the callee drops it.
+    size_t pop_size =
+        AddArgumentPaddingSlots(parameter_slots + additional_count) *
+        kSystemPointerSize;
     CHECK_LE(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
     __ Ret(static_cast<int>(pop_size), scratch_reg);
   } else {
@@ -8687,8 +8881,16 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     DCHECK(!call_descriptor->CalleeSavedRegisters().has(pop_reg));
     int pop_size = static_cast<int>(parameter_slots * kSystemPointerSize);
     __ PopReturnAddressTo(scratch_reg);
-    __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,
-                         static_cast<int>(pop_size)));
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      // Drop RoundUp(pop_reg + parameter_slots, 2) slots, including the
+      // caller's padding slot (like arm64).
+      __ leaq(pop_reg, Operand(pop_reg, parameter_slots + 1));
+      __ andq(pop_reg, Immediate(~1));
+      __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size, 0));
+    } else {
+      __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,
+                           static_cast<int>(pop_size)));
+    }
     __ PushReturnAddressFrom(scratch_reg);
     __ Ret();
   }
@@ -8753,8 +8955,9 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
   if (dest->IsRegister()) {
     frame_access_state()->IncreaseSPDelta(-dropped_slots);
     __ popq(g.ToRegister(dest));
-  } else if (dest->IsStackSlot() || dest->IsFloatStackSlot() ||
-             dest->IsDoubleStackSlot()) {
+  } else if ((dest->IsStackSlot() || dest->IsFloatStackSlot() ||
+              dest->IsDoubleStackSlot()) &&
+             dropped_slots == 1) {
     frame_access_state()->IncreaseSPDelta(-dropped_slots);
     __ popq(g.ToOperand(dest));
   } else {
@@ -8765,6 +8968,7 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
     __ addq(rsp, Immediate(dropped_slots * kSystemPointerSize));
   }
   temp_slots_ -= dropped_slots;
+  DCHECK_GE(temp_slots_, 0);
 }
 
 void CodeGenerator::PopTempStackSlots() {
@@ -8968,19 +9172,18 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(source->IsFPRegister());
         XMMRegister src = g.ToDoubleRegister(source);
-        MachineRepresentation rep =
+        MachineRepresentation src_rep =
             LocationOperand::cast(source)->representation();
+        MachineRepresentation dst_rep =
+            LocationOperand::cast(destination)->representation();
+        MachineRepresentation rep =
+            ElementSizeInBytes(dst_rep) < ElementSizeInBytes(src_rep) ? dst_rep
+                                                                      : src_rep;
         if (rep == MachineRepresentation::kSimd128) {
           __ Movups(dst, src);
         } else if (rep == MachineRepresentation::kSimd256) {
           CpuFeatureScope avx_scope(masm(), AVX);
-          // Whether the ymm source should be used as a xmm.
-          if (source->IsSimd256Register() &&
-              destination->IsSimd128StackSlot()) {
-            __ vmovups(dst, g.ToSimd128Register(source));
-          } else {
-            __ vmovups(dst, g.ToSimd256Register(source));
-          }
+          __ vmovups(dst, g.ToSimd256Register(source));
         } else {
           __ Movsd(dst, src);
         }
@@ -9031,21 +9234,20 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         // 32-bit on the stack.
         __ movq(dst, kScratchRegister);
       } else {
-        MachineRepresentation rep =
+        MachineRepresentation src_rep =
             LocationOperand::cast(source)->representation();
+        MachineRepresentation dst_rep =
+            LocationOperand::cast(destination)->representation();
+        MachineRepresentation rep =
+            ElementSizeInBytes(dst_rep) < ElementSizeInBytes(src_rep) ? dst_rep
+                                                                      : src_rep;
         if (rep == MachineRepresentation::kSimd128) {
           __ Movups(kScratchDoubleReg, src);
           __ Movups(dst, kScratchDoubleReg);
         } else if (rep == MachineRepresentation::kSimd256) {
           CpuFeatureScope avx_scope(masm(), AVX);
-          if (source->IsSimd256StackSlot() &&
-              destination->IsSimd128StackSlot()) {
-            __ vmovups(kScratchDoubleReg, src);
-            __ vmovups(dst, kScratchDoubleReg);
-          } else {
-            __ vmovups(kScratchSimd256Reg, src);
-            __ vmovups(dst, kScratchSimd256Reg);
-          }
+          __ vmovups(kScratchSimd256Reg, src);
+          __ vmovups(dst, kScratchSimd256Reg);
         } else {
           __ Movsd(kScratchDoubleReg, src);
           __ Movsd(dst, kScratchDoubleReg);

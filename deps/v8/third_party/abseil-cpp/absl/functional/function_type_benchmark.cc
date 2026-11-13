@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <functional>
-#include <memory>
 #include <string>
 
 #include "absl/base/attributes.h"
@@ -40,7 +39,7 @@ struct LargeFunctor {
 };
 
 template <typename Function, typename... Args>
-void ABSL_ATTRIBUTE_NOINLINE CallFunction(Function f, Args&&... args) {
+ABSL_ATTRIBUTE_NOINLINE void CallFunction(Function f, Args&&... args) {
   f(std::forward<Args>(args)...);
 }
 

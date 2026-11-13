@@ -1133,15 +1133,19 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // incoming argc's register (if it's still valid).
   __ Ldr(actual_params_size,
          MemOperand(fp, StandardFrameConstants::kArgCOffset));
-  __ Mov(params_size, Immediate(formal_params_size));
 
   // If actual is bigger than formal, then we should use it to free up the stack
-  // arguments.
-  Label corrected_args_count;
-  __ CompareAndBranch(params_size, actual_params_size, ge,
-                      &corrected_args_count);
-  __ Mov(params_size, actual_params_size);
-  __ Bind(&corrected_args_count);
+  // arguments. A conditional select rather than a branch over the move, as in
+  // Sparkplug's EmitReturn: one instruction fewer and no branch in the
+  // epilogue. Both counts include the receiver, so without formal parameters
+  // the actual count is never smaller.
+  if (formal_params_size > 1) {
+    __ Mov(params_size, Immediate(formal_params_size));
+    __ Cmp(params_size, actual_params_size);
+    __ Csel(params_size, actual_params_size, params_size, lt);
+  } else {
+    params_size = actual_params_size;
+  }
 
   // Leave the frame.
   __ LeaveFrame(StackFrame::MAGLEV);
@@ -1215,15 +1219,18 @@ void LoadDictionaryField::GenerateCode(MaglevAssembler* masm,
     __ CompareTaggedAndJumpIf(scratch, name().object(), kNotEqual,
                               deferred_fallback);
 
-    __ LoadTaggedField(scratch, properties,
-                       NameDictionary::OffsetOfElementAt(
-                           entry_index + NameDictionary::kEntryDetailsIndex));
-    __ SmiToInt32(scratch);
-    __ And(scratch.W(), scratch.W(),
-           Immediate(PropertyDetails::KindField::kMask));
-    __ CompareInt32AndJumpIf(
-        scratch.W(), PropertyDetails::KindField::encode(PropertyKind::kData),
-        kNotEqual, deferred_fallback);
+    // PropertyDetails is stored as a Smi, so we can test the KindField bit in
+    // place without decompressing or untagging. This works for both 31-bit and
+    // 32-bit Smis because LoadTaggedFieldWithoutDecompressing loads the full
+    // tagged width and kSmiShift accounts for the Smi tag offset.
+    static_assert(PropertyDetails::KindField::kSize == 1);
+    static_assert(static_cast<int>(PropertyKind::kData) == 0);
+    __ LoadTaggedFieldWithoutDecompressing(
+        scratch, properties,
+        NameDictionary::OffsetOfElementAt(entry_index +
+                                          NameDictionary::kEntryDetailsIndex));
+    __ Tbnz(scratch, kSmiShift + PropertyDetails::KindField::kShift,
+            deferred_fallback);
 
     __ LoadTaggedField(result_reg, properties,
                        NameDictionary::OffsetOfElementAt(

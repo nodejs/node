@@ -31,8 +31,8 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
   static void SetUpTestSuite() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    i::v8_flags.ignition_elide_noneffectful_bytecodes = false;
-    i::v8_flags.ignition_reo = false;
+    i::v8_flags.ignition_elide_noneffectful_bytecodes.Set(false);
+    i::v8_flags.ignition_reo.Set(false);
 
     TestWithIsolateAndZone::SetUpTestSuite();
   }
@@ -487,6 +487,41 @@ TEST_F(BytecodeAnalysisTest, SuspendPoint) {
 
   builder.LoadAccumulatorWithRegister(reg_0);
   expected_liveness.emplace_back("L...", "...L");
+
+  builder.Return();
+  expected_liveness.emplace_back("...L", "....");
+
+  Handle<BytecodeArray> bytecode = builder.ToBytecodeArray(isolate());
+
+  EnsureLivenessMatches(bytecode, expected_liveness);
+}
+
+TEST_F(BytecodeAnalysisTest, JumpIfToBooleanTryCatch) {
+  interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
+  std::vector<std::pair<std::string, std::string>> expected_liveness;
+
+  interpreter::Register reg_1(1);
+  interpreter::Register reg_context(2);
+
+  interpreter::TryCatchBuilder try_builder(&builder, nullptr, nullptr,
+                                           HandlerTable::CAUGHT);
+  try_builder.BeginTry(reg_context);
+  {
+    interpreter::BytecodeLabel label;
+    builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean, &label);
+    expected_liveness.emplace_back("...L", "...L");
+
+    builder.Bind(&label);
+  }
+  try_builder.EndTry();
+  expected_liveness.emplace_back("...L", "...L");
+
+  // Catch
+  {
+    builder.LoadAccumulatorWithRegister(reg_1);
+    expected_liveness.emplace_back(".L..", "...L");
+  }
+  try_builder.EndCatch();
 
   builder.Return();
   expected_liveness.emplace_back("...L", "....");

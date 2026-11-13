@@ -7,7 +7,10 @@
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/handles.h"
+#include "src/heap/heap-controller.h"
 #include "src/heap/local-factory-inl.h"
+#include "src/heap/local-heap-inl.h"
+#include "src/heap/parked-scope.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/slots-inl.h"
 #include "test/unittests/test-utils.h"
@@ -16,6 +19,46 @@ namespace v8 {
 namespace internal {
 
 using HeapAllocatorTest = TestWithIsolate;
+
+namespace {
+class LightRetryBackgroundThread final : public v8::base::Thread {
+ public:
+  explicit LightRetryBackgroundThread(Heap* heap)
+      : v8::base::Thread(base::Thread::Options("LightRetryBackgroundThread")),
+        heap_(heap) {}
+
+  void Run() override {
+    LocalHeap local_heap(heap_, ThreadKind::kBackground);
+    UnparkedScope unparked_scope(&local_heap);
+    Tagged<HeapObject> result =
+        local_heap.AllocateRawWith<HeapAllocator::kLightRetry>(
+            kMaxRegularHeapObjectSize * 2, AllocationType::kOld);
+    CHECK(result.is_null());
+  }
+
+ private:
+  Heap* heap_;
+};
+}  // namespace
+
+TEST_F(HeapAllocatorTest, BackgroundLightRetryAtHeapLimit) {
+  Isolate* i_isolate = this->i_isolate();
+  Heap* heap = i_isolate->heap();
+  v8::Isolate::Scope isolate_scope(this->v8_isolate());
+
+  const size_t initial_max_old_generation_size =
+      heap->limits()->max_old_generation_size();
+  heap->limits()->SetMaximumSizes(0, 0);
+  CHECK(!heap->CanExpandOldGeneration(0));
+
+  i_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      [heap, initial_max_old_generation_size]() {
+        LightRetryBackgroundThread thread(heap);
+        CHECK(thread.Start());
+        thread.Join();
+        heap->limits()->SetMaximumSizes(initial_max_old_generation_size, 0);
+      });
+}
 
 TEST_F(HeapAllocatorTest, TryResizeLargeObject) {
   if (!COMPRESS_POINTERS_BOOL) return;

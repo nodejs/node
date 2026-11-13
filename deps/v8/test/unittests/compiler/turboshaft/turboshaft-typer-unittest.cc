@@ -339,6 +339,55 @@ TYPED_TEST(FloatTyperTest, Divide) {
   EXPECT_DIV(Set({-inf, inf}), Set({-inf, inf}), T::NaN());
 }
 
+TYPED_TEST(FloatTyperTest, SetWithSpecialsAndOverflow) {
+  DEFINE_TEST_HELPERS()
+
+  // 1. Set with NaN, -0.0, duplicate values, and out-of-order floats.
+  {
+    std::vector<float_t> raw_elements = {nan,
+                                         static_cast<float_t>(42.0),
+                                         static_cast<float_t>(-0.0),
+                                         static_cast<float_t>(-5.0),
+                                         nan,
+                                         static_cast<float_t>(-0.0),
+                                         static_cast<float_t>(42.0)};
+    auto result = FloatOperationTyper<TestFixture::Bits>::Set(raw_elements, 0,
+                                                              this->zone());
+    EXPECT_TRUE(result.has_nan());
+    EXPECT_TRUE(result.has_minus_zero());
+    EXPECT_TRUE(result.Contains(static_cast<float_t>(42.0)));
+    EXPECT_TRUE(result.Contains(static_cast<float_t>(-5.0)));
+    EXPECT_FALSE(result.Contains(static_cast<float_t>(0.0)));
+    EXPECT_FALSE(result.Contains(static_cast<float_t>(1.0)));
+  }
+
+  // 2. Set with only NaN and -0.0.
+  {
+    std::vector<float_t> raw_elements = {nan, static_cast<float_t>(-0.0), nan};
+    auto result = FloatOperationTyper<TestFixture::Bits>::Set(raw_elements, 0,
+                                                              this->zone());
+    EXPECT_TRUE(result.is_only_special_values());
+    EXPECT_TRUE(result.has_nan());
+    EXPECT_TRUE(result.has_minus_zero());
+  }
+
+  // 3. Set with elements exceeding kMaxSetSize -> converts to Range.
+  {
+    std::vector<float_t> raw_elements;
+    for (int i = 0; i < T::kMaxSetSize + 5; ++i) {
+      raw_elements.push_back(static_cast<float_t>(i * 10));
+    }
+    auto result = FloatOperationTyper<TestFixture::Bits>::Set(raw_elements, 0,
+                                                              this->zone());
+    EXPECT_TRUE(result.is_range());
+    EXPECT_EQ(result.range_min(), static_cast<float_t>(0.0));
+    EXPECT_EQ(result.range_max(),
+              static_cast<float_t>((T::kMaxSetSize + 4) * 10));
+    EXPECT_TRUE(result.Contains(static_cast<float_t>(20.0)));
+    EXPECT_TRUE(result.Contains(static_cast<float_t>(15.0)));  // inside range
+  }
+}
+
 #undef DEFINE_TEST_HELPERS
 
 }  // namespace v8::internal::compiler::turboshaft

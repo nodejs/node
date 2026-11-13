@@ -11,6 +11,7 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-primitive.h"
 #include "include/v8-template.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/objects/objects-inl.h"
 #include "test/common/flag-utils.h"
 #include "test/common/streaming-helper.h"
@@ -892,6 +893,339 @@ TEST_F(CompileHintsTest,
 
   EXPECT_FALSE(FunctionIsCompiled("test_function_1"));
   EXPECT_FALSE(FunctionIsCompiled("test_function_2"));
+}
+
+namespace {
+class HistogramRecorder {
+ public:
+  static void Reset() {
+    base::MutexGuard guard(&mutex_);
+    histograms_.clear();
+  }
+
+  static void* CreateHistogram(const char* name, int min, int max,
+                               size_t buckets) {
+    base::MutexGuard guard(&mutex_);
+    auto& entry = histograms_[name];
+    if (!entry) {
+      entry = std::make_unique<std::vector<int>>();
+    }
+    return entry.get();
+  }
+
+  static void AddHistogramSample(void* histogram, int sample) {
+    base::MutexGuard guard(&mutex_);
+    static_cast<std::vector<int>*>(histogram)->push_back(sample);
+  }
+
+  static size_t Count(const char* name) {
+    base::MutexGuard guard(&mutex_);
+    auto it = histograms_.find(name);
+    if (it == histograms_.end() || !it->second) return 0;
+    return it->second->size();
+  }
+
+ private:
+  static base::Mutex mutex_;
+  static std::map<std::string, std::unique_ptr<std::vector<int>>> histograms_;
+};
+
+base::Mutex HistogramRecorder::mutex_;
+std::map<std::string, std::unique_ptr<std::vector<int>>>
+    HistogramRecorder::histograms_;
+
+class OffThreadDeserializeThread : public base::Thread {
+ public:
+  explicit OffThreadDeserializeThread(
+      ScriptCompiler::ConsumeCodeCacheTask* task)
+      : Thread(base::Thread::Options("OffThreadDeserializeThread")),
+        task_(task) {}
+
+  void Run() override { task_->Run(); }
+
+  std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> TakeTask() {
+    return std::move(task_);
+  }
+
+ private:
+  std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task_;
+};
+}  // namespace
+
+TEST_F(ScriptTest, CompileAndDeserializeHistograms) {
+  HistogramRecorder::Reset();
+  isolate()->SetCreateHistogramFunction(&HistogramRecorder::CreateHistogram);
+  isolate()->SetAddHistogramSampleFunction(
+      &HistogramRecorder::AddHistogramSample);
+
+  v8::ScriptOrigin classic_origin(NewString("classic.js"));
+  v8::ScriptOrigin module_origin(NewString("module.mjs"), 0, 0, false, -1,
+                                 Local<Value>(), false, false, true);
+
+  // 1. Main-thread classic script compile.
+  const char* classic_code = "function classic_fn() { return 1; }";
+  v8::ScriptCompiler::Source classic_source(NewString(classic_code),
+                                            classic_origin);
+  Local<Script> classic_script =
+      v8::ScriptCompiler::Compile(v8_context(), &classic_source)
+          .ToLocalChecked();
+  std::unique_ptr<v8::ScriptCompiler::CachedData> classic_cache(
+      v8::ScriptCompiler::CreateCodeCache(classic_script->GetUnboundScript()));
+
+  EXPECT_EQ(1u, HistogramRecorder::Count("V8.CompileScriptMicroSeconds"));
+  EXPECT_EQ(1u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds.Classic"));
+  EXPECT_EQ(0u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds.Module"));
+  EXPECT_EQ(
+      1u, HistogramRecorder::Count("V8.CompileScriptMicroSeconds.MainThread"));
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileScriptMicroSeconds.MainThread.Classic"));
+  EXPECT_EQ(0u, HistogramRecorder::Count(
+                    "V8.CompileScriptMicroSeconds.MainThread.Module"));
+
+  // 2. Main-thread module script compile.
+  const char* module_code = "export function module_fn() { return 2; }";
+  v8::ScriptCompiler::Source module_source(NewString(module_code),
+                                           module_origin);
+  Local<Module> module =
+      v8::ScriptCompiler::CompileModule(isolate(), &module_source)
+          .ToLocalChecked();
+  std::unique_ptr<v8::ScriptCompiler::CachedData> module_cache(
+      v8::ScriptCompiler::CreateCodeCache(module->GetUnboundModuleScript()));
+
+  EXPECT_EQ(2u, HistogramRecorder::Count("V8.CompileScriptMicroSeconds"));
+  EXPECT_EQ(1u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds.Classic"));
+  EXPECT_EQ(1u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds.Module"));
+  EXPECT_EQ(
+      2u, HistogramRecorder::Count("V8.CompileScriptMicroSeconds.MainThread"));
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileScriptMicroSeconds.MainThread.Classic"));
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileScriptMicroSeconds.MainThread.Module"));
+
+  // 3. Main-thread classic script deserialize.
+  i_isolate()->compilation_cache()->Clear();
+  {
+    auto* cached_data = new v8::ScriptCompiler::CachedData(
+        classic_cache->data, classic_cache->length,
+        v8::ScriptCompiler::CachedData::BufferNotOwned);
+    v8::ScriptCompiler::Source cached_classic_source(
+        NewString(classic_code), classic_origin, cached_data);
+    v8::ScriptCompiler::Compile(v8_context(), &cached_classic_source,
+                                v8::ScriptCompiler::kConsumeCodeCache)
+        .ToLocalChecked();
+    EXPECT_FALSE(cached_classic_source.GetCachedData()->rejected);
+  }
+
+  EXPECT_EQ(1u, HistogramRecorder::Count("V8.CompileDeserializeMicroSeconds"));
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileDeserializeMicroSeconds.Classic"));
+  EXPECT_EQ(
+      0u, HistogramRecorder::Count("V8.CompileDeserializeMicroSeconds.Module"));
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileDeserializeMicroSeconds.MainThread"));
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileDeserializeMicroSeconds.MainThread.Classic"));
+  EXPECT_EQ(0u, HistogramRecorder::Count(
+                    "V8.CompileDeserializeMicroSeconds.MainThread.Module"));
+  EXPECT_EQ(3u, HistogramRecorder::Count("V8.CompileScriptMicroSeconds"));
+  EXPECT_EQ(2u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds.Classic"));
+  EXPECT_EQ(1u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds.Module"));
+  EXPECT_EQ(
+      2u, HistogramRecorder::Count("V8.CompileScriptMicroSeconds.MainThread"));
+
+  // 4. Main-thread module script deserialize.
+  i_isolate()->compilation_cache()->Clear();
+  {
+    auto* cached_data = new v8::ScriptCompiler::CachedData(
+        module_cache->data, module_cache->length,
+        v8::ScriptCompiler::CachedData::BufferNotOwned);
+    v8::ScriptCompiler::Source cached_module_source(NewString(module_code),
+                                                    module_origin, cached_data);
+    v8::ScriptCompiler::CompileModule(isolate(), &cached_module_source,
+                                      v8::ScriptCompiler::kConsumeCodeCache)
+        .ToLocalChecked();
+    EXPECT_FALSE(cached_module_source.GetCachedData()->rejected);
+  }
+
+  EXPECT_EQ(2u, HistogramRecorder::Count("V8.CompileDeserializeMicroSeconds"));
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileDeserializeMicroSeconds.Classic"));
+  EXPECT_EQ(
+      1u, HistogramRecorder::Count("V8.CompileDeserializeMicroSeconds.Module"));
+  EXPECT_EQ(2u, HistogramRecorder::Count(
+                    "V8.CompileDeserializeMicroSeconds.MainThread"));
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileDeserializeMicroSeconds.MainThread.Classic"));
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileDeserializeMicroSeconds.MainThread.Module"));
+  EXPECT_EQ(4u, HistogramRecorder::Count("V8.CompileScriptMicroSeconds"));
+  EXPECT_EQ(2u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds.Classic"));
+  EXPECT_EQ(2u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds.Module"));
+  EXPECT_EQ(
+      2u, HistogramRecorder::Count("V8.CompileScriptMicroSeconds.MainThread"));
+
+  // 5. Background streaming classic script compile.
+  {
+    const char* chunks[] = {"function streamed_classic() { return 3; }",
+                            nullptr};
+    v8::ScriptCompiler::StreamedSource streamed_source(
+        std::make_unique<i::TestSourceStream>(chunks),
+        v8::ScriptCompiler::StreamedSource::ONE_BYTE);
+    std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task(
+        v8::ScriptCompiler::StartStreaming(isolate(), &streamed_source,
+                                           v8::ScriptType::kClassic));
+    StreamerThread::StartThreadForTaskAndJoin(task.get());
+    task.reset();
+
+    std::unique_ptr<char[]> full_source(
+        i::TestSourceStream::FullSourceString(chunks));
+    v8::ScriptCompiler::Compile(v8_context(), &streamed_source,
+                                NewString(full_source.get()), classic_origin)
+        .ToLocalChecked();
+  }
+
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileScriptMicroSeconds.BackgroundThread"));
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileScriptMicroSeconds.BackgroundThread.Classic"));
+  EXPECT_EQ(0u, HistogramRecorder::Count(
+                    "V8.CompileScriptMicroSeconds.BackgroundThread.Module"));
+  EXPECT_EQ(5u, HistogramRecorder::Count("V8.CompileScriptMicroSeconds"));
+  EXPECT_EQ(3u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds.Classic"));
+  EXPECT_EQ(2u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds.Module"));
+  EXPECT_EQ(
+      2u, HistogramRecorder::Count("V8.CompileScriptMicroSeconds.MainThread"));
+
+  // 6. Background streaming module script compile.
+  {
+    const char* chunks[] = {"export function streamed_module() { return 4; }",
+                            nullptr};
+    v8::ScriptCompiler::StreamedSource streamed_source(
+        std::make_unique<i::TestSourceStream>(chunks),
+        v8::ScriptCompiler::StreamedSource::ONE_BYTE);
+    std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task(
+        v8::ScriptCompiler::StartStreaming(isolate(), &streamed_source,
+                                           v8::ScriptType::kModule));
+    StreamerThread::StartThreadForTaskAndJoin(task.get());
+    task.reset();
+
+    std::unique_ptr<char[]> full_source(
+        i::TestSourceStream::FullSourceString(chunks));
+    v8::ScriptCompiler::CompileModule(v8_context(), &streamed_source,
+                                      NewString(full_source.get()),
+                                      module_origin)
+        .ToLocalChecked();
+  }
+
+  EXPECT_EQ(2u, HistogramRecorder::Count(
+                    "V8.CompileScriptMicroSeconds.BackgroundThread"));
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileScriptMicroSeconds.BackgroundThread.Classic"));
+  EXPECT_EQ(1u, HistogramRecorder::Count(
+                    "V8.CompileScriptMicroSeconds.BackgroundThread.Module"));
+  EXPECT_EQ(6u, HistogramRecorder::Count("V8.CompileScriptMicroSeconds"));
+  EXPECT_EQ(3u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds.Classic"));
+  EXPECT_EQ(3u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds.Module"));
+  EXPECT_EQ(
+      2u, HistogramRecorder::Count("V8.CompileScriptMicroSeconds.MainThread"));
+
+  // 7. Background classic script deserialize.
+  i_isolate()->compilation_cache()->Clear();
+  {
+    OffThreadDeserializeThread deserialize_thread(
+        v8::ScriptCompiler::StartConsumingCodeCache(
+            isolate(), std::make_unique<v8::ScriptCompiler::CachedData>(
+                           classic_cache->data, classic_cache->length,
+                           v8::ScriptCompiler::CachedData::BufferNotOwned)));
+    CHECK(deserialize_thread.Start());
+    deserialize_thread.Join();
+
+    auto* cached_data = new v8::ScriptCompiler::CachedData(
+        classic_cache->data, classic_cache->length,
+        v8::ScriptCompiler::CachedData::BufferNotOwned);
+    v8::ScriptCompiler::Source source(NewString(classic_code), classic_origin,
+                                      cached_data,
+                                      deserialize_thread.TakeTask().release());
+    v8::ScriptCompiler::Compile(v8_context(), &source,
+                                v8::ScriptCompiler::kConsumeCodeCache)
+        .ToLocalChecked();
+    EXPECT_FALSE(source.GetCachedData()->rejected);
+  }
+
+  EXPECT_EQ(1u,
+            HistogramRecorder::Count(
+                "V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread"));
+  EXPECT_EQ(1u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds."
+                                     "ConsumeCache.BackgroundThread.Classic"));
+  EXPECT_EQ(
+      0u,
+      HistogramRecorder::Count(
+          "V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread.Module"));
+  EXPECT_EQ(3u, HistogramRecorder::Count("V8.CompileDeserializeMicroSeconds"));
+  EXPECT_EQ(2u, HistogramRecorder::Count(
+                    "V8.CompileDeserializeMicroSeconds.Classic"));
+  EXPECT_EQ(
+      1u, HistogramRecorder::Count("V8.CompileDeserializeMicroSeconds.Module"));
+  EXPECT_EQ(2u, HistogramRecorder::Count(
+                    "V8.CompileDeserializeMicroSeconds.MainThread"));
+
+  // 8. Background module script deserialize.
+  i_isolate()->compilation_cache()->Clear();
+  {
+    OffThreadDeserializeThread deserialize_thread(
+        v8::ScriptCompiler::StartConsumingCodeCache(
+            isolate(), std::make_unique<v8::ScriptCompiler::CachedData>(
+                           module_cache->data, module_cache->length,
+                           v8::ScriptCompiler::CachedData::BufferNotOwned)));
+    CHECK(deserialize_thread.Start());
+    deserialize_thread.Join();
+
+    auto* cached_data = new v8::ScriptCompiler::CachedData(
+        module_cache->data, module_cache->length,
+        v8::ScriptCompiler::CachedData::BufferNotOwned);
+    v8::ScriptCompiler::Source source(NewString(module_code), module_origin,
+                                      cached_data,
+                                      deserialize_thread.TakeTask().release());
+    v8::ScriptCompiler::CompileModule(isolate(), &source,
+                                      v8::ScriptCompiler::kConsumeCodeCache)
+        .ToLocalChecked();
+    EXPECT_FALSE(source.GetCachedData()->rejected);
+  }
+
+  EXPECT_EQ(2u,
+            HistogramRecorder::Count(
+                "V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread"));
+  EXPECT_EQ(1u,
+            HistogramRecorder::Count("V8.CompileScriptMicroSeconds."
+                                     "ConsumeCache.BackgroundThread.Classic"));
+  EXPECT_EQ(
+      1u,
+      HistogramRecorder::Count(
+          "V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread.Module"));
+  EXPECT_EQ(4u, HistogramRecorder::Count("V8.CompileDeserializeMicroSeconds"));
+  EXPECT_EQ(2u, HistogramRecorder::Count(
+                    "V8.CompileDeserializeMicroSeconds.Classic"));
+  EXPECT_EQ(
+      2u, HistogramRecorder::Count("V8.CompileDeserializeMicroSeconds.Module"));
+  EXPECT_EQ(2u, HistogramRecorder::Count(
+                    "V8.CompileDeserializeMicroSeconds.MainThread"));
+
+  isolate()->SetCreateHistogramFunction(nullptr);
+  isolate()->SetAddHistogramSampleFunction(nullptr);
+  HistogramRecorder::Reset();
 }
 
 }  // namespace

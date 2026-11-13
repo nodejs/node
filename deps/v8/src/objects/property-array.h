@@ -29,18 +29,10 @@ V8_OBJECT class PropertyArray : public HeapObject {
   inline int Hash() const;
 
   inline Tagged<Object> get(int index) const;
-  inline Tagged<Object> get(int index, SeqCstAccessTag tag) const;
 
   inline void set(int index, Tagged<Object> value);
-  inline void set(int index, Tagged<Object> value, SeqCstAccessTag tag);
   // Setter with explicit barrier mode.
   inline void set(int index, Tagged<Object> value, WriteBarrierMode mode);
-
-  inline Tagged<Object> Swap(int index, Tagged<Object> value,
-                             SeqCstAccessTag tag);
-  inline Tagged<Object> CompareAndSwap(int index, Tagged<Object> expected,
-                                       Tagged<Object> value,
-                                       SeqCstAccessTag tag);
 
   // Signature must be in sync with FixedArray::CopyElements().
   inline static void CopyElements(Isolate* isolate, Tagged<PropertyArray> dst,
@@ -83,6 +75,7 @@ V8_OBJECT class PropertyArray : public HeapObject {
   // for class metadata, and the uninitialized_value Hole for not-yet-assigned
   // slots (see MigrateFastToFast in js-objects.cc). The actual element kind
   // is dispatched by the descriptor; callers know what to expect.
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, objects);
 } V8_OBJECT_END;
 

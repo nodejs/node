@@ -144,11 +144,6 @@ int VRegisters::Number(const char* name) {
   return kInvalidVRegister;
 }
 
-bool InstructionBase::IsShortInstruction() const {
-  uint8_t FirstByte = *reinterpret_cast<const uint8_t*>(this);
-  return (FirstByte & 0x03) <= C2;
-}
-
 template <class T>
 int InstructionGetters<T>::RvcRdValue() const {
   DCHECK(this->IsShortInstruction());

@@ -41,8 +41,8 @@ local int gz_init(gz_statep state) {
             gz_error(state, Z_MEM_ERROR, "out of memory");
             return -1;
         }
-        strm->next_in = NULL;
     }
+    strm->next_in = NULL;
 
     /* mark state as initialized */
     state->size = state->want;
@@ -79,7 +79,7 @@ local int gz_comp(gz_statep state, int flush) {
             put = strm->avail_in > max ? max : strm->avail_in;
             writ = (int)write(state->fd, strm->next_in, put);
             if (writ < 0) {
-                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                if (BLOCKED(errno))
                     state->again = 1;
                 gz_error(state, Z_ERRNO, zstrerror());
                 return -1;
@@ -114,7 +114,7 @@ local int gz_comp(gz_statep state, int flush) {
                       (unsigned)(strm->next_out - state->x.next);
                 writ = (int)write(state->fd, state->x.next, put);
                 if (writ < 0) {
-                    if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    if (BLOCKED(errno))
                         state->again = 1;
                     gz_error(state, Z_ERRNO, zstrerror());
                     return -1;
@@ -156,6 +156,11 @@ local int gz_zero(gz_statep state) {
     unsigned n;
     z_streamp strm = &(state->strm);
 
+    /* allocate memory if this is the first time through -- the input buffer
+       must exist before it is zeroed below */
+    if (state->size == 0 && gz_init(state) == -1)
+        return -1;
+
     /* consume whatever's left in the input buffer */
     if (strm->avail_in && gz_comp(state, Z_NO_FLUSH) == -1)
         return -1;
@@ -175,8 +180,14 @@ local int gz_zero(gz_statep state) {
         n -= strm->avail_in;
         state->x.pos += n;
         state->skip -= n;
-        if (ret == -1)
+        if (ret == -1) {
+            /* discard any unconsumed zero fill -- it was not yet accounted
+               for in state->skip, so it will be generated again when the
+               operation is retried */
+            strm->avail_in = 0;
+            strm->next_in = state->in;
             return -1;
+        }
     } while (state->skip);
     return 0;
 }
@@ -242,9 +253,13 @@ local z_size_t gz_write(gz_statep state, voidpc buf, z_size_t len) {
             n -= state->strm.avail_in;
             state->x.pos += n;
             len -= n;
-            if (ret == -1)
+            if (ret == -1) {
+                state->strm.avail_in = 0;
+                state->strm.next_in = state->in;
                 return state->again ? put - len : 0;
+            }
         } while (len);
+        state->strm.next_in = state->in;
     }
 
     /* input was all buffered or compressed */
@@ -371,9 +386,10 @@ int ZEXPORT gzputs(gzFile file, const char *s) {
     return len && put == 0 ? -1 : (int)put;
 }
 
-#if (((!defined(STDC) && !defined(Z_HAVE_STDARG_H)) || !defined(NO_vsnprintf)) && \
-     (defined(STDC) || defined(Z_HAVE_STDARG_H) || !defined(NO_snprintf))) || \
-    defined(ZLIB_INSECURE)
+#if (((!defined(STDC) && !defined(Z_HAVE_STDARG_H)) || \
+      !defined(NO_vsnprintf)) && \
+     (defined(STDC) || defined(Z_HAVE_STDARG_H) || \
+     !defined(NO_snprintf))) || defined(ZLIB_INSECURE)
 /* If the second half of the input buffer is occupied, write out the contents.
    If there is any input remaining due to a non-blocking stall on write, move
    it to the start of the buffer. Return true if this did not open up the
@@ -383,7 +399,8 @@ local int gz_vacate(gz_statep state) {
     z_streamp strm;
 
     strm = &(state->strm);
-    if (strm->next_in + strm->avail_in <= state->in + state->size)
+    if (strm->next_in == NULL ||
+        strm->next_in + strm->avail_in <= state->in + state->size)
         return 0;
     (void)gz_comp(state, Z_NO_FLUSH);
     if (strm->avail_in == 0) {
@@ -443,6 +460,7 @@ int ZEXPORTVA gzvprintf(gzFile file, const char *format, va_list va) {
                a Z_BUF_ERROR to let the application know that this gzprintf()
                needs to be retried. */
             gz_error(state, Z_BUF_ERROR, "stalled write on gzprintf");
+            return state->err;
         }
         if (!state->again)
             return state->err;
@@ -478,6 +496,14 @@ int ZEXPORTVA gzvprintf(gzFile file, const char *format, va_list va) {
 
     /* write out buffer if more than half is occupied */
     ret = gz_vacate(state);
+    if (ret) {
+        /* discard unwritten formatted output */
+        strm->avail_in -= (unsigned)len;
+        state->x.pos -= len;
+        if (state->again)
+            gz_error(state, Z_BUF_ERROR, "stalled write on gzprintf");
+        return state->err;
+    }
     if (state->err && !state->again)
         return state->err;
     return len;
@@ -551,6 +577,7 @@ int ZEXPORTVA gzprintf(gzFile file, const char *format, int a1, int a2, int a3,
                a Z_BUF_ERROR to let the application know that this gzprintf()
                needs to be retried. */
             gz_error(state, Z_BUF_ERROR, "stalled write on gzprintf");
+            return state->err;
         }
         if (!state->again)
             return state->err;
@@ -591,6 +618,14 @@ int ZEXPORTVA gzprintf(gzFile file, const char *format, int a1, int a2, int a3,
 
     /* write out buffer if more than half is occupied */
     ret = gz_vacate(state);
+    if (ret) {
+        /* discard unwritten formatted output */
+        strm->avail_in -= (unsigned)len;
+        state->x.pos -= len;
+        if (state->again)
+            gz_error(state, Z_BUF_ERROR, "stalled write on gzprintf");
+        return state->err;
+    }
     if (state->err && !state->again)
         return state->err;
     return (int)len;

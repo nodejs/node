@@ -449,7 +449,7 @@ class WritableRelocInfo : public RelocInfo {
   V8_INLINE void set_wasm_code_pointer(Address);
 
   void set_target_address(
-      Tagged<InstructionStream> host, Address target,
+      Isolate* isolate, Tagged<InstructionStream> host, Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   // Use this overload only when an InstructionStream host is not available.
@@ -457,7 +457,8 @@ class WritableRelocInfo : public RelocInfo {
                                               FLUSH_ICACHE_IF_NEEDED);
 
   V8_INLINE void set_target_object(
-      Tagged<InstructionStream> host, Tagged<HeapObject> target,
+      Isolate* isolate, Tagged<InstructionStream> host,
+      Tagged<HeapObject> target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   // Use this overload only when an InstructionStream host is not available.

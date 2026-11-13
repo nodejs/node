@@ -1088,6 +1088,12 @@ Instr Assembler::ImmException(int imm16) {
   return imm16 << ImmException_offset;
 }
 
+// udf is reserved for the constant pool marker, see IsConstantPoolAt.
+Instr Assembler::ImmUdf(int imm16) {
+  CHECK(is_uint16(imm16));
+  return imm16 << ImmUdf_offset;
+}
+
 Instr Assembler::ImmSystemRegister(int imm15) {
   DCHECK(is_uint15(imm15));
   return imm15 << ImmSystemRegister_offset;

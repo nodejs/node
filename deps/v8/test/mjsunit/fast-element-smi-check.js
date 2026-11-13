@@ -46,7 +46,6 @@ test_load_set_smi_2(a);
 test_load_set_smi_2(a);
 test_load_set_smi_2(0);
 %DeoptimizeFunction(test_load_set_smi_2);
-%ClearFunctionFeedback(test_load_set_smi_2);
 
 var b = new Object();
 
@@ -67,4 +66,3 @@ test_load_set_smi_4(b);
 test_load_set_smi_4(b);
 test_load_set_smi_4(0);
 %DeoptimizeFunction(test_load_set_smi_4);
-%ClearFunctionFeedback(test_load_set_smi_4);

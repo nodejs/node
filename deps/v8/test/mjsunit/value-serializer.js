@@ -49,3 +49,87 @@ for (var o of objects) {
   const deserialised = d8.serializer.deserialize(serialised);
   assertEquals(typeof deserialised, typeof o);
 }
+
+{
+  const map = new Map([
+    ['foo', 42],
+    ['bar' + 'baz', 99],
+    ['uc16\u2028key', 123],
+    [-0.0, 'zero'],
+    [1.5, 'one_half'],
+    [-2.5, 'minus_two_half'],
+    [NaN, 'nan'],
+  ]);
+  const deserialized = d8.serializer.deserialize(d8.serializer.serialize(map));
+  assertEquals(7, deserialized.size);
+  assertTrue(deserialized.has('foo'));
+  assertEquals(42, deserialized.get('foo'));
+  assertTrue(deserialized.has('barbaz'));
+  assertEquals(99, deserialized.get('barbaz'));
+  assertTrue(deserialized.has('uc16\u2028key'));
+  assertEquals(123, deserialized.get('uc16\u2028key'));
+  assertTrue(deserialized.has(0.0));
+  assertTrue(deserialized.has(-0.0));
+  assertEquals('zero', deserialized.get(0.0));
+  assertEquals('zero', deserialized.get(-0.0));
+  assertTrue(deserialized.has(1.5));
+  assertEquals('one_half', deserialized.get(1.5));
+  assertTrue(deserialized.has(-2.5));
+  assertEquals('minus_two_half', deserialized.get(-2.5));
+  assertTrue(deserialized.has(NaN));
+  assertEquals('nan', deserialized.get(NaN));
+  assertTrue(deserialized.delete('foo'));
+  assertFalse(deserialized.has('foo'));
+  assertEquals(6, deserialized.size);
+}
+
+{
+  const set = new Set([
+    'foo',
+    'bar' + 'baz',
+    'uc16\u2028key',
+    -0.0,
+    0.0,
+    1.5,
+    -2.5,
+    NaN,
+  ]);
+  const deserialized = d8.serializer.deserialize(d8.serializer.serialize(set));
+  assertEquals(7, deserialized.size);
+  assertTrue(deserialized.has('foo'));
+  assertTrue(deserialized.has('barbaz'));
+  assertTrue(deserialized.has('uc16\u2028key'));
+  assertTrue(deserialized.has(0.0));
+  assertTrue(deserialized.has(-0.0));
+  assertTrue(deserialized.has(1.5));
+  assertTrue(deserialized.has(-2.5));
+  assertTrue(deserialized.has(NaN));
+  assertTrue(deserialized.delete('foo'));
+  assertFalse(deserialized.has('foo'));
+  assertEquals(6, deserialized.size);
+}
+
+// Crafted wire payloads encoding -0.0 (kDouble) directly as a Map or Set key
+// should fail deserialization rather than CHECK-failing.
+{
+  const serializedMinusZero = new Uint8Array(d8.serializer.serialize(-0.0));
+  const header = serializedMinusZero.slice(0, 2);
+  const minusZeroDouble = serializedMinusZero.slice(2);
+
+  const setBytes = new Uint8Array([
+    ...header,
+    0x27,  // SerializationTag::kBeginJSSet ("'")
+    ...minusZeroDouble,
+    0x2c, 1,  // SerializationTag::kEndJSSet (","), length 1
+  ]);
+  assertThrows(() => d8.serializer.deserialize(setBytes.buffer), Error);
+
+  const mapBytes = new Uint8Array([
+    ...header,
+    0x3b,  // SerializationTag::kBeginJSMap (";")
+    ...minusZeroDouble,
+    0x54,  // SerializationTag::kTrue ("T")
+    0x3a, 2,  // SerializationTag::kEndJSMap (":"), length 2
+  ]);
+  assertThrows(() => d8.serializer.deserialize(mapBytes.buffer), Error);
+}

@@ -12,6 +12,7 @@
 #include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {

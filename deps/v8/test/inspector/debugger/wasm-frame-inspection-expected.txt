@@ -1,0 +1,10 @@
+Tests frame inspection with wasm frames.
+Paused, checking call frames:
+frame 0: call_debugger (wasm: false)
+frame 1: $wasm_2 (wasm: true)
+  line: 0, column: 60
+frame 2: $wasm_1 (wasm: true)
+  line: 0, column: 55
+frame 3: testFrameInspection (wasm: false)
+frame 4:  (wasm: false)
+break_count: 1

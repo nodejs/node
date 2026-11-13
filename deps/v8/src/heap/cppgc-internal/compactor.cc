@@ -288,7 +288,7 @@ class CompactionState final {
 
     // Return remaining available pages back to the backend.
     for (NormalPage* page : available_pages_) {
-      SetMemoryInaccessible(page->PayloadStart(), page->PayloadSize());
+      SetMemoryInaccessible(page->PayloadStart(), NormalPage::PayloadSize());
       NormalPage::Destroy(page);
     }
   }
@@ -298,10 +298,10 @@ class CompactionState final {
     defined(V8_USE_ADDRESS_SANITIZER)
     // Zap the unused portion, until it is either compacted into or freed.
     if (current_page_ != page) {
-      ZapMemory(page->PayloadStart(), page->PayloadSize());
+      ZapMemory(page->PayloadStart(), NormalPage::PayloadSize());
     } else {
       ZapMemory(page->PayloadStart() + used_bytes_in_current_page_,
-                page->PayloadSize() - used_bytes_in_current_page_);
+                NormalPage::PayloadSize() - used_bytes_in_current_page_);
     }
 #endif
     page->object_start_bitmap().MarkAsFullyPopulated();
@@ -311,10 +311,10 @@ class CompactionState final {
   void ReturnCurrentPageToSpace() {
     DCHECK_EQ(space_, &current_page_->space());
     space_->AddPage(current_page_);
-    if (used_bytes_in_current_page_ != current_page_->PayloadSize()) {
+    if (used_bytes_in_current_page_ != NormalPage::PayloadSize()) {
       // Put the remainder of the page onto the free list.
       size_t freed_size =
-          current_page_->PayloadSize() - used_bytes_in_current_page_;
+          NormalPage::PayloadSize() - used_bytes_in_current_page_;
       Address payload = current_page_->PayloadStart();
       Address free_start = payload + used_bytes_in_current_page_;
       SetMemoryInaccessible(free_start, freed_size);

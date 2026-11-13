@@ -1,0 +1,11 @@
+Checks that loop interrupt stack checks are properly detected and processed.
+{
+    opt : true
+    r1 : 70
+    r2 : 70
+}
+trigger_count before: 0
+r3: 70
+trigger_count after: 1
+called_from: loop_interrupt_check_f
+unoptimized: true

@@ -9,13 +9,17 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_LGAMMAF_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_LGAMMAF_H
 
+#include "hdr/errno_macros.h"
+#include "hdr/fenv_macros.h"
+#include "hdr/stdint_proxy.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/NearestIntegerOperations.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/cast.h"
 #include "src/__support/FPUtil/except_value_utils.h"
+#include "src/__support/FPUtil/is_integer.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
 #include "src/__support/math/gamma_util.h"
@@ -89,7 +93,7 @@ LIBC_INLINE float lgammaf(float x) {
   }
 
   // Negative integers and lgamma(1) = lgamma(2) = 0.
-  if (LIBC_UNLIKELY(is_integer(x))) {
+  if (LIBC_UNLIKELY(fputil::is_integer(x))) {
     if (xbits.is_neg()) {
       fputil::raise_except_if_required(FE_DIVBYZERO);
       fputil::set_errno_if_required(ERANGE);
@@ -380,14 +384,9 @@ LIBC_INLINE float lgammaf(float x) {
     // lgamma(x) = (x-0.5)*log(x) - x + log(2*pi)/2 + (1/x)*P(1/x^2)
     //          = (x-0.5)*(log(x)-1) + STIR_CONST + (1/x)*P(1/x^2)
     // STIR_CONST = log(2*pi)/2 - 0.5.
-    // For huge positive x, lgamma(x) overflows float. Use a linear
-    // approximation in double that maps to the correct Inf/max_normal.
-    if (LIBC_UNLIKELY(!xbits.is_neg() && x >= 0x1.895f1cp+121f)) {
-      fputil::set_errno_if_required(ERANGE);
-      fputil::raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
-      double r = fputil::multiply_add(xd, 0x1.4d3398p+6, 0x1.10f35ep+103);
-      return fputil::cast<float>(r);
-    }
+    // For huge positive x, lgamma(x) overflows float.
+    if (LIBC_UNLIKELY(!xbits.is_neg() && x >= 0x1.895f1cp+121f))
+      return fputil::set_overflow<float>();
 
     // No cancellation in (x-0.5)*(log(x)-1): log(x)-1 > 0.2 on this range.
     // Relative error ~2^-48; anything closer to a rounding boundary is in
@@ -435,9 +434,10 @@ LIBC_INLINE float lgammaf(float x) {
         lgamma_val += inv_x * fputil::multiply_add(inv_x4, p23, p01);
       } else {
         // Exceptional cases of this range.
-        constexpr fputil::ExceptValues<float, 2> LGAMMAF_EXCEPTS_B10{{
+        constexpr fputil::ExceptValues<float, 3> LGAMMAF_EXCEPTS_B10{{
             // input,      toward-zero result, RU, RD, RN
             {0x42468b59u, 0x430f25a7u, 1, 0, 0},
+            {0xc0c82481u, 0xc0b2a995u, 0, 1, 1},
             {0xc134eb14u, 0xc1875615u, 0, 1, 0},
         }};
         if (auto r = LGAMMAF_EXCEPTS_B10.lookup(xbits.uintval());
@@ -469,11 +469,14 @@ LIBC_INLINE float lgammaf(float x) {
         lgamma_val += inv_x * poly;
       }
     } else {
-      constexpr fputil::ExceptValues<float, 3> LGAMMAF_EXCEPTS_HUGE{{
+      constexpr fputil::ExceptValues<float, 6> LGAMMAF_EXCEPTS_HUGE{{
           // input,      toward-zero result, RU, RD, RN
+          {0x4f3f94c0u, 0x517a24a2u, 1, 0, 1},
+          {0x50522f52u, 0x5292ee5du, 1, 0, 1},
           {0x65fca09fu, 0x68cead59u, 1, 0, 1},
           {0x716e5dd5u, 0x747e2bb9u, 1, 0, 0},
           {0x77ac5674u, 0x7acf27b2u, 1, 0, 1},
+          {0x7943def8u, 0x7c7232d7u, 1, 0, 0},
       }};
       if (auto r = LGAMMAF_EXCEPTS_HUGE.lookup(xbits.uintval());
           LIBC_UNLIKELY(r.has_value()))
@@ -492,7 +495,7 @@ LIBC_INLINE float lgammaf(float x) {
 
   float result = fputil::cast<float>(lgamma_val);
   if (LIBC_UNLIKELY(FPBits(result).is_inf())) {
-    fputil::raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
+    fputil::raise_overflow_except_if_required<float>();
     fputil::set_errno_if_required(ERANGE);
   }
   return result;

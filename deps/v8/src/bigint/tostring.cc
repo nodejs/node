@@ -599,7 +599,7 @@ uint32_t ToStringResultLength(Digits X, int radix, bool sign) {
   uint32_t result;
   if (IsPowerOfTwo(radix)) {
     const uint32_t bits_per_char = CountTrailingZeros(radix);
-    result = DIV_CEIL(bit_length, bits_per_char) + sign;
+    result = DIV_CEIL(bit_length, bits_per_char);
   } else {
     // Maximum number of bits we can represent with one character.
     const uint8_t max_bits_per_char = kMaxBitsPerChar[radix];

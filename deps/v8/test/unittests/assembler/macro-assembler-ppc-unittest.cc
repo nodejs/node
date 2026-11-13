@@ -6,6 +6,7 @@
 #include "src/codegen/ppc/assembler-ppc-inl.h"
 #include "src/execution/simulator.h"
 #include "test/common/assembler-tester.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest-support.h"
 
@@ -19,6 +20,12 @@ namespace internal {
 // V8 library, create a context, or use any V8 objects.
 
 class MacroAssemblerTest : public TestWithIsolate {};
+
+const char* ErrorMessage(const char* msg) {
+  // We only print the abort reason if debug code is enabled. Otherwise we just
+  // stop execution. Return an empty string in that case.
+  return v8_flags.debug_code ? msg : "";
+}
 
 TEST_F(MacroAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
@@ -63,6 +70,41 @@ TEST_F(MacroAssemblerTest, TestCheck) {
   ASSERT_DEATH_IF_SUPPORTED(
       { f.Call(17); }, v8_flags.debug_code ? "abort: no reason" : "");
 }
+
+#ifdef V8_ENABLE_DEBUG_CODE
+TEST_F(MacroAssemblerTest, TestAssertZeroExtended) {
+  FLAG_SCOPE(debug_code);
+
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
+                      buffer->CreateView());
+  __ set_root_array_available(false);
+  __ set_abort_hard(true);
+
+  __ AssertZeroExtended(r3);  // 1st parameter is in {r3}.
+  __ Ret();
+
+  CodeDesc desc;
+  masm.GetCode(isolate(), &desc);
+  buffer->MakeExecutable();
+  // We need an isolate here to execute in the simulator.
+  auto f =
+      GeneratedCode<void, uint64_t>::FromBuffer(isolate(), buffer->start());
+
+  f.Call(0);
+  f.Call(42);
+  f.Call(0xFFFFFFFFULL);
+  ASSERT_DEATH_IF_SUPPORTED(
+      { f.Call(0x100000000ULL); },
+      ErrorMessage("abort: 32 bit value in register is not zero-extended"));
+  ASSERT_DEATH_IF_SUPPORTED(
+      { f.Call(0xFFFFFFFFFFFFFFFFULL); },
+      ErrorMessage("abort: 32 bit value in register is not zero-extended"));
+  ASSERT_DEATH_IF_SUPPORTED(
+      { f.Call(0x8000000000000000ULL); },
+      ErrorMessage("abort: 32 bit value in register is not zero-extended"));
+}
+#endif  // V8_ENABLE_DEBUG_CODE
 
 TEST_F(MacroAssemblerTest, ReverseBitsU64) {
   struct {

@@ -348,6 +348,7 @@ TEST_F(InterceptorTest, IndexedInterceptorIterableToList_ValidityCellBypass) {
   i::DirectHandle<i::JSObject> i_prototype =
       i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*prototype));
   ASSERT_TRUE(i_prototype->map()->is_dictionary_map());
+  ASSERT_FALSE(i_prototype->map()->should_be_fast_prototype_map());
 
   // 2. Make Symbol.iterator mutable but keep the value unchanged.
   RunJS(R"(
@@ -361,6 +362,9 @@ TEST_F(InterceptorTest, IndexedInterceptorIterableToList_ValidityCellBypass) {
   // perform the necessary checks.
   RunJS("Array.from(obj);");
   ASSERT_EQ(data.call_count, 1);
+  ASSERT_TRUE(i_prototype->map()->should_be_fast_prototype_map());
+  ASSERT_EQ(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
+            i_prototype->HasFastProperties());
 
   // 4. Modify Symbol.iterator again, the fast path shouldn't be taken.
   RunJS("proto[Symbol.iterator] = function*() { yield 42; };");
@@ -377,6 +381,34 @@ TEST_F(InterceptorTest, IndexedInterceptorIterableToList_ValidityCellBypass) {
   // and the bug will cause the assertion to fail.
   ASSERT_EQ(1u, arr->Length());
   ASSERT_EQ(42, arr->Get(context(), 0).ToLocalChecked().As<Integer>()->Value());
+}
+
+TEST_F(InterceptorTest,
+       IndexedInterceptorIterableToList_PrototypeBecomesFastOnPropertyAccess) {
+  i::FlagScope<bool> enable_flag(&i::v8_flags.fast_api_iterable_to_list, true);
+  v8::HandleScope scope(isolate());
+  InterceptorData data;
+
+  Local<FunctionTemplate> tmpl =
+      CreateIterableToListInterceptorTemplate(isolate(), &data);
+  Local<Function> ctor = tmpl->GetFunction(context()).ToLocalChecked();
+  Local<Object> obj = ctor->NewInstance(context()).ToLocalChecked();
+  SetGlobalProperty("obj", obj);
+
+  Local<Object> prototype = obj->GetPrototype().As<Object>();
+  i::DirectHandle<i::JSObject> i_prototype =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*prototype));
+  ASSERT_TRUE(i_prototype->map()->is_dictionary_map());
+  ASSERT_FALSE(i_prototype->map()->should_be_fast_prototype_map());
+
+  // Accessing a property on the prototype via LoadIC (without calling
+  // Array.from or spread) must transition the prototype out of setup mode.
+  Local<Value> res = RunJS("obj.length");
+  ASSERT_EQ(3, res.As<Integer>()->Value());
+  ASSERT_EQ(0, data.call_count);
+  ASSERT_TRUE(i_prototype->map()->should_be_fast_prototype_map());
+  ASSERT_EQ(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
+            i_prototype->HasFastProperties());
 }
 
 TEST_F(InterceptorTest, IndexedInterceptorIterableToList_SetPrototypeBypass) {
@@ -429,6 +461,38 @@ TEST_F(InterceptorTest, IndexedInterceptorIterableToList_SetPrototypeBypass) {
       }
     )");
   ASSERT_TRUE(is_error->IsTrue());
+}
+
+TEST_F(InterceptorTest,
+       IndexedInterceptorIterableToList_ArrayIteratorProtector) {
+  i::FlagScope<bool> enable_flag(&i::v8_flags.fast_api_iterable_to_list, true);
+  v8::HandleScope scope(isolate());
+  InterceptorData data;
+
+  Local<FunctionTemplate> tmpl =
+      CreateIterableToListInterceptorTemplate(isolate(), &data);
+  Local<Function> ctor = tmpl->GetFunction(context()).ToLocalChecked();
+  Local<Object> obj = ctor->NewInstance(context()).ToLocalChecked();
+  SetGlobalProperty("obj", obj);
+
+  // Invalidate the ArrayIterator protector.
+  RunJS(
+      "Object.getPrototypeOf([][Symbol.iterator]()).next = function(){return "
+      "{done:true}};");
+
+  int initial_count = data.call_count;
+
+  Local<Value> res_from = RunJS("Array.from(obj)");
+  ASSERT_TRUE(res_from->IsArray());
+  Local<Array> arr_from = res_from.As<Array>();
+  ASSERT_EQ(0u, arr_from->Length());
+
+  Local<Value> res_spread = RunJS("((...a)=>a)(...obj)");
+  ASSERT_TRUE(res_spread->IsArray());
+  Local<Array> arr_spread = res_spread.As<Array>();
+  ASSERT_EQ(0u, arr_spread->Length());
+
+  ASSERT_EQ(initial_count, data.call_count);
 }
 
 // namespace internal {

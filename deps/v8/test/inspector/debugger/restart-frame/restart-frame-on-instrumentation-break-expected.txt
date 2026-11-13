@@ -1,0 +1,3 @@
+Checks restartFrame during a JS instrumentation break
+Interpreted: 42,2,0, paused_count=2
+Optimized: 42,2,0, paused_count=2

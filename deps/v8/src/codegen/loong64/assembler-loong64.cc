@@ -5591,25 +5591,6 @@ void Assembler::vpermi_w(VRegister vd, VRegister vj, uint32_t ui8) {
   GenImm(VPERMI_W, ui8, vj, vd, 8);
 }
 
-void Assembler::AdjustBaseAndOffset(MemOperand* src) {
-  // is_int12 must be passed a signed value, hence the static cast below.
-  if ((!src->hasIndexReg() && is_int12(src->offset())) || src->hasIndexReg()) {
-    return;
-  }
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  if (is_uint12(static_cast<int32_t>(src->offset()))) {
-    ori(scratch, zero_reg, src->offset() & kImm12Mask);
-  } else {
-    lu12i_w(scratch, src->offset() >> 12 & 0xfffff);
-    if (src->offset() & kImm12Mask) {
-      ori(scratch, scratch, src->offset() & kImm12Mask);
-    }
-  }
-  src->index_ = scratch;
-  src->offset_ = 0;
-}
-
 void Assembler::RelocateRelativeReference(
     RelocInfo::Mode rmode, Address pc, intptr_t pc_delta,
     WritableJitAllocation* jit_allocation) {

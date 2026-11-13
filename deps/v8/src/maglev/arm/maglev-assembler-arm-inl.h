@@ -645,6 +645,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
   vmov(dst, base::Double(n.get_bits()));
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  if (TryLoadRoot(dst, obj)) return;
   MacroAssembler::Move(dst, obj);
 }
 inline void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
@@ -789,6 +790,7 @@ inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat64(
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
   // No 64-bit registers.
+  Move(dst, src);
 }
 inline void MaglevAssembler::NegateInt32(Register val) {
   rsb(val, val, Operand(0));

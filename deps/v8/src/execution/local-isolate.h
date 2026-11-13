@@ -7,10 +7,9 @@
 
 #include <optional>
 
-#include "src/base/fpu.h"
 #include "src/base/macros.h"
+#include "src/base/thread-id.h"
 #include "src/execution/mutex-guard-if-off-thread.h"
-#include "src/execution/thread-id.h"
 #include "src/handles/handles.h"
 #include "src/handles/local-handles.h"
 #include "src/handles/maybe-handles.h"
@@ -27,6 +26,7 @@ class Processor;
 namespace internal {
 
 class Isolate;
+class IsolateData;
 class LocalLogger;
 class RuntimeCallStats;
 
@@ -47,7 +47,11 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
  public:
   using HandleScopeType = LocalHandleScope;
 
-  explicit LocalIsolate(Isolate* isolate, ThreadKind kind);
+  // The parameter `stack_start` is only used for stack-allocated instances,
+  // where `kind == ThreadKind::kBackground`.
+  explicit LocalIsolate(Isolate* isolate, ThreadKind kind,
+                        v8::base::Stack::StackSlot stack_start =
+                            v8::base::Stack::GetCurrentFrameAddress());
   ~LocalIsolate();
 
   // Kinda sketchy.
@@ -106,6 +110,8 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
   IsolateGroup* isolate_group() const { return isolate_->isolate_group(); }
 
+  inline const IsolateData* isolate_data() const;
+
   AccountingAllocator* allocator() { return isolate_->allocator(); }
 
   bool has_exception() const { return false; }
@@ -132,7 +138,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   // TODO(cbruni): rename this back to logger() once the V8FileLogger
   // refactoring is completed.
   LocalLogger* v8_file_logger() const { return logger_.get(); }
-  ThreadId thread_id() const { return thread_id_; }
+  base::ThreadId thread_id() const { return thread_id_; }
   Address stack_limit() const { return stack_limit_; }
 #ifdef V8_RUNTIME_CALL_STATS
   RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
@@ -151,7 +157,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   // AsIsolate is only allowed on the main-thread.
   Isolate* AsIsolate() {
     DCHECK(is_main_thread());
-    DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate_->thread_id());
     return isolate_;
   }
   LocalIsolate* AsLocalIsolate() { return this; }
@@ -202,7 +208,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   Isolate* const isolate_;
 
   std::unique_ptr<LocalLogger> logger_;
-  ThreadId const thread_id_;
+  base::ThreadId const thread_id_;
   Address const stack_limit_;
 
   bigint::Processor* bigint_processor_{nullptr};

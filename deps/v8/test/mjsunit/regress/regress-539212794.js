@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbofan --expose-externalize-string
+// Flags: --no-enable-slow-asserts
 
 // A string constant baked into optimized code can change shape afterwards.
 // Externalizing one in place swaps in an external string map and shrinks the

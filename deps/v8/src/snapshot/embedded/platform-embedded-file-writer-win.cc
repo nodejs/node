@@ -5,6 +5,7 @@
 #include "src/snapshot/embedded/platform-embedded-file-writer-win.h"
 
 #include <algorithm>
+#include <array>
 
 #include "src/common/globals.h"  // For V8_OS_WIN64
 
@@ -186,7 +187,7 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
 
   // Fairly arbitrary but should fit all symbol names.
   static constexpr int kTemporaryStringLength = 256;
-  base::EmbeddedVector<char, kTemporaryStringLength> unwind_info_full_symbol;
+  std::array<char, kTemporaryStringLength> unwind_info_full_symbol;
 
   // Emit a RUNTIME_FUNCTION (PDATA) entry for each builtin function, as
   // documented here:
@@ -235,7 +236,7 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
                        code_chunks.size());
         w->DeclareRvaToSymbol(embedded_blob_data_symbol,
                               builtin_start_offset + chunk_start);
-        w->DeclareRvaToSymbol(unwind_info_full_symbol.begin());
+        w->DeclareRvaToSymbol(unwind_info_full_symbol.data());
       }
     }
   }
@@ -250,7 +251,7 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
     for (size_t i = 0; i < code_chunks.size(); i++) {
       base::SNPrintF(unwind_info_full_symbol, "%s_%u", unwind_info_symbol,
                      i + 1);
-      w->DeclareLabel(unwind_info_full_symbol.begin());
+      w->DeclareLabel(unwind_info_full_symbol.data());
       std::vector<uint8_t> xdata =
           win64_unwindinfo::GetUnwindInfoForBuiltinFunction(code_chunks[i],
                                                             fp_adjustments[i]);

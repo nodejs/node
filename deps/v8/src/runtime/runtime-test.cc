@@ -8,7 +8,11 @@
 
 #include <iomanip>
 #include <memory>
+#include <optional>
+#include <utility>
+#include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "include/v8-function.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
@@ -16,15 +20,17 @@
 #include "src/base/macros.h"
 #include "src/base/numbers/double.h"
 #include "src/base/strong-alias.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/handler-table.h"
 #include "src/codegen/pending-optimization-table.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
+#include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
@@ -32,25 +38,32 @@
 #include "src/flags/flags.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/pretenuring-handler-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/ic/stub-cache.h"
+#include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-register.h"
+#include "src/interpreter/bytecodes.h"
 #include "src/objects/abstract-code-inl.h"
+#include "src/objects/bytecode-array-inl.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/sandbox/bytecode-verifier.h"
+#include "src/strings/string-builder-inl.h"
 #include "src/utils/utils.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #endif  // V8_ENABLE_MAGLEV
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/smi.h"
 #include "src/profiler/heap-snapshot-generator.h"
 #include "src/regexp/regexp.h"
+#include "src/snapshot/code-serializer.h"
 #include "src/snapshot/snapshot.h"
 
 #ifdef V8_ENABLE_MAGLEV
@@ -106,15 +119,6 @@ V8_WARN_UNUSED_RESULT bool CheckMarkedForManualOptimization(
   return true;
 }
 
-// Returns |value| unless correctness-fuzzer-supressions is enabled,
-// otherwise returns undefined_value.
-V8_WARN_UNUSED_RESULT Tagged<Object> ReturnFuzzSafe(Tagged<Object> value,
-                                                    Isolate* isolate) {
-  return v8_flags.correctness_fuzzer_suppressions
-             ? ReadOnlyRoots(isolate).undefined_value()
-             : value;
-}
-
 // Assert that the given argument is a number within the Int32 range
 // and convert it to int32_t.  If the argument is not an Int32 we crash if not
 // in fuzzing mode.
@@ -137,6 +141,7 @@ RUNTIME_FUNCTION(Runtime_ClearMegamorphicStubCache) {
   isolate->load_stub_cache()->Clear();
   isolate->store_stub_cache()->Clear();
   isolate->define_own_stub_cache()->Clear();
+  isolate->has_stub_cache()->Clear();
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -155,6 +160,14 @@ RUNTIME_FUNCTION(Runtime_StringIsFlat) {
   DCHECK_EQ(args.length(), 1);
   DirectHandle<String> s = args.at<String>(0);
   return isolate->heap()->ToBoolean(s->IsFlat());
+}
+
+RUNTIME_FUNCTION(Runtime_StringIsOneByteRepresentation) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  DirectHandle<String> s = args.at<String>(0);
+  return isolate->heap()->ToBoolean(s->IsOneByteRepresentation());
 }
 
 RUNTIME_FUNCTION(Runtime_ConstructConsString) {
@@ -195,19 +208,15 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalizedString) {
       isolate->factory()->InternalizeString(string);
   // The argument was either already an internalized string or it is now a thin
   // string to an internalized string.
-  // For shared strings, one of the following happens:
-  // 1) With `--shared-string-table` the string is inserted into the
-  //    `StringForwardingTable` to reduce the overhead of repeated
-  //    internalization.
-  // 2) Without `--shared-string-table` the original string gets copied on each
-  //    internalization inte the unshared heap and from there it needs to be
-  //    internalized each time.
-  // In either case, the input shared string does not change its shape on
+  // For shared strings, the original string gets copied on each internalization
+  // into the unshared heap and from there it needs to be internalized each
+  // time, so the input shared string does not change its shape on
   // internalization.
   CHECK(IsInternalizedString(*string) ||
         (IsThinString(*string) &&
          IsInternalizedString(Cast<ThinString>(*string)->actual())) ||
-        HeapLayout::InAnySharedSpace(*string));
+        HeapLayout::InAnySharedSpace(*string) ||
+        isolate->is_executing_api_interrupt());
   CHECK(IsInternalizedString(*internalized));
   return *internalized;
 }
@@ -220,12 +229,13 @@ RUNTIME_FUNCTION(Runtime_ConstructThinString) {
   if (IsThinString(*string)) {
     return *string;
   }
+  CHECK_UNLESS_FUZZING(!isolate->is_executing_api_interrupt());
   if (!IsConsString(*string)) {
     CHECK_UNLESS_FUZZING(string->length() >= ConsString::kMinLength);
     string = isolate->factory()->NewConsString(
         isolate->factory()->empty_string(), string, string->length(),
         string->IsOneByteRepresentation(),
-        // Pretenure to ensure it stays thin.
+        // Allocate in old space to ensure it stays thin.
         AllocationType::kOld);
   }
   CHECK(IsConsString(*string));
@@ -271,6 +281,10 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   if (!it.done()) function = direct_handle(it.frame()->function(), isolate);
   CHECK_UNLESS_FUZZING(!function.is_null());
 
+  if (it.frame()->is_optimized()) {
+    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
+                                    it.frame()->LookupCode());
+  }
   if (function->HasAttachedOptimizedCode(isolate)) {
     Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
                                     function->code(isolate));
@@ -391,8 +405,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
   if (args.length() == 2) {
     DirectHandle<Object> type = args.at(1);
     CHECK_UNLESS_FUZZING(IsString(*type));
-    if (Cast<String>(type)->IsOneByteEqualTo(
-            base::StaticCharVector("concurrent")) &&
+    if (Cast<String>(type)->IsOneByteEqualTo("concurrent") &&
         isolate->concurrent_recompilation_enabled()) {
       concurrency_mode = ConcurrencyMode::kConcurrent;
     }
@@ -871,6 +884,18 @@ RUNTIME_FUNCTION(Runtime_BaselineOsr) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DisableEagerInlining) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  Handle<Object> function_object = args.at(0);
+  CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
+  auto function = Cast<JSFunction>(function_object);
+
+  ManualOptimizationTable::MarkFunctionForDisabledEagerInlining(isolate,
+                                                                function);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
@@ -878,6 +903,9 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
   auto function = Cast<JSFunction>(function_object);
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
+#if V8_ENABLE_WEBASSEMBLY
+  CHECK_UNLESS_FUZZING(!sfi->HasWasmFunctionData(isolate));
+#endif  // V8_ENABLE_WEBASSEMBLY
   CodeKind code_kind = sfi->abstract_code(isolate)->kind();
   switch (code_kind) {
     case CodeKind::INTERPRETED_FUNCTION:
@@ -1152,18 +1180,6 @@ RUNTIME_FUNCTION(Runtime_GetCallable) {
   return *Utils::OpenDirectHandle(*instance);
 }
 
-RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
-  HandleScope scope(isolate);
-  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
-  DCHECK_EQ(args.length(), 1);
-  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
-  function->ClearAllTypeFeedbackInfoForTesting(isolate);
-  // Typically tests use this function to start from scratch. Thus, we should
-  // also clear tiering requests.
-  function->ResetTieringRequests(isolate);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_NotifyContextDisposed) {
   HandleScope scope(isolate);
   isolate->heap()->NotifyContextDisposed(true);
@@ -1226,7 +1242,6 @@ int FixedArrayLenFromSize(int size) {
 
 void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
                            SemiSpaceNewSpace* space) {
-  DCHECK(!v8_flags.single_generation);
   heap->FreeMainThreadLinearAllocationAreas();
   PauseAllocationObserversScope pause_observers(heap);
   while (space->GetSpaceRemainingOnCurrentPageForTesting() > 0) {
@@ -1248,6 +1263,12 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
+  if (v8_flags.single_generation) {
+    PrintF(
+        "Warning: %%SimulateNewspaceFull does nothing in single-generation "
+        "mode\n");
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   heap->FreeMainThreadLinearAllocationAreas();
@@ -1786,32 +1807,6 @@ RUNTIME_FUNCTION(Runtime_InYoungGeneration) {
   return isolate->heap()->ToBoolean(HeapLayout::InYoungGeneration(obj));
 }
 
-// Force pretenuring for the allocation site the passed object belongs to.
-RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
-  DisallowGarbageCollection no_gc;
-
-  CHECK_UNLESS_FUZZING(args.length() == 1);
-  Tagged<Object> arg = args[0];
-  CHECK_UNLESS_FUZZING(IsJSObject(arg));
-  Tagged<JSObject> object = Cast<JSObject>(arg);
-
-  if (!v8_flags.sticky_mark_bits && !HeapLayout::InYoungGeneration(object)) {
-    // Object is not in new space, thus there is no memento and nothing to do.
-    return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
-  }
-
-  Heap* heap = isolate->heap();
-  PretenuringHandler* pretenuring_handler = heap->pretenuring_handler();
-  Tagged<AllocationMemento> memento = PretenuringHandler::FindAllocationMemento<
-      PretenuringHandler::kForRuntime>(heap, object->map(), object);
-  if (memento.is_null()) {
-    return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
-  }
-  Tagged<AllocationSite> site = memento->GetAllocationSite();
-  pretenuring_handler->PretenureAllocationSiteOnNextCollection(site);
-  return ReturnFuzzSafe(ReadOnlyRoots(isolate).true_value(), isolate);
-}
-
 namespace {
 
 v8::ModifyCodeGenerationFromStringsResult DisallowCodegenFromStringsCallback(
@@ -2316,15 +2311,6 @@ RUNTIME_FUNCTION(Runtime_SharedGC) {
   isolate->heap()->CollectGarbageShared(isolate->main_thread_local_heap(),
                                         GarbageCollectionReason::kTesting);
   return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_AtomicsSynchronizationPrimitiveNumWaitersForTesting) {
-  HandleScope scope(isolate);
-  CHECK_UNLESS_FUZZING(args.length() == 1);
-  CHECK_UNLESS_FUZZING(IsJSSynchronizationPrimitive(*args.at(0)));
-  DirectHandle<JSSynchronizationPrimitive> primitive =
-      args.at<JSSynchronizationPrimitive>(0);
-  return primitive->NumWaitersForTesting(isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
@@ -2887,6 +2873,122 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+
+// The header, trusted section and source of a code cache made by
+// %GetCodeCache.
+struct CodeCacheForTesting {
+  static constexpr ManagedTypeId kTypeID = ManagedTypeId::kCodeCacheForTesting;
+  std::vector<base::uc16> source;
+  std::vector<uint8_t> header_and_trusted_section;
+};
+
+}  // namespace
+
+// Compiles and serializes a script. Returns {cache, untrusted}: a handle to the
+// header and trusted section, and a copy of the untrusted section, for
+// %ConsumeCodeCache.
+RUNTIME_FUNCTION(Runtime_GetCodeCache) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.code_cache_fuzzing);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  Handle<String> source = String::Flatten(isolate, args.at<String>(0));
+  ScriptDetails script_details;
+  ScriptCompiler::CompilationDetails compilation_details;
+  DirectHandle<SharedFunctionInfo> shared;
+  if (!Compiler::GetSharedFunctionInfoForScript(
+           isolate, source, script_details, ScriptCompiler::kNoCompileOptions,
+           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
+           &compilation_details)
+           .ToHandle(&shared)) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  std::unique_ptr<ScriptCompiler::CachedData> cached_data(
+      CodeSerializer::Serialize(isolate, handle(*shared, isolate)));
+  if (!cached_data) return ReadOnlyRoots(isolate).undefined_value();
+  base::Vector<const uint8_t> cache(cached_data->data, cached_data->length);
+  base::Vector<const uint8_t> untrusted_payload =
+      CodeSerializer::UntrustedPayloadForTesting(cache);
+
+  auto entry = std::make_shared<CodeCacheForTesting>();
+  const uint32_t source_length = source->length();
+  entry->source.resize(source_length);
+  String::WriteToFlat(*source, entry->source.data(), 0, source_length);
+  entry->header_and_trusted_section.assign(cache.begin(),
+                                           untrusted_payload.begin());
+  size_t estimated_size = entry->header_and_trusted_section.size() +
+                          entry->source.size() * sizeof(base::uc16);
+  DirectHandle<CppGCManaged<CodeCacheForTesting>> managed =
+      CppGCManaged<CodeCacheForTesting>::Create(isolate, estimated_size,
+                                                std::move(entry));
+
+  Handle<JSArrayBuffer> untrusted =
+      isolate->factory()
+          ->NewJSArrayBufferAndBackingStore(untrusted_payload.size(),
+                                            InitializedFlag{false})
+          .ToHandleChecked();
+  memcpy(untrusted->backing_store(), untrusted_payload.begin(),
+         untrusted_payload.size());
+
+  Handle<JSObject> result =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  JSObject::AddProperty(isolate, result, "cache", managed,
+                        PropertyAttributes::NONE);
+  JSObject::AddProperty(isolate, result, "untrusted", untrusted,
+                        PropertyAttributes::NONE);
+  return *result;
+}
+
+// Consumes the header and trusted section of a %GetCodeCache result with the
+// given untrusted section, and runs the script. Returns its completion value,
+// or undefined if the cache was rejected.
+RUNTIME_FUNCTION(Runtime_ConsumeCodeCache) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.code_cache_fuzzing);
+  CHECK_UNLESS_FUZZING(args.length() == 2);
+  CHECK_UNLESS_FUZZING(IsCppGCManagedBase(args[0]));
+  CHECK_UNLESS_FUZZING(IsJSArrayBuffer(args[1]));
+  // Checks that the handle refers to a CodeCacheForTesting.
+  CppGCManaged<CodeCacheForTesting>::Ptr entry =
+      Cast<CppGCManaged<CodeCacheForTesting>>(args[0])->ptr();
+  DirectHandle<JSArrayBuffer> buffer = args.at<JSArrayBuffer>(1);
+  DirectHandle<String> source =
+      isolate->factory()
+          ->NewStringFromTwoByte(base::VectorOf(entry->source))
+          .ToHandleChecked();
+
+  // Copy the untrusted section out of the sandbox first.
+  std::vector<uint8_t> cache = CodeSerializer::WithUntrustedPayloadForTesting(
+      base::VectorOf(entry->header_and_trusted_section),
+      base::Vector<const uint8_t>(
+          static_cast<const uint8_t*>(buffer->backing_store()),
+          buffer->GetByteLength()));
+
+  MaybeDirectHandle<SharedFunctionInfo> maybe_shared;
+  {
+    GuardedCodeCacheForTesting guarded_cache(cache.data(),
+                                             static_cast<int>(cache.size()));
+    AlignedCachedData cached_data(guarded_cache.data(), guarded_cache.length());
+    ScriptDetails script_details;
+    maybe_shared = CodeSerializer::Deserialize(isolate, &cached_data, source,
+                                               script_details);
+  }
+
+  DirectHandle<SharedFunctionInfo> shared;
+  if (!maybe_shared.ToHandle(&shared)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  // Run it like a script: calling the top-level function directly would skip
+  // setting up the script context.
+  DirectHandle<JSFunction> function =
+      Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
+          .Build();
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Execution::CallScript(isolate, function, isolate->global_proxy(),
+                                     isolate->factory()->empty_fixed_array()));
+}
+
 RUNTIME_FUNCTION(Runtime_AllocateHeapNumberWithValue) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
@@ -2916,8 +3018,8 @@ RUNTIME_FUNCTION(Runtime_BlockAt) {
   DirectHandle<String> phase_name = args.at<String>(0);
   base::TimeDelta timeout =
       base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
-  SynchronizationPointSupport::Get()->RequestBlockAt(phase_name->ToStdString(),
-                                                     timeout);
+  base::SynchronizationPointSupport::Get()->RequestBlockAt(
+      phase_name->ToStdString(), timeout);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -2930,8 +3032,8 @@ RUNTIME_FUNCTION(Runtime_Resume) {
   DCHECK_EQ(1, args.length());
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   DirectHandle<String> phase_name = args.at<String>(0);
-  bool success =
-      SynchronizationPointSupport::Get()->Resume(phase_name->ToStdString());
+  bool success = base::SynchronizationPointSupport::Get()->Resume(
+      phase_name->ToStdString());
   return isolate->heap()->ToBoolean(success);
 }
 
@@ -2949,9 +3051,495 @@ RUNTIME_FUNCTION(Runtime_WaitUntilBlocked) {
   base::TimeDelta timeout =
       base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
 
-  bool success = SynchronizationPointSupport::Get()->WaitUntilBlocked(
-      phase_name->ToStdString(), timeout);
+  std::string phase_name_str = phase_name->ToStdString();
+  bool success = false;
+  isolate->main_thread_local_heap()->ExecuteWhileParked([&]() {
+    success = base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+        phase_name_str, timeout);
+  });
   return isolate->heap()->ToBoolean(success);
+}
+
+namespace {
+
+// Returns true iff `shared` (and all inner closures reachable from it) cannot
+// access any context outside the root function passed to
+// `%CopyFunctionWithFreshFeedback`. `initial_context_depth` is the number of
+// local contexts pushed inside the root function at the point where `shared` is
+// instantiated (`0` for the root function itself).
+//
+// Eagerly compiles nested closures of `shared` as a side effect. Returns false
+// with a pending exception if lazy compilation fails (which the caller must
+// check before inspecting the return value). A single forward pass is sound
+// because bytecode generation restores the same context depth and register
+// state across JumpLoop back-edges.
+bool HasNoOuterContextAccess(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared,
+    int initial_context_depth, bool root_context_is_native,
+    absl::flat_hash_set<std::pair<int32_t, int>>* visited) {
+  if (!visited
+           ->insert({shared->function_literal_id(kRelaxedLoad),
+                     initial_context_depth})
+           .second) {
+    return true;
+  }
+
+  IsCompiledScope is_compiled_scope = shared->is_compiled_scope(isolate);
+  if (!is_compiled_scope.is_compiled()) {
+    if (!Compiler::Compile(isolate, shared, Compiler::KEEP_EXCEPTION,
+                           &is_compiled_scope)) {
+      return false;
+    }
+  }
+  if (!shared->HasBytecodeArray()) {
+    return false;
+  }
+
+  Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate), isolate);
+  std::vector<std::pair<Handle<SharedFunctionInfo>, int>> inner_closures;
+
+  {
+    DisallowGarbageCollection no_gc;
+
+    constexpr int kNotAContext = -1;
+    struct ContextDepthState {
+      int min_reg;
+      std::vector<int> registers;
+      int accumulator = kNotAContext;
+
+      int reg(interpreter::Register r) const {
+        int idx = r.index() - min_reg;
+        if (idx < 0 || idx >= static_cast<int>(registers.size())) {
+          return kNotAContext;
+        }
+        return registers[idx];
+      }
+      void set_reg(interpreter::Register r, int depth) {
+        int idx = r.index() - min_reg;
+        if (idx >= 0 && idx < static_cast<int>(registers.size())) {
+          registers[idx] = depth;
+        }
+      }
+      int current_context() const {
+        return reg(interpreter::Register::current_context());
+      }
+      void set_current_context(int depth) {
+        set_reg(interpreter::Register::current_context(), depth);
+      }
+    };
+
+    const int bytecode_length = bytecode->length();
+    CHECK_GT(bytecode->parameter_count(), 0);
+    CHECK_GE(bytecode->register_count(), 0);
+    const int min_reg =
+        std::min(interpreter::Register::FromParameterIndex(
+                     bytecode->parameter_count() - 1)
+                     .index(),
+                 std::min(interpreter::Register::current_context().index(),
+                          interpreter::Register::function_closure().index()));
+    const int max_reg = bytecode->register_count();
+    const int num_regs = max_reg - min_reg;
+
+    ContextDepthState initial_state{
+        min_reg, std::vector<int>(num_regs, kNotAContext), kNotAContext};
+    initial_state.set_current_context(initial_context_depth);
+
+    std::vector<std::optional<ContextDepthState>> state_at_offset(
+        bytecode_length + 1);
+    state_at_offset[0] = std::move(initial_state);
+
+    auto merge = [&](int target, const ContextDepthState& incoming) {
+      CHECK_GE(target, 0);
+      CHECK_LE(target, bytecode_length);
+      if (!state_at_offset[target].has_value()) {
+        state_at_offset[target] = incoming;
+        return;
+      }
+      ContextDepthState& dst = *state_at_offset[target];
+      for (int i = 0; i < num_regs; ++i) {
+        if (dst.registers[i] != incoming.registers[i]) {
+          dst.registers[i] = kNotAContext;
+        }
+      }
+      if (dst.accumulator != incoming.accumulator) {
+        dst.accumulator = kNotAContext;
+      }
+    };
+
+    HandlerTable table(*bytecode);
+    const bool has_handlers = table.NumberOfRangeEntries() > 0;
+#ifdef DEBUG
+    for (uint32_t i = 1; i < table.NumberOfRangeEntries(); ++i) {
+      DCHECK_GE(table.GetRangeStart(i), table.GetRangeStart(i - 1));
+    }
+#endif
+    uint32_t next_handler_record = 0;
+
+    interpreter::BytecodeArrayIterator iterator(bytecode, 0, no_gc);
+    for (; !iterator.done(); iterator.Advance()) {
+      const int offset = iterator.current_offset();
+      if (!state_at_offset[offset].has_value()) {
+        continue;
+      }
+
+      ContextDepthState state = std::move(*state_at_offset[offset]);
+      state_at_offset[offset].reset();
+      if (has_handlers) {
+        while (next_handler_record < table.NumberOfRangeEntries() &&
+               table.GetRangeStart(next_handler_record) < offset) {
+          next_handler_record++;
+        }
+        for (uint32_t i = next_handler_record;
+             i < table.NumberOfRangeEntries() &&
+             table.GetRangeStart(i) == offset;
+             ++i) {
+          if (table.GetRangeStart(i) == table.GetRangeEnd(i)) continue;
+          ContextDepthState handler_state = state;
+          handler_state.set_current_context(
+              state.reg(interpreter::Register(table.GetRangeData(i))));
+          // At handler entry the accumulator holds the thrown exception.
+          handler_state.accumulator = kNotAContext;
+          merge(table.GetRangeHandler(i), handler_state);
+        }
+      }
+
+      const interpreter::Bytecode bc = iterator.current_bytecode();
+      switch (bc) {
+        case interpreter::Bytecode::kLdaCurrentContextSlot:
+        case interpreter::Bytecode::kLdaCurrentContextSlotNoCell:
+        case interpreter::Bytecode::kLdaImmutableCurrentContextSlot:
+        case interpreter::Bytecode::kStaCurrentContextSlot:
+        case interpreter::Bytecode::kStaCurrentContextSlotNoCell:
+          if (state.current_context() <= 0) {
+            return false;
+          }
+          if (interpreter::Bytecodes::WritesOrClobbersAccumulator(bc)) {
+            state.accumulator = kNotAContext;
+          }
+          break;
+
+        case interpreter::Bytecode::kLdaContextSlot:
+        case interpreter::Bytecode::kLdaContextSlotNoCell:
+        case interpreter::Bytecode::kLdaImmutableContextSlot:
+        case interpreter::Bytecode::kStaContextSlot:
+        case interpreter::Bytecode::kStaContextSlotNoCell:
+        case interpreter::Bytecode::kGetPrivateField:
+        case interpreter::Bytecode::kSetPrivateField: {
+          int reg_depth = state.reg(iterator.GetRegisterOperand(0));
+          uint32_t access_depth = iterator.GetUnsignedImmediateOperand(2);
+          if (reg_depth <= 0 ||
+              access_depth >= static_cast<uint32_t>(reg_depth)) {
+            return false;
+          }
+          if (interpreter::Bytecodes::WritesOrClobbersAccumulator(bc)) {
+            state.accumulator = kNotAContext;
+          }
+          break;
+        }
+
+        case interpreter::Bytecode::kLdaLookupContextSlot:
+        case interpreter::Bytecode::kLdaLookupContextSlotNoCell:
+        case interpreter::Bytecode::kLdaLookupContextSlotInsideTypeof:
+        case interpreter::Bytecode::kLdaLookupContextSlotNoCellInsideTypeof: {
+          int cur_depth = state.current_context();
+          uint32_t access_depth = iterator.GetUnsignedImmediateOperand(2);
+          if (cur_depth <= 0 ||
+              access_depth >= static_cast<uint32_t>(cur_depth)) {
+            return false;
+          }
+          state.accumulator = kNotAContext;
+          break;
+        }
+
+        case interpreter::Bytecode::kLdaLookupGlobalSlot:
+        case interpreter::Bytecode::kLdaLookupGlobalSlotInsideTypeof: {
+          int cur_depth = state.current_context();
+          // ContextChainLengthUntilOutermostSloppyEval() is 1-based (including
+          // the current context), unlike 0-based slot depths above.
+          uint32_t access_depth = iterator.GetUnsignedImmediateOperand(2);
+          if (!root_context_is_native || cur_depth < 0 ||
+              access_depth > static_cast<uint32_t>(cur_depth)) {
+            return false;
+          }
+          state.accumulator = kNotAContext;
+          break;
+        }
+
+        case interpreter::Bytecode::kLdaLookupSlot:
+        case interpreter::Bytecode::kLdaLookupSlotInsideTypeof:
+        case interpreter::Bytecode::kStaLookupSlot:
+          if (!root_context_is_native) {
+            return false;
+          }
+          state.accumulator = kNotAContext;
+          break;
+
+        case interpreter::Bytecode::kLdaModuleVariable:
+        case interpreter::Bytecode::kStaModuleVariable:
+          return false;
+
+        case interpreter::Bytecode::kCreateClosure: {
+          int cur_depth = state.current_context();
+          if (cur_depth < 0) {
+            return false;
+          }
+          Tagged<Object> constant = iterator.GetConstantAtIndex(
+              iterator.GetConstantPoolIndexOperand(0));
+          CHECK(IsSharedFunctionInfo(constant));
+          Tagged<SharedFunctionInfo> inner_shared =
+              Cast<SharedFunctionInfo>(constant);
+          // All nested closures belong to the same Script, so `visited` keys by
+          // (function_literal_id, initial_context_depth) safely.
+          DCHECK_EQ(inner_shared->script(), shared->script());
+          inner_closures.emplace_back(handle(inner_shared, isolate), cur_depth);
+          state.accumulator = kNotAContext;
+          break;
+        }
+
+        case interpreter::Bytecode::kSetPrototypeProperties: {
+          int cur_depth = state.current_context();
+          if (cur_depth < 0) {
+            return false;
+          }
+          Tagged<Object> constant = iterator.GetConstantAtIndex(
+              iterator.GetConstantPoolIndexOperand(0));
+          CHECK(IsObjectBoilerplateDescription(constant));
+          Tagged<ObjectBoilerplateDescription> boilerplate =
+              Cast<ObjectBoilerplateDescription>(constant);
+          // --proto-assign-seq-opt stores prototype method SFIs directly in
+          // the boilerplate constant instead of emitting CreateClosure.
+          for (int i = 0; i < boilerplate->boilerplate_properties_count();
+               ++i) {
+            Tagged<Object> value = boilerplate->value(i);
+            if (IsSharedFunctionInfo(value)) {
+              Tagged<SharedFunctionInfo> inner_shared =
+                  Cast<SharedFunctionInfo>(value);
+              DCHECK_EQ(inner_shared->script(), shared->script());
+              inner_closures.emplace_back(handle(inner_shared, isolate),
+                                          cur_depth);
+            }
+          }
+          state.accumulator = kNotAContext;
+          break;
+        }
+
+        case interpreter::Bytecode::kPushContext: {
+          if (state.accumulator < 0 || state.current_context() < 0) {
+            return false;
+          }
+          interpreter::Register reg = iterator.GetRegisterOperand(0);
+          state.set_reg(reg, state.current_context());
+          state.set_current_context(state.accumulator);
+          break;
+        }
+
+        case interpreter::Bytecode::kPopContext: {
+          interpreter::Register reg = iterator.GetRegisterOperand(0);
+          int saved_depth = state.reg(reg);
+          if (saved_depth < 0) {
+            return false;
+          }
+          state.set_current_context(saved_depth);
+          break;
+        }
+
+        case interpreter::Bytecode::kCreateBlockContext:
+        case interpreter::Bytecode::kCreateEvalContext:
+        case interpreter::Bytecode::kCreateFunctionContext:
+        case interpreter::Bytecode::kCreateFunctionContextWithCells:
+        case interpreter::Bytecode::kCreateCatchContext:
+        case interpreter::Bytecode::kCreateWithContext: {
+          int cur_depth = state.current_context();
+          if (cur_depth < 0) {
+            return false;
+          }
+          state.accumulator = cur_depth + 1;
+          break;
+        }
+
+        case interpreter::Bytecode::kCallRuntime: {
+          Runtime::FunctionId fn_id = iterator.GetRuntimeIdOperand(0);
+          if (fn_id == Runtime::kNewFunctionContext) {
+            int cur_depth = state.current_context();
+            if (cur_depth < 0) {
+              return false;
+            }
+            state.accumulator = cur_depth + 1;
+          } else if (fn_id == Runtime::kGetModuleNamespace ||
+                     fn_id == Runtime::kGetImportMetaObject) {
+            return false;
+          } else if ((fn_id == Runtime::kResolvePossiblyDirectEval ||
+                      fn_id == Runtime::kDeleteLookupSlot) &&
+                     !root_context_is_native) {
+            return false;
+          } else {
+            state.accumulator = kNotAContext;
+          }
+          break;
+        }
+
+        case interpreter::Bytecode::kMov: {
+          interpreter::Register src = iterator.GetRegisterOperand(0);
+          interpreter::Register dst = iterator.GetRegisterOperand(1);
+          state.set_reg(dst, state.reg(src));
+          break;
+        }
+
+        case interpreter::Bytecode::kLdar: {
+          interpreter::Register src = iterator.GetRegisterOperand(0);
+          state.accumulator = state.reg(src);
+          break;
+        }
+
+        case interpreter::Bytecode::kStar: {
+          interpreter::Register dst = iterator.GetRegisterOperand(0);
+          state.set_reg(dst, state.accumulator);
+          break;
+        }
+
+#define SHORT_STAR_CASE(Name, ...) case interpreter::Bytecode::k##Name:
+          SHORT_STAR_BYTECODE_LIST(SHORT_STAR_CASE) {
+            interpreter::Register dst =
+                interpreter::Register::FromShortStar(bc);
+            state.set_reg(dst, state.accumulator);
+            break;
+          }
+#undef SHORT_STAR_CASE
+
+        case interpreter::Bytecode::kInvokeIntrinsic:
+          if (iterator.GetIntrinsicIdOperand(0) ==
+              Runtime::kInlineGetImportMetaObject) {
+            return false;
+          }
+          state.accumulator = kNotAContext;
+          break;
+
+        // SuspendGenerator saves `current_context()` and all live registers,
+        // and ResumeGenerator restores them upon resume without clobbering the
+        // generator state register list; skipping SwitchOnGeneratorState's jump
+        // table and falling through from SuspendGenerator preserves them.
+        case interpreter::Bytecode::kResumeGenerator:
+          state.accumulator = kNotAContext;
+          break;
+
+        case interpreter::Bytecode::kCallRuntimeForPair:
+          if (iterator.GetRuntimeIdOperand(0) ==
+                  Runtime::kLoadLookupSlotForCall &&
+              !root_context_is_native) {
+            return false;
+          }
+          [[fallthrough]];
+
+        default: {
+          int operand_count = interpreter::Bytecodes::NumberOfOperands(bc);
+          const interpreter::OperandType* operand_types =
+              interpreter::Bytecodes::GetOperandTypes(bc);
+          for (int i = 0; i < operand_count; ++i) {
+            if (interpreter::Bytecodes::IsRegisterOutputOperandType(
+                    operand_types[i])) {
+              uint32_t count = iterator.GetRegisterOperandRange(i);
+              interpreter::Register start = iterator.GetRegisterOperand(i);
+              for (uint32_t j = 0; j < count; ++j) {
+                state.set_reg(
+                    interpreter::Register(start.index() + static_cast<int>(j)),
+                    kNotAContext);
+              }
+            }
+          }
+          if (interpreter::Bytecodes::WritesOrClobbersAccumulator(bc)) {
+            state.accumulator = kNotAContext;
+          }
+          break;
+        }
+      }
+
+      if (interpreter::Bytecodes::IsJump(bc)) {
+        if (interpreter::Bytecodes::IsForwardJump(bc)) {
+          merge(iterator.GetJumpTargetOffset(), state);
+        }
+        if (interpreter::Bytecodes::IsConditionalJump(bc)) {
+          merge(iterator.next_offset(), state);
+        }
+      } else if (bc == interpreter::Bytecode::kSwitchOnGeneratorState ||
+                 bc == interpreter::Bytecode::kSuspendGenerator) {
+        merge(iterator.next_offset(), state);
+      } else if (interpreter::Bytecodes::IsSwitch(bc)) {
+        for (auto entry : iterator.GetJumpTableTargetOffsets()) {
+          merge(entry.target_offset, state);
+        }
+        merge(iterator.next_offset(), state);
+      } else if (!interpreter::Bytecodes::Returns(bc) &&
+                 !interpreter::Bytecodes::UnconditionallyThrows(bc)) {
+        merge(iterator.next_offset(), state);
+      }
+    }
+  }
+
+  for (const auto& entry : inner_closures) {
+    if (!HasNoOuterContextAccess(isolate, entry.first, entry.second,
+                                 root_context_is_native, visited)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_CopyFunctionWithFreshFeedback) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsJSFunction(args[0]));
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+
+  CHECK_UNLESS_FUZZING(shared->IsUserJavaScript() && shared->HasSourceCode());
+  // Functions that bind `super` (class constructors, concise methods, and
+  // accessors) do not produce standalone function expressions via toString().
+  // Source position checks reject native/builtin shims whose toString() falls
+  // back to `[native code]`.
+  CHECK_UNLESS_FUZZING(!BindsSuper(shared->kind()));
+  CHECK_UNLESS_FUZZING(shared->StartPosition() != shared->EndPosition() &&
+                       shared->function_token_position() != kNoSourcePosition);
+
+  bool root_context_is_native = IsNativeContext(function->context());
+  absl::flat_hash_set<std::pair<int32_t, int>> visited;
+  bool has_no_outer_context_access = HasNoOuterContextAccess(
+      isolate, shared, 0, root_context_is_native, &visited);
+  RETURN_FAILURE_IF_EXCEPTION(isolate);
+  CHECK_UNLESS_FUZZING(has_no_outer_context_access);
+
+  DirectHandle<String> fn_source;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, fn_source,
+                                     JSFunction::ToString(isolate, function));
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendCharacter('(');
+  builder.AppendString(fn_source);
+  builder.AppendCStringLiteral("\n)");
+  DirectHandle<String> wrapped_source;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, wrapped_source, builder.Finish());
+
+  DirectHandle<NativeContext> native_context(function->native_context(),
+                                             isolate);
+  DirectHandle<SharedFunctionInfo> outer_info(
+      native_context->empty_function()->shared(), isolate);
+  DirectHandle<JSFunction> eval_function;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, eval_function,
+      Compiler::GetFunctionFromEval(
+          isolate, wrapped_source, outer_info, native_context,
+          shared->language_mode(), NO_PARSE_RESTRICTION, kNoSourcePosition,
+          kNoSourcePosition, ParsingWhileDebugging::kNo, false,
+          Compiler::AllowEvalCache{false}));
+
+  DirectHandle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, eval_function,
+                      direct_handle(native_context->global_proxy(), isolate),
+                      {}));
+  CHECK_UNLESS_FUZZING(IsJSFunction(*result));
+  return *result;
 }
 
 }  // namespace internal

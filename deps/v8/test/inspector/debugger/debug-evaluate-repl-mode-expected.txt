@@ -1,0 +1,2 @@
+Tests REPL mode evaluation in global scope.
+REPL mode test completed successfully.

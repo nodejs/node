@@ -1,0 +1,3 @@
+Test debug events when we only listen to uncaught exceptions, the Promise throws, and a catch handler is installed right before throwing.
+Promise catch handler executed: true
+Paused on exception: false

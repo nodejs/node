@@ -87,3 +87,18 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertThrows(() => builder.toModule(), WebAssembly.CompileError,
                /local.set\[0\] expected type i31ref, found block of type anyref @\+26/);
 })();
+
+(function TestLoopResultMismatch() {
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('loop_mismatch', makeSig([], []))
+    .addLocals(wasmRefNullType(kWasmI31Ref), 1)
+    .addBody([
+      kExprLoop, 0x6e, // anyref
+        kExprRefNull, kI31RefCode,
+      kExprEnd,
+      kExprLocalSet, 0,
+    ]);
+
+  assertThrows(() => builder.toModule(), WebAssembly.CompileError,
+               /local.set\[0\] expected type i31ref, found loop of type anyref @\+26/);
+})();

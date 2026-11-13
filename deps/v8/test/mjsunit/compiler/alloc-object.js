@@ -31,12 +31,13 @@
 // objects (e.g. in object properties, slack tracking in progress or
 // changing of function prototypes)
 
-function test_helper(construct, a, b) {
+function test_helper_template(construct, a, b) {
   return new construct(a, b);
 }
 
 function test(construct) {
   %DeoptimizeFunction(test);
+  var test_helper = copyFunctionWithFreshFeedback(test_helper_template);
   %PrepareFunctionForOptimization(test_helper);
   test_helper(construct, 0, 0);
   test_helper(construct, 0, 0);
@@ -54,7 +55,6 @@ function test(construct) {
   assertEquals(5, o.y);
   assertEquals(6, o.z);
   %DeoptimizeFunction(test_helper);
-  %ClearFunctionFeedback(test_helper);
 }
 
 function finalize_slack_tracking(construct) {

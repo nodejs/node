@@ -8,7 +8,7 @@ add_header_library(
 )
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${LIBC_TARGET_OS}
-  AND TARGET libc.src.__support.OSUtil.osutil)
+    AND TARGET libc.src.__support.OSUtil.osutil)
   add_subdirectory(${LIBC_TARGET_OS})
 else()
   message(STATUS "Skip libc.src.__support.time.* targets.")

@@ -19,7 +19,7 @@ transitioning javascript builtin TypedArrayPrototypeValues(
     EnsureValid(array, TypedArrayAccessMode::kRead) otherwise IsDetached;
     return CreateArrayIterator(array, IterationKind::kValues);
   } label NotTypedArray deferred {
-    ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameValues);
+    ThrowTypeError(MessageTemplate::kNotTypedArray);
   } label IsDetached deferred {
     ThrowTypeError(
         MessageTemplate::kTypedArrayValidateErrorOperation, kBuiltinNameValues);

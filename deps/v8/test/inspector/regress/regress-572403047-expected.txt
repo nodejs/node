@@ -1,0 +1,2 @@
+Regression test for crbug.com/572403047.
+paused_count: 3

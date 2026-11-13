@@ -204,8 +204,7 @@ class BlockAssessments : public ZoneObject {
 
 class RegisterAllocatorVerifier final : public ZoneObject {
  public:
-  RegisterAllocatorVerifier(Zone* zone, const RegisterConfiguration* config,
-                            const InstructionSequence* sequence,
+  RegisterAllocatorVerifier(Zone* zone, const InstructionSequence* sequence,
                             const Frame* frame);
   RegisterAllocatorVerifier(const RegisterAllocatorVerifier&) = delete;
   RegisterAllocatorVerifier& operator=(const RegisterAllocatorVerifier&) =
@@ -270,7 +269,6 @@ class RegisterAllocatorVerifier final : public ZoneObject {
   };
 
   Zone* zone() const { return zone_; }
-  const RegisterConfiguration* config() { return config_; }
   const InstructionSequence* sequence() const { return sequence_; }
   Constraints* constraints() { return &constraints_; }
   int spill_slot_delta() const { return spill_slot_delta_; }
@@ -287,20 +285,24 @@ class RegisterAllocatorVerifier final : public ZoneObject {
 
   // Prove that this operand is an alias of this virtual register in the given
   // block. Update the assessment if that's the case.
-  void ValidatePendingAssessment(RpoNumber block_id, InstructionOperand op,
-                                 const BlockAssessments* current_assessments,
+  void ValidatePendingAssessment(RpoNumber block_id,
                                  PendingAssessment* const assessment,
                                  int virtual_register);
   void ValidateUse(RpoNumber block_id, BlockAssessments* current_assessments,
                    InstructionOperand op, int virtual_register);
 
   Zone* const zone_;
-  const RegisterConfiguration* config_;
   const InstructionSequence* const sequence_;
   Constraints constraints_;
   ZoneMap<RpoNumber, BlockAssessments*> assessments_;
   ZoneMap<RpoNumber, DelayedAssessments*> outstanding_assessments_;
   int spill_slot_delta_;
+  // Reusable scratch state for ValidatePendingAssessment. A block is visited
+  // in the current call iff pending_seen_epoch_[block] ==
+  // pending_current_epoch_.
+  ZoneVector<std::pair<const PendingAssessment*, int>> pending_worklist_;
+  ZoneVector<uint32_t> pending_seen_epoch_;
+  uint32_t pending_current_epoch_ = 0;
   // TODO(chromium:725559): remove after we understand this bug's root cause.
   const char* caller_info_ = nullptr;
 };

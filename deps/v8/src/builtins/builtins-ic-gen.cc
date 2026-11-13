@@ -187,17 +187,32 @@ void Builtins::Generate_StoreICBaseline(compiler::CodeAssemblerState* state) {
 }
 void Builtins::Generate_DefineNamedOwnIC(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateDefineNamedOwnIC();
+  assembler.GenerateDefineNamedOwnIC(false);
 }
 void Builtins::Generate_DefineNamedOwnICTrampoline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateDefineNamedOwnICTrampoline();
+  assembler.GenerateDefineNamedOwnICTrampoline(false);
 }
 void Builtins::Generate_DefineNamedOwnICBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateDefineNamedOwnICBaseline();
+  assembler.GenerateDefineNamedOwnICBaseline(false);
+}
+void Builtins::Generate_DefineNamedOwnInLiteralIC(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateDefineNamedOwnIC(true);
+}
+void Builtins::Generate_DefineNamedOwnInLiteralICTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateDefineNamedOwnICTrampoline(true);
+}
+void Builtins::Generate_DefineNamedOwnInLiteralICBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateDefineNamedOwnICBaseline(true);
 }
 void Builtins::Generate_KeyedStoreIC(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);

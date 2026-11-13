@@ -4,13 +4,18 @@
 
 #include "test/unittests/test-utils.h"
 
+#include <optional>
+
 #include "include/libplatform/libplatform.h"
+#include "include/v8-initialization.h"
 #include "include/v8-isolate.h"
+#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -61,9 +66,14 @@ IsolateWrapper::IsolateWrapper(CountersMode counters_mode,
 IsolateWrapper::~IsolateWrapper() {
   v8::Platform* platform = internal::V8::GetCurrentPlatform();
   CHECK_NOT_NULL(platform);
+  std::optional<v8::Locker> locker;
+  if (i_isolate()->was_locker_ever_used()) {
+    locker.emplace(isolate_);
+  }
   isolate_->Enter();
   while (platform::PumpMessageLoop(platform, isolate())) continue;
   isolate_->Exit();
+  locker.reset();
   isolate_->Dispose();
   if (counter_map_) {
     CHECK_EQ(kCurrentCounterMap, counter_map_.get());
@@ -73,9 +83,48 @@ IsolateWrapper::~IsolateWrapper() {
   }
 }
 
+// static
+void StreamerThread::StartThreadForTaskAndJoin(
+    v8::ScriptCompiler::ScriptStreamingTask* task, i::Isolate* i_isolate) {
+  StreamerThread thread(task);
+  CHECK(thread.Start());
+  i_isolate->main_thread_local_heap()->ExecuteWhileParked(
+      [&thread]() { thread.Join(); });
+}
+
 namespace internal {
 
+namespace {
+CrashKeyStore* g_current_crash_key_store = nullptr;
+}  // namespace
+
+CrashKeyStore::CrashKeyStore() {
+  CHECK_NULL(g_current_crash_key_store);
+  g_current_crash_key_store = this;
+  v8::V8::SetCrashKeyCallbacks(&CrashKeyStore::AllocateCallback,
+                               &CrashKeyStore::SetCallback);
+}
+
+CrashKeyStore::~CrashKeyStore() {
+  CHECK_EQ(this, g_current_crash_key_store);
+  v8::V8::SetCrashKeyCallbacks(nullptr, nullptr);
+  g_current_crash_key_store = nullptr;
+}
+
+// static
+CrashKey CrashKeyStore::AllocateCallback(const char key[], CrashKeySize size) {
+  CHECK_NOT_NULL(g_current_crash_key_store);
+  return g_current_crash_key_store->AllocateKey(key, size);
+}
+
+// static
+void CrashKeyStore::SetCallback(CrashKey crash_key, std::string_view value) {
+  CHECK_NOT_NULL(g_current_crash_key_store);
+  g_current_crash_key_store->SetValue(crash_key, value);
+}
+
 std::unordered_set<std::string> CrashKeyStore::KeyNames() const {
+  base::MutexGuard guard(&mutex_);
   std::unordered_set<std::string> names;
   names.reserve(entries_.size());
   for (const auto& [name, unused] : entries_) {
@@ -85,17 +134,8 @@ std::unordered_set<std::string> CrashKeyStore::KeyNames() const {
   return names;
 }
 
-void CrashKeyStore::InstallCallbacks() {
-  isolate_->SetCrashKeyStringCallbacks(
-      [this](const char key[], CrashKeySize size) {
-        return AllocateKey(key, size);
-      },
-      [this](CrashKey crash_key, const std::string_view value) {
-        SetValue(crash_key, value);
-      });
-}
-
 CrashKey CrashKeyStore::AllocateKey(const char key[], CrashKeySize size) {
+  base::MutexGuard guard(&mutex_);
   auto [it, inserted] = entries_.emplace(key, nullptr);
   if (inserted || it->second == nullptr) {
     it->second = std::make_unique<Entry>();
@@ -106,8 +146,9 @@ CrashKey CrashKeyStore::AllocateKey(const char key[], CrashKeySize size) {
   return static_cast<CrashKey>(entry_ptr);
 }
 
-void CrashKeyStore::SetValue(CrashKey crash_key, const std::string_view value) {
-  auto* entry = static_cast<Entry*>(crash_key);
+void CrashKeyStore::SetValue(CrashKey crash_key, std::string_view value) {
+  base::MutexGuard guard(&mutex_);
+  Entry* entry = static_cast<Entry*>(crash_key);
   bool found = false;
   for (const auto& [name, entry_holder] : entries_) {
     if (entry_holder.get() == entry) {

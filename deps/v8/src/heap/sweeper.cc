@@ -12,8 +12,8 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
@@ -33,7 +33,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/normal-page-inl.h"
 #include "src/heap/paged-spaces.h"
-#include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/zapping.h"
@@ -451,6 +450,42 @@ void Sweeper::LocalSweeper::ParallelSweepPage(NormalPage* page,
   }
 }
 
+template <typename ShouldYieldCallback>
+bool Sweeper::LocalSweeper::ContributeAndWaitForPromotedPagesIterationImpl(
+    ShouldYieldCallback should_yield_callback) {
+  if (!sweeper_->sweeping_in_progress()) return true;
+  if (!sweeper_->IsIteratingPromotedPages()) return true;
+  if (!ParallelIteratePromotedPagesImpl(should_yield_callback)) return false;
+  base::MutexGuard guard(
+      &sweeper_->promoted_pages_iteration_notification_mutex_);
+  // Check again that iteration is not yet finished.
+  if (!sweeper_->IsIteratingPromotedPages()) return true;
+  if (should_yield_callback()) {
+    TRACE_GC_NOTE(
+        "Sweeper::ContributeAndWaitForPromotedPagesIteration Preempted");
+    return false;
+  }
+  sweeper_->promoted_pages_iteration_notification_variable_.Wait(
+      &sweeper_->promoted_pages_iteration_notification_mutex_);
+  TRACE_GC_NOTE("Sweeper::ContributeAndWaitForPromotedPagesIteration Finished");
+  return true;
+}
+
+template <typename ShouldYieldCallback>
+bool Sweeper::LocalSweeper::ParallelIteratePromotedPagesImpl(
+    ShouldYieldCallback should_yield_callback) {
+  while (!should_yield_callback()) {
+    MutablePage* chunk = sweeper_->GetPromotedPageSafe();
+    if (chunk == nullptr) {
+      TRACE_GC_NOTE("Sweeper::ParallelIteratePromotedPages Finished");
+      return true;
+    }
+    ParallelIteratePromotedPage(chunk);
+  }
+  TRACE_GC_NOTE("Sweeper::ParallelIteratePromotedPages Preempted");
+  return false;
+}
+
 bool Sweeper::LocalSweeper::ContributeAndWaitForPromotedPagesIteration(
     JobDelegate* delegate) {
   return ContributeAndWaitForPromotedPagesIterationImpl(
@@ -527,7 +562,6 @@ class PromotedPageRecordMigratedSlotVisitor final
                                       MaybeObjectSize maybe_object_size) {
     ArrayBufferExtension* extension = object->extension();
     if (extension) {
-      extension->InitializationBarrier();
       extension->YoungMarkPromoted();
     }
     return NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::
@@ -679,7 +713,7 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(MutablePage* page) {
       page->ReleaseSlotSet(SURVIVOR_TO_EXTERNAL_POINTER);
     } else {
       DCHECK_EQ(OLD_SPACE, page->owner_identity());
-      DCHECK(!page->Chunk()->IsEvacuationCandidate());
+      DCHECK(!page->is_evacuation_candidate());
       const ZappingMode zapping_mode = ShouldZapDeadObjectsOnPage();
       Address dead_start = page->area_start();
       for (auto [object, size] :
@@ -1188,7 +1222,7 @@ void Sweeper::RawSweep(NormalPage* p,
          space->identity() == TRUSTED_SPACE ||
          space->identity() == SHARED_TRUSTED_SPACE ||
          (space->identity() == NEW_SPACE && v8_flags.minor_ms));
-  DCHECK(!p->Chunk()->IsEvacuationCandidate());
+  DCHECK(!p->is_evacuation_candidate());
   DCHECK(!p->SweepingDone());
   DCHECK(!p->is_black_allocated());
   DCHECK_IMPLIES(space->identity() == NEW_SPACE,

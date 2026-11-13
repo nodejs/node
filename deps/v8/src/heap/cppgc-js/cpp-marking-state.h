@@ -9,7 +9,6 @@
 
 #include "src/heap/cppgc-internal/marking-state.h"
 #include "src/heap/cppgc-internal/marking-worklists.h"
-#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/objects/embedder-data-slot.h"
 
 namespace v8 {

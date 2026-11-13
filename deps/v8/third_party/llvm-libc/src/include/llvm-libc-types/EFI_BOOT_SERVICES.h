@@ -1,9 +1,14 @@
-//===-- Definition of EFI_BOOT_SERVICES type ------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Definition of EFI_BOOT_SERVICES type.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_TYPES_EFI_BOOT_SERVICES_H
@@ -26,6 +31,7 @@
 #include "EFI_TPL.h"
 #include "char16_t.h"
 #include "size_t.h"
+#include <stdbool.h>
 
 #define EFI_BOOT_SERVICES_SIGNATURE 0x56524553544f4f42
 #define EFI_BOOT_SERVICES_REVISION EFI_SPECIFICATION_VERSION

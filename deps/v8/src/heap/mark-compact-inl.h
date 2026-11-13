@@ -41,10 +41,11 @@ void MarkCompactCollector::MarkRootObject(
     DCHECK_EQ(root, Root::kStackRoots);
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
     auto* page = SbxCast<MutablePage>(chunk->Metadata());
-    if (chunk->IsEvacuationCandidate()) {
+    if (page->is_evacuation_candidate()) {
       DCHECK(!chunk->InYoungGeneration());
       ReportAbortedEvacuationCandidateDueToFlags(SbxCast<NormalPage>(page));
-    } else if (chunk->InYoungGeneration() && !chunk->IsLargePage()) {
+    } else if (page->owner_identity() == NEW_SPACE) {
+      DCHECK(!page->is_large());
       DCHECK(chunk->IsToPage());
       if (!page->is_quarantined()) {
         page->set_is_quarantined(true);

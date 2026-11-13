@@ -800,7 +800,7 @@ TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
   bool single_threaded_gc_flag = v8_flags.single_threaded_gc;
   // Single threaded gc force non-concurrent sweeping in cppgc, which makes
   // CppHeap bail out of `FinishSweepingIfOutOfWork`.
-  v8_flags.single_threaded_gc = true;
+  v8_flags.single_threaded_gc.Set(true);
   ManualGCScope manual_gc(isolate());
   Heap* heap = isolate()->heap();
   CppHeap* cppheap = CppHeap::From(heap->cpp_heap());
@@ -827,16 +827,16 @@ TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
   heap->EnsureSweepingCompleted(
       Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
       CompleteSweepingReason::kTesting);
-  v8_flags.single_threaded_gc = single_threaded_gc_flag;
+  v8_flags.single_threaded_gc.Set(single_threaded_gc_flag);
 }
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
 struct RandomGCIntervalTestSetter {
   RandomGCIntervalTestSetter() {
     static constexpr int kInterval = 87;
-    v8_flags.cppgc_random_gc_interval = kInterval;
+    v8_flags.cppgc_random_gc_interval.Set(kInterval);
   }
-  ~RandomGCIntervalTestSetter() { v8_flags.cppgc_random_gc_interval = 0; }
+  ~RandomGCIntervalTestSetter() { v8_flags.cppgc_random_gc_interval.Set(0); }
 };
 
 struct UnifiedHeapTestWithRandomGCInterval : RandomGCIntervalTestSetter,
@@ -971,7 +971,7 @@ TEST_F(UnifiedHeapTest, TriggerGCWithNoIncrementalMarking) {
   if (v8_flags.stress_concurrent_allocation) return;
   // This test should ensure that we trigger GC on cppgc allocations even when
   // incremental marking is disabled.
-  v8_flags.incremental_marking = false;
+  v8_flags.incremental_marking.Set(false);
   const int initial_gc_count = heap()->ms_count();
 
   // Set the allocation limits close to current consumption to trigger GC

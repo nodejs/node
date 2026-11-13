@@ -15,32 +15,30 @@ TEST_F(WasmCapiTest, Globals) {
   const bool kImmutable = false;
 
   // Define imported and exported globals in the module.
-  const uint32_t cfi_index = builder()->AddGlobalImport(
-      base::CStrVector("const f32"), kWasmF32, kImmutable);
-  const uint32_t cii_index = builder()->AddGlobalImport(
-      base::CStrVector("const i64"), kWasmI64, kImmutable);
-  const uint32_t vfi_index = builder()->AddGlobalImport(
-      base::CStrVector("var f32"), kWasmF32, kMutable);
-  const uint32_t vii_index = builder()->AddGlobalImport(
-      base::CStrVector("var i64"), kWasmI64, kMutable);
+  const uint32_t cfi_index =
+      builder()->AddGlobalImport("const f32", kWasmF32, kImmutable);
+  const uint32_t cii_index =
+      builder()->AddGlobalImport("const i64", kWasmI64, kImmutable);
+  const uint32_t vfi_index =
+      builder()->AddGlobalImport("var f32", kWasmF32, kMutable);
+  const uint32_t vii_index =
+      builder()->AddGlobalImport("var i64", kWasmI64, kMutable);
   const int kNumImported = 4;
 
   const uint32_t cfe_index =
-      kNumImported +
-      builder()->AddExportedGlobal(kWasmF32, kImmutable, WasmInitExpr(5.f),
-                                   base::CStrVector("const f32"));
-  const uint32_t cie_index =
       kNumImported + builder()->AddExportedGlobal(
-                         kWasmI64, kImmutable, WasmInitExpr(int64_t{6}),
-                         base::CStrVector("const i64"));
+                         kWasmF32, kImmutable, WasmInitExpr(5.f), "const f32");
+  const uint32_t cie_index =
+      kNumImported + builder()->AddExportedGlobal(kWasmI64, kImmutable,
+                                                  WasmInitExpr(int64_t{6}),
+                                                  "const i64");
   const uint32_t vfe_index =
       kNumImported + builder()->AddExportedGlobal(kWasmF32, kMutable,
-                                                  WasmInitExpr(7.f),
-                                                  base::CStrVector("var f32"));
+                                                  WasmInitExpr(7.f), "var f32");
   const uint32_t vie_index =
       kNumImported + builder()->AddExportedGlobal(kWasmI64, kMutable,
                                                   WasmInitExpr(int64_t{8}),
-                                                  base::CStrVector("var i64"));
+                                                  "var i64");
 
   // Define functions for inspecting globals.
   ValueType f32_type[] = {kWasmF32};
@@ -48,46 +46,34 @@ TEST_F(WasmCapiTest, Globals) {
   FunctionSig return_f32(1, 0, f32_type);
   FunctionSig return_i64(1, 0, i64_type);
   uint8_t gcfi[] = {WASM_GLOBAL_GET(cfi_index)};
-  AddExportedFunction(base::CStrVector("get const f32 import"), gcfi,
-                      sizeof(gcfi), &return_f32);
+  AddExportedFunction("get const f32 import", gcfi, sizeof(gcfi), &return_f32);
   uint8_t gcii[] = {WASM_GLOBAL_GET(cii_index)};
-  AddExportedFunction(base::CStrVector("get const i64 import"), gcii,
-                      sizeof(gcii), &return_i64);
+  AddExportedFunction("get const i64 import", gcii, sizeof(gcii), &return_i64);
   uint8_t gvfi[] = {WASM_GLOBAL_GET(vfi_index)};
-  AddExportedFunction(base::CStrVector("get var f32 import"), gvfi,
-                      sizeof(gvfi), &return_f32);
+  AddExportedFunction("get var f32 import", gvfi, sizeof(gvfi), &return_f32);
   uint8_t gvii[] = {WASM_GLOBAL_GET(vii_index)};
-  AddExportedFunction(base::CStrVector("get var i64 import"), gvii,
-                      sizeof(gvii), &return_i64);
+  AddExportedFunction("get var i64 import", gvii, sizeof(gvii), &return_i64);
 
   uint8_t gcfe[] = {WASM_GLOBAL_GET(cfe_index)};
-  AddExportedFunction(base::CStrVector("get const f32 export"), gcfe,
-                      sizeof(gcfe), &return_f32);
+  AddExportedFunction("get const f32 export", gcfe, sizeof(gcfe), &return_f32);
   uint8_t gcie[] = {WASM_GLOBAL_GET(cie_index)};
-  AddExportedFunction(base::CStrVector("get const i64 export"), gcie,
-                      sizeof(gcie), &return_i64);
+  AddExportedFunction("get const i64 export", gcie, sizeof(gcie), &return_i64);
   uint8_t gvfe[] = {WASM_GLOBAL_GET(vfe_index)};
-  AddExportedFunction(base::CStrVector("get var f32 export"), gvfe,
-                      sizeof(gvfe), &return_f32);
+  AddExportedFunction("get var f32 export", gvfe, sizeof(gvfe), &return_f32);
   uint8_t gvie[] = {WASM_GLOBAL_GET(vie_index)};
-  AddExportedFunction(base::CStrVector("get var i64 export"), gvie,
-                      sizeof(gvie), &return_i64);
+  AddExportedFunction("get var i64 export", gvie, sizeof(gvie), &return_i64);
 
   // Define functions for manipulating globals.
   FunctionSig param_f32(0, 1, f32_type);
   FunctionSig param_i64(0, 1, i64_type);
   uint8_t svfi[] = {WASM_GLOBAL_SET(vfi_index, WASM_LOCAL_GET(0))};
-  AddExportedFunction(base::CStrVector("set var f32 import"), svfi,
-                      sizeof(svfi), &param_f32);
+  AddExportedFunction("set var f32 import", svfi, sizeof(svfi), &param_f32);
   uint8_t svii[] = {WASM_GLOBAL_SET(vii_index, WASM_LOCAL_GET(0))};
-  AddExportedFunction(base::CStrVector("set var i64 import"), svii,
-                      sizeof(svii), &param_i64);
+  AddExportedFunction("set var i64 import", svii, sizeof(svii), &param_i64);
   uint8_t svfe[] = {WASM_GLOBAL_SET(vfe_index, WASM_LOCAL_GET(0))};
-  AddExportedFunction(base::CStrVector("set var f32 export"), svfe,
-                      sizeof(svfe), &param_f32);
+  AddExportedFunction("set var f32 export", svfe, sizeof(svfe), &param_f32);
   uint8_t svie[] = {WASM_GLOBAL_SET(vie_index, WASM_LOCAL_GET(0))};
-  AddExportedFunction(base::CStrVector("set var i64 export"), svie,
-                      sizeof(svie), &param_i64);
+  AddExportedFunction("set var i64 export", svie, sizeof(svie), &param_i64);
 
   // Create imported globals.
   own<GlobalType> const_f32_type = GlobalType::make(

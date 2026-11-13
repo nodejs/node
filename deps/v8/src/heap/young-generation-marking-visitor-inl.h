@@ -9,13 +9,13 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/common/globals.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-visitor-inl.h"
 #include "src/heap/heap-visitor.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page.h"
-#include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/remembered-set-inl.h"
 
 namespace v8 {
@@ -23,9 +23,7 @@ namespace internal {
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 YoungGenerationMarkingVisitor<marking_mode>::YoungGenerationMarkingVisitor(
-    Heap* heap,
-    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
-    YoungPendingAllocations::Snapshot* young_pending_allocations_snapshot)
+    Heap* heap)
     : Base(heap->isolate()),
       isolate_(heap->isolate()),
       marking_worklists_local_(
@@ -33,9 +31,6 @@ YoungGenerationMarkingVisitor<marking_mode>::YoungGenerationMarkingVisitor(
           CppHeap::From(heap->cpp_heap())->CreateCppMarkingState()),
       ephemeron_table_list_local_(
           *heap->minor_mark_sweep_collector()->ephemeron_table_list()),
-      pretenuring_handler_(heap->pretenuring_handler()),
-      local_pretenuring_feedback_(local_pretenuring_feedback),
-      young_pending_allocations_snapshot_(young_pending_allocations_snapshot),
       shortcut_strings_(heap->CanShortcutStringsDuringGC(
           GarbageCollector::MINOR_MARK_SWEEPER)) {}
 
@@ -78,22 +73,6 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitCppHeapPointer(
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
-template <typename T, typename TBodyDescriptor>
-size_t YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectSubclass(
-    Tagged<Map> map, Tagged<T> object, MaybeObjectSize maybe_object_size) {
-  const int object_size =
-      static_cast<int>(Base::template VisitJSObjectSubclass<T, TBodyDescriptor>(
-          map, object, maybe_object_size));
-  DCHECK_IMPLIES(
-      marking_mode == YoungGenerationMarkingVisitationMode::kConcurrent,
-      young_pending_allocations_snapshot_ != nullptr);
-  PretenuringHandler::UpdateAllocationSite(
-      isolate_->heap(), map, object, object_size, local_pretenuring_feedback_,
-      young_pending_allocations_snapshot_);
-  return object_size;
-}
-
-template <YoungGenerationMarkingVisitationMode marking_mode>
 size_t YoungGenerationMarkingVisitor<marking_mode>::VisitEphemeronHashTable(
     Tagged<Map> map, Tagged<EphemeronHashTable> table, MaybeObjectSize) {
   // Register table with Minor MC, so it can take care of the weak keys later.
@@ -118,10 +97,6 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
   DCHECK(!IsSharedExternalPointerType(slot.tag_range()));
   Address maybe_extension = kNullAddress;
 #ifdef V8_COMPRESS_POINTERS
-  // TODO(chromium:337580006): Remove when pointer compression always uses
-  // EPT.
-  if (!slot.HasExternalPointerHandle()) return;
-
   ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   if (handle != kNullExternalPointerHandle) {
     ExternalPointerTable& table = isolate_->external_pointer_table();
@@ -146,7 +121,6 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
 #endif  // !V8_COMPRESS_POINTERS
   if (ArrayBufferExtension* extension =
           reinterpret_cast<ArrayBufferExtension*>(maybe_extension)) {
-    extension->InitializationBarrier();
     extension->YoungMark();
   }
 }

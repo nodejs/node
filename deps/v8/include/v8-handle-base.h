@@ -79,6 +79,16 @@ class IndirectHandleBase {
   // will crash.
   V8_INLINE internal::Address ptr() const { return *location_; }
 
+  V8_INLINE internal::Address ptr_relaxed() const {
+    if (const internal::Address* loc =
+            reinterpret_cast<const std::atomic<internal::Address*>*>(&location_)
+                ->load(std::memory_order_relaxed)) {
+      return reinterpret_cast<const std::atomic<internal::Address>*>(loc)->load(
+          std::memory_order_relaxed);
+    }
+    return internal::ValueHelper::kTaggedNullAddress;
+  }
+
   // Returns a reference to the slot (indirect pointer).
   V8_INLINE internal::Address* const& slot() const { return location_; }
   V8_INLINE internal::Address*& slot() { return location_; }
@@ -132,6 +142,11 @@ class DirectHandleBase {
 
   // Returns the address of the referenced object.
   V8_INLINE internal::Address ptr() const { return ptr_; }
+
+  V8_INLINE internal::Address ptr_relaxed() const {
+    return reinterpret_cast<const std::atomic<internal::Address>*>(&ptr_)->load(
+        std::memory_order_relaxed);
+  }
 
   // Returns the handler's "value" (direct pointer, as direct local support
   // is guaranteed to be enabled here).

@@ -2,12 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <sstream>
+
 #include "include/v8-context.h"
 #include "include/v8-exception.h"
+#include "include/v8-function.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-persistent-handle.h"
 #include "include/v8-template.h"
+#include "src/debug/debug-interface.h"
 #include "src/flags/flags.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -47,9 +51,9 @@ class APIExceptionTest : public TestWithIsolate {
 class V8_NODISCARD ScopedExposeGc {
  public:
   ScopedExposeGc() : was_exposed_(i::v8_flags.expose_gc) {
-    i::v8_flags.expose_gc = true;
+    i::v8_flags.expose_gc.Set(true);
   }
-  ~ScopedExposeGc() { i::v8_flags.expose_gc = was_exposed_; }
+  ~ScopedExposeGc() { i::v8_flags.expose_gc.Set(was_exposed_); }
 
  private:
   const bool was_exposed_;
@@ -264,6 +268,95 @@ TEST_F(APIExceptionTest, TryCatchFinallyStoresMessageUsingTryCatchHandler) {
   EXPECT_TRUE(!try_catch.Message().IsEmpty());
   String::Utf8Value finally_exception_value(isolate(), try_catch.Exception());
   EXPECT_EQ(0, strcmp(*finally_exception_value, "2"));
+}
+
+namespace {
+void PrintStackCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  std::ostringstream out;
+  v8::Message::PrintCurrentStackTrace(info.GetIsolate(), out);
+  info.GetReturnValue().Set(
+      v8::String::NewFromUtf8(info.GetIsolate(), out.str().c_str())
+          .ToLocalChecked());
+}
+}  // namespace
+
+// Regression test for https://crbug.com/575539921.
+TEST_F(APIExceptionTest, HugeFunctionNameOverflow) {
+  v8::HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  v8::Context::Scope context_scope(context);
+
+  // Build a ConsString close to String::kMaxLength without flattening 512MB.
+  std::string make_name =
+      "'a'.repeat(" + std::to_string(v8::String::kMaxLength - 10) + ")";
+  Local<String> huge_name = RunJS(make_name.c_str()).As<String>();
+
+  // 1. Native/API JSFunction with an overflowing NativeCodeFunctionSourceString
+  // ("function " + name + "() { [native code] }").
+  Local<Function> api_fn =
+      v8::Function::New(context, PrintStackCallback).ToLocalChecked();
+  api_fn->SetName(huge_name);
+  context->Global()->Set(context, NewString("apiFn"), api_fn).FromJust();
+
+  // Function.prototype.toString throws RangeError.
+  {
+    v8::TryCatch try_catch(isolate());
+    EXPECT_TRUE(TryRunJS("apiFn.toString()").IsEmpty());
+    EXPECT_TRUE(try_catch.HasCaught());
+  }
+
+  // Object::NoSideEffectsToMaybeString falls back to "[object Function]".
+  {
+    v8::TryCatch try_catch(isolate());
+    EXPECT_TRUE(TryRunJS("Promise.prototype.then.call(apiFn)").IsEmpty());
+    EXPECT_TRUE(try_catch.HasCaught());
+    String::Utf8Value msg(isolate(), try_catch.Exception());
+    EXPECT_NE(nullptr, strstr(*msg, "[object Function]"));
+  }
+
+  // v8::debug::GetFunctionDescription falls back without throwing inside
+  // DisallowExceptionsDebugOnly.
+  Local<String> desc = v8::debug::GetFunctionDescription(api_fn);
+  String::Utf8Value desc_utf8(isolate(), desc);
+  EXPECT_STREQ("function () { [native code] }", *desc_utf8);
+
+  // 2. User JSFunction in a Script whose ScriptOrigin name is huge_name, so
+  // AppendEvalOrigin overflows String::kMaxLength without flattening huge_name.
+  v8::ScriptOrigin origin(huge_name);
+  v8::Script::Compile(
+      context, NewString("function evalFn(s) { return eval(s); }"), &origin)
+      .ToLocalChecked()
+      ->Run(context)
+      .ToLocalChecked();
+
+  RunJS(
+      "Error.prepareStackTrace = (e, frames) => frames;"
+      "globalThis.frames = evalFn('new Error().stack');"
+      "Error.prepareStackTrace = undefined;");
+
+  {
+    v8::TryCatch try_catch(isolate());
+    EXPECT_TRUE(TryRunJS("frames[0].getEvalOrigin()").IsEmpty());
+    EXPECT_TRUE(try_catch.HasCaught());
+  }
+  {
+    v8::TryCatch try_catch(isolate());
+    EXPECT_TRUE(TryRunJS("frames[0].toString()").IsEmpty());
+    EXPECT_TRUE(try_catch.HasCaught());
+  }
+  {
+    v8::TryCatch try_catch(isolate());
+    EXPECT_TRUE(
+        TryRunJS("Error.stackTraceLimit = 1; evalFn('new Error()').stack")
+            .IsEmpty());
+    EXPECT_TRUE(try_catch.HasCaught());
+  }
+
+  // v8::Message::PrintCurrentStackTrace prints "<error>" for overflowing frames
+  // without crashing or tripping DisallowExceptionsDebugOnly.
+  Local<String> printed = RunJS("evalFn('apiFn()')").As<String>();
+  String::Utf8Value printed_utf8(isolate(), printed);
+  EXPECT_NE(nullptr, strstr(*printed_utf8, "<error>"));
 }
 
 }  // namespace

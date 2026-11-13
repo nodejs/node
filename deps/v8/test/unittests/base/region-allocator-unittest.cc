@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/base/region-allocator.h"
-#include "test/unittests/test-utils.h"
 
+#include <limits>
+
+#include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -537,6 +539,69 @@ TEST(RegionAllocatorTest, GetLargestFreeRegionSize) {
 
   ra.FreeRegion(5 * kPageSize);
   CHECK_EQ(ra.GetLargestFreeRegionSize(), 6 * kPageSize);
+}
+
+TEST(RegionAllocatorTest, InvalidAllocationSizes) {
+  const size_t kPageSize = 4 * KB;
+  const size_t kPageCount = 16;
+  const size_t kSize = kPageSize * kPageCount;
+  const Address kBegin = static_cast<Address>(kPageSize * 153);
+
+  RegionAllocator ra(kBegin, kSize, kPageSize);
+  base::RandomNumberGenerator rng(12345);
+
+  const size_t invalid_sizes[] = {
+      0, kSize + kPageSize, std::numeric_limits<size_t>::max(),
+      static_cast<size_t>(-static_cast<intptr_t>(kPageSize))};
+
+  for (size_t invalid_size : invalid_sizes) {
+    CHECK_EQ(ra.AllocateRegion(invalid_size),
+             RegionAllocator::kAllocationFailure);
+    CHECK_EQ(ra.AllocateRegion(&rng, invalid_size),
+             RegionAllocator::kAllocationFailure);
+    CHECK(!ra.AllocateRegionAt(kBegin, invalid_size));
+    CHECK_EQ(ra.AllocateAlignedRegion(invalid_size, kPageSize),
+             RegionAllocator::kAllocationFailure);
+    CHECK_EQ(ra.AllocateRegion(kBegin, invalid_size, kPageSize),
+             RegionAllocator::kAllocationFailure);
+  }
+
+  // The allocator should remain fully functional and uncorrupted.
+  CHECK_EQ(ra.free_size(), kSize);
+  Address addr = ra.AllocateRegion(kPageSize);
+  CHECK_NE(addr, RegionAllocator::kAllocationFailure);
+  CHECK_EQ(ra.FreeRegion(addr), kPageSize);
+}
+
+TEST(RegionAllocatorTest, InvalidTrimAndGrow) {
+  const size_t kPageSize = 4 * KB;
+  const size_t kPageCount = 16;
+  const size_t kSize = kPageSize * kPageCount;
+  const Address kBegin = static_cast<Address>(kPageSize * 153);
+
+  RegionAllocator ra(kBegin, kSize, kPageSize);
+
+  Address addr = ra.AllocateRegion(4 * kPageSize);
+  CHECK_NE(addr, RegionAllocator::kAllocationFailure);
+
+  // Trimming to current or larger size should return 0.
+  CHECK_EQ(ra.TrimRegion(addr, 4 * kPageSize), 0);
+  CHECK_EQ(ra.TrimRegion(addr, 5 * kPageSize), 0);
+  CHECK_EQ(ra.TrimRegion(addr, kSize + kPageSize), 0);
+  CHECK_EQ(ra.TrimRegion(addr, std::numeric_limits<size_t>::max()), 0);
+
+  // Growing to current, smaller, or out-of-bounds size should return false.
+  CHECK(!ra.TryGrowRegion(addr, 0));
+  CHECK(!ra.TryGrowRegion(addr, 2 * kPageSize));
+  CHECK(!ra.TryGrowRegion(addr, 4 * kPageSize));
+  CHECK(!ra.TryGrowRegion(addr, kSize + kPageSize));
+  CHECK(!ra.TryGrowRegion(addr, std::numeric_limits<size_t>::max()));
+
+  // Valid trim and grow should still work.
+  CHECK_EQ(ra.TrimRegion(addr, 2 * kPageSize), 2 * kPageSize);
+  CHECK(ra.TryGrowRegion(addr, 3 * kPageSize));
+  CHECK_EQ(ra.FreeRegion(addr), 3 * kPageSize);
+  CHECK_EQ(ra.free_size(), kSize);
 }
 
 }  // namespace base

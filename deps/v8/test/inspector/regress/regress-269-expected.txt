@@ -1,0 +1,19 @@
+Tests regress-269.
+function f() {
+  #debugger;
+  g.apply(null, ['']);
+
+  debugger;
+  #g.apply(null, ['']);
+}
+
+function g() {
+#}
+
+
+  g.apply(null, ['']);
+#}
+
+
+f()#
+

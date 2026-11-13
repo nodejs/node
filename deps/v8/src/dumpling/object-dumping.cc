@@ -5,6 +5,7 @@
 #include "src/dumpling/object-dumping.h"
 
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include <vector>
 
@@ -124,9 +125,9 @@ void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
     if (IsString(*key_name)) {
       FuzzingStringShortPrint(Cast<String>(*key_name), accumulator);
     } else {
-      auto name_buffer = base::OwnedVector<char>::NewForOverwrite(100);
-      key_name->NameShortPrint(name_buffer.as_vector());
-      PrintSanitizedCString(name_buffer.begin(), accumulator);
+      std::array<char, 100> name_buffer;
+      key_name->NameShortPrint(name_buffer);
+      PrintSanitizedCString(name_buffer.data(), accumulator);
     }
 
     std::stringstream attributes_stream;
@@ -513,6 +514,19 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
       os << "<FeedbackVector[" << Cast<FeedbackVector>(obj)->length() << "]>";
       break;
     }
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
+      // Optimized code materializes the same uninitialized field as the
+      // uninitialized_value hole, so print it the same way.
+      os << "<uninitialized_value>";
+      break;
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_STRUCT_TYPE:
+      os << "<WasmStruct>";
+      break;
+    case WASM_ARRAY_TYPE:
+      os << "<WasmArray>";
+      break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       // TODO(mdanylo): add more cases after a test run with Fuzzilli
       FATAL("Unexpected value in switch: %s\n",

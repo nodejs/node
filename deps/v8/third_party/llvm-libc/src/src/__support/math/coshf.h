@@ -9,12 +9,11 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_COSHF_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_COSHF_H
 
-#include "sinhfcoshf_utils.h"
-#include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/rounding_mode.h"
+#include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h" // LIBC_UNLIKELY
+#include "src/__support/math/sinhfcoshf_utils.h"
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -40,16 +39,7 @@ LIBC_INLINE float coshf(float x) {
     if (xbits.is_inf_or_nan())
       return x + FPBits::inf().get_val();
 
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-    int rounding = fputil::quick_get_round();
-    if (LIBC_UNLIKELY(rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO))
-      return FPBits::max_normal().get_val();
-#endif
-
-    fputil::set_errno_if_required(ERANGE);
-    fputil::raise_except_if_required(FE_OVERFLOW);
-
-    return x + FPBits::inf().get_val();
+    return fputil::set_overflow<float>();
   }
 
   // TODO: We should be able to reduce the latency and reciprocal throughput

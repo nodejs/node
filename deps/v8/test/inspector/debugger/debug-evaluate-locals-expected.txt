@@ -1,0 +1,26 @@
+Tests evaluation of locals in call frames.
+frame 0 local count: 3
+frame 0 local a = 1
+frame 0 local b = 2
+frame 0 local eval = 5
+frame 1 local count: 3
+frame 1 local a = 3
+frame 1 local arguments
+frame 1 local b = 4
+frame 2 local count: 2
+frame 2 local a = 5
+frame 2 local b = 0
+frame(0).evaluate("a"): 1
+frame(0).evaluate("b"): 2
+frame(0).evaluate("eval"): 5
+frame(1).evaluate("a"): 3
+frame(1).evaluate("b"): 4
+frame(1).evaluate("typeof eval"): function
+frame(2).evaluate("a"): 5
+frame(2).evaluate("b"): 6
+frame(2).evaluate("typeof eval"): function
+frame(0).scope(0).evaluate("a"): 1
+frame(0).scope(1).evaluate("a"): throws ReferenceError
+frame(0).evaluate('a = "foo"'): foo
+frame(1).evaluate('a = "bar"'): bar
+f() = foobar

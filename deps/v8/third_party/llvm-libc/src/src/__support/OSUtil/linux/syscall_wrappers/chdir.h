@@ -14,7 +14,7 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_OSUTIL_SYSCALL_WRAPPERS_CHDIR_H
 #define LLVM_LIBC_SRC___SUPPORT_OSUTIL_SYSCALL_WRAPPERS_CHDIR_H
 
-#include "src/__support/OSUtil/linux/syscall.h" // syscall_impl
+#include "src/__support/OSUtil/linux/syscall.h" // syscall_checked
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
@@ -24,10 +24,7 @@ namespace LIBC_NAMESPACE_DECL {
 namespace linux_syscalls {
 
 LIBC_INLINE ErrorOr<int> chdir(const char *path) {
-  int ret = syscall_impl<int>(SYS_chdir, path);
-  if (ret < 0)
-    return Error(-ret);
-  return ret;
+  return syscall_checked<int>(SYS_chdir, path);
 }
 
 } // namespace linux_syscalls

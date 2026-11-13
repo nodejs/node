@@ -28,6 +28,7 @@ own<Trap> Callback(void* env, const vec<Val>& args, vec<Val>& results) {
 }
 
 void Main(Engine* engine, Shared<Module>* shared, std::mutex* mutex, int id) {
+  v8::StackStartScope stack_start_scope;
   own<Store> store = Store::make(engine);
 
   // The physical stack size for std::thread on macOS is 512KB.
@@ -74,15 +75,13 @@ TEST_F(WasmCapiTest, Threads) {
   // Create module.
   ValueType i32_type[] = {kWasmI32};
   FunctionSig param_i32(0, 1, i32_type);
-  uint32_t callback_index =
-      builder()->AddImport(base::CStrVector("callback"), &param_i32);
-  uint32_t global_index =
-      builder()->AddGlobalImport(base::CStrVector("id"), kWasmI32, false);
+  uint32_t callback_index = builder()->AddImport("callback", &param_i32);
+  uint32_t global_index = builder()->AddGlobalImport("id", kWasmI32, false);
 
   uint8_t code[] = {
       WASM_CALL_FUNCTION(callback_index, WASM_GLOBAL_GET(global_index))};
   FunctionSig empty_sig(0, 0, nullptr);
-  AddExportedFunction(base::CStrVector("run"), code, sizeof(code), &empty_sig);
+  AddExportedFunction("run", code, sizeof(code), &empty_sig);
   Compile();
   own<Shared<Module>> shared = module()->share();
 

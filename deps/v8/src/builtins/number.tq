@@ -124,6 +124,7 @@ macro IntToDecimalString(x: int32): String {
 }
 
 macro IntToString(x: int32, radix: uint32): String {
+  dcheck(radix >= 2 && radix <= 36);
   if constexpr (Is64()) {
     dcheck(radix != 10);  // Use IntToDecimalString otherwise.
   }
@@ -187,15 +188,24 @@ transitioning javascript builtin NumberPrototypeToString(
   // 3. Else if radix is undefined, let radixNumber be 10.
   // 4. Else, let radixNumber be ? ToInteger(radix).
   const radix: JSAny = arguments[0];
-  const radixNumber: Number = radix == Undefined ? 10 : ToInteger_Inline(radix);
+  let radixInt32: int32;
+  try {
+    // Valid radices [2, 36] always fit in a Smi, where ToInteger_Inline
+    // should canonicalize incoming in-range Numbers to Smi.
+    radixInt32 = radix == Undefined ?
+        10 :
+        SmiToInt32(Cast<Smi>(ToInteger_Inline(radix)) otherwise RangeError);
 
-  // 5. If radixNumber < 2 or radixNumber > 36, throw a RangeError exception.
-  if (radixNumber < 2 || radixNumber > 36) {
+    // 5. If radixNumber < 2 or radixNumber > 36, throw a RangeError exception.
+    if (radixInt32 < 2 || radixInt32 > 36) {
+      goto RangeError;
+    }
+  } label RangeError deferred {
     ThrowRangeError(MessageTemplate::kToRadixFormatRange);
   }
 
   // 6. If radixNumber = 10, return ! ToString(x).
-  if (radixNumber == 10) {
+  if (radixInt32 == 10) {
     return NumberToString(x);
   }
 
@@ -203,8 +213,7 @@ transitioning javascript builtin NumberPrototypeToString(
   //    value using the radix specified by radixNumber.
 
   if (TaggedIsSmi(x)) {
-    return IntToString(
-        Convert<int32>(x), Unsigned(Convert<int32>(radixNumber)));
+    return IntToString(Convert<int32>(x), Unsigned(radixInt32));
   }
 
   if (x == -0) {
@@ -217,7 +226,7 @@ transitioning javascript builtin NumberPrototypeToString(
     return MinusInfinityStringConstant();
   }
 
-  return runtime::DoubleToStringWithRadix(x, radixNumber);
+  return runtime::DoubleToStringWithRadix(x, SmiFromInt32(radixInt32));
 }
 
 // https://tc39.es/ecma262/#sec-number.isfinite

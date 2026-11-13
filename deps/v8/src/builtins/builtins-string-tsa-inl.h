@@ -59,13 +59,11 @@ class StringBuiltinsReducer : public Next {
                         character_count);
     FOREACH(src_char, dst_offset,
             Zip(src_view, Sequence(dst_begin_offset, dst_stride))) {
-#if DEBUG
       // Copying two-byte characters to one-byte is okay if callers have
       // checked that this loses no information.
-      if (v8_flags.debug_code && !src_one_byte && dst_one_byte) {
+      if (!src_one_byte && dst_one_byte) {
         TSA_DCHECK(this, __ Uint32LessThanOrEqual(src_char, 0xFF));
       }
-#endif
       __ Store(dst_offset, src_char, StoreOp::Kind::RawAligned(), dst_rep,
                compiler::kNoWriteBarrier);
     }
@@ -490,10 +488,10 @@ class StringBuiltinsReducer : public Next {
     GOTO_IF(__ IsGetString(name), done, 1);
     GOTO_IF(__ IsThenString(name), done, 1);
     GOTO_IF_NOT(__ IsSymbolMap(__ LoadMapField(name)), done, 0);
-    GOTO_IF(
-        __ template IsSetWord32<Symbol::IsInterestingSymbolBit>(V<Word32>::Cast(
-            __ LoadField(name, AccessBuilderTS::ForSymbolFlags()))),
-        done, 1);
+    GOTO_IF(__ template IsSetWord32<Symbol::Flags::IsInterestingSymbolBit>(
+                V<Word32>::Cast(
+                    __ LoadField(name, AccessBuilderTS::ForSymbolFlags()))),
+            done, 1);
     GOTO(done, 0);
 
     BIND(done, result);
@@ -559,10 +557,10 @@ class StringBuiltinsReducer : public Next {
         if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
           V<Smi> flags =
               GetNameDictionaryFlags(V<NameDictionary>::Cast(properties));
-          GOTO_IF(__ IsSetSmi(
-                      flags,
-                      NameDictionary::MayHaveInterestingPropertiesBit::kMask),
-                  lookup);
+          GOTO_IF(
+              __ IsSetSmi(flags, NameDictionary::Flags::
+                                     MayHaveInterestingPropertiesBit::kMask),
+              lookup);
         }
       }
       var_holder = __ LoadField(var_holder_map.Get(),

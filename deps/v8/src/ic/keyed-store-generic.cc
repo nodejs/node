@@ -133,10 +133,6 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                           ElementsKind from_kind, ElementsKind to_kind,
                           Label* bailout);
 
-  void StoreSharedArrayElement(TNode<Context> context,
-                               TNode<FixedArrayBase> elements,
-                               TNode<IntPtrT> index, TNode<Object> value);
-
   void StoreElementWithCapacity(TNode<JSObject> receiver,
                                 TNode<Map> receiver_map,
                                 TNode<FixedArrayBase> elements,
@@ -298,7 +294,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
   ElementsKind holey_from_kind = GetHoleyElementsKind(from_kind);
   ElementsKind holey_to_kind = GetHoleyElementsKind(to_kind);
   if (AllocationSite::ShouldTrack(from_kind, to_kind)) {
-    TrapAllocationMemento(receiver, bailout);
+    TrapAllocationSiteInCache(receiver, bailout);
   }
   Label perform_transition(this), check_holey_map(this);
   TVARIABLE(Map, var_target_map);
@@ -341,7 +337,7 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapHelper(
   TNode<Map> packed_map = LoadJSArrayElementsMap(packed_kind, native_context);
   GotoIf(TaggedNotEqual(receiver_map, packed_map), map_mismatch);
   if (AllocationSite::ShouldTrack(packed_kind, holey_kind)) {
-    TrapAllocationMemento(receiver, bailout);
+    TrapAllocationSiteInCache(receiver, bailout);
   }
   TNode<Map> holey_map = CAST(LoadContextElementNoCell(
       native_context, Context::ArrayMapIndex(holey_kind)));
@@ -396,15 +392,6 @@ void KeyedStoreGenericAssembler::MaybeUpdateLengthAndReturn(
     StoreObjectFieldNoWriteBarrier(receiver, offsetof(JSArray, length_),
                                    new_length);
   }
-  Return(value);
-}
-
-void KeyedStoreGenericAssembler::StoreSharedArrayElement(
-    TNode<Context> context, TNode<FixedArrayBase> elements,
-    TNode<IntPtrT> index, TNode<Object> value) {
-  TVARIABLE(Object, shared_value, value);
-  SharedValueBarrier(context, &shared_value);
-  UnsafeStoreFixedArrayElement(CAST(elements), index, shared_value.value());
   Return(value);
 }
 
@@ -666,7 +653,7 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
     TNode<Context> context, Label* slow) {
   Label if_fast(this), if_in_bounds(this), if_increment_length_by_one(this),
       if_bump_length_with_gap(this), if_grow(this), if_nonfast(this),
-      if_typed_array(this), if_dictionary(this), if_shared_array(this);
+      if_typed_array(this), if_dictionary(this);
   TNode<FixedArrayBase> elements = LoadElements(receiver);
   TNode<Int32T> elements_kind = LoadMapElementsKind(receiver_map);
   Branch(IsFastElementsKind(elements_kind), &if_fast, &if_nonfast);
@@ -730,8 +717,6 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
            &if_typed_array);
     GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &if_dictionary);
-    GotoIf(Word32Equal(elements_kind, Int32Constant(SHARED_ARRAY_ELEMENTS)),
-           &if_shared_array);
     Goto(slow);
   }
 
@@ -748,13 +733,6 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
     // TODO(jkummerow): Support typed arrays. Note: RAB / GSAB backed typed
     // arrays end up here too.
     Goto(slow);
-  }
-
-  BIND(&if_shared_array);
-  {
-    TNode<IntPtrT> length = LoadFixedArrayBaseLength(elements);
-    GotoIf(UintPtrGreaterThanOrEqual(index, length), slow);
-    StoreSharedArrayElement(context, elements, index, value);
   }
 }
 
@@ -972,22 +950,11 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
         BIND(&data_property);
         {
-          Label shared(this);
-          GotoIf(IsJSSharedStructInstanceType(instance_type), &shared);
-
           CheckForAssociatedProtector(name, slow);
           OverwriteExistingFastDataProperty(receiver, receiver_map, descriptors,
                                             name_index, details, p->value(),
                                             slow, false);
           exit_point->Return(p->value());
-
-          BIND(&shared);
-          {
-            StoreJSSharedStructField(p->context(), receiver, receiver_map,
-                                     descriptors, name_index, details,
-                                     p->value());
-            exit_point->Return(p->value());
-          }
         }
       }
     }
@@ -1339,6 +1306,9 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
     // checks, strings and string wrappers, proxies) are handled in the runtime.
     GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);
     {
+      // Using KeyedStoreGenericAssembler for named stores is a hack (see
+      // DefineNamedOwnICNoFeedbackGenerator::Generate). For the "no feedback"
+      // case, using kDefineNamedOwn is fine below.
       StoreICParameters p = MakeStoreICParameters(
           context, receiver, receiver_map, name, value, std::nullopt, {},
           UndefinedConstant(),

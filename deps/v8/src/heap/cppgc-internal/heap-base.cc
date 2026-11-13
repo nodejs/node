@@ -4,6 +4,7 @@
 
 #include "src/heap/cppgc-internal/heap-base.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "include/cppgc/heap-consistency.h"
@@ -96,12 +97,33 @@ class AgeTableResetter final : protected HeapVisitor<AgeTableResetter> {
 
 }  // namespace
 
+size_t CheckedAllocationSampler::GetSampleInterval() const {
+  subtle::DisallowGarbageCollectionScope no_gc(heap_);
+  return sampler_.GetSampleInterval();
+}
+
+bool CheckedAllocationSampler::OnAllocated(void* address, size_t size) {
+  subtle::DisallowGarbageCollectionScope no_gc(heap_);
+  return sampler_.OnAllocated(address, size);
+}
+
+void CheckedAllocationSampler::OnFreed(void* address) {
+  subtle::DisallowGarbageCollectionScope no_gc(heap_);
+  sampler_.OnFreed(address);
+}
+
+bool CheckedAllocationSampler::OnMove(void* from, void* to, size_t size) {
+  subtle::DisallowGarbageCollectionScope no_gc(heap_);
+  return sampler_.OnMove(from, to, size);
+}
+
 HeapBase::HeapBase(
     std::shared_ptr<cppgc::Platform> platform,
     const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
     StackSupport stack_support, MarkingType marking_support,
     SweepingType sweeping_support, GarbageCollector& garbage_collector,
-    std::optional<cppgc::StackStartMarker> stack_start_marker)
+    std::optional<cppgc::StackStartMarker> stack_start_marker,
+    cppgc::AllocationSampler* allocation_sampler)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
       oom_handler_(std::make_unique<FatalOutOfMemoryHandler>(this)),
@@ -113,10 +135,15 @@ HeapBase::HeapBase(
       stats_collector_(std::make_unique<StatsCollector>(platform_.get())),
       stack_(std::make_unique<heap::base::Stack>()),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>(*this)),
+      allocation_sampler_(allocation_sampler
+                              ? std::optional<CheckedAllocationSampler>(
+                                    std::in_place, *this, *allocation_sampler)
+                              : std::nullopt),
       compactor_(raw_heap_),
-      object_allocator_(raw_heap_, *page_backend_, *stats_collector_,
-                        *prefinalizer_handler_, *oom_handler_,
-                        garbage_collector),
+      object_allocator_(
+          raw_heap_, *page_backend_, *stats_collector_, *prefinalizer_handler_,
+          *oom_handler_, garbage_collector,
+          allocation_sampler_ ? &allocation_sampler_.value() : nullptr),
       sweeper_(*this),
       strong_persistent_region_(*this, *oom_handler_),
       weak_persistent_region_(*this, *oom_handler_),
@@ -131,14 +158,44 @@ HeapBase::HeapBase(
       sweeping_support_(sweeping_support) {
   stats_collector_->RegisterObserver(
       &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
+  const bool check_for_tls = ShouldCheckForTLSOnStack();
   if (stack_start_marker) {
-    stack_->SetStackStart(stack_start_marker->stack_start());
+    stack_->SetStackStart(stack_start_marker->stack_start(), check_for_tls);
   } else {
-    stack_->SetStackStart(v8::base::Stack::GetStackStart());
+    stack_->SetStackStart(v8::base::Stack::GetEffectiveStackStart(),
+                          check_for_tls);
+  }
+  if (allocation_sampler_) {
+    RegisterMoveListener(this);
   }
 }
 
-HeapBase::~HeapBase() = default;
+HeapBase::~HeapBase() {
+  if (allocation_sampler_) {
+    UnregisterMoveListener(this);
+    for (HeapObjectHeader* header : sampled_objects_) {
+      allocation_sampler_->OnFreed(header->ObjectStart());
+    }
+  }
+}
+
+void HeapBase::RemoveSampledObject(HeapObjectHeader* header) {
+  if (allocation_sampler_ && sampled_objects_.erase(header)) {
+    allocation_sampler_->OnFreed(header->ObjectStart());
+  }
+}
+
+void HeapBase::FilterSampledObjects() {
+  if (allocation_sampler_) {
+    absl::erase_if(sampled_objects_, [this](HeapObjectHeader* header) {
+      if (!header->IsMarked()) {
+        allocation_sampler_->OnFreed(header->ObjectStart());
+        return true;
+      }
+      return false;
+    });
+  }
+}
 
 PageAllocator* HeapBase::page_allocator() const {
 #if defined(LEAK_SANITIZER)
@@ -273,6 +330,7 @@ void HeapBase::Terminate() {
     object_allocator().ResetLinearAllocationBuffers();
     stats_collector()->NotifyMarkingCompleted(0);
     ExecutePreFinalizers();
+    FilterSampledObjects();
     // TODO(chromium:1029379): Prefinalizers may black-allocate objects (under a
     // compile-time option). Run sweeping with forced finalization here.
     sweeper().Start({SweepingConfig::SweepingType::kAtomic,
@@ -325,6 +383,21 @@ HeapStatistics HeapBase::CollectStatistics(
   return HeapStatisticsCollector().CollectDetailedStatistics(this);
 }
 
+void HeapBase::OnMove(Address from, Address to, size_t size_including_header) {
+  DCHECK(allocation_sampler_);
+  auto* header_from = reinterpret_cast<HeapObjectHeader*>(from);
+  auto it = sampled_objects_.find(header_from);
+  if (it != sampled_objects_.end()) {
+    sampled_objects_.erase(it);
+    auto* header_to = reinterpret_cast<HeapObjectHeader*>(to);
+    if (allocation_sampler_->OnMove(header_from->ObjectStart(),
+                                    header_to->ObjectStart(),
+                                    size_including_header)) {
+      sampled_objects_.insert(header_to);
+    }
+  }
+}
+
 void HeapBase::CallMoveListeners(Address from, Address to,
                                  size_t size_including_header) {
   for (const auto& listener : move_listeners_) {
@@ -360,6 +433,19 @@ bool HeapBase::CurrentThreadIsHeapThread() const {
 
 std::optional<cppgc::StackStartMarker> HeapBase::stack_start_marker() {
   return stack_start_marker_;
+}
+
+bool HeapBase::ShouldCheckForTLSOnStack() const {
+  // TODO(540324230):
+  // 1. Remove `!stack_start_marker_` once embedders migrate to
+  //    StackStartScope.
+  // 2. Remove this method entirely and always check for TLS, once Blink
+  //    correctly sets the stack start for all non-main threads.
+  if (!stack_start_marker_ &&
+      !v8::base::Stack::HasCustomCurrentThreadStackStart()) {
+    return false;
+  }
+  return true;
 }
 
 ClassNameAsHeapObjectNameScope::ClassNameAsHeapObjectNameScope(HeapBase& heap)

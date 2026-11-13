@@ -74,6 +74,8 @@ class V8_BASE_EXPORT CPU final {
   int icache_line_size() const { return icache_line_size_; }
   int dcache_line_size() const { return dcache_line_size_; }
   static constexpr int kUnknownCacheLineSize = 0;
+  unsigned vlen() const { return vlen_; }
+  static constexpr unsigned kUnknownVlen = 0;
 
   // x86 features
   bool has_cmov() const { return has_cmov_; }
@@ -131,15 +133,19 @@ class V8_BASE_EXPORT CPU final {
   bool has_hbc() const { return has_hbc_; }
   bool has_cssc() const { return has_cssc_; }
   bool has_mops() const { return has_mops_; }
+  bool has_sme() const { return has_sme_; }
+  bool has_sme2() const { return has_sme2_; }
   bool has_sve() const { return has_sve_; }
+  bool has_sve2() const { return has_sve2_; }
   bool has_svebitperm() const { return has_svebitperm_; }
+  bool has_lrcpc2() const { return has_lrcpc2_; }
+  unsigned streaming_vlen() const { return streaming_vlen_; }
 
   // mips features
   bool is_fp64_mode() const { return is_fp64_mode_; }
   bool has_msa() const { return has_msa_; }
 
   // riscv-specific part codes
-  unsigned vlen() const { return vlen_; }
   bool has_rvv() const { return has_rvv_; }
   bool has_zba() const { return has_zba_; }
   bool has_zbb() const { return has_zbb_; }
@@ -154,7 +160,6 @@ class V8_BASE_EXPORT CPU final {
     kRiscvSV57,
   };
   RV_MMU_MODE riscv_mmu() const { return riscv_mmu_; }
-  static constexpr unsigned kUnknownVlen = 0;
 
   // LoongArch features
   bool has_lsx() const { return has_lsx_; }
@@ -180,6 +185,7 @@ class V8_BASE_EXPORT CPU final {
   int icache_line_size_ = kUnknownCacheLineSize;
   int dcache_line_size_ = kUnknownCacheLineSize;
   int num_virtual_address_bits_ = kUnknownNumVirtualAddressBits;
+  unsigned vlen_ = kUnknownVlen;
   bool has_fpu_ = false;
   bool has_cmov_ = false;
   bool has_sahf_ = false;
@@ -222,14 +228,18 @@ class V8_BASE_EXPORT CPU final {
   bool has_hbc_ = false;
   bool has_cssc_ = false;
   bool has_mops_ = false;
+  bool has_sme_ = false;
+  bool has_sme2_ = false;
   bool has_sve_ = false;
+  bool has_sve2_ = false;
   bool has_svebitperm_ = false;
+  bool has_lrcpc2_ = false;
+  unsigned streaming_vlen_ = kUnknownVlen;
   bool is_fp64_mode_ = false;
   bool has_non_stop_time_stamp_counter_ = false;
   bool is_running_in_vm_ = false;
   bool has_msa_ = false;
   RV_MMU_MODE riscv_mmu_ = RV_MMU_MODE::kRiscvSV48;
-  unsigned vlen_ = kUnknownVlen;
   bool has_rvv_ = false;
   bool has_zba_ = false;
   bool has_zbb_ = false;

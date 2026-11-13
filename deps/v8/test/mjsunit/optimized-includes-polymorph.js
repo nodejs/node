@@ -103,10 +103,9 @@ var testIndexOf = {
   },
 };
 
-function runTests(tests, func) {
+function runTests(tests, make_func) {
   for (test in tests) {
-    %DeoptimizeFunction(func);
-    %ClearFunctionFeedback(func);
+    var func = make_func();
     %PrepareFunctionForOptimization(func);
     tests[test]();
     %OptimizeFunctionOnNextCall(func);
@@ -114,5 +113,11 @@ function runTests(tests, func) {
   }
 }
 
-runTests(testIncludes, checkIncludes)
-runTests(testIndexOf, checkIndexOf)
+runTests(testIncludes, function() {
+  checkIncludes = copyFunctionWithFreshFeedback(checkIncludes);
+  return checkIncludes;
+});
+runTests(testIndexOf, function() {
+  checkIndexOf = copyFunctionWithFreshFeedback(checkIndexOf);
+  return checkIndexOf;
+});

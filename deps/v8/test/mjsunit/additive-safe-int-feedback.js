@@ -89,3 +89,35 @@ const minAdditiveSafeInteger = - 1125899906842624; // - 2^50
   assertEquals(maxAdditiveSafeInteger + 1 | 0, foo(maxAdditiveSafeInteger)); // Overflow.
   assertEquals(2, foo(1.5));  // Double.
 })();
+
+// Verify each out-of-range / non-integer edge case against compiled code
+// directly (with distinct source strings to avoid reusing cached feedback).
+const badValues = [
+  maxAdditiveSafeInteger + 1,
+  minAdditiveSafeInteger - 1,
+  1.5,
+  -0.5,
+  NaN,
+  Infinity,
+  -Infinity,
+  2 ** 63,
+  -(2 ** 63),
+];
+for (let i = 0; i < badValues.length; ++i) {
+  const bad = badValues[i];
+  const fn = new Function('a', `return (a + 1) | 0; // ${i}`);
+  %PrepareFunctionForOptimization(fn);
+  fn(1231234567890);
+  fn(1231234567890);
+  %OptimizeFunctionOnNextCall(fn);
+  assertEquals(1, fn(-0));
+  assertEquals((maxAdditiveSafeInteger + 1) | 0, fn(maxAdditiveSafeInteger));
+  assertEquals((minAdditiveSafeInteger + 1) | 0, fn(minAdditiveSafeInteger));
+  if (%IsTurbofanEnabled()) {
+    assertOptimized(fn);
+  }
+  assertEquals((bad + 1) | 0, fn(bad));
+  if (%IsTurbofanEnabled()) {
+    assertUnoptimized(fn);
+  }
+}

@@ -12,9 +12,8 @@
 #include <optional>
 
 #include "include/v8config.h"
-#include "src/base/fpu.h"
 #include "src/base/numbers/dtoa.h"
-#include "src/base/numbers/strtod.h"
+#include "src/base/unique-array.h"
 #include "src/bigint/bigint-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
@@ -224,14 +223,6 @@ uint8_t SignificandToChars(uint64_t n, char* buffer) {
 // This simple base class does not allow formatted output.
 class SimpleStringBuilder final {
  public:
-  // Create a string builder with a buffer of the given size. The
-  // buffer is allocated through NewArray<char> and must be
-  // deallocated by the caller of Finalize().
-  explicit SimpleStringBuilder(size_t size) {
-    buffer_ = base::Vector<char>::New(size);
-    cursor_ = buffer_.begin();
-  }
-
   SimpleStringBuilder(char* buffer, size_t size)
       : buffer_(buffer, size), cursor_(buffer) {}
 
@@ -755,29 +746,28 @@ class NumberParseIntHelper : public StringToIntHelper {
 
   template <class Char>
   void HandleBaseTenCase(const Char* current, const Char* end) {
-    // Parsing with strtod.
-    // Doubles are less than 1.8e308.
-    constexpr size_t kMaxSignificantDigits = 309;
-    // The buffer may contain up to kMaxSignificantDigits + 1 digits and a zero
-    // end.
-    constexpr size_t kBufferSize = kMaxSignificantDigits + 2;
-    char buffer[kBufferSize];
-    size_t buffer_pos = 0;
-    while (*current >= '0' && *current <= '9') {
-      if (buffer_pos <= kMaxSignificantDigits) {
-        // If the number has more than kMaxSignificantDigits it will be parsed
-        // as infinity.
-        static_assert(kMaxSignificantDigits < kBufferSize);
-        buffer[buffer_pos++] = static_cast<char>(*current);
-      }
-      ++current;
-      if (current == end) break;
-    }
-
-    SLOW_DCHECK(buffer_pos < kBufferSize);
-    buffer[buffer_pos] = '\0';
-    base::Vector<const char> buffer_vector(buffer, buffer_pos);
-    result_ = Strtod(buffer_vector, 0);
+    DCHECK_LT(current, end);
+    DCHECK(isDigit(*current, 10));
+    // fast_float takes a char/char16_t instead of a uint8_t/uint16_t. Cast the
+    // pointers to match.
+    using UC =
+        std::conditional_t<std::is_same_v<Char, uint8_t>, char, char16_t>;
+    static_assert(sizeof(UC) == sizeof(Char));
+    const UC* current_uc = reinterpret_cast<const UC*>(current);
+    const UC* end_uc = reinterpret_cast<const UC*>(end);
+    // Use '0' as the decimal point so that after scanning the integer digits,
+    // fast_float never matches a fractional part (since the integer loop stops
+    // at a non-digit, which cannot be '0'), while chars_format::fixed disables
+    // exponent parsing.
+    static constexpr fast_float::parse_options_t<UC> kOptions{
+        static_cast<fast_float::chars_format>(
+            fast_float::chars_format::fixed |
+            fast_float::chars_format::no_infnan),
+        /*decimal_point=*/UC('0')};
+    auto ret =
+        fast_float::from_chars_advanced(current_uc, end_uc, result_, kOptions);
+    DCHECK_GT(ret.ptr, current_uc);
+    USE(ret);
     set_state(State::kDone);
   }
 
@@ -898,12 +888,13 @@ double InternalStringToDouble(const Char* current, const Char* end,
   static_assert(sizeof(UC) == sizeof(Char));
   const UC* current_uc = reinterpret_cast<const UC*>(current);
   const UC* end_uc = reinterpret_cast<const UC*>(end);
+  static constexpr fast_float::parse_options_t<UC> kOptions{
+      static_cast<fast_float::chars_format>(
+          fast_float::chars_format::general |
+          fast_float::chars_format::no_infnan |
+          fast_float::chars_format::allow_leading_plus)};
   auto ret =
-      fast_float::from_chars(current_uc, end_uc, value,
-                             static_cast<fast_float::chars_format>(
-                                 fast_float::chars_format::general |
-                                 fast_float::chars_format::no_infnan |
-                                 fast_float::chars_format::allow_leading_plus));
+      fast_float::from_chars_advanced(current_uc, end_uc, value, kOptions);
   if (ret.ptr == end_uc) return value;
   if (ret.ptr > current_uc) {
     current = reinterpret_cast<const Char*>(ret.ptr);
@@ -952,7 +943,7 @@ double InternalStringToDouble(const Char* current, const Char* end,
 
 double StringToDouble(const char* str, ConversionFlag flags,
                       double empty_string_val) {
-  // We use {base::OneByteVector} instead of {base::CStrVector} to avoid
+  // We use {base::OneByteVector} instead of {std::string_view} to avoid
   // instantiating the InternalStringToDouble() template for {const char*} as
   // well.
   return StringToDouble(base::OneByteVector(str), flags, empty_string_val);
@@ -1085,12 +1076,16 @@ class StringToBigIntHelper : public StringToIntHelper {
       sandbox_storage.reset(processor->platform()->Allocate(num_digits));
       digit_storage = sandbox_storage.get();
     }
+    bigint::Processor::IgnoreInterruptsScope ignore_interrupts(processor);
     bigint::RWDigits digits(digit_storage, num_digits);
-    processor->FromString(digits, &accumulator_);
+    bigint::Status status = processor->FromString(digits, &accumulator_);
+    DCHECK_EQ(status, bigint::Status::kOk);
     uint32_t num_chars = bigint::ToStringResultLength(digits, 10, false);
     SandboxChars out(SandboxAllocArray<uint8_t>(num_chars));
     char* chars = reinterpret_cast<char*>(out.get());
-    processor->ToString(chars, &num_chars, digits, 10, false);
+    status = processor->ToString(chars, &num_chars, digits, 10, false);
+    DCHECK_EQ(status, bigint::Status::kOk);
+    USE(status);
     return {std::move(out), num_chars};
   }
   IsolateT* isolate() { return isolate_; }
@@ -1114,7 +1109,7 @@ class StringToBigIntHelper : public StringToIntHelper {
   }
 
   AllocationType allocation_type() {
-    // For literals, we pretenure the allocated BigInt, since it's about
+    // For literals, we allocate the BigInt in old space, since it's about
     // to be stored in the interpreter's constants array.
     return behavior_ == Behavior::kLiteral ? AllocationType::kOld
                                            : AllocationType::kYoung;
@@ -1134,6 +1129,8 @@ MaybeHandle<BigInt> StringToBigInt(Isolate* isolate,
 
 template <typename IsolateT>
 MaybeHandle<BigInt> BigIntLiteral(IsolateT* isolate, const char* string) {
+  bigint::Processor::IgnoreInterruptsScope ignore_interrupts(
+      isolate->bigint_processor());
   StringToBigIntHelper<IsolateT> helper(
       isolate, reinterpret_cast<const uint8_t*>(string), strlen(string));
   return helper.GetResult();
@@ -1262,9 +1259,8 @@ std::string_view DoubleToFixedStringView(double value, int f,
       kDoubleToFixedMaxDigitsBeforePoint + kMaxFractionDigits + 1;
   char decimal_rep[kDecimalRepCapacity];
   int decimal_rep_length;
-  base::DoubleToAscii(value, base::DTOA_FIXED, f,
-                      base::Vector<char>(decimal_rep, kDecimalRepCapacity),
-                      &sign, &decimal_rep_length, &decimal_point);
+  base::DoubleToAscii(value, base::DTOA_FIXED, f, decimal_rep, &sign,
+                      &decimal_rep_length, &decimal_point);
 
   // Create a representation that is padded with zeros if needed.
   int zero_prefix_length = 0;
@@ -1283,7 +1279,8 @@ std::string_view DoubleToFixedStringView(double value, int f,
   unsigned rep_length =
       zero_prefix_length + decimal_rep_length + zero_postfix_length;
   // TODO(pthier): Get rid of this intermediate string builder.
-  base::Vector<char> rep_buffer = base::Vector<char>::New(rep_length + 1);
+  base::UniqueArray<char> rep_buffer =
+      base::UniqueArray<char>::NewForOverwrite(rep_length + 1);
   SimpleStringBuilder rep_builder(rep_buffer.begin(), rep_buffer.size());
   rep_builder.AddPadding('0', zero_prefix_length);
   rep_builder.AddString(decimal_rep, decimal_rep_length);
@@ -1301,7 +1298,6 @@ std::string_view DoubleToFixedStringView(double value, int f,
     builder.AddCharacter('.');
     builder.AddSubstring(rep_buffer.begin() + decimal_point, f);
   }
-  DeleteArray(rep_buffer.begin());
   return {buffer.begin(), builder.Finalize()};
 }
 
@@ -1357,14 +1353,12 @@ std::string_view DoubleToExponentialStringView(double value, int f,
   int decimal_rep_length;
 
   if (f == -1) {
-    base::DoubleToAscii(value, base::DTOA_SHORTEST, 0,
-                        base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
-                        &sign, &decimal_rep_length, &decimal_point);
+    base::DoubleToAscii(value, base::DTOA_SHORTEST, 0, decimal_rep, &sign,
+                        &decimal_rep_length, &decimal_point);
     f = decimal_rep_length - 1;
   } else {
-    base::DoubleToAscii(value, base::DTOA_PRECISION, f + 1,
-                        base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
-                        &sign, &decimal_rep_length, &decimal_point);
+    base::DoubleToAscii(value, base::DTOA_PRECISION, f + 1, decimal_rep, &sign,
+                        &decimal_rep_length, &decimal_point);
   }
   DCHECK_GT(decimal_rep_length, 0);
   DCHECK(decimal_rep_length <= f + 1);
@@ -1394,9 +1388,8 @@ std::string_view DoubleToPrecisionStringView(double value, int p,
   char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
-  base::DoubleToAscii(value, base::DTOA_PRECISION, p,
-                      base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
-                      &sign, &decimal_rep_length, &decimal_point);
+  base::DoubleToAscii(value, base::DTOA_PRECISION, p, decimal_rep, &sign,
+                      &decimal_rep_length, &decimal_point);
   DCHECK(decimal_rep_length <= p);
 
   int exponent = decimal_point - 1;
@@ -1465,20 +1458,9 @@ std::string_view DoubleToRadixStringView(double value, int radix,
   double fraction = value - integer;
   // We only compute fractional digits up to the input double's precision.
   double delta = 0.5 * (base::Double(value).NextDouble() - value);
-  bool delta_is_positive = true;
-  // If the delta rounded down to zero, use the minimum (denormal) delta
-  // value. Be careful around denormal flushing when doing so.
-  if (delta <= 0) {
-    if (base::FPU::GetFlushDenormals()) {
-      // We're flushing the delta value to zero, so the loop below won't
-      // make progress. Skip it instead.
-      delta_is_positive = false;
-    } else {
-      static_assert(base::Double(0.0).NextDouble() > 0);
-      delta = base::Double(0.0).NextDouble();
-    }
-  }
-  if (delta_is_positive && fraction >= delta) {
+  delta = std::max(base::Double(0.0).NextDouble(), delta);
+  DCHECK_GT(delta, 0.0);
+  if (fraction >= delta) {
     // Insert decimal point.
     buffer[fraction_cursor++] = '.';
     do {

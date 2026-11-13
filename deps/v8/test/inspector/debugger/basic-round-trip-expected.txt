@@ -1,0 +1,3 @@
+Tests basic protocol round trip.
+evaluate result: 3
+f() result: 2

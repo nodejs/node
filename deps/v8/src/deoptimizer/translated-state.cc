@@ -6,6 +6,7 @@
 
 #include <inttypes.h>
 
+#include <bitset>
 #include <iomanip>
 #include <optional>
 
@@ -18,6 +19,7 @@
 #include "src/diagnostics/disasm.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/arguments.h"
@@ -32,7 +34,9 @@
 #include "src/objects/map-inl.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/oddball.h"
+#include "src/objects/property-array-inl.h"
 #include "src/objects/string.h"
+#include "src/sandbox/check.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -333,6 +337,21 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       break;
     }
 
+    case TranslationOpcode::DOUBLE_LITERAL:
+    case TranslationOpcode::HOLEY_DOUBLE_LITERAL: {
+      DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
+      uint32_t low = iterator.NextOperandUnsigned();
+      uint32_t high = iterator.NextOperandUnsigned();
+      Float64 value =
+          Float64::FromBits((static_cast<uint64_t>(high) << 32) | low);
+      os << "{double_literal=" << value.get_scalar() << " (0x" << std::hex
+         << value.get_bits() << std::dec << ")"
+         << (opcode == TranslationOpcode::HOLEY_DOUBLE_LITERAL ? " (holey)"
+                                                               : "")
+         << "}";
+      break;
+    }
+
     case TranslationOpcode::DUPLICATED_OBJECT: {
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
       int object_index = iterator.NextOperand();
@@ -551,12 +570,12 @@ Simd128 TranslatedValue::simd_value() const {
 }
 
 int TranslatedValue::object_length() const {
-  DCHECK_EQ(kind(), kCapturedObject);
+  DCHECK(IsCapturedObject());
   return materialization_info_.length_;
 }
 
 int TranslatedValue::object_index() const {
-  DCHECK(kind() == kCapturedObject || kind() == kDuplicatedObject ||
+  DCHECK(IsCapturedObject() || kind() == kDuplicatedObject ||
          kind() == kCapturedStringConcat);
   return materialization_info_.id_;
 }
@@ -685,22 +704,14 @@ Handle<Object> TranslatedValue::GetValue() {
 
   // Otherwise we have to materialize.
 
-  if (kind() == TranslatedValue::kCapturedObject ||
-      kind() == TranslatedValue::kDuplicatedObject) {
-    // We need to materialize the object (or possibly even object graphs).
-    // To make the object verifier happy, we materialize in two steps.
-
-    // 1. Allocate storage for reachable objects. This makes sure that for
-    //    each object we have allocated space on heap. The space will be
-    //    a byte array that will be later initialized, or a fully
-    //    initialized object if it is safe to allocate one that will
-    //    pass the verifier.
-    container_->EnsureObjectAllocatedAt(this);
-
-    // 2. Initialize the objects. If we have allocated only byte arrays
-    //    for some objects, we now overwrite the byte arrays with the
-    //    correct object fields. Note that this phase does not allocate
-    //    any new objects, so it does not trigger the object verifier.
+  if (IsCapturedObject() || kind() == TranslatedValue::kDuplicatedObject) {
+    // Materialize the object (or possibly cyclic object graphs) in two steps:
+    // 1. Allocate partially initialized objects directly with their final Map
+    //    and size (and GC-safe initial values), plus all leaf values.
+    // 2. Populate the fields of all allocated objects without any further GC
+    //    or layout transitions.
+    PendingObjectVerifyScope pending_verify_objects;
+    container_->EnsureObjectAllocatedAt(this, &pending_verify_objects);
     return container_->InitializeObjectAt(this);
   }
 
@@ -738,7 +749,11 @@ Handle<Object> TranslatedValue::GetValue() {
     // We shouldn't have hole values by now, so treat holey double as normal
     // doubles.
     case TranslatedValue::kHoleyDouble:
-      number = double_value().get_scalar();
+      if (double_value().is_nan()) {
+        number = std::numeric_limits<double>::quiet_NaN();
+      } else {
+        number = double_value().get_scalar();
+      }
       heap_object = isolate()->factory()->NewHeapNumber(number);
       break;
     default:
@@ -750,9 +765,39 @@ Handle<Object> TranslatedValue::GetValue() {
   return storage_;
 }
 
+Float64 TranslatedValue::GetDoubleValue() {
+  switch (kind()) {
+    case TranslatedValue::kDouble:
+    case TranslatedValue::kHoleyDouble:
+      return double_value();
+    case TranslatedValue::kFloat:
+      return Float64::FromMaybeNaN(float_value().get_scalar());
+    case TranslatedValue::kInt32:
+      return Float64(static_cast<double>(int32_value()));
+    case TranslatedValue::kUint32:
+      return Float64(static_cast<double>(uint32_value()));
+    default: {
+      DCHECK(!v8_flags.turbolev);
+      DirectHandle<Object> value = GetValue();
+      if (IsNumber(*value)) {
+        return Float64::FromMaybeNaN(Object::NumberValue(*value));
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+      } else if (value.is_identical_to(
+                     isolate()->factory()->undefined_value())) {
+        return Float64::undefined_nan();
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+      } else {
+        CHECK(value.is_identical_to(isolate()->factory()->the_hole_value()));
+        return Float64::hole_nan();
+      }
+    }
+  }
+}
+
 bool TranslatedValue::IsMaterializedObject() const {
   switch (kind()) {
     case kCapturedObject:
+    case kUniqueCapturedObject:
     case kDuplicatedObject:
     case kCapturedStringConcat:
       return true;
@@ -767,7 +812,7 @@ bool TranslatedValue::IsMaterializableByDebugger() const {
 }
 
 int TranslatedValue::GetChildrenCount() const {
-  if (kind() == kCapturedObject) {
+  if (IsCapturedObject()) {
     return object_length();
   } else if (kind() == kCapturedStringConcat) {
     static constexpr int kLeft = 1, kRight = 1;
@@ -959,6 +1004,13 @@ void TranslatedFrame::Handlify(Isolate* isolate) {
     value.Handlify();
   }
   handle_state_ = kHandles;
+}
+
+Tagged<BytecodeArray> TranslatedFrame::GetActiveBytecodeArray(
+    Isolate* isolate) const {
+  auto bytecodes = raw_shared_info()->GetBytecodeArrays(isolate);
+  SBXCHECK_EQ(bytecodes.original, raw_bytecode_array());
+  return bytecodes.active;
 }
 
 DeoptimizationLiteralProvider::DeoptimizationLiteralProvider(
@@ -1211,6 +1263,8 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::SIMD128_STACK_SLOT:
     case TranslationOpcode::HOLEY_DOUBLE_STACK_SLOT:
     case TranslationOpcode::LITERAL:
+    case TranslationOpcode::DOUBLE_LITERAL:
+    case TranslationOpcode::HOLEY_DOUBLE_LITERAL:
     case TranslationOpcode::OPTIMIZED_OUT:
     case TranslationOpcode::MATCH_PREVIOUS_TRANSLATION:
       break;
@@ -1775,6 +1829,50 @@ int TranslatedState::CreateNextTranslatedValue(
       return translated_value.GetChildrenCount();
     }
 
+    case TranslationOpcode::DOUBLE_LITERAL: {
+      uint32_t low = iterator->NextOperandUnsigned();
+      uint32_t high = iterator->NextOperandUnsigned();
+      Float64 value =
+          Float64::FromBits((static_cast<uint64_t>(high) << 32) | low);
+      if constexpr (IsTracing) {
+        if (value.is_nan()) {
+          PrintF(trace_file, "(double literal %e 0x%" PRIx64 ")",
+                 value.get_scalar(), value.get_bits());
+        } else {
+          PrintF(trace_file, "(double literal %e)", value.get_scalar());
+        }
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewDouble(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
+    case TranslationOpcode::HOLEY_DOUBLE_LITERAL: {
+      uint32_t low = iterator->NextOperandUnsigned();
+      uint32_t high = iterator->NextOperandUnsigned();
+      Float64 value =
+          Float64::FromBits((static_cast<uint64_t>(high) << 32) | low);
+      if constexpr (IsTracing) {
+        if (value.is_hole_nan()) {
+          PrintF(trace_file, "(holey double literal hole nan)");
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+        } else if (value.is_undefined_nan()) {
+          PrintF(trace_file, "(holey double literal undefined nan)");
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+        } else if (value.is_nan()) {
+          PrintF(trace_file, "(holey double literal %e 0x%" PRIx64 ")",
+                 value.get_scalar(), value.get_bits());
+        } else {
+          PrintF(trace_file, "(holey double literal %e)", value.get_scalar());
+        }
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewHoleyDouble(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
     case TranslationOpcode::LITERAL: {
       int literal_index = iterator->NextOperand();
       TranslatedValue translated_value = literal_array.Get(this, literal_index);
@@ -2077,7 +2175,7 @@ void TranslatedState::InitializeCapturedObjectAt(
   // since they have been already finalized in EnsureObjectAllocatedAt and
   // EnsureCapturedObjectAllocatedAt.
   CHECK_EQ(TranslatedValue::kFinished, slot->materialization_state());
-  CHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+  CHECK(slot->IsCapturedObject());
 
   // Ensure all fields are initialized.
   int children_init_index = value_index;
@@ -2085,7 +2183,7 @@ void TranslatedState::InitializeCapturedObjectAt(
     // If the field is an object that has not been initialized yet, queue it
     // for initialization (and mark it as such).
     TranslatedValue* child_slot = frame->ValueAt(children_init_index);
-    if (child_slot->kind() == TranslatedValue::kCapturedObject ||
+    if (child_slot->IsCapturedObject() ||
         child_slot->kind() == TranslatedValue::kDuplicatedObject) {
       child_slot = ResolveCapturedObject(child_slot);
       if (child_slot->materialization_state() != TranslatedValue::kFinished) {
@@ -2109,8 +2207,13 @@ void TranslatedState::InitializeCapturedObjectAt(
   // Handle the special cases.
   switch (map->instance_type()) {
     case HEAP_NUMBER_TYPE:
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
     case FIXED_DOUBLE_ARRAY_TYPE:
       return;
+
+    case PROPERTY_ARRAY_TYPE:
+      InitializePropertyArrayAt(frame, &value_index, slot, map, no_gc);
+      break;
 
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
@@ -2121,20 +2224,17 @@ void TranslatedState::InitializeCapturedObjectAt(
     case MODULE_CONTEXT_TYPE:
     case NATIVE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
-    case WITH_CONTEXT_TYPE:
-    case PROPERTY_ARRAY_TYPE: {
+    case WITH_CONTEXT_TYPE: {
       constexpr int kAlreadyInitializedSlots = 2;
-      static_assert(Context::kHeaderSize == sizeof(PropertyArray));
       static_assert(Context::kHeaderSize ==
                     kAlreadyInitializedSlots * kTaggedSize);
-      InitializeFirstHeaderField(frame, &value_index, slot, false, no_gc);
+      SkipLengthField(frame, &value_index, slot, kLengthIsSmi);
       InitializeObjectWithTaggedFieldsAt(frame, &value_index, slot, map, no_gc,
                                          kAlreadyInitializedSlots);
       break;
     }
 
     case FIXED_ARRAY_TYPE:
-    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
@@ -2142,12 +2242,11 @@ void TranslatedState::InitializeCapturedObjectAt(
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-    case SCRIPT_CONTEXT_TABLE_TYPE:
     case SLOPPY_ARGUMENTS_ELEMENTS_TYPE: {
       constexpr int kFixedArrayHeaderFields = 2;
       static_assert(FixedArrayBase::kHeaderSize ==
                     kFixedArrayHeaderFields * kTaggedSize);
-      InitializeFirstHeaderField(frame, &value_index, slot, true, no_gc);
+      SkipLengthField(frame, &value_index, slot, kLengthIsUint32);
       InitializeObjectWithTaggedFieldsAt(frame, &value_index, slot, map, no_gc,
                                          kFixedArrayHeaderFields);
       break;
@@ -2161,7 +2260,8 @@ void TranslatedState::InitializeCapturedObjectAt(
   CHECK_EQ(value_index, children_init_index);
 }
 
-void TranslatedState::EnsureObjectAllocatedAt(TranslatedValue* slot) {
+void TranslatedState::EnsureObjectAllocatedAt(
+    TranslatedValue* slot, PendingObjectVerifyScope* pending_verify_objects) {
   slot = ResolveCapturedObject(slot);
 
   if (slot->kind() == TranslatedValue::kCapturedStringConcat) {
@@ -2177,7 +2277,7 @@ void TranslatedState::EnsureObjectAllocatedAt(TranslatedValue* slot) {
     while (!worklist.empty()) {
       int index = worklist.top();
       worklist.pop();
-      EnsureCapturedObjectAllocatedAt(index, &worklist);
+      EnsureCapturedObjectAllocatedAt(index, &worklist, pending_verify_objects);
     }
   }
 }
@@ -2192,26 +2292,18 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
                                                   int* value_index,
                                                   TranslatedValue* slot,
                                                   DirectHandle<Map> map) {
+  CHECK_GE(slot->GetChildrenCount(), 2);
   uint32_t length =
       base::checked_cast<uint32_t>(frame->values_[*value_index].GetSmiValue());
+  SBXCHECK_EQ(length, slot->GetChildrenCount() - 2);
   (*value_index)++;
   Handle<FixedDoubleArray> array =
       Cast<FixedDoubleArray>(isolate()->factory()->NewFixedDoubleArray(length));
   CHECK_GT(length, 0);
   for (uint32_t i = 0; i < length; i++) {
-    CHECK_NE(TranslatedValue::kCapturedObject,
-             frame->values_[*value_index].kind());
-    DirectHandle<Object> value = frame->values_[*value_index].GetValue();
-    if (IsNumber(*value)) {
-      array->set(i, Object::NumberValue(*value));
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-    } else if (value.is_identical_to(isolate()->factory()->undefined_value())) {
-      array->set_undefined(i);
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-    } else {
-      CHECK(value.is_identical_to(isolate()->factory()->the_hole_value()));
-      array->set_the_hole(isolate(), i);
-    }
+    CHECK(!frame->values_[*value_index].IsCapturedObject());
+    Float64 value = frame->values_[*value_index].GetDoubleValue();
+    array->set_raw(i, value);
     (*value_index)++;
   }
   slot->set_storage(array);
@@ -2220,28 +2312,26 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
 void TranslatedState::MaterializeHeapNumber(TranslatedFrame* frame,
                                             int* value_index,
                                             TranslatedValue* slot) {
-  CHECK_NE(TranslatedValue::kCapturedObject,
-           frame->values_[*value_index].kind());
-  DirectHandle<Object> value = frame->values_[*value_index].GetValue();
-  Handle<HeapNumber> box;
-  if (value.is_identical_to(isolate()->factory()->the_hole_value())) {
-    // See is_hole_nan conversions in maglev-code-generator.cc and
-    // turbolev-graph-builder.cc.
-    box = isolate()->factory()->NewHeapNumber(
-        std::numeric_limits<double>::quiet_NaN());
-  } else {
-    CHECK(IsNumber(*value));
-    box = isolate()->factory()->NewHeapNumber(Object::NumberValue(*value));
+  CHECK(!frame->values_[*value_index].IsCapturedObject());
+  Float64 value = frame->values_[*value_index].GetDoubleValue();
+  if (value.is_nan()) {
+    value = Float64::quiet_nan();
   }
+  Handle<HeapNumber> box =
+      isolate()->factory()->NewHeapNumber(value.get_scalar());
   (*value_index)++;
   slot->set_storage(box);
 }
 
-namespace {
-
-enum StorageKind : uint8_t { kStoreTagged, kStoreHeapObject };
-
-}  // namespace
+void TranslatedState::MaterializeUninitializedHeapNumber(
+    TranslatedFrame* frame, int* value_index, TranslatedValue* slot) {
+  CHECK(!frame->values_[*value_index].IsCapturedObject());
+  DirectHandle<Object> value = frame->values_[*value_index].GetValue();
+  Handle<HeapObject> box = isolate()->factory()->NewUninitializedHeapNumber();
+  (*value_index)++;
+  slot->set_storage(box);
+  USE(value);
+}
 
 void TranslatedState::SkipSlots(int slots_to_skip, TranslatedFrame* frame,
                                 int* value_index) {
@@ -2250,7 +2340,7 @@ void TranslatedState::SkipSlots(int slots_to_skip, TranslatedFrame* frame,
     (*value_index)++;
     slots_to_skip--;
 
-    if (slot->kind() == TranslatedValue::kCapturedObject ||
+    if (slot->IsCapturedObject() ||
         slot->kind() == TranslatedValue::kCapturedStringConcat) {
       slots_to_skip += slot->GetChildrenCount();
     }
@@ -2258,7 +2348,8 @@ void TranslatedState::SkipSlots(int slots_to_skip, TranslatedFrame* frame,
 }
 
 void TranslatedState::EnsureCapturedObjectAllocatedAt(
-    int object_index, std::stack<int>* worklist) {
+    int object_index, std::stack<int>* worklist,
+    PendingObjectVerifyScope* pending_verify_objects) {
   CHECK_LT(static_cast<size_t>(object_index), object_positions_.size());
   TranslatedState::ObjectPosition pos = object_positions_[object_index];
   int value_index = pos.value_index_;
@@ -2268,7 +2359,7 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
   value_index++;
 
   CHECK_EQ(TranslatedValue::kAllocated, slot->materialization_state());
-  CHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+  CHECK(slot->IsCapturedObject());
 
   // Read the map.
   // The map should never be materialized, so let us check we already have
@@ -2290,8 +2381,12 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       // There is no need to process the children.
       return MaterializeHeapNumber(frame, &value_index, slot);
 
-    case FIXED_ARRAY_TYPE:
-    case SCRIPT_CONTEXT_TABLE_TYPE:
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
+      // Materialize (i.e. allocate&initialize) the uninitialized heap number
+      // and return.
+      // There is no need to process the children.
+      return MaterializeUninitializedHeapNumber(frame, &value_index, slot);
+
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -2301,7 +2396,24 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
     case MODULE_CONTEXT_TYPE:
     case NATIVE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
-    case WITH_CONTEXT_TYPE:
+    case WITH_CONTEXT_TYPE: {
+      int context_length = frame->values_[value_index].GetSmiValue();
+      int instance_size = Context::SizeFor(context_length);
+      CHECK_EQ(instance_size, slot->GetChildrenCount() * kTaggedSize);
+
+      Handle<HeapObject> storage =
+          handle(isolate()->factory()->NewRawContext(
+                     map, instance_size, context_length, AllocationType::kOld),
+                 isolate());
+      slot->set_storage(storage);
+      pending_verify_objects->Add(storage);
+
+      // Make sure all the remaining children (after the map) are allocated.
+      return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
+                                     &value_index, worklist);
+    }
+
+    case FIXED_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
@@ -2320,7 +2432,12 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
           array_length == 0) {
         slot->set_storage(isolate()->factory()->empty_fixed_array());
       } else {
-        slot->set_storage(AllocateStorageFor(slot));
+        DCHECK_IMPLIES(slot->kind() == TranslatedValue::kUniqueCapturedObject,
+                       *map != ReadOnlyRoots(isolate()).fixed_cow_array_map());
+        Handle<HeapObject> storage = isolate()->factory()->NewFixedArrayWithMap(
+            map, array_length, AllocationType::kOld);
+        slot->set_storage(storage);
+        pending_verify_objects->Add(storage);
       }
 
       // Make sure all the remaining children (after the map) are allocated.
@@ -2335,7 +2452,13 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       int args_size = SloppyArgumentsElements::SizeFor(args_length);
       CHECK_EQ(args_size, slot->GetChildrenCount() * kTaggedSize);
 
-      slot->set_storage(AllocateStorageFor(slot));
+      DCHECK_EQ(*map, ReadOnlyRoots(isolate()).sloppy_arguments_elements_map());
+      Handle<HeapObject> storage =
+          indirect_handle(isolate()->factory()->NewSloppyArgumentsElements(
+                              args_length, {}, {}, AllocationType::kOld),
+                          isolate());
+      slot->set_storage(storage);
+      pending_verify_objects->Add(storage);
 
       // Make sure all the remaining children (after the map) are allocated.
       return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
@@ -2349,52 +2472,66 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       int instance_size = PropertyArray::SizeFor(array_length);
       CHECK_EQ(instance_size, slot->GetChildrenCount() * kTaggedSize);
 
-      slot->set_storage(AllocateStorageFor(slot));
+      if (array_length == 0) {
+        CHECK_EQ(length_or_hash, PropertyArray::kNoHashSentinel);
+        slot->set_storage(isolate()->factory()->empty_property_array());
+      } else {
+        DCHECK_EQ(*map, ReadOnlyRoots(isolate()).property_array_map());
+        DirectHandle<PropertyArray> array =
+            isolate()->factory()->NewPropertyArray(array_length,
+                                                   AllocationType::kOld);
+        array->SetHash(PropertyArray::HashField::decode(length_or_hash));
+        Handle<HeapObject> storage = indirect_handle(array, isolate());
+        slot->set_storage(storage);
+        pending_verify_objects->Add(storage);
+      }
 
       // Make sure all the remaining children (after the map) are allocated.
       return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
                                      &value_index, worklist);
     }
 
-    default:
-      EnsureJSObjectAllocated(slot, map);
-      int remaining_children_count = slot->GetChildrenCount() - 1;
+    default: {
+      EnsureJSObjectAllocated(slot, map, pending_verify_objects);
 
       TranslatedValue* properties_slot = frame->ValueAt(value_index);
-      value_index++, remaining_children_count--;
       if (properties_slot->kind() == TranslatedValue::kCapturedObject) {
-        // We are materializing the property array, so make sure we put the
-        // mutable heap numbers at the right places.
-        EnsurePropertiesAllocatedAndMarked(properties_slot, map);
-        EnsureChildrenAllocated(properties_slot->GetChildrenCount(), frame,
-                                &value_index, worklist);
+        auto [it, inserted] =
+            property_array_maps_.emplace(properties_slot->object_index(), map);
+        CHECK(inserted);
       } else {
         CHECK_EQ(properties_slot->kind(), TranslatedValue::kTagged);
       }
 
-      TranslatedValue* elements_slot = frame->ValueAt(value_index);
-      value_index++, remaining_children_count--;
-      if (elements_slot->kind() == TranslatedValue::kCapturedObject ||
-          !IsJSArrayMap(*map)) {
-        // Handle this case with the other remaining children below.
-        value_index--, remaining_children_count++;
-      } else {
-        CHECK_EQ(elements_slot->kind(), TranslatedValue::kTagged);
-        elements_slot->GetValue();
-        if (purpose_ == kFrameInspection) {
-          // We are materializing a JSArray for the purpose of frame inspection.
-          // If we were to construct it with the above elements value then an
-          // actual deopt later on might create another JSArray instance with
-          // the same elements store. That would violate the key assumption
-          // behind left-trimming.
-          elements_slot->ReplaceElementsArrayWithCopy();
+      if (IsJSArrayMap(*map)) {
+        int elements_index = value_index;
+        SkipSlots(1, frame, &elements_index);
+        TranslatedValue* elements_slot = frame->ValueAt(elements_index);
+        if (elements_slot->kind() == TranslatedValue::kCapturedObject) {
+          // Mark JSArray elements backing stores as unique so they are not
+          // stored in MaterializedObjectStore, as left-trimming requires the
+          // owning JSArray to be the only on-heap reference to its elements
+          // store.
+          DCHECK_EQ(elements_slot->materialization_state(),
+                    TranslatedValue::kUninitialized);
+          elements_slot->mark_unique_captured_object();
+        } else {
+          CHECK_EQ(elements_slot->kind(), TranslatedValue::kTagged);
+          if (purpose_ == kFrameInspection) {
+            // We are materializing a JSArray for the purpose of frame
+            // inspection. If we were to construct it with the above elements
+            // value then an actual deopt later on might create another JSArray
+            // instance with the same elements store. That would violate the key
+            // assumption behind left-trimming.
+            elements_slot->GetValue();
+            elements_slot->ReplaceElementsArrayWithCopy();
+          }
         }
       }
 
-      // Make sure all the remaining children (after the map, properties store,
-      // and possibly elements store) are allocated.
-      return EnsureChildrenAllocated(remaining_children_count, frame,
+      return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
                                      &value_index, worklist);
+    }
   }
   UNREACHABLE();
 }
@@ -2422,7 +2559,7 @@ void TranslatedState::EnsureChildrenAllocated(int count, TranslatedFrame* frame,
     // If the field is an object that has not been allocated yet, queue it
     // for initialization (and mark it as such).
     TranslatedValue* child_slot = frame->ValueAt(*value_index);
-    if (child_slot->kind() == TranslatedValue::kCapturedObject ||
+    if (child_slot->IsCapturedObject() ||
         child_slot->kind() == TranslatedValue::kDuplicatedObject) {
       child_slot = ResolveCapturedObject(child_slot);
 
@@ -2442,76 +2579,17 @@ void TranslatedState::EnsureChildrenAllocated(int count, TranslatedFrame* frame,
   }
 }
 
-void TranslatedState::EnsurePropertiesAllocatedAndMarked(
-    TranslatedValue* properties_slot, DirectHandle<Map> map) {
-  CHECK_EQ(TranslatedValue::kUninitialized,
-           properties_slot->materialization_state());
-
-  Handle<ByteArray> object_storage = AllocateStorageFor(properties_slot);
-  properties_slot->mark_allocated();
-  properties_slot->set_storage(object_storage);
-
-  DisallowGarbageCollection no_gc;
-  Tagged<Map> raw_map = *map;
-  Tagged<ByteArray> raw_object_storage = *object_storage;
-
-  // Set markers for out-of-object properties.
-  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
-  for (InternalIndex i : map->IterateOwnDescriptors()) {
-    FieldIndex index = FieldIndex::ForDescriptor(raw_map, i);
-    Representation representation = descriptors->GetDetails(i).representation();
-    if (!index.is_inobject() &&
-        (representation.IsDouble() || representation.IsHeapObject())) {
-      int outobject_index = index.outobject_array_index();
-      int array_index = outobject_index * kTaggedSize;
-      raw_object_storage->set(array_index, kStoreHeapObject);
-    }
-  }
-}
-
-Handle<ByteArray> TranslatedState::AllocateStorageFor(TranslatedValue* slot) {
-  uint32_t allocate_size =
-      ByteArray::LengthFor(slot->GetChildrenCount() * kTaggedSize);
-  // It is important to allocate all the objects tenured so that the marker
-  // does not visit them.
-  Handle<ByteArray> object_storage =
-      isolate()->factory()->NewByteArray(allocate_size, AllocationType::kOld);
-  DisallowGarbageCollection no_gc;
-  Tagged<ByteArray> raw_object_storage = *object_storage;
-  uint32_t object_storage_len = object_storage->ulength().value();
-  for (uint32_t i = 0; i < object_storage_len; i++) {
-    raw_object_storage->set(i, kStoreTagged);
-  }
-  return object_storage;
-}
-
-void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
-                                              DirectHandle<Map> map) {
+void TranslatedState::EnsureJSObjectAllocated(
+    TranslatedValue* slot, DirectHandle<Map> map,
+    PendingObjectVerifyScope* pending_verify_objects) {
   CHECK(IsJSObjectMap(*map));
-  CHECK_EQ(map->instance_size(), slot->GetChildrenCount() * kTaggedSize);
+  int children_count = slot->GetChildrenCount();
+  CHECK_EQ(map->instance_size(), children_count * kTaggedSize);
 
-  Handle<ByteArray> object_storage = AllocateStorageFor(slot);
-
-  // Now we handle the interesting (JSObject) case.
-  DisallowGarbageCollection no_gc;
-  Tagged<Map> raw_map = *map;
-  Tagged<ByteArray> raw_object_storage = *object_storage;
-  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
-
-  // Set markers for in-object properties.
-  for (InternalIndex i : raw_map->IterateOwnDescriptors()) {
-    FieldIndex index = FieldIndex::ForDescriptor(raw_map, i);
-    Representation representation = descriptors->GetDetails(i).representation();
-    if (index.is_inobject() &&
-        (representation.IsDouble() || representation.IsHeapObject())) {
-      CHECK_GE(index.offset_in_words(),
-               OFFSET_OF_DATA_START(FixedArray) / kTaggedSize);
-      int array_index = index.offset_in_words() * kTaggedSize -
-                        OFFSET_OF_DATA_START(FixedArray);
-      raw_object_storage->set(array_index, kStoreHeapObject);
-    }
-  }
+  Handle<JSObject> object_storage =
+      isolate()->factory()->NewJSObjectForDeopt(map, AllocationType::kOld);
   slot->set_storage(object_storage);
+  pending_verify_objects->Add(object_storage);
 }
 
 TranslatedValue* TranslatedState::GetResolvedSlot(TranslatedFrame* frame,
@@ -2538,77 +2616,96 @@ DirectHandle<Object> TranslatedState::GetValueAndAdvance(TranslatedFrame* frame,
   return slot->GetValue();
 }
 
-void TranslatedState::PrepareObjectForLayoutChange(
-    Handle<HeapObject> object_storage, int children_count,
-    const DisallowGarbageCollection& no_gc) {
-#if DEBUG
-  // No need to invalidate slots in object because no slot was recorded yet.
-  // Verify this here.
-  Address object_start = object_storage->address();
-  Address object_end = object_start + children_count * kTaggedSize;
-  isolate()->heap()->VerifySlotRangeHasNoRecordedSlots(object_start,
-                                                       object_end);
-#endif  // DEBUG
+namespace {
 
-  // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(
-      *object_storage, no_gc, InvalidateRecordedSlots{false},
-      InvalidateExternalPointerSlots{false});
+enum class FieldLocation { kInObject, kOutOfObject };
 
-  // Finish any sweeping so that it becomes safe to overwrite the ByteArray
-  // headers. See chromium:1228036.
-  isolate()->heap()->EnsureSweepingCompletedForObject(*object_storage);
+// Collect fields that require a HeapObject (e.g. a mutable HeapNumber box).
+// DescriptorArray may be sorted by Name hash rather than field offset, so
+// record offsets in a stack bitset first.
+template <FieldLocation kLocation>
+auto CollectHeapObjectFields(Tagged<Map> map) {
+  constexpr size_t kBitsetSize = kLocation == FieldLocation::kInObject
+                                     ? JSObject::kMaxInstanceSize / kTaggedSize
+                                     : PropertyArray::kMaxLength;
+  std::bitset<kBitsetSize> heap_object_fields;
+  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
+    PropertyDetails details = descriptors->GetDetails(i);
+    if (details.location() != PropertyLocation::kField) continue;
+    Representation representation = details.representation();
+    if (!representation.IsDouble() && !representation.IsHeapObject()) {
+      continue;
+    }
+    FieldIndex index = FieldIndex::ForDetails(map, details);
+    if constexpr (kLocation == FieldLocation::kInObject) {
+      if (index.is_inobject()) {
+        int word_index = index.offset_in_words();
+        CHECK_GE(word_index, 2);
+        CHECK_LT(static_cast<size_t>(word_index), kBitsetSize);
+        heap_object_fields.set(word_index);
+      }
+    } else {
+      if (!index.is_inobject()) {
+        int outobject_index = index.outobject_array_index();
+        CHECK_GE(outobject_index, 0);
+        CHECK_LT(static_cast<size_t>(outobject_index), kBitsetSize);
+        heap_object_fields.set(outobject_index);
+      }
+    }
+  }
+  return heap_object_fields;
 }
+
+}  // namespace
 
 void TranslatedState::InitializeJSObjectAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
     DirectHandle<Map> map, const DisallowGarbageCollection& no_gc) {
   auto object_storage = Cast<HeapObject>(slot->storage_);
   DCHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+  DCHECK_EQ(object_storage->map(), *map);
   int children_count = slot->GetChildrenCount();
 
   // The object should have at least a map and some payload.
   CHECK_GE(children_count, 2);
+  CHECK_LE(children_count, JSObject::kMaxInstanceSize / kTaggedSize);
 
-  PrepareObjectForLayoutChange(object_storage, children_count, no_gc);
+  auto heap_object_fields =
+      CollectHeapObjectFields<FieldLocation::kInObject>(*map);
 
   // Fill the property array field.
   {
     DirectHandle<Object> properties = GetValueAndAdvance(frame, value_index);
-    WRITE_FIELD(*object_storage, offsetof(JSObject, properties_or_hash_),
-                *properties);
+    RELAXED_WRITE_FIELD(*object_storage,
+                        offsetof(JSObject, properties_or_hash_), *properties);
     WRITE_BARRIER(*object_storage, offsetof(JSObject, properties_or_hash_),
                   *properties);
   }
 
-  // For all the other fields we first look at the fixed array and check the
-  // marker to see if we store an unboxed double.
+  // Write all remaining fields.
   DCHECK_EQ(kTaggedSize, offsetof(JSObject, properties_or_hash_));
+  InstanceType instance_type = map->instance_type();
   for (int i = 2; i < children_count; i++) {
-    slot = GetResolvedSlotAndAdvance(frame, value_index);
-    // Read out the marker and ensure the field is consistent with
-    // what the markers in the storage say (note that all heap numbers
-    // should be fully initialized by now).
+    TranslatedValue* field_slot = GetResolvedSlotAndAdvance(frame, value_index);
     int offset = i * kTaggedSize;
-    uint8_t marker = object_storage->ReadField<uint8_t>(offset);
-    InstanceType instance_type = map->instance_type();
-    USE(instance_type);
     if (InstanceTypeChecker::IsJSFunction(instance_type) &&
         offset == offsetof(JSFunction, dispatch_handle_)) {
       // The JSDispatchHandle will be materialized as a number, but we need
       // the raw value here. TODO(saelo): can we implement "proper" support
       // for JSDispatchHandles in the deoptimizer?
-      DirectHandle<Object> field_value = slot->GetValue();
+      DirectHandle<Object> field_value = field_slot->GetValue();
       CHECK(IsNumber(*field_value));
       JSDispatchHandle handle(Object::NumberValue(Cast<Number>(*field_value)));
-      object_storage->WriteField<JSDispatchHandle::underlying_type>(
-          offsetof(JSFunction, dispatch_handle_), handle.value());
+      if (handle != kNullJSDispatchHandle) {
+        Cast<JSFunction>(*object_storage)->set_dispatch_handle(handle);
+      }
       continue;
     }
 #ifdef V8_ENABLE_SANDBOX
     if (InstanceTypeChecker::IsJSRegExp(instance_type) &&
         offset == offsetof(JSRegExp, data_)) {
-      DirectHandle<HeapObject> field_value = slot->storage();
+      DirectHandle<HeapObject> field_value = field_slot->storage();
       // If the value comes from the DeoptimizationLiteralArray, it is a
       // RegExpDataWrapper as we can't store TrustedSpace values in a FixedArray
       // directly.
@@ -2619,62 +2716,88 @@ void TranslatedState::InitializeJSObjectAt(
         value = CheckedCast<RegExpData>(*field_value);
       }
       object_storage
-          ->RawIndirectPointerField(offset, kRegExpDataIndirectPointerTag)
-          .Relaxed_Store(value);
-      INDIRECT_POINTER_WRITE_BARRIER(*object_storage, offset,
-                                     kRegExpDataIndirectPointerTag, value);
+          ->RawTrustedPointerField(offset, kRegExpDataTrustedPointerTag)
+          .Release_Store(value);
+      TRUSTED_POINTER_WRITE_BARRIER(*object_storage, offset,
+                                    kRegExpDataTrustedPointerTag, value);
       continue;
     }
 #endif  // V8_ENABLE_SANDBOX
-    if (marker == kStoreHeapObject) {
-      DirectHandle<HeapObject> field_value = slot->storage();
-      WRITE_FIELD(*object_storage, offset, *field_value);
-      WRITE_BARRIER(*object_storage, offset, *field_value);
-      continue;
+    DirectHandle<Object> field_value;
+    if (heap_object_fields.test(i)) {
+      field_value = field_slot->storage();
+    } else {
+      field_value = field_slot->GetValue();
+      DCHECK_IMPLIES(IsHeapNumber(*field_value),
+                     !IsSmiDouble(Object::NumberValue(*field_value)));
     }
-
-    CHECK_EQ(kStoreTagged, marker);
-    DirectHandle<Object> field_value = slot->GetValue();
-    DCHECK_IMPLIES(IsHeapNumber(*field_value),
-                   !IsSmiDouble(Object::NumberValue(*field_value)));
-    WRITE_FIELD(*object_storage, offset, *field_value);
+    if (InstanceTypeChecker::IsJSFunction(instance_type) &&
+        offset == offsetof(JSFunction, shared_function_info_)) {
+      // Pair with Acquire_Load in MarkingVisitorBase::VisitJSFunction.
+      RELEASE_WRITE_FIELD(*object_storage, offset, *field_value);
+    } else {
+      RELAXED_WRITE_FIELD(*object_storage, offset, *field_value);
+    }
     WRITE_BARRIER(*object_storage, offset, *field_value);
   }
-  object_storage->set_map(isolate(), *map, kReleaseStore);
 }
 
-void TranslatedState::InitializeFirstHeaderField(
+void TranslatedState::InitializePropertyArrayAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-    bool is_fixed_array, const DisallowGarbageCollection& no_gc) {
-  auto object_storage = Cast<HeapObject>(slot->storage_);
+    DirectHandle<Map> map, const DisallowGarbageCollection& no_gc) {
+  auto prop_storage = Cast<PropertyArray>(slot->storage_);
+  DCHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+  DCHECK_EQ(prop_storage->map(), *map);
+
   int children_count = slot->GetChildrenCount();
+  static_assert(sizeof(PropertyArray) == 2 * kTaggedSize);
+  CHECK_GE(children_count, 2);
+  int prop_length = children_count - 2;
+  CHECK_LE(prop_length, PropertyArray::kMaxLength);
 
-  // Skip the writes if we already have the canonical empty fixed array.
-  if (*object_storage == ReadOnlyRoots(isolate()).empty_fixed_array()) {
-    CHECK_EQ(2, children_count);
-    DirectHandle<Object> length_value = GetValueAndAdvance(frame, value_index);
-    CHECK_EQ(*length_value, Smi::FromInt(0));
-    return;
+  SkipLengthField(frame, value_index, slot, kLengthIsSmi);
+  DCHECK_EQ(prop_storage->length().value(), static_cast<uint32_t>(prop_length));
+
+  if (prop_length == 0) return;
+
+  auto it = property_array_maps_.find(slot->object_index());
+  CHECK(it != property_array_maps_.end());
+  auto heap_object_fields =
+      CollectHeapObjectFields<FieldLocation::kOutOfObject>(*it->second);
+
+  for (int i = 0; i < prop_length; i++) {
+    TranslatedValue* field_slot = GetResolvedSlotAndAdvance(frame, value_index);
+    DirectHandle<Object> field_value;
+    if (heap_object_fields.test(i)) {
+      field_value = field_slot->storage();
+    } else {
+      field_value = field_slot->GetValue();
+      DCHECK_IMPLIES(IsHeapNumber(*field_value),
+                     !IsSmiDouble(Object::NumberValue(*field_value)));
+    }
+    prop_storage->set(i, *field_value);
   }
+}
 
-  PrepareObjectForLayoutChange(object_storage, children_count, no_gc);
-
-  TranslatedValue* resolved_slot =
-      GetResolvedSlotAndAdvance(frame, value_index);
-  int offset = kTaggedSize;
-  if (is_fixed_array) {
-    RELAXED_WRITE_UINT32_FIELD(
-        *object_storage, offset,
-        base::checked_cast<uint32_t>(resolved_slot->GetSmiValue()));
-#if TAGGED_SIZE_8_BYTES
-    int padding_offset = offset + kUInt32Size;
-    RELAXED_WRITE_UINT32_FIELD(*object_storage, padding_offset, 0);
-#endif  // TAGGED_SIZE_8_BYTES
-  } else {
-    DirectHandle<Object> field_value = resolved_slot->GetValue();
-    WRITE_FIELD(*object_storage, offset, *field_value);
-    WRITE_BARRIER(*object_storage, offset, *field_value);
+void TranslatedState::SkipLengthField(
+    TranslatedFrame* frame, int* value_index,
+    [[maybe_unused]] TranslatedValue* slot,
+    [[maybe_unused]] LengthFieldType length_type) {
+#ifdef DEBUG
+  auto object_storage = Cast<HeapObject>(slot->storage_);
+  int length_or_hash = GetResolvedSlot(frame, *value_index)->GetSmiValue();
+  switch (length_type) {
+    case kLengthIsUint32:
+      DCHECK_EQ(Cast<FixedArrayBase>(*object_storage)->length().value(),
+                base::checked_cast<uint32_t>(length_or_hash));
+      break;
+    case kLengthIsSmi:
+      DCHECK_EQ(TaggedField<Object>::Relaxed_Load(*object_storage, kTaggedSize),
+                Smi::FromInt(length_or_hash));
+      break;
   }
+#endif  // DEBUG
+  SkipSlots(1, frame, value_index);
 }
 
 void TranslatedState::InitializeObjectWithTaggedFieldsAt(
@@ -2682,34 +2805,23 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     DirectHandle<Map> map, const DisallowGarbageCollection& no_gc,
     int consumed_slots) {
   auto object_storage = Cast<HeapObject>(slot->storage_);
+  DCHECK_EQ(object_storage->map(), *map);
   int children_count = slot->GetChildrenCount();
-
-  if (consumed_slots == children_count) {
-    return;
-  }
 
   // Write the fields to the object.
   for (int i = consumed_slots; i < children_count; i++) {
-    slot = GetResolvedSlotAndAdvance(frame, value_index);
+    TranslatedValue* field_slot = GetResolvedSlotAndAdvance(frame, value_index);
     int offset = i * kTaggedSize;
-    uint8_t marker = object_storage->ReadField<uint8_t>(offset);
-    DirectHandle<Object> field_value;
-    if (i > 1 && marker == kStoreHeapObject) {
-      field_value = slot->storage();
-    } else {
-      CHECK(marker == kStoreTagged || i == 1);
-      field_value = slot->GetValue();
-      DCHECK_IMPLIES(IsHeapNumber(*field_value),
-                     !IsSmiDouble(Object::NumberValue(*field_value)));
-    }
-    WRITE_FIELD(*object_storage, offset, *field_value);
+    DirectHandle<Object> field_value = field_slot->GetValue();
+    DCHECK_IMPLIES(IsHeapNumber(*field_value),
+                   !IsSmiDouble(Object::NumberValue(*field_value)));
+    RELAXED_WRITE_FIELD(*object_storage, offset, *field_value);
     WRITE_BARRIER(*object_storage, offset, *field_value);
   }
-
-  object_storage->set_map(isolate(), *map, kReleaseStore);
 }
 
 TranslatedValue* TranslatedState::ResolveCapturedObject(TranslatedValue* slot) {
+  if (slot->kind() == TranslatedValue::kUniqueCapturedObject) return slot;
   while (slot->kind() == TranslatedValue::kDuplicatedObject) {
     slot = GetValueByObjectIndex(slot->object_index());
   }
@@ -2738,6 +2850,8 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
       if (jsframe_index > 0) {
         jsframe_index--;
       } else {
+        SBXCHECK_EQ(frames_[i].kind(), TranslatedFrame::kUnoptimizedFunction);
+
         // We have the JS function frame, now check if it has arguments
         // adaptor.
         if (i > 0 &&
@@ -2746,27 +2860,6 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
           return &(frames_[i - 1]);
         }
 
-        // JavaScriptBuiltinContinuation frames that are not preceded by
-        // a arguments adapter frame are currently only used by C++ API calls
-        // from TurboFan. Calls to C++ API functions from TurboFan need
-        // a special marker frame state, otherwise the API call wouldn't
-        // be shown in a stack trace.
-        if (frames_[i].kind() ==
-            TranslatedFrame::kJavaScriptBuiltinContinuation) {
-          DCHECK(frames_[i].shared_info()->IsApiFunction());
-
-          // The argument count for this special case is always the second
-          // to last value in the TranslatedFrame. It should also always be
-          // {1}, as the GenericLazyDeoptContinuation builtin has one explicit
-          // argument (the result).
-          static constexpr int kTheContext = 1;
-          const uint32_t height = frames_[i].height() + kTheContext;
-          *args_count = frames_[i].ValueAt(height - 1)->GetSmiValue();
-          DCHECK_EQ(*args_count, JSParameterCount(1));
-          return &(frames_[i]);
-        }
-
-        DCHECK_EQ(frames_[i].kind(), TranslatedFrame::kUnoptimizedFunction);
         *args_count = frames_[i].bytecode_array()->parameter_count();
         return &(frames_[i]);
       }
@@ -2805,13 +2898,17 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
     CHECK(value_info->IsMaterializedObject());
 
     // Skip duplicate objects (i.e., those that point to some other object id).
-    if (static_cast<uint32_t>(value_info->object_index()) != i) continue;
+    if (static_cast<uint32_t>(value_info->object_index()) != i) {
+      DCHECK_NE(value_info->kind(), TranslatedValue::kUniqueCapturedObject);
+      continue;
+    }
 
     DirectHandle<Object> previous_value(previously_materialized_objects->get(i),
                                         isolate_);
     DirectHandle<Object> value(value_info->GetRawValue(), isolate_);
 
-    if (value.is_identical_to(marker)) {
+    if (value.is_identical_to(marker) ||
+        value_info->kind() == TranslatedValue::kUniqueCapturedObject) {
       DCHECK_EQ(*previous_value, *marker);
     } else {
       if (*previous_value == *marker) {
@@ -2881,7 +2978,7 @@ void TranslatedState::VerifyMaterializedObjects() {
   int length = static_cast<int>(object_positions_.size());
   for (int i = 0; i < length; i++) {
     TranslatedValue* slot = GetValueByObjectIndex(i);
-    if (slot->kind() == TranslatedValue::kCapturedObject ||
+    if (slot->IsCapturedObject() ||
         slot->kind() == TranslatedValue::kCapturedStringConcat) {
       CHECK_EQ(slot, GetValueByObjectIndex(slot->object_index()));
       if (slot->materialization_state() == TranslatedValue::kFinished) {

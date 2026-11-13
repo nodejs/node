@@ -14,7 +14,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/visit-object.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/visitors-inl.h"
 
 namespace v8 {
@@ -111,29 +110,11 @@ void ExternalStringTableCleanerVisitor::VisitRootPointers(
                                             heap_object)) {
       continue;
     }
-    if (IsExternalString(o)) {
-      heap_->FinalizeExternalString(Cast<String>(o));
-    } else {
-      // The original external string may have been internalized.
-      DCHECK(IsThinString(o));
-    }
-    // Set the entry to the_hole_value (as deleted).
+    // The original external string may have been internalized.
+    DCHECK(IsExternalString(o) || IsThinString(o));
+    // Set the entry to the_hole_value (as deleted). The resource is disposed by
+    // the ExternalStringResourceWrapper destructor.
     p.store(the_hole);
-  }
-}
-
-StringForwardingTableCleanerBase::StringForwardingTableCleanerBase(Heap* heap)
-    : isolate_(heap->isolate()),
-      marking_state_(heap->non_atomic_marking_state()),
-      marking_visitor_(heap->mark_compact_collector()->marking_visitor_.get()) {
-}
-
-void StringForwardingTableCleanerBase::DisposeExternalResource(
-    StringForwardingTable::Record* record) {
-  Address resource = record->ExternalResourceAddress();
-  if (resource != kNullAddress && disposed_resources_.count(resource) == 0) {
-    record->DisposeExternalResource();
-    disposed_resources_.insert(resource);
   }
 }
 

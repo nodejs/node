@@ -1,0 +1,7 @@
+Tests scopes of suspended generators.
+All generator tests passed successfully.
+CDP [[Scopes]] present: true
+CDP Scope 0: Catch (gen17)
+CDP Scope 1: Local (gen17)
+CDP Scope 2: Script
+CDP Scope 3: Global

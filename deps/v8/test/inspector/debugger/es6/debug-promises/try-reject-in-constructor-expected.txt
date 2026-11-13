@@ -1,0 +1,5 @@
+Tests uncaught reject within try-catch in Promise constructor.
+Paused on exception: uncaught=true
+Exception message: uncaught
+At event line: true
+Total exception events: 1

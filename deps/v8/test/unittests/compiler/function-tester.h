@@ -53,25 +53,26 @@ class FunctionTester {
     return Cast<T>(result);
   }
 
-  void CheckThrows(Handle<Object> a);
-  void CheckThrows(Handle<Object> a, Handle<Object> b);
-  v8::Local<v8::Message> CheckThrowsReturnMessage(Handle<Object> a);
-  v8::Local<v8::Message> CheckThrowsReturnMessage(Handle<Object> a,
-                                                  Handle<Object> b);
-  void CheckCall(DirectHandle<Object> expected, Handle<Object> a,
-                 Handle<Object> b, Handle<Object> c, Handle<Object> d);
+  void CheckThrows(DirectHandle<Object> a);
+  void CheckThrows(DirectHandle<Object> a, DirectHandle<Object> b);
+  v8::Local<v8::Message> CheckThrowsReturnMessage(DirectHandle<Object> a);
+  v8::Local<v8::Message> CheckThrowsReturnMessage(DirectHandle<Object> a,
+                                                  DirectHandle<Object> b);
+  void CheckCall(DirectHandle<Object> expected, DirectHandle<Object> a,
+                 DirectHandle<Object> b, DirectHandle<Object> c,
+                 DirectHandle<Object> d);
 
-  void CheckCall(DirectHandle<Object> expected, Handle<Object> a,
-                 Handle<Object> b, Handle<Object> c) {
+  void CheckCall(DirectHandle<Object> expected, DirectHandle<Object> a,
+                 DirectHandle<Object> b, DirectHandle<Object> c) {
     return CheckCall(expected, a, b, c, undefined());
   }
 
-  void CheckCall(DirectHandle<Object> expected, Handle<Object> a,
-                 Handle<Object> b) {
+  void CheckCall(DirectHandle<Object> expected, DirectHandle<Object> a,
+                 DirectHandle<Object> b) {
     return CheckCall(expected, a, b, undefined());
   }
 
-  void CheckCall(DirectHandle<Object> expected, Handle<Object> a) {
+  void CheckCall(DirectHandle<Object> expected, DirectHandle<Object> a) {
     CheckCall(expected, a, undefined());
   }
 
@@ -83,18 +84,19 @@ class FunctionTester {
     CheckCall(NewNumber(expected), NewNumber(a), NewNumber(b));
   }
 
-  void CheckTrue(Handle<Object> a) { CheckCall(true_value(), a); }
+  void CheckTrue(DirectHandle<Object> a) { CheckCall(true_value(), a); }
 
-  void CheckTrue(Handle<Object> a, Handle<Object> b) {
+  void CheckTrue(DirectHandle<Object> a, DirectHandle<Object> b) {
     CheckCall(true_value(), a, b);
   }
 
-  void CheckTrue(Handle<Object> a, Handle<Object> b, Handle<Object> c) {
+  void CheckTrue(DirectHandle<Object> a, DirectHandle<Object> b,
+                 DirectHandle<Object> c) {
     CheckCall(true_value(), a, b, c);
   }
 
-  void CheckTrue(Handle<Object> a, Handle<Object> b, Handle<Object> c,
-                 Handle<Object> d) {
+  void CheckTrue(DirectHandle<Object> a, DirectHandle<Object> b,
+                 DirectHandle<Object> c, DirectHandle<Object> d) {
     CheckCall(true_value(), a, b, c, d);
   }
 
@@ -102,9 +104,9 @@ class FunctionTester {
     CheckCall(true_value(), NewNumber(a), NewNumber(b));
   }
 
-  void CheckFalse(Handle<Object> a) { CheckCall(false_value(), a); }
+  void CheckFalse(DirectHandle<Object> a) { CheckCall(false_value(), a); }
 
-  void CheckFalse(Handle<Object> a, Handle<Object> b) {
+  void CheckFalse(DirectHandle<Object> a, DirectHandle<Object> b) {
     CheckCall(false_value(), a, b);
   }
 

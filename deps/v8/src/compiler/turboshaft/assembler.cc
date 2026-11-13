@@ -24,7 +24,7 @@ void CanonicalizeEmbeddedBuiltinsConstantIfNeededImpl(
   if (!isolate->roots_table().IsRootHandle(object, &dummy_root) &&
       !isolate->builtins()->IsBuiltinHandle(object, &dummy_builtin) &&
       !IsInstructionStream(*object)) {
-    if (ThreadId::Current() == isolate->thread_id()) {
+    if (base::ThreadId::Current() == isolate->thread_id()) {
       // Adding to the table must be done on the main thread so that the
       // builtins constant indices are reproducible from run to run of
       // mksnapshot.

@@ -41,7 +41,7 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
   v8::Local<v8::Message> message = try_catch->Message();
   v8::String::Utf8Value message_str(isolate, message->Get());
   std::cerr << *message_str << std::endl;
-  message->PrintCurrentStackTrace(isolate, std::cerr);
+  v8::Message::PrintCurrentStackTrace(isolate, std::cerr);
   std::cerr << std::flush;
 }
 

@@ -524,6 +524,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
 
   void EmitIdentity(turboshaft::OpIndex node);
   void EmitIdentity(turboshaft::OpIndex node, turboshaft::OpIndex input);
+  bool CanEmitIdentityForTaggedBitcast(turboshaft::OpIndex node);
 
   // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============
@@ -612,8 +613,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   // to the roots register.
   bool CanAddressRelativeToRootsRegister(
       const ExternalReference& reference) const;
-  // Check if we can use the roots register to access GC roots.
-  bool CanUseRootsRegister() const;
 
   Isolate* isolate() const { return sequence()->isolate(); }
 
@@ -782,7 +781,11 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       return load_->result_rep;
     }
     bool is_trapping() const { return kind().with_trap_handler; }
-    bool is_atomic() const { return kind().is_atomic; }
+    bool is_atomic() const { return kind().is_atomic(); }
+    std::optional<AtomicMemoryOrder> memory_order() const {
+      return kind().memory_order();
+    }
+    bool has_shared_base() const { return kind().shared_base; }
 
     turboshaft::OpIndex base() const {
       if (load_) return load_->base();
@@ -894,13 +897,13 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       return op_->kind.with_trap_handler ? MemoryAccessKind::kTrapping
                                          : MemoryAccessKind::kNormal;
     }
-    bool is_atomic() const { return op_->kind.is_atomic; }
+    bool is_atomic() const { return op_->kind.is_atomic(); }
 
     turboshaft::OpIndex base() const { return op_->base(); }
     turboshaft::OptionalOpIndex index() const { return op_->index(); }
     turboshaft::OpIndex value() const { return op_->value(); }
-    IndirectPointerTag indirect_pointer_tag() const {
-      return static_cast<IndirectPointerTag>(op_->indirect_pointer_tag());
+    TrustedPointerTag trusted_pointer_tag() const {
+      return static_cast<TrustedPointerTag>(op_->trusted_pointer_tag());
     }
     int32_t displacement() const {
       static_assert(
@@ -940,7 +943,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
         : node_(node) {
       op128_ = &graph->Get(node).Cast<turboshaft::Simd128ShuffleOp>();
       // Initialize input mapping.
-      for (int i = 0; i < op128_->input_count; ++i) {
+      for (int i = 0; i < turboshaft::Simd128ShuffleOp::input_count; ++i) {
         input_mapping_.push_back(i);
       }
     }
@@ -1220,7 +1223,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   DECLARE_GENERATOR_T(Float64Mul)
   DECLARE_GENERATOR_T(Float64Mod)
   DECLARE_GENERATOR_T(Float64Pow)
-  DECLARE_GENERATOR_T(BitcastWord32ToWord64)
   DECLARE_GENERATOR_T(BitcastFloat32ToInt32)
   DECLARE_GENERATOR_T(BitcastFloat64ToInt64)
   DECLARE_GENERATOR_T(BitcastInt32ToFloat32)

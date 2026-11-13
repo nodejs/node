@@ -15,6 +15,11 @@
 #include "union_sigval.h"
 
 #define SI_MAX_SIZE 128
+// The union follows three ints and, on a 64 bit target, the padding that
+// aligns it for a pointer, so that the whole comes to SI_MAX_SIZE as the
+// kernel's does.
+#define __SI_PAD_SIZE                                                          \
+  ((SI_MAX_SIZE - (sizeof(void *) == 8 ? 4 : 3) * sizeof(int)) / sizeof(int))
 
 typedef struct {
   int si_signo; /* Signal number.  */
@@ -22,7 +27,7 @@ typedef struct {
                    this signal, as defined in <errno.h>.  */
   int si_code;  /* Signal code.  */
   union {
-    int _si_pad[SI_MAX_SIZE / sizeof(int)];
+    int _si_pad[__SI_PAD_SIZE];
 
     /* kill() */
     struct {

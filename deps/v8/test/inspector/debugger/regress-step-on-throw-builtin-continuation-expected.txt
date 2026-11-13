@@ -1,0 +1,7 @@
+Tests stepping over a throw in a callback from an inlined builtin.
+Paused at: (anonymous)
+Paused at: (anonymous)
+Paused at: f
+Paused at: testRun
+Paused at: (anonymous)
+Finished evaluation.

@@ -68,6 +68,7 @@ FEATURE_FLAGS = {
     'import-text': '--js-import-text',
     'import-bytes': '--js-import-bytes',
     'iterator-includes': '--js-iterator-includes',
+    'iterator-chunking': '--js-iterator-chunking',
 }
 
 SKIPPED_FEATURES = set([])

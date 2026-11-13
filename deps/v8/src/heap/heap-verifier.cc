@@ -8,6 +8,7 @@
 
 #include <optional>
 
+#include "absl/container/flat_hash_set.h"
 #include "include/v8-locker.h"
 #include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
@@ -36,9 +37,11 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/string-table.h"
+#include "src/tracing/trace-event.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-export-wrapper-cache.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -240,7 +243,14 @@ class VerifySharedHeapObjectVisitor : public VerifyPointersVisitor {
                       MaybeObjectSlot end) override {
     if (!host.is_null()) {
       Tagged<Map> map = host->map();
-      CHECK(ReadOnlyHeap::Contains(map) || shared_space_->Contains(map));
+      bool valid_map_location =
+          ReadOnlyHeap::Contains(map) || shared_space_->Contains(map);
+#if V8_ENABLE_WEBASSEMBLY
+      if (!valid_map_location && IsWasmCustomMap(map)) {
+        valid_map_location = shared_lo_space_->Contains(map);
+      }
+#endif
+      CHECK(valid_map_location);
     }
     VerifyPointersVisitor::VerifyPointers(host, start, end);
 
@@ -276,9 +286,9 @@ class HeapVerification final : public SpaceVerificationVisitor {
 
  private:
   void VerifySpace(BaseSpace* space);
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   void VerifyPointerTables();
-#endif
+#endif  // V8_COMPRESS_POINTERS
 
   void VerifyPage(const BasePage* chunk) final;
   void VerifyPageDone(const BasePage* chunk) final;
@@ -324,6 +334,8 @@ class HeapVerification final : public SpaceVerificationVisitor {
   const PtrComprCageBase cage_base_;
   std::optional<AllocationSpace> current_space_identity_;
   std::optional<const BasePage*> current_chunk_;
+  absl::flat_hash_set<Tagged<HeapObject>, Object::Hasher, Object::KeyEqualSafe>
+      pending_verify_objects_;
 };
 
 void HeapVerification::Verify() {
@@ -337,6 +349,26 @@ void HeapVerification::Verify() {
 
   heap()->MakeHeapIterable(CompleteSweepingReason::kTesting);
   heap()->FreeLinearAllocationAreas();
+
+  {
+    AllowHandleUsageOnAllThreads allow_all_handle_derefs;
+    auto collect_pending_verify_objects = [this](LocalHeap* local_heap) {
+      for (PendingObjectVerifyScope* verify_scope :
+           local_heap->pending_object_verify_scopes_) {
+        for (Handle<HeapObject> object : verify_scope->objects_) {
+          pending_verify_objects_.insert(*object);
+        }
+      }
+    };
+    heap()->safepoint()->IterateLocalHeaps(collect_pending_verify_objects);
+    if (isolate()->is_shared_space_isolate()) {
+      isolate()->global_safepoint()->IterateClientIsolates(
+          [&collect_pending_verify_objects](Isolate* client) {
+            client->heap()->safepoint()->IterateLocalHeaps(
+                collect_pending_verify_objects);
+          });
+    }
+  }
 
   // TODO(v8:13257): Currently we don't iterate through the stack conservatively
   // when verifying the heap.
@@ -395,16 +427,16 @@ void HeapVerification::Verify() {
 
   isolate()->string_table()->VerifyIfOwnedBy(isolate());
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   VerifyPointerTables();
-#endif
+#endif  // V8_COMPRESS_POINTERS
 
 #if DEBUG
   heap()->VerifyCommittedPhysicalMemory();
 #endif  // DEBUG
 }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 void HeapVerification::VerifyPointerTables() {
   isolate()->external_pointer_table().Verify(
       isolate(), heap()->young_external_pointer_space());
@@ -414,6 +446,7 @@ void HeapVerification::VerifyPointerTables() {
       isolate(), heap()->read_only_external_pointer_space());
   isolate()->cpp_heap_pointer_table().Verify(isolate(),
                                              heap()->cpp_heap_pointer_space());
+#ifdef V8_ENABLE_SANDBOX
   isolate()->trusted_pointer_table().Verify(isolate(),
                                             heap()->trusted_pointer_space());
   isolate()->trusted_pointer_table().Verify(
@@ -425,8 +458,9 @@ void HeapVerification::VerifyPointerTables() {
 
   isolate()->js_dispatch_table().Verify(isolate(),
                                         heap()->js_dispatch_table_space());
+#endif  // V8_ENABLE_SANDBOX
 }
-#endif
+#endif  // V8_COMPRESS_POINTERS
 
 void HeapVerification::VerifySpace(BaseSpace* space) {
   if (!space) return;
@@ -466,8 +500,14 @@ void HeapVerification::VerifyObject(Tagged<HeapObject> object) {
   // Verify object map.
   VerifyObjectMap(object);
 
-  // The object itself should look OK.
-  Object::ObjectVerify(object, isolate_);
+  // Partially initialized objects registered in PendingObjectVerifyScope
+  // (e.g. during deoptimizer Pass-1 materialization) have valid maps and
+  // outgoing pointers, while ObjectVerify is deferred until the scope exits.
+  if (V8_LIKELY(pending_verify_objects_.empty()) ||
+      !pending_verify_objects_.contains(object)) {
+    // The object itself should look OK.
+    Object::ObjectVerify(object, isolate_);
+  }
 
   // Verify outgoing references.
   VerifyOutgoingPointers(object);
@@ -512,14 +552,23 @@ void HeapVerification::VerifyOutgoingPointers(Tagged<HeapObject> object) {
 }
 
 void HeapVerification::VerifyObjectMap(Tagged<HeapObject> object) {
-  // The first word should be a map, and we expect all map pointers to be
-  // in map space or read-only space.
+  // The first word should be a map, and we expect all map pointers to be in
+  // old space or read-only space (or large object space for WasmCustomMaps).
   MapWord map_word = object->map_word(kRelaxedLoad);
   CHECK(!map_word.IsForwardingAddress());
   Tagged<Map> map = map_word.ToMap();
   CHECK(IsMap(map));
-  CHECK(ReadOnlyHeap::Contains(map) || old_space()->Contains(map) ||
-        (shared_space() && shared_space()->Contains(map)));
+  bool valid_map_location = ReadOnlyHeap::Contains(map) ||
+                            old_space()->Contains(map) ||
+                            (shared_space() && shared_space()->Contains(map));
+#if V8_ENABLE_WEBASSEMBLY
+  if (!valid_map_location && IsWasmCustomMap(map)) {
+    valid_map_location =
+        lo_space()->Contains(map) ||
+        (shared_lo_space() && shared_lo_space()->Contains(map));
+  }
+#endif
+  CHECK(valid_map_location);
 
   if (HeapLayout::InYoungGeneration(object)) {
     // The object should not be code or a map.
@@ -712,7 +761,7 @@ void CollectSlots(MutablePage* chunk, Address start, Address end,
         }
         return KEEP_SLOT;
       },
-      SlotSet::FREE_EMPTY_BUCKETS);
+      SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<direction>::IterateTyped(
       chunk, [=](SlotType type, Address slot) {
         if (start <= slot && slot < end) {
@@ -962,6 +1011,29 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap,
     CHECK_EQ(new_visitor.code_slot(i), old_visitor.code_slot(i));
   }
 #endif  // V8_EXTERNAL_CODE_SPACE
+}
+
+PendingObjectVerifyScope::PendingObjectVerifyScope() {
+  if (v8_flags.verify_heap) {
+    local_heap_ = LocalHeap::Current();
+    local_heap_->pending_object_verify_scopes_.push_back(this);
+  }
+}
+
+PendingObjectVerifyScope::~PendingObjectVerifyScope() {
+  if (!v8_flags.verify_heap) return;
+  DCHECK_EQ(local_heap_->pending_object_verify_scopes_.back(), this);
+  local_heap_->pending_object_verify_scopes_.pop_back();
+  Isolate* isolate = local_heap_->heap()->isolate();
+  for (Handle<HeapObject> object : objects_) {
+    Object::ObjectVerify(*object, isolate);
+  }
+}
+
+void PendingObjectVerifyScope::Add(Handle<HeapObject> object) {
+  if (v8_flags.verify_heap) {
+    objects_.push_back(object);
+  }
 }
 
 }  // namespace internal

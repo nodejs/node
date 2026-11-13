@@ -81,6 +81,15 @@ class MutablePage : public BasePage {
   void SetYoungGenerationPageFlags(MarkingMode marking_mode);
   V8_INLINE void SetMajorGCInProgress();
   V8_INLINE void ResetMajorGCInProgress();
+  bool IsOnlyOldOrMajorMarkingOn() const {
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+    DCHECK(v8_flags.sticky_mark_bits);
+    return trusted_main_thread_flags_ &
+           MemoryChunk::kIsOnlyOldOrMajorGCInProgressMask;
+#else
+    UNREACHABLE();
+#endif
+  }
   V8_INLINE void ClearFlagsNonExecutable(MemoryChunk::MainThreadFlags flags);
   V8_INLINE void SetFlagsNonExecutable(
       MemoryChunk::MainThreadFlags flags,
@@ -311,7 +320,7 @@ class MutablePage : public BasePage {
 
   heap::ListNode<MutablePage> list_node_;
 
-  FreeListCategory** categories_ = nullptr;
+  FreeListCategory* categories_ = nullptr;
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
 

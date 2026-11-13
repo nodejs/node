@@ -95,16 +95,6 @@ struct AllocateSimd128RegistersPhase {
   }
 };
 
-struct DecideSpillingModePhase {
-  DECL_TURBOSHAFT_PHASE_CONSTANTS_WITH_LEGACY_NAME(DecideSpillingMode)
-  static constexpr bool kOutputIsTraceableGraph = false;
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    OperandAssigner assigner(data->register_allocation_data());
-    assigner.DecideSpillingMode();
-  }
-};
-
 struct AssignSpillSlotsPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS_WITH_LEGACY_NAME(AssignSpillSlots)
   static constexpr bool kOutputIsTraceableGraph = false;
@@ -217,6 +207,9 @@ struct AssembleCodePhase {
     CodeGenerator* code_generator = data->code_generator();
     DCHECK_NOT_NULL(code_generator);
     code_generator->AssembleCode();
+    if (data->broker() != nullptr) {
+      code_generator->PrepareCodeOnBackground(data->broker()->local_isolate());
+    }
   }
 };
 

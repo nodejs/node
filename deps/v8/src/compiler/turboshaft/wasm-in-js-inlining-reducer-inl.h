@@ -21,6 +21,7 @@
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/turboshaft-graph-interface-inl.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -104,7 +105,6 @@ class WasmInJSInliningReducer : public Next {
 
       uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
 
-      V<JSFunction> js_closure = V<JSFunction>::Cast(callee);
       V<Context> js_context = V<Context>::Cast(arguments[arguments.size() - 1]);
 
       // Prepare data for the Wasm-in-JS body inlining, if enabled.
@@ -147,8 +147,9 @@ class WasmInJSInliningReducer : public Next {
       // could transitively cause a lazy deopt via valueOf/Symbol.toPrimitive.
       CHECK_IMPLIES(sig->parameter_count() > 0, caller_frame_state.has_value());
       V<Any> result = builder.BuildJSToWasmWrapper(
-          js_closure, js_context, arguments, continuation_frame_state,
-          descriptor->lazy_deopt_on_throw, caller_frame_state);
+          descriptor->js_wasm_call_parameters->internal_function(), js_context,
+          arguments, continuation_frame_state, descriptor->lazy_deopt_on_throw,
+          caller_frame_state);
       // The wrapper inlining will always succeed and produce a JS value, except
       // if the wrapper or body inlining _unconditionally_ produced a trap /
       // type error and we are thus in unreachable code.
@@ -328,6 +329,8 @@ class WasmInJsInliningInterface {
     switch (opcode) {
       case wasm::kExprI32Eqz:
         return __ Word32Equal(arg, 0);
+      case wasm::kExprI64Eqz:
+        return __ Word64Equal(arg, 0);
       case wasm::kExprF32Abs:
         return __ Float32Abs(arg);
       case wasm::kExprF32Neg:
@@ -356,12 +359,38 @@ class WasmInJsInliningInterface {
         return __ BitcastWord32ToFloat32(arg);
       case wasm::kExprI32ReinterpretF32:
         return __ BitcastFloat32ToWord32(arg);
+      case wasm::kExprI32ConvertI64:
+        return __ TruncateWord64ToWord32(arg);
+      case wasm::kExprI64SConvertI32:
+        return __ ChangeInt32ToInt64(arg);
+      case wasm::kExprI64UConvertI32:
+        return __ ChangeUint32ToUint64(arg);
+      case wasm::kExprF64ReinterpretI64:
+        return __ BitcastWord64ToFloat64(arg);
+      case wasm::kExprI64ReinterpretF64:
+        return __ BitcastFloat64ToWord64(arg);
+      case wasm::kExprF32SConvertI64:
+        return __ ChangeInt64ToFloat32(arg);
+      case wasm::kExprF32UConvertI64:
+        return __ ChangeUint64ToFloat32(arg);
+      case wasm::kExprF64SConvertI64:
+        return __ ChangeInt64ToFloat64(arg);
+      case wasm::kExprF64UConvertI64:
+        return __ ChangeUint64ToFloat64(arg);
       case wasm::kExprI32Clz:
         return __ Word32CountLeadingZeros(arg);
+      case wasm::kExprI64Clz:
+        return __ Word64CountLeadingZeros(arg);
       case wasm::kExprI32SExtendI8:
         return __ Word32SignExtend8(arg);
       case wasm::kExprI32SExtendI16:
         return __ Word32SignExtend16(arg);
+      case wasm::kExprI64SExtendI8:
+        return __ Word64SignExtend8(arg);
+      case wasm::kExprI64SExtendI16:
+        return __ Word64SignExtend16(arg);
+      case wasm::kExprI64SExtendI32:
+        return __ Word64SignExtendLower32(arg);
       case wasm::kExprRefIsNull:
         return __ IsNull(arg, input_type);
       case wasm::kExprRefAsNonNull:
@@ -376,21 +405,10 @@ class WasmInJsInliningInterface {
         return __ ExternConvertAny(arg, input_type.is_nullable());
 
       // We currently don't support operations that:
-      // - could trap,
-      // - call a builtin,
-      // - need the instance,
-      // - require later Int64Lowering (which is currently only compatible with
-      //   the Wasm pipeline).
-      case wasm::kExprI32ConvertI64:
-      case wasm::kExprI64SConvertI32:
-      case wasm::kExprI64UConvertI32:
-      case wasm::kExprF64ReinterpretI64:
-      case wasm::kExprI64ReinterpretF64:
-      case wasm::kExprI64Clz:
-      case wasm::kExprI64Eqz:
-      case wasm::kExprI64SExtendI8:
-      case wasm::kExprI64SExtendI16:
-      case wasm::kExprI64SExtendI32:
+      // - need explicit NaN/range checks for trapping float-to-int conversions,
+      // - need NaN/overflow handling for saturating float-to-int conversions,
+      // - or may call C helpers for ctz/popcount or floating-point rounding
+      //   when the target lacks native support.
       case wasm::kExprI32SConvertF32:
       case wasm::kExprI32UConvertF32:
       case wasm::kExprI32SConvertF64:
@@ -419,10 +437,6 @@ class WasmInJsInliningInterface {
       case wasm::kExprF64NearestInt:
       case wasm::kExprI64Ctz:
       case wasm::kExprI64Popcnt:
-      case wasm::kExprF32SConvertI64:
-      case wasm::kExprF32UConvertI64:
-      case wasm::kExprF64SConvertI64:
-      case wasm::kExprF64UConvertI64:
         // Not supported, but we are aware of it. Bailout below.
         break;
 
@@ -489,14 +503,63 @@ class WasmInJsInliningInterface {
       case wasm::kExprI32GeU:
         return __ Uint32LessThanOrEqual(rhs, lhs);
 
-      case wasm::kExprF32CopySign: {
-        V<Word32> lhs_without_sign =
-            __ Word32BitwiseAnd(__ BitcastFloat32ToWord32(lhs), 0x7fffffff);
-        V<Word32> rhs_sign =
-            __ Word32BitwiseAnd(__ BitcastFloat32ToWord32(rhs), 0x80000000);
-        return __ BitcastWord32ToFloat32(
-            __ Word32BitwiseOr(lhs_without_sign, rhs_sign));
-      }
+      case wasm::kExprI64Add:
+        return __ Word64Add(lhs, rhs);
+      case wasm::kExprI64Sub:
+        return __ Word64Sub(lhs, rhs);
+      case wasm::kExprI64Mul:
+        return __ Word64Mul(lhs, rhs);
+      case wasm::kExprI64And:
+        return __ Word64BitwiseAnd(lhs, rhs);
+      case wasm::kExprI64Ior:
+        return __ Word64BitwiseOr(lhs, rhs);
+      case wasm::kExprI64Xor:
+        return __ Word64BitwiseXor(lhs, rhs);
+      case wasm::kExprI64Shl:
+        // If possible, the bitwise-and gets optimized away later.
+        return __ Word64ShiftLeft(
+            lhs, __ Word32BitwiseAnd(__ TruncateWord64ToWord32(rhs), 0x3f));
+      case wasm::kExprI64ShrS:
+        return __ Word64ShiftRightArithmetic(
+            lhs, __ Word32BitwiseAnd(__ TruncateWord64ToWord32(rhs), 0x3f));
+      case wasm::kExprI64ShrU:
+        return __ Word64ShiftRightLogical(
+            lhs, __ Word32BitwiseAnd(__ TruncateWord64ToWord32(rhs), 0x3f));
+      case wasm::kExprI64Ror:
+        return __ Word64RotateRight(
+            lhs, __ Word32BitwiseAnd(__ TruncateWord64ToWord32(rhs), 0x3f));
+      case wasm::kExprI64Rol:
+        if (SupportedOperations::word64_rol()) {
+          return __ Word64RotateLeft(
+              lhs, __ Word32BitwiseAnd(__ TruncateWord64ToWord32(rhs), 0x3f));
+        } else {
+          return __ Word64RotateRight(
+              lhs, __ Word32BitwiseAnd(
+                       __ Word32Sub(64, __ TruncateWord64ToWord32(rhs)), 0x3f));
+        }
+      case wasm::kExprI64Eq:
+        return __ Word64Equal(lhs, rhs);
+      case wasm::kExprI64Ne:
+        return __ Word32Equal(__ Word64Equal(lhs, rhs), 0);
+      case wasm::kExprI64LtS:
+        return __ Int64LessThan(lhs, rhs);
+      case wasm::kExprI64LeS:
+        return __ Int64LessThanOrEqual(lhs, rhs);
+      case wasm::kExprI64LtU:
+        return __ Uint64LessThan(lhs, rhs);
+      case wasm::kExprI64LeU:
+        return __ Uint64LessThanOrEqual(lhs, rhs);
+      case wasm::kExprI64GtS:
+        return __ Int64LessThan(rhs, lhs);
+      case wasm::kExprI64GeS:
+        return __ Int64LessThanOrEqual(rhs, lhs);
+      case wasm::kExprI64GtU:
+        return __ Uint64LessThan(rhs, lhs);
+      case wasm::kExprI64GeU:
+        return __ Uint64LessThanOrEqual(rhs, lhs);
+
+      case wasm::kExprF32CopySign:
+        return __ Float32CopySign(lhs, rhs);
       case wasm::kExprF32Add:
         return __ Float32Add(lhs, rhs);
       case wasm::kExprF32Sub:
@@ -521,6 +584,8 @@ class WasmInJsInliningInterface {
         return __ Float32Min(rhs, lhs);
       case wasm::kExprF32Max:
         return __ Float32Max(rhs, lhs);
+      case wasm::kExprF64CopySign:
+        return __ Float64CopySign(lhs, rhs);
       case wasm::kExprF64Add:
         return __ Float64Add(lhs, rhs);
       case wasm::kExprF64Sub:
@@ -548,36 +613,8 @@ class WasmInJsInliningInterface {
       case wasm::kExprRefEq:
         return __ TaggedEqual(lhs, rhs);
 
-      // We currently don't support operations that:
-      // - could trap,
-      // - call a builtin,
-      // - need the instance,
-      // - require later Int64Lowering (which is currently only compatible with
-      //   the Wasm pipeline).
-      case wasm::kExprI64Add:
-      case wasm::kExprI64Sub:
-      case wasm::kExprI64Mul:
-      case wasm::kExprI64And:
-      case wasm::kExprI64Ior:
-      case wasm::kExprI64Xor:
-      case wasm::kExprI64Shl:
-      case wasm::kExprI64ShrS:
-      case wasm::kExprI64ShrU:
-      case wasm::kExprI64Ror:
-      case wasm::kExprI64Rol:
-      case wasm::kExprI64Eq:
-      case wasm::kExprI64Ne:
-      case wasm::kExprI64LtS:
-      case wasm::kExprI64LeS:
-      case wasm::kExprI64LtU:
-      case wasm::kExprI64LeU:
-      case wasm::kExprI64GtS:
-      case wasm::kExprI64GeS:
-      case wasm::kExprI64GtU:
-      case wasm::kExprI64GeU:
-
-      case wasm::kExprF64CopySign:
-
+      // Division/remainder checks and signed-remainder special cases are not
+      // implemented here yet.
       case wasm::kExprI32DivS:
       case wasm::kExprI32DivU:
       case wasm::kExprI32RemS:
@@ -706,9 +743,8 @@ class WasmInJsInliningInterface {
   }
   void AssertNotNullTypecheck(FullDecoder* decoder, const Value& obj,
                               Value* result) {
-    __ TrapIf(__ IsNull(obj.get<Object>(), obj.type), frame_state_,
-              TrapId::kTrapIllegalCast);
-    Forward(decoder, obj, result);
+    result->op = __ AssertNotNull(obj.get<Object>(), frame_state_, obj.type,
+                                  TrapId::kTrapIllegalCast);
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
@@ -740,7 +776,7 @@ class WasmInJsInliningInterface {
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
                             frame_state_);
     result->op = __ ArrayGet(array_value, index.get<Word32>(), imm.array_type,
-                             is_signed, {});
+                             is_signed, {}, imm.heap_type().is_shared());
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
@@ -750,7 +786,7 @@ class WasmInJsInliningInterface {
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
                             frame_state_);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
-                imm.array_type->element_type(), {},
+                imm.array_type->element_type(), imm.array_type->is_shared(), {},
                 wasm::ArrayIndexImmediateToWriteBarrier(imm),
                 ArraySetOp::Kind::kAssign);
   }
@@ -758,15 +794,22 @@ class WasmInJsInliningInterface {
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
     result->op = __ ArrayLength(
         array_obj.get<WasmArrayNullable>(), frame_state_,
-        array_obj.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck);
+        array_obj.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck,
+        array_obj.type.is_shared());
   }
 
-  V<FixedArray> managed_object_maps() {
-    // TODO(dlehmann): Optimize this by baking in the Map into the generated
-    // code as a HeapConstant (which we can do in JS, but not in Wasm).
-    return LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data_,
-                                         ManagedObjectMaps,
-                                         MemoryRepresentation::TaggedPointer());
+  // Unlike standalone Wasm compilation (which is isolate-independent and
+  // therefore emits runtime loads via `__ RttCanon(managed_object_maps(),
+  // ...)`), Wasm-in-JS inlining compiles for a specific
+  // `WasmTrustedInstanceData` known at compile time, so we can embed the RTT
+  // `Map` directly as a `HeapConstant`.
+  V<Map> RttCanon(wasm::ModuleTypeIndex ref_index) {
+    if (__ generating_unreachable_operations()) return V<Map>::Invalid();
+    Tagged<Map> rtt_map =
+        Cast<Map>(__ data()->wasm_instance()->managed_object_maps()->get(
+            ref_index.index));
+    return __ HeapConstant(
+        __ data()->broker()->CanonicalPersistentHandle(rtt_map));
   }
 
   // TODO(dlehmann): This and other decoder interface method implementations
@@ -784,7 +827,7 @@ class WasmInJsInliningInterface {
       Forward(decoder, object, result);
       return;
     }
-    V<Map> rtt = __ RttCanon(managed_object_maps(), target.ref_index());
+    V<Map> rtt = RttCanon(target.ref_index());
     compiler::WasmTypeCheckConfig config{
         object.type, target,
         compiler::GetExactness(decoder->module_, target.heap_type())};

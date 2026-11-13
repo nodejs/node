@@ -350,12 +350,6 @@ Tagged<Object> StackGuard::HandleInterrupts(InterruptLevel level) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  if (TestAndClear(&interrupt_flags, DEOPT_MARKED_ALLOCATION_SITES)) {
-    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                "V8.GCDeoptMarkedAllocationSites");
-    isolate_->heap()->DeoptMarkedAllocationSites();
-  }
-
   if (TestAndClear(&interrupt_flags, INSTALL_CODE)) {
     TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                 "V8.InstallOptimizedFunctions");
@@ -383,6 +377,9 @@ Tagged<Object> StackGuard::HandleInterrupts(InterruptLevel level) {
     TRACE_EVENT("v8.execute", "V8.InvokeApiInterruptCallbacks");
     // Callbacks must be invoked outside of ExecutionAccess lock.
     isolate_->InvokeApiInterruptCallbacks();
+    if (isolate_->debug()->IsRestartFrameScheduled()) {
+      return isolate_->TerminateExecution();
+    }
   }
 
 #ifdef V8_RUNTIME_CALL_STATS

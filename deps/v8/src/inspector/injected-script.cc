@@ -99,7 +99,6 @@ class InjectedScript::ProtocolPromiseHandler {
                   v8::Local<v8::Context> context, v8::Local<v8::Value> value,
                   int executionContextId, const String16& objectGroup,
                   std::unique_ptr<WrapOptions> wrapOptions, bool replMode,
-                  bool throwOnSideEffect,
                   std::weak_ptr<EvaluateCallback> callback) {
     InjectedScript::ContextScope scope(session, executionContextId);
     Response response = scope.initialize();
@@ -130,7 +129,7 @@ class InjectedScript::ProtocolPromiseHandler {
     PromiseHandlerTracker::Id handlerId =
         inspector->promiseHandlerTracker().create(
             session, executionContextId, objectGroup, std::move(wrapOptions),
-            replMode, throwOnSideEffect, callback, promise);
+            replMode, callback, promise);
     v8::Local<v8::Number> data =
         v8::Number::New(inspector->isolate(), handlerId);
     v8::Local<v8::Function> thenCallbackFunction =
@@ -207,7 +206,7 @@ class InjectedScript::ProtocolPromiseHandler {
   ProtocolPromiseHandler(V8InspectorSessionImpl* session,
                          int executionContextId, const String16& objectGroup,
                          std::unique_ptr<WrapOptions> wrapOptions,
-                         bool replMode, bool throwOnSideEffect,
+                         bool replMode,
                          std::weak_ptr<EvaluateCallback> callback,
                          v8::Local<v8::Promise> evaluationResult)
       : m_inspector(session->inspector()),
@@ -217,7 +216,6 @@ class InjectedScript::ProtocolPromiseHandler {
         m_objectGroup(objectGroup),
         m_wrapOptions(std::move(wrapOptions)),
         m_replMode(replMode),
-        m_throwOnSideEffect(throwOnSideEffect),
         m_callback(std::move(callback)),
         m_evaluationResult(m_inspector->isolate(), evaluationResult) {}
 
@@ -275,20 +273,19 @@ class InjectedScript::ProtocolPromiseHandler {
       }
     }
 
-    if (m_objectGroup == "console") {
-      scope.injectedScript()->setLastEvaluationResult(result);
-    }
-
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
-    response = scope.injectedScript()->wrapObject(
-        result, m_objectGroup, *m_wrapOptions, &wrappedValue);
+    std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
+    response = scope.injectedScript()->wrapEvaluateResult(
+        result, scope.tryCatch(), m_objectGroup, *m_wrapOptions,
+        false /* throwOnSideEffect */, &wrappedValue, &exceptionDetails);
     if (!response.IsSuccess()) {
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);
       return;
     }
     EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
-                                  std::move(wrappedValue), nullptr);
+                                  std::move(wrappedValue),
+                                  std::move(exceptionDetails));
   }
 
   void catchCallback(v8::Local<v8::Value> result) {
@@ -323,10 +320,8 @@ class InjectedScript::ProtocolPromiseHandler {
     // we try to capture a fresh stack trace.
     if (maybeMessage.ToLocal(&message)) {
       v8::Local<v8::Value> exception = result;
-      if (!m_throwOnSideEffect) {
-        session->inspector()->client()->dispatchError(scope.context(), message,
-                                                      exception);
-      }
+      session->inspector()->client()->dispatchError(scope.context(), message,
+                                                    exception);
       std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
       response = scope.injectedScript()->createExceptionDetails(
           message, exception, m_objectGroup, &exceptionDetails);
@@ -345,11 +340,11 @@ class InjectedScript::ProtocolPromiseHandler {
     String16 messageString;
     std::unique_ptr<V8StackTraceImpl> stack;
     if (result->IsNativeError()) {
-      messageString =
-          " " +
-          toProtocolString(isolate,
-                           result->ToDetailString(isolate->GetCurrentContext())
-                               .ToLocalChecked());
+      v8::Local<v8::String> detail;
+      if (result->ToDetailString(isolate->GetCurrentContext())
+              .ToLocal(&detail)) {
+        messageString = " " + toProtocolString(isolate, detail);
+      }
       v8::Local<v8::StackTrace> stackTrace =
           v8::Exception::GetStackTrace(result);
       if (!stackTrace.IsEmpty()) {
@@ -403,7 +398,6 @@ class InjectedScript::ProtocolPromiseHandler {
   String16 m_objectGroup;
   std::unique_ptr<WrapOptions> m_wrapOptions;
   bool m_replMode;
-  bool m_throwOnSideEffect;
   bool m_isActive = false;
   std::weak_ptr<EvaluateCallback> m_callback;
   v8::Global<v8::Promise> m_evaluationResult;
@@ -447,6 +441,9 @@ Response InjectedScript::getProperties(
   if (!ValueMirror::getProperties(context, object, ownProperties,
                                   accessorPropertiesOnly,
                                   nonIndexedPropertiesOnly, &accumulator)) {
+    if (isolate->IsExecutionTerminating()) {
+      return Response::ServerError("Execution was terminated");
+    }
     return createExceptionDetails(tryCatch, groupName, exceptionDetails);
   }
   for (const PropertyMirror& mirror : mirrors) {
@@ -461,48 +458,77 @@ Response InjectedScript::getProperties(
     if (mirror.value) {
       Response response = wrapObjectMirror(
           *mirror.value, groupName, wrapOptions, v8::MaybeLocal<v8::Value>(),
-          kMaxCustomPreviewDepth, &remoteObject);
-      if (!response.IsSuccess()) return response;
+          kMaxCustomPreviewDepth, nullptr, &remoteObject);
+      if (!response.IsSuccess()) {
+        if (isolate->IsExecutionTerminating()) {
+          return Response::ServerError("Execution was terminated");
+        }
+        return response;
+      }
       descriptor->setValue(std::move(remoteObject));
       descriptor->setWritable(mirror.writable);
     }
     if (mirror.getter) {
       Response response =
           mirror.getter->buildRemoteObject(context, wrapOptions, &remoteObject);
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(sessionId, context,
                                           mirror.getter->v8Value(isolate),
                                           groupName, remoteObject.get());
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setGet(std::move(remoteObject));
     }
     if (mirror.setter) {
       Response response =
           mirror.setter->buildRemoteObject(context, wrapOptions, &remoteObject);
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(sessionId, context,
                                           mirror.setter->v8Value(isolate),
                                           groupName, remoteObject.get());
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setSet(std::move(remoteObject));
     }
     if (mirror.symbol) {
       Response response =
           mirror.symbol->buildRemoteObject(context, wrapOptions, &remoteObject);
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(sessionId, context,
                                           mirror.symbol->v8Value(isolate),
                                           groupName, remoteObject.get());
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setSymbol(std::move(remoteObject));
     }
     if (mirror.exception) {
       Response response = mirror.exception->buildRemoteObject(
           context, wrapOptions, &remoteObject);
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(sessionId, context,
                                           mirror.exception->v8Value(isolate),
                                           groupName, remoteObject.get());
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setValue(std::move(remoteObject));
       descriptor->setWasThrown(true);
@@ -530,19 +556,31 @@ Response InjectedScript::getInternalAndPrivateProperties(
   int sessionId = m_sessionId;
 
   if (!accessorPropertiesOnly) {
+    if (m_context->isolate()->IsExecutionTerminating()) {
+      return Response::ServerError("Execution was terminated");
+    }
     std::vector<InternalPropertyMirror> internalPropertiesWrappers;
     ValueMirror::getInternalProperties(m_context->context(), value_obj,
                                        &internalPropertiesWrappers);
+    if (m_context->isolate()->IsExecutionTerminating()) {
+      return Response::ServerError("Execution was terminated");
+    }
     for (const auto& internalProperty : internalPropertiesWrappers) {
       std::unique_ptr<RemoteObject> remoteObject;
       Response response = internalProperty.value->buildRemoteObject(
           m_context->context(), WrapOptions({WrapMode::kIdOnly}),
           &remoteObject);
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(
           sessionId, context,
           internalProperty.value->v8Value(v8::Isolate::GetCurrent()), groupName,
           remoteObject.get());
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       (*internalProperties)
           ->emplace_back(InternalPropertyDescriptor::create()
@@ -552,9 +590,16 @@ Response InjectedScript::getInternalAndPrivateProperties(
     }
   }
 
+  if (m_context->isolate()->IsExecutionTerminating()) {
+    return Response::ServerError("Execution was terminated");
+  }
+
   std::vector<PrivatePropertyMirror> privatePropertyWrappers =
       ValueMirror::getPrivateProperties(context, value_obj,
                                         accessorPropertiesOnly);
+  if (m_context->isolate()->IsExecutionTerminating()) {
+    return Response::ServerError("Execution was terminated");
+  }
   for (const auto& privateProperty : privatePropertyWrappers) {
     std::unique_ptr<PrivatePropertyDescriptor> descriptor =
         PrivatePropertyDescriptor::create()
@@ -567,11 +612,17 @@ Response InjectedScript::getInternalAndPrivateProperties(
     if (privateProperty.value) {
       Response response = privateProperty.value->buildRemoteObject(
           context, WrapOptions({WrapMode::kIdOnly}), &remoteObject);
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(
           sessionId, context,
           privateProperty.value->v8Value(v8::Isolate::GetCurrent()), groupName,
           remoteObject.get());
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setValue(std::move(remoteObject));
     }
@@ -579,11 +630,17 @@ Response InjectedScript::getInternalAndPrivateProperties(
     if (privateProperty.getter) {
       Response response = privateProperty.getter->buildRemoteObject(
           context, WrapOptions({WrapMode::kIdOnly}), &remoteObject);
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(
           sessionId, context,
           privateProperty.getter->v8Value(v8::Isolate::GetCurrent()), groupName,
           remoteObject.get());
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setGet(std::move(remoteObject));
     }
@@ -591,11 +648,17 @@ Response InjectedScript::getInternalAndPrivateProperties(
     if (privateProperty.setter) {
       Response response = privateProperty.setter->buildRemoteObject(
           context, WrapOptions({WrapMode::kIdOnly}), &remoteObject);
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(
           sessionId, context,
           privateProperty.setter->v8Value(v8::Isolate::GetCurrent()), groupName,
           remoteObject.get());
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setSet(std::move(remoteObject));
     }
@@ -616,26 +679,41 @@ Response InjectedScript::wrapObject(
     const WrapOptions& wrapOptions,
     std::unique_ptr<protocol::Runtime::RemoteObject>* result) {
   return wrapObject(value, groupName, wrapOptions, v8::MaybeLocal<v8::Value>(),
-                    kMaxCustomPreviewDepth, result);
+                    kMaxCustomPreviewDepth, nullptr, result);
 }
 
 Response InjectedScript::wrapObject(
     v8::Local<v8::Value> value, const String16& groupName,
     const WrapOptions& wrapOptions,
     v8::MaybeLocal<v8::Value> customPreviewConfig, int maxCustomPreviewDepth,
+    CustomPreviewBudget* budget,
     std::unique_ptr<protocol::Runtime::RemoteObject>* result) {
   v8::Local<v8::Context> context = m_context->context();
   v8::Context::Scope contextScope(context);
-  std::unique_ptr<ValueMirror> mirror = ValueMirror::create(context, value);
-  if (!mirror) return Response::InternalError();
-  return wrapObjectMirror(*mirror, groupName, wrapOptions, customPreviewConfig,
-                          maxCustomPreviewDepth, result);
+  v8::Isolate* isolate = m_context->isolate();
+  bool terminated = false;
+  Response response = Response::InternalError();
+  {
+    v8::TryCatch tryCatch(isolate);
+    std::unique_ptr<ValueMirror> mirror = ValueMirror::create(context, value);
+    if (mirror) {
+      response =
+          wrapObjectMirror(*mirror, groupName, wrapOptions, customPreviewConfig,
+                           maxCustomPreviewDepth, budget, result);
+    }
+    terminated = tryCatch.HasTerminated();
+  }
+  if (terminated && !isolate->IsExecutionTerminating()) {
+    m_context->inspector()->debugger()->reportTermination();
+  }
+  return response;
 }
 
 Response InjectedScript::wrapObjectMirror(
     const ValueMirror& mirror, const String16& groupName,
     const WrapOptions& wrapOptions,
     v8::MaybeLocal<v8::Value> customPreviewConfig, int maxCustomPreviewDepth,
+    CustomPreviewBudget* budget,
     std::unique_ptr<protocol::Runtime::RemoteObject>* result) {
   int customPreviewEnabled = m_customPreviewEnabled;
   int sessionId = m_sessionId;
@@ -643,10 +721,25 @@ Response InjectedScript::wrapObjectMirror(
   v8::Context::Scope contextScope(context);
   Response response = mirror.buildRemoteObject(context, wrapOptions, result);
   if (!response.IsSuccess()) return response;
+  // Building the remote object (i.e. the preview) can run JavaScript, which
+  // might terminate execution. Don't call into V8 anymore in that case, since
+  // the next V8 API call would clear the pending termination exception.
+  if (m_context->isolate()->IsExecutionTerminating()) {
+    return Response::InternalError();
+  }
   v8::Local<v8::Value> value = mirror.v8Value(v8::Isolate::GetCurrent());
   response = bindRemoteObjectIfNeeded(sessionId, context, value, groupName,
                                       result->get());
   if (!response.IsSuccess()) return response;
+  if (budget) {
+    size_t wrapperChars =
+        (*result)->getClassName(String16()).length() +
+        (*result)->getDescription(String16()).length() +
+        (*result)->getUnserializableValue(String16()).length();
+    if (!budget->takeCharacters(wrapperChars)) {
+      return Response::InternalError();
+    }
+  }
   // Only perform custom previews if either preview is requested or we're
   // already being recursively called from generateCustomPreview() (via
   // substituteObjectTags()).
@@ -654,9 +747,16 @@ Response InjectedScript::wrapObjectMirror(
       (wrapOptions.mode == WrapMode::kPreview ||
        !customPreviewConfig.IsEmpty())) {
     std::unique_ptr<protocol::Runtime::CustomPreview> customPreview;
-    generateCustomPreview(m_context->isolate(), sessionId, groupName,
-                          value.As<v8::Object>(), customPreviewConfig,
-                          maxCustomPreviewDepth, &customPreview);
+    generateCustomPreview(this, groupName, value.As<v8::Object>(),
+                          customPreviewConfig, maxCustomPreviewDepth, budget,
+                          &customPreview);
+    // Custom formatters might terminate execution. Don't call into V8 anymore
+    // in that case, since the next V8 API call would clear the pending
+    // termination exception.
+    if (m_context->isolate()->IsExecutionTerminating() ||
+        (budget && budget->exhausted)) {
+      return Response::InternalError();
+    }
     if (customPreview) (*result)->setCustomPreview(std::move(customPreview));
   }
   if (wrapOptions.mode == WrapMode::kDeep) {
@@ -714,16 +814,18 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
   if (!remoteObject || !response.IsSuccess()) return nullptr;
 
   auto mirror = ValueMirror::create(context, table);
+  if (!mirror) return nullptr;
   std::unique_ptr<ObjectPreview> preview;
   int limit = 1000;
   mirror->buildObjectPreview(context, true /* generatePreviewForTable */,
                              &limit, &limit, &preview);
-  if (!preview) return nullptr;
+  if (!preview || isolate->IsExecutionTerminating()) return nullptr;
 
   std::vector<String16> selectedColumns;
   std::unordered_set<String16> columnSet;
   v8::Local<v8::Array> v8Columns;
   if (maybeColumns.ToLocal(&v8Columns)) {
+    v8::TryCatch tryCatch(isolate);
     for (uint32_t i = 0; i < v8Columns->Length(); ++i) {
       v8::Local<v8::Value> column;
       if (v8Columns->Get(context, i).ToLocal(&column) && column->IsString()) {
@@ -733,6 +835,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
           selectedColumns.push_back(name);
         }
       }
+      if (isolate->IsExecutionTerminating()) return nullptr;
     }
   }
   if (!selectedColumns.empty()) {
@@ -763,8 +866,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
 void InjectedScript::addPromiseCallback(
     V8InspectorSessionImpl* session, v8::MaybeLocal<v8::Value> value,
     const String16& objectGroup, std::unique_ptr<WrapOptions> wrapOptions,
-    bool replMode, bool throwOnSideEffect,
-    std::shared_ptr<EvaluateCallback> callback) {
+    bool replMode, std::shared_ptr<EvaluateCallback> callback) {
   m_evaluateCallbacks.insert(callback);
   // After stashing the shared_ptr in `m_evaluateCallback`, we reset `callback`.
   // `ProtocolPromiseHandler:add` can take longer than the life time of this
@@ -784,7 +886,7 @@ void InjectedScript::addPromiseCallback(
   ProtocolPromiseHandler::add(session, m_context->context(),
                               value.ToLocalChecked(), m_context->contextId(),
                               objectGroup, std::move(wrapOptions), replMode,
-                              throwOnSideEffect, weak_callback);
+                              weak_callback);
   // Do not add any code here! `this` might be invalid.
   // `ProtocolPromiseHandler::add` calls into JS which could kill this
   // `InjectedScript`.
@@ -842,11 +944,6 @@ v8::Local<v8::Value> InjectedScript::lastEvaluationResult() const {
   return m_lastEvaluationResult.Get(m_context->isolate());
 }
 
-void InjectedScript::setLastEvaluationResult(v8::Local<v8::Value> result) {
-  m_lastEvaluationResult.Reset(m_context->isolate(), result);
-  m_lastEvaluationResult.AnnotateStrongRetainer(kGlobalHandleLabel);
-}
-
 Response InjectedScript::resolveCallArgument(
     protocol::Runtime::CallArgument* callArgument,
     v8::Local<v8::Value>* result) {
@@ -856,7 +953,7 @@ Response InjectedScript::resolveCallArgument(
         RemoteObjectId::parse(callArgument->getObjectId(""), &remoteObjectId);
     if (!response.IsSuccess()) return response;
     if (remoteObjectId->contextId() != m_context->contextId() ||
-        remoteObjectId->isolateId() != m_context->inspector()->isolateId()) {
+        remoteObjectId->isolateId() != isolateId()) {
       return Response::ServerError(
           "Argument should belong to the same JavaScript world as target "
           "object");
@@ -977,33 +1074,98 @@ Response InjectedScript::wrapEvaluateResult(
       }
       return Response::InternalError();
     }
-    Response response =
-        wrapObject(resultValue, objectGroup, wrapOptions, result);
-    if (!response.IsSuccess()) return response;
-    if (objectGroup == "console") {
-      m_lastEvaluationResult.Reset(m_context->isolate(), resultValue);
-      m_lastEvaluationResult.AnnotateStrongRetainer(kGlobalHandleLabel);
+    Response response = Response::Success();
+    {
+      std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
+      if (throwOnSideEffect) {
+        sideEffectCheckScope.emplace(m_context->isolate());
+      }
+      response = wrapObject(resultValue, objectGroup, wrapOptions, result);
     }
+    if (response.IsSuccess()) {
+      if (objectGroup == "console") {
+        m_lastEvaluationResult.Reset(m_context->isolate(), resultValue);
+        m_lastEvaluationResult.AnnotateStrongRetainer(kGlobalHandleLabel);
+      }
+      return Response::Success();
+    }
+    if (!tryCatch.HasTerminated() &&
+        (!throwOnSideEffect || !tryCatch.HasCaught())) {
+      return response;
+    }
+  }
+  if (tryCatch.HasTerminated() || !tryCatch.CanContinue()) {
+    return Response::ServerError("Execution was terminated");
+  }
+  v8::Local<v8::Value> exception = tryCatch.Exception();
+  if (!throwOnSideEffect) {
+    m_context->inspector()->client()->dispatchError(
+        m_context->context(), tryCatch.Message(), exception);
+  }
+  Response response = Response::Success();
+  if (throwOnSideEffect) {
+    v8::TryCatch sideEffectTryCatch(m_context->isolate());
+    std::unique_ptr<protocol::Runtime::RemoteObject> wrappedException;
+    std::unique_ptr<protocol::Runtime::ExceptionDetails>
+        wrappedExceptionDetails;
+    {
+      v8::debug::SideEffectCheckScope sideEffectCheckScope(
+          m_context->isolate());
+      response = wrapObject(exception, objectGroup,
+                            exception->IsNativeError()
+                                ? WrapOptions({WrapMode::kIdOnly})
+                                : WrapOptions({WrapMode::kPreview}),
+                            &wrappedException);
+      if (response.IsSuccess()) {
+        response = createExceptionDetails(tryCatch, objectGroup,
+                                          &wrappedExceptionDetails);
+      }
+    }
+    if (!response.IsSuccess()) {
+      if (sideEffectTryCatch.HasTerminated() ||
+          !sideEffectTryCatch.CanContinue()) {
+        return Response::ServerError("Execution was terminated");
+      }
+      if (sideEffectTryCatch.HasCaught()) {
+        std::unique_ptr<protocol::Runtime::RemoteObject> fallbackException;
+        std::unique_ptr<protocol::Runtime::ExceptionDetails>
+            fallbackExceptionDetails;
+        {
+          v8::debug::SideEffectCheckScope sideEffectCheckScope(
+              m_context->isolate());
+          response =
+              wrapObject(sideEffectTryCatch.Exception(), objectGroup,
+                         WrapOptions({WrapMode::kIdOnly}), &fallbackException);
+          if (response.IsSuccess()) {
+            response = createExceptionDetails(sideEffectTryCatch, objectGroup,
+                                              &fallbackExceptionDetails);
+          }
+        }
+        if (!response.IsSuccess()) {
+          if (m_context->isolate()->IsExecutionTerminating()) {
+            return Response::ServerError("Execution was terminated");
+          }
+          return response;
+        }
+        *result = std::move(fallbackException);
+        *exceptionDetails = std::move(fallbackExceptionDetails);
+        return Response::Success();
+      }
+      return response;
+    }
+    *result = std::move(wrappedException);
+    *exceptionDetails = std::move(wrappedExceptionDetails);
+    return Response::Success();
   } else {
-    if (tryCatch.HasTerminated() || !tryCatch.CanContinue()) {
-      return Response::ServerError("Execution was terminated");
-    }
-    v8::Local<v8::Value> exception = tryCatch.Exception();
-    if (!throwOnSideEffect) {
-      m_context->inspector()->client()->dispatchError(
-          m_context->context(), tryCatch.Message(), exception);
-    }
-    Response response = wrapObject(exception, objectGroup,
-                                   exception->IsNativeError()
-                                       ? WrapOptions({WrapMode::kIdOnly})
-                                       : WrapOptions({WrapMode::kPreview}),
-                                   result);
-    if (!response.IsSuccess()) return response;
-    // We send exception in result for compatibility reasons, even though it's
-    // accessible through exceptionDetails.exception.
-    response = createExceptionDetails(tryCatch, objectGroup, exceptionDetails);
+    response = wrapObject(exception, objectGroup,
+                          exception->IsNativeError()
+                              ? WrapOptions({WrapMode::kIdOnly})
+                              : WrapOptions({WrapMode::kPreview}),
+                          result);
     if (!response.IsSuccess()) return response;
   }
+  response = createExceptionDetails(tryCatch, objectGroup, exceptionDetails);
+  if (!response.IsSuccess()) return response;
   return Response::Success();
 }
 
@@ -1103,6 +1265,9 @@ void InjectedScript::Scope::cleanup() {
 }
 
 InjectedScript::Scope::~Scope() {
+  if (m_tryCatch.HasTerminated()) {
+    m_inspector->debugger()->reportTermination();
+  }
   if (m_ignoreExceptionsAndMuteConsole) {
     setPauseOnExceptionsState(m_previousPauseOnExceptionsState);
     m_inspector->client()->unmuteMetrics(m_contextGroupId);
@@ -1163,6 +1328,12 @@ Response InjectedScript::CallFrameScope::findInjectedScript(
                                      &m_inspectedContext);
 }
 
+uint64_t InjectedScript::isolateId() const {
+  V8InspectorSessionImpl* session = m_context->inspector()->sessionById(
+      m_context->contextGroupId(), m_sessionId);
+  return session ? session->isolateId() : 0;
+}
+
 String16 InjectedScript::bindObject(v8::Local<v8::Value> value,
                                     const String16& groupName) {
   if (m_lastBoundObjectId <= 0) m_lastBoundObjectId = 1;
@@ -1173,8 +1344,7 @@ String16 InjectedScript::bindObject(v8::Local<v8::Value> value,
     m_idToObjectGroupName[id] = groupName;
     m_nameToObjectGroup[groupName].push_back(id);
   }
-  return RemoteObjectId::serialize(m_context->inspector()->isolateId(),
-                                   m_context->contextId(), id);
+  return RemoteObjectId::serialize(isolateId(), m_context->contextId(), id);
 }
 
 // static

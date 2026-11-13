@@ -56,8 +56,10 @@
 /.gcs_entries
 
 /_*
+/agents/common
 /agents/internal
 /agents/shared
+/agents/testing
 /base
 /build
 /buildtools
@@ -83,6 +85,9 @@
 /test/wasm-spec-tests/tests.tar.gz
 /third_party/*
 !/third_party/antlr4
+!/third_party/boringssl
+!/third_party/boringssl/boringssl.map
+/third_party/boringssl/src
 !/third_party/colorama
 /third_party/colorama/src
 !/third_party/disarm
@@ -119,6 +124,7 @@
 !/third_party/llvm-libc/src/src
 /third_party/llvm-libc/src/src/*
 !/third_party/llvm-libc/src/src/__support
+!/third_party/llvm-libc/src/src/string
 !/third_party/rapidhash-v8
 !/third_party/re2
 /third_party/re2/src
@@ -140,6 +146,7 @@
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
 /tools/protoc_wrapper
+/tools/python
 /tools/rust
 /tools/turbolizer/build
 /tools/turbolizer/.rpt2_cache

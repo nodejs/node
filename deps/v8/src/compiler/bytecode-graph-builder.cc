@@ -2430,15 +2430,7 @@ void BytecodeGraphBuilder::VisitPopContext() {
 void BytecodeGraphBuilder::VisitCreateClosure() {
   SharedFunctionInfoRef shared_info =
       MakeRefForConstantPoolOperand<SharedFunctionInfo>(0);
-  AllocationType allocation =
-      interpreter::CreateClosureFlags::PretenuredBit::decode(
-          bytecode_iterator().GetFlag8Operand(2))
-          ? AllocationType::kOld
-          : AllocationType::kYoung;
-  CodeRef compile_lazy =
-      MakeRef(broker(), *BUILTIN_CODE(jsgraph()->isolate(), CompileLazy));
-  const Operator* op =
-      javascript()->CreateClosure(shared_info, compile_lazy, allocation);
+  const Operator* op = javascript()->CreateClosure(shared_info);
   Node* closure = NewNode(
       op, BuildLoadFeedbackCell(bytecode_iterator().GetFeedbackSlotOperand(1)));
   environment()->BindAccumulator(closure);
@@ -2530,11 +2522,11 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   int bytecode_flags = bytecode_iterator().GetFlag8Operand(2);
   int literal_flags =
       interpreter::CreateArrayLiteralFlags::FlagsBits::decode(bytecode_flags);
-  // Disable allocation site mementos. Only unoptimized code will collect
+  // Disable allocation site tracking. Only unoptimized code will collect
   // feedback about allocation site. Once the code is optimized we expect the
-  // data to converge. So, we disable allocation site mementos in optimized
+  // data to converge. So, we disable allocation site tracking in optimized
   // code. We can revisit this when we have data to the contrary.
-  literal_flags |= ArrayLiteral::kDisableMementos;
+  literal_flags |= ArrayLiteral::kDisableAllocationSiteTracking;
   uint32_t number_of_elements =
       array_boilerplate_description.constants_elements_length();
   static_assert(JSCreateLiteralArrayNode::FeedbackVectorIndex() == 0);
@@ -2608,7 +2600,8 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
       javascript()->GetTemplateObject(description, shared_info(), source);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* template_object = NewNode(op, feedback_vector_node());
-  environment()->BindAccumulator(template_object);
+  environment()->BindAccumulator(template_object,
+                                 Environment::kAttachFrameState);
 }
 
 Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegisters(

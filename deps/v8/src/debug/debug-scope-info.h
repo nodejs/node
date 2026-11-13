@@ -30,6 +30,7 @@ struct DebugVariableInfo {
   int initializer_position;
   bool is_synthetic;
   bool is_receiver;
+  bool is_hole_initialization_elided;
 
   // LINT.IfChange(VariableIsExport)
   bool is_export() const {
@@ -55,6 +56,7 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   std::optional<DebugScriptScope> next_sibling() const;
 
   // Position & Type Accessors
+  DirectHandle<DebugScriptScopeInfo> info() const { return info_; }
   int start_position() const;
   int end_position() const;
   int scope_index() const { return scope_index_; }
@@ -164,6 +166,11 @@ V8_EXPORT_PRIVATE std::optional<DebugScriptScope> FindClosureScope(
     DirectHandle<DebugScriptScopeInfo> info, int start_position,
     int end_position, ScopeType scope_type);
 
+// Returns the closure scope of `shared` in `info`: the matching function scope
+// for functions, and the root scope for top-level code (script, eval, module).
+V8_EXPORT_PRIVATE std::optional<DebugScriptScope> FindClosureScope(
+    DirectHandle<DebugScriptScopeInfo> info, Tagged<SharedFunctionInfo> shared);
+
 // Returns the innermost scope around `position` at or below `closure_scope`,
 // i.e. the scope a debugger paused at `position` starts iterating from.
 //
@@ -173,6 +180,50 @@ V8_EXPORT_PRIVATE std::optional<DebugScriptScope> FindClosureScope(
 // descendant is a better fit.
 V8_EXPORT_PRIVATE DebugScriptScope
 FindInnermostScope(DebugScriptScope closure_scope, int position);
+
+// If `script` is a direct eval script, returns the innermost scope in the
+// caller script's DebugScriptScopeInfo at the eval call site, i.e. the lexical
+// parent of `script`'s root scope. Returns nullopt for all other scripts
+// (including indirect eval, `new Function` and debug-evaluate code) or if the
+// caller script can't be reparsed.
+V8_EXPORT_PRIVATE std::optional<DebugScriptScope> FindEvalOuterScope(
+    Isolate* isolate, DirectHandle<Script> script);
+
+// Returns whether `parent` must be visible to the debugger when leaving
+// `child`.
+//
+// In V8, hidden scopes (`scope.is_hidden()`) are internal scopes synthesized by
+// the parser for desugared language constructs rather than explicit `{ ... }`
+// blocks in user source code. Examples include the outer TDZ/initializer
+// `BLOCK_SCOPE` around a `for (let x = ...)` loop (whose per-iteration body
+// `BLOCK_SCOPE` redeclares fresh copies of `x`), the hidden `BLOCK_SCOPE`
+// holding synthetic `.home_object` around an object literal using `super`, or
+// helper scopes holding only synthetic temporaries (`.result`, `.iterator`,
+// etc.) or no variables at all.
+//
+// Exposing every hidden scope would clutter the debugger with empty/synthetic
+// internal blocks or duplicate `x` bindings when paused inside the
+// `for (let x = ...)` loop body. Conversely, unconditionally skipping hidden
+// scopes hides real user bindings when paused in a child scope that does not
+// redeclare them — such as a closure or `eval()` inside the
+// `for (let x = (() => { debugger; })(), ...)` header (where `child` is the
+// arrow's `FUNCTION_SCOPE`) or the right-hand side of `for (const x of expr)`
+// (where `child` is the empty `subject_scope` and `parent` holds `x` in TDZ).
+//
+// The exact rule: non-hidden parent scopes are always visible. A hidden
+// `parent` scope is skipped when leaving `child` iff it declares no
+// non-synthetic variables or every non-synthetic variable in `parent` is
+// shadowed by a non-synthetic variable of the same name in `child`.
+//
+// `ScopeIterator::AdvanceScope` uses `IsDebuggerVisibleParent` to decide
+// which hidden ancestor scopes are exposed during scope iteration. In contrast,
+// `AddScopeStackLocalsToBlockList` achieves the matching shadowing behavior for
+// `DebugEvaluate` blocklists by unconditionally collecting non-synthetic
+// stack-allocated locals from all ancestor scopes (including hidden ones, since
+// empty or synthetic-only hidden scopes contribute nothing and redeclared names
+// are idempotent in the `StringSet`).
+V8_EXPORT_PRIVATE bool IsDebuggerVisibleParent(const DebugScriptScope& child,
+                                               const DebugScriptScope& parent);
 
 }  // namespace internal
 }  // namespace v8

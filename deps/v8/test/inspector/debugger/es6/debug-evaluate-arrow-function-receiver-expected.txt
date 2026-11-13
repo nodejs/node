@@ -1,0 +1,72 @@
+Test that debug-evaluate can find the correct this value for arrow functions.
+foo foo debugger;                          // foo
+foo foo debugger;                        // foo
+foo foo debugger;                    // foo
+foo foo debugger;                // foo
+undefined undefined debugger;              // undefined
+goo goo debugger;                        // goo
+undefined undefined return g.call("goo");  // undefined
+undefined undefined debugger;                      // undefined
+undefined undefined debugger;                  // undefined
+undefined undefined debugger;              // undefined
+foo foo debugger;                          // foo
+undefined undefined return f.call("foo");  // undefined
+foo foo debugger;                        // foo
+foo foo debugger;                    // foo
+foo foo debugger;                // foo
+undefined undefined debugger;              // undefined
+goo goo debugger;                        // goo
+undefined undefined return g.call("goo");  // undefined
+undefined undefined debugger;                      // undefined
+undefined undefined debugger;                  // undefined
+undefined undefined debugger;              // undefined
+foo foo debugger;                          // foo
+undefined undefined return f.call("foo");  // undefined
+foo foo debugger;                        // foo
+foo foo debugger;                    // foo
+foo foo debugger;                // foo
+undefined undefined debugger;              // undefined
+goo goo debugger;                        // goo
+undefined undefined return g.call("goo");  // undefined
+undefined undefined debugger;                      // undefined
+undefined undefined debugger;                  // undefined
+goo goo debugger;                        // goo
+undefined undefined debugger;                      // undefined
+undefined undefined debugger;                  // undefined
+undefined undefined debugger;              // undefined
+foo foo debugger;                          // foo
+undefined undefined return f.call("foo");  // undefined
+foo foo debugger;                        // foo
+foo foo debugger;                    // foo
+foo foo debugger;                // foo
+undefined undefined debugger;              // undefined
+goo goo debugger;                        // goo
+undefined undefined return g.call("goo");  // undefined
+undefined undefined debugger;                      // undefined
+undefined undefined debugger;                  // undefined
+undefined undefined debugger;              // undefined
+foo foo debugger;                          // foo
+undefined undefined return f.call("foo");  // undefined
+foo foo debugger;                        // foo
+foo foo debugger;                    // foo
+foo foo debugger;                // foo
+undefined undefined debugger;              // undefined
+goo goo debugger;                        // goo
+undefined undefined return g.call("goo");  // undefined
+undefined undefined debugger;                      // undefined
+undefined undefined debugger;                  // undefined
+undefined undefined debugger;              // undefined
+foo foo debugger;                          // foo
+undefined undefined return f.call("foo");  // undefined
+foo foo debugger;                        // foo
+foo foo debugger;                    // foo
+foo foo debugger;                // foo
+Y Y debugger;      // Y
+Y Y })();           // Y
+X X y.call("Y");       // X
+undefined undefined debugger;      // undefined
+V V })();           // V
+U U v.call("V");       // U
+[object global] [object global] debugger;          // [object global]
+Total breaks: 55
+Mismatches: 0

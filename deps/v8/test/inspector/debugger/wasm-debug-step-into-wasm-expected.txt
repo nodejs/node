@@ -1,0 +1,40 @@
+Tests stepping into Wasm from JavaScript.
+Executing f() with stepInto
+f
+function f() {
+  var result = #wasm_f(3, 2); // Line 0.
+  result++; // Line 1.
+
+$sub
+Script wasm://wasm/7c1ced02 byte offset 35: Wasm opcode 0x20
+$sub
+Script wasm://wasm/7c1ced02 byte offset 37: Wasm opcode 0x20
+$sub
+Script wasm://wasm/7c1ced02 byte offset 39: Wasm opcode 0x6b
+$sub
+Script wasm://wasm/7c1ced02 byte offset 40: Wasm opcode 0x0b
+f
+  var result = wasm_f(3, 2); // Line 0.
+  #result++; // Line 1.
+  return result; // Line 2.
+
+f
+  result++; // Line 1.
+  return result;# // Line 2.
+}
+
+Executing f() with stepOut
+f
+function f() {
+  var result = #wasm_f(3, 2); // Line 0.
+  result++; // Line 1.
+
+f
+  result++; // Line 1.
+  return result;# // Line 2.
+}
+
+assertEquals(3, break_count): true
+assertEquals(3, js_break_line): true
+assertEquals(4, wasm_break_count): true
+assertEquals(2, break_count2): true

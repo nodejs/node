@@ -289,14 +289,9 @@ bool LookupIterator::ExtendingNonExtensible(DirectHandle<JSReceiver> receiver) {
   // They are not supposed to be ever leaked to user JS code.
   CHECK(!IsMaybeReadOnlyJSObjectMap(receiver_map));
 
-  // Shared objects have fixed layout. No properties may be added to them, not
-  // even private symbols.
-  if (IsAlwaysSharedSpaceJSObjectMap(receiver_map)) {
-    return true;
-  }
 #if V8_ENABLE_WEBASSEMBLY
   // Wasm objects have a fixed layout and must never transition their map.
-  if (IsWasmObjectMap(receiver_map)) {
+  if (IsAnyWasmObjectMap(receiver_map)) {
     return true;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

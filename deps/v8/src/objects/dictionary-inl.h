@@ -27,13 +27,6 @@ Tagged<Object> Dictionary<Derived, Shape>::ValueAt(InternalIndex entry) {
 }
 
 template <typename Derived, typename Shape>
-Tagged<Object> Dictionary<Derived, Shape>::ValueAt(InternalIndex entry,
-                                                   SeqCstAccessTag tag) {
-  return this->get(
-      DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex, tag);
-}
-
-template <typename Derived, typename Shape>
 std::optional<Tagged<Object>> Dictionary<Derived, Shape>::TryValueAt(
     InternalIndex entry) {
   SLOW_DCHECK(Isolate::Current()->heap() ==
@@ -55,32 +48,6 @@ void Dictionary<Derived, Shape>::ValueAtPut(
     WriteBarrierMode write_barrier_mode) {
   this->set(DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex,
             value, write_barrier_mode);
-}
-
-template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::ValueAtPut(InternalIndex entry,
-                                            Tagged<Object> value,
-                                            SeqCstAccessTag tag) {
-  this->set(DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex,
-            value, tag);
-}
-
-template <typename Derived, typename Shape>
-Tagged<Object> Dictionary<Derived, Shape>::ValueAtSwap(InternalIndex entry,
-                                                       Tagged<Object> value,
-                                                       SeqCstAccessTag tag) {
-  return this->swap(
-      DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex, value,
-      tag);
-}
-
-template <typename Derived, typename Shape>
-Tagged<Object> Dictionary<Derived, Shape>::ValueAtCompareAndSwap(
-    InternalIndex entry, Tagged<Object> expected, Tagged<Object> value,
-    SeqCstAccessTag tag) {
-  return this->compare_and_swap(
-      DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex,
-      expected, value, tag);
 }
 
 template <typename Derived, typename Shape>
@@ -212,16 +179,16 @@ DirectHandle<Map> NameDictionary::GetMap(RootsTable& roots) {
   return roots.name_dictionary_map();
 }
 
-uint32_t NameDictionary::flags() const {
-  return Smi::ToInt(this->get(kFlagsIndex));
+NameDictionary::Flags NameDictionary::flags() const {
+  return Flags(Smi::ToInt(this->get(kFlagsIndex)));
 }
 
-void NameDictionary::set_flags(uint32_t flags) {
-  this->set(kFlagsIndex, Smi::FromInt(flags));
+void NameDictionary::set_flags(Flags flags) {
+  this->set(kFlagsIndex, Smi::FromInt(flags.value()));
 }
 
 BIT_FIELD_ACCESSORS(NameDictionary, flags, may_have_interesting_properties,
-                    NameDictionary::MayHaveInterestingPropertiesBit)
+                    NameDictionary::Flags::MayHaveInterestingPropertiesBit)
 
 Tagged<PropertyCell> GlobalDictionary::CellAt(InternalIndex entry) {
   DCHECK(IsPropertyCell(KeyAt(entry)));
@@ -276,16 +243,14 @@ uint32_t NumberDictionaryBaseShape::HashForObject(ReadOnlyRoots roots,
       HashSeed(roots).seed());
 }
 
-template <AllocationType allocation>
 DirectHandle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
                                                          uint32_t key) {
-  return isolate->factory()->NewNumberFromUint<allocation>(key);
+  return isolate->factory()->NewNumberFromUint(key);
 }
 
-template <AllocationType allocation>
 DirectHandle<Object> NumberDictionaryBaseShape::AsHandle(LocalIsolate* isolate,
                                                          uint32_t key) {
-  return isolate->factory()->NewNumberFromUint<allocation>(key);
+  return isolate->factory()->NewNumberFromUint<AllocationType::kOld>(key);
 }
 
 DirectHandle<Map> NumberDictionary::GetMap(RootsTable& roots) {
@@ -331,14 +296,12 @@ uint32_t GlobalDictionaryShape::HashForObject(ReadOnlyRoots roots,
   return Cast<PropertyCell>(other)->name()->hash();
 }
 
-template <AllocationType allocation>
 DirectHandle<Object> BaseNameDictionaryShape::AsHandle(Isolate* isolate,
                                                        DirectHandle<Name> key) {
   DCHECK(IsUniqueName(*key));
   return key;
 }
 
-template <AllocationType allocation>
 DirectHandle<Object> BaseNameDictionaryShape::AsHandle(LocalIsolate* isolate,
                                                        DirectHandle<Name> key) {
   DCHECK(IsUniqueName(*key));

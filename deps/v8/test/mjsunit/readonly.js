@@ -166,15 +166,14 @@ function TestAllReadonlys(f) {
 
 // Different use scenarios.
 
-function Assign(o, x) {
+function Assign_template(o, x) {
   o.a = x;
-};
-%PrepareFunctionForOptimization(Assign);
-function AssignStrict(o, x) {
+}
+function AssignStrict_template(o, x) {
   "use strict";
   o.a = x;
-};
-%PrepareFunctionForOptimization(AssignStrict);
+}
+
 function TestAllModes(f) {
   for (var strict = 0; strict < 2; ++strict) {
     print(" strict =", strict);
@@ -187,10 +186,8 @@ function TestAllScenarios(f) {
     print('t =', t);
     f(function(strict, create, readonly) {
       // Make sure that the assignments are monomorphic.
-      %DeoptimizeFunction(Assign);
-      %DeoptimizeFunction(AssignStrict);
-      %ClearFunctionFeedback(Assign);
-      %ClearFunctionFeedback(AssignStrict);
+      var Assign = copyFunctionWithFreshFeedback(Assign_template);
+      var AssignStrict = copyFunctionWithFreshFeedback(AssignStrict_template);
       %PrepareFunctionForOptimization(Assign);
       %PrepareFunctionForOptimization(AssignStrict);
       for (var i = 0; i < t; ++i) {

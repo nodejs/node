@@ -72,7 +72,6 @@ ALL_VARIANT_FLAGS = {
         "--trace-maglev-phi-untagging",
         "--trace-maglev-regalloc",
         "--trace-maglev-escape-analysis",
-        "--trace-maglev-object-tracking",
         "--print-maglev-code",
         "--print-maglev-deopt-verbose",
         "--print-maglev-graph",
@@ -165,6 +164,7 @@ ALL_VARIANT_FLAGS = {
         "--wasm-random-rescheduling"
     ],
     "validate_generated_code": ["--validate-generated-code"],
+    "ecma402_icu4x_plural_rules": ["--ecma402-icu4x-plural-rules"],
     # Google3 variant.
     "google3": [],
 }
@@ -378,7 +378,6 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     "single_generation": [
         "--shared-strings",
         "--shared-heap",
-        "--harmony-struct",
         "--wasm-shared",
     ],
     "!slow_dchecks": ["--enable-slow-asserts"],
@@ -390,7 +389,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     "verify_predictable": [
         "--parallel-compile-tasks-for-eager-toplevel",
         "--parallel-compile-tasks-for-lazy", "--concurrent-recompilation",
-        "--stress-concurrent-allocation", "--stress-concurrent-inlining"
+        "--stress-concurrent-allocation", "--stress-concurrent-inlining",
+        "--wasm-test-streaming"
     ],
     "dict_property_const_tracking": ["--stress-concurrent-inlining"],
 }

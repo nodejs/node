@@ -57,12 +57,14 @@ INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
 #undef TYPE_CHECKER
 
 DEF_HEAP_OBJECT_PREDICATE(IsDependentCode) { return IsWeakArrayList(obj); }
+DEF_HEAP_OBJECT_PREDICATE(IsDescriptorLookupTable) { return IsByteArray(obj); }
 DEF_HEAP_OBJECT_PREDICATE(IsSmiStringCache) { return IsFixedArray(obj); }
 
 DEF_CAST_TRAITS(ArrayList)
 DEF_CAST_TRAITS(ByteArray)
 DEF_CAST_TRAITS(ConsString)
 DEF_CAST_TRAITS(DependentCode)
+DEF_CAST_TRAITS(DescriptorLookupTable)
 DEF_CAST_TRAITS(DoubleStringCache)
 DEF_CAST_TRAITS(ExternalOneByteString)
 DEF_CAST_TRAITS(ExternalString)

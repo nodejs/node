@@ -1,0 +1,13 @@
+Tests ignition-debug-break.
+  try {
+    #g();                         // B1
+  } catch (e) {}
+
+  } catch (e) {}
+  var x = #break_count;           // B2
+  return 1;                      // B3
+
+  var x = break_count;           // B2
+  #return 1;                      // B3
+}
+

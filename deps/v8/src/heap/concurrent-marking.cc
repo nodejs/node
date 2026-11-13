@@ -11,8 +11,8 @@
 
 #include "include/v8config.h"
 #include "src/base/logging.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/base-page.h"
@@ -40,7 +40,6 @@
 #include "src/heap/mutable-page.h"
 #include "src/heap/object-lock.h"
 #include "src/heap/pending-allocations.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/heap/weak-object-worklists.h"
 #include "src/heap/young-generation-marking-visitor.h"
 #include "src/init/v8.h"
@@ -222,8 +221,6 @@ struct ConcurrentMarking::TaskState {
   MemoryChunkLiveBytesMap memory_chunk_live_bytes_map;
   MemoryChunkTypedSlotsMap memory_chunk_typed_slots_map;
   NativeContextStats native_context_stats;
-  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback{
-      PretenuringHandler::kInitialFeedbackCapacity};
 };
 
 class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
@@ -490,14 +487,10 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
         "Major task %d concurrently marked %dKB in %.2fms\n", task_id,
         static_cast<int>(marked_bytes / KB), time_ms);
   }
-
-  DCHECK(task_state->local_pretenuring_feedback.empty());
 }
 
-
 template <YoungGenerationMarkingVisitationMode marking_mode>
-V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
-                                                 TaskState* task_state) {
+V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate) {
   static constexpr size_t kBytesUntilInterruptCheck = 64 * KB;
   static constexpr int kObjectsUntilInterruptCheck = 1000;
   [[maybe_unused]] const bool is_joining_thread = delegate->IsJoiningThread();
@@ -507,8 +500,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
   YoungPendingAllocations* const young_pending_allocations =
       heap_->young_pending_allocations();
   YoungPendingAllocations::Snapshot young_pending_snapshot;
-  YoungGenerationMarkingVisitor<marking_mode> visitor(
-      heap_, &task_state->local_pretenuring_feedback, &young_pending_snapshot);
+  YoungGenerationMarkingVisitor<marking_mode> visitor(heap_);
   YoungGenerationRememberedSetsMarkingWorklist::Local remembered_sets(
       heap_->minor_mark_sweep_collector()->remembered_sets_marking_handler());
   auto& marking_worklists_local = visitor.marking_worklists_local();
@@ -569,7 +561,6 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
   DCHECK_NOT_NULL(heap_->new_lo_space());
   uint8_t task_id = delegate->GetTaskId() + 1;
   DCHECK_LT(task_id, task_state_.size());
-  TaskState* task_state = task_state_[task_id].get();
   double time_ms;
   size_t marked_bytes = 0;
   Isolate* isolate = heap_->isolate();
@@ -587,11 +578,11 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
       estimate_concurrency_.fetch_add(1, std::memory_order_relaxed);
       marked_bytes =
           RunMinorImpl<YoungGenerationMarkingVisitationMode::kParallel>(
-              delegate, task_state);
+              delegate);
     } else {
       marked_bytes =
           RunMinorImpl<YoungGenerationMarkingVisitationMode::kConcurrent>(
-              delegate, task_state);
+              delegate);
     }
   }
 
@@ -664,18 +655,9 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
       task_state->memory_chunk_live_bytes_map.AssertEmpty();
       DCHECK(task_state->memory_chunk_typed_slots_map.empty());
       DCHECK(task_state->native_context_stats.Empty());
-      DCHECK(task_state->local_pretenuring_feedback.empty());
       DCHECK_EQ(0, task_state->marked_bytes);
     }
     DCHECK_EQ(0, total_marked_bytes_.load());
-  }
-
-  if (garbage_collector == GarbageCollector::MARK_COMPACTOR) {
-    // The full GC never makes use of local_pretenuring_feedback. It needs to be
-    // empty even if resuming concurrent marking.
-    for (auto& task_state : task_state_) {
-      DCHECK(task_state->local_pretenuring_feedback.empty());
-    }
   }
 
   if (minor_marking_state_) {
@@ -768,15 +750,6 @@ void ConcurrentMarking::RescheduleJobIfNeeded(
             : "Minor concurrent marking rescheduled",
         perfetto::Flow::ProcessScoped(current_job_trace_id_.value()));
     job_handle_->NotifyConcurrencyIncrease();
-  }
-}
-
-void ConcurrentMarking::FlushPretenuringFeedback() {
-  PretenuringHandler* pretenuring_handler = heap_->pretenuring_handler();
-  for (auto& task_state : task_state_) {
-    pretenuring_handler->MergeAllocationSitePretenuringFeedback(
-        task_state->local_pretenuring_feedback);
-    task_state->local_pretenuring_feedback.clear();
   }
 }
 

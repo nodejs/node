@@ -118,6 +118,38 @@ bool wrapEvaluateResultAsync(InjectedScript* injectedScript,
   return false;
 }
 
+// Side-effect-free evaluation (`throwOnSideEffect`) does not run microtasks,
+// since awaiting a promise or assimilating an arbitrary thenable would run
+// user code outside of the side-effect check. Instead, only unwrap the result
+// if it is an already fulfilled `v8::Promise` (e.g. an `async` function or a
+// REPL mode script that completed synchronously), and report a possible side
+// effect otherwise.
+v8::MaybeLocal<v8::Value> unwrapPromiseForSideEffectFreeEvaluate(
+    InjectedScript::Scope& scope, v8::MaybeLocal<v8::Value> maybeResultValue,
+    bool replMode) {
+  v8::Local<v8::Value> value;
+  if (!maybeResultValue.ToLocal(&value) || !value->IsPromise() ||
+      value.As<v8::Promise>()->State() != v8::Promise::kFulfilled) {
+    v8::debug::ThrowSideEffectError(scope.context());
+    return v8::MaybeLocal<v8::Value>();
+  }
+  v8::Local<v8::Value> result = value.As<v8::Promise>()->Result();
+  if (replMode) {
+    v8::Isolate* isolate = scope.injectedScript()->context()->isolate();
+    v8::debug::SideEffectCheckScope sideEffectCheckScope(isolate);
+    v8::Local<v8::Object> object;
+    if (!result->ToObject(scope.context()).ToLocal(&object)) {
+      return v8::MaybeLocal<v8::Value>();
+    }
+    v8::Local<v8::String> dotReplResult =
+        toV8StringInternalized(isolate, ".repl_result");
+    if (!object->Get(scope.context(), dotReplResult).ToLocal(&result)) {
+      return v8::MaybeLocal<v8::Value>();
+    }
+  }
+  return result;
+}
+
 void innerCallFunctionOn(
     V8InspectorSessionImpl* session, InjectedScript::Scope& scope,
     v8::Local<v8::Value> recv, const String16& expression,
@@ -155,8 +187,10 @@ void innerCallFunctionOn(
   if (inspector
           ->compileScript(scope.context(), "(" + expression + ")", String16())
           .ToLocal(&functionScript)) {
-    v8::MicrotasksScope microtasksScope(scope.context(),
-                                        v8::MicrotasksScope::kRunMicrotasks);
+    v8::MicrotasksScope microtasksScope(
+        scope.context(), throwOnSideEffect
+                             ? v8::MicrotasksScope::kDoNotRunMicrotasks
+                             : v8::MicrotasksScope::kRunMicrotasks);
     maybeFunctionValue = functionScript->Run(scope.context());
   }
   // Re-initialize after running client's code, as it could have destroyed
@@ -185,8 +219,10 @@ void innerCallFunctionOn(
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
-    v8::MicrotasksScope microtasksScope(scope.context(),
-                                        v8::MicrotasksScope::kRunMicrotasks);
+    v8::MicrotasksScope microtasksScope(
+        scope.context(), throwOnSideEffect
+                             ? v8::MicrotasksScope::kDoNotRunMicrotasks
+                             : v8::MicrotasksScope::kRunMicrotasks);
     maybeResultValue = v8::debug::CallFunctionOn(
         scope.context(), functionValue.As<v8::Function>(), recv,
         v8::base::VectorOf(args), throwOnSideEffect);
@@ -199,6 +235,20 @@ void innerCallFunctionOn(
     return;
   }
 
+  if (awaitPromise && throwOnSideEffect && !scope.tryCatch().HasCaught()) {
+    // Keep reporting an internal error for an empty result without a caught
+    // exception (e.g. when the evaluation timed out).
+    if (maybeResultValue.IsEmpty()) {
+      callback->sendFailure(Response::InternalError());
+      return;
+    }
+    maybeResultValue = unwrapPromiseForSideEffectFreeEvaluate(
+        scope, maybeResultValue, false /* replMode */);
+    wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
+                            scope.tryCatch(), objectGroup, *wrapOptions,
+                            throwOnSideEffect, callback.get());
+    return;
+  }
   if (!awaitPromise || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
                             scope.tryCatch(), objectGroup, *wrapOptions,
@@ -206,9 +256,10 @@ void innerCallFunctionOn(
     return;
   }
 
+  DCHECK(!throwOnSideEffect);
   scope.injectedScript()->addPromiseCallback(
       session, maybeResultValue, objectGroup, std::move(wrapOptions),
-      false /* replMode */, throwOnSideEffect,
+      false /* replMode */,
       EvaluateCallbackWrapper<V8RuntimeAgentImpl::CallFunctionOnCallback>::wrap(
           std::move(callback)));
 }
@@ -411,8 +462,10 @@ void V8RuntimeAgentImpl::evaluate(
         return;
       }
     }
-    v8::MicrotasksScope microtasksScope(scope.context(),
-                                        v8::MicrotasksScope::kRunMicrotasks);
+    v8::MicrotasksScope microtasksScope(
+        scope.context(), throwOnSideEffect.value_or(false)
+                             ? v8::MicrotasksScope::kDoNotRunMicrotasks
+                             : v8::MicrotasksScope::kRunMicrotasks);
     v8::debug::EvaluateGlobalMode mode =
         v8::debug::EvaluateGlobalMode::kDefault;
     if (throwOnSideEffect.value_or(false)) {
@@ -445,6 +498,22 @@ void V8RuntimeAgentImpl::evaluate(
 
   // REPL mode always returns a promise that must be awaited.
   const bool await = replMode || maybeAwaitPromise.value_or(false);
+  if (await && throwOnSideEffect.value_or(false) &&
+      !scope.tryCatch().HasCaught()) {
+    // Keep reporting an internal error for an empty result without a caught
+    // exception (e.g. when the evaluation timed out).
+    if (maybeResultValue.IsEmpty()) {
+      callback->sendFailure(Response::InternalError());
+      return;
+    }
+    maybeResultValue = unwrapPromiseForSideEffectFreeEvaluate(
+        scope, maybeResultValue, replMode);
+    wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
+                            scope.tryCatch(), objectGroup.value_or(""),
+                            *wrapOptions, true /* throwOnSideEffect */,
+                            callback.get());
+    return;
+  }
   if (!await || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
                             scope.tryCatch(), objectGroup.value_or(""),
@@ -452,9 +521,10 @@ void V8RuntimeAgentImpl::evaluate(
                             callback.get());
     return;
   }
+  DCHECK(!throwOnSideEffect.value_or(false));
   scope.injectedScript()->addPromiseCallback(
       m_session, maybeResultValue, objectGroup.value_or(""),
-      std::move(wrapOptions), replMode, throwOnSideEffect.value_or(false),
+      std::move(wrapOptions), replMode,
       EvaluateCallbackWrapper<EvaluateCallback>::wrap(std::move(callback)));
 }
 
@@ -486,7 +556,6 @@ void V8RuntimeAgentImpl::awaitPromise(
   scope.injectedScript()->addPromiseCallback(
       m_session, scope.object(), scope.objectGroupName(),
       std::move(wrapOptions), false /* replMode */,
-      false /* throwOnSideEffect */,
       EvaluateCallbackWrapper<AwaitPromiseCallback>::wrap(std::move(callback)));
 }
 
@@ -652,9 +721,6 @@ Response V8RuntimeAgentImpl::runIfWaitingForDebugger() {
     m_debuggerBarrier.reset();
     return Response::Success();
   }
-  // TODO(chromium:1352175): the below is provisional until client-side changes
-  // land. The call should come through the barrier only once client properly
-  // communicates whether the session is waiting for debugger.
   m_inspector->client()->runIfWaitingForDebugger(m_session->contextGroupId());
   return Response::Success();
 }
@@ -812,7 +878,6 @@ void V8RuntimeAgentImpl::runScript(
   scope.injectedScript()->addPromiseCallback(
       m_session, maybeResultValue.ToLocalChecked(), objectGroup.value_or(""),
       std::move(wrapOptions), false /* replMode */,
-      false /* throwOnSideEffect */,
       EvaluateCallbackWrapper<RunScriptCallback>::wrap(std::move(callback)));
 }
 
@@ -856,6 +921,10 @@ Response V8RuntimeAgentImpl::globalLexicalScopeNames(
 }
 
 Response V8RuntimeAgentImpl::getIsolateId(String16* outIsolateId) {
+  if (m_session->clientTrustLevel() != V8Inspector::kFullyTrusted) {
+    return Response::ServerError(
+        "Runtime.getIsolateId is not allowed for untrusted clients");
+  }
   char buf[40];
   std::snprintf(buf, sizeof(buf), "%" PRIx64, m_inspector->isolateId());
   *outIsolateId = buf;
@@ -866,6 +935,10 @@ Response V8RuntimeAgentImpl::getHeapUsage(double* out_usedSize,
                                           double* out_totalSize,
                                           double* out_embedderHeapUsedSize,
                                           double* out_backingStorageSize) {
+  if (m_session->clientTrustLevel() != V8Inspector::kFullyTrusted) {
+    return Response::ServerError(
+        "Runtime.getHeapUsage is not allowed for untrusted clients");
+  }
   v8::HeapStatistics stats;
   m_inspector->isolate()->GetHeapStatistics(&stats);
   *out_usedSize = stats.used_heap_size();

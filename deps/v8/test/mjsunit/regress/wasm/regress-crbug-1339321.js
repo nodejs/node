@@ -5,6 +5,7 @@
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let builder = new WasmModuleBuilder();
+let loop_type = builder.addType(makeSig([kWasmAnyRef], []));
 builder.addFunction("leak", kSig_l_v)
   .exportFunc()
   .addLocals(kWasmI64, 10)
@@ -15,7 +16,9 @@ builder.addFunction("leak", kSig_l_v)
     kExprLocalGet, 0,
     kExprLocalGet, 0,
     kExprBlock, kWasmVoid,
-      kExprLoop, kWasmVoid,
+      kExprRefNull, kAnyRefCode,
+      kExprLoop, loop_type,
+        kExprDrop,
         kExprRefNull, kAnyRefCode,
         kExprBrOnNonNull, 0,
         kExprBr, 1,
@@ -27,7 +30,6 @@ builder.addFunction("leak", kSig_l_v)
     kExprDrop,
   ]);
 
-let loop_type = builder.addType(makeSig([kWasmAnyRef], []));
 builder.addFunction("crash", kSig_v_v).exportFunc().addBody([
   kExprRefNull, kAnyRefCode,
   kExprLoop, loop_type,

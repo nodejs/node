@@ -7,6 +7,7 @@
 #include "src/heap/factory.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/objects-inl.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -62,17 +63,17 @@ TEST_F(FeedbackVectorTest, VectorStructure) {
     FeedbackVectorHelper helper(vector);
     CHECK_EQ(8, helper.slot_count());
 
-    int index = vector->GetIndex(helper.slot(0));
+    int index = FeedbackVector::GetIndex(helper.slot(0));
 
-    CHECK_EQ(helper.slot(0), vector->ToSlot(index));
+    CHECK_EQ(helper.slot(0), FeedbackVector::ToSlot(index));
 
-    index = vector->GetIndex(helper.slot(3));
-    CHECK_EQ(helper.slot(3), vector->ToSlot(index));
+    index = FeedbackVector::GetIndex(helper.slot(3));
+    CHECK_EQ(helper.slot(3), FeedbackVector::ToSlot(index));
 
-    index = vector->GetIndex(helper.slot(7));
+    index = FeedbackVector::GetIndex(helper.slot(7));
     CHECK_EQ(3 + 4 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
              index);
-    CHECK_EQ(helper.slot(7), vector->ToSlot(index));
+    CHECK_EQ(helper.slot(7), FeedbackVector::ToSlot(index));
 
     CHECK_EQ(3 + 5 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
              vector->length().value());
@@ -145,7 +146,7 @@ TEST_F(FeedbackVectorTest, VectorICMetadata) {
 
 TEST_F(FeedbackVectorTest, VectorCallICStates) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -173,7 +174,7 @@ TEST_F(FeedbackVectorTest, VectorCallICStates) {
 // Test the Call IC states transfer with Function.prototype.apply
 TEST_F(FeedbackVectorTest, VectorCallICStateApply) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -212,7 +213,7 @@ TEST_F(FeedbackVectorTest, VectorCallICStateApply) {
 
 TEST_F(FeedbackVectorTest, VectorCallFeedback) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -241,8 +242,8 @@ TEST_F(FeedbackVectorTest, VectorCallFeedback) {
 
 TEST_F(FeedbackVectorTest, VectorPolymorphicCallFeedback) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.lazy_feedback_allocation = false;
+  v8_flags.allow_natives_syntax.Set(true);
+  v8_flags.lazy_feedback_allocation.Set(false);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -271,7 +272,7 @@ TEST_F(FeedbackVectorTest, VectorPolymorphicCallFeedback) {
 
 TEST_F(FeedbackVectorTest, VectorCallFeedbackForArray) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -299,7 +300,7 @@ TEST_F(FeedbackVectorTest, VectorCallFeedbackForArray) {
 
 TEST_F(FeedbackVectorTest, VectorCallCounts) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -329,7 +330,7 @@ TEST_F(FeedbackVectorTest, VectorCallCounts) {
 
 TEST_F(FeedbackVectorTest, VectorConstructCounts) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -361,7 +362,7 @@ TEST_F(FeedbackVectorTest, VectorConstructCounts) {
 
 TEST_F(FeedbackVectorTest, VectorSpeculationMode) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -396,7 +397,7 @@ TEST_F(FeedbackVectorTest, VectorCallSpeculationModeAndFeedbackContent) {
   if (!i::v8_flags.use_ic) return;
   if (!i::v8_flags.turbofan) return;
   if (i::v8_flags.jitless) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -428,7 +429,7 @@ TEST_F(FeedbackVectorTest, VectorCallSpeculationModeAndFeedbackContent) {
 
 TEST_F(FeedbackVectorTest, VectorLoadICStates) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -480,7 +481,7 @@ TEST_F(FeedbackVectorTest, VectorLoadICStates) {
 
 TEST_F(FeedbackVectorTest, VectorLoadGlobalICSlotSharing) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -523,7 +524,7 @@ TEST_F(FeedbackVectorTest, VectorLoadGlobalICSlotSharing) {
 
 TEST_F(FeedbackVectorTest, VectorLoadICOnSmi) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -579,7 +580,7 @@ TEST_F(FeedbackVectorTest, VectorLoadICOnSmi) {
 
 TEST_F(FeedbackVectorTest, ReferenceContextAllocatesNoSlots) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -722,7 +723,7 @@ TEST_F(FeedbackVectorTest, ReferenceContextAllocatesNoSlots) {
 
 TEST_F(FeedbackVectorTest, VectorStoreICBasic) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
 
@@ -745,9 +746,9 @@ TEST_F(FeedbackVectorTest, VectorStoreICBasic) {
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
 
-TEST_F(FeedbackVectorTest, DefineNamedOwnIC) {
+TEST_F(FeedbackVectorTest, DefineNamedOwnInLiteralIC) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
 
@@ -770,6 +771,35 @@ TEST_F(FeedbackVectorTest, DefineNamedOwnIC) {
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
 
+TEST_F(FeedbackVectorTest, DefineNamedOwnIC) {
+  if (!i::v8_flags.use_ic) return;
+  v8_flags.lazy_feedback_allocation.Set(false);
+
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
+
+  TryRunJS(
+      "var C = class {"
+      "  a = 1;"
+      "};"
+      "new C();"
+      "new C();"
+      "new C();");
+  DirectHandle<JSFunction> c = GetFunction("C");
+  DirectHandle<JSFunction> initializer = Cast<JSFunction>(
+      JSReceiver::GetProperty(isolate, c,
+                              isolate->factory()->class_fields_symbol())
+          .ToHandleChecked());
+  // There should be one IC slot in the instance members initializer.
+  Handle<FeedbackVector> feedback_vector(initializer->feedback_vector(),
+                                         isolate);
+  FeedbackVectorHelper helper(feedback_vector);
+  CHECK_EQ(1, helper.slot_count());
+  CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kDefineNamedOwn);
+  FeedbackNexus nexus(isolate, feedback_vector, helper.slot(0));
+  CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
+}
+
 TEST_F(FeedbackVectorTest, MaxLengthAndSizeFor) {
   static_assert(FeedbackVector::SizeFor(0) == FeedbackVector::kHeaderSize);
   static_assert(FeedbackVector::SizeFor(10) ==
@@ -789,6 +819,190 @@ TEST_F(FeedbackVectorTest, MaxLengthAndSizeFor) {
   ASSERT_DEATH_IF_SUPPORTED(
       { FeedbackVector::SizeFor(FeedbackVector::kMaxLength + 1); }, ".*");
   ASSERT_DEATH_IF_SUPPORTED({ FeedbackVector::SizeFor(1 << 30); }, ".*");
+}
+
+TEST_F(FeedbackVectorTest, CopyFunctionWithFreshFeedback) {
+  if (!i::v8_flags.use_ic) return;
+  v8_flags.allow_natives_syntax.Set(true);
+  v8::HandleScope scope(v8_isolate());
+
+  // Positive: fresh SFI, valid Script::infos invariant, and clean feedback.
+  TryRunJS(
+      "var global_x = 10;"
+      "function orig(o) {"
+      "  let local_captured = 1;"
+      "  const inner = () => local_captured;"
+      "  return o.a + global_x + inner();"
+      "}"
+      "%EnsureFeedbackVectorForFunction(orig);"
+      "orig({a: 5});"
+      "var copied = %CopyFunctionWithFreshFeedback(orig);"
+      "%EnsureFeedbackVectorForFunction(copied);");
+  DirectHandle<JSFunction> orig = GetFunction("orig");
+  DirectHandle<JSFunction> copied = GetFunction("copied");
+  CHECK_NE(*orig, *copied);
+  CHECK_NE(orig->shared(), copied->shared());
+  Tagged<Script> copied_script = Cast<Script>(copied->shared()->script());
+  CHECK_EQ(copied_script->infos()->get(
+               copied->shared()->function_literal_id(kRelaxedLoad)),
+           MakeWeak(copied->shared()));
+
+  Handle<FeedbackVector> orig_fv(orig->feedback_vector(), i_isolate());
+  Handle<FeedbackVector> copied_fv(copied->feedback_vector(), i_isolate());
+  FeedbackVectorHelper orig_helper(orig_fv);
+  FeedbackVectorHelper copied_helper(copied_fv);
+  CHECK_EQ(orig_helper.slot_count(), copied_helper.slot_count());
+  FeedbackNexus orig_load(i_isolate(), orig_fv, orig_helper.slot(0));
+  FeedbackNexus copied_load(i_isolate(), copied_fv, copied_helper.slot(0));
+  CHECK_EQ(InlineCacheState::MONOMORPHIC, orig_load.ic_state());
+  CHECK_EQ(InlineCacheState::UNINITIALIZED, copied_load.ic_state());
+
+  // Negative cases: outer ScriptContext, outer FunctionContext (both direct
+  // and from inside a local BlockContext), lazy inner closure capturing an
+  // outer context variable, outer class private field, and class constructors.
+  TryRunJS(
+      "let script_let = 1;"
+      "const script_const = 2;"
+      "function readsScriptLet() { return script_let; }"
+      "function writesScriptLet() { script_let = 3; }"
+      "function readsScriptConst() { return script_const; }"
+      "function lazyInnerReadsScriptLet() {"
+      "  function inner() { return script_let; }"
+      "  return inner;"
+      "}"
+      "function makeOuterFunctionClosures(x) {"
+      "  return ["
+      "    function directOuter() { return x; },"
+      "    function outerUnderLocalBlock() {"
+      "      let local = 1;"
+      "      const keep = () => local;"
+      "      return keep() + x;"
+      "    },"
+      "    function lazyInnerOuter() {"
+      "      return () => x;"
+      "    }"
+      "  ];"
+      "}"
+      "var [directOuter, outerUnderLocalBlock, lazyInnerOuter] ="
+      "    makeOuterFunctionClosures(42);"
+      "class OuterWithPrivate {"
+      "  #secret = 7;"
+      "  static makeReader() { return (o) => o.#secret; }"
+      "  static makeWriter() { return (o, v) => { o.#secret = v; }; }"
+      "}"
+      "var outerPrivateReader = OuterWithPrivate.makeReader();"
+      "var outerPrivateWriter = OuterWithPrivate.makeWriter();"
+      "function makeWithCall(g) {"
+      "  return function withLookupCall(o) {"
+      "    with (o) { return g(); }"
+      "  };"
+      "}"
+      "var withLookupCall = makeWithCall(() => 1);"
+      "function makeWithVar(x) {"
+      "  return function withLookupVar(o) {"
+      "    with (o) { return x; }"
+      "  };"
+      "}"
+      "var withLookupVar = makeWithVar(7);"
+      "function makeSloppyEvalOuter(x) {"
+      "  return function sloppyEvalOuter(s) {"
+      "    eval(s);"
+      "    return x;"
+      "  };"
+      "}"
+      "var sloppyEvalOuter = makeSloppyEvalOuter(9);"
+      "class BaseForSuper { f() { return 1; } }"
+      "class DerivedForSuper extends BaseForSuper {"
+      "  makeArrow() { return () => super.f(); }"
+      "}"
+      "var arrowSuper = new DerivedForSuper().makeArrow();"
+      "var arrowThis = ({ m() { return () => this; } }).m();"
+      "function makeArrowArguments() { return () => arguments; }"
+      "var arrowArguments = makeArrowArguments(1);"
+      "var protoAssignOuter = (() => {"
+      "  let captured = 42;"
+      "  return function protoAssignOuter() {"
+      "    function F() {}"
+      "    F.prototype.a = () => captured;"
+      "    F.prototype.b = () => 1;"
+      "    return F;"
+      "  };"
+      "})();"
+      "function scriptSloppyEvalGlobal() {"
+      "  eval('');"
+      "  return some_global;"
+      "}"
+      "function scriptSloppyEvalTypeof() {"
+      "  eval('');"
+      "  return typeof some_global;"
+      "}"
+      "class SomeClass {}");
+
+  // Keep representative death tests for the distinct rejection paths; cover
+  // remaining negative variants cheaply under --fuzzing below.
+  ASSERT_DEATH_IF_SUPPORTED(
+      { TryRunJS("%CopyFunctionWithFreshFeedback(readsScriptLet);"); },
+      "has_no_outer_context_access");
+  ASSERT_DEATH_IF_SUPPORTED(
+      { TryRunJS("%CopyFunctionWithFreshFeedback(directOuter);"); },
+      "has_no_outer_context_access");
+  ASSERT_DEATH_IF_SUPPORTED(
+      { TryRunJS("%CopyFunctionWithFreshFeedback(protoAssignOuter);"); },
+      "has_no_outer_context_access");
+  ASSERT_DEATH_IF_SUPPORTED(
+      { TryRunJS("%CopyFunctionWithFreshFeedback(withLookupCall);"); },
+      "has_no_outer_context_access");
+  ASSERT_DEATH_IF_SUPPORTED(
+      { TryRunJS("%CopyFunctionWithFreshFeedback(SomeClass);"); },
+      "BindsSuper");
+
+  // Under --fuzzing, invalid calls return undefined cleanly without crashing.
+  FlagScope<bool> fuzzing_scope(&v8_flags.fuzzing, true);
+  for (const char* expr : {
+           "%CopyFunctionWithFreshFeedback(readsScriptLet);",
+           "%CopyFunctionWithFreshFeedback(writesScriptLet);",
+           "%CopyFunctionWithFreshFeedback(readsScriptConst);",
+           "%CopyFunctionWithFreshFeedback(lazyInnerReadsScriptLet);",
+           "%CopyFunctionWithFreshFeedback(directOuter);",
+           "%CopyFunctionWithFreshFeedback(outerUnderLocalBlock);",
+           "%CopyFunctionWithFreshFeedback(lazyInnerOuter);",
+           "%CopyFunctionWithFreshFeedback(outerPrivateReader);",
+           "%CopyFunctionWithFreshFeedback(outerPrivateWriter);",
+           "%CopyFunctionWithFreshFeedback(protoAssignOuter);",
+           "%CopyFunctionWithFreshFeedback(withLookupCall);",
+           "%CopyFunctionWithFreshFeedback(withLookupVar);",
+           "%CopyFunctionWithFreshFeedback(sloppyEvalOuter);",
+           "%CopyFunctionWithFreshFeedback(scriptSloppyEvalGlobal);",
+           "%CopyFunctionWithFreshFeedback(scriptSloppyEvalTypeof);",
+           "%CopyFunctionWithFreshFeedback(arrowSuper);",
+           "%CopyFunctionWithFreshFeedback(arrowThis);",
+           "%CopyFunctionWithFreshFeedback(arrowArguments);",
+           "%CopyFunctionWithFreshFeedback(SomeClass);",
+           "%CopyFunctionWithFreshFeedback(123);",
+       }) {
+    CHECK(IsUndefined(*v8::Utils::OpenDirectHandle(*RunJS(expr))));
+  }
+
+  // Module import.meta must also be rejected cleanly under --fuzzing.
+  {
+    v8::ScriptOrigin origin(NewString("module.mjs"), 0, 0, false, -1,
+                            v8::Local<v8::Value>(), false, false, true);
+    v8::ScriptCompiler::Source module_source(
+        NewString("globalThis.importMetaFn = () => import.meta;"), origin);
+    v8::Local<v8::Module> module =
+        v8::ScriptCompiler::CompileModule(v8_isolate(), &module_source)
+            .ToLocalChecked();
+    CHECK(module
+              ->InstantiateModule(
+                  v8_context(),
+                  [](v8::Local<v8::Context>, v8::Local<v8::String>,
+                     v8::Local<v8::FixedArray>, v8::Local<v8::Module>)
+                      -> v8::MaybeLocal<v8::Module> { UNREACHABLE(); })
+              .FromJust());
+    USE(module->Evaluate(v8_context()));
+    CHECK(IsUndefined(*v8::Utils::OpenDirectHandle(
+        *RunJS("%CopyFunctionWithFreshFeedback(importMetaFn);"))));
+  }
 }
 
 }  // namespace internal

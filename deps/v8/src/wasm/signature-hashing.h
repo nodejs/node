@@ -116,7 +116,9 @@ void IterateSignatureImpl(const SigType* sig, bool extra_callable_param,
       locations.AddReturnAt(i, rets.Next(ret));
     }
   }
-  if (total_return_slots) *total_return_slots = rets.NumStackSlots();
+  if (total_return_slots) {
+    *total_return_slots = AddArgumentPaddingSlots(rets.NumStackSlots());
+  }
 }
 
 #if V8_ENABLE_SANDBOX

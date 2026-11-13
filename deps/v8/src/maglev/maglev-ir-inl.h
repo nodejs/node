@@ -95,8 +95,10 @@ CallKnownJSFunction::CallKnownJSFunction(
     uint64_t bitfield, JSDispatchHandle dispatch_handle,
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
     ValueNode* context, ValueNode* receiver, ValueNode* new_target,
-    const compiler::FeedbackSource& feedback_source)
-    : Base(bitfield),
+    const compiler::FeedbackSource& feedback_source,
+    bool can_inline_js_to_wasm_wrapper)
+    : Base(CanInlineJSToWasmWrapperField::update(
+          bitfield, can_inline_js_to_wasm_wrapper)),
       dispatch_handle_(dispatch_handle),
       shared_function_info_(shared_function_info),
       expected_parameter_count_(

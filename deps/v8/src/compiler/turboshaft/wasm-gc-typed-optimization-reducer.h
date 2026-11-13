@@ -87,8 +87,10 @@ class WasmGCTypeAnalyzer {
   void ProcessParameter(const ParameterOp& parameter);
   void ProcessStructGet(const StructGetOp& struct_get);
   void ProcessStructSet(const StructSetOp& struct_set);
+  void ProcessStructAtomicRMW(const StructAtomicRMWOp& struct_atomic_rmw);
   void ProcessArrayGet(const ArrayGetOp& array_get);
   void ProcessArrayLength(const ArrayLengthOp& array_length);
+  void ProcessArrayAtomicRMW(const ArrayAtomicRMWOp& array_atomic_rmw);
   void ProcessGlobalGet(const GlobalGetOp& global_get);
   void ProcessRefFunc(const WasmRefFuncOp& ref_func);
   void ProcessAllocateArray(const WasmAllocateArrayOp& allocate_array);
@@ -359,6 +361,10 @@ class WasmGCTypedOptimizationReducer : public Next {
           // The inferred type is guaranteed to be a subtype of the checked
           // type.
           return __ Word32Constant(1);
+        } else if (type.is_none_type()) {
+          // The value is known to be null, and {to_nullable} is false here, so
+          // the type check always fails.
+          return __ Word32Constant(0);
         } else {
           // The inferred type is guaranteed to be a subtype of the checked
           // type if it is not null.
@@ -534,7 +540,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (array_length.null_check == kWithNullCheck && type.is_non_nullable()) {
       return __ ArrayLength(__ MapToNewGraph(array_length.array()),
                             __ MapToNewGraph(array_length.frame_state()),
-                            kWithoutNullCheck);
+                            kWithoutNullCheck, array_length.shared_base);
     }
     goto no_change;
   }

@@ -214,9 +214,11 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
     // is less than 1MB, which isn't going to amount for much in a function
     // that is probably very large if it managed to reach this limit.
     constexpr uint32_t kMaxAllowedMergeStateSize = 100'000;
-    bool can_create =
-        __ input_graph().max_merge_pred_count() * (variable_count_ + n) <
-        kMaxAllowedMergeStateSize;
+    uint32_t max_merge_pred_count =
+        std::max(__ input_graph().max_merge_pred_count(),
+                 __ output_graph().max_merge_pred_count());
+    bool can_create = max_merge_pred_count * (variable_count_ + n) <
+                      kMaxAllowedMergeStateSize;
     if (!can_create) too_many_variables_bailouts_count_++;
     return can_create;
   }

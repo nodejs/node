@@ -1,0 +1,10 @@
+Tests stepping into Promise constructor resolver.
+Paused at: debugger;
+Paused at: var p = new Promise(resolver);
+Paused at: print(1);
+Paused at: print(2);
+Paused at: print(3);
+Paused at: resolve();
+Paused at: }
+Paused at: var done = true;
+Total breaks: 8

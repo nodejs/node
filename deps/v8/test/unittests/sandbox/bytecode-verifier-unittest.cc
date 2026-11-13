@@ -714,7 +714,7 @@ INSTANTIATE_TEST_SUITE_P(BytecodeVerifierTest,
                          BytecodeVerifierForbiddenRuntimeFunctionTest,
                          ::testing::Values(
 #if V8_ENABLE_WEBASSEMBLY
-                             Runtime::kTrapHandlerThrowWasmError,
+                             Runtime::kThrowWasmError,
                              Runtime::kWasmAllocateFeedbackVector,
 #endif
                              Runtime::kLoadLookupSlotForCall_Baseline));
@@ -864,6 +864,156 @@ TEST_F(BytecodeVerifierTest, SpecialRegistersAreNegative) {
   EXPECT_LT(interpreter::Register::feedback_vector().index(), 0);
   EXPECT_LT(interpreter::Register::virtual_accumulator().index(), 0);
   EXPECT_LT(interpreter::Register::argument_count().index(), 0);
+}
+
+TEST_F(BytecodeVerifierTest, RegisterListInParameterRegisters) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  uint8_t param0_operand = static_cast<uint8_t>(
+      interpreter::Register::FromParameterIndex(0).ToOperand());
+  uint8_t param2_operand = static_cast<uint8_t>(
+      interpreter::Register::FromParameterIndex(2).ToOperand());
+  uint8_t reg0_operand =
+      static_cast<uint8_t>(interpreter::Register(0).ToOperand());
+  uint16_t runtime_id = static_cast<uint16_t>(Runtime::kIsSmi);
+
+  // 1. Output register triple (kForInPrepare) in parameter registers fails.
+  {
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kForInPrepare),
+        param2_operand, 0,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/3);
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Register list cannot use parameter registers");
+  }
+
+  // 2. Output register list (kResumeGenerator) in parameter registers fails
+  // even with count == 1.
+  {
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kResumeGenerator),
+        reg0_operand, param0_operand, 1,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/3);
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Register list cannot use parameter registers");
+  }
+
+  // 3. Input register list (kCallRuntime) with count > 1 in parameter registers
+  // fails.
+  {
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kCallRuntime),
+        static_cast<uint8_t>(runtime_id & 0xFF),
+        static_cast<uint8_t>((runtime_id >> 8) & 0xFF),
+        param2_operand,
+        2,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/3);
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Register list cannot use parameter registers");
+  }
+
+  // 4. Input register list (kCallRuntime) with count == 1 in parameter
+  // registers succeeds.
+  {
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kCallRuntime),
+        static_cast<uint8_t>(runtime_id & 0xFF),
+        static_cast<uint8_t>((runtime_id >> 8) & 0xFF),
+        param0_operand,
+        1,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/3);
+    VerifyFull(isolate, bc);
+  }
+
+  // 5. Empty register list with non-zero start register fails.
+  {
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kCallRuntime),
+        static_cast<uint8_t>(runtime_id & 0xFF),
+        static_cast<uint8_t>((runtime_id >> 8) & 0xFF),
+        param0_operand,
+        0,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/3);
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Invalid empty register list");
+  }
+}
+
+TEST_F(BytecodeVerifierTest, GeneratorRegisterInParameterRegisters) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(1);
+  constant_pool->set(0, Smi::FromInt(5));
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  uint8_t param0_operand = static_cast<uint8_t>(
+      interpreter::Register::FromParameterIndex(0).ToOperand());
+  uint8_t context_operand = static_cast<uint8_t>(
+      interpreter::Register::current_context().ToOperand());
+  uint8_t reg0_operand =
+      static_cast<uint8_t>(interpreter::Register(0).ToOperand());
+
+  // 1. kSuspendGenerator with parameter generator register fails.
+  {
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kSuspendGenerator),
+        param0_operand,
+        reg0_operand,
+        1,
+        0,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/3);
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Generator register cannot be a parameter");
+  }
+
+  // 2. kResumeGenerator with parameter generator register fails.
+  {
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kResumeGenerator),
+        context_operand, reg0_operand, 1,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/3);
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Generator register cannot be a parameter");
+  }
+
+  // 3. kSwitchOnGeneratorState with parameter generator register fails.
+  {
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kSwitchOnGeneratorState),
+        param0_operand, 0, 1,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/3);
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Generator register cannot be a parameter");
+  }
 }
 
 }  // namespace internal

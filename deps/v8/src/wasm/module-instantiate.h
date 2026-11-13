@@ -41,22 +41,30 @@ struct WasmModule;
 // type of the target function/callable and whether the signature matches the
 // argument arity.
 enum class ImportCallKind : uint8_t {
-  kLinkError,         // static Wasm->Wasm type error
-  kRuntimeTypeError,  // runtime Wasm->JS type error
-  kWasmToCapi,        // fast Wasm->C-API call
-  kWasmToJSFastApi,   // fast Wasm->JS Fast API C call
-  kWasmToWasm,        // fast Wasm->Wasm call
-  kJSFunction,        // fast Wasm->JS call
+  kLinkError,             // static Wasm->Wasm type error
+  kRuntimeTypeError,      // runtime Wasm->JS type error
+  kWasmToCapi,            // fast Wasm->C-API call
+  kWasmToJSFastApi,       // fast Wasm->JS Fast API C call
+  kWasmToWasm,            // fast Wasm->Wasm call
+  kReexportedJSFunction,  // Wasm->JS call reusing an existing wrapper
+  // Fast Wasm->JS calls to a JSFunction, specialized on the receiver:
+  kJSFunctionUndefinedReceiver,   // strict or native: undefined
+  kJSFunctionSameRealmReceiver,   // sloppy: importing realm's global proxy
+  kJSFunctionCrossRealmReceiver,  // sloppy: callee realm's global proxy
   // For everything else, there's the call builtin.
   kUseCallBuiltin
 };
+
+constexpr bool IsJSFunctionKind(ImportCallKind kind) {
+  return kind == ImportCallKind::kJSFunctionUndefinedReceiver ||
+         kind == ImportCallKind::kJSFunctionSameRealmReceiver ||
+         kind == ImportCallKind::kJSFunctionCrossRealmReceiver;
+}
 
 enum PrecreateExternal : bool {
   kOnlyInternalFunction = false,
   kPrecreateExternal = true,
 };
-
-constexpr ImportCallKind kDefaultImportCallKind = ImportCallKind::kJSFunction;
 
 // Resolves which import call wrapper is required for the given JS callable.
 // Provides the kind of wrapper needed, the ultimate target callable, and the
@@ -101,7 +109,8 @@ class ResolvedWasmImport {
 MaybeDirectHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Isolate* isolate, ErrorThrower* thrower,
     DirectHandle<WasmModuleObject> module_object,
-    MaybeDirectHandle<JSReceiver> imports);
+    MaybeDirectHandle<JSReceiver> imports,
+    MaybeDirectHandle<Map> maybe_instance_map);
 
 // Initializes a segment at index {segment_index} of the segment array of
 // {instance}. If successful, returns the empty {Optional}, otherwise an
@@ -124,7 +133,7 @@ V8_EXPORT_PRIVATE void CreateMapForType(
 struct WrapperCompilationInfo {
   CodeKind code_kind;
   // For wasm-js wrappers only:
-  wasm::ImportCallKind import_kind = kDefaultImportCallKind;
+  wasm::ImportCallKind import_kind = ImportCallKind::kLinkError;
   int expected_arity = 0;
   wasm::Suspend suspend = kNoSuspend;
 };

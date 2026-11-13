@@ -54,6 +54,3 @@ assertTrue(%HasObjectElements(second_object_array));
 assertFalse(%HasSmiElements(second_object_array));
 assertTrue(%HaveSameMap(first_object_array, second_object_array));
 assertFalse(%HaveSameMap(first_smi_array, second_object_array));
-
-%ClearFunctionFeedback(Loader);
-%ClearFunctionFeedback(Migrator);

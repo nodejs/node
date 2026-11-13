@@ -48,20 +48,18 @@ function access(value_track, value_break, deopt) {
 
 function test(value_track, value_break) {
   var deopt = { deopt:false };
+  var access_fn = copyFunctionWithFreshFeedback(access);
 
   // Warm-up field tracking to a certain representation.
-  %PrepareFunctionForOptimization(access);
-  access(value_track, value_track(), deopt);
-  access(value_track, value_track(), deopt);
-  %OptimizeFunctionOnNextCall(access);
-  access(value_track, value_track(), deopt);
+  %PrepareFunctionForOptimization(access_fn);
+  access_fn(value_track, value_track(), deopt);
+  access_fn(value_track, value_track(), deopt);
+  %OptimizeFunctionOnNextCall(access_fn);
+  access_fn(value_track, value_track(), deopt);
 
   // Deoptimize on a run with a different representation.
   delete deopt.deopt;
-  access(value_track, value_break(), deopt);
-
-  // Clear type feedback of the access function for next run.
-  %ClearFunctionFeedback(access);
+  access_fn(value_track, value_break(), deopt);
 
   // Also make sure the initial map of the constructor is reset.
   constructor.prototype = {};

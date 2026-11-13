@@ -14,14 +14,14 @@ function divide_one(n) {
   return n / 1.0;
 }
 
-for (let fun of [subtract_zero, multiply_one, divide_one]) {
+for (let fn_template of [subtract_zero, multiply_one, divide_one]) {
   for (let [special_value, expected_output] of [[undefined, NaN],
                                                 ["abcd", NaN],
                                                 ["0", 0],
                                                 [{}, NaN],
                                                 [true, 1],
                                                 [false, 0]]) {
-    %ClearFunctionFeedback(fun);
+    const fun = copyFunctionWithFreshFeedback(fn_template);
     %PrepareFunctionForOptimization(fun);
     assertEquals(3.5, fun(3.5));
 
@@ -38,7 +38,7 @@ for (let fun of [subtract_zero, multiply_one, divide_one]) {
 }
 
 // Add leads to different special values than sub/mul/div.
-function add_minus_zero(n) {
+function add_minus_zero_template(n) {
   return n + -0.0;
 }
 for (let [special_value, expected_output] of [[undefined, NaN],
@@ -47,7 +47,7 @@ for (let [special_value, expected_output] of [[undefined, NaN],
                                               [{}, "[object Object]0"],
                                               [true, 1],
                                               [false, 0]]) {
-  %ClearFunctionFeedback(add_minus_zero);
+  const add_minus_zero = copyFunctionWithFreshFeedback(add_minus_zero_template);
   %PrepareFunctionForOptimization(add_minus_zero);
   assertEquals(3.5, add_minus_zero(3.5));
 

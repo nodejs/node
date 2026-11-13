@@ -1,0 +1,24 @@
+Tests termination handling during async module rejection and promise rejection.
+
+Running test: setUp
+
+Running test: testAsyncModuleParentChainTermination
+chain exceptionThrown #1: Uncaught chain-boom
+chain exceptions after termination: 1
+chain exceptionThrown #2: Uncaught chain-boom
+
+Running test: testAsyncModuleSiblingParentsTermination
+diamond exceptionThrown #1: Uncaught diamond-boom
+diamond exceptions after termination: 1
+diamond exceptionThrown #2: Uncaught diamond-boom
+
+Running test: testImportDeferModuleTermination
+ran after defer sync eval: false
+ran after defer errored leaf: false
+
+Running test: testPromiseRejectTermination
+ran after Promise.reject: false
+ran after reject callback: false
+ran after Promise.resolve then getter: false
+ran after AsyncDisposableStack.disposeAsync: false
+ran after AsyncDisposeFromSyncDispose: false

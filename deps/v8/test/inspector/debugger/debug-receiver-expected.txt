@@ -1,0 +1,27 @@
+Tests that debugger correctly reflects receiver in strict and non-strict functions.
+Strict tests:
+Testing: Strict.call(undefined)
+{"type":"undefined"}
+Testing: Strict.call(null)
+{"type":"object","subtype":"null","value":null}
+Testing: Strict.call(1)
+{"type":"number","value":1,"description":"1"}
+Testing: Strict.call(1.2)
+{"type":"number","value":1.2,"description":"1.2"}
+Testing: Strict.call('asdf')
+{"type":"string","value":"asdf"}
+Testing: Strict.call(true)
+{"type":"boolean","value":true}
+Non-strict tests:
+Testing: NonStrict.call(undefined)
+{"type":"object","className":"global","description":"global"}
+Testing: NonStrict.call(null)
+{"type":"object","className":"global","description":"global"}
+Testing: NonStrict.call(1)
+{"type":"object","className":"Number","description":"Number"}
+Testing: NonStrict.call(1.2)
+{"type":"object","className":"Number","description":"Number"}
+Testing: NonStrict.call('asdf')
+{"type":"object","className":"String","description":"String"}
+Testing: NonStrict.call(true)
+{"type":"object","className":"Boolean","description":"Boolean"}

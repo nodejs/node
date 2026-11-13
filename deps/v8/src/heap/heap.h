@@ -39,8 +39,8 @@
 #include "src/heap/gc-callbacks.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/marking-state.h"
+#include "src/heap/memory-reducer.h"
 #include "src/heap/minor-gc-job.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/heap/sweeper.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/allocation-site.h"
@@ -69,6 +69,16 @@ namespace heap::base {
 class Stack;
 class StackVisitor;
 }  // namespace heap::base
+
+namespace perfetto {
+#if defined(V8_USE_PERFETTO)
+class NamedTrack;
+#else
+inline namespace v8_stub {
+struct NamedTrack;
+}  // namespace v8_stub
+#endif
+}  // namespace perfetto
 
 namespace v8 {
 
@@ -182,6 +192,9 @@ class StrongRootsEntry final {
 
   // Label that identifies the roots in tooling.
   const char* label;
+#ifdef DEBUG
+  LocalHeap* local_heap;
+#endif
   FullObjectSlot start;
   FullObjectSlot end;
   StrongRootsEntry* prev;
@@ -277,7 +290,7 @@ static constexpr v8::base::TimeDelta kMaxSynchronuousGCOperation =
 
 class Heap final {
  public:
-  using HeapGrowingMode = HeapGrowingMode;
+  using HeapGrowingMode = ::v8::internal::HeapGrowingMode;
 
   enum HeapState {
     NOT_IN_GC,
@@ -295,6 +308,8 @@ class Heap final {
   void set_dispatch_table_gc_interval(int interval) {
     dispatch_table_gc_interval_ = interval;
   }
+
+  V8_EXPORT_PRIVATE void ResetAllocationTimeouts();
 #endif
 
   // Emits GC events for DevTools timeline.
@@ -386,10 +401,11 @@ class Heap final {
   }
 
   // Copy block of memory from src to dst. Size of block should be aligned
-  // by pointer size.
-  static inline void CopyBlock(Address dst, Address src, size_t byte_size);
+  // by tagged size.
+  static inline void CopyBlock(Address dst, Address src,
+                               SafeHeapObjectSize byte_size);
 
-  perfetto::NamedTrack tracing_track() const { return tracing_track_; }
+  const perfetto::NamedTrack& tracing_track() const { return *tracing_track_; }
 
   bool is_gc_tracing_category_enabled() const {
     return *gc_tracing_category_enabled_;
@@ -523,15 +539,6 @@ class Heap final {
 
   V8_EXPORT_PRIVATE void AddToWeakNativeContextList(Tagged<Context> context);
 
-  void set_allocation_sites_list(
-      Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>> object) {
-    allocation_sites_list_ = object;
-  }
-  Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>>
-  allocation_sites_list() {
-    return allocation_sites_list_;
-  }
-
   void set_dirty_js_finalization_registries_list(Tagged<Object> object) {
     dirty_js_finalization_registries_list_ = object;
   }
@@ -544,17 +551,6 @@ class Heap final {
   Tagged<Object> dirty_js_finalization_registries_list_tail() {
     return dirty_js_finalization_registries_list_tail_;
   }
-
-  // Used in CreateAllocationSiteStub and the (de)serializer.
-  Address allocation_sites_list_address() {
-    return reinterpret_cast<Address>(&allocation_sites_list_);
-  }
-
-  // Traverse all the allocation_sites [nested_site and weak_next] in the list
-  // and foreach call the visitor
-  void ForeachAllocationSite(
-      Tagged<Object> list,
-      const std::function<void(Tagged<AllocationSite>)>& visitor);
 
   // Number of mark-sweeps.
   int ms_count() const { return ms_count_; }
@@ -632,6 +628,7 @@ class Heap final {
   V8_EXPORT_PRIVATE void ResizeArrayBufferExtension(
       ArrayBufferExtension* extension, int64_t delta);
   void DetachArrayBufferExtension(ArrayBufferExtension* extension);
+  void AccountMarkedArrayBufferExtension(size_t bytes);
 
   V8_EXPORT_PRIVATE void ExpandNewSpaceSizeForTesting();
   V8_EXPORT_PRIVATE void ReduceNewSpaceSizeForTesting();
@@ -681,8 +678,9 @@ class Heap final {
 
   void CompactWeakArrayLists();
 
-  V8_EXPORT_PRIVATE void AddRetainedMaps(DirectHandle<NativeContext> context,
-                                         GlobalHandleVector<Map> maps);
+  V8_EXPORT_PRIVATE void AddRetainedMaps(
+      DirectHandle<NativeContext> context,
+      base::Vector<const IndirectHandle<Map>> maps);
 
   // This event is triggered after object is moved to a new place.
   void OnMoveEvent(Tagged<HeapObject> source, Tagged<HeapObject> target,
@@ -695,7 +693,7 @@ class Heap final {
   // null.
   V8_INLINE bool CanSafepoint() const { return deserialization_complete(); }
 
-  bool HasLowAllocationRate();
+  V8_EXPORT_PRIVATE bool HasLowAllocationRate();
   bool HasHighFragmentation();
 
   void ActivateMemoryReducerIfNeeded();
@@ -913,6 +911,8 @@ class Heap final {
   V8_INLINE void SetMessageListeners(Tagged<ArrayList> value);
   V8_INLINE void SetFunctionsMarkedForManualOptimization(
       Tagged<Object> bytecode);
+  V8_INLINE void SetFunctionsMarkedForDisabledEagerInlining(
+      Tagged<Object> hash_table);
   V8_INLINE void SetSmiStringCache(Tagged<SmiStringCache> cache);
   V8_INLINE void SetDoubleStringCache(Tagged<DoubleStringCache> cache);
   V8_INLINE void SetCachedBigIntDivisor(Tagged<BigInt> divisor);
@@ -923,7 +923,7 @@ class Heap final {
   V8_INLINE void SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts);
   V8_INLINE void SetWasmSharedCanonicalRtts(Tagged<WeakFixedArray> rtts);
   V8_INLINE void SetJSToWasmWrappers(
-      Tagged<WeakFixedArray> js_to_wasm_wrappers);
+      Tagged<ProtectedWeakFixedArray> js_to_wasm_wrappers);
 #endif
 
   StrongRootsEntry* RegisterStrongRoots(const char* label, FullObjectSlot start,
@@ -931,6 +931,9 @@ class Heap final {
   void UnregisterStrongRoots(StrongRootsEntry* entry);
   void UpdateStrongRoots(StrongRootsEntry* entry, FullObjectSlot start,
                          FullObjectSlot end);
+#ifdef DEBUG
+  bool ContainsStrongRoot(LocalHeap* local_heap, FullObjectSlot slot);
+#endif
 
   void SetBuiltinsConstantsTable(Tagged<FixedArray> cache);
   void SetDetachedContexts(Tagged<WeakArrayList> detached_contexts);
@@ -1078,7 +1081,6 @@ class Heap final {
 
   // Used for query incremental marking status in generated code.
   uint8_t* IsMarkingFlagAddress();
-  uint8_t* IsMinorMarkingFlagAddress();
 
   void ClearRecordedSlotRange(
       Address start, Address end,
@@ -1087,7 +1089,7 @@ class Heap final {
                                              size_t slot_offset);
 
   static void VerifySkippedWriteBarrier(Address object, Address value);
-  static void VerifySkippedIndirectWriteBarrier(Address object);
+  static void VerifySkippedTrustedWriteBarrier(Address object);
 
 #ifdef DEBUG
   void VerifySlotRangeHasNoRecordedSlots(Address start, Address end);
@@ -1129,6 +1131,10 @@ class Heap final {
 
   // Ensures that sweeping is finished for that object's page.
   void EnsureSweepingCompletedForObject(Tagged<HeapObject> object);
+
+  HeapGrowingMode CurrentHeapGrowingMode();
+
+  MemoryReducerBase* memory_reducer() const { return memory_reducer_.get(); }
 
   HeapLimits* limits() const { return limits_.get(); }
 
@@ -1176,13 +1182,16 @@ class Heap final {
   void SetDeoptPCOffsetAfterAdaptShadowStack(int pc_offset);
   void SetInterpreterEntryReturnPCOffset(int pc_offset);
 
-  void DeoptMarkedAllocationSites();
-
   // ===========================================================================
   // Unified heap (C++) support. ===============================================
   // ===========================================================================
 
   v8::CppHeap* cpp_heap() const { return cpp_heap_; }
+
+  // Returns the isolate that the CppHeap which allocated the cppgc object
+  // `object` is attached to, or null once it's detached (e.g. in its final GC
+  // during the isolate's teardown).
+  static Isolate* IsolateForCppHeapFinalizers(const void* object);
 
   std::optional<StackState> overridden_stack_state() const;
 
@@ -1192,6 +1201,8 @@ class Heap final {
   // Stack information of the main thread.
   V8_EXPORT_PRIVATE ::heap::base::Stack& stack();
   V8_EXPORT_PRIVATE const ::heap::base::Stack& stack() const;
+
+  bool ShouldCheckForTLSOnStack() const;
 
   // ===========================================================================
   // Embedder roots optimizations. =============================================
@@ -1208,16 +1219,6 @@ class Heap final {
 
   // Registers an external string.
   inline void RegisterExternalString(Tagged<String> string);
-
-  // Called when a string's resource is changed. The size of the payload is sent
-  // as argument of the method.
-  V8_EXPORT_PRIVATE void UpdateExternalString(Tagged<String> string,
-                                              size_t old_payload,
-                                              size_t new_payload);
-
-  // Finalizes an external string by deleting the associated external
-  // data and clearing the resource pointer.
-  inline void FinalizeExternalString(Tagged<String> string);
 
   // ===========================================================================
   // Methods checking/returning the space of a given object/address. ===========
@@ -1395,6 +1396,19 @@ class Heap final {
     survived_since_last_expansion_ += survived;
   }
 
+  // Records whether the scavenge that just finished had a high survival rate
+  // based on the bytes that survived in regular (non-large) young pages. Needs
+  // to be invoked after the scavenge but before the young generation is
+  // resized.
+  void UpdateHighYoungGenerationSurvivalRate(size_t survived_bytes);
+
+  // Returns true if the last scavenge had a high survival rate, i.e., at least
+  // --scavenger-high-survival-threshold percent of the young generation
+  // capacity survived.
+  bool HasHighYoungGenerationSurvivalRate() const {
+    return high_young_generation_survival_rate_;
+  }
+
   V8_EXPORT_PRIVATE uint64_t NewSpaceAllocationCounter() const;
 
   void SetNewSpaceAllocationCounterForTesting(size_t new_value) {
@@ -1420,6 +1434,8 @@ class Heap final {
   }
 
   GCEpoch gc_count() const { return gc_count_; }
+
+  void reset_stress_compaction_gc_count() { stress_compaction_gc_count_ = 0; }
 
   bool is_current_gc_forced() const { return is_current_gc_forced_; }
 
@@ -1699,8 +1715,6 @@ class Heap final {
     return &non_atomic_marking_state_;
   }
 
-  PretenuringHandler* pretenuring_handler() { return &pretenuring_handler_; }
-
   bool IsInlineAllocationEnabled() const { return inline_allocation_enabled_; }
 
   // Returns the amount of external memory registered since last global gc.
@@ -1782,7 +1796,6 @@ class Heap final {
 
   static const int kYoungSurvivalRateHighThreshold = 90;
   static const int kYoungSurvivalRateAllowedDeviation = 15;
-  static const int kOldSurvivalRateLowThreshold = 10;
 
   static const int kMaxMarkCompactsInIdleRound = 7;
 
@@ -1856,15 +1869,6 @@ class Heap final {
                                ClearRecordedSlots clear_slots_mode,
                                VerifyNoSlotsRecorded verify_no_slots_recorded);
 
-  // Deopts all code that contains allocation instruction which are tenured or
-  // not tenured. Moreover it clears the pretenuring allocation site statistics.
-  void ResetAllAllocationSitesDependentCode(AllocationType allocation);
-
-  // Evaluates local pretenuring for the old space and calls
-  // ResetAllTenuredAllocationSitesDependentCode if too many objects died in
-  // the old space.
-  void EvaluateOldSpaceLocalPretenuring(uint64_t size_of_objects_before_gc);
-
   // Record statistics after garbage collection.
   void ReportStatisticsAfterGC();
 
@@ -1882,6 +1886,9 @@ class Heap final {
 
   enum class ResizeNewSpaceMode { kShrink, kGrow, kNone };
   ResizeNewSpaceMode ShouldResizeNewSpace();
+  // Returns true if the young generation should grow earlier and faster than
+  // usual because of a high survival rate (see --scavenger-fast-growth).
+  bool ShouldGrowYoungGenerationFast();
 
   void StartResizeNewSpace();
   void ResizeNewSpace();
@@ -1931,6 +1938,7 @@ class Heap final {
 
   // Performs a major collection in the whole heap.
   void MarkCompact();
+
   // Performs a minor collection of just the young generation.
   void MinorMarkSweep();
 
@@ -1943,7 +1951,6 @@ class Heap final {
 
   void ProcessAllWeakReferences(WeakObjectRetainer* retainer);
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
-  void ProcessAllocationSites(WeakObjectRetainer* retainer);
   void ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer);
   void ProcessWeakListRoots(WeakObjectRetainer* retainer);
 
@@ -1965,8 +1972,6 @@ class Heap final {
   // ===========================================================================
   // Growing strategy. =========================================================
   // ===========================================================================
-
-  MemoryReducer* memory_reducer() { return memory_reducer_.get(); }
 
   // For some webpages NotifyLoadingEnded() is never called.
   // This constant limits the effect of load time on GC.
@@ -2001,8 +2006,6 @@ class Heap final {
   bool ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
                                                  AllocationOrigin origin);
   bool ShouldExpandYoungGenerationOnSlowAllocation(size_t allocation_size);
-
-  HeapGrowingMode CurrentHeapGrowingMode();
 
   double PercentToOldGenerationLimit() const;
   double PercentToGlobalMemoryLimit() const;
@@ -2103,8 +2106,10 @@ class Heap final {
 
   bool IsStressingScavenge();
 
+  void SetMarkingFlag(IsolateMarkingFlag flag, bool value);
   void SetIsMarkingFlag(bool value);
   V8_EXPORT_PRIVATE void SetIsMinorMarkingFlag(bool value);
+  void SetIsSharedMarkingFlag(bool value);
 
   V8_EXPORT_PRIVATE size_t PromotedSinceLastGC();
 
@@ -2133,6 +2138,9 @@ class Heap final {
   // initial_size_overwritten_ because it is not also minimum and because of
   // different behavior in NotifyContextDisposed().
   bool preconfigured_old_generation_size_ = false;
+
+  // See HasHighYoungGenerationSurvivalRate().
+  bool high_young_generation_survival_rate_ = false;
 
   size_t old_generation_capacity_after_bootstrap_ = 0;
 
@@ -2224,6 +2232,10 @@ class Heap final {
   // How many gc happened.
   GCEpoch gc_count_ = kInitialGCEpoch;
 
+  // How many GCs happened since the last reset, used for --stress-compaction
+  // cadence.
+  uint32_t stress_compaction_gc_count_ = 0;
+
   // The number of Mark-Compact garbage collections that are considered as
   // ineffective. See IsIneffectiveMarkCompact() predicate.
   std::atomic<int> consecutive_ineffective_mark_compacts_ = 0;
@@ -2240,8 +2252,6 @@ class Heap final {
   // {native_contexts_list_} is an Address instead of an Object to allow the use
   // of atomic accessors.
   std::atomic<Address> native_contexts_list_;
-  Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>>
-      allocation_sites_list_ = Smi::zero();
   Tagged<Object> dirty_js_finalization_registries_list_ = Smi::zero();
   // Weak list tails.
   Tagged<Object> dirty_js_finalization_registries_list_tail_ = Smi::zero();
@@ -2286,7 +2296,7 @@ class Heap final {
   std::unique_ptr<IncrementalMarking> incremental_marking_;
   std::unique_ptr<ConcurrentMarking> concurrent_marking_;
   std::unique_ptr<MemoryMeasurement> memory_measurement_;
-  std::unique_ptr<MemoryReducer> memory_reducer_;
+  std::unique_ptr<MemoryReducerBase> memory_reducer_;
   std::unique_ptr<ObjectStats> live_object_stats_;
   std::unique_ptr<ObjectStats> dead_object_stats_;
   std::unique_ptr<MinorGCJob> minor_gc_job_;
@@ -2408,8 +2418,6 @@ class Heap final {
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
-  PretenuringHandler pretenuring_handler_;
-
   // This field is used only when not running with MinorMS.
   ResizeNewSpaceMode resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
 
@@ -2417,9 +2425,10 @@ class Heap final {
 
   class GCHintState {
    public:
-    explicit GCHintState(const double max_time_ms, perfetto::NamedTrack track,
-                         perfetto::StaticString track_tag)
-        : max_time_ms_(max_time_ms), track_(track), tag_(track_tag) {}
+    GCHintState(const double max_time_ms, const char* track_name,
+                const char* track_tag,
+                const perfetto::NamedTrack& parent_track);
+    ~GCHintState();
     bool IsActive(const Heap* heap) const;
     bool IsInitialized() const;
     void NotifyStarted(Heap* heap);
@@ -2436,20 +2445,17 @@ class Heap final {
     // Maximum time spent in high responsiveness mode.
     const double max_time_ms_;
     // Track used to record whether or not high responsiveness mode is active.
-    perfetto::NamedTrack track_;
+    std::unique_ptr<perfetto::NamedTrack> track_;
     // What to tag |track_| with when high responsiveness mode is active.
-    perfetto::StaticString tag_;
+    const char* const tag_;
   };
 
-  perfetto::NamedTrack tracing_track_;
+  std::unique_ptr<perfetto::NamedTrack> tracing_track_;
 
-  GCHintState loading_state_{kMaxLoadTimeMs,
-                             perfetto::NamedTrack{"Loading", 0, tracing_track_},
-                             "IsLoading"};
-  GCHintState input_handling_state_{
-      kMaxInputHandlingTimeMs,
-      perfetto::NamedTrack{"InputHandling", 0, tracing_track_},
-      "IsInputHandling"};
+  GCHintState loading_state_{kMaxLoadTimeMs, "Loading", "IsLoading",
+                             *tracing_track_};
+  GCHintState input_handling_state_{kMaxInputHandlingTimeMs, "InputHandling",
+                                    "IsInputHandling", *tracing_track_};
 
   // On-stack address used for selective consevative stack scanning. No value
   // means that selective conservative stack scanning is not enabled.
@@ -2487,6 +2493,7 @@ class Heap final {
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;
   friend class LargeObjectSpace;
+  friend class LimitBasedMemoryReducer;
   friend class LocalHeap;
   friend class MarkingBarrier;
   friend class OldLargeObjectSpace;
@@ -2507,7 +2514,6 @@ class Heap final {
   friend class PagedSpaceBase;
   friend class PagedSpaceForNewSpace;
   friend class PauseAllocationObserversScope;
-  friend class PretenuringHandler;
   friend class ReadOnlyRoots;
   friend class DisableConservativeStackScanningScopeForTesting;
   friend class Scavenger;

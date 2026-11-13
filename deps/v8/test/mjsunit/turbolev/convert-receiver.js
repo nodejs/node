@@ -34,6 +34,10 @@ assertOptimized(call_f_receiver_number);
 function f() {
   return this.x;
 }
+// Prevent `f` from being inlined, as inlining `this.x` would add a dependency
+// on `x`'s PropertyCell and cause `call_f_receiver_undefined` to deopt on
+// `var x = 23`.
+%NeverOptimizeFunction(f);
 
 function call_f_receiver_undefined(o) {
   return f.call(o);

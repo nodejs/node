@@ -1,0 +1,3 @@
+Regression test for crbug.com/581361633.
+pauseCount: 0
+runProbe() -> 101051

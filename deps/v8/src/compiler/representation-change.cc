@@ -297,7 +297,7 @@ Node* RepresentationChanger::GetRepresentationFor(
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kSandboxedPointer:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
@@ -1095,19 +1095,19 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
           op = simplified()->CheckedTruncateTaggedToWord32(
               CheckTaggedInputMode::kAdditiveSafeInteger, use_info.feedback());
         }
-      } else if (output_type.Is(Type::Union(Type::SignedSmall(), Type::Hole(),
-                                            jsgraph()->zone()))) {
-        op = simplified()->TruncateSmiOrHoleToWord32();
       } else if (output_type.Is(Type::NumberOrOddball())) {
         op = simplified()->TruncateNumberOrOddballToWord32();
-      } else if (output_type.Is(Type::NumberOrOddballOrHole())) {
-        op = simplified()->TruncateNumberOrOddballOrHoleToWord32();
       } else if (use_info.type_check() == TypeCheckKind::kNumber) {
         op = simplified()->CheckedTruncateTaggedToWord32(
             CheckTaggedInputMode::kNumber, use_info.feedback());
       } else if (use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
         op = simplified()->CheckedTruncateTaggedToWord32(
             CheckTaggedInputMode::kNumberOrOddball, use_info.feedback());
+      } else if (output_type.Is(Type::Union(Type::SignedSmall(), Type::Hole(),
+                                            jsgraph()->zone()))) {
+        op = simplified()->TruncateSmiOrHoleToWord32();
+      } else if (output_type.Is(Type::NumberOrOddballOrHole())) {
+        op = simplified()->TruncateNumberOrOddballOrHoleToWord32();
       } else {
         return TypeError(node, output_rep, output_type,
                          MachineRepresentation::kWord32);

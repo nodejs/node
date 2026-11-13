@@ -200,11 +200,18 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
   JavaScriptStackFrameIterator it(isolate);
   while (!it.done() && length < kMaxAllocationTraceLength) {
     JavaScriptFrame* frame = it.frame();
+    // During deoptimization, some closures on the stack may not have been
+    // materialized yet. Skip them.
+    if (!IsJSFunction(frame->unchecked_function())) {
+      it.Advance();
+      continue;
+    }
     Tagged<SharedFunctionInfo> shared = frame->function()->shared();
     SnapshotObjectId id =
         ids_->FindOrAddEntry(shared.address(), shared->Size(),
                              HeapObjectsMap::MarkEntryAccessed::kNo);
-    allocation_trace_buffer_[length++] = AddFunctionInfo(shared, id, isolate);
+    allocation_trace_buffer_[length++] =
+        AddFunctionInfo(shared, id, isolate, no_gc);
     it.Advance();
   }
   if (length == 0) {
@@ -225,11 +232,11 @@ static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
   return base::hash32(static_cast<uint32_t>(id));
 }
 
-AllocationTracker::ScriptData::ScriptData(Tagged<Script> script,
-                                          Isolate* isolate,
-                                          AllocationTracker* tracker)
+AllocationTracker::ScriptData::ScriptData(
+    Tagged<Script> script, Isolate* isolate, AllocationTracker* tracker,
+    const DisallowGarbageCollection& no_gc)
     : script_id_(script->id()),
-      line_ends_(Script::GetLineEnds(isolate, direct_handle(script, isolate))),
+      line_ends_(script->GetLineEnds(no_gc)),
       tracker_(tracker) {
   DirectHandle<Script> script_direct_handle(script, isolate);
   auto local_script = ToApiHandle<debug::Script>(script_direct_handle);
@@ -252,11 +259,12 @@ void AllocationTracker::ScriptData::HandleWeakScript(
 }
 
 String::LineEndsVector& AllocationTracker::GetOrCreateLineEnds(
-    Tagged<Script> script, Isolate* isolate) {
+    Tagged<Script> script, Isolate* isolate,
+    const DisallowGarbageCollection& no_gc) {
   auto it = scripts_data_map_.find(script->id());
   if (it == scripts_data_map_.end()) {
-    auto inserted =
-        scripts_data_map_.try_emplace(script->id(), script, isolate, this);
+    auto inserted = scripts_data_map_.try_emplace(script->id(), script, isolate,
+                                                  this, no_gc);
     CHECK(inserted.second);
     return inserted.first->second.line_ends();
   } else {
@@ -265,20 +273,21 @@ String::LineEndsVector& AllocationTracker::GetOrCreateLineEnds(
 }
 
 Script::PositionInfo AllocationTracker::GetScriptPositionInfo(
-    Tagged<Script> script, Isolate* isolate, int start) {
+    Tagged<Script> script, Isolate* isolate, int start,
+    const DisallowGarbageCollection& no_gc) {
   Script::PositionInfo position_info;
   if (script->has_line_ends()) {
     script->GetPositionInfo(start, &position_info);
   } else {
-    script->GetPositionInfoWithLineEnds(start, &position_info,
-                                        GetOrCreateLineEnds(script, isolate));
+    script->GetPositionInfoWithLineEnds(
+        start, &position_info, GetOrCreateLineEnds(script, isolate, no_gc));
   }
   return position_info;
 }
 
-unsigned AllocationTracker::AddFunctionInfo(Tagged<SharedFunctionInfo> shared,
-                                            SnapshotObjectId id,
-                                            Isolate* isolate) {
+unsigned AllocationTracker::AddFunctionInfo(
+    Tagged<SharedFunctionInfo> shared, SnapshotObjectId id, Isolate* isolate,
+    const DisallowGarbageCollection& no_gc) {
   base::HashMap::Entry* entry = id_to_function_info_index_.LookupOrInsert(
       reinterpret_cast<void*>(id), SnapshotObjectIdHash(id));
   if (entry->value == nullptr) {
@@ -294,7 +303,7 @@ unsigned AllocationTracker::AddFunctionInfo(Tagged<SharedFunctionInfo> shared,
       info->script_id = script->id();
       info->start_position = shared->StartPosition();
       Script::PositionInfo position_info =
-          GetScriptPositionInfo(script, isolate, info->start_position);
+          GetScriptPositionInfo(script, isolate, info->start_position, no_gc);
       info->line = position_info.line;
       info->column = position_info.column;
     }

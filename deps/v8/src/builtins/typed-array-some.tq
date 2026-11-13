@@ -69,7 +69,7 @@ transitioning javascript builtin TypedArrayPrototypeSome(
     const thisArg = arguments[1];
     return SomeAllElements(attachedArrayAndLength, callbackfn, thisArg);
   } label NotTypedArray deferred {
-    ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameSome);
+    ThrowTypeError(MessageTemplate::kNotTypedArray);
   } label Fail deferred {
     ThrowTypeError(
         MessageTemplate::kTypedArrayValidateErrorOperation, kBuiltinNameSome);

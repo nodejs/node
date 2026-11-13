@@ -12,7 +12,6 @@
 // all-objects.h. Add an inline header here when these consumers need it.
 
 #include "src/objects/allocation-site-inl.h"
-#include "src/objects/allocation-site-scopes-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/call-site-info-inl.h"
@@ -42,7 +41,6 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/js-function-inl.h"
@@ -63,6 +61,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup-cache-inl.h"
 #include "src/objects/lookup-inl.h"
+#include "src/objects/lookup-table-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/megadom-handler-inl.h"

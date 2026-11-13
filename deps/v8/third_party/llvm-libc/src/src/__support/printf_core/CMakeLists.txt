@@ -54,6 +54,7 @@ endif()
 if(LIBC_CONF_PRINTF_DISABLE_WIDE)
   set(wchar_deps "")
   set(parser_wchar_deps "")
+  set(converter_wchar_deps "")
 else()
   set(wchar_deps
     libc.hdr.types.wchar_t
@@ -67,6 +68,9 @@ else()
   )
   set(parser_wchar_deps
     libc.hdr.types.wint_t
+  )
+  set(converter_wchar_deps
+    libc.src.__support.wctype_utils
   )
 endif()
 
@@ -89,14 +93,25 @@ add_header_library(
     libc.hdr.errno_macros
 )
 
+set(parser_compile_options "")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  # Suppress GCC's warning about passing unions with 80-bit long double,
+  # which is triggered when Parser::get_arg_value returns
+  # cpp::optional<long double> by value on x86-64.
+  list(APPEND parser_compile_options "-Wno-psabi")
+endif()
+
 add_header_library(
   parser
   HDRS
     parser.h
+  COMPILE_OPTIONS
+    ${parser_compile_options}
   DEPENDS
     .core_structs
     libc.src.__support.arg_list
     libc.src.__support.ctype_utils
+    libc.src.__support.libc_errno
     libc.src.__support.str_to_integer
     libc.src.__support.CPP.algorithm
     libc.src.__support.CPP.bit
@@ -142,11 +157,14 @@ add_header_library(
     libc.include.inttypes
     libc.hdr.limits_macros
     libc.src.string.string_utils
-    libc.src.__support.big_int
-    libc.src.__support.common
     libc.src.__support.CPP.limits
     libc.src.__support.CPP.span
     libc.src.__support.CPP.string_view
+    libc.src.__support.CPP.type_traits
+    libc.src.__support.StringUtil.error_to_string
+    libc.src.__support.big_int
+    libc.src.__support.common
+    libc.src.__support.ctype_utils
     libc.src.__support.float_to_string
     libc.src.__support.FPUtil.fenv_impl
     libc.src.__support.FPUtil.fp_bits
@@ -154,9 +172,9 @@ add_header_library(
     libc.src.__support.integer_to_string
     libc.src.__support.libc_assert
     libc.src.__support.uint128
-    libc.src.__support.StringUtil.error_to_string
     libc.src.string.memory_utils.inline_memcpy
     ${wchar_deps}
+    ${converter_wchar_deps}
 )
 
 add_object_library(

@@ -1,0 +1,32 @@
+Tests stepping into construct call.
+Break 1 in test:
+function test() {
+  #g();
+}
+
+Break 2 in g:
+function g() {
+  #new f();
+}
+
+Break 3 in f:
+function f() {
+  #this.x = 1;
+}
+
+Break 4 in f:
+  this.x = 1;
+#}
+
+
+Break 5 in g:
+  new f();
+#}
+
+
+Break 6 in test:
+  g();
+#}
+
+
+Total breaks: 6

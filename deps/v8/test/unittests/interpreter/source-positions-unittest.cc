@@ -106,7 +106,7 @@ class SourcePositionTest : public TestWithContext,
                                std::tuple<int, TestCaseData>> {
  public:
   static void SetUpTestSuite() {
-    v8_flags.enable_lazy_source_positions = false;
+    v8_flags.enable_lazy_source_positions.Set(false);
     TestWithContext::SetUpTestSuite();
   }
   bool SourcePositionsMatch(int optimization_bitmap, const char* function_body,
@@ -165,7 +165,7 @@ Handle<BytecodeArray> SourcePositionTest::MakeBytecode(
 
 void SourcePositionTest::SetOptimizationFlags(int optimization_bitmap) {
 #define SET_FLAG(V8Flag, BitName, _) \
-  V8Flag = (optimization_bitmap & BitName) ? true : false;
+  V8Flag.Set((optimization_bitmap & BitName) ? true : false);
   OPTIMIZATION_FLAGS(SET_FLAG)
 #undef SET_FLAG
 }

@@ -16,7 +16,7 @@ Key frame types (defined in `src/execution/frames.h`):
 *   **`INTERPRETED`**: A frame for code running in the Ignition interpreter.
 *   **`BASELINE`**: A frame for code compiled by Sparkplug.
 *   **`MAGLEV`**: A frame for code compiled by Maglev.
-*   **`TURBOFAN`**: A frame for code compiled by TurboFan.
+*   **`TURBOFAN_JS`**: A frame for JavaScript code compiled by TurboFan or Turboshaft.
 *   **`BUILTIN`**: A frame for a builtin function (e.g., written in Torque or CSA).
 *   **`WASM`**: Frames for WebAssembly execution.
 
@@ -74,7 +74,7 @@ Arguments to functions can be passed on the stack or in registers, depending on 
 
 Stack walking must be done safely, especially when handling signals for the CPU profiler or during GC when the stack might be in an inconsistent state.
 
-*   **Profiler Safety**: The CPU profiler interrupts execution at arbitrary points. The stack may be in an inconsistent state (e.g., in the middle of pushing a frame). V8 uses a specialized, safe stack walker (`SafeStackFrameIterator`) that performs sanity checks on pointers before dereferencing them to avoid crashes.
+*   **Profiler Safety**: The CPU profiler interrupts execution at arbitrary points. The stack may be in an inconsistent state (e.g., in the middle of pushing a frame, or inside a signal handler or frame-pointer-less C++ helper). V8 uses a specialized stack walker (`StackFrameIteratorForProfiler`) that validates pointer alignment and stack bounds before dereferencing frame slots to avoid crashes and misaligned reads.
 
 ---
 

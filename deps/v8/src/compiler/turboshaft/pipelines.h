@@ -8,8 +8,8 @@
 #include <optional>
 
 #include "src/base/logging.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/optimized-compilation-info.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
 #include "src/compiler/basic-block-call-graph-profiler.h"
 #include "src/compiler/pipeline-statistics.h"
@@ -62,6 +62,24 @@ constexpr detail::NoLinkage kNoLinkage = detail::NoLinkage::kNoLinkage;
 
 class V8_EXPORT_PRIVATE Pipeline {
  public:
+  class V8_NODISCARD ClearComponentsOnFailureScope {
+   public:
+    explicit ClearComponentsOnFailureScope(PipelineData* data) : data_(data) {}
+    ~ClearComponentsOnFailureScope() {
+      if (succeeded_) return;
+      data_->ClearAllComponents();
+      if (data_->broker() != nullptr) {
+        UnparkedScopeIfNeeded scope(data_->broker());
+        data_->broker()->DetachCanonicalHandles(data_->info());
+      }
+    }
+    void MarkSucceeded() { succeeded_ = true; }
+
+   private:
+    PipelineData* data_;
+    bool succeeded_ = false;
+  };
+
   // TODO(dmercadier): remove Linkage for the arguments here and make it an
   // input to the PipelineData constructor instead.
   Pipeline(PipelineData* data, const Linkage* linkage) : data_(data) {
@@ -214,8 +232,7 @@ class V8_EXPORT_PRIVATE Pipeline {
       RUN_MAYBE_ABORT(turboshaft::WasmInJSInliningPhase);
 
       // These optimizations need a separate phase due to the analysis of the
-      // input graph. They are also somewhat risky, so keep them behind a flag
-      // at first.
+      // input graph.
       if (v8_flags.wasm_in_js_inlining_opt &&
           data_->wasm_in_js_inlined_any_body()) {
         RUN_MAYBE_ABORT(turboshaft::WasmGCOptimizePhase);
@@ -344,6 +361,7 @@ class V8_EXPORT_PRIVATE Pipeline {
     if (std::optional<BailoutReason> bailout = Run<InstructionSelectionPhase>(
             call_descriptor, linkage, code_tracer)) {
       data_->info()->AbortOptimization(*bailout);
+      data_->ClearInstructionComponent();
       EndPhaseKind();
       return false;
     }
@@ -374,7 +392,8 @@ class V8_EXPORT_PRIVATE Pipeline {
 
   V8_WARN_UNUSED_RESULT bool AllocateRegisters(
       CallDescriptor* call_descriptor) {
-    BeginPhaseKind("V8.TFRegisterAllocation");
+    PhaseScopeKind scope_kind(data_->pipeline_statistics(),
+                              "V8.TFRegisterAllocation");
 
     bool run_verifier = v8_flags.turbo_verify_allocation;
 
@@ -388,7 +407,7 @@ class V8_EXPORT_PRIVATE Pipeline {
           RegisterConfiguration::RestrictGeneralRegisters(registers));
       config = restricted_config.get();
     }
-    if (!AllocateRegisters(config, call_descriptor, run_verifier)) return false;
+    if (!AllocateRegisters(config, run_verifier)) return false;
 
     // Verify the instruction sequence has the same hash in two stages.
     VerifyGeneratedCodeIsIdempotent();
@@ -413,8 +432,6 @@ class V8_EXPORT_PRIVATE Pipeline {
     if (v8_flags.turbo_jt) {
       RUN_MAYBE_ABORT(JumpThreadingPhase, generate_frame_at_start);
     }
-
-    EndPhaseKind();
 
     return !info()->was_cancelled();
   }
@@ -448,39 +465,56 @@ class V8_EXPORT_PRIVATE Pipeline {
   }
 
   V8_WARN_UNUSED_RESULT bool AllocateRegisters(
-      const RegisterConfiguration* config, CallDescriptor* call_descriptor,
-      bool run_verifier);
+      const RegisterConfiguration* config, bool run_verifier);
 
   V8_WARN_UNUSED_RESULT bool AssembleCode(Linkage* linkage) {
-    BeginPhaseKind("V8.TFCodeGeneration");
-    data()->InitializeCodeGenerator(linkage);
-
     UnparkedScopeIfNeeded unparked_scope(data()->broker());
+    bool success;
+    {
+      PhaseScopeKind scope_kind(data_->pipeline_statistics(),
+                                "V8.TFCodeGeneration");
+      data()->InitializeCodeGenerator(linkage);
 
-    RUN_MAYBE_ABORT(AssembleCodePhase);
-    if (info()->trace_turbo_json()) {
-      TurboJsonFile json_of(info(), std::ios_base::app);
-      json_of
-          << "{\"name\":\"code generation\"" << ", \"type\":\"instructions\""
-          << InstructionStartsAsJSON{&data()->code_generator()->instr_starts()}
-          << TurbolizerCodeOffsetsInfoAsJSON{
-                 &data()->code_generator()->offsets_info()};
-      json_of << "},\n";
+      success = Run<AssembleCodePhase>();
+      if (success && info()->trace_turbo_json()) {
+        TurboJsonFile json_of(info(), std::ios_base::app);
+        json_of << "{\"name\":\"code generation\""
+                << ", \"type\":\"instructions\""
+                << InstructionStartsAsJSON{&data()
+                                                ->code_generator()
+                                                ->instr_starts()}
+                << TurbolizerCodeOffsetsInfoAsJSON{
+                       &data()->code_generator()->offsets_info()};
+        json_of << "},\n";
+      }
+
+      data()->ClearInstructionComponent();
     }
 
-    data()->ClearInstructionComponent();
-    EndPhaseKind();
-    return !info()->was_cancelled();
+    if (data()->broker() != nullptr) {
+      data()->broker()->DetachCanonicalHandles(info());
+      if (success && !data()->code_generator()->has_background_code()) {
+        if (info()->bailout_reason() == BailoutReason::kNoReason) {
+          info()->AbortOptimization(
+              BailoutReason::kTurbofanCodeGenerationFailed);
+        }
+        return false;
+      }
+    }
+
+    return success && !info()->was_cancelled();
   }
 
   MaybeHandle<Code> GenerateCode(CallDescriptor* call_descriptor) {
     Linkage linkage(call_descriptor);
-    if (!PrepareForInstructionSelection()) return {};
-    if (!SelectInstructions(&linkage)) {
-      return MaybeHandle<Code>();
+    {
+      ClearComponentsOnFailureScope clear_on_failure(data());
+      if (!PrepareForInstructionSelection()) return {};
+      if (!SelectInstructions(&linkage)) return {};
+      if (!AllocateRegisters(linkage.GetIncomingDescriptor())) return {};
+      if (!AssembleCode(&linkage)) return {};
+      clear_on_failure.MarkSucceeded();
     }
-    if (!AllocateRegisters(linkage.GetIncomingDescriptor())) return {};
-    if (!AssembleCode(&linkage)) return {};
     return FinalizeCode();
   }
 

@@ -98,9 +98,9 @@ class ObjectVisitorForwarder final
     visitor_->VisitEphemeron(host, index, key, value);
   }
 
-  void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                            IndirectPointerMode mode) override {
-    visitor_->VisitIndirectPointer(host, slot, mode);
+  void VisitTrustedPointer(Tagged<HeapObject> host, TrustedPointerSlot slot,
+                           TrustedPointerMode mode) override {
+    visitor_->VisitTrustedPointer(host, slot, mode);
   }
 
   void VisitProtectedPointer(Tagged<TrustedObject> host,
@@ -114,7 +114,7 @@ class ObjectVisitorForwarder final
   }
 
   void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                     IndirectPointerSlot slot) override {
+                                     TrustedPointerSlot slot) override {
     visitor_->VisitTrustedPointerTableEntry(host, slot);
   }
 

@@ -1,0 +1,7 @@
+Tests that termination inside a custom preview during Runtime.getProperties is not swallowed at call depth zero.
+{
+    id : <messageId>
+    result : {
+    }
+}
+["outerHeader","innerHeader","innerGetter"]

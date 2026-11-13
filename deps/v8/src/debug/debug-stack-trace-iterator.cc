@@ -179,6 +179,16 @@ debug::Location DebugStackTraceIterator::GetFunctionLocation() const {
     auto offset = module->functions[func_index].code.offset();
     return v8::debug::Location(0, offset);
   }
+  FrameSummary summary =
+      FrameSummary::Get(iterator_.frame(), inlined_frame_index_);
+  if (summary.IsWasmInlined()) {
+    auto wasm_inlined = summary.AsWasmInlined();
+    const wasm::WasmModule* module =
+        wasm_inlined.wasm_trusted_instance_data()->module();
+    auto offset =
+        module->functions[wasm_inlined.function_index()].code.offset();
+    return v8::debug::Location(0, offset);
+  }
 #endif
   return v8::debug::Location();
 }
@@ -224,7 +234,7 @@ bool DebugStackTraceIterator::CanBeRestarted() const {
   StackFrame* frame = iterator_.frame();
   // We do not support restarting WASM frames.
 #if V8_ENABLE_WEBASSEMBLY
-  if (frame->is_wasm()) return false;
+  if (frame->is_wasm() || frame_inspector_->IsWasm()) return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Check that no embedder API calls are between the top-most frame, and the

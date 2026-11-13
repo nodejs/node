@@ -11,6 +11,8 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include <array>
+#include <bit>
 #include <cmath>
 
 #include "src/base/bits.h"
@@ -203,10 +205,10 @@ void ArmDebugger::Debug() {
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       // use a reasonably large buffer
-      v8::base::EmbeddedVector<char, 256> buffer;
+      std::array<char, 256> buffer;
       dasm.InstructionDecode(buffer,
                              reinterpret_cast<uint8_t*>(sim_->get_pc()));
-      PrintF("  0x%08x  %s\n", sim_->get_pc(), buffer.begin());
+      PrintF("  0x%08x  %s\n", sim_->get_pc(), buffer.data());
       last_pc = sim_->get_pc();
     }
     ArrayUniquePtr<char> line(ReadLine("sim> "));
@@ -377,7 +379,7 @@ bool ArmDebugger::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // use a reasonably large buffer
-    v8::base::EmbeddedVector<char, 256> buffer;
+    std::array<char, 256> buffer;
 
     uint8_t* prev = nullptr;
     uint8_t* cur = nullptr;
@@ -418,7 +420,7 @@ bool ArmDebugger::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
       prev = cur;
       cur += dasm.InstructionDecode(buffer, cur);
       PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(prev),
-             buffer.begin());
+             buffer.data());
     }
   } else if (strcmp(cmd, "gdb") == 0) {
     PrintF("relinquishing control to gdb\n");
@@ -488,7 +490,7 @@ bool ArmDebugger::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
       if (strcmp(arg1, "info") == 0) {
         if (strcmp(arg2, "all") == 0) {
           PrintF("Stop information:\n");
-          for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+          for (uint32_t i = 0; i < Simulator::kNumOfWatchedStops; i++) {
             sim_->PrintStopInfo(i);
           }
         } else if (GetValue(arg2, &value)) {
@@ -499,7 +501,7 @@ bool ArmDebugger::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
       } else if (strcmp(arg1, "enable") == 0) {
         // Enable all/the specified breakpoint(s).
         if (strcmp(arg2, "all") == 0) {
-          for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+          for (uint32_t i = 0; i < Simulator::kNumOfWatchedStops; i++) {
             sim_->EnableStop(i);
           }
         } else if (GetValue(arg2, &value)) {
@@ -510,7 +512,7 @@ bool ArmDebugger::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
       } else if (strcmp(arg1, "disable") == 0) {
         // Disable all/the specified breakpoint(s).
         if (strcmp(arg2, "all") == 0) {
-          for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+          for (uint32_t i = 0; i < Simulator::kNumOfWatchedStops; i++) {
             sim_->DisableStop(i);
           }
         } else if (GetValue(arg2, &value)) {
@@ -5673,7 +5675,7 @@ void Simulator::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
       int imm3H_L = imm3H << 1 | l;
       int imm7 = instr->Bits(21, 16);
       imm7 += (l << 6);
-      int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+      int size = std::bit_floor<uint32_t>(imm7);
       NeonSize ns =
           static_cast<NeonSize>(base::bits::WhichPowerOfTwo(size >> 3));
 
@@ -6253,10 +6255,10 @@ void Simulator::InstructionDecode(Instruction* instr) {
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // use a reasonably large buffer
-    v8::base::EmbeddedVector<char, 256> buffer;
+    std::array<char, 256> buffer;
     dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
     PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(instr),
-           buffer.begin());
+           buffer.data());
   }
   if (instr->ConditionField() == kSpecialCondition) {
     DecodeSpecialCondition(instr);

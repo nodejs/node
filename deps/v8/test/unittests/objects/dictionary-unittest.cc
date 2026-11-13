@@ -238,8 +238,8 @@ class ObjectHashTableTest {
   const ObjectHashTableTest* operator->() const { return this; }
 
   void insert(InternalIndex entry, int key, int value) {
-    table_->set(table_->EntryToIndex(entry), Smi::FromInt(key));
-    table_->set(table_->EntryToIndex(entry) + 1, Smi::FromInt(value));
+    table_->set(ObjectHashTable::EntryToIndex(entry), Smi::FromInt(key));
+    table_->set(ObjectHashTable::EntryToIndex(entry) + 1, Smi::FromInt(value));
   }
 
   int lookup(int key, Isolate* isolate) {
@@ -286,9 +286,9 @@ TEST_F(DictionaryTest, HashTableRehash) {
 
 #ifdef DEBUG
 TEST_F(DictionaryTest, ObjectHashTableCausesGC) {
-  i::v8_flags.stress_compaction = false;
+  i::v8_flags.stress_compaction.Set(false);
   // For SimulateFullSpace in TestHashMapDoesNotCauseGC.
-  i::v8_flags.stress_concurrent_allocation = false;
+  i::v8_flags.stress_concurrent_allocation.Set(false);
   TestHashMapDoesNotCauseGC(ObjectHashTable::New(isolate(), 1));
 }
 #endif

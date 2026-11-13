@@ -199,7 +199,6 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       AllocationHint hint);
 
   void CollectGarbage(AllocationType allocation,
-                      PerformHeapLimitCheck perform_heap_limit_check,
                       GarbageCollectionReason gc_reason);
   void CollectAllAvailableGarbage(AllocationType allocation);
 
@@ -224,18 +223,21 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   YoungPendingAllocations* young_pending_allocations_ = nullptr;
   int max_regular_code_object_size_ = 0;
   Space* spaces_[LAST_SPACE + 1];
-  ReadOnlySpace* read_only_space_;
+  ReadOnlySpace* read_only_space_ = nullptr;
 
   std::optional<MainAllocator> new_space_allocator_;
   std::optional<MainAllocator> old_space_allocator_;
   std::optional<MainAllocator> trusted_space_allocator_;
   std::optional<MainAllocator> code_space_allocator_;
 
-  // Allocators for the shared spaces.
+  // Allocators and large-object spaces for the shared spaces. Remain
+  // std::nullopt / nullptr when `!isolate->has_shared_space()`; nullptr
+  // initialization is required so unexpected shared allocations triggered by
+  // in-sandbox corruption fail safely on a null dereference.
   std::optional<MainAllocator> shared_space_allocator_;
   std::optional<MainAllocator> shared_trusted_space_allocator_;
-  OldLargeObjectSpace* shared_lo_space_;
-  SharedTrustedLargeObjectSpace* shared_trusted_lo_space_;
+  OldLargeObjectSpace* shared_lo_space_ = nullptr;
+  SharedTrustedLargeObjectSpace* shared_trusted_lo_space_ = nullptr;
 
   std::optional<Address> last_young_allocation_;
   Address* last_young_allocation_pointer_ = nullptr;

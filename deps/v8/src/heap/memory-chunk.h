@@ -321,8 +321,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return IsolateGroup::current()->metadata_pointer_table();
   }
 
-  // For MetadataIndexOffset().
-  friend class debug_helper_internal::ReadStringVisitor;
   // For MetadataTableAddress().
   friend class ExternalReference;
   friend class TestDebugHelper;
@@ -334,6 +332,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   }
 
 #endif  // !V8_ENABLE_SANDBOX
+
+  // For MetadataIndexOffset() / MetadataOffset().
+  friend class debug_helper_internal::ReadStringVisitor;
 
   template <bool check_isolate>
   BasePage* MetadataImpl(const Isolate* isolate);

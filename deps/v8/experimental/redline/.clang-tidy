@@ -1,0 +1,72 @@
+---
+# clang-tidy configuration for experimental/redline (overrides the V8 root .clang-tidy
+# for this directory only).
+#
+# Enable the modern guideline families, drop the opinionated style noise and
+# the checks that contradict how a fuzzer in the V8 tree is written:
+#  - shared-memory and REPRL plumbing needs reinterpret_cast, pointer
+#    arithmetic and unchecked indexing into bitmaps and vectors;
+#  - generator tables are made of literal numbers and C arrays, and the
+#    command-line flags are globals;
+#  - V8 style keeps nested namespace blocks, explicit types instead of auto,
+#    positional aggregate initialization and plain enums for small kinds;
+#  - bugprone-signed-bitwise and performance-enum-size flag every hash and
+#    flag computation and every enum, without a bug behind them.
+#
+# Run it with a compilation database of the redline target:
+#   gn gen out/x64.release --add-export-compile-commands=//experimental/redline:redline
+#   clang-tidy -p out/x64.release experimental/redline/<dir>/<file>.cc
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  readability-avoid-const-params-in-decls,
+  readability-container-size-empty,
+  readability-delete-null-pointer,
+  readability-redundant-*,
+  readability-simplify-boolean-expr,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-signed-bitwise,
+  -cert-err58-cpp,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-const-or-ref-data-members,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-static-cast-downcast,
+  -cppcoreguidelines-pro-type-union-access,
+  -cppcoreguidelines-pro-type-vararg,
+  -modernize-avoid-c-arrays,
+  -modernize-concat-nested-namespaces,
+  -modernize-use-auto,
+  -modernize-use-designated-initializers,
+  -modernize-use-nodiscard,
+  -modernize-use-trailing-return-type,
+  -performance-enum-size
+
+# Warnings as errors: the bug-finding families must stay clean.
+WarningsAsErrors: 'bugprone-*,performance-*,clang-analyzer-*'
+
+# Only report findings in this directory's own headers.
+HeaderFilterRegex: 'experimental/redline/.*'
+FormatStyle: file
+
+CheckOptions:
+  # Rule of five, but a sole default destructor or deleted copy operations
+  # are fine.
+  cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
+  cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions: true
+  cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted: true
+...

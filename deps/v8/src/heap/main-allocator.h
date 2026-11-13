@@ -11,7 +11,6 @@
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
-#include "src/heap/gc-tracer.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/tasks/cancelable-task.h"
 

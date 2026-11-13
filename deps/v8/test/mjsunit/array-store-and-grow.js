@@ -210,7 +210,6 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
   // v8_dict_property_const_tracking is enabled, the optimized code only
   // contains a call to the IC handler and doesn't get deopted.
   assertEquals(%IsDictPropertyConstTrackingEnabled(), isOptimized(grow_store));
-  %ClearFunctionFeedback(grow_store);
 })();
 
 
@@ -234,7 +233,6 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
   // Should be a polymorphic grow stub. If not a grow stub it will deopt.
   f(new Array("hi"), 1, 3);
   assertOptimized(f);
-  %ClearFunctionFeedback(f);
 })();
 
 
@@ -263,5 +261,4 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
   // v8_dict_property_const_tracking is enabled, the optimized code only
   // contains a call to the IC handler and doesn't get deopted.
   assertEquals(%IsDictPropertyConstTrackingEnabled(), isOptimized(f));
-  %ClearFunctionFeedback(f);
 })();

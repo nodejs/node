@@ -35,21 +35,18 @@ namespace maglev {
 
 void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& unit,
                                      MergePointInterpreterFrameState& state,
-                                     bool preserve_known_node_aspects,
-                                     Zone* zone) {
-  DCHECK_IMPLIES(preserve_known_node_aspects, zone);
+                                     bool preserve_known_node_aspects) {
   const MaglevCompilationInfo* info = unit.info();
   TRACE(TraceColor::kInfo << "Copying frame state from merge @" << &state);
   if (known_node_aspects_) {
     state.PrintVirtualObjects(info, virtual_objects());
-    known_node_aspects_->virtual_objects().Snapshot();
   }
   state.frame_state().ForEachValue(
       unit, [&](ValueNode* value, interpreter::Register reg) {
         frame_[reg] = value;
       });
   if (preserve_known_node_aspects) {
-    known_node_aspects_ = state.CloneKnownNodeAspects(zone);
+    known_node_aspects_ = state.CloneKnownNodeAspects();
   } else {
     // Move "what we know" across without copying -- we can safely mutate it
     // now, as we won't be entering this merge point again.
@@ -84,8 +81,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::New(
         i++;
       });
   merge_state->predecessors_[0] = predecessor;
-  merge_state->known_node_aspects_ =
-      state.known_node_aspects()->Clone(info.zone());
+  merge_state->known_node_aspects_ = state.known_node_aspects()->Clone();
   merge_state->context_scope_info_ = context_scope_info;
   return merge_state;
 }
@@ -142,8 +138,7 @@ MergePointInterpreterFrameState::NewForLoop(
     //  enter via the OSR loop header from the interpreter). Therefore, all
     //  resume blocks are dead and not built, and we don't need to treat loops
     //  as resumable (which would unnecessarily clear registers).
-    state->known_node_aspects_ =
-        info.zone()->New<KnownNodeAspects>(info.zone());
+    state->known_node_aspects_ = KnownNodeAspects::New(graph->kna_pool());
     state->set_is_resumable_loop(graph);
   }
   auto& assignments = loop_info->assignments();
@@ -201,8 +196,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForPeel(
         dst = template_state.frame_state_.GetValueOf(reg, info);
       });
   if (template_state.known_node_aspects_ != nullptr) {
-    state->known_node_aspects_ =
-        template_state.known_node_aspects_->Clone(info.zone());
+    state->known_node_aspects_ = template_state.known_node_aspects_->Clone();
   }
   return state;
 }
@@ -262,7 +256,7 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
 namespace {
 void PrintBeforeMerge(Graph* graph, bool is_tracing, ValueNode* current_value,
                       ValueNode* unmerged_value, interpreter::Register reg,
-                      KnownNodeAspects* kna) {
+                      const KnownNodeAspects* kna) {
   if (V8_LIKELY(!is_tracing)) return;
   TraceLogger logger = TraceLogger(Tracer(graph->compilation_info()));
   logger << "  " << reg.ToString() << ": " << PrintNodeLabel(current_value)
@@ -287,7 +281,7 @@ void PrintBeforeMerge(Graph* graph, bool is_tracing, ValueNode* current_value,
   logger << ">";
 }
 void PrintAfterMerge(Graph* graph, bool is_tracing, ValueNode* merged_value,
-                     KnownNodeAspects* kna) {
+                     const KnownNodeAspects* kna) {
   if (V8_LIKELY(!is_tracing)) return;
   TraceLogger logger = TraceLogger(Tracer(graph->compilation_info()));
   logger << " => " << PrintNodeLabel(merged_value) << ": "
@@ -315,118 +309,15 @@ void MergePointInterpreterFrameState::MergePhis(
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode*& value, interpreter::Register reg) {
         PrintBeforeMerge(graph, is_tracing, value, unmerged.get(reg), reg,
-                         known_node_aspects_);
+                         known_node_aspects_.get());
         value = MergeValue(graph, reg, *unmerged.known_node_aspects(), value,
                            unmerged.get(reg), &per_predecessor_alternatives_[i],
                            optimistic_loop_phis);
-        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
+        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_.get());
         ++i;
       });
 }
 
-
-void MergePointInterpreterFrameState::MergeVirtualObject(
-    Graph* graph, bool is_tracing, const VirtualObjectList unmerged_vos,
-    const KnownNodeAspects& unmerged_aspects, VirtualObject* merged,
-    VirtualObject* unmerged) {
-  if (merged == unmerged) {
-    // No need to merge.
-    return;
-  }
-  DCHECK(unmerged->compatible_for_merge(merged));
-  if (V8_UNLIKELY(is_tracing)) {
-    TraceLogger(Tracer(graph->compilation_info()))
-        << TraceColor::kInfo << "Merging VOS: " << PrintNodeLabel(merged)
-        << "(merged) and " << PrintNodeLabel(unmerged) << "(unmerged)";
-  }
-  auto maybe_result = merged->Merge(
-      unmerged, graph->NewObjectId(), graph->zone(),
-      [&](ValueNode* a, ValueNode* b) {
-        return MergeVirtualObjectValue(graph, unmerged_aspects, a, b);
-      });
-
-  DCHECK_NOT_NULL(unmerged->allocation());
-  if (!maybe_result) {
-    return unmerged->allocation()->ForceEscaping();
-  }
-  VirtualObject* result = *maybe_result;
-  result->set_allocation(unmerged->allocation());
-  result->Snapshot();
-  unmerged->allocation()->UpdateObject(result);
-  known_node_aspects_->virtual_objects().Add(result);
-}
-
-void MergePointInterpreterFrameState::MergeVirtualObjects(
-    Graph* graph, bool is_tracing,
-    const MaglevCompilationUnit& compilation_unit,
-    const KnownNodeAspects& unmerged_aspects) {
-  if (known_node_aspects_->virtual_objects().is_empty()) return;
-
-  const VirtualObjectList unmerged_vos = unmerged_aspects.virtual_objects();
-  if (unmerged_vos.is_empty()) return;
-
-  known_node_aspects_->virtual_objects().Snapshot();
-
-  if (V8_UNLIKELY(is_tracing)) {
-    TraceLogger(Tracer(graph->compilation_info())) << "VOs before merge:";
-    PrintVirtualObjects(graph->compilation_info(), unmerged_vos);
-  }
-
-  SmallZoneMap<InlinedAllocation*, VirtualObject*, 10> unmerged_map(
-      graph->zone());
-  SmallZoneMap<InlinedAllocation*, VirtualObject*, 10> merged_map(
-      graph->zone());
-
-  // We iterate both list in reversed order of ids collecting the umerged
-  // objects into the map, until we find a common virtual object.
-  VirtualObjectList::WalkUntilCommon(
-      known_node_aspects_->virtual_objects(), unmerged_vos,
-      [&](VirtualObject* vo, VirtualObjectList vos) {
-        // If we have a version in the map, it should be the most up-to-date,
-        // since the list is in reverse order.
-        auto& map = unmerged_vos == vos ? unmerged_map : merged_map;
-        map.emplace(vo->allocation(), vo);
-      });
-
-  // Walk the merged map (values from the merged state) and merge values.
-  for (auto [_, merged] : merged_map) {
-    VirtualObject* unmerged = nullptr;
-    auto it = unmerged_map.find(merged->allocation());
-    if (it != unmerged_map.end()) {
-      unmerged = it->second;
-      unmerged_map.erase(it);
-    } else {
-      unmerged = unmerged_vos.FindAllocatedWith(merged->allocation());
-    }
-    if (unmerged != nullptr) {
-      MergeVirtualObject(graph, is_tracing, unmerged_vos, unmerged_aspects,
-                         merged, unmerged);
-    }
-  }
-
-  // Walk the unmerged map (values from the interpreter frame state) and merge
-  // values. If the value was already merged, we would have removed from the
-  // unmerged_map.
-  for (auto [_, unmerged] : unmerged_map) {
-    VirtualObject* merged = nullptr;
-    auto it = merged_map.find(unmerged->allocation());
-    if (it != merged_map.end()) {
-      merged = it->second;
-    } else {
-      merged = known_node_aspects_->virtual_objects().FindAllocatedWith(
-          unmerged->allocation());
-    }
-    if (merged != nullptr) {
-      MergeVirtualObject(graph, is_tracing, unmerged_vos, unmerged_aspects,
-                         merged, unmerged);
-    }
-  }
-
-  if (V8_UNLIKELY(is_tracing)) {
-    TraceLogger(Tracer(graph->compilation_info())) << "VOs after merge:";
-    PrintVirtualObjects(graph->compilation_info(), unmerged_vos);
-  }
-}
 
 void MergePointInterpreterFrameState::InitializeLoop(
     Graph* graph, bool is_tracing, MaglevCompilationUnit& compilation_unit,
@@ -445,9 +336,8 @@ void MergePointInterpreterFrameState::InitializeLoop(
   DCHECK(is_unmerged_loop());
   DCHECK_EQ(predecessors_so_far_, 0);
   known_node_aspects_ = unmerged.known_node_aspects()->CloneForLoopHeader(
-      optimistic_initial_state, loop_effects, graph->zone());
+      optimistic_initial_state, loop_effects);
   AsLoopHeader()->InitializeLoopEffectEpoch(*known_node_aspects_);
-  unmerged.virtual_objects().Snapshot();
   const MaglevCompilationInfo* info = compilation_unit.info();
   TRACE(TraceColor::kInfo << "Initializing "
                           << (optimistic_initial_state ? "optimistic " : "")
@@ -470,7 +360,7 @@ void MergePointInterpreterFrameState::Merge(
     InterpreterFrameState& unmerged, BasicBlock* predecessor,
     ContextScopeInfo context_scope_info) {
   DCHECK_GT(predecessor_count_, 1);
-  DCHECK_LT(predecessors_so_far_, predecessor_count_);
+  CHECK_LT(predecessors_so_far_, predecessor_count_);
 
   predecessors_[predecessors_so_far_] = predecessor;
 
@@ -487,10 +377,9 @@ void MergePointInterpreterFrameState::Merge(
   if (V8_UNLIKELY(is_tracing)) {
     TraceLogger(Tracer(graph->compilation_info()))
         << TraceColor::kInfo << "Merging...";
+    PrintVirtualObjects(graph->compilation_info(), unmerged.virtual_objects());
   }
 
-  MergeVirtualObjects(graph, is_tracing, compilation_unit,
-                      *unmerged.known_node_aspects());
   MergePhis(graph, is_tracing, compilation_unit, unmerged, predecessor,
             /*optimistic_loop_phis=*/false);
 
@@ -507,10 +396,10 @@ void LoopMergePointInterpreterFrameState::MergeLoop(
   DCHECK(is_unmerged_loop());
   predecessors_[predecessor_count_ - 1] = loop_end_block;
 
-  if (graph->compilation_info()->is_turbolev() ||
-      graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
-    backedge_known_node_aspects_ =
-        loop_end_state.known_node_aspects()->Clone(graph->zone());
+  if (!is_resumable_loop() &&
+      (graph->compilation_info()->is_turbolev() ||
+       graph->compilation_info()->flags().is_non_eager_inlining_enabled)) {
+    backedge_known_node_aspects_ = loop_end_state.known_node_aspects()->Clone();
   }
   backedge_deopt_frame_ = backedge_deopt_frame;
 
@@ -519,13 +408,16 @@ void LoopMergePointInterpreterFrameState::MergeLoop(
   frame_state_.ForEachValue(compilation_unit, [&](ValueNode* value,
                                                   interpreter::Register reg) {
     PrintBeforeMerge(graph, is_tracing, value, loop_end_state.get(reg), reg,
-                     known_node_aspects_);
+                     known_node_aspects_.get());
     MergeLoopValue(graph, is_tracing, reg, *loop_end_state.known_node_aspects(),
                    value, loop_end_state.get(reg));
-    PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
+    PrintAfterMerge(graph, is_tracing, value, known_node_aspects_.get());
   });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+  // Non-optimistic loops already transferred known_node_aspects_ to the loop
+  // header block via TakeKnownNodeAspects() in ProcessMergePoint.
+  DCHECK_NULL(known_node_aspects_);
 }
 
 bool LoopMergePointInterpreterFrameState::TryMergeLoop(
@@ -575,10 +467,10 @@ bool LoopMergePointInterpreterFrameState::TryMergeLoop(
     return false;
   }
 
-  if (graph->compilation_info()->is_turbolev() ||
-      graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
-    backedge_known_node_aspects_ =
-        loop_end_state.known_node_aspects()->Clone(graph->zone());
+  if (!is_resumable_loop() &&
+      (graph->compilation_info()->is_turbolev() ||
+       graph->compilation_info()->flags().is_non_eager_inlining_enabled)) {
+    backedge_known_node_aspects_ = loop_end_state.known_node_aspects()->Clone();
   }
   backedge_deopt_frame_ = backedge_deopt_frame;
 
@@ -592,13 +484,14 @@ bool LoopMergePointInterpreterFrameState::TryMergeLoop(
   frame_state_.ForEachValue(compilation_unit, [&](ValueNode* value,
                                                   interpreter::Register reg) {
     PrintBeforeMerge(graph, is_tracing, value, loop_end_state.get(reg), reg,
-                     known_node_aspects_);
+                     known_node_aspects_.get());
     MergeLoopValue(graph, is_tracing, reg, *loop_end_state.known_node_aspects(),
                    value, loop_end_state.get(reg));
-    PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
+    PrintAfterMerge(graph, is_tracing, value, known_node_aspects_.get());
   });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+  ClearKnownNodeAspects();
   return true;
 }
 
@@ -617,27 +510,26 @@ void MergePointInterpreterFrameState::MergeThrow(
 
   if (known_node_aspects_ == nullptr) {
     DCHECK_EQ(predecessors_so_far_, 0);
-    known_node_aspects_ = known_node_aspects.Clone(graph->zone());
+    known_node_aspects_ = known_node_aspects.Clone();
   } else {
     known_node_aspects_->Merge(known_node_aspects, graph->zone());
-    MergeVirtualObjects(graph, is_tracing, *handler_unit, known_node_aspects);
   }
 
   frame_state_.ForEachParameter(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
         PrintBeforeMerge(graph, is_tracing, value, handler_frame.get(reg), reg,
-                         known_node_aspects_);
+                         known_node_aspects_.get());
         value = MergeValue(graph, reg, known_node_aspects, value,
                            handler_frame.get(reg), nullptr);
-        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
+        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_.get());
       });
   frame_state_.ForEachLocal(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
         PrintBeforeMerge(graph, is_tracing, value, handler_frame.get(reg), reg,
-                         known_node_aspects_);
+                         known_node_aspects_.get());
         value = MergeValue(graph, reg, known_node_aspects, value,
                            handler_frame.get(reg), nullptr);
-        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
+        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_.get());
       });
 
   // Pick out the context value from the incoming registers.
@@ -647,11 +539,11 @@ void MergePointInterpreterFrameState::MergeThrow(
   ValueNode*& context = frame_state_.context(*handler_unit);
   PrintBeforeMerge(graph, is_tracing, context,
                    handler_frame.get(catch_block_context_register_),
-                   catch_block_context_register_, known_node_aspects_);
+                   catch_block_context_register_, known_node_aspects_.get());
   context = MergeValue(
       graph, catch_block_context_register_, known_node_aspects, context,
       handler_frame.get(catch_block_context_register_), nullptr);
-  PrintAfterMerge(graph, is_tracing, context, known_node_aspects_);
+  PrintAfterMerge(graph, is_tracing, context, known_node_aspects_.get());
 
   predecessors_so_far_++;
 }
@@ -685,6 +577,7 @@ ValueNode* FromInt32ToTagged(Graph* graph, NodeType node_type, ValueNode* value,
   }
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -703,6 +596,7 @@ ValueNode* FromUint32ToTagged(Graph* graph, NodeType node_type,
   }
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -717,6 +611,7 @@ ValueNode* FromIntPtrToTagged(Graph* graph, NodeType node_type,
   ValueNode* tagged = Node::New<IntPtrToNumber>(graph->zone(), {value});
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -732,6 +627,7 @@ ValueNode* FromFloat64ToTagged(Graph* graph, NodeType node_type,
       graph->zone(), {value}, NumberConversionMode::kCanonicalizeSmi);
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -747,6 +643,7 @@ ValueNode* FromHoleyFloat64ToTagged(Graph* graph, NodeType node_type,
       graph->zone(), {value}, NumberConversionMode::kCanonicalizeSmi);
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -842,7 +739,8 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
       }
     } else {
       if (optimistic_loop_phis) {
-        if (NodeInfo* node_info = known_node_aspects_->TryGetInfoFor(result)) {
+        if (NodeInfo* node_info =
+                known_node_aspects_->TryGetMutableInfoFor(result)) {
           node_info->UnionType(unmerged_type);
         }
         result->merge_type(unmerged_type);
@@ -964,87 +862,6 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
   } else {
     result->set_type(UnionType(type, unmerged_type));
   }
-
-  phis_.Add(result);
-  return result;
-}
-
-std::optional<ValueNode*>
-MergePointInterpreterFrameState::MergeVirtualObjectValue(
-    Graph* graph, const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
-    ValueNode* unmerged) {
-  DCHECK_NOT_NULL(merged);
-  DCHECK_NOT_NULL(unmerged);
-
-  Phi* result = merged->TryCast<Phi>();
-  if (result != nullptr && result->merge_state() == this) {
-    NodeType unmerged_type =
-        unmerged_aspects.GetTypeUnchecked(graph->broker(), unmerged);
-    unmerged = EnsureTagged(graph, unmerged_aspects, unmerged,
-                            predecessors_[predecessors_so_far_]);
-    for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
-      result->change_input(i, unmerged);
-    }
-    DCHECK_GT(predecessors_so_far_, 0);
-    result->merge_type(unmerged_type);
-    result->merge_post_loop_type(unmerged_type);
-    return result;
-  }
-
-  if (merged == unmerged) {
-    return merged;
-  }
-
-  if (InlinedAllocation* merged_nested_alloc =
-          merged->TryCast<InlinedAllocation>()) {
-    if (InlinedAllocation* unmerged_nested_alloc =
-            unmerged->TryCast<InlinedAllocation>()) {
-      // If a nested allocation doesn't point to the same object in both
-      // objects, then we currently give up merging them and escape the
-      // allocation.
-      if (merged_nested_alloc != unmerged_nested_alloc) {
-        return {};
-      }
-    }
-  }
-
-  // We don't support exception phis inside a virtual object.
-  if (is_exception_handler()) {
-    return {};
-  }
-
-  // We don't have LoopPhis inside a VirtualObject, but this can happen if the
-  // block is a diamond-merge and a loop entry at the same time. For now, we
-  // should escape.
-  if (is_loop()) return {};
-
-  result = Node::New<Phi>(graph->zone(), predecessor_count_, this,
-                          interpreter::Register::invalid_value());
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building)) {
-    for (uint32_t i = 0; i < predecessor_count_; i++) {
-      result->initialize_input_null(i);
-    }
-  }
-
-  NodeType merged_type = merged->GetStaticType(graph->broker());
-
-  // We must have seen the same value so far.
-  DCHECK_NOT_NULL(known_node_aspects_);
-  for (uint32_t i = 0; i < predecessors_so_far_; i++) {
-    ValueNode* tagged_merged =
-        EnsureTagged(graph, *known_node_aspects_, merged, predecessors_[i]);
-    result->set_input(i, tagged_merged);
-  }
-
-  NodeType unmerged_type =
-      unmerged_aspects.GetTypeUnchecked(graph->broker(), unmerged);
-  unmerged = EnsureTagged(graph, unmerged_aspects, unmerged,
-                          predecessors_[predecessors_so_far_]);
-  for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
-    result->set_input(i, unmerged);
-  }
-
-  result->set_type(UnionType(merged_type, unmerged_type));
 
   phis_.Add(result);
   return result;

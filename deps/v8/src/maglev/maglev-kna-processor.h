@@ -56,7 +56,7 @@ class RecomputeKnownNodeAspectsProcessor {
         reducer_(this, graph) {}
 
   void PreProcessGraph(Graph* graph) {
-    known_node_aspects_ = zone()->New<KnownNodeAspects>(zone());
+    known_node_aspects_ = KnownNodeAspects::New(graph->kna_pool());
     for (BasicBlock* block : graph->blocks()) {
       if (block->has_state()) {
         block->state()->ClearKnownNodeAspects();
@@ -94,7 +94,8 @@ class RecomputeKnownNodeAspectsProcessor {
     if (block->is_loop() && block->state()->is_resumable_loop()) {
       // TODO(victorgomes): Ideally, we should use the loop backedge KNA cache
       // for all loops.
-      known_node_aspects_ = zone()->New<KnownNodeAspects>(zone());
+      block->state()->ClearKnownNodeAspects();
+      known_node_aspects_ = KnownNodeAspects::New(graph_->kna_pool());
     } else if (block->is_loop()) {
       DCHECK_EQ(block->predecessor_count(), 2);
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
@@ -106,7 +107,7 @@ class RecomputeKnownNodeAspectsProcessor {
                 << "## Forward KNA:" << TraceNewline{} << *known_node_aspects_
                 << TraceNewline{} << "## Backward KNA:" << TraceNewline{}
                 << *backedge_known_node_aspects);
-      backedge_known_node_aspects->UnwrapIdentitiesAndPhisInKeys(zone());
+      backedge_known_node_aspects->UnwrapIdentitiesAndPhisInKeys();
       known_node_aspects_->MergeForLoop(
           *backedge_known_node_aspects, zone(),
           block->state()->AsLoopHeader()->loop_effects(),
@@ -116,7 +117,7 @@ class RecomputeKnownNodeAspectsProcessor {
     } else if (block->is_edge_split_block()) {
       // Clone the next available KNA.
       known_node_aspects_ =
-          SkipEdgeSplits(block)->state()->CloneKnownNodeAspects(zone());
+          SkipEdgeSplits(block)->state()->CloneKnownNodeAspects();
     } else {
       is_fallthrough = true;
     }
@@ -186,23 +187,24 @@ class RecomputeKnownNodeAspectsProcessor {
       // TODO(verwaest): Look into making loaded_context_constants_ monotonic,
       // e.g. by folding the hole check into the context load rather than
       // temporarily clearing the cached constant here.
-      ValueNode** cached_slot = nullptr;
-      ValueNode* value = nullptr;
+      LoadContextSlotNoCells* cached_load = nullptr;
       if (auto* throw_if_hole = node->TryCast<ThrowReferenceErrorIfTdzHole>()) {
-        value = throw_if_hole->ValueInput().node();
+        ValueNode* value = throw_if_hole->ValueInput().node();
         if (auto* load = value->TryCast<LoadContextSlotNoCells>();
             load && load->maybe_assigned() == kNotAssigned) {
           ValueNode*& slot = known_node_aspects().GetContextCachedValue(
               load->input(0).node(), load->offset(), kNotAssigned);
           if (slot == value) {
-            cached_slot = &slot;
-            *cached_slot = nullptr;
+            cached_load = load;
+            slot = nullptr;
           }
         }
       }
       Merge(exception_handler);
-      if (cached_slot) {
-        *cached_slot = value;
+      if (cached_load) {
+        known_node_aspects().GetContextCachedValue(
+            cached_load->input(0).node(), cached_load->offset(), kNotAssigned) =
+            cached_load;
       }
     }
   }
@@ -244,25 +246,19 @@ class RecomputeKnownNodeAspectsProcessor {
   }
 
   ProcessResult Process(JumpLoop* node, const ProcessingState& state) {
-#ifdef DEBUG
     known_node_aspects_ = nullptr;
-#endif  // DEBUG
     return ProcessResult::kContinue;
   }
 
   ProcessResult Process(Throw* node, const ProcessingState& state) {
     ProcessThrowingNode(node);
-#ifdef DEBUG
     known_node_aspects_ = nullptr;
-#endif  // DEBUG
     return ProcessResult::kContinue;
   }
 
   ProcessResult Process(TerminalControlNode* node,
                         const ProcessingState& state) {
-#ifdef DEBUG
     known_node_aspects_ = nullptr;
-#endif  // DEBUG
     return ProcessResult::kContinue;
   }
 
@@ -275,10 +271,14 @@ class RecomputeKnownNodeAspectsProcessor {
     return *known_node_aspects_;
   }
 
-  // Swap the active KNA pointer. Used by Subgraph<MaglevGraphOptimizer> to
-  // maintain a per-branch KNA snapshot during off-graph subgraph construction.
-  void set_known_node_aspects(KnownNodeAspects* known_node_aspects) {
-    known_node_aspects_ = known_node_aspects;
+  // Move or replace the active KNA pointer. Used by
+  // Subgraph<MaglevGraphOptimizer> to maintain a per-branch KNA snapshot during
+  // off-graph subgraph construction.
+  KnownNodeAspects::Ptr TakeKnownNodeAspects() {
+    return std::move(known_node_aspects_);
+  }
+  void set_known_node_aspects(KnownNodeAspects::Ptr known_node_aspects) {
+    known_node_aspects_ = std::move(known_node_aspects);
   }
 
  private:
@@ -288,7 +288,7 @@ class RecomputeKnownNodeAspectsProcessor {
   }
 
   Graph* graph_;
-  KnownNodeAspects* known_node_aspects_;
+  KnownNodeAspects::Ptr known_node_aspects_;
   ReachableExceptionHandlerTracker& tracker_;
   Tracer tracer_;
   MaglevReducer<RecomputeKnownNodeAspectsProcessor> reducer_;
@@ -318,7 +318,7 @@ class RecomputeKnownNodeAspectsProcessor {
     block = SkipEdgeSplits(block);
     // If we don't have state, this must be a fallthrough basic block.
     if (!block->has_state()) return;
-    block->state()->MergeNodeAspects(zone(), &known_node_aspects_);
+    block->state()->MergeNodeAspects(zone(), std::move(known_node_aspects_));
   }
 
   template <typename NodeT>
@@ -347,6 +347,10 @@ class RecomputeKnownNodeAspectsProcessor {
         return RecordType(node->input_node(0), NodeType::kNumeric);
     }
     return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(CheckHoleyFloat64NotHoleOrUndefined* node) {
+    return RecordType(node->input_node(0), NodeType::kNumber);
   }
 
 #define SAFE_CONVERSION_LIST(V)                                            \
@@ -418,6 +422,28 @@ class RecomputeKnownNodeAspectsProcessor {
     return RecordMaps(node->ReceiverInput().node(), node->maps());
   }
 
+  ProcessResult ProcessNode(CheckMapsWithMigration* node) {
+    return RecordMaps(node->ReceiverInput().node(), node->maps());
+  }
+
+  ProcessResult ProcessNode(CheckMapsWithMigrationAndDeopt* node) {
+    return RecordMaps(node->ReceiverInput().node(), node->maps());
+  }
+
+  ProcessResult ProcessNode(StoreMap* node) {
+    compiler::MapRef map = node->map();
+    ValueNode* object = node->ValueInput().node();
+    if (!GetOrCreateInfoFor(object)->SetPossibleMaps(
+            PossibleMaps{map}, !map.is_stable(),
+            StaticTypeForMap(map, broker()), broker(), known_node_aspects())) {
+      return OnContradiction();
+    }
+    if (!map.is_stable()) {
+      known_node_aspects().MarkSideEffectsRequireInvalidation();
+    }
+    return ProcessResult::kContinue;
+  }
+
   ProcessResult ProcessNode(LoadTaggedField* node) {
     // Re-establish the static type recorded at graph building time (field
     // representation / stable field map derived).
@@ -435,7 +461,7 @@ class RecomputeKnownNodeAspectsProcessor {
     }
     if (!node->property_key().is_none()) {
       auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
-          zone(), node->is_const(), node->property_key());
+          node->constness(), node->property_key());
       props_for_key[node->ValueInput().node()] = node;
     }
     return ProcessResult::kContinue;
@@ -448,18 +474,32 @@ class RecomputeKnownNodeAspectsProcessor {
   }
 
   ProcessResult ProcessNode(LoadDataViewByteLength* node) {
-    bool is_const = !v8_flags.track_array_buffer_views;
+    PropertyConstness constness = v8_flags.track_array_buffer_views
+                                      ? PropertyConstness::kMutable
+                                      : PropertyConstness::kConst;
     auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
-        zone(), is_const, PropertyKey::ArrayBufferViewByteLength());
+        constness, PropertyKey::ArrayBufferViewByteLength());
+    props_for_key[node->ValueInput().node()] = node;
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(LoadDataViewDataPointer* node) {
+    PropertyConstness constness = v8_flags.track_array_buffer_views
+                                      ? PropertyConstness::kMutable
+                                      : PropertyConstness::kConst;
+    auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
+        constness, PropertyKey::ArrayBufferViewDataPointer());
     props_for_key[node->ValueInput().node()] = node;
     return ProcessResult::kContinue;
   }
 
   ProcessResult ProcessNode(LoadTypedArrayLength* node) {
     if (!IsRabGsabTypedArrayElementsKind(node->elements_kind())) {
-      bool is_const = !v8_flags.track_array_buffer_views;
+      PropertyConstness constness = v8_flags.track_array_buffer_views
+                                        ? PropertyConstness::kMutable
+                                        : PropertyConstness::kConst;
       auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
-          zone(), is_const, PropertyKey::TypedArrayLength());
+          constness, PropertyKey::TypedArrayLength());
       props_for_key[node->ValueInput().node()] = node;
     }
     return ProcessResult::kContinue;
@@ -481,8 +521,19 @@ class RecomputeKnownNodeAspectsProcessor {
     }
     // ... otherwise we try the properties cache.
     if (node->property_key().is_none()) return;
+    // Transitioning stores only mark maps as stale without clearing
+    // loaded_properties_, so a store to a tagged field must also invalidate
+    // any cached double-field HeapNumber box for the same property name (and
+    // vice versa for transitioning double-field box stores).
+    if (node->property_key().type() == PropertyKey::kName) {
+      known_node_aspects().ClearLoadedPropertiesForKey(
+          PropertyKey::DoubleField(node->property_key().name()));
+    } else if (node->property_key().type() == PropertyKey::kDoubleField) {
+      known_node_aspects().ClearLoadedPropertiesForKey(
+          PropertyKey(node->property_key().name()));
+    }
     auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
-        zone(), false, node->property_key());
+        PropertyConstness::kMutable, node->property_key());
     // We don't do any aliasing analysis, so stores clobber all other cached
     // loads of a property with that key. We only need to do this for
     // non-constant properties, since constant properties are known not to
@@ -561,9 +612,7 @@ class RecomputeKnownNodeAspectsProcessor {
   }
 
   ProcessResult ProcessNode(CheckInt32IsSmi* node) {
-    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));
-    info->IntersectType(NodeType::kSmi);
-    return ProcessResult::kContinue;
+    return RecordType(node->input_node(0), NodeType::kSmi);
   }
 
   ProcessResult ProcessNode(Node* node) { return ProcessResult::kContinue; }

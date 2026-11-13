@@ -104,9 +104,12 @@ class MinorGCHeapGrowing
 // static
 std::unique_ptr<CppHeap> CppHeap::Create(v8::Platform* platform,
                                          const CppHeapCreateParams& params) {
+  START_ALLOW_USE_DEPRECATED()
   return std::make_unique<internal::CppHeap>(
       platform, params.custom_spaces, params.marking_support,
-      params.sweeping_support, params.stack_start_marker);
+      params.sweeping_support, params.stack_start_marker,
+      params.allocation_sampler);
+  END_ALLOW_USE_DEPRECATED()
 }
 
 cppgc::AllocationHandle& CppHeap::GetAllocationHandle() {
@@ -527,12 +530,14 @@ CppHeap::CppHeap(
     const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
     cppgc::Heap::MarkingType marking_support,
     cppgc::Heap::SweepingType sweeping_support,
-    std::optional<cppgc::StackStartMarker> stack_start_marker)
+    std::optional<cppgc::StackStartMarker> stack_start_marker,
+    cppgc::AllocationSampler* allocation_sampler)
     : cppgc::internal::HeapBase(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
               kSupportsConservativeStackScan,
-          marking_support, sweeping_support, *this, stack_start_marker),
+          marking_support, sweeping_support, *this, stack_start_marker,
+          allocation_sampler),
       minor_gc_heap_growing_(
           std::make_unique<MinorGCHeapGrowing>(*stats_collector())),
       cross_heap_remembered_set_(*this) {
@@ -556,15 +561,37 @@ namespace {
 
 class SweepingOnMutatorThreadForGlobalHandlesScope final {
  public:
-  explicit SweepingOnMutatorThreadForGlobalHandlesScope(
-      TracedHandles& traced_handles)
-      : traced_handles_(traced_handles) {
-    traced_handles_.SetIsSweepingOnMutatorThread(true);
+  explicit SweepingOnMutatorThreadForGlobalHandlesScope(Isolate& isolate)
+      : isolate_(isolate),
+        no_js_(&isolate),
+        no_js_object_modification_(&isolate) {
+    isolate_.traced_handles()->SetIsSweepingOnMutatorThread(true);
   }
   ~SweepingOnMutatorThreadForGlobalHandlesScope() {
-    traced_handles_.SetIsSweepingOnMutatorThread(false);
+    isolate_.traced_handles()->SetIsSweepingOnMutatorThread(false);
   }
 
+ private:
+  Isolate& isolate_;
+  // Mutator-thread sweeping runs CppHeap pre-finalizers and C++ destructors
+  // (both during the atomic pause and outside it via incremental sweep tasks or
+  // lazy sweeping on Oilpan allocation). Disallow JS execution and JSObject
+  // modification during these embedder finalizers.
+  DisallowJavascriptExecution no_js_;
+  DisallowJSObjectModification no_js_object_modification_;
+};
+
+class WeakProcessingForGlobalHandlesScope final {
+ public:
+  explicit WeakProcessingForGlobalHandlesScope(TracedHandles& traced_handles)
+      : traced_handles_(traced_handles) {
+    traced_handles_.SetIsProcessingWeakness(true);
+  }
+  ~WeakProcessingForGlobalHandlesScope() {
+    traced_handles_.SetIsProcessingWeakness(false);
+  }
+
+ private:
   TracedHandles& traced_handles_;
 };
 
@@ -572,17 +599,18 @@ class SweepingOnMutatorThreadForGlobalHandlesObserver final
     : public cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver {
  public:
   SweepingOnMutatorThreadForGlobalHandlesObserver(CppHeap& cpp_heap,
-                                                  TracedHandles& traced_handles)
+                                                  Isolate& isolate)
       : cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver(
             cpp_heap.sweeper()),
-        traced_handles_(traced_handles) {}
+        isolate_(isolate) {}
 
-  void Start() override { traced_handles_.SetIsSweepingOnMutatorThread(true); }
+  void Start() override { scope_.emplace(isolate_); }
 
-  void End() override { traced_handles_.SetIsSweepingOnMutatorThread(false); }
+  void End() override { scope_.reset(); }
 
  private:
-  TracedHandles& traced_handles_;
+  Isolate& isolate_;
+  std::optional<SweepingOnMutatorThreadForGlobalHandlesScope> scope_;
 };
 
 class MoveListenerImpl final : public HeapProfilerNativeMoveListener,
@@ -644,7 +672,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   UpdateGCCapabilitiesFromFlags();
   sweeping_on_mutator_thread_observer_ =
       std::make_unique<SweepingOnMutatorThreadForGlobalHandlesObserver>(
-          *this, *isolate_->traced_handles());
+          *this, *isolate_);
   no_gc_scope_--;
 
   // Propagate overridden stack state to the attached heap, if necessary.
@@ -760,6 +788,19 @@ CppHeap::SweepingType CppHeap::SelectSweepingType() const {
 }
 
 void CppHeap::UpdateGCCapabilitiesFromFlags() {
+  // Runtime flags may only reduce what the embedder requested via
+  // CppHeapCreateParams; they must never grant more. The std::min calls below
+  // do that directly. The marking else-branch does it by assigning kAtomic,
+  // which is the least capable value. All of this depends on the enumerators
+  // being ordered from least to most capable; reordering them would silently
+  // grant more than was requested.
+  static_assert(MarkingType::kAtomic < MarkingType::kIncremental);
+  static_assert(MarkingType::kIncremental <
+                MarkingType::kIncrementalAndConcurrent);
+  static_assert(SweepingType::kAtomic < SweepingType::kIncremental);
+  static_assert(SweepingType::kIncremental <
+                SweepingType::kIncrementalAndConcurrent);
+
   CHECK_IMPLIES(v8_flags.cppheap_concurrent_marking,
                 v8_flags.cppheap_incremental_marking);
   if (v8_flags.cppheap_concurrent_marking) {
@@ -772,9 +813,13 @@ void CppHeap::UpdateGCCapabilitiesFromFlags() {
     marking_support_ = MarkingType::kAtomic;
   }
 
-  sweeping_support_ = v8_flags.single_threaded_gc
-                          ? CppHeap::SweepingType::kIncremental
-                          : CppHeap::SweepingType::kIncrementalAndConcurrent;
+  // Assigning unconditionally here would raise an embedder-requested kAtomic
+  // back up, silently ignoring CppHeapCreateParams::sweeping_support.
+  sweeping_support_ =
+      std::min(sweeping_support_,
+               v8_flags.single_threaded_gc
+                   ? CppHeap::SweepingType::kIncremental
+                   : CppHeap::SweepingType::kIncrementalAndConcurrent);
 }
 
 void CppHeap::InitializeMarking(
@@ -994,6 +1039,12 @@ void CppHeap::FinishMarkingAndProcessWeakness() {
 
   {
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
+    std::optional<WeakProcessingForGlobalHandlesScope> global_handles_scope;
+    if (isolate_) {
+      DCHECK(!AllowJavascriptExecution::IsAllowed(isolate_));
+      DCHECK(!AllowJSObjectModification::IsAllowed(isolate_));
+      global_handles_scope.emplace(*isolate_->traced_handles());
+    }
     marker_->LeaveAtomicPause();
   }
   marker_.reset();
@@ -1031,7 +1082,7 @@ void CppHeap::CompactAndSweep() {
     std::optional<SweepingOnMutatorThreadForGlobalHandlesScope>
         global_handles_scope;
     if (isolate_) {
-      global_handles_scope.emplace(*isolate_->traced_handles());
+      global_handles_scope.emplace(*isolate_);
     }
     bytes_allocated_in_prefinalizers = ExecutePreFinalizers();
   }
@@ -1050,6 +1101,8 @@ void CppHeap::CompactAndSweep() {
   ResetCrossHeapRememberedSet();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
+  FilterSampledObjects();
+
   {
     cppgc::subtle::NoGarbageCollectionScope no_gc(*this);
     cppgc::internal::SweepingConfig::CompactableSpaceHandling
@@ -1058,7 +1111,7 @@ void CppHeap::CompactAndSweep() {
       std::optional<SweepingOnMutatorThreadForGlobalHandlesScope>
           global_handles_scope;
       if (isolate_) {
-        global_handles_scope.emplace(*isolate_->traced_handles());
+        global_handles_scope.emplace(*isolate_);
       }
       compactable_space_handling = compactor_.CompactSpacesIfEnabled();
     }

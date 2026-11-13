@@ -67,14 +67,14 @@ function get_literal(x) {
 %PrepareFunctionForOptimization(get_literal);
 get_literal(3);
 // It's important to store a from before we crankshaft get_literal, because
-// mementos won't be created from crankshafted code at all.
+// allocation site tracking won't be recorded from crankshafted code at all.
 a = get_literal(3);
 %OptimizeFunctionOnNextCall(get_literal);
 get_literal(3);
 assertOptimized(get_literal);
 assertTrue(%HasSmiElements(a));
-// a has a memento so the transition caused by the store will affect the
-// boilerplate.
+// a is tracked in the AllocationSiteCache so the transition caused by the store
+// will affect the boilerplate.
 a[0] = 3.5;
 
 // We should have transitioned the boilerplate array to double, and

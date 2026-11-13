@@ -1,0 +1,9 @@
+part 1: 1 2 3
+part 2: 10 undefined undefined
+fuzzcode.js:5: Error: part 2 throws
+throw new Error("part 2 throws");
+^
+Error: part 2 throws
+    at fuzzcode.js:5:7
+
+part 3: undefined

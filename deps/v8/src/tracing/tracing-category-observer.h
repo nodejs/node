@@ -5,18 +5,14 @@
 #ifndef V8_TRACING_TRACING_CATEGORY_OBSERVER_H_
 #define V8_TRACING_TRACING_CATEGORY_OBSERVER_H_
 
-#include "include/v8-platform.h"
-#include "src/tracing/trace-event.h"
-
 namespace v8 {
 namespace tracing {
 
-class TracingCategoryObserver
-#if defined(V8_USE_PERFETTO)
-    : public perfetto::TrackEventSessionObserver {
-#else
-    : public TracingController::TraceStateObserver {
-#endif
+// Keep the observer base class (perfetto::TrackEventSessionObserver /
+// v8::TracingController::TraceStateObserver) in the .cc file so that headers
+// including this file for Mode constants (such as runtime-call-stats.h) do not
+// pull in trace-event.h and the full Perfetto SDK headers.
+class TracingCategoryObserver {
  public:
   enum Mode {
     ENABLED_BY_NATIVE = 1 << 0,
@@ -26,19 +22,6 @@ class TracingCategoryObserver
 
   static void SetUp();
   static void TearDown();
-
-#if defined(V8_USE_PERFETTO)
-  // perfetto::TrackEventSessionObserver
-  void OnStart(const perfetto::DataSourceBase::StartArgs&) override;
-  void OnStop(const perfetto::DataSourceBase::StopArgs&) override;
-#else
-  // v8::TracingController::TraceStateObserver
-  void OnTraceEnabled() final;
-  void OnTraceDisabled() final;
-#endif
-
- private:
-  static TracingCategoryObserver* instance_;
 };
 
 }  // namespace tracing

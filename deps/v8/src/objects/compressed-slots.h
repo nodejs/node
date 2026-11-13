@@ -43,7 +43,6 @@ class CompressedObjectSlot : public SlotBase<CompressedObjectSlot, Tagged_t> {
   // Compares memory representation of a value stored in the slot with given
   // raw value without decompression.
   inline bool contains_map_value(Address raw_value) const;
-  inline bool Relaxed_ContainsMapValue(Address raw_value) const;
 
   // TODO(leszeks): Consider deprecating the operator* load, and always pass the
   // Isolate.
@@ -51,7 +50,7 @@ class CompressedObjectSlot : public SlotBase<CompressedObjectSlot, Tagged_t> {
   // TODO(saelo): it would be nice if we could have two load variants: one that
   // takes no arguments (which should normally be used), and one that takes an
   // Isolate* or an IsolateForSandbox to be compatible with the
-  // IndirectPointerSlot. Then, all slots that contain HeapObject references
+  // TrustedPointerSlot. Then, all slots that contain HeapObject references
   // would have at least a `load(isolate)` variant, and so could that could be
   // used in cases where only the slots content matters.
   inline Tagged<Object> load() const;

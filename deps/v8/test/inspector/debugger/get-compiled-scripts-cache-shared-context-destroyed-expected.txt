@@ -1,0 +1,9 @@
+Checks that late Debugger.enable reports cache-shared scripts after a sharing context is destroyed
+shared1.js (in main context: true)
+shared2.js (in main context: true)
+shared3.js (in main context: true)
+shared4.js (in main context: true)
+shared5.js (in main context: true)
+shared6.js (in main context: true)
+shared5.js (in other context: true)
+Main session stepped to: caller

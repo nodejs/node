@@ -15,7 +15,7 @@ The severity of a security vulnerability in the V8 Inspector is determined by th
 
 To be considered a valid security vulnerability, a proof-of-concept (PoC) or reproduction **must** be reproducible using the `inspector-test` harness.
 
-*   **Invalid Reproductions:** Reproductions using `d8 --enable-inspector` are generally considered **invalid**. `d8` processes CDP traffic synchronously, which can lead to behaviors—such as specific re-entrancy patterns—that do not exist in production environments like Chrome or the `inspector-test` harness.
+*   **Invalid Reproductions:** Reproductions using `d8 --enable-inspector` (removed in https://crbug.com/573042262) are **invalid**. `d8` processed CDP traffic synchronously, which could lead to behaviors—such as specific re-entrancy patterns—that do not exist in production environments like Chrome or the `inspector-test` harness.
 *   **Rationale:** For example, re-entering the V8 Inspector while a CDP event is still on the stack is impossible in Chrome or `inspector-test`, but may appear possible in `d8` due to its synchronous nature.
 
 ## Security Goals and Boundaries

@@ -1,0 +1,105 @@
+# TODO(michaelrj): split out the implementations from memory_utils
+add_header_library(
+  memory_utils
+  HDRS
+    aarch64/inline_bcmp.h
+    aarch64/inline_memcmp.h
+    aarch64/inline_memcpy.h
+    aarch64/inline_memmove.h
+    aarch64/inline_memset.h
+    arm/common.h
+    arm/inline_memcpy.h
+    arm/inline_memset.h
+    generic/aligned_access.h
+    generic/byte_per_byte.h
+    inline_bcmp.h
+    inline_bzero.h
+    inline_memcmp.h
+    inline_memcpy.h
+    inline_memmove.h
+    inline_memset.h
+    op_aarch64.h
+    op_builtin.h
+    op_generic.h
+    op_x86.h
+    riscv/inline_bcmp.h
+    riscv/inline_memcmp.h
+    riscv/inline_memcpy.h
+    riscv/inline_memmove.h
+    riscv/inline_memset.h
+    utils.h
+    x86_64/inline_bcmp.h
+    x86_64/inline_memcmp.h
+    x86_64/inline_memcpy.h
+    x86_64/inline_memmove.h
+    x86_64/inline_memset.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.common
+    libc.src.__support.CPP.bit
+    libc.src.__support.CPP.cstddef
+    libc.src.__support.CPP.type_traits
+    libc.src.__support.macros.config
+    libc.src.__support.macros.is_defined
+    libc.src.__support.macros.optimization
+    libc.src.__support.macros.properties.architectures
+    libc.src.__support.macros.properties.compiler
+)
+
+add_header_library(
+  inline_memcpy
+  HDRS
+    inline_memcpy.h
+  DEPENDS
+    .memory_utils
+)
+
+add_header_library(
+  inline_memmove
+  HDRS
+    inline_memmove.h
+  DEPENDS
+    .memory_utils
+)
+
+add_header_library(
+  inline_memcmp
+  HDRS
+    inline_memcmp.h
+  DEPENDS
+    .memory_utils
+)
+
+add_header_library(
+  inline_memset
+  HDRS
+    inline_memset.h
+  DEPENDS
+    .memory_utils
+)
+
+add_header_library(
+  inline_bzero
+  HDRS
+    inline_bzero.h
+  DEPENDS
+    .inline_memset
+)
+
+add_header_library(
+  inline_strcmp
+  HDRS
+    inline_strcmp.h
+)
+
+add_header_library(
+  inline_strstr
+  HDRS
+    inline_strstr.h
+)
+
+add_header_library(
+  inline_memmem
+  HDRS
+    inline_memmem.h
+)

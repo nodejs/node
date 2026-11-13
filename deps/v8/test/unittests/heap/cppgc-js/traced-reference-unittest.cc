@@ -4,6 +4,8 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/liveness-broker.h"
+#include "include/cppgc/persistent.h"
 #include "include/cppgc/prefinalizer.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-traced-handle.h"
@@ -440,6 +442,46 @@ TEST_F(TracedReferencePreFinalizerTest,
   EXPECT_EQ(ref1, first);
   EXPECT_NE(ref1, ref2);
 }
+
+#ifdef DEBUG
+namespace {
+
+class ResettingWeakCallback final
+    : public cppgc::GarbageCollected<ResettingWeakCallback> {
+ public:
+  ResettingWeakCallback(v8::Isolate* isolate, v8::Local<v8::Object> value)
+      : value_(isolate, value) {}
+
+  void Trace(cppgc::Visitor* visitor) const {
+    visitor->Trace(value_);
+    visitor->RegisterWeakCallbackMethod<ResettingWeakCallback,
+                                        &ResettingWeakCallback::WeakCallback>(
+        this);
+  }
+
+  void WeakCallback(const cppgc::LivenessBroker&) { value_.Reset(); }
+
+ private:
+  v8::TracedReference<v8::Object> value_;
+};
+
+}  // namespace
+
+using TracedReferenceWeakCallbackDeathTest = UnifiedHeapTest;
+
+TEST_F(TracedReferenceWeakCallbackDeathTest, WeakCallbackResetFailsWithDcheck) {
+  cppgc::Persistent<ResettingWeakCallback> holder;
+  {
+    v8::HandleScope handles(v8_isolate());
+    holder = cppgc::MakeGarbageCollected<ResettingWeakCallback>(
+        allocation_handle(), v8_isolate(), v8::Object::New(v8_isolate()));
+  }
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic),
+      "");
+}
+#endif  // DEBUG
 
 namespace {
 

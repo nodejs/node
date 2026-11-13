@@ -160,15 +160,14 @@ macro StoreAndGrowFixedArray<T: type>(
   if (index < length) {
     fixedArray.objects[index] = element;
     return fixedArray;
-  } else
-    deferred {
-      const newLength: intptr = CalculateNewElementsCapacity(length);
-      dcheck(index < newLength);
-      const newfixedArray: FixedArray =
-          ExtractFixedArray(fixedArray, 0, length, newLength, TheHole);
-      newfixedArray.objects[index] = element;
-      return newfixedArray;
-    }
+  } else deferred {
+    const newLength: intptr = CalculateNewElementsCapacity(length);
+    dcheck(index < newLength);
+    const newfixedArray: FixedArray =
+        ExtractFixedArray(fixedArray, 0, length, newLength, TheHole);
+    newfixedArray.objects[index] = element;
+    return newfixedArray;
+  }
 }
 
 // Contains the information necessary to create a single, separator delimited,
@@ -209,9 +208,9 @@ struct Buffer {
 
     this.totalStringLength = AddStringLength(this.totalStringLength, sepsLen);
     if (write) deferred {
-        this.AppendToChunk(Convert<Smi>(nofSeparatorsInt));
-        this.lastString = Null;
-      }
+      this.AppendToChunk(Convert<Smi>(nofSeparatorsInt));
+      this.lastString = Null;
+    }
   }
 
   macro RepeatLast(): void {
@@ -239,22 +238,21 @@ struct Buffer {
     dcheck(this.index <= length);
     if (this.index < length) {
       this.chunk.objects[this.index++] = element;
-    } else
-      deferred {
-        const newChunkLength: intptr = CalculateNewElementsCapacity(length);
-        const cappedNewChunkLength: intptr =
-            newChunkLength > kMaxBufferChunkSize ? kMaxBufferChunkSize :
-                                                   newChunkLength;
-        dcheck(cappedNewChunkLength > 0);
+    } else deferred {
+      const newChunkLength: intptr = CalculateNewElementsCapacity(length);
+      const cappedNewChunkLength: intptr =
+          newChunkLength > kMaxBufferChunkSize ? kMaxBufferChunkSize :
+                                                 newChunkLength;
+      dcheck(cappedNewChunkLength > 0);
 
-        const newChunk = AllocateZeroedFixedArray(cappedNewChunkLength);
-        this.chunk.objects[0] = newChunk;
+      const newChunk = AllocateZeroedFixedArray(cappedNewChunkLength);
+      this.chunk.objects[0] = newChunk;
 
-        newChunk.objects[0] = Undefined;  // next chunk
-        newChunk.objects[1] = element;
-        this.index = 2;
-        this.chunk = newChunk;
-      }
+      newChunk.objects[0] = Undefined;  // next chunk
+      newChunk.objects[1] = element;
+      this.index = 2;
+      this.chunk = newChunk;
+    }
   }
 
   // The head of the list of chunks (see, chunk field).
@@ -497,10 +495,9 @@ transitioning macro ArrayJoinImpl<T: type>(
   // 7. Repeat, while k < len
   while (k < len) {
     if (CannotUseSameArrayAccessor<T>(
-            loadFn, receiver, initialMap, lengthNumber))
-      deferred {
-        loadFn = LoadJoinElement<array::GenericElementsAccessor>;
-      }
+            loadFn, receiver, initialMap, lengthNumber)) deferred {
+      loadFn = LoadJoinElement<array::GenericElementsAccessor>;
+    }
 
     if (k > 0) {
       // a. If k > 0, let R be the string-concatenation of R and sep.
@@ -575,25 +572,23 @@ transitioning ArrayJoin<JSArray>(
         IsElementsKindLessThanOrEqual(
             kind, ElementsKind::LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND)) {
       loadFn = LoadJoinElement<array::FastSmiOrObjectElements>;
-    } else if (kind == ElementsKind::DICTIONARY_ELEMENTS)
-      deferred {
-        const dict: NumberDictionary =
-            UnsafeCast<NumberDictionary>(array.elements);
-        const nofElements: Smi = GetNumberDictionaryNumberOfElements(dict);
-        if (nofElements == 0) {
-          if (sep == kEmptyString) return kEmptyString;
-          try {
-            const nofSeparators: Smi =
-                Cast<Smi>(lenNumber - 1) otherwise IfNotSmi;
-            return StringRepeat(context, sep, nofSeparators);
-          } label IfNotSmi {
-            ThrowInvalidStringLength(context);
-          }
-        } else {
-          loadFn = LoadJoinElement<array::DictionaryElements>;
+    } else if (kind == ElementsKind::DICTIONARY_ELEMENTS) deferred {
+      const dict: NumberDictionary =
+          UnsafeCast<NumberDictionary>(array.elements);
+      const nofElements: Smi = GetNumberDictionaryNumberOfElements(dict);
+      if (nofElements == 0) {
+        if (sep == kEmptyString) return kEmptyString;
+        try {
+          const nofSeparators: Smi =
+              Cast<Smi>(lenNumber - 1) otherwise IfNotSmi;
+          return StringRepeat(context, sep, nofSeparators);
+        } label IfNotSmi {
+          ThrowInvalidStringLength(context);
         }
+      } else {
+        loadFn = LoadJoinElement<array::DictionaryElements>;
       }
-    else {
+    } else {
       goto IfSlowPath;
     }
   } label IfSlowPath {
@@ -731,10 +726,9 @@ macro JoinStackPushInline(implicit context: Context)(receiver: JSReceiver):
         otherwise IfUninitialized;
     if (stack.objects[0] == TheHole) {
       stack.objects[0] = receiver;
-    } else if (JoinStackPush(stack, receiver) == False)
-      deferred {
-        return false;
-      }
+    } else if (JoinStackPush(stack, receiver) == False) deferred {
+      return false;
+    }
   } label IfUninitialized {
     const stack: FixedArray =
         AllocateFixedArrayWithHoles(kMinJoinStackSize, AllocationFlag::kNone);
@@ -755,11 +749,10 @@ builtin JoinStackPop(
       // Shrink the Join Stack if the stack will be empty and is larger than
       // the minimum size.
       if (i == 0 && len > kMinJoinStackSize) deferred {
-          const newStack: FixedArray = AllocateFixedArrayWithHoles(
-              kMinJoinStackSize, AllocationFlag::kNone);
-          SetJoinStack(newStack);
-        }
-      else {
+        const newStack: FixedArray = AllocateFixedArrayWithHoles(
+            kMinJoinStackSize, AllocationFlag::kNone);
+        SetJoinStack(newStack);
+      } else {
         stack.objects[i] = TheHole;
       }
       return Undefined;
@@ -779,10 +772,9 @@ macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver):
   // did not contain other nested arrays that expanded the stack.
   if (stack.objects[0] == receiver && len == kMinJoinStackSize) {
     stack.objects[0] = TheHole;
-  } else
-    deferred {
-      JoinStackPop(stack, receiver);
-    }
+  } else deferred {
+    JoinStackPop(stack, receiver);
+  }
 }
 
 // Main entry point for all builtins using Array Join functionality.

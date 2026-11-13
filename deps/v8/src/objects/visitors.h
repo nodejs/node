@@ -35,7 +35,6 @@ class Code;
   V(kRelocatable, "(Relocatable)")                             \
   V(kRetainMaps, "(Retain maps)")                              \
   V(kSharedHeapObjectCache, "(Shareable object cache)")        \
-  V(kSharedStructTypeRegistry, "(SharedStruct type registry)") \
   V(kSmiRootList, "(Smi roots)")                               \
   V(kStackRoots, "(Stack roots)")                              \
   V(kStartupObjectCache, "(Startup object cache)")             \
@@ -197,9 +196,9 @@ class ObjectVisitor {
   virtual void VisitCppHeapPointer(Tagged<HeapObject> host,
                                    CppHeapPointerSlot slot) {}
 
-  virtual void VisitIndirectPointer(Tagged<HeapObject> host,
-                                    IndirectPointerSlot slot,
-                                    IndirectPointerMode mode) {}
+  virtual void VisitTrustedPointer(Tagged<HeapObject> host,
+                                   TrustedPointerSlot slot,
+                                   TrustedPointerMode mode) {}
 
   virtual void VisitProtectedPointer(Tagged<TrustedObject> host,
                                      ProtectedPointerSlot slot) {}
@@ -207,7 +206,7 @@ class ObjectVisitor {
                                      ProtectedMaybeObjectSlot slot) {}
 
   virtual void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                             IndirectPointerSlot slot) {}
+                                             TrustedPointerSlot slot) {}
 
   virtual void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                          JSDispatchHandle handle) {}

@@ -757,7 +757,7 @@ uLong ZEXPORT crc32_z(uLong crc, const unsigned char FAR *buf, z_size_t len) {
 #endif
 
             /* Initialize the CRC for each braid. */
-            crc0 = crc;
+            crc0 = (z_crc_t)crc;
 #if N > 1
             crc1 = 0;
 #if N > 2

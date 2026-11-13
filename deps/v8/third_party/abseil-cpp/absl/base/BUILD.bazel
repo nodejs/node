@@ -70,6 +70,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/coding/elias_fano:__subpackages__",
         "@do_not_use_for_gloop_visibility_only//gloop/util/sysinfo/topology:__subpackages__",
     ],
     deps = [
@@ -272,6 +273,7 @@ cc_library(
         "@rules_cc//cc/compiler:msvc-cl": [],
         "@rules_cc//cc/compiler:clang-cl": [],
         "@rules_cc//cc/compiler:emscripten": [],
+        "@platforms//os:wasi": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     visibility = [
@@ -340,6 +342,7 @@ cc_library(
             "-ladvapi32",
         ],
         "@rules_cc//cc/compiler:emscripten": [],
+        "@platforms//os:wasi": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
@@ -508,6 +511,7 @@ cc_library(
     visibility = ["//absl:__subpackages__"],
     deps = [
         ":config",
+        ":core_headers",
         ":pretty_function",
         "//absl/memory",
         "//absl/meta:type_traits",
@@ -559,6 +563,7 @@ cc_test(
     srcs = ["spinlock_test_common.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    shard_count = 4,
     tags = [
         "no_test_wasm",
     ],
@@ -567,6 +572,25 @@ cc_test(
         ":base_internal",
         ":config",
         ":core_headers",
+        "//absl/synchronization",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "spinlock_profiling_test",
+    size = "small",
+    srcs = ["spinlock_profiling_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = [
+        "no_test_wasm",  # b/122473323
+    ],
+    deps = [
+        ":base",
+        ":base_internal",
+        ":config",
         "//absl/synchronization",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

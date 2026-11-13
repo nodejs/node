@@ -1,0 +1,13 @@
+Tests scriptParsed and scriptFailedToParse events for eval and JSON.parse.
+scriptParsed: matches=true, url='', source="a=1"
+scriptParsed: matches=true, url='', source="(function(){})"
+scriptParsed: matches=true, url='', source="eval(\"a=2\")"
+scriptParsed: matches=true, url='', source="a=2"
+scriptParsed: matches=true, url='', source="eval(\"eval('(function(){return a;})')\")"
+scriptParsed: matches=true, url='', source="eval('(function(){return a;})')"
+scriptParsed: matches=true, url='', source="(function(){return a;})"
+scriptParsed: matches=true, url='', source="JSON.parse('{\"a\":1,\"b\":2}')"
+scriptParsed: matches=true, url='myscript.js', source="x=1; //# sourceURL=myscript.js"
+scriptFailedToParse: matches=true, source="}"
+compile_error_count: 1
+source_count === after_compile_count: true (9)

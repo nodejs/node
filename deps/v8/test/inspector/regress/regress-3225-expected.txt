@@ -1,0 +1,4 @@
+Tests regress-3225.
+step 0: a=1, b=3
+step 1: a=4, b=3
+yielded: [4,3,5,5]

@@ -44,18 +44,6 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 }
 
 // static
-constexpr bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
-  switch (opcode) {
-#define CHECK_PREFIX(name, opcode) case k##name##Prefix:
-    FOREACH_PREFIX(CHECK_PREFIX)
-#undef CHECK_PREFIX
-    return true;
-    default:
-      return false;
-  }
-}
-
-// static
 constexpr bool WasmOpcodes::IsBreakable(WasmOpcode opcode) {
   switch (opcode) {
     case kExprBlock:

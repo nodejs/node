@@ -1,0 +1,7 @@
+Tests setting and removing breakpoints in Wasm.
+Running b(11).
+Break at $a offset 47
+Break at $b offset 57
+Break at $a offset 43
+Break at $a offset 45
+Returned from wasm.

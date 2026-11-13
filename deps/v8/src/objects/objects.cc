@@ -231,14 +231,18 @@ DirectHandle<FieldType> Object::OptimalType(Tagged<Object> obj,
   return FieldType::Any(isolate);
 }
 
-Handle<UnionOf<JSAny, Hole>> Object::NewStorageFor(
-    Isolate* isolate, Handle<UnionOf<JSAny, Hole>> object,
+Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>> Object::NewStorageFor(
+    Isolate* isolate,
+    Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>> object,
     Representation representation) {
   if (!representation.IsDouble()) return object;
-  Handle<HeapNumber> result = isolate->factory()->NewHeapNumberWithHoleNaN();
+  DCHECK(!IsUninitializedHeapNumber(*object));
+  if (IsUninitializedHeapNumber(*object)) return object;
   if (IsUninitializedHole(*object)) {
-    result->set_value_as_bits(kHoleNanInt64);
-  } else if (IsHeapNumber(*object)) {
+    return isolate->factory()->NewUninitializedHeapNumber();
+  }
+  Handle<HeapNumber> result = isolate->factory()->NewHeapNumberFromBits(0);
+  if (IsHeapNumber(*object)) {
     // Ensure that all bits of the double value are preserved.
     result->set_value_as_bits(Cast<HeapNumber>(*object)->value_as_bits());
   } else {
@@ -410,17 +414,14 @@ template <template <typename> typename HandleType>
 typename HandleType<Number>::MaybeType Object::ConvertToUint32(
     Isolate* isolate, HandleType<Object> input) {
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input));
-  if (IsSmi(*input)) {
-    return typename HandleType<Number>::MaybeType(
-        Smi::ToUint32Smi(Cast<Smi>(*input)), isolate);
-  }
+  if (IsSmi(*input) && Smi::ToInt(*input) >= 0) return Cast<Smi>(input);
   return isolate->factory()->NewNumberFromUint(
-      DoubleToUint32(Cast<HeapNumber>(*input)->value()));
+      DoubleToUint32(Object::NumberValue(Cast<Number>(*input))));
 }
 
-template MaybeDirectHandle<Number> Object::ConvertToUint32(
+template V8_EXPORT_PRIVATE MaybeDirectHandle<Number> Object::ConvertToUint32(
     Isolate* isolate, DirectHandle<Object> input);
-template MaybeIndirectHandle<Number> Object::ConvertToUint32(
+template V8_EXPORT_PRIVATE MaybeIndirectHandle<Number> Object::ConvertToUint32(
     Isolate* isolate, IndirectHandle<Object> input);
 
 // static
@@ -480,14 +481,7 @@ typename HandleType<String>::MaybeType Object::ConvertToString(
     Isolate* isolate, HandleType<Object> input) {
   while (true) {
 #if V8_ENABLE_WEBASSEMBLY
-    // We generally don't let the WasmNull escape into the JavaScript world,
-    // but some builtins may encounter it when called directly from Wasm code.
-    // This must be checked first, because WasmNull is entirely inaccessible,
-    // even its map, so we have to compare it by pointer before loading
-    // anything from it.
-    if (IsWasmNull(*input)) {
-      return isolate->factory()->null_string();
-    }
+    DCHECK(!IsWasmNull(*input));
 #endif
     if (IsOddball(*input)) {
       HandleType<String> result(Cast<Oddball>(input)->to_string(), isolate);
@@ -614,7 +608,10 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
           JSWrappedFunction::ToString(isolate, Cast<JSWrappedFunction>(input));
     } else {
       DCHECK(IsJSFunction(*input));
-      fun_str = JSFunction::ToString(isolate, Cast<JSFunction>(input));
+      if (!JSFunction::ToString(isolate, Cast<JSFunction>(input), kDontThrow)
+               .ToHandle(&fun_str)) {
+        return {};
+      }
     }
 
     if (fun_str->length() > 128) {
@@ -1461,10 +1458,10 @@ MaybeHandle<JSAny> JSProxy::GetProperty(Isolate* isolate,
       isolate, trap_result,
       Execution::Call(isolate, trap, handler, base::VectorOf(args)));
 
-  MaybeHandle<JSAny> result =
+  MaybeDirectHandle<JSAny> result =
       JSProxy::CheckGetSetTrapResult(isolate, name, target, trap_result, kGet);
   if (result.is_null()) {
-    return result;
+    return {};
   }
 
   // 11. Return trap_result
@@ -1472,7 +1469,7 @@ MaybeHandle<JSAny> JSProxy::GetProperty(Isolate* isolate,
 }
 
 // static
-MaybeHandle<JSAny> JSProxy::CheckGetSetTrapResult(
+MaybeDirectHandle<JSAny> JSProxy::CheckGetSetTrapResult(
     Isolate* isolate, DirectHandle<Name> name, DirectHandle<JSReceiver> target,
     DirectHandle<Object> trap_result, AccessKind access_kind) {
   // 9. Let targetDesc be ? target.[[GetOwnProperty]](P).
@@ -1527,7 +1524,7 @@ MaybeHandle<JSAny> JSProxy::CheckGetSetTrapResult(
       }
     }
   }
-  return isolate->factory()->undefined_value();
+  return Cast<JSAny>(trap_result);
 }
 
 // static
@@ -1606,6 +1603,26 @@ MaybeDirectHandle<JSPrototype> JSProxy::GetPrototype(
   return handler_proto;
 }
 
+MaybeHandle<JSAny> Object::GetPropertyWithAccessor(
+    LookupIterator* it, DirectHandle<AccessorInfo> info) {
+  Isolate* isolate = it->isolate();
+  DirectHandle<Name> name = it->GetName();
+
+  if (!info->has_getter(isolate)) {
+    return isolate->factory()->undefined_value();
+  }
+
+  PropertyCallbackArguments args(isolate, it->GetHolderForApi());
+  DirectHandle<JSAny> result = args.CallAccessorGetter(isolate, info, name);
+  RETURN_EXCEPTION_IF_EXCEPTION(isolate);
+  Handle<JSAny> reboxed_result(*result, isolate);
+  if (info->replace_on_access()) {
+    RETURN_ON_EXCEPTION(isolate, Accessors::ReplaceAccessorWithDataProperty(
+                                     isolate, args.holder(), name, result));
+  }
+  return reboxed_result;
+}
+
 MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
   Isolate* isolate = it->isolate();
   DirectHandle<Object> structure = it->GetAccessors();
@@ -1616,22 +1633,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
 
   // API style callbacks.
   if (IsAccessorInfo(*structure)) {
-    DirectHandle<Name> name = it->GetName();
-    auto info = Cast<AccessorInfo>(structure);
-
-    if (!info->has_getter(isolate)) {
-      return isolate->factory()->undefined_value();
-    }
-
-    PropertyCallbackArguments args(isolate, it->GetHolderForApi());
-    DirectHandle<JSAny> result = args.CallAccessorGetter(isolate, info, name);
-    RETURN_EXCEPTION_IF_EXCEPTION(isolate);
-    Handle<JSAny> reboxed_result(*result, isolate);
-    if (info->replace_on_access()) {
-      RETURN_ON_EXCEPTION(isolate, Accessors::ReplaceAccessorWithDataProperty(
-                                       isolate, args.holder(), name, result));
-    }
-    return reboxed_result;
+    return GetPropertyWithAccessor(it, Cast<AccessorInfo>(structure));
   }
 
   auto accessor_pair = Cast<AccessorPair>(structure);
@@ -1667,10 +1669,37 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
 }
 
 Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
+                                            DirectHandle<AccessorInfo> info,
                                             DirectHandle<Object> value,
                                             Maybe<ShouldThrow> should_throw) {
   Isolate* isolate = it->isolate();
-  DirectHandle<Object> structure = it->GetAccessors();
+  DirectHandle<Name> name = it->GetName();
+
+  if (!info->has_setter(isolate)) {
+    // TODO(verwaest): We should not get here anymore once all AccessorInfos
+    // are marked as special_data_property. They cannot both be writable and
+    // not have a setter.
+    return Just(true);
+  }
+
+  PropertyCallbackArguments args(isolate, it->GetHolderForApi(), should_throw);
+  bool result = args.CallAccessorSetter(isolate, info, name, value);
+  RETURN_VALUE_IF_EXCEPTION(isolate, Nothing<bool>());
+  if (!result) {
+    // Make sure TypeError is thrown if necessary in case the callback
+    // failed to set the property.
+    RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
+                   NewTypeError(MessageTemplate::kStrictCannotSetProperty,
+                                it->GetName(), args.holder()));
+  }
+  return Just(result);
+}
+
+Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
+                                            DirectHandle<Object> structure,
+                                            DirectHandle<Object> value,
+                                            Maybe<ShouldThrow> should_throw) {
+  Isolate* isolate = it->isolate();
 
   // We should never get here to initialize a const with the hole value since a
   // const declaration would conflict with the setter.
@@ -1678,28 +1707,8 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
 
   // API style callbacks.
   if (IsAccessorInfo(*structure)) {
-    DirectHandle<Name> name = it->GetName();
-    auto info = Cast<AccessorInfo>(structure);
-
-    if (!info->has_setter(isolate)) {
-      // TODO(verwaest): We should not get here anymore once all AccessorInfos
-      // are marked as special_data_property. They cannot both be writable and
-      // not have a setter.
-      return Just(true);
-    }
-
-    PropertyCallbackArguments args(isolate, it->GetHolderForApi(),
+    return SetPropertyWithAccessor(it, Cast<AccessorInfo>(structure), value,
                                    should_throw);
-    bool result = args.CallAccessorSetter(isolate, info, name, value);
-    RETURN_VALUE_IF_EXCEPTION(isolate, Nothing<bool>());
-    if (!result) {
-      // Make sure TypeError is thrown if necessary in case the callback
-      // failed to set the property.
-      RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
-                     NewTypeError(MessageTemplate::kStrictCannotSetProperty,
-                                  it->GetName(), args.holder()));
-    }
-    return Just(result);
   }
 
   // Regular accessor.
@@ -2025,7 +2034,7 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   if (instance_size != kVariableSizeSentinel) return instance_size;
   // Only inline the most frequent cases.
   InstanceType instance_type = map->instance_type();
-  if (InstanceTypeChecker::IsMap(instance_type)) {
+  if (instance_type == MAP_TYPE) {
     return UncheckedCast<Map>(this)->AllocatedSize();
   }
   if (base::IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE,
@@ -2505,7 +2514,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           *found = false;
           return Nothing<bool>();
         }
-        return SetPropertyWithAccessor(it, value, should_throw);
+        return SetPropertyWithAccessor(it, accessors, value, should_throw);
       }
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND: {
         // IntegerIndexedElementSet converts value to a Number/BigInt prior to
@@ -2645,15 +2654,17 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it,
         }
         continue;
 
-      case LookupIterator::ACCESSOR:
-        if (IsAccessorInfo(*own_lookup.GetAccessors())) {
+      case LookupIterator::ACCESSOR: {
+        DirectHandle<Object> accessors = own_lookup.GetAccessors();
+        if (IsAccessorInfo(*accessors)) {
           if (own_lookup.IsReadOnly()) {
             return WriteToReadOnlyProperty(&own_lookup, value, should_throw);
           }
-          return Object::SetPropertyWithAccessor(&own_lookup, value,
-                                                 should_throw);
+          return Object::SetPropertyWithAccessor(
+              &own_lookup, Cast<AccessorInfo>(accessors), value, should_throw);
         }
         [[fallthrough]];
+      }
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
         return RedefineIncompatibleProperty(isolate, it->GetName(), value,
                                             should_throw);
@@ -2832,19 +2843,12 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it,
   }
 
   DCHECK(!IsWasmObject(*receiver));
-  if (V8_UNLIKELY(IsJSSharedStruct(*receiver) || IsJSSharedArray(*receiver))) {
-    // Shared structs can only point to primitives or shared values.
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError));
-    it->WriteDataValue(to_assign, false);
-  } else {
-    // Possibly migrate to the most up-to-date map that will be able to store
-    // |value| under it->name().
-    it->PrepareForDataProperty(to_assign);
+  // Possibly migrate to the most up-to-date map that will be able to store
+  // |value| under it->name().
+  it->PrepareForDataProperty(to_assign);
 
-    // Write the property value.
-    it->WriteDataValue(to_assign, false);
-  }
+  // Write the property value.
+  it->WriteDataValue(to_assign, false);
 
 #if VERIFY_HEAP
   if (v8_flags.verify_heap) {
@@ -2886,21 +2890,16 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
   Isolate* isolate = it->isolate();
 
   if (it->ExtendingNonExtensible(receiver)) {
+    DCHECK(!it->GetName()->IsPrivateBrand());
     if (IsWasmObject(*receiver)) {
       RETURN_FAILURE(it->isolate(), kThrowOnError,
                      NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
     }
-    bool is_shared_object = IsAlwaysSharedSpaceJSObject(*receiver);
-    RETURN_FAILURE(
-        isolate, GetShouldThrow(it->isolate(), should_throw),
-        NewTypeError(
-            semantics == EnforceDefineSemantics::kDefine
-                ? (is_shared_object
-                       ? MessageTemplate::kDefineDisallowedFixedLayout
-                       : MessageTemplate::kDefineDisallowed)
-                : (is_shared_object ? MessageTemplate::kObjectFixedLayout
-                                    : MessageTemplate::kObjectNotExtensible),
-            it->GetName()));
+    RETURN_FAILURE(isolate, GetShouldThrow(it->isolate(), should_throw),
+                   NewTypeError(semantics == EnforceDefineSemantics::kDefine
+                                    ? MessageTemplate::kDefineDisallowed
+                                    : MessageTemplate::kObjectNotExtensible,
+                                it->GetName()));
   }
 
   if (it->IsElement(*receiver)) {
@@ -3198,7 +3197,7 @@ Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy,
                                 trap_name, name));
   }
 
-  MaybeDirectHandle<Object> result =
+  MaybeDirectHandle<JSAny> result =
       JSProxy::CheckGetSetTrapResult(isolate, name, target, value, kSet);
 
   if (result.is_null()) {
@@ -3894,21 +3893,38 @@ Maybe<bool> JSProxy::IsExtensible(DirectHandle<JSProxy> proxy) {
 
 DirectHandle<DescriptorArray> DescriptorArray::CopyUpTo(
     Isolate* isolate, DirectHandle<DescriptorArray> desc, int enumeration_index,
-    int slack) {
-  return DescriptorArray::CopyUpToAddAttributes(isolate, desc,
-                                                enumeration_index, NONE, slack);
+    int slack, bool replace_source) {
+  return DescriptorArray::CopyUpToAddAttributes(
+      isolate, desc, enumeration_index, NONE, slack, replace_source);
 }
 
 DirectHandle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
     Isolate* isolate, DirectHandle<DescriptorArray> source_handle,
-    int enumeration_index, PropertyAttributes attributes, int slack) {
+    int enumeration_index, PropertyAttributes attributes, int slack,
+    bool replace_source) {
   if (enumeration_index + slack == 0) {
     return isolate->factory()->empty_descriptor_array();
   }
 
   int size = enumeration_index;
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  bool reuse_lookup_table = false;
+  if (replace_source && enumeration_index > kMaxElementsForLinearSearch) {
+    DCHECK_EQ(enumeration_index, source_handle->number_of_descriptors());
+    Tagged<DescriptorLookupTable> source_table =
+        Cast<DescriptorLookupTable>(source_handle->lookup_table());
+    if (DescriptorLookupTable::CapacityFor(enumeration_index + slack) <=
+        source_table->capacity()) {
+      reuse_lookup_table = true;
+    }
+  }
+  DirectHandle<DescriptorArray> copy_handle = DescriptorArray::Allocate(
+      isolate, size, slack, AllocationType::kYoung, !reuse_lookup_table);
+#else
+  USE(replace_source);
   DirectHandle<DescriptorArray> copy_handle =
       DescriptorArray::Allocate(isolate, size, slack);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   DisallowGarbageCollection no_gc;
   Tagged<DescriptorArray> source = *source_handle;
@@ -3940,7 +3956,19 @@ DirectHandle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
     }
   }
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  if (reuse_lookup_table) {
+    copy->set_lookup_table(source->lookup_table());
+  } else {
+    copy->CopyFromOrRebuildLookupTable(source);
+  }
+  if (replace_source && !IsUndefined(source->lookup_table())) {
+    source->set_lookup_table(ReadOnlyRoots(isolate).undefined_value(),
+                             SKIP_WRITE_BARRIER);
+  }
+#else
   if (source->number_of_descriptors() != enumeration_index) copy->Sort();
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   return copy_handle;
 }
@@ -4066,18 +4094,58 @@ template <typename IsolateT>
 Handle<DescriptorArray> DescriptorArray::Allocate(IsolateT* isolate,
                                                   int nof_descriptors,
                                                   int slack,
-                                                  AllocationType allocation) {
+                                                  AllocationType allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+                                                  ,
+                                                  bool allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+) {
   return nof_descriptors + slack == 0
              ? isolate->factory()->empty_descriptor_array()
              : isolate->factory()->NewDescriptorArray(nof_descriptors, slack,
-                                                      allocation);
+                                                      allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+                                                      ,
+                                                      allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+               );
 }
 template Handle<DescriptorArray> DescriptorArray::Allocate(
-    Isolate* isolate, int nof_descriptors, int slack,
-    AllocationType allocation);
+    Isolate* isolate, int nof_descriptors, int slack, AllocationType allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    ,
+    bool allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+);
 template Handle<DescriptorArray> DescriptorArray::Allocate(
     LocalIsolate* isolate, int nof_descriptors, int slack,
-    AllocationType allocation);
+    AllocationType allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    ,
+    bool allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+);
+
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+template <typename IsolateT>
+void DescriptorArray::EnsureLookupTable(IsolateT* isolate,
+                                        DirectHandle<DescriptorArray> array) {
+  if (!IsUndefined(array->lookup_table())) return;
+  AllocationType allocation = HeapLayout::InYoungGeneration(*array)
+                                  ? AllocationType::kYoung
+                                  : AllocationType::kOld;
+
+  DirectHandle<DescriptorLookupTable> table =
+      DescriptorLookupTable::NewUninitialized(
+          isolate, array->number_of_all_descriptors(), allocation);
+  array->set_lookup_table(*table);
+  array->RebuildLookupTable(array->number_of_descriptors());
+}
+template void DescriptorArray::EnsureLookupTable(
+    Isolate* isolate, DirectHandle<DescriptorArray> array);
+template void DescriptorArray::EnsureLookupTable(
+    LocalIsolate* isolate, DirectHandle<DescriptorArray> array);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
 void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
                                  Tagged<HeapObject> undefined_value,
@@ -4088,7 +4156,11 @@ void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
   set_number_of_all_descriptors(nof_descriptors + slack, kReleaseStore);
   set_number_of_descriptors(nof_descriptors);
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
-  set_flags(FastIterableBits::encode(FastIterableState::kUnknown),
+#ifdef V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  set_lookup_table(UncheckedCast<Undefined>(undefined_value),
+                   SKIP_WRITE_BARRIER);
+#endif  // V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  set_flags(Flags().with_fast_iterable(FastIterableState::kUnknown),
             kRelaxedStore);
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
                number_of_all_descriptors() * kEntrySize);
@@ -4099,7 +4171,9 @@ void DescriptorArray::ClearEnumCache() {
 }
 
 void DescriptorArray::Replace(InternalIndex index, Descriptor* descriptor) {
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   descriptor->SetSortedKeyIndex(GetSortedKeyIndex(index.as_int()));
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   Set(index, descriptor);
   // Resetting the fast iterable state is bottlenecked in SetKey().
   DCHECK_NE(fast_iterable(), FastIterableState::kJsonFast);
@@ -4121,15 +4195,15 @@ void DescriptorArray::InitializeOrChangeEnumCache(
   }
 }
 
-void DescriptorArray::CopyFrom(InternalIndex index,
-                               Tagged<DescriptorArray> src) {
-  PropertyDetails details = src->GetDetails(index);
-  Set(index, src->GetKey(index), src->GetValue(index), details);
-}
-
 void DescriptorArray::SortImpl(const int len) {
-  // In-place heap sort.
   DCHECK_EQ(len, number_of_descriptors());
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  if (len > kMaxElementsForLinearSearch) {
+    RebuildLookupTable(len);
+  }
+  DCHECK(VerifyLookupTable());
+#else
+  // In-place heap sort.
   // Reset sorting since the descriptor array might contain invalid pointers.
   for (int i = 0; i < len; ++i) SetSortedKey(i, i);
   // Bottom-up max-heap construction.
@@ -4179,8 +4253,10 @@ void DescriptorArray::SortImpl(const int len) {
     }
   }
   DCHECK(IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 }
 
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 void DescriptorArray::CheckNameCollisionDuringInsertion(Descriptor* desc,
                                                         uint32_t desc_hash,
                                                         int insertion_index) {
@@ -4195,6 +4271,7 @@ void DescriptorArray::CheckNameCollisionDuringInsertion(Descriptor* desc,
     CHECK(current_key != *desc->GetKey());
   }
 }
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
 DirectHandle<AccessorPair> AccessorPair::Copy(Isolate* isolate,
                                               DirectHandle<AccessorPair> pair) {
@@ -4503,25 +4580,6 @@ Address JSArray::ArrayJoinConcatToSequentialString(
 
 END_PROHIBIT_SIGN_CONVERSION()
 
-void Oddball::Initialize(Isolate* isolate, DirectHandle<Oddball> oddball,
-                         const char* to_string, DirectHandle<Number> to_number,
-                         const char* type_of, uint8_t kind) {
-  DirectHandle<String> internalized_to_string =
-      isolate->factory()->InternalizeUtf8String(to_string);
-  DirectHandle<String> internalized_type_of =
-      isolate->factory()->InternalizeUtf8String(type_of);
-  if (IsHeapNumber(*to_number)) {
-    oddball->set_to_number_raw_as_bits(
-        Cast<HeapNumber>(to_number)->value_as_bits());
-  } else {
-    oddball->set_to_number_raw(Object::NumberValue(*to_number));
-  }
-  oddball->set_to_number(*to_number);
-  oddball->set_to_string(*internalized_to_string);
-  oddball->set_type_of(*internalized_type_of);
-  oddball->set_kind(kind);
-}
-
 
 
 // static
@@ -4619,50 +4677,9 @@ bool JSArray::SetLengthWouldNormalize(uint32_t new_length) {
                                      &new_capacity);
 }
 
-void AllocationSite::ResetPretenureDecision() {
-  set_pretenure_decision(kUndecided);
-  set_memento_found_count(0);
-  set_memento_create_count(0);
-}
-
-AllocationType AllocationSite::GetAllocationType() const {
-  PretenureDecision mode = pretenure_decision();
-  // Zombie objects "decide" to be untenured.
-  return mode == kTenure ? AllocationType::kOld : AllocationType::kYoung;
-}
-
-bool AllocationSite::IsNested() {
-  DCHECK(v8_flags.trace_track_allocation_sites);
-  Tagged<Object> current = Isolate::Current()->heap()->allocation_sites_list();
-  while (IsAllocationSite(current)) {
-    Tagged<AllocationSiteWithWeakNext> current_site =
-        Cast<AllocationSiteWithWeakNext>(current);
-    if (current_site->nested_site() == this) {
-      return true;
-    }
-    current = current_site->weak_next();
-  }
-  return false;
-}
-
 bool AllocationSite::ShouldTrack(ElementsKind from, ElementsKind to) {
   if (!V8_ALLOCATION_SITE_TRACKING_BOOL) return false;
   return IsMoreGeneralElementsKindTransition(from, to);
-}
-
-const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
-  switch (decision) {
-    case kUndecided:
-      return "undecided";
-    case kDontTenure:
-      return "don't tenure";
-    case kMaybeTenure:
-      return "maybe tenure";
-    case kTenure:
-      return "tenure";
-    default:
-      UNREACHABLE();
-  }
 }
 
 bool JSArray::WouldChangeReadOnlyLength(DirectHandle<JSArray> array,
@@ -4683,14 +4700,13 @@ const char* Symbol::PrivateSymbolToName() const {
 }
 
 v8::Promise::PromiseState JSPromise::status() const {
-  int value = flags() & StatusBits::kMask;
+  v8::Promise::PromiseState value = flags().status();
   DCHECK(value == 0 || value == 1 || value == 2);
-  return static_cast<v8::Promise::PromiseState>(value);
+  return value;
 }
 
 void JSPromise::set_status(Promise::PromiseState status) {
-  int value = flags() & ~StatusBits::kMask;
-  set_flags(value | status);
+  set_flags(flags().with_status(status));
 }
 
 // static
@@ -4758,18 +4774,22 @@ static void MoveMessageToPromise(Isolate* isolate,
 }
 
 // static
-Handle<Object> JSPromise::Reject(DirectHandle<JSPromise> promise,
-                                 DirectHandle<Object> reason,
-                                 bool debug_event) {
+MaybeHandle<Object> JSPromise::Reject(DirectHandle<JSPromise> promise,
+                                      DirectHandle<Object> reason,
+                                      bool debug_event) {
   Isolate* const isolate = Isolate::Current();
   DCHECK(
       !reinterpret_cast<v8::Isolate*>(isolate)->GetCurrentContext().IsEmpty());
 
   MoveMessageToPromise(isolate, promise);
 
-  if (debug_event) isolate->debug()->OnPromiseReject(promise, reason);
+  if (debug_event) {
+    isolate->debug()->OnPromiseReject(promise, reason);
+    if (isolate->CheckTerminationAfterCallback()) return kNullMaybeHandle;
+  }
   isolate->RunAllPromiseHooks(PromiseHookType::kResolve, promise,
                               isolate->factory()->undefined_value());
+  if (isolate->CheckTerminationAfterCallback()) return kNullMaybeHandle;
 
   // 1. Assert: The value of promise.[[PromiseState]] is "pending".
   CHECK_EQ(Promise::kPending, promise->status());
@@ -4789,6 +4809,7 @@ Handle<Object> JSPromise::Reject(DirectHandle<JSPromise> promise,
   //    HostPromiseRejectionTracker(promise, "reject").
   if (!promise->has_handler()) {
     isolate->ReportPromiseReject(promise, reason, kPromiseRejectWithNoHandler);
+    if (isolate->CheckTerminationAfterCallback()) return kNullMaybeHandle;
   }
 
   // 8. Return TriggerPromiseReactions(reactions, reason).
@@ -4806,6 +4827,7 @@ MaybeHandle<Object> JSPromise::Resolve(DirectHandle<JSPromise> promise,
 
   isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
                           isolate->factory()->undefined_value());
+  if (isolate->CheckTerminationAfterCallback()) return kNullMaybeHandle;
 
   // 7. If SameValue(resolution, promise) is true, then
   if (promise.is_identical_to(resolution_obj)) {
@@ -5062,9 +5084,9 @@ MaybeHandle<JSPromise> JSPromise::PerformPromiseAll(
     DirectHandle<JSArray> empty_array =
         factory->NewJSArrayWithElements(factory->empty_fixed_array());
     DirectHandle<Object> resolve_args[] = {empty_array};
-    Execution::Call(isolate, capability_resolve, factory->undefined_value(),
-                    base::VectorOf(resolve_args))
-        .ToHandleChecked();
+    RETURN_ON_EXCEPTION(isolate, Execution::Call(isolate, capability_resolve,
+                                                 factory->undefined_value(),
+                                                 base::VectorOf(resolve_args)));
     return capability_promise;
   }
 
@@ -5072,9 +5094,9 @@ MaybeHandle<JSPromise> JSPromise::PerformPromiseAll(
     DirectHandle<Object> error = factory->NewRangeError(
         MessageTemplate::kTooManyElementsInPromiseCombinator,
         factory->NewStringFromAsciiChecked("all"));
-    Execution::Call(isolate, capability_reject, factory->undefined_value(),
-                    base::VectorOf(&error, 1))
-        .ToHandleChecked();
+    RETURN_ON_EXCEPTION(isolate, Execution::Call(isolate, capability_reject,
+                                                 factory->undefined_value(),
+                                                 base::VectorOf(&error, 1)));
     return capability_promise;
   }
 
@@ -5098,19 +5120,9 @@ MaybeHandle<JSPromise> JSPromise::PerformPromiseAll(
                                                         i + 1);
     DirectHandle<Object> args[] = {resolve_element, capability_reject,
                                    factory->undefined_value()};
-    if (V8_UNLIKELY(Execution::CallBuiltin(isolate,
-                                           isolate->perform_promise_then(),
-                                           promise, base::VectorOf(args))
-                        .is_null())) {
-      CHECK(isolate->has_exception());
-      DirectHandle<Object> reject_args[] = {
-          direct_handle(isolate->exception(), isolate)};
-      isolate->clear_exception();
-      Execution::Call(isolate, capability_reject, factory->undefined_value(),
-                      base::VectorOf(reject_args))
-          .ToHandleChecked();
-      return capability_promise;
-    }
+    RETURN_ON_EXCEPTION(isolate, Execution::CallBuiltin(
+                                     isolate, isolate->perform_promise_then(),
+                                     promise, base::VectorOf(args)));
     // For catch prediction, mark that rejections here are
     // semantically handled by the combined Promise.
     if (isolate->debug()->is_active()) {
@@ -5335,12 +5347,12 @@ HandleType<Derived> HashTable<Derived, Shape>::EnsureCapacity(
   int capacity = table->Capacity();
   int new_nof = table->NumberOfElements() + n;
 
-  bool should_pretenure = allocation == AllocationType::kOld ||
-                          ((capacity > kMinCapacityForPretenure) &&
-                           !HeapLayout::InYoungGeneration(*table));
+  bool use_old_space = allocation == AllocationType::kOld ||
+                       ((capacity > kMinCapacityForOldGrowth) &&
+                        !HeapLayout::InYoungGeneration(*table));
   HandleType<Derived> new_table = HashTable::New(
       isolate, new_nof,
-      should_pretenure ? AllocationType::kOld : AllocationType::kYoung);
+      use_old_space ? AllocationType::kOld : AllocationType::kYoung);
 
   table->Rehash(*new_table);
   return new_table;
@@ -5358,13 +5370,13 @@ HashTable<Derived, Shape>::TryEnsureCapacity(IsolateT* isolate,
   int capacity = table->Capacity();
   int new_nof = table->NumberOfElements() + n;
 
-  bool should_pretenure = allocation == AllocationType::kOld ||
-                          ((capacity > kMinCapacityForPretenure) &&
-                           !HeapLayout::InYoungGeneration(*table));
+  bool use_old_space = allocation == AllocationType::kOld ||
+                       ((capacity > kMinCapacityForOldGrowth) &&
+                        !HeapLayout::InYoungGeneration(*table));
   HandleType<Derived> new_table;
   if (!HashTable::TryNew(
            isolate, new_nof,
-           should_pretenure ? AllocationType::kOld : AllocationType::kYoung)
+           use_old_space ? AllocationType::kOld : AllocationType::kYoung)
            .To(&new_table)) {
     return {};
   }
@@ -5425,12 +5437,12 @@ HandleType<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
   if (new_capacity == table->Capacity()) return table;
   DCHECK_GE(new_capacity, Derived::kMinShrinkCapacity);
 
-  bool pretenure = (new_capacity > kMinCapacityForPretenure) &&
-                   !HeapLayout::InYoungGeneration(*table);
-  HandleType<Derived> new_table =
-      HashTable::New(isolate, new_capacity,
-                     pretenure ? AllocationType::kOld : AllocationType::kYoung,
-                     USE_CUSTOM_MINIMUM_CAPACITY);
+  bool use_old_space = (new_capacity > kMinCapacityForOldGrowth) &&
+                       !HeapLayout::InYoungGeneration(*table);
+  HandleType<Derived> new_table = HashTable::New(
+      isolate, new_capacity,
+      use_old_space ? AllocationType::kOld : AllocationType::kYoung,
+      USE_CUSTOM_MINIMUM_CAPACITY);
 
   table->Rehash(*new_table);
   return new_table;
@@ -5676,8 +5688,7 @@ HandleType<Derived>::MaybeType BaseNameDictionary<Derived, Shape>::Add(
 }
 
 template <typename Derived, typename Shape>
-template <typename IsolateT, template <typename> typename HandleType,
-          AllocationType key_allocation>
+template <typename IsolateT, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
 HandleType<Derived> Dictionary<Derived, Shape>::Add(
     IsolateT* isolate, HandleType<Derived> dictionary, Key key,
@@ -5691,8 +5702,7 @@ HandleType<Derived> Dictionary<Derived, Shape>::Add(
   dictionary = Derived::EnsureCapacity(isolate, dictionary);
 
   // Compute the key object.
-  DirectHandle<Object> k =
-      TodoShape::template AsHandle<key_allocation>(isolate, key);
+  DirectHandle<Object> k = TodoShape::AsHandle(isolate, key);
 
   InternalIndex entry = dictionary->FindInsertionEntry(roots, hash);
   dictionary->SetEntry(entry, *k, *value, details);
@@ -5704,8 +5714,7 @@ HandleType<Derived> Dictionary<Derived, Shape>::Add(
 }
 
 template <typename Derived, typename Shape>
-template <typename IsolateT, template <typename> typename HandleType,
-          AllocationType key_allocation>
+template <typename IsolateT, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
 void Dictionary<Derived, Shape>::UncheckedAdd(IsolateT* isolate,
                                               HandleType<Derived> dictionary,
@@ -5719,8 +5728,7 @@ void Dictionary<Derived, Shape>::UncheckedAdd(IsolateT* isolate,
   DCHECK(dictionary->HasSufficientCapacityToAdd(1));
 
   // Compute the key object.
-  DirectHandle<Object> k =
-      TodoShape::template AsHandle<key_allocation>(isolate, key);
+  DirectHandle<Object> k = TodoShape::AsHandle(isolate, key);
 
   InternalIndex entry = dictionary->FindInsertionEntry(roots, hash);
   dictionary->SetEntry(entry, *k, *value, details);
@@ -6284,14 +6292,42 @@ void PropertyCell::ClearAndInvalidate(Isolate* isolate) {
 }
 
 // static
+void PropertyCell::InvalidateCachedPropertyIfNeeded(
+    Isolate* isolate, DirectHandle<GlobalDictionary> dictionary,
+    PropertyDetails original_details, DirectHandle<Object> original_value) {
+  if (original_details.kind() != PropertyKind::kAccessor) return;
+  Tagged<AccessorPair> accessor_pair;
+  if (!TryCast<AccessorPair>(*original_value, &accessor_pair)) return;
+  std::optional<Tagged<Name>> maybe_cached_name =
+      FunctionTemplateInfo::TryGetCachedPropertyName(isolate,
+                                                     accessor_pair->getter());
+  if (!maybe_cached_name.has_value()) return;
+  InternalIndex cached_entry = dictionary->FindEntry(
+      isolate, direct_handle(*maybe_cached_name, isolate));
+  if (cached_entry.is_not_found()) return;
+  DirectHandle<PropertyCell> cached_cell(dictionary->CellAt(cached_entry),
+                                         isolate);
+  if (IsPropertyCellHole(cached_cell->value())) return;
+  if (cached_cell->property_details().kind() != PropertyKind::kData) return;
+  Handle<PropertyCell> new_cached_cell = isolate->factory()->NewPropertyCell(
+      direct_handle(cached_cell->name(), isolate),
+      cached_cell->property_details(),
+      direct_handle(cached_cell->value(), isolate));
+  dictionary->ValueAtPut(cached_entry, *new_cached_cell);
+  cached_cell->ClearAndInvalidate(isolate);
+}
+
+// static
 Handle<PropertyCell> PropertyCell::InvalidateAndReplaceEntry(
     Isolate* isolate, DirectHandle<GlobalDictionary> dictionary,
     InternalIndex entry, PropertyDetails new_details,
     DirectHandle<Object> new_value) {
   DirectHandle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
   DirectHandle<Name> name(cell->name(), isolate);
-  DCHECK(cell->property_details().IsConfigurable());
-  DCHECK(!IsAnyHole(cell->value()));
+  PropertyDetails original_details = cell->property_details();
+  DirectHandle<Object> original_value(cell->value(), isolate);
+  DCHECK(original_details.IsConfigurable());
+  DCHECK(!IsAnyHole(*original_value));
 
   // Swap with a new property cell.
   Handle<PropertyCell> new_cell =
@@ -6299,6 +6335,8 @@ Handle<PropertyCell> PropertyCell::InvalidateAndReplaceEntry(
   dictionary->ValueAtPut(entry, *new_cell);
 
   cell->ClearAndInvalidate(isolate);
+  InvalidateCachedPropertyIfNeeded(isolate, dictionary, original_details,
+                                   original_value);
   return new_cell;
 }
 
@@ -6373,6 +6411,7 @@ Handle<PropertyCell> PropertyCell::PrepareForAndSetValue(
     cell = PropertyCell::InvalidateAndReplaceEntry(isolate, dictionary, entry,
                                                    details, value);
   } else {
+    DirectHandle<Object> original_value(cell->value(), isolate);
     cell->Transition(details, value);
     // Deopt when transitioning from a constant type or when making a writable
     // property read-only. Making a read-only property writable again is not
@@ -6384,6 +6423,8 @@ Handle<PropertyCell> PropertyCell::PrepareForAndSetValue(
       DependentCode::DeoptimizeDependencyGroups(
           isolate, *cell, DependentCode::kPropertyCellChangedGroup);
     }
+    InvalidateCachedPropertyIfNeeded(isolate, dictionary, original_details,
+                                     original_value);
   }
   return cell;
 }
@@ -6740,18 +6781,6 @@ EXTERN_DEFINE_MULTI_OBJECT_BASE_HASH_TABLE(ObjectTwoHashTable, 2)
 EXTERN_DEFINE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
 EXTERN_DEFINE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
 EXTERN_DEFINE_DICTIONARY(SimpleNameDictionary, SimpleNameDictionaryShape)
-
-template V8_EXPORT_PRIVATE void
-Dictionary<NumberDictionary, NumberDictionaryShape>::UncheckedAdd<
-    Isolate, Handle, AllocationType::kSharedOld>(Isolate*,
-                                                 Handle<NumberDictionary>,
-                                                 uint32_t, DirectHandle<Object>,
-                                                 PropertyDetails);
-template V8_EXPORT_PRIVATE void
-Dictionary<NumberDictionary, NumberDictionaryShape>::UncheckedAdd<
-    Isolate, DirectHandle, AllocationType::kSharedOld>(
-    Isolate*, DirectHandle<NumberDictionary>, uint32_t, DirectHandle<Object>,
-    PropertyDetails);
 
 EXTERN_DEFINE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
 template V8_EXPORT_PRIVATE Handle<NameDictionary> NameDictionary::New(

@@ -45,8 +45,8 @@ transitioning javascript builtin TypedArrayFrom(
     //   b. Let mapping be true.
     const mapping: bool = mapfnObj != Undefined;
     if (mapping && !Is<Callable>(mapfnObj)) deferred {
-        ThrowCalledNonCallable(mapfnObj);
-      }
+      ThrowCalledNonCallable(mapfnObj);
+    }
 
     // We split up this builtin differently to the way it is written in the
     // spec. We already have great code in the elements accessor for copying

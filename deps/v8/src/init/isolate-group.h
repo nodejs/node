@@ -232,7 +232,9 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   size_t GetIsolateCount();
 
-  Isolate* main_isolate() { return main_isolate_; }
+  Isolate* main_isolate() const {
+    return main_isolate_.load(std::memory_order_relaxed);
+  }
 
   MemoryPool* memory_pool() const { return memory_pool_.get(); }
 
@@ -244,12 +246,13 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     Isolate* target_isolate = nullptr;
     // main_isolate_ can be set nullptr when the IsolateGroup is being
     // destructed.
-    if (!main_isolate_) {
+    Isolate* main = main_isolate_.load(std::memory_order_relaxed);
+    if (!main) {
       return false;
     }
 
-    if (main_isolate_ != isolate) {
-      target_isolate = main_isolate_;
+    if (main != isolate) {
+      target_isolate = main;
     } else {
       for (Isolate* entry : isolates_) {
         if (entry != isolate) {
@@ -337,8 +340,10 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   // The first isolate to join the group. However, it will be replaced by
   // another isolate if that isolate tears down before all other isolates have
-  // left.
-  Isolate* main_isolate_ = nullptr;
+  // left (which can happen when --shared-heap is disabled). Atomic because
+  // main_isolate() is read without holding mutex_ while RemoveIsolate() may
+  // reassign it under mutex_.
+  std::atomic<Isolate*> main_isolate_{nullptr};
 
 #ifdef V8_ENABLE_SANDBOX
   Sandbox* sandbox_ = nullptr;

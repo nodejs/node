@@ -159,6 +159,7 @@ inline Register ToRegister(MaglevAssembler* masm,
                            MaglevAssembler::TemporaryRegisterScope* scratch,
                            Input input) {
   if (input.operand().IsConstant()) {
+    if (input.node()->MaterializesToZero()) return zero_reg;
     Register reg = scratch->AcquireScratch();
     input.node()->LoadToRegister(masm, reg);
     return reg;
@@ -710,6 +711,22 @@ inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
   MacroAssembler::StoreTaggedField(value, FieldMemOperand(object, offset));
 }
 
+inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
+    Register object, int offset, ValueNode* constant) {
+  DCHECK(CanStoreTaggedConstant(constant));
+  DCHECK_EQ(constant->Cast<SmiConstant>()->value(), Smi::zero());
+  MacroAssembler::StoreTaggedField(zero_reg, FieldMemOperand(object, offset));
+}
+
+inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
+    Register object, int offset, Handle<HeapObject> constant) {
+  DCHECK(kSupportsStoreTaggedConstant);
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  MoveTagged(scratch, constant);
+  MacroAssembler::StoreTaggedField(scratch, FieldMemOperand(object, offset));
+}
+
 inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
     Register array, Register index, Register value) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
@@ -897,7 +914,7 @@ inline void MaglevAssembler::Move(Register dst, uint32_t i) {
 inline void MaglevAssembler::Move(Register dst, intptr_t p) {
   li(dst, Operand(p));
 }
-inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
+inline void MaglevAssembler::Move(Register dst, TrustedPointerTag i) {
   li(dst, Operand(i));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
@@ -907,10 +924,18 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
   MacroAssembler::Move(dst, n.get_scalar());
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  if (TryLoadRoot(dst, obj)) return;
   li(dst, Operand(obj));
 }
 void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
 #ifdef V8_COMPRESS_POINTERS
+  RootIndex root_index;
+  if (isolate()->roots_table().IsRootHandle(obj, &root_index) &&
+      CanBeImmediate(root_index)) {
+    li(dst, Operand(static_cast<int32_t>(ReadOnlyRootPtr(root_index)),
+                    RelocInfo::NO_INFO));
+    return;
+  }
   li(dst, Operand(obj, RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
 #else
   li(dst, obj);
@@ -1288,7 +1313,7 @@ inline void MaglevAssembler::CompareUInt32AndEmitEagerDeoptIf(
     NodeT* node) {
   Label Deopt, Done;
 
-  MacroAssembler::Branch(&Deopt, cond, reg, Operand(imm), Label::kNear);
+  MacroAssembler::Branch(&Deopt, cond, reg, Operand(imm));
   Jump(&Done, Label::kNear);
   bind(&Deopt);
   EmitEagerDeopt(node, reason);
@@ -1933,7 +1958,9 @@ inline void MaglevAssembler::MaybeEmitPlaceHolderForDeopt() {
   // Implemented only for x64.
 }
 
-inline void MaglevAssembler::MemoryBarrier(AtomicMemoryOrder order) { dbar(0); }
+inline void MaglevAssembler::MemoryBarrier(AtomicMemoryOrder /*order*/) {
+  dbar(kDbarFull);
+}
 
 }  // namespace maglev
 }  // namespace internal

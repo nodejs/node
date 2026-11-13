@@ -68,6 +68,7 @@ class ProcessorImpl : public Processor {
   static const uintptr_t kWorkEstimateThreshold = 5000000;
 
   void AddWorkEstimate(uintptr_t estimate) {
+    if (ignore_interrupts_) return;
     work_estimate_ += estimate;
     if (work_estimate_ >= kWorkEstimateThreshold) {
       work_estimate_ = 0;

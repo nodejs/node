@@ -30,6 +30,9 @@
 // Test inlining of constructor calls.
 
 function TestInlinedConstructor(constructor, closure) {
+  constructor = copyFunctionWithFreshFeedback(constructor);
+  closure = copyFunctionWithFreshFeedback(closure);
+  %PrepareFunctionForOptimization(constructor);
   var result;
   var counter = { value:0 };
   var noDeopt = { deopt:0 };
@@ -54,8 +57,6 @@ function TestInlinedConstructor(constructor, closure) {
   assertEquals(4, counter.value);
 
   %DeoptimizeFunction(closure);
-  %ClearFunctionFeedback(closure);
-  %ClearFunctionFeedback(constructor);
 }
 
 function value_context(constructor, val, deopt, counter) {

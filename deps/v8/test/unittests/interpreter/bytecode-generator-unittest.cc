@@ -28,11 +28,11 @@ class BytecodeGeneratorTest
  public:
   BytecodeGeneratorTest() : printer_(isolate()) {}
   static void SetUpTestSuite() {
-    i::v8_flags.allow_natives_syntax = true;
-    i::v8_flags.enable_lazy_source_positions = false;
-    i::v8_flags.lazy = false;
-    i::v8_flags.flush_bytecode = false;
-    i::v8_flags.function_context_cells = false;
+    i::v8_flags.allow_natives_syntax.Set(true);
+    i::v8_flags.enable_lazy_source_positions.Set(false);
+    i::v8_flags.lazy.Set(false);
+    i::v8_flags.flush_bytecode.Set(false);
+    i::v8_flags.function_context_cells.Set(false);
     TestWithContext::SetUpTestSuite();
   }
 

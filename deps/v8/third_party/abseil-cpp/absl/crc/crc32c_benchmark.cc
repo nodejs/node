@@ -19,7 +19,6 @@
 
 #include "absl/crc/crc32c.h"
 #include "absl/crc/internal/crc32c.h"
-#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 

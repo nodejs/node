@@ -140,8 +140,9 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing) {
   // Externalize it to a one-byte external string.
   // We need to use StrDup in this case since the TestOneByteResource will get
   // ownership of raw_string otherwise.
-  EXPECT_TRUE(one_byte_string->MakeExternal(
-      i_isolate(), new TestOneByteResource(i::StrDup(raw_string))));
+  EXPECT_TRUE(
+      String::MakeExternal(i_isolate(), one_byte_string,
+                           new TestOneByteResource(i::StrDup(raw_string))));
   EXPECT_TRUE(IsExternalOneByteString(*one_byte_string));
   EXPECT_TRUE(IsInternalizedString(*one_byte_string));
 
@@ -191,8 +192,8 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing) {
   uint16_t* resource_data = i::NewArray<uint16_t>(kLength + 1);
   std::copy_n(two_byte_array, kLength, resource_data);
   resource_data[kLength] = 0;
-  EXPECT_TRUE(two_bytes_string->MakeExternal(
-      i_isolate(), new TestTwoByteResource(resource_data)));
+  EXPECT_TRUE(String::MakeExternal(i_isolate(), two_bytes_string,
+                                   new TestTwoByteResource(resource_data)));
   EXPECT_TRUE(IsExternalTwoByteString(*two_bytes_string));
   EXPECT_TRUE(IsInternalizedString(*two_bytes_string));
 
@@ -247,8 +248,9 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing_ThinString) {
   // Externalize it to a one-byte external string.
   // We need to use StrDup in this case since the TestOneByteResource will get
   // ownership of raw_string otherwise.
-  EXPECT_TRUE(internalized_string->MakeExternal(
-      i_isolate(), new TestOneByteResource(i::StrDup(raw_string))));
+  EXPECT_TRUE(
+      String::MakeExternal(i_isolate(), internalized_string,
+                           new TestOneByteResource(i::StrDup(raw_string))));
   EXPECT_TRUE(IsExternalOneByteString(*internalized_string));
   EXPECT_TRUE(IsInternalizedString(*internalized_string));
 
@@ -310,8 +312,8 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing_ThinString) {
   uint16_t* resource_data = i::NewArray<uint16_t>(kLength + 1);
   std::copy_n(two_byte_array, kLength, resource_data);
   resource_data[kLength] = 0;
-  EXPECT_TRUE(internalized_string->MakeExternal(
-      i_isolate(), new TestTwoByteResource(resource_data)));
+  EXPECT_TRUE(String::MakeExternal(i_isolate(), internalized_string,
+                                   new TestTwoByteResource(resource_data)));
   EXPECT_TRUE(IsExternalTwoByteString(*internalized_string));
   EXPECT_TRUE(IsInternalizedString(*internalized_string));
 

@@ -185,7 +185,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F64x4Pmax:
     case kX64F64x2Round:
     case kX64F64x2ConvertLowI32x4S:
-    case kX64F64x4ConvertI32x4S:
     case kX64F64x2ConvertLowI32x4U:
     case kX64F64x2PromoteLowF32x4:
     case kX64F32x4SConvertI32x4:
@@ -201,7 +200,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F32x4Round:
     case kX64F32x8Round:
     case kX64F32x4DemoteF64x2Zero:
-    case kX64F32x4DemoteF64x4:
     case kX64F16x8Round:
     case kX64I16x8SConvertF16x8:
     case kX64I16x8UConvertF16x8:
@@ -404,7 +402,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64MovqDecompressTagged:
     case kX64MovqDecompressProtected:
     case kX64MovqCompressTagged:
-    case kX64MovqStoreIndirectPointer:
+    case kX64MovqStoreTrustedPointer:
     case kX64MovqDecodeSandboxedPointer:
     case kX64MovqEncodeSandboxedPointer:
     case kX64Movq:

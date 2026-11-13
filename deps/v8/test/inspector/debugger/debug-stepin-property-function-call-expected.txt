@@ -1,0 +1,80 @@
+Tests stepping into property function calls.
+Running testCall_Dots...
+Paused in fun (state: 4):
+    ++count;
+    #return count; // Expected to step
+  }
+
+state: 5
+Running testCall_Quotes...
+Paused in fun (state: 4):
+    ++count;
+    #return count; // Expected to step
+  }
+
+state: 5
+Running testCall_Call...
+Paused in fun (state: 4):
+    ++count;
+    #return count; // Expected to step
+  }
+
+state: 5
+Running testCall_Apply...
+Paused in fun (state: 4):
+    ++count;
+    #return count; // Expected to step
+  }
+
+state: 5
+Running testCall_Variable...
+Paused in fun (state: 4):
+    ++count;
+    #return count; // Expected to step
+  }
+
+state: 5
+Running testCall_Fun2...
+Paused in fun (state: 4):
+    ++count;
+    #return count; // Expected to step
+  }
+
+state: 5
+Running testCall_InternStrings...
+Paused in fun (state: 4):
+    ++count;
+    #return count; // Expected to step
+  }
+
+state: 5
+Running testCall_ViaFunRef...
+Paused in fun (state: 4):
+    ++count;
+    #return count; // Expected to step
+  }
+
+state: 5
+Running testCall_RuntimeVariable1...
+Paused in fun (state: 4):
+    ++count;
+    #return count; // Expected to step
+  }
+
+state: 5
+Running testCall_RuntimeVariable2...
+Paused in fun (state: 4):
+    ++count;
+    #return count; // Expected to step
+  }
+
+state: 5
+Running testCall_RuntimeVariable3...
+Paused in fun (state: 4):
+    ++count;
+    #return count; // Expected to step
+  }
+
+state: 5
+functionsCalled: 11
+count: 11

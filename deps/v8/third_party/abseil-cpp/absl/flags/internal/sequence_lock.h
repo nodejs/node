@@ -66,6 +66,12 @@ class SequenceLock {
     lock_.store(0, std::memory_order_release);
   }
 
+  // Returns true if the flag is either uninitialized or initialized with zero
+  // modifications.
+  bool IsUnmodified() const {
+    return lock_.load(std::memory_order_acquire) <= 0;
+  }
+
   // Copy "size" bytes of data from "src" to "dst", protected as a read-side
   // critical section of the sequence lock.
   //

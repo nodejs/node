@@ -8,7 +8,7 @@
 #include "include/v8-sandbox.h"
 #include "src/common/globals.h"
 #include "src/sandbox/check.h"
-#include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 namespace v8 {
 namespace internal {
@@ -28,6 +28,7 @@ struct TaggedPayload {
   static constexpr uint64_t kPayloadMask = PayloadTaggingScheme::kPayloadMask;
   static constexpr uint64_t kTagMask = PayloadTaggingScheme::kTagMask;
   static constexpr uint64_t kMarkBit = PayloadTaggingScheme::kMarkBit;
+  static constexpr uint64_t kTagAndMarkBitMask = kTagMask | kMarkBit;
   static constexpr TagType kFreeEntryTag = PayloadTaggingScheme::kFreeEntryTag;
   static constexpr TagType kEvacuationEntryTag =
       PayloadTaggingScheme::kEvacuationEntryTag;

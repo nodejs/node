@@ -177,7 +177,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -213,11 +214,16 @@ class V8_EXPORT_PRIVATE MacroAssembler
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
 
+  Condition CheckSmi(Register src) {
+    static_assert(kSmiTag == 0);
+    test(src, Immediate(kSmiTagMask));
+    return zero;
+  }
+
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label,
                         Label::Distance distance = Label::kFar) {
-    test(value, Immediate(kSmiTagMask));
-    j(zero, smi_label, distance);
+    j(CheckSmi(value), smi_label, distance);
   }
   // Jump if the operand is a smi.
   inline void JumpIfSmi(Operand value, Label* smi_label,

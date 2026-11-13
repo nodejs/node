@@ -49,8 +49,7 @@ LIBC_INLINE float16 tanhf16(float16 x) {
   uint16_t x_u = x_bits.uintval();
   uint16_t x_abs = x_u & 0x7fffU;
 
-  // When -2^(-14) <= x <= -2^(-9), or |x| <= 0x1.d2p-4,
-  // or |x| >= atanh(1 - 2^(-11)), or x is NaN.
+  // When |x| <= 0x1.d2p-4, |x| >= atanh(1 - 2^(-11)), or x is NaN.
   if (LIBC_UNLIKELY(x_abs <= 0x2f48U || x_abs >= 0x4429U)) {
     // tanh(NaN) = NaN
     if (x_bits.is_nan()) {
@@ -62,25 +61,44 @@ LIBC_INLINE float16 tanhf16(float16 x) {
       return x;
     }
 
-    // When -2^(-14) <= x <= -2^(-9).
-    if (x_u >= 0x8400U && x_u <= 0x9800U) {
-#ifdef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      return x;
-#else
-      switch (fputil::quick_get_round()) {
-      case FE_TONEAREST:
-      case FE_DOWNWARD:
-        return x;
-      default:
-        return FPBits(static_cast<uint16_t>(x_u - 1U)).get_val();
-      }
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-    }
-
     // When |x| <= 0x1.d2p-4.
     if (x_abs <= 0x2f48U) {
       if (LIBC_UNLIKELY(x_abs == 0))
         return x;
+
+      // The correction to x is nonzero but less than half a subnormal ulp.
+      // Select the adjacent half value directly, preserving signed zero.
+      if (LIBC_UNLIKELY(x_abs <= 0x0400U)) {
+        uint16_t out = x_u;
+#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+        int mode = fputil::quick_get_round();
+        if (mode == FE_TOWARDZERO || (x_bits.is_pos() && mode == FE_DOWNWARD) ||
+            (x_bits.is_neg() && mode == FE_UPWARD))
+          --out;
+#endif
+        int excepts = FE_INEXACT;
+        if ((out & 0x7fffU) < 0x0400U) {
+          fputil::set_errno_if_required(ERANGE);
+          excepts |= FE_UNDERFLOW;
+        }
+        fputil::raise_except_if_required(excepts);
+        return FPBits(out).get_val();
+      }
+
+      // When -2^(-9) <= x < -2^(-14).
+      if (x_u >= 0x8400U && x_u <= 0x9800U) {
+#ifdef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+        return x;
+#else
+        switch (fputil::quick_get_round()) {
+        case FE_TONEAREST:
+        case FE_DOWNWARD:
+          return x;
+        default:
+          return FPBits(static_cast<uint16_t>(x_u - 1U)).get_val();
+        }
+#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+      }
 
       float xf = x;
       float xf_sq = xf * xf;

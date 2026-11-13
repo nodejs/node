@@ -17,13 +17,36 @@
 #include <cassert>
 #include <cstddef>
 #include <ios>
+#include <ostream>
 #include <streambuf>
+#include <string>
+#include <utility>
 
 #include "absl/base/config.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace strings_internal {
+
+OStringStream::OStringStream(std::string* str)
+    : std::ostream(&buf_), buf_(str) {}
+
+OStringStream::OStringStream(OStringStream&& that)
+    : std::ostream(std::move(static_cast<std::ostream&>(that))),
+      buf_(that.buf_) {
+  rdbuf(&buf_);
+}
+
+OStringStream& OStringStream::operator=(OStringStream&& that) {
+  std::ostream::operator=(std::move(static_cast<std::ostream&>(that)));
+  buf_ = that.buf_;
+  rdbuf(&buf_);
+  return *this;
+}
+
+OStringStream::~OStringStream() = default;
+
+OStringStream::Streambuf::~Streambuf() = default;
 
 OStringStream::Streambuf::int_type OStringStream::Streambuf::overflow(int c) {
   assert(str_);

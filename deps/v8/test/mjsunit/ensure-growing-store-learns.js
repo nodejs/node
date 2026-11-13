@@ -55,8 +55,6 @@
   foo(b, 50000);
   assertOptimized(foo);
   assertTrue(%HasDictionaryElements(b));
-
-  %ClearFunctionFeedback(foo);
 })();
 
 
@@ -93,6 +91,4 @@
   assertTrue(%HasSmiElements(a));
   assertTrue(a.length * 4 > (1024 * 1024));
   assertOptimized(foo2);
-
-  %ClearFunctionFeedback(foo2);
 })();

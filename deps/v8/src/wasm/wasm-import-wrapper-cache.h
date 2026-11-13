@@ -59,10 +59,6 @@ class WasmImportWrapperCache : public WasmWrapperCache<ImportWrapperCacheKey> {
   bool HasCodeForTesting(ImportCallKind kind, const CanonicalSig* sig,
                          int expected_arity, Suspend suspend);
 
-#ifdef DEBUG
-  bool IsCompiledWrapper(WasmCodePointer code_pointer);
-#endif
-
  protected:
   std::pair<WasmCompilationResult, WasmCode::Kind> CompileWrapper(
       Isolate* isolate, const CacheKey& cache_key) override;

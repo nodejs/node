@@ -130,6 +130,28 @@ public:
       return cpp::unexpected(-ret);
     return ret;
   }
+  // Atomically store |value| and wake all waiters. Unlike store() followed by
+  // notify_all(), the kernel does both while holding the futex queue lock, so
+  // the caller never touches the futex after another thread can observe
+  // |value|. Use this when a waiter may free the futex as soon as it sees the
+  // new value. |value| is a uint8_t because FUTEX_OP_SET's operand is a
+  // sign-extended 12-bit field.
+  LIBC_INLINE ErrorOr<int> store_and_notify_all(uint8_t value,
+                                                bool is_shared = false) {
+    int ret = syscall_impl<int>(
+        /*syscall_number=*/FUTEX_SYSCALL_ID,
+        /*futex_addr=*/this,
+        /*op=*/is_shared ? FUTEX_WAKE_OP : FUTEX_WAKE_OP_PRIVATE,
+        /*wake_limit=*/cpp::numeric_limits<int>::max(),
+        /*wake_limit2=*/0,
+        /*futex_addr2=*/this,
+        // The conditional second wake targets the same futex, which has no
+        // waiters left by then.
+        /*encoded_op=*/FUTEX_OP(FUTEX_OP_SET, value, FUTEX_OP_CMP_EQ, 0));
+    if (ret < 0)
+      return cpp::unexpected(-ret);
+    return ret;
+  }
   LIBC_INLINE ErrorOr<int> requeue_to(Futex &other,
                                       cpp::optional<FutexWordType> oldval,
                                       int wake_limit, int requeue_limit,

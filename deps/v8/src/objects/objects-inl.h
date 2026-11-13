@@ -60,9 +60,9 @@
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/templates-inl.h"
-#include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/isolate-inl.h"
+#include "src/sandbox/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -116,8 +116,6 @@ DEF_CAST_TRAITS(JSArrayIterator)
 DEF_CAST_TRAITS(JSAsyncFromSyncIterator)
 DEF_CAST_TRAITS(JSAsyncFunctionObject)
 DEF_CAST_TRAITS(JSAsyncGeneratorObject)
-DEF_CAST_TRAITS(JSAtomicsCondition)
-DEF_CAST_TRAITS(JSAtomicsMutex)
 DEF_CAST_TRAITS(JSBoundFunction)
 DEF_CAST_TRAITS(JSCollection)
 DEF_CAST_TRAITS(JSCollectionIterator)
@@ -147,6 +145,8 @@ DEF_CAST_TRAITS(JSIteratorFlatMapHelper)
 DEF_CAST_TRAITS(JSIteratorConcatHelper)
 DEF_CAST_TRAITS(JSIteratorZipHelper)
 DEF_CAST_TRAITS(JSIteratorZipKeyedHelper)
+DEF_CAST_TRAITS(JSIteratorChunksHelper)
+DEF_CAST_TRAITS(JSIteratorWindowsHelper)
 DEF_CAST_TRAITS(JSMap)
 DEF_CAST_TRAITS(JSMapIterator)
 DEF_CAST_TRAITS(JSMessageObject)
@@ -165,13 +165,11 @@ DEF_CAST_TRAITS(JSRegExpStringIterator)
 DEF_CAST_TRAITS(JSSet)
 DEF_CAST_TRAITS(JSSetIterator)
 DEF_CAST_TRAITS(JSShadowRealm)
-DEF_CAST_TRAITS(JSSharedArray)
-DEF_CAST_TRAITS(JSSharedStruct)
 DEF_CAST_TRAITS(JSSpecialObject)
 DEF_CAST_TRAITS(JSStringIterator)
-DEF_CAST_TRAITS(JSSynchronizationPrimitive)
 DEF_CAST_TRAITS(JSDetachedTypedArray)
 DEF_CAST_TRAITS(JSTypedArray)
+DEF_CAST_TRAITS(Uint8JSTypedArray)
 DEF_CAST_TRAITS(JSValidIteratorWrapper)
 DEF_CAST_TRAITS(JSWeakCollection)
 DEF_CAST_TRAITS(JSWeakRef)
@@ -299,7 +297,6 @@ HOLE_LIST(DEF_CAST_TRAITS)
 
 
 DEF_CAST_TRAITS(AccessCheckNeeded)
-DEF_CAST_TRAITS(AlwaysSharedSpaceJSObject)
 DEF_CAST_TRAITS(BigIntWrapper)
 DEF_CAST_TRAITS(BooleanWrapper)
 DEF_CAST_TRAITS(Callable)
@@ -316,6 +313,7 @@ DEF_CAST_TRAITS(ScriptWrapper)
 DEF_CAST_TRAITS(StringWrapper)
 DEF_CAST_TRAITS(SymbolWrapper)
 DEF_CAST_TRAITS(UniqueName)
+DEF_CAST_TRAITS(UninitializedHeapNumber)
 DEF_CAST_TRAITS(Undetectable)
 
 template <>
@@ -334,14 +332,6 @@ struct CastTraits<JSAny> {
   }
   static inline bool AllowFrom(Tagged<HeapObject> value) {
     return IsPrimitive(value) || IsJSReceiver(value);
-  }
-};
-template <>
-struct CastTraits<AllocationSiteWithWeakNext> {
-  template <typename From>
-  static inline bool AllowFrom(Tagged<From> value) {
-    Tagged<AllocationSite> site;
-    return TryCast<AllocationSite>(value, &site) && site->HasWeakNext();
   }
 };
 
@@ -428,30 +418,6 @@ T HeapObject::Acquire_ReadField(size_t offset) const
       reinterpret_cast<AtomicT*>(field_address(offset))));
 }
 
-// static
-template <typename CompareAndSwapImpl>
-Tagged<Object> HeapObject::SeqCst_CompareAndSwapField(
-    Tagged<Object> expected, Tagged<Object> value,
-    CompareAndSwapImpl compare_and_swap_impl) {
-  Tagged<Object> actual_expected = expected;
-  do {
-    Tagged<Object> old_value = compare_and_swap_impl(actual_expected, value);
-    if (old_value == actual_expected || !IsNumber(old_value) ||
-        !IsNumber(actual_expected)) {
-      return old_value;
-    }
-    if (!Object::SameNumberValue(
-            Object::NumberValue(Cast<Number>(old_value)),
-            Object::NumberValue(Cast<Number>(actual_expected)))) {
-      return old_value;
-    }
-    // The pointer comparison failed, but the numbers are equal. This can
-    // happen even if both numbers are HeapNumbers with the same value.
-    // Try again in the next iteration.
-    actual_expected = old_value;
-  } while (true);
-}
-
 constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
 #if V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   // The following assert ensures that the page size check covers all our static
@@ -516,6 +482,13 @@ DEF_HEAP_OBJECT_PREDICATE(IsSourceTextModuleInfo) {
 }
 
 DEF_HEAP_OBJECT_PREDICATE(IsTemplateLiteralObject) { return IsJSArray(obj); }
+
+DEF_HEAP_OBJECT_PREDICATE(IsUint8JSTypedArray) {
+  if (!IsJSTypedArray(obj)) return false;
+  ElementsKind elements_kind = obj->map()->elements_kind();
+  return elements_kind == UINT8_ELEMENTS ||
+         elements_kind == RAB_GSAB_UINT8_ELEMENTS;
+}
 
 #if V8_INTL_SUPPORT
 DEF_HEAP_OBJECT_PREDICATE(IsJSSegmentDataObject) { return IsJSObject(obj); }
@@ -675,27 +648,18 @@ bool Object::FilterKey(Tagged<Object> obj, PropertyFilter filter) {
 }
 
 // static
-std::pair<Representation, PropertyConstness> Object::OptimalRepresentation(
-    Tagged<Object> obj, PropertyConstness constness) {
+Representation Object::OptimalRepresentation(Tagged<Object> obj) {
   if (IsSmi(obj)) {
-    return {Representation::Smi(), constness};
+    return Representation::Smi();
   }
   Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
   if (IsUninitializedHole(heap_object)) {
-    return {Representation::None(), constness};
+    return Representation::None();
   }
   if (IsHeapNumber(heap_object)) {
-    if (constness == PropertyConstness::kConst &&
-        Cast<HeapNumber>(heap_object)->is_the_hole()) {
-      // Make sure that even an initializing store of a double value with
-      // the hole NaN pattern removes constness, otherwise it wouldn't be
-      // possible to distinguish whether subsequent stores to a double field
-      // is initializing or not.
-      constness = PropertyConstness::kMutable;
-    }
-    return {Representation::Double(), constness};
+    return Representation::Double();
   }
-  return {Representation::HeapObject(), constness};
+  return Representation::HeapObject();
 }
 
 // static
@@ -808,10 +772,7 @@ template <typename T, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<Number>::MaybeType Object::ToUint32(Isolate* isolate,
                                                         HandleType<T> input) {
-  if (IsSmi(*input)) {
-    return typename HandleType<Number>::MaybeType(
-        Smi::ToUint32Smi(Cast<Smi>(*input)), isolate);
-  }
+  if (IsSmi(*input) && Smi::ToInt(*input) >= 0) return Cast<Smi>(input);
   return ConvertToUint32(isolate, Cast<Object>(input));
 }
 
@@ -964,20 +925,19 @@ AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
     static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ||
                   (offsetof(HeapNumber, value_) & kDoubleAlignmentMask) ==
                       kTaggedSize);
-    if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
+    if (instance_type == HEAP_NUMBER_TYPE ||
+        instance_type == UNINITIALIZED_HEAP_NUMBER_TYPE) {
+      return kDoubleUnaligned;
+    }
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (in_shared_space && v8_flags.wasm_shared) [[unlikely]] {
+  if (in_shared_space) [[unlikely]] {
     int instance_type = map->instance_type();
-    if (instance_type == WASM_STRUCT_TYPE ||
+    if (instance_type == WASM_STRUCT_TYPE || instance_type == WASM_ARRAY_TYPE ||
         instance_type == WASM_CUSTOM_MAP_TYPE) {
-      // The map of a shared wasm struct needs to be in the shared space.
+      // The map of a shared wasm object needs to be in the shared space.
       DCHECK(HeapLayout::InWritableSharedSpace(map));
       return kDoubleAligned;
-    } else if (instance_type == WASM_ARRAY_TYPE) {
-      // The map of a shared wasm array needs to be in the shared space.
-      DCHECK(HeapLayout::InWritableSharedSpace(map));
-      return kDoubleUnaligned;
     }
   }
 #endif
@@ -1133,9 +1093,6 @@ typename HandleType<Object>::MaybeType Object::Share(
 // static
 bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
   if (IsJSReceiver(obj)) {
-    // TODO(v8:12547) Shared structs and arrays should only be able to point
-    // to shared values in weak collections. For now, disallow them as weak
-    // collection keys.
 #if V8_ENABLE_WEBASSEMBLY
     if (v8_flags.wasm_shared &&
         (IsWasmStruct(obj) || IsWasmCustomMap(obj) || IsWasmArray(obj)) &&
@@ -1143,8 +1100,7 @@ bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
       return false;
     }
 #endif
-    return (!v8_flags.harmony_struct ||
-            (!IsJSSharedStruct(obj) && !IsJSSharedArray(obj)));
+    return true;
   }
   return IsSymbol(obj) && !Cast<Symbol>(obj)->is_in_public_symbol_table();
 }

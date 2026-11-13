@@ -147,6 +147,10 @@ InspectorTest.runAsyncTestSuite([
     InspectorTest.logMessage((await evaluate({
       expression: 'new Error()', returnByValue: true
     })).result);
+    InspectorTest.log('Large sparse array');
+    InspectorTest.logMessage((await evaluate({
+      expression: 'new Array(0xFFFFFFFF)', returnByValue: true
+    })).error);
   },
   async function testFunction() {
     InspectorTest.logMessage((await evaluate({
@@ -208,7 +212,7 @@ InspectorTest.runAsyncTestSuite([
       expression: '-1n << 9_999_999n'
     })).result;
     InspectorTest.logMessage(result.result.description.length);
-    if (result.result.unserializableValue === '-0x8' + '0'.repeat(2_499_998) + 'n')
+    if (result.result.unserializableValue === '-0x8' + '0'.repeat(2_499_999) + 'n')
       result.result.unserializableValue = '<expected unserializableValue>';
     InspectorTest.logMessage(result);
   },

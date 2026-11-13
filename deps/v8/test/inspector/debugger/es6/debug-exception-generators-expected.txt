@@ -1,0 +1,3 @@
+Tests exception events in generators.
+log: ["a","b","c","d"]
+exception: null

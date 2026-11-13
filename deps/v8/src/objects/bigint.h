@@ -255,10 +255,16 @@ V8_OBJECT class BigInt : public BigIntBase {
   static MaybeDirectHandle<BigInt> AsUintN(Isolate* isolate, uint64_t n,
                                            DirectHandle<BigInt> x);
 
-  V8_EXPORT_PRIVATE static Handle<BigInt> FromInt64(Isolate* isolate,
-                                                    int64_t n);
-  V8_EXPORT_PRIVATE static Handle<BigInt> FromUint64(Isolate* isolate,
-                                                     uint64_t n);
+  template <typename IsolateT>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  static Handle<BigInt> FromInt64(
+      IsolateT* isolate, int64_t n,
+      AllocationType allocation = AllocationType::kYoung);
+  template <typename IsolateT>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  static Handle<BigInt> FromUint64(
+      IsolateT* isolate, uint64_t n,
+      AllocationType allocation = AllocationType::kYoung);
   static MaybeDirectHandle<BigInt> FromWords64(Isolate* isolate, int sign_bit,
                                                uint32_t words64_count,
                                                const uint64_t* words);

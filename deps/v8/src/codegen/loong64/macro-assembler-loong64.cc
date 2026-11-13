@@ -401,7 +401,7 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
                                               Register isolate_root) {
   DCHECK(!AreAliased(destination, isolate_root));
   ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK(!tag_range.IsEmpty());
   DCHECK(!IsSharedExternalPointerType(tag_range));
   UseScratchRegisterScope temps(this);
@@ -447,14 +447,19 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   }
 #else
   Ld_d(destination, field_operand);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 void MacroAssembler::LoadTrustedPointerField(Register destination,
                                              MemOperand field_operand,
-                                             IndirectPointerTag tag) {
+                                             TrustedPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  LoadIndirectPointerField(destination, field_operand, tag);
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register handle = temps.Acquire();
+  Ld_wu(handle, field_operand);
+
+  ResolveTrustedPointerHandle(destination, handle, tag_range);
 #else
   LoadTaggedField(destination, field_operand);
 #endif
@@ -477,10 +482,10 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
     Register handle = scratch;
     Ld_wu(handle, field_operand);
 
-    static_assert(kNullIndirectPointerHandle == 0);
+    static_assert(kNullTrustedPointerHandle == 0);
     Branch(is_unavailable, eq, handle, Operand(zero_reg));
 
-    ResolveIndirectPointerHandle(destination, handle, kAllIndirectPointerTags);
+    ResolveTrustedPointerHandle(destination, handle, kAllTrustedPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
@@ -509,46 +514,22 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
 }
 
 void MacroAssembler::StoreTrustedPointerField(Register value,
-                                              MemOperand dst_field_operand) {
-#ifdef V8_ENABLE_SANDBOX
-  StoreIndirectPointerField(value, dst_field_operand);
-#else
-  StoreTaggedField(value, dst_field_operand);
-#endif
-}
-
-void MacroAssembler::LoadIndirectPointerField(
-    Register destination, MemOperand field_operand,
-    IndirectPointerTagRange tag_range) {
-#ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register handle = temps.Acquire();
-  Ld_wu(handle, field_operand);
-
-  ResolveIndirectPointerHandle(destination, handle, tag_range);
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
-void MacroAssembler::StoreIndirectPointerField(Register value,
-                                               MemOperand dst_field_operand,
-                                               int* trap_pc) {
+                                              MemOperand dst_field_operand,
+                                              int* trap_pc) {
 #ifdef V8_ENABLE_SANDBOX
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Ld_w(scratch, FieldMemOperand(value, offsetof(ExposedTrustedObject,
-                                                self_indirect_pointer_)));
+                                                self_trusted_pointer_)));
   St_w(scratch, dst_field_operand, trap_pc);
 #else
-  UNREACHABLE();
+  StoreTaggedField(value, dst_field_operand, trap_pc);
 #endif
 }
 
 #ifdef V8_ENABLE_SANDBOX
-void MacroAssembler::ResolveIndirectPointerHandle(
-    Register destination, Register handle, IndirectPointerTagRange tag_range) {
+void MacroAssembler::ResolveTrustedPointerHandle(
+    Register destination, Register handle, TrustedPointerTagRange tag_range) {
   DCHECK(!AreAliased(handle, destination));
 
   DCHECK(root_array_available_);
@@ -559,8 +540,8 @@ void MacroAssembler::ResolveIndirectPointerHandle(
   Alsl_d(destination, handle, table, kTrustedPointerTableEntrySizeLog2);
   Ld_d(destination, MemOperand(destination, 0));
 
-  if (IsFastIndirectPointerTagRange(tag_range)) {
-    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+  if (IsFastTrustedPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastTrustedPointerTag(tag_range);
     And(destination, destination, Operand(mask));
   } else {
     Register tag_reg = handle;
@@ -645,6 +626,7 @@ void MacroAssembler::PushDispatchHandle(Register dispatch_handle,
   DCHECK(!AreAliased(dispatch_handle, scratch1, scratch2));
 #ifdef V8_ENABLE_SANDBOX
   AssertZeroExtended(dispatch_handle);
+  bstrins_d(dispatch_handle, zero_reg, kJSDispatchHandleShift - 1, 0);
   LoadParameterCountFromJSDispatchTable(scratch1, dispatch_handle, scratch2);
   bstrins_d(dispatch_handle, scratch1, 63, 32);
 #endif
@@ -702,22 +684,21 @@ void MacroAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
   MaybeRestoreRegisters(registers);
 }
 
-void MacroAssembler::CallIndirectPointerBarrier(Register object, Operand offset,
-                                                SaveFPRegsMode fp_mode,
-                                                IndirectPointerTag tag) {
+void MacroAssembler::CallTrustedPointerBarrier(Register object, Operand offset,
+                                               SaveFPRegsMode fp_mode,
+                                               TrustedPointerTag tag) {
   ASM_CODE_COMMENT(this);
   RegList registers =
-      IndirectPointerWriteBarrierDescriptor::ComputeSavedRegisters(object);
+      TrustedPointerWriteBarrierDescriptor::ComputeSavedRegisters(object);
   MaybeSaveRegisters(registers);
 
-  MoveObjectAndSlot(
-      IndirectPointerWriteBarrierDescriptor::ObjectRegister(),
-      IndirectPointerWriteBarrierDescriptor::SlotAddressRegister(), object,
-      offset);
-  li(IndirectPointerWriteBarrierDescriptor::IndirectPointerTagRegister(),
+  MoveObjectAndSlot(TrustedPointerWriteBarrierDescriptor::ObjectRegister(),
+                    TrustedPointerWriteBarrierDescriptor::SlotAddressRegister(),
+                    object, offset);
+  li(TrustedPointerWriteBarrierDescriptor::TrustedPointerTagRegister(),
      Operand(tag));
 
-  CallBuiltin(Builtins::IndirectPointerBarrier(fp_mode));
+  CallBuiltin(Builtins::TrustedPointerBarrier(fp_mode));
   MaybeRestoreRegisters(registers);
 }
 
@@ -779,22 +760,22 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
                 SetIsolateDataSlots::kNo);
 }
 
-void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+void MacroAssembler::CallVerifySkippedTrustedWriteBarrierStubSaveRegisters(
     Register object, Register value, SaveFPRegsMode fp_mode) {
   ASM_CODE_COMMENT(this);
   PushCallerSaved(fp_mode);
-  CallVerifySkippedIndirectWriteBarrierStub(object, value);
+  CallVerifySkippedTrustedWriteBarrierStub(object, value);
   PopCallerSaved(fp_mode);
 }
 
-void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStub(Register object,
-                                                               Register value) {
+void MacroAssembler::CallVerifySkippedTrustedWriteBarrierStub(Register object,
+                                                              Register value) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   PrepareCallCFunction(2, scratch);
   MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
-  CallCFunction(ExternalReference::verify_skipped_indirect_write_barrier(), 2,
+  CallCFunction(ExternalReference::verify_skipped_trusted_write_barrier(), 2,
                 SetIsolateDataSlots::kNo);
 }
 
@@ -847,9 +828,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     Add_d(scratch, object, offset);
-    if (slot.contains_indirect_pointer()) {
-      LoadIndirectPointerField(scratch, MemOperand(scratch, 0),
-                               slot.indirect_pointer_tag());
+    if (slot.contains_trusted_pointer()) {
+      LoadTrustedPointerField(scratch, MemOperand(scratch, 0),
+                              slot.trusted_pointer_tag());
     } else {
       DCHECK(slot.contains_direct_pointer());
       LoadTaggedField(scratch, MemOperand(scratch, 0));
@@ -876,7 +857,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     JumpIfSmi(value, &done);
   }
 
-  if (slot.contains_indirect_pointer()) {
+  if (slot.contains_trusted_pointer()) {
     // The indirect pointer write barrier is only enabled during marking.
     JumpIfNotMarking(&done);
   } else {
@@ -900,15 +881,26 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     CallRecordWriteStub(object, slot_address, fp_mode,
                         StubCallMode::kCallBuiltinPointer);
   } else {
-    DCHECK(slot.contains_indirect_pointer());
-    CallIndirectPointerBarrier(object, offset, fp_mode,
-                               slot.indirect_pointer_tag());
+    DCHECK(slot.contains_trusted_pointer());
+    CallTrustedPointerBarrier(object, offset, fp_mode,
+                              slot.trusted_pointer_tag());
   }
   if (ra_status == kRAHasNotBeenSaved) {
     Pop(ra);
   }
 
   bind(&done);
+}
+
+void MacroAssembler::AdjustBaseAndOffset(MemOperand* src,
+                                         UseScratchRegisterScope& temps) {
+  if ((!src->hasIndexReg() && is_int12(src->offset())) || src->hasIndexReg()) {
+    return;
+  }
+  Register base = src->base();
+  Register scratch = temps.Acquire();
+  li(scratch, src->offset());
+  *src = MemOperand(base, scratch);
 }
 
 // ---------------------------------------------------------------------------
@@ -1502,66 +1494,72 @@ void MacroAssembler::ByteSwap(Register dest, Register src, int operand_size) {
 }
 
 void MacroAssembler::Ld_b(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    ldx_b(rd, source.base(), source.index());
+    ldx_b(rd, source.index(), source.base());
   } else {
     ld_b(rd, source.base(), source.offset());
   }
 }
 
 void MacroAssembler::Ld_bu(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    ldx_bu(rd, source.base(), source.index());
+    ldx_bu(rd, source.index(), source.base());
   } else {
     ld_bu(rd, source.base(), source.offset());
   }
 }
 
 void MacroAssembler::St_b(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    stx_b(rd, source.base(), source.index());
+    stx_b(rd, source.index(), source.base());
   } else {
     st_b(rd, source.base(), source.offset());
   }
 }
 
 void MacroAssembler::Ld_h(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    ldx_h(rd, source.base(), source.index());
+    ldx_h(rd, source.index(), source.base());
   } else {
     ld_h(rd, source.base(), source.offset());
   }
 }
 
 void MacroAssembler::Ld_hu(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    ldx_hu(rd, source.base(), source.index());
+    ldx_hu(rd, source.index(), source.base());
   } else {
     ld_hu(rd, source.base(), source.offset());
   }
 }
 
 void MacroAssembler::St_h(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    stx_h(rd, source.base(), source.index());
+    stx_h(rd, source.index(), source.base());
   } else {
     st_h(rd, source.base(), source.offset());
   }
@@ -1577,22 +1575,24 @@ void MacroAssembler::Ld_w(Register rd, const MemOperand& rj, int* trap_pc) {
     return;
   }
 
-  AdjustBaseAndOffset(&source);
+  UseScratchRegisterScope temps(this);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    ldx_w(rd, source.base(), source.index());
+    ldx_w(rd, source.index(), source.base());
   } else {
     ld_w(rd, source.base(), source.offset());
   }
 }
 
 void MacroAssembler::Ld_wu(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
 
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    ldx_wu(rd, source.base(), source.index());
+    ldx_wu(rd, source.index(), source.base());
   } else {
     ld_wu(rd, source.base(), source.offset());
   }
@@ -1608,10 +1608,11 @@ void MacroAssembler::St_w(Register rd, const MemOperand& rj, int* trap_pc) {
     return;
   }
 
-  AdjustBaseAndOffset(&source);
+  UseScratchRegisterScope temps(this);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    stx_w(rd, source.base(), source.index());
+    stx_w(rd, source.index(), source.base());
   } else {
     st_w(rd, source.base(), source.offset());
   }
@@ -1627,10 +1628,11 @@ void MacroAssembler::Ld_d(Register rd, const MemOperand& rj, int* trap_pc) {
     return;
   }
 
-  AdjustBaseAndOffset(&source);
+  UseScratchRegisterScope temps(this);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    ldx_d(rd, source.base(), source.index());
+    ldx_d(rd, source.index(), source.base());
   } else {
     ld_d(rd, source.base(), source.offset());
   }
@@ -1646,10 +1648,11 @@ void MacroAssembler::St_d(Register rd, const MemOperand& rj, int* trap_pc) {
     return;
   }
 
-  AdjustBaseAndOffset(&source);
+  UseScratchRegisterScope temps(this);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    stx_d(rd, source.base(), source.index());
+    stx_d(rd, source.index(), source.base());
   } else {
     st_d(rd, source.base(), source.offset());
   }
@@ -1657,11 +1660,12 @@ void MacroAssembler::St_d(Register rd, const MemOperand& rj, int* trap_pc) {
 
 void MacroAssembler::Fld_s(FPURegister fd, const MemOperand& src,
                            int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand tmp = src;
-  AdjustBaseAndOffset(&tmp);
+  AdjustBaseAndOffset(&tmp, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (tmp.hasIndexReg()) {
-    fldx_s(fd, tmp.base(), tmp.index());
+    fldx_s(fd, tmp.index(), tmp.base());
   } else {
     fld_s(fd, tmp.base(), tmp.offset());
   }
@@ -1669,11 +1673,12 @@ void MacroAssembler::Fld_s(FPURegister fd, const MemOperand& src,
 
 void MacroAssembler::Fst_s(FPURegister fs, const MemOperand& src,
                            int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand tmp = src;
-  AdjustBaseAndOffset(&tmp);
+  AdjustBaseAndOffset(&tmp, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (tmp.hasIndexReg()) {
-    fstx_s(fs, tmp.base(), tmp.index());
+    fstx_s(fs, tmp.index(), tmp.base());
   } else {
     fst_s(fs, tmp.base(), tmp.offset());
   }
@@ -1681,11 +1686,12 @@ void MacroAssembler::Fst_s(FPURegister fs, const MemOperand& src,
 
 void MacroAssembler::Fld_d(FPURegister fd, const MemOperand& src,
                            int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand tmp = src;
-  AdjustBaseAndOffset(&tmp);
+  AdjustBaseAndOffset(&tmp, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (tmp.hasIndexReg()) {
-    fldx_d(fd, tmp.base(), tmp.index());
+    fldx_d(fd, tmp.index(), tmp.base());
   } else {
     fld_d(fd, tmp.base(), tmp.offset());
   }
@@ -1693,11 +1699,12 @@ void MacroAssembler::Fld_d(FPURegister fd, const MemOperand& src,
 
 void MacroAssembler::Fst_d(FPURegister fs, const MemOperand& src,
                            int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand tmp = src;
-  AdjustBaseAndOffset(&tmp);
+  AdjustBaseAndOffset(&tmp, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (tmp.hasIndexReg()) {
-    fstx_d(fs, tmp.base(), tmp.index());
+    fstx_d(fs, tmp.index(), tmp.base());
   } else {
     fst_d(fs, tmp.base(), tmp.offset());
   }
@@ -1768,22 +1775,24 @@ void MacroAssembler::Sc_d(Register rd, const MemOperand& rj, int* trap_pc) {
 }
 
 void MacroAssembler::Vst(VRegister vd, const MemOperand& vj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = vj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    vstx(vd, source.base(), source.index());
+    vstx(vd, source.index(), source.base());
   } else {
     vst(vd, source.base(), source.offset());
   }
 }
 
 void MacroAssembler::Vld(VRegister vd, const MemOperand& vj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = vj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
-    vldx(vd, source.base(), source.index());
+    vldx(vd, source.index(), source.base());
   } else {
     vld(vd, source.base(), source.offset());
   }
@@ -1793,27 +1802,172 @@ void MacroAssembler::Vmove(VRegister dst, VRegister src) {
   if (dst != src) vaddi_bu(dst, src, 0);
 }
 
+void MacroAssembler::AdjustBaseAndOffsetVldrepl(
+    MemOperand* src, LSXSize sz, UseScratchRegisterScope& temps) {
+  bool fit = false;
+  if (!src->hasIndexReg()) {
+    int32_t offset = src->offset();
+    switch (sz) {
+      case LSX_B:
+        fit = is_int12(offset);
+        break;
+      case LSX_H:
+        fit = offset % 2 == 0 && is_int11(offset / 2);
+        break;
+      case LSX_W:
+        fit = offset % 4 == 0 && is_int10(offset / 4);
+        break;
+      case LSX_D:
+        fit = offset % 8 == 0 && is_int9(offset / 8);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  if (fit) return;
+
+  Register scratch = temps.Acquire();
+  if (src->hasIndexReg()) {
+    Add_d(scratch, src->base(), src->index());
+    if (src->offset() != 0) {
+      Add_d(scratch, scratch, Operand(src->offset()));
+    }
+  } else {
+    Add_d(scratch, src->base(), Operand(src->offset()));
+  }
+  *src = MemOperand(scratch, 0);
+}
+
+void MacroAssembler::Vldrepl_b(VRegister vd, const MemOperand& src,
+                               int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = src;
+  AdjustBaseAndOffsetVldrepl(&source, LSX_B, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vldrepl_b(vd, source.base(), source.offset());
+}
+
+void MacroAssembler::Vldrepl_h(VRegister vd, const MemOperand& src,
+                               int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = src;
+  AdjustBaseAndOffsetVldrepl(&source, LSX_H, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vldrepl_h(vd, source.base(), source.offset());
+}
+
+void MacroAssembler::Vldrepl_w(VRegister vd, const MemOperand& src,
+                               int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = src;
+  AdjustBaseAndOffsetVldrepl(&source, LSX_W, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vldrepl_w(vd, source.base(), source.offset());
+}
+
+void MacroAssembler::Vldrepl_d(VRegister vd, const MemOperand& src,
+                               int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = src;
+  AdjustBaseAndOffsetVldrepl(&source, LSX_D, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vldrepl_d(vd, source.base(), source.offset());
+}
+
+void MacroAssembler::AdjustBaseAndOffsetVstelm(MemOperand* dst, LSXSize sz,
+                                               UseScratchRegisterScope& temps) {
+  bool fit = false;
+  if (!dst->hasIndexReg()) {
+    int32_t offset = dst->offset();
+    switch (sz) {
+      case LSX_B:
+        fit = is_int8(offset);
+        break;
+      case LSX_H:
+        fit = offset % 2 == 0 && is_int8(offset / 2);
+        break;
+      case LSX_W:
+        fit = offset % 4 == 0 && is_int8(offset / 4);
+        break;
+      case LSX_D:
+        fit = offset % 8 == 0 && is_int8(offset / 8);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  if (fit) return;
+
+  Register scratch = temps.Acquire();
+  if (dst->hasIndexReg()) {
+    Add_d(scratch, dst->base(), dst->index());
+    if (dst->offset() != 0) {
+      Add_d(scratch, scratch, Operand(dst->offset()));
+    }
+  } else {
+    Add_d(scratch, dst->base(), Operand(dst->offset()));
+  }
+  *dst = MemOperand(scratch, 0);
+}
+
+void MacroAssembler::Vstelm_b(VRegister vd, const MemOperand& dst,
+                              uint8_t laneidx, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = dst;
+  AdjustBaseAndOffsetVstelm(&source, LSX_B, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vstelm_b(vd, source.base(), source.offset(), laneidx);
+}
+
+void MacroAssembler::Vstelm_h(VRegister vd, const MemOperand& dst,
+                              uint8_t laneidx, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = dst;
+  AdjustBaseAndOffsetVstelm(&source, LSX_H, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vstelm_h(vd, source.base(), source.offset(), laneidx);
+}
+
+void MacroAssembler::Vstelm_w(VRegister vd, const MemOperand& dst,
+                              uint8_t laneidx, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = dst;
+  AdjustBaseAndOffsetVstelm(&source, LSX_W, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vstelm_w(vd, source.base(), source.offset(), laneidx);
+}
+
+void MacroAssembler::Vstelm_d(VRegister vd, const MemOperand& dst,
+                              uint8_t laneidx, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = dst;
+  AdjustBaseAndOffsetVstelm(&source, LSX_D, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vstelm_d(vd, source.base(), source.offset(), laneidx);
+}
+
 void MacroAssembler::LoadSplat(LSXSize sz, VRegister dst, MemOperand src,
                                int* trap_pc) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   switch (sz) {
     case LSX_B:
-      Ld_b(scratch, src, trap_pc);
-      vreplgr2vr_b(dst, scratch);
+      Vldrepl_b(dst, src, trap_pc);
       break;
     case LSX_H:
-      Ld_h(scratch, src, trap_pc);
-      vreplgr2vr_h(dst, scratch);
+      Vldrepl_h(dst, src, trap_pc);
       break;
     case LSX_W:
-      Ld_w(scratch, src, trap_pc);
-      vreplgr2vr_w(dst, scratch);
+      Vldrepl_w(dst, src, trap_pc);
       break;
     case LSX_D:
-      Ld_d(scratch, src, trap_pc);
-      vreplgr2vr_d(dst, scratch);
+      Vldrepl_d(dst, src, trap_pc);
       break;
     default:
       UNREACHABLE();
@@ -2700,34 +2854,18 @@ void MacroAssembler::LoadLane(LSXSize sz, VRegister dst, uint8_t laneidx,
 
 void MacroAssembler::StoreLane(LSXSize sz, VRegister src, uint8_t laneidx,
                                MemOperand dst, int* trap_pc) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   switch (sz) {
     case LSX_B:
-      vpickve2gr_bu(scratch, src, laneidx);
-      St_b(scratch, dst, trap_pc);
+      Vstelm_b(src, dst, laneidx, trap_pc);
       break;
     case LSX_H:
-      vpickve2gr_hu(scratch, src, laneidx);
-      St_h(scratch, dst, trap_pc);
+      Vstelm_h(src, dst, laneidx, trap_pc);
       break;
     case LSX_W:
-      if (laneidx == 0) {
-        FPURegister src_reg = FPURegister::from_code(src.code());
-        Fst_s(src_reg, dst, trap_pc);
-      } else {
-        vpickve2gr_wu(scratch, src, laneidx);
-        St_w(scratch, dst, trap_pc);
-      }
+      Vstelm_w(src, dst, laneidx, trap_pc);
       break;
     case LSX_D:
-      if (laneidx == 0) {
-        FPURegister src_reg = FPURegister::from_code(src.code());
-        Fst_d(src_reg, dst, trap_pc);
-      } else {
-        vpickve2gr_d(scratch, src, laneidx);
-        St_d(scratch, dst, trap_pc);
-      }
+      Vstelm_d(src, dst, laneidx, trap_pc);
       break;
     default:
       UNREACHABLE();
@@ -2839,19 +2977,35 @@ void MacroAssembler::RoundDouble(FPURegister dst, FPURegister src,
 }
 
 void MacroAssembler::Floor_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_floor);
+  if (IsEnabled(LSX)) {
+    vfrintrm_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_floor);
+  }
 }
 
 void MacroAssembler::Ceil_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_ceil);
+  if (IsEnabled(LSX)) {
+    vfrintrp_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_ceil);
+  }
 }
 
 void MacroAssembler::Trunc_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_trunc);
+  if (IsEnabled(LSX)) {
+    vfrintrz_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_trunc);
+  }
 }
 
 void MacroAssembler::Round_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_round);
+  if (IsEnabled(LSX)) {
+    vfrintrne_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_round);
+  }
 }
 
 void MacroAssembler::RoundFloat(FPURegister dst, FPURegister src,
@@ -2868,19 +3022,35 @@ void MacroAssembler::RoundFloat(FPURegister dst, FPURegister src,
 }
 
 void MacroAssembler::Floor_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_floor);
+  if (IsEnabled(LSX)) {
+    vfrintrm_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_floor);
+  }
 }
 
 void MacroAssembler::Ceil_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_ceil);
+  if (IsEnabled(LSX)) {
+    vfrintrp_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_ceil);
+  }
 }
 
 void MacroAssembler::Trunc_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_trunc);
+  if (IsEnabled(LSX)) {
+    vfrintrz_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_trunc);
+  }
 }
 
 void MacroAssembler::Round_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_round);
+  if (IsEnabled(LSX)) {
+    vfrintrne_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_round);
+  }
 }
 
 void MacroAssembler::CompareF(FPURegister cmp1, FPURegister cmp2,
@@ -3105,9 +3275,18 @@ void MacroAssembler::Ctz_w(Register rd, Register rj) { ctz_w(rd, rj); }
 
 void MacroAssembler::Ctz_d(Register rd, Register rj) { ctz_d(rd, rj); }
 
-// TODO(LOONG_dev): Optimize like arm64, use simd instruction
 void MacroAssembler::Popcnt_w(Register rd, Register rj) {
   ASM_CODE_COMMENT(this);
+
+  if (CpuFeatures::SupportsSimd128()) {
+    UseScratchRegisterScope temps(this);
+    DoubleRegister scratch = temps.AcquireFp();
+    vreplgr2vr_w(scratch.toV(), rj);
+    vpcnt_w(scratch.toV(), scratch.toV());
+    movfr2gr_s(rd, scratch);
+    return;
+  }
+
   // https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
   //
   // A generalization of the best bit counting method to integers of
@@ -3152,6 +3331,16 @@ void MacroAssembler::Popcnt_w(Register rd, Register rj) {
 
 void MacroAssembler::Popcnt_d(Register rd, Register rj) {
   ASM_CODE_COMMENT(this);
+
+  if (CpuFeatures::SupportsSimd128()) {
+    UseScratchRegisterScope temps(this);
+    DoubleRegister scratch = temps.AcquireFp();
+    vreplgr2vr_d(scratch.toV(), rj);
+    vpcnt_d(scratch.toV(), scratch.toV());
+    movfr2gr_d(rd, scratch);
+    return;
+  }
+
   int64_t B0 = 0x5555555555555555l;     // (T)~(T)0/3
   int64_t B1 = 0x3333333333333333l;     // (T)~(T)0/15*3
   int64_t B2 = 0x0F0F0F0F0F0F0F0Fl;     // (T)~(T)0/255*15
@@ -4209,8 +4398,8 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   St_d(ra, MemOperand(sp, 0));
   // Stack is still aligned.
 
-  // TODO(LOONG_dev): can be jirl target? a0 -- a7?
-  jirl(zero_reg, target, 0);
+  // Call the C routine.
+  jirl(ra, target, 0);
   // Make sure the stored 'ra' points to this position.
   DCHECK_EQ(kNumInstructionsToJump, InstructionsGeneratedSince(&find_ra));
 }
@@ -4609,16 +4798,18 @@ void MacroAssembler::InvokeFunctionCode(
   // call sites.
   LoadEntrypointFromJSDispatchTable(kJavaScriptCallCodeStartRegister,
                                     dispatch_handle, scratch);
+  Label done;
   switch (type) {
     case InvokeType::kCall:
       Call(kJavaScriptCallCodeStartRegister);
+      Branch(&done);
       break;
     case InvokeType::kJump:
+      // The tail jump does not return, so jumping to `done` here would be
+      // unreachable dead code.
       Jump(kJavaScriptCallCodeStartRegister);
       break;
   }
-  Label done;
-  Branch(&done);
 
   // Deferred debug hook.
   bind(&debug_hook);
@@ -5926,7 +6117,7 @@ void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Register parameter_count = s1;
@@ -5938,9 +6129,23 @@ void MacroAssembler::CallJSFunction(Register function_object,
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
 
-  // Force a safe crash if the parameter count doesn't match.
-  SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
-           Operand(argument_count));
+  // Force a safe crash if the parameter count doesn't match the expected count
+  // assumed at the call site, which would corrupt the stack on underapplication
+  // (caller pushes max(actual_argc, expected) slots; callee pops
+  // max(actual_argc, parameter_count) slots).
+  if (expected_parameter_count <= 1) {
+    // Both kDontAdaptArgumentsSentinel (0) and JSParameterCount(0) (1) are
+    // valid here: since actual_argc >= 1 (includes receiver), neither pads
+    // arguments and both pop actual_argc slots upon return. We cannot use an
+    // exact equality check because WasmToJS wrappers compute expected_arity
+    // via SFI::internal_formal_parameter_count_without_receiver(), which maps
+    // both cases to JSParameterCount(0) (1).
+    SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
+             Operand(1));
+  } else {
+    SbxCheck(eq, AbortReason::kJSSignatureMismatch, parameter_count,
+             Operand(expected_parameter_count));
+  }
   Call(code);
 }
 
@@ -6158,14 +6363,37 @@ void MacroAssembler::StoreTaggedField(Register src, const MemOperand& dst,
 void MacroAssembler::AtomicStoreTaggedField(Register src, const MemOperand& dst,
                                             int* trap_pc) {
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Add_d(scratch, dst.base(), dst.offset());
+  // Use the base register directly when it already holds the address, but not
+  // when it aliases {src}, which is an input of the swap.
+  Register addr = dst.base();
+  if (dst.hasIndexReg() || dst.offset() != 0 || addr == src) {
+    addr = temps.Acquire();
+    if (dst.hasIndexReg()) {
+      Add_d(addr, dst.base(), dst.index());
+    } else {
+      Add_d(addr, dst.base(), dst.offset());
+    }
+  }
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (COMPRESS_POINTERS_BOOL) {
-    amswap_db_w(zero_reg, src, scratch);
+    amswap_db_w(zero_reg, src, addr);
   } else {
-    amswap_db_d(zero_reg, src, scratch);
+    amswap_db_d(zero_reg, src, addr);
   }
+}
+
+void MacroAssembler::AtomicStoreTaggedField(Register src, const MemOperand& dst,
+                                            AtomicMemoryOrder order,
+                                            int* trap_pc) {
+  if (order == AtomicMemoryOrder::kSeqCst) {
+    AtomicStoreTaggedField(src, dst, trap_pc);
+    return;
+  }
+  DCHECK_EQ(order, AtomicMemoryOrder::kAcqRel);
+  // A release store needs the previous accesses ordered before it, but
+  // nothing after it; this avoids the read-modify-write above.
+  dbar(kDbarStoreRelease);
+  StoreTaggedField(src, dst, trap_pc);
 }
 
 void MacroAssembler::DecompressTaggedSigned(Register dst, const MemOperand& src,
@@ -6218,7 +6446,7 @@ void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src, trap_pc);
-  dbar(0);
+  dbar(kDbarFull);
   if (v8_flags.slow_debug_code) {
     // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
     Add_d(dst, dst, ((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32);
@@ -6230,7 +6458,7 @@ void MacroAssembler::AtomicDecompressTagged(Register dst, const MemOperand& src,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src, trap_pc);
-  dbar(0);
+  dbar(kDbarFull);
   or_(dst, kPtrComprCageBaseRegister, dst);
 }
 

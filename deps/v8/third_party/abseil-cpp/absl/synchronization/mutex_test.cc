@@ -1357,6 +1357,288 @@ TEST(Mutex, DeadlockIdBug) ABSL_NO_THREAD_SAFETY_ANALYSIS {
   c.unlock();
 }
 
+// The tests below check what the deadlock detector reports, so they need it to
+// be compiled in. Under TSAN, the lock cycles they create would also trigger
+// TSAN's own reports.
+#if !defined(NDEBUG) && !defined(ABSL_HAVE_THREAD_SANITIZER)
+TEST(Mutex, DeadlockDetectorReportsCycle) ABSL_NO_THREAD_SAFETY_ANALYSIS {
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        ScopedDisableBazelTestWarnings disable_bazel_test_warnings;
+        absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
+        absl::Mutex a;
+        absl::Mutex b;
+        // Record a -> b. a is acquired with try_lock() while no other lock is
+        // held, so its hold must be recorded without a deadlock check.
+        ASSERT_TRUE(a.try_lock());
+        b.lock();
+        b.unlock();
+        a.unlock();
+        // Acquiring a while holding b closes the cycle.
+        b.lock();
+        a.lock();
+      },
+      "dying due to potential deadlock");
+}
+
+// ForgetDeadlockInfo(), which ~Mutex() also calls, must remove the lock order
+// recorded for the Mutex, including by other threads.
+TEST(Mutex, ForgetDeadlockInfoForgetsLockOrder)
+ABSL_NO_THREAD_SAFETY_ANALYSIS {
+  absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
+  absl::Mutex a;
+  absl::Mutex b;
+  std::thread other([&]() ABSL_NO_THREAD_SAFETY_ANALYSIS {
+    a.lock();
+    b.lock();  // Records a -> b.
+    b.unlock();
+    a.unlock();
+  });
+  other.join();
+  a.ForgetDeadlockInfo();
+  // With a -> b forgotten, acquiring a while holding b is not a cycle.
+  b.lock();
+  a.lock();
+  a.unlock();
+  b.unlock();
+}
+
+TEST(Mutex, ForgetDeadlockInfoWhileHeldDoesNotMaskOtherHeldLocks)
+ABSL_NO_THREAD_SAFETY_ANALYSIS {
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        ScopedDisableBazelTestWarnings disable_bazel_test_warnings;
+        absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
+        absl::Mutex a;
+        absl::Mutex b;
+        absl::Mutex c;
+        // Record c -> a.
+        c.lock();
+        a.lock();
+        a.unlock();
+        c.unlock();
+        // Forgetting b while holding a and b must ignore only the hold of b.
+        a.lock();
+        ASSERT_TRUE(b.try_lock_shared());
+        b.ForgetDeadlockInfo();
+        b.unlock_shared();
+        // Acquiring c while holding a closes the cycle.
+        c.lock();
+      },
+      "dying due to potential deadlock");
+}
+
+// Forgetting a Mutex while another thread is blocked acquiring it must not
+// hide the lock order of that thread's hold once it acquires the Mutex.
+TEST(Mutex, ForgetDeadlockInfoWhileWaiterBlockedDoesNotMaskSubsequentHold)
+ABSL_NO_THREAD_SAFETY_ANALYSIS {
+  for (bool waiter_holds_other_lock : {false, true}) {
+    EXPECT_DEATH_IF_SUPPORTED(
+        {
+          ScopedDisableBazelTestWarnings disable_bazel_test_warnings;
+          absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
+          absl::Mutex other;
+          absl::Mutex a;
+          absl::Mutex b;
+          std::atomic<bool> about_to_lock{false};
+          {
+            a.lock_shared();
+            absl::synchronization_internal::ThreadPool pool(1);
+            pool.Schedule([&]() ABSL_NO_THREAD_SAFETY_ANALYSIS {
+              // If the waiter holds another lock, the deadlock check looks up
+              // the deadlock graph node of a before the waiter blocks.
+              if (waiter_holds_other_lock) other.lock();
+              about_to_lock.store(true, std::memory_order_release);
+              a.lock();  // Blocks until a.unlock_shared() below.
+              b.lock();  // Records a -> b.
+              b.unlock();
+              a.unlock();
+              if (waiter_holds_other_lock) other.unlock();
+            });
+            while (!about_to_lock.load(std::memory_order_acquire)) {
+              absl::SleepFor(absl::Milliseconds(1));
+            }
+            absl::SleepFor(absl::Milliseconds(20));  // Let the waiter block.
+            a.ForgetDeadlockInfo();
+            a.unlock_shared();
+          }
+          // Acquiring a while holding b closes the cycle.
+          b.lock();
+          a.lock();
+        },
+        "dying due to potential deadlock");
+  }
+}
+
+// A hold by another thread keeps counting for lock ordering after
+// ForgetDeadlockInfo(), even if that thread already used it to record lock
+// order before the Mutex was forgotten.
+TEST(Mutex, ForgetDeadlockInfoDoesNotMaskOtherThreadsHold)
+ABSL_NO_THREAD_SAFETY_ANALYSIS {
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        ScopedDisableBazelTestWarnings disable_bazel_test_warnings;
+        absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
+        absl::Mutex a;
+        absl::Mutex b;
+        absl::Mutex c;
+        std::atomic<bool> recorded{false};
+        std::atomic<bool> forgotten{false};
+        std::thread holder([&]() ABSL_NO_THREAD_SAFETY_ANALYSIS {
+          a.lock();
+          b.lock();  // Records a -> b.
+          b.unlock();
+          recorded.store(true, std::memory_order_release);
+          while (!forgotten.load(std::memory_order_acquire)) {
+            absl::SleepFor(absl::Milliseconds(1));
+          }
+          c.lock();  // Records a -> c, although a was forgotten.
+          c.unlock();
+          a.unlock();
+        });
+        while (!recorded.load(std::memory_order_acquire)) {
+          absl::SleepFor(absl::Milliseconds(1));
+        }
+        a.ForgetDeadlockInfo();
+        forgotten.store(true, std::memory_order_release);
+        holder.join();
+        // Acquiring a while holding c closes the cycle.
+        c.lock();
+        a.lock();
+      },
+      "dying due to potential deadlock");
+}
+
+// Same, for a thread that waits on a CondVar: it is still considered to hold
+// the Mutex while it waits.
+TEST(Mutex, ForgetDeadlockInfoDuringCondVarWaitDoesNotMaskReacquiredHold)
+ABSL_NO_THREAD_SAFETY_ANALYSIS {
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        ScopedDisableBazelTestWarnings disable_bazel_test_warnings;
+        absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
+        absl::Mutex a;
+        absl::Mutex b;
+        absl::CondVar cv;
+        bool ready = false;
+        std::atomic<bool> waiting{false};
+        {
+          absl::synchronization_internal::ThreadPool pool(1);
+          pool.Schedule([&]() ABSL_NO_THREAD_SAFETY_ANALYSIS {
+            a.lock();
+            waiting.store(true, std::memory_order_release);
+            while (!ready) {
+              cv.Wait(&a);
+            }
+            b.lock();  // Records a -> b.
+            b.unlock();
+            a.unlock();
+          });
+          while (!waiting.load(std::memory_order_acquire)) {
+            absl::SleepFor(absl::Milliseconds(1));
+          }
+          absl::SleepFor(absl::Milliseconds(20));  // Let the waiter wait.
+          a.ForgetDeadlockInfo();
+          a.lock();
+          ready = true;
+          cv.Signal();
+          a.unlock();
+        }
+        // Acquiring a while holding b closes the cycle.
+        b.lock();
+        a.lock();
+      },
+      "dying due to potential deadlock");
+}
+
+TEST(Mutex, ForgetDeadlockInfoWhileHoldingManyLocks)
+ABSL_NO_THREAD_SAFETY_ANALYSIS {
+  absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
+  // Use a new thread: the list of held locks overflows and sets the thread's
+  // overflow flag.
+  std::thread thread([]() ABSL_NO_THREAD_SAFETY_ANALYSIS {
+    // More locks than the deadlock detector can track per thread.
+    constexpr int kNumLocks = 42;
+    absl::Mutex mutexes[kNumLocks];
+    mutexes[0].lock();
+    mutexes[0].ForgetDeadlockInfo();
+    for (int i = 1; i < kNumLocks; ++i) {
+      mutexes[i].lock();
+    }
+    for (int i = kNumLocks - 1; i >= 0; --i) {
+      mutexes[i].unlock();
+    }
+  });
+  thread.join();
+
+  // Repeatedly forgetting a held lock and unlocking it, or destroying a locked
+  // Mutex, must not leak slots in the thread's held-locks array.
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        ScopedDisableBazelTestWarnings disable_bazel_test_warnings;
+        absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
+        absl::Mutex m;
+        for (int i = 0; i < 50; ++i) {
+          m.lock();
+          m.ForgetDeadlockInfo();
+          m.unlock();
+        }
+        auto destroyed_locked = std::make_unique<absl::Mutex[]>(50);
+        for (size_t i = 0; i < 50; ++i) {
+          destroyed_locked[i].lock();
+        }
+        destroyed_locked.reset();
+        absl::Mutex a;
+        absl::Mutex b;
+        a.lock();
+        b.lock();
+        b.unlock();
+        a.unlock();
+        b.lock();
+        a.lock();
+      },
+      "dying due to potential deadlock");
+}
+
+TEST(Mutex, AssertNotHeld) ABSL_NO_THREAD_SAFETY_ANALYSIS {
+  absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
+  absl::Mutex mu;
+  mu.AssertNotHeld();
+
+  // A hold by another thread does not count.
+  std::atomic<bool> held{false};
+  std::atomic<bool> release{false};
+  std::thread holder([&]() ABSL_NO_THREAD_SAFETY_ANALYSIS {
+    mu.lock();
+    held.store(true, std::memory_order_release);
+    while (!release.load(std::memory_order_acquire)) {
+      absl::SleepFor(absl::Milliseconds(1));
+    }
+    mu.unlock();
+  });
+  while (!held.load(std::memory_order_acquire)) {
+    absl::SleepFor(absl::Milliseconds(1));
+  }
+  mu.AssertNotHeld();
+  release.store(true, std::memory_order_release);
+  holder.join();
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        mu.lock();
+        mu.AssertNotHeld();
+      },
+      "thread should not hold mutex");
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        mu.lock();
+        mu.ForgetDeadlockInfo();
+        mu.AssertNotHeld();
+      },
+      "thread should not hold mutex");
+}
+#endif  // !defined(NDEBUG) && !defined(ABSL_HAVE_THREAD_SANITIZER)
+
 // --------------------------------------------------------
 // Test for timeouts/deadlines on condition waits that are specified using
 // absl::Duration and absl::Time.  For each waiting function we test with

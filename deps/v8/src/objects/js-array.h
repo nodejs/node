@@ -164,7 +164,7 @@ V8_OBJECT class JSArray : public JSObject {
 inline constexpr int JSArray::kHeaderSize = sizeof(JSArray);
 inline constexpr int JSArray::kInitialMaxFastElementArray =
     (kMaxRegularHeapObjectSize - static_cast<int>(sizeof(FixedArray)) -
-     JSArray::kHeaderSize - static_cast<int>(sizeof(AllocationMemento))) >>
+     JSArray::kHeaderSize) >>
     kDoubleSizeLog2;
 
 // The JSArrayIterator describes JavaScript Array Iterators Objects, as
@@ -194,7 +194,7 @@ V8_OBJECT class JSArrayIterator : public JSObject {
   TaggedMember<JSReceiver> iterated_object_;
   TaggedMember<Number> next_index_;
   // SmiTagged<IterationKind>.
-  TaggedMember<Smi> kind_;
+  TaggedMember<Smi> kind_ V8_TQ_TYPE(SmiTagged<IterationKind>);
 } V8_OBJECT_END;
 
 // Helper class for JSArrays that are template literal objects

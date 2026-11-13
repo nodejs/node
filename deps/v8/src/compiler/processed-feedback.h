@@ -245,7 +245,11 @@ class CallFeedback : public ProcessedFeedback {
         target_(target),
         frequency_(frequency),
         mode_(mode),
-        content_(call_feedback_content) {}
+        content_(call_feedback_content) {
+    DCHECK_IMPLIES(content_ == CallFeedbackContent::kReceiver,
+                   target_.has_value() && (target_->IsJSFunction() ||
+                                           target_->IsJSBoundFunction()));
+  }
 
   OptionalHeapObjectRef target() const { return target_; }
   float frequency() const { return frequency_; }

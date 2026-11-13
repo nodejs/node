@@ -652,6 +652,9 @@ void MaglevLoopPeeler::PeelLoop(const LoopInfo& loop) {
   RetargetOriginalLoopExits(ctx);
   RewireLoopConnections(ctx);
   SplicePeeledBlocks(ctx);
+  if (graph_->may_have_unreachable_blocks()) {
+    graph_->RemoveUnreachableBlocks();
+  }
 
   loop.header()->state()->set_is_loop_with_peeled_iteration();
   TRACE_PEEL_PEELED("@" << LoopHeaderBytecodeOffset(loop.header())
@@ -1059,24 +1062,14 @@ void MaglevLoopPeeler::CloneLoopBodyControl(PeelContext& ctx) {
     ControlNode* cloned_control = nullptr;
 
     if (block == ctx.loop.backedge()) {
-      // Back-edge: original is JumpLoop. Replace with a CheckpointedJump (not a
-      // plain Jump) targeting the original loop header directly at predecessor
-      // slot 0 (the forward pre-header slot). The header's pre-header phi
-      // inputs get rewired below to consume the cloned-backedge values. It must
-      // stay checkpointed: JumpLoop carries a deopt checkpoint that phi
-      // untagging depends on -- MaglevPhiRepresentationSelector hoists loop-phi
-      // untagging onto the forward predecessor and unconditionally casts its
-      // control node to CheckpointedJump. Clone the JumpLoop's checkpoint frame
-      // (remapped to the peeled values) into the new node.
-      JumpLoop* orig = control->Cast<JumpLoop>();
+      // Back-edge: original is JumpLoop. Replace with a plain Jump targeting
+      // the original loop header directly at predecessor slot 0 (the forward
+      // pre-header slot). The header's pre-header phi inputs get rewired below
+      // to consume the cloned-backedge values.
       BasicBlockRef* ref = zone()->New<BasicBlockRef>();
-      CheckpointedJump* jump = NodeBase::New<CheckpointedJump>(zone(), 0, ref);
+      Jump* jump = NodeBase::New<Jump>(zone(), 0, ref);
       ref->Bind(ctx.loop.header());
       jump->set_predecessor_id(0);
-      DeoptFrame* top = CloneDeoptFrame(&orig->eager_deopt_info()->top_frame(),
-                                        ctx.value_map, zone());
-      jump->SetEagerDeoptInfo(zone(), top,
-                              orig->eager_deopt_info()->feedback_to_update());
       cloned_control = jump;
     } else {
       cloned_control = clone_control_and_remap_inputs(control);
@@ -1120,12 +1113,21 @@ void MaglevLoopPeeler::RetargetOriginalLoopExits(PeelContext& ctx) {
                                   exit_edge.target, edge_splits.original_es);
         break;
       case OriginalSplitKind::kNone: {
-        // Jump source: retarget the original Jump from e.target to the PEM at
-        // its original-side slot (2*i + 1).
+        // Jump source: retarget the original Jump from exit_edge.target (or
+        // exit_edge.original_es) to the PEM at its original-side slot
+        // (2*i + 1).
         UnconditionalControlNode* uc =
             exit_edge.src->control_node()->Cast<UnconditionalControlNode>();
         uc->set_target(ctx.pem);
         uc->set_predecessor_id(2 * static_cast<int>(i) + 1);
+        if (exit_edge.original_es != nullptr) {
+          // A pre-existing kEdgeSplit left over from a folded Branch is now
+          // bypassed on both the peeled and original paths.
+          DCHECK_EQ(exit_edge.original_es->predecessor(), exit_edge.src);
+          DCHECK(exit_edge.original_es->nodes().empty());
+          exit_edge.original_es->set_predecessor(nullptr);
+          graph_->set_may_have_unreachable_blocks(true);
+        }
         break;
       }
       case OriginalSplitKind::kExisting:

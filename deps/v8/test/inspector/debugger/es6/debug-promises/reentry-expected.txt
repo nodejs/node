@@ -1,0 +1,2 @@
+Test reentry of special try catch for Promises.
+Paused on exception: false

@@ -26,7 +26,7 @@ namespace LIBC_NAMESPACE_DECL {
 namespace fputil {
 
 struct Float80 {
-#if __SIZEOF_LONG_DOUBLE__ == 12
+#if defined(__SIZEOF_LONG_DOUBLE__) && (__SIZEOF_LONG_DOUBLE__ == 12)
   UInt<96> bits;
 #else
   UInt128 bits;

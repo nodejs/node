@@ -1,0 +1,7 @@
+Tests async debug step abort at break.
+  debugger;          // B0 StepOver
+       await         // B1 StepInto
+  return new Promise( // B2 StepOut
+  debugger;            // B3 StepOver
+  late_resolve(3);     // B4 Continue
+step_count: 5

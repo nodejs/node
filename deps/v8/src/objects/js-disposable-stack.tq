@@ -13,8 +13,8 @@ extern enum DisposableStackResourcesType extends uint31 {
   kAtLeastOneAsync
 }
 
-@cppScope('JSDisposableStackBase')
-bitfield struct DisposableStackStatus extends uint31 {
+@cppScope('JSDisposableStackBase::Status')
+bitfield struct JSDisposableStackBaseStatus extends uint31 {
   state: DisposableStackState: 1 bit;
   needs_await: bool: 1 bit;
   has_awaited: bool: 1 bit;
@@ -30,7 +30,7 @@ extern class JSDisposableStackBase extends JSObject {
   // the only case that the value is the argument of method (CallType =
   // `kValueIsArgument`).
   stack: FixedArray;
-  status: SmiTagged<DisposableStackStatus>;
+  status: SmiTagged<JSDisposableStackBaseStatus>;
   error: Object|Hole;
   error_message: Object|Hole;
 }

@@ -1,0 +1,2 @@
+Tests regress-4703.
+Scope types: block, local, global

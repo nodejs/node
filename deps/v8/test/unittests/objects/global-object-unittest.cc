@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/api/api-inl.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
@@ -118,6 +119,116 @@ TEST_F(GlobalObjectTest, KeysGlobalObject_SetPrototype) {
 
   // List all entries from global2.
   CHECK(RunJS("a == 'a'")->IsTrue());
+}
+
+TEST_F(GlobalObjectTest, ObjectCreateGlobalProxyAcrossReinitializeAndRemote) {
+  Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate());
+  global_template->SetAccessCheckCallbackAndHandler(
+      [](Local<Context>, Local<Object>, Local<Value>) { return true; },
+      NamedPropertyHandlerConfiguration(
+          [](Local<Name>, const PropertyCallbackInfo<Value>&) {
+            return v8::Intercepted::kNo;
+          }),
+      IndexedPropertyHandlerConfiguration());
+
+  // 1. Reinitialize global proxy in a new context without prior DetachGlobal.
+  Local<Object> proxy;
+  i::DirectHandle<i::Map> env1_map;
+  Local<Context> env1 = Context::New(isolate(), nullptr, global_template);
+  {
+    Context::Scope scope(env1);
+    proxy = env1->Global();
+    Local<Value> v =
+        Script::Compile(env1, NewString("globalThis.tag = 1; "
+                                        "Object.create(globalThis)"))
+            .ToLocalChecked()
+            ->Run(env1)
+            .ToLocalChecked();
+    ASSERT_TRUE(v->IsObject());
+    EXPECT_EQ(env1, v.As<Object>()->GetCreationContextChecked(isolate()));
+    env1_map =
+        i::direct_handle(Utils::OpenDirectHandle(*proxy)->map(), i_isolate());
+  }
+
+  i::DirectHandle<i::Map> env2_map;
+  Local<Context> env2 =
+      Context::New(isolate(), nullptr, global_template, proxy);
+  {
+#ifdef VERIFY_HEAP
+    env1_map->HeapObjectVerify(i_isolate());
+    Utils::OpenDirectHandle(*proxy)->map()->HeapObjectVerify(i_isolate());
+#endif  // VERIFY_HEAP
+    Context::Scope scope(env2);
+    Local<Value> v =
+        Script::Compile(env2, NewString("globalThis.tag = 2; "
+                                        "const o1 = Object.create(globalThis); "
+                                        "const o2 = Object.create(globalThis); "
+                                        "[o1, o2.tag]"))
+            .ToLocalChecked()
+            ->Run(env2)
+            .ToLocalChecked();
+    ASSERT_TRUE(v->IsArray());
+    Local<Array> arr = v.As<Array>();
+    Local<Object> o1 = arr->Get(env2, 0).ToLocalChecked().As<Object>();
+    EXPECT_EQ(env2, o1->GetCreationContextChecked(isolate()));
+    EXPECT_EQ(2,
+              arr->Get(env2, 1).ToLocalChecked()->Int32Value(env2).FromJust());
+    env2_map =
+        i::direct_handle(Utils::OpenDirectHandle(*proxy)->map(), i_isolate());
+  }
+
+  // 2. Transition global proxy through NewRemoteContext and back to
+  // Context::New.
+  Local<Object> remote_proxy =
+      Context::NewRemoteContext(isolate(), global_template, proxy)
+          .ToLocalChecked();
+  EXPECT_EQ(proxy, remote_proxy);
+#ifdef VERIFY_HEAP
+  env2_map->HeapObjectVerify(i_isolate());
+  Utils::OpenDirectHandle(*remote_proxy)->map()->HeapObjectVerify(i_isolate());
+#endif  // VERIFY_HEAP
+  {
+    Context::Scope scope(context());
+    context()
+        ->Global()
+        ->Set(context(), NewString("remoteProxy"), remote_proxy)
+        .Check();
+    Local<Value> v =
+        Script::Compile(context(), NewString("Object.create(remoteProxy)"))
+            .ToLocalChecked()
+            ->Run(context())
+            .ToLocalChecked();
+    ASSERT_TRUE(v->IsObject());
+    EXPECT_EQ(context(), v.As<Object>()->GetCreationContextChecked(isolate()));
+  }
+
+  i::DirectHandle<i::Map> env3_map;
+  Local<Context> env3 =
+      Context::New(isolate(), nullptr, global_template, remote_proxy);
+  {
+    Context::Scope scope(env3);
+    Local<Value> v =
+        Script::Compile(env3, NewString("globalThis.tag = 3; "
+                                        "Object.create(globalThis)"))
+            .ToLocalChecked()
+            ->Run(env3)
+            .ToLocalChecked();
+    ASSERT_TRUE(v->IsObject());
+    Local<Object> o3 = v.As<Object>();
+    EXPECT_EQ(env3, o3->GetCreationContextChecked(isolate()));
+    EXPECT_EQ(3, o3->Get(env3, NewString("tag"))
+                     .ToLocalChecked()
+                     ->Int32Value(env3)
+                     .FromJust());
+    env3_map = i::direct_handle(Utils::OpenDirectHandle(*remote_proxy)->map(),
+                                i_isolate());
+  }
+
+  env3->DetachGlobal();
+#ifdef VERIFY_HEAP
+  env3_map->HeapObjectVerify(i_isolate());
+  Utils::OpenDirectHandle(*remote_proxy)->map()->HeapObjectVerify(i_isolate());
+#endif  // VERIFY_HEAP
 }
 
 }  // namespace v8

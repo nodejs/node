@@ -5,6 +5,8 @@
 #ifndef V8_SNAPSHOT_SNAPSHOT_DATA_H_
 #define V8_SNAPSHOT_SNAPSHOT_DATA_H_
 
+#include <vector>
+
 #include "src/base/bit-field.h"
 #include "src/base/memory.h"
 #include "src/base/vector.h"
@@ -42,7 +44,16 @@ class SerializedData {
   using ChunkSizeBits = base::BitField<uint32_t, 0, 31>;
   using IsLastChunkBits = base::BitField<bool, 31, 1>;
 
+  // The header starts with uint32_t-sized entries:
+  // [0] magic number and (internal) external reference count
+  // [1] payload length, including the trusted section
+  // [2] trusted section length
+  // ... further header entries of subclasses, then the serialized payload
   static constexpr uint32_t kMagicNumberOffset = 0;
+  static constexpr uint32_t kPayloadLengthOffset =
+      kMagicNumberOffset + kUInt32Size;
+  static constexpr uint32_t kTrustedPayloadLengthOffset =
+      kPayloadLengthOffset + kUInt32Size;
   static constexpr uint32_t kMagicNumber =
       0xC0DE0000 ^ ExternalReferenceTable::kSize;
 
@@ -58,6 +69,13 @@ class SerializedData {
   }
 
   void AllocateData(uint32_t size);
+  // Allocates a header of |header_size| bytes, of which only the magic number
+  // and payload lengths are set, followed by the trusted section, which starts
+  // with the external references, and then the untrusted section.
+  void AllocateWithPayload(
+      uint32_t header_size, const std::vector<uint8_t>* untrusted_payload,
+      const std::vector<uint8_t>* external_references_payload,
+      const std::vector<uint8_t>* trusted_payload);
 
   void SetMagicNumber() { SetHeaderValue(kMagicNumberOffset, kMagicNumber); }
 
@@ -78,6 +96,8 @@ class V8_EXPORT_PRIVATE SnapshotData : public SerializedData {
                        snapshot.length()) {}
 
   virtual base::Vector<const uint8_t> Payload() const;
+  base::Vector<const uint8_t> UntrustedPayload() const;
+  base::Vector<const uint8_t> TrustedPayload() const;
 
   base::Vector<const uint8_t> RawData() const {
     return base::Vector<const uint8_t>(data_, size_);
@@ -93,12 +113,9 @@ class V8_EXPORT_PRIVATE SnapshotData : public SerializedData {
   // SnapshotData.
   void Resize(uint32_t size) { size_ = size; }
 
-  // The data header consists of uint32_t-sized entries:
-  // [0] magic number and (internal) external reference count
-  // [1] payload length
-  // ... serialized payload
-  static const uint32_t kPayloadLengthOffset = kMagicNumberOffset + kUInt32Size;
-  static const uint32_t kHeaderSize = kPayloadLengthOffset + kUInt32Size;
+  // The header has no entries other than those of SerializedData.
+  static constexpr uint32_t kHeaderSize =
+      kTrustedPayloadLengthOffset + kUInt32Size;
 };
 
 }  // namespace internal

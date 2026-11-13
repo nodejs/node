@@ -8,19 +8,18 @@ function clone1(o) {
   return {...o};
 }
 // Tests monomorphic case
-function clone2(o) {
+function clone2_template(o) {
   return {...o};
 }
 // Tests null proto
-function clone3(o) {
+function clone3_template(o) {
   return {...o, __proto__: null};
 }
 %PrepareFunctionForOptimization(clone1);
-%PrepareFunctionForOptimization(clone2);
-%PrepareFunctionForOptimization(clone3);
 
 function test(a, b) {
-  %ClearFunctionFeedback(clone2);
+  let clone2 = copyFunctionWithFreshFeedback(clone2_template);
+  %PrepareFunctionForOptimization(clone2);
   assertEquals({...b}, a);
   assertEquals(clone1(b), a);
   assertEquals(clone1(b), a);
@@ -28,12 +27,14 @@ function test(a, b) {
   assertEquals(clone2(b), a);
   assertEquals(clone1(b).constructor, a.constructor);
   assertEquals(clone2(b).constructor, a.constructor);
-  %ClearFunctionFeedback(clone2);
+  clone2 = copyFunctionWithFreshFeedback(clone2_template);
+  %PrepareFunctionForOptimization(clone2);
   assertEquals(clone2(b).constructor, a.constructor);
 
   var a2 = {...a};
   // Provoke some transitions
-  %ClearFunctionFeedback(clone2);
+  clone2 = copyFunctionWithFreshFeedback(clone2_template);
+  %PrepareFunctionForOptimization(clone2);
   Object.assign(a, {xx: 42})
   assertEquals({...b, xx: 42}, a);
   assertEquals({...clone1(b), xx: 42}, a);
@@ -41,7 +42,8 @@ function test(a, b) {
   assertEquals({...clone2(b), xx: 42}, a);
   assertEquals({...clone2(b), xx: 42}, a);
 
-  %ClearFunctionFeedback(clone2);
+  clone2 = copyFunctionWithFreshFeedback(clone2_template);
+  %PrepareFunctionForOptimization(clone2);
   Object.assign(a, {xx: 42.2})
   assertEquals({...b, xx: 42.2}, a);
   assertEquals({...clone1(b), xx: 42.2}, a);
@@ -49,7 +51,8 @@ function test(a, b) {
   assertEquals({...clone2(b), xx: 42.2}, a);
   assertEquals({...clone2(b), xx: 42.2}, a);
 
-  %ClearFunctionFeedback(clone3);
+  let clone3 = copyFunctionWithFreshFeedback(clone3_template);
+  %PrepareFunctionForOptimization(clone3);
   a2.__proto__ = null;
   assertEquals(clone3(b), a2);
   assertEquals(clone3(b), a2);
@@ -181,123 +184,127 @@ test({0:0,1:0}, idView);
 })();
 
 // Cloning sealed and frozen objects
-(function(){
-  function testFrozen1(x) {
-    "use strict"
-    if (x.x) {
-      assertThrows(function() { x.x = 42 }, TypeError);
-    }
-    if (x[2]) {
-      assertThrows(function() { x[2] = 42 }, TypeError);
-    }
+function testFrozen1(x) {
+  "use strict"
+  if (x.x) {
+    assertThrows(function() { x.x = 42 }, TypeError);
   }
-
-  function testFrozen2(x) {
-    if (x.x) {
-      x.x = 42;
-      assertFalse(x.x == 42);
-    }
-    if (x[2]) {
-      x[10] = 42;
-      assertFalse(x[10] == 42);
-    }
+  if (x[2]) {
+    assertThrows(function() { x[2] = 42 }, TypeError);
   }
+}
 
-  function testUnfrozen(x) {
+function testFrozen2(x) {
+  if (x.x) {
     x.x = 42;
-    assertTrue(x.x == 42);
-    x[2] = 42;
-    assertTrue(x[2] == 42);
+    assertFalse(x.x == 42);
   }
-
-  function testSealed(x) {
-    x.asdf = 42;
-    assertFalse(x.asdf == 42);
+  if (x[2]) {
     x[10] = 42;
     assertFalse(x[10] == 42);
   }
+}
 
-  function testUnsealed(x) {
-    x.asdf = 42;
-    assertTrue(x.asdf == 42);
-    x[10] = 42;
-    assertTrue(x[10] == 42);
+function testUnfrozen(x) {
+  x.x = 42;
+  assertTrue(x.x == 42);
+  x[2] = 42;
+  assertTrue(x[2] == 42);
+}
+
+function testSealed(x) {
+  x.asdf = 42;
+  assertFalse(x.asdf == 42);
+  x[10] = 42;
+  assertFalse(x[10] == 42);
+}
+
+function testUnsealed(x) {
+  x.asdf = 42;
+  assertTrue(x.asdf == 42);
+  x[10] = 42;
+  assertTrue(x[10] == 42);
+}
+
+function testFreeze(x) {
+  Object.freeze(x);
+  testFrozen1(x);
+  testFrozen2(x);
+  var y = {...x};
+  assertFalse(%HaveSameMap(x,y));
+  if (x.__proto__ == Object.prototype) {
+    assertEquals(x, y);
   }
-
-  function testFreeze(x) {
-    Object.freeze(x);
-    testFrozen1(x);
-    testFrozen2(x);
-    var y = {...x};
-    assertFalse(%HaveSameMap(x,y));
-    if (x.__proto__ == Object.prototype) {
-      assertEquals(x, y);
-    }
-    testUnfrozen(y);
-    y = Object.assign({}, x);
-    if (x.__proto__ == Object.prototype) {
-      assertEquals(x, y);
-    }
-    testUnfrozen(y);
+  testUnfrozen(y);
+  y = Object.assign({}, x);
+  if (x.__proto__ == Object.prototype) {
+    assertEquals(x, y);
   }
+  testUnfrozen(y);
+}
 
-  function testSeal(x) {
-    Object.seal(x);
-    testSealed(x);
-    var y = {...x};
-    assertFalse(%HaveSameMap(x,y));
-    if (x.__proto__ == Object.prototype) {
-      assertEquals(x, y);
-    }
-    testUnsealed(y);
-    y = Object.assign({}, x);
-    if (x.__proto__ == Object.prototype) {
-      assertEquals(x, y);
-    }
-    testUnsealed(y);
+function testSeal(x) {
+  Object.seal(x);
+  testSealed(x);
+  var y = {...x};
+  assertFalse(%HaveSameMap(x,y));
+  if (x.__proto__ == Object.prototype) {
+    assertEquals(x, y);
   }
-
-  function testNonExtend(x) {
-    Object.preventExtensions(x);
-    testSealed(x);
-    var y = {...x};
-    assertFalse(%HaveSameMap(x,y));
-    if (x.__proto__ == Object.prototype) {
-      assertEquals(x, y);
-    }
-    testUnsealed(y);
-    y = Object.assign({}, x);
-    if (x.__proto__ == Object.prototype) {
-      assertEquals(x, y);
-    }
-    testUnsealed(y);
+  testUnsealed(y);
+  y = Object.assign({}, x);
+  if (x.__proto__ == Object.prototype) {
+    assertEquals(x, y);
   }
+  testUnsealed(y);
+}
 
+function testNonExtend(x) {
+  Object.preventExtensions(x);
+  testSealed(x);
+  var y = {...x};
+  assertFalse(%HaveSameMap(x,y));
+  if (x.__proto__ == Object.prototype) {
+    assertEquals(x, y);
+  }
+  testUnsealed(y);
+  y = Object.assign({}, x);
+  if (x.__proto__ == Object.prototype) {
+    assertEquals(x, y);
+  }
+  testUnsealed(y);
+}
 
+(function() {
   var tests = [testFreeze, testSeal, testNonExtend];
+  tests.forEach(test => %EnsureFeedbackVectorForFunction(test));
+
+  function runTest(test, x, fresh) {
+    if (fresh) {
+      test = copyFunctionWithFreshFeedback(test);
+      %EnsureFeedbackVectorForFunction(test);
+    }
+    test(x);
+  }
 
   for (var i = 0; i < 20; ++i) {
     tests.forEach(test => {
-      if (i < 10) { %ClearFunctionFeedback(test); }
       var x = {};
       x.x = 3;
-      test(x);
+      runTest(test, x, i < 10);
 
-      if (i < 10) { %ClearFunctionFeedback(test); }
       x = [];
       x[2]= 3;
-      test(x);
+      runTest(test, x, i < 10);
 
-      if (i < 10) { %ClearFunctionFeedback(test); }
       x = {};
       x[2]= 3;
-      test(x);
+      runTest(test, x, i < 10);
 
-      if (i < 10) { %ClearFunctionFeedback(test); }
       var x = {};
       x.x = 3;
       x[10000] = 3
-      test(x);
+      runTest(test, x, i < 10);
     });
   }
 })();

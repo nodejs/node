@@ -175,8 +175,9 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   }
 
   MachineRepresentation GetCanonicalRep(TestOperand op) {
-    return IsFloatingPoint(op.rep_) ? op.rep_
-                                    : sequence()->DefaultRepresentation();
+    return IsFloatingPoint(op.rep_)
+               ? op.rep_
+               : InstructionSequence::DefaultRepresentation();
   }
 
   Instruction* Return(TestOperand input_op_0);

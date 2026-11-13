@@ -16,8 +16,7 @@ namespace LIBC_NAMESPACE_DECL {
 namespace math {
 
 LIBC_INLINE constexpr int iscanonicall(long double x) {
-  long double temp{};
-  return fputil::canonicalize(temp, x) == 0;
+  return fputil::iscanonical_impl(x);
 }
 
 } // namespace math

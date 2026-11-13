@@ -4,7 +4,7 @@
 
 #include "src/handles/persistent-handles.h"
 
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/handles/handle-scope-implementer-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/safepoint.h"

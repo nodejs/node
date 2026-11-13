@@ -47,11 +47,12 @@ String16 calculateHash(v8::Isolate* isolate, v8::Local<v8::String> source) {
 
 V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
                                    v8::Local<v8::debug::Script> script,
-                                   bool hadCompileError,
+                                   bool hadCompileError, int executionContextId,
                                    V8DebuggerAgentImpl* agent,
                                    V8InspectorClient* client)
     : m_id(String16::fromInteger(script->Id())),
       m_url(GetScriptURL(isolate, script, client)),
+      m_executionContextId(executionContextId),
       m_isolate(isolate),
       m_embedderName(GetScriptName(isolate, script, client)),
       m_agent(agent),
@@ -269,7 +270,6 @@ void V8DebuggerScript::Initialize(v8::Local<v8::debug::Script> script) {
   m_endLine = script->EndLine();
   m_endColumn = script->EndColumn();
 
-  USE(script->ContextId().To(&m_executionContextId));
   m_language = V8DebuggerScript::Language::JavaScript;
 #if V8_ENABLE_WEBASSEMBLY
     if (script->IsWasm()) {

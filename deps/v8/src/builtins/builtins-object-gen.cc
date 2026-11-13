@@ -1283,12 +1283,15 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&non_null_proto);
     {
       new_properties = EmptyFixedArrayConstant();
-      map = LoadObjectFunctionInitialMap(native_context);
+      TNode<JSFunction> object_function = Cast(LoadContextElementNoCell(
+          native_context, Context::OBJECT_FUNCTION_INDEX));
+      map = CAST(LoadJSFunctionPrototypeOrInitialMap(object_function));
       GotoIf(TaggedEqual(prototype, LoadMapPrototype(map.value())),
              &instantiate_map);
+      TNode<Map> prototype_map = LoadMap(CAST(prototype));
       // Try loading the prototype info.
       TNode<PrototypeInfo> prototype_info =
-          LoadMapPrototypeInfo(LoadMap(CAST(prototype)), &call_runtime);
+          LoadMapPrototypeInfo(prototype_map, &call_runtime);
       Comment("Load ObjectCreateMap from PrototypeInfo");
       TNode<HeapObject> derived_maps = CAST(LoadObjectField(
           prototype_info, offsetof(PrototypeInfo, derived_maps_)));
@@ -1300,6 +1303,20 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       TNode<MaybeObject> maybe_map = UncheckedCast<MaybeObject>(LoadObjectField(
           derived_maps, IntPtrConstant(WeakArrayList::kHeaderSize)));
       map = CAST(GetHeapObjectAssumeWeak(maybe_map, &call_runtime));
+      // Only use the cached map in PrototypeInfo if the prototype belongs to
+      // the same native context, matching Map::GetObjectCreateMap.
+      TNode<BoolT> is_same_context;
+      {
+        TNode<JSFunction> constructor =
+            CAST(LoadMapConstructorOrBackPointerOrNativeContext(map.value()));
+        // Given that we already have both object_function and the initial map,
+        // this is a faster version of BelongsToSameNativeContextAs.
+        is_same_context = TaggedEqual(constructor, object_function);
+        CSA_DCHECK(this, Word32Equal(is_same_context,
+                                     BelongsToSameNativeContextAs(
+                                         map.value(), native_context)));
+      }
+      GotoIfNot(is_same_context, &call_runtime);
       Goto(&instantiate_map);
     }
 
@@ -1449,8 +1466,6 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   TNode<Smi> executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   StoreObjectFieldNoWriteBarrier(
       result, offsetof(JSGeneratorObject, continuation_), executing);
-  StoreObjectFieldNoWriteBarrier(
-      result, offsetof(JSGeneratorObject, yielded_value_), UndefinedConstant());
   GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(map),
                               JS_ASYNC_GENERATOR_OBJECT_TYPE),
             &done);
@@ -1603,8 +1618,8 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
         context,
         LoadObjectField(desc, offsetof(PropertyDescriptorObject, get_)),
         LoadObjectField(desc, offsetof(PropertyDescriptorObject, set_)),
-        IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags),
-        IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags));
+        IsSetWord32<PropertyDescriptorObject::Flags::IsEnumerableBit>(flags),
+        IsSetWord32<PropertyDescriptorObject::Flags::IsConfigurableBit>(flags));
     Goto(&return_desc);
   }
 
@@ -1613,9 +1628,9 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     js_descriptor = ConstructDataDescriptor(
         context,
         LoadObjectField(desc, offsetof(PropertyDescriptorObject, value_)),
-        IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags),
-        IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags),
-        IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags));
+        IsSetWord32<PropertyDescriptorObject::Flags::IsWritableBit>(flags),
+        IsSetWord32<PropertyDescriptorObject::Flags::IsEnumerableBit>(flags),
+        IsSetWord32<PropertyDescriptorObject::Flags::IsConfigurableBit>(flags));
     Goto(&return_desc);
   }
 
@@ -1637,10 +1652,10 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     AddToDictionaryIf(IsNotTheHole(value), context, js_desc, properties,
                       factory->value_string(), value, &bailout);
     AddToDictionaryIf(
-        IsSetWord32<PropertyDescriptorObject::HasWritableBit>(flags), context,
-        js_desc, properties, factory->writable_string(),
+        IsSetWord32<PropertyDescriptorObject::Flags::HasWritableBit>(flags),
+        context, js_desc, properties, factory->writable_string(),
         SelectBooleanConstant(
-            IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags)),
+            IsSetWord32<PropertyDescriptorObject::Flags::IsWritableBit>(flags)),
         &bailout);
 
     TNode<Object> get =
@@ -1653,16 +1668,18 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
                       factory->set_string(), set, &bailout);
 
     AddToDictionaryIf(
-        IsSetWord32<PropertyDescriptorObject::HasEnumerableBit>(flags), context,
-        js_desc, properties, factory->enumerable_string(),
+        IsSetWord32<PropertyDescriptorObject::Flags::HasEnumerableBit>(flags),
+        context, js_desc, properties, factory->enumerable_string(),
         SelectBooleanConstant(
-            IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags)),
+            IsSetWord32<PropertyDescriptorObject::Flags::IsEnumerableBit>(
+                flags)),
         &bailout);
     AddToDictionaryIf(
-        IsSetWord32<PropertyDescriptorObject::HasConfigurableBit>(flags),
+        IsSetWord32<PropertyDescriptorObject::Flags::HasConfigurableBit>(flags),
         context, js_desc, properties, factory->configurable_string(),
         SelectBooleanConstant(
-            IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags)),
+            IsSetWord32<PropertyDescriptorObject::Flags::IsConfigurableBit>(
+                flags)),
         &bailout);
 
     js_descriptor = js_desc;

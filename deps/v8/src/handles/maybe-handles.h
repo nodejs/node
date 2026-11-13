@@ -226,6 +226,11 @@ class MaybeDirectHandle final : public DirectHandleBase {
 
  private:
   V8_INLINE explicit MaybeDirectHandle(Address obj) : DirectHandleBase(obj) {}
+
+  // Casts are allowed to construct MaybeDirectHandle from an Address.
+  template <typename To, typename From>
+  friend inline MaybeDirectHandle<To> UncheckedCast(
+      MaybeDirectHandle<From> value);
 };
 
 #else

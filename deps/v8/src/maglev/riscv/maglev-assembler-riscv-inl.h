@@ -194,6 +194,7 @@ inline Register ToRegister(MaglevAssembler* masm,
                            MaglevAssembler::TemporaryRegisterScope* scratch,
                            Input input) {
   if (input.operand().IsConstant()) {
+    if (input.node()->MaterializesToZero()) return zero_reg;
     Register reg = scratch->AcquireScratch();
     input.node()->LoadToRegister(masm, reg);
     return reg;
@@ -912,12 +913,15 @@ inline void MaglevAssembler::Move(Register dst, int32_t i) {
   li(dst, Operand(i));
 }
 inline void MaglevAssembler::Move(Register dst, uint32_t i) {
-  li(dst, Operand(i));
+  // Keep Uint32 constants in the sign-extended form that every other 32-bit
+  // producer leaves behind, so that CompareInt32AndJumpIf and friends can
+  // compare registers directly. The low 32 bits are the same either way.
+  li(dst, Operand(static_cast<int32_t>(i)));
 }
 inline void MaglevAssembler::Move(Register dst, intptr_t p) {
   li(dst, Operand(p));
 }
-inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
+inline void MaglevAssembler::Move(Register dst, TrustedPointerTag i) {
   li(dst, Operand(i));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
@@ -927,6 +931,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
   LoadFPRImmediate(dst, n.get_scalar());
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  if (TryLoadRoot(dst, obj)) return;
   li(dst, obj);
 }
 void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
@@ -953,8 +958,19 @@ inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
 inline void MaglevAssembler::StoreFloat32(MemOperand dst, DoubleRegister src) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   DoubleRegister scratch = temps.AcquireScratchDouble();
-  // Convert double(Float64) to Float32
+  Register value_bits = temps.AcquireScratch();
+  Register src_bits = temps.AcquireScratch();
+  // Convert double(Float64) to Float32, preserving the NaN sign bit like
+  // CodeGenerator::AssembleArchInstruction(kRiscvCvtSD): fcvt_s_d turns every
+  // NaN into the positive canonical NaN, while V8's NaN semantics keep the
+  // sign of the input.
   fcvt_s_d(scratch, src);
+  fmv_x_w(value_bits, scratch);
+  fmv_x_d(src_bits, src);
+  srli(src_bits, src_bits, 63);
+  slli(src_bits, src_bits, 31);
+  or_(value_bits, value_bits, src_bits);
+  fmv_w_x(scratch, value_bits);
   StoreFloat(scratch, dst);
 }
 inline void MaglevAssembler::LoadFloat64(DoubleRegister dst, MemOperand src) {
@@ -996,9 +1012,14 @@ inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat32(
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   DoubleRegister scratch_double = temps.AcquireScratchDouble();
+  Register src_bits = temps.AcquireScratch();
   Register address = temps.AcquireScratch();
   fcvt_s_d(scratch_double, src);
-  MacroAssembler::Move(scratch, scratch_double);
+  fmv_x_w(scratch, scratch_double);
+  fmv_x_d(src_bits, src);
+  srli(src_bits, src_bits, 63);
+  slli(src_bits, src_bits, 31);
+  or_(scratch, scratch, src_bits);
   ByteSwap(scratch, scratch, 4, address);
   Add64(address, base, index);
   Sw(scratch, MemOperand(address));
@@ -1046,8 +1067,8 @@ inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
 }
 
 inline void MaglevAssembler::NegateInt32(Register val) {
-  SignExtendWord(val, val);
-  Neg(val, val);
+  // negw reads only the low 32 bits and leaves the result sign-extended.
+  negw(val, val);
 }
 
 inline void MaglevAssembler::ToUint8Clamped(Register result,
@@ -1095,9 +1116,10 @@ inline void MaglevAssembler::DeoptIfBufferNotValid(Register array,
   // loop if we deopt here.
   LoadTaggedField(scratch,
                   FieldMemOperand(array, offsetof(JSArrayBufferView, buffer_)));
-  LoadTaggedField(
-      scratch, FieldMemOperand(scratch, offsetof(JSArrayBuffer, bit_field_)));
-  ZeroExtendWord(scratch, scratch);
+  // bit_field_ is a uint32_t, not a tagged field: load it as one rather than
+  // as a tagged word whose upper half then has to be cleared.
+  Load32U(scratch,
+          FieldMemOperand(scratch, offsetof(JSArrayBuffer, bit_field_)));
   And(scratch, scratch, Operand(JSArrayBuffer::NotValidMask(mode)));
   Label* deopt_label =
       GetDeoptLabel(node, DeoptimizeReason::kArrayBufferWasDetached);
@@ -1171,12 +1193,20 @@ inline void MaglevAssembler::CompareInstanceTypeAndJumpIf(
   MacroAssembler::Branch(target, cond, scratch, Operand(type), distance);
 }
 
+// Subtracts the lower limit of an instance type range from a type that lhu
+// just loaded, skipping a limit of zero: Sub32 would emit that as
+// addiw rd, rs, 0, a redundant sext.w of an already sign-extended value.
+inline void SubtractInstanceTypeLowerLimit(MaglevAssembler* masm, Register type,
+                                           InstanceType lower_limit) {
+  if (lower_limit != 0) masm->Sub32(type, type, Operand(lower_limit));
+}
+
 inline Condition MaglevAssembler::CompareInstanceTypeRange(
     Register map, Register instance_type_out, InstanceType lower_limit,
     InstanceType higher_limit) {
   DCHECK_LT(lower_limit, higher_limit);
   Lhu(instance_type_out, FieldMemOperand(map, offsetof(Map, instance_type_)));
-  Sub32(instance_type_out, instance_type_out, Operand(lower_limit));
+  SubtractInstanceTypeLowerLimit(this, instance_type_out, lower_limit);
   Register aflag = MaglevAssembler::GetFlagsRegister();
   // NB: JumpIf expects the result in dedicated "flag" register
   Sleu(aflag, instance_type_out, Operand(higher_limit - lower_limit));
@@ -1232,7 +1262,7 @@ inline void MaglevAssembler::JumpIfObjectTypeInRange(Register heap_object,
   Register scratch = temps.AcquireScratch();
   LoadMap(scratch, heap_object);
   Lhu(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
-  Sub32(scratch, scratch, Operand(lower_limit));
+  SubtractInstanceTypeLowerLimit(this, scratch, lower_limit);
   MacroAssembler::Branch(target, kUnsignedLessThanEqual, scratch,
                          Operand(higher_limit - lower_limit));
 }
@@ -1244,7 +1274,7 @@ inline void MaglevAssembler::JumpIfObjectTypeNotInRange(
   Register scratch = temps.AcquireScratch();
   LoadMap(scratch, heap_object);
   Lhu(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
-  Sub32(scratch, scratch, Operand(lower_limit));
+  SubtractInstanceTypeLowerLimit(this, scratch, lower_limit);
   MacroAssembler::Branch(target, kUnsignedGreaterThan, scratch,
                          Operand(higher_limit - lower_limit));
 }
@@ -1258,7 +1288,7 @@ inline void MaglevAssembler::AssertObjectTypeInRange(Register heap_object,
   Register scratch = temps.AcquireScratch();
   LoadMap(scratch, heap_object);
   Lhu(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
-  Sub32(scratch, scratch, Operand(lower_limit));
+  SubtractInstanceTypeLowerLimit(this, scratch, lower_limit);
   MacroAssembler::Assert(kUnsignedLessThanEqual, reason, scratch,
                          Operand(higher_limit - lower_limit));
 }
@@ -1272,7 +1302,7 @@ inline void MaglevAssembler::BranchOnObjectTypeInRange(
   Register scratch = temps.AcquireScratch();
   LoadMap(scratch, heap_object);
   Lhu(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
-  Sub32(scratch, scratch, Operand(lower_limit));
+  SubtractInstanceTypeLowerLimit(this, scratch, lower_limit);
   constexpr Register flags_reg = MaglevAssembler::GetFlagsRegister();
   // if scratch <= (higher_limit - lower_limit) then flags_reg = 0 else
   // flags_reg = 1
@@ -1413,7 +1443,7 @@ inline void MaglevAssembler::CompareInstanceTypeRangeAndEagerDeoptIf(
     NodeT* node) {
   DCHECK_LT(lower_limit, higher_limit);
   Lhu(instance_type_out, FieldMemOperand(map, offsetof(Map, instance_type_)));
-  Sub32(instance_type_out, instance_type_out, Operand(lower_limit));
+  SubtractInstanceTypeLowerLimit(this, instance_type_out, lower_limit);
   DCHECK_EQ(cond, kUnsignedGreaterThan);
   Label* deopt_label = GetDeoptLabel(node, reason);
   RecordComment("-- Jump to eager deopt");
@@ -1653,7 +1683,9 @@ void MaglevAssembler::JumpIfHoleNan(MemOperand operand, Label* target,
                                     Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register upper_bits = temps.AcquireScratch();
-  Lwu(upper_bits,
+  // Sign-extending load: CompareInt32AndJumpIf expects its operands in the
+  // sign-extended form.
+  Lw(upper_bits,
      MemOperand(operand.rm(), operand.offset() + (kDoubleSize / 2)));
   CompareInt32AndJumpIf(upper_bits, kHoleNanUpper32, kEqual, target, distance);
 }
@@ -1670,8 +1702,9 @@ void MaglevAssembler::JumpIfNotHoleNan(MemOperand operand, Label* target,
                                        Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register upper_bits = temps.AcquireScratch();
-  Load32U(upper_bits,
-          MemOperand(operand.rm(), operand.offset() + (kDoubleSize / 2)));
+  // Sign-extending load, see JumpIfHoleNan.
+  Lw(upper_bits,
+     MemOperand(operand.rm(), operand.offset() + (kDoubleSize / 2)));
   CompareInt32AndJumpIf(upper_bits, kHoleNanUpper32, kNotEqual, target,
                         distance);
 }
@@ -1693,27 +1726,29 @@ void MaglevAssembler::JumpIfNotNan(DoubleRegister value, Label* target,
                          distance);
 }
 
+// Returns a register holding the low 32 bits of {value}, sign-extended. A
+// 64-bit compare of two such values gives the 32-bit answer, for the unsigned
+// conditions as well. Maglev keeps its Int32 and Uint32 values in that form,
+// as the RISC-V calling convention does, but with pointer compression shared
+// code also compares tagged values here, so those are extended into {scratch}.
+inline Register SignExtendedInt32(MaglevAssembler* masm, Register value,
+                                  Register scratch) {
+  if (COMPRESS_POINTERS_BOOL) {
+    masm->SignExtendWord(scratch, value);
+    return scratch;
+  }
+  masm->AssertSignExtended(value);
+  return value;
+}
+
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
                                                    Condition cond,
                                                    Label* target,
                                                    Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register r1w = temps.AcquireScratch();
-  Register r2w = temps.AcquireScratch();
-  // TODO(Yuri Gaevsky): is zero/sign extension really needed here?
-  switch (cond) {
-    case ult:
-    case uge:
-    case ule:
-    case ugt:
-      ZeroExtendWord(r1w, r1);
-      ZeroExtendWord(r2w, r2);
-      break;
-    default:
-      SignExtend32To64Bits(r1w, r1);
-      SignExtend32To64Bits(r2w, r2);
-  }
-  MacroAssembler::Branch(target, cond, r1w, Operand(r2w), distance);
+  Register lhs = SignExtendedInt32(this, r1, temps.AcquireScratch());
+  Register rhs = SignExtendedInt32(this, r2, temps.AcquireScratch());
+  MacroAssembler::Branch(target, cond, lhs, Operand(rhs), distance);
 }
 
 inline void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, int32_t value,
@@ -1775,60 +1810,27 @@ inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
                                                    Label* target,
                                                    Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register r1w = temps.AcquireScratch();
-  // TODO(Yuri Gaevsky): is zero/sign extension really needed here?
-  switch (cond) {
-    case ult:
-    case uge:
-    case ule:
-    case ugt:
-      ZeroExtendWord(r1w, r1);
-      break;
-    default:
-      SignExtend32To64Bits(r1w, r1);
-  }
-  MacroAssembler::Branch(target, cond, r1w, Operand(value), distance);
+  Register lhs = SignExtendedInt32(this, r1, temps.AcquireScratch());
+  MacroAssembler::Branch(target, cond, lhs, Operand(value), distance);
 }
 
 inline void MaglevAssembler::CompareInt32AndAssert(Register r1, Register r2,
                                                    Condition cond,
                                                    AbortReason reason) {
+  if (!v8_flags.debug_code) return;
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register r1w = temps.AcquireScratch();
-  Register r2w = temps.AcquireScratch();
-  // TODO(Yuri Gaevsky): is zero/sign extension really needed here?
-  switch (cond) {
-    case ult:
-    case uge:
-    case ule:
-    case ugt:
-      ZeroExtendWord(r1w, r1);
-      ZeroExtendWord(r2w, r2);
-      break;
-    default:
-      SignExtend32To64Bits(r1w, r1);
-      SignExtend32To64Bits(r2w, r2);
-  }
-  MacroAssembler::Assert(cond, reason, r1w, Operand(r2w));
+  Register lhs = SignExtendedInt32(this, r1, temps.AcquireScratch());
+  Register rhs = SignExtendedInt32(this, r2, temps.AcquireScratch());
+  MacroAssembler::Assert(cond, reason, lhs, Operand(rhs));
 }
 
 inline void MaglevAssembler::CompareInt32AndAssert(Register r1, int32_t value,
                                                    Condition cond,
                                                    AbortReason reason) {
+  if (!v8_flags.debug_code) return;
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register r1w = temps.AcquireScratch();
-  // TODO(Yuri Gaevsky): is zero/sign extension really needed here?
-  switch (cond) {
-    case ult:
-    case uge:
-    case ule:
-    case ugt:
-      ZeroExtendWord(r1w, r1);
-      break;
-    default:
-      SignExtend32To64Bits(r1w, r1);
-  }
-  MacroAssembler::Assert(cond, reason, r1w, Operand(value));
+  Register lhs = SignExtendedInt32(this, r1, temps.AcquireScratch());
+  MacroAssembler::Assert(cond, reason, lhs, Operand(value));
 }
 
 inline void MaglevAssembler::CompareInt32AndBranch(
@@ -1854,38 +1856,18 @@ inline void MaglevAssembler::CompareInt32AndBranch(
   }
 
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register lhs = temps.AcquireScratch();
+  Register scratch = temps.AcquireScratch();
   if (fallthrough_when_false) {
     if (fallthrough_when_true) {
       // If both paths are a fallthrough, do nothing.
       DCHECK_EQ(if_true, if_false);
       return;
     }
-    // TODO(Yuri Gaevsky): is zero/sign extension really needed here?
-    switch (cond) {
-      case ult:
-      case uge:
-      case ule:
-      case ugt:
-        ZeroExtendWord(lhs, r1);
-        break;
-      default:
-        SignExtend32To64Bits(lhs, r1);
-    }
+    Register lhs = SignExtendedInt32(this, r1, scratch);
     // Jump over the false block if true, otherwise fall through into it.
     MacroAssembler::Branch(if_true, cond, lhs, Operand(value), true_distance);
   } else {
-    // TODO(Yuri Gaevsky): is zero/sign extension really needed here?
-    switch (cond) {
-      case ult:
-      case uge:
-      case ule:
-      case ugt:
-        ZeroExtendWord(lhs, r1);
-        break;
-      default:
-        SignExtend32To64Bits(lhs, r1);
-    }
+    Register lhs = SignExtendedInt32(this, r1, scratch);
     // Jump to the false block if true.
     MacroAssembler::Branch(if_false, NegateCondition(cond), lhs, Operand(value),
                            false_distance);
@@ -1919,43 +1901,21 @@ inline void MaglevAssembler::CompareInt32AndBranch(
   }
 
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register lhs = temps.AcquireScratch();
-  Register rhs = temps.AcquireScratch();
+  Register lhs_scratch = temps.AcquireScratch();
+  Register rhs_scratch = temps.AcquireScratch();
   if (fallthrough_when_false) {
     if (fallthrough_when_true) {
       // If both paths are a fallthrough, do nothing.
       DCHECK_EQ(if_true, if_false);
       return;
     }
-    // TODO(Yuri Gaevsky): is zero/sign extension really needed here?
-    switch (cond) {
-      case ult:
-      case uge:
-      case ule:
-      case ugt:
-        ZeroExtendWord(lhs, r1);
-        ZeroExtendWord(rhs, value);
-        break;
-      default:
-        SignExtend32To64Bits(lhs, r1);
-        SignExtend32To64Bits(rhs, value);
-    }
+    Register lhs = SignExtendedInt32(this, r1, lhs_scratch);
+    Register rhs = SignExtendedInt32(this, value, rhs_scratch);
     // Jump over the false block if true, otherwise fall through into it.
     MacroAssembler::Branch(if_true, cond, lhs, Operand(rhs), true_distance);
   } else {
-    switch (cond) {
-      // TODO(Yuri Gaevsky): is zero/sign extension really needed here?
-      case ult:
-      case uge:
-      case ule:
-      case ugt:
-        ZeroExtendWord(lhs, r1);
-        ZeroExtendWord(rhs, value);
-        break;
-      default:
-        SignExtend32To64Bits(lhs, r1);
-        SignExtend32To64Bits(rhs, value);
-    }
+    Register lhs = SignExtendedInt32(this, r1, lhs_scratch);
+    Register rhs = SignExtendedInt32(this, value, rhs_scratch);
     // Jump to the false block if true.
     MacroAssembler::Branch(if_false, NegateCondition(cond), lhs, Operand(rhs),
                            false_distance);
@@ -2042,13 +2002,11 @@ inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  // TODO(Yuri Gaevsky): is zero extension really needed here?
-  if (mask < 0) {                      // high-bits are all 1s due to
-    And(scratch, r1, Operand(mask));   // sign-promotion, so we need
-    ZeroExtendWord(scratch, scratch);  // to clear them all
-  } else {
-    And(scratch, r1, Operand(mask));
-  }
+  // A non-negative mask clears the upper half of the result. A negative one
+  // keeps it, so the value is sign-extended first: its upper half then copies
+  // bit 31, and the result is zero exactly when its low 32 bits are.
+  Register value = mask < 0 ? SignExtendedInt32(this, r1, scratch) : r1;
+  And(scratch, value, Operand(mask));
   MacroAssembler::Branch(target, kNotZero, scratch, Operand(zero_reg),
                          distance);
 }
@@ -2067,13 +2025,9 @@ inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  // TODO(Yuri Gaevsky): is zero extension really needed here?
-  if (mask < 0) {                      // high-bits are all 1s due to
-    And(scratch, r1, Operand(mask));   // sign-promotion, so we need
-    ZeroExtendWord(scratch, scratch);  // to clear them all
-  } else {
-    And(scratch, r1, Operand(mask));
-  }
+  // See TestInt32AndJumpIfAnySet.
+  Register value = mask < 0 ? SignExtendedInt32(this, r1, scratch) : r1;
+  And(scratch, value, Operand(mask));
   MacroAssembler::Branch(target, kZero, scratch, Operand(zero_reg), distance);
 }
 
@@ -2107,7 +2061,8 @@ inline void MaglevAssembler::TestUint8AndJumpIfAllClear(
 
 inline void MaglevAssembler::LoadContextCellState(Register state,
                                                   Register cell) {
-  Lwu(state, FieldMemOperand(cell, offsetof(ContextCell, state_)));
+  // The state is an int32 enum; keep it in the sign-extended form.
+  Lw(state, FieldMemOperand(cell, offsetof(ContextCell, state_)));
 }
 inline void MaglevAssembler::LoadContextCellInt32Value(Register value,
                                                        Register cell) {

@@ -8,6 +8,7 @@
 #include "src/handles/traced-handles.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/slots-inl.h"
@@ -37,7 +38,7 @@ TracedHandles::AllocateNodeUnchecked() {
   auto* node = block->AllocateNode();
   DCHECK(node->IsMetadataCleared());
   if (V8_UNLIKELY(block->IsFull())) {
-    usable_blocks_.Remove(block);
+    TracedNodeBlock::UsableList::Remove(block);
   }
   used_nodes_++;
   return std::make_pair(block, node);
@@ -114,6 +115,7 @@ FullObjectSlot TracedHandles::Create(
     Address value, Address* slot, TracedReferenceStoreMode store_mode,
     TracedReferenceHandling reference_handling) {
   DCHECK_NOT_NULL(slot);
+  DCHECK(!is_processing_weakness_);
   Tagged<Object> object(value);
   auto [block, node] = AllocateNode();
   const bool needs_young_bit_update = NeedsTrackingInYoungNodes(object, node);

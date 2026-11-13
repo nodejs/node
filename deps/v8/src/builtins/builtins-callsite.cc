@@ -110,7 +110,7 @@ BUILTIN(CallSitePrototypeGetEvalOrigin) {
   if (!IsSecurityTokenCompatible(isolate, frame)) {
     return ReadOnlyRoots(isolate).null_value();
   }
-  return *CallSiteInfo::GetEvalOrigin(frame);
+  RETURN_RESULT_OR_FAILURE(isolate, CallSiteInfo::GetEvalOrigin(frame));
 }
 
 BUILTIN(CallSitePrototypeGetFileName) {

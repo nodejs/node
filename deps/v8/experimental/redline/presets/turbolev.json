@@ -1,0 +1,8 @@
+{
+  "d8_extra_args": ["--turbolev", "--turbolev-future", "--jit-fuzzing"],
+  "randomize_d8_flags": true,
+  "d8_flag_profile": "turbolev",
+  "selection": {"seeds": {"strategy": "rarity"}, "partners": {"strategy": "rarity-partner"}, "mutators": {"strategy": "adaptive"},
+    "generators": {"strategy": "adaptive", "params": {"weights": {
+      "JitOptimize": 8, "JitTricky": 4, "Deopt": 3, "LazyDeopt": 3, "OsrLoop": 3, "ElementsKind": 4, "ShapeChange": 3}}}}
+}

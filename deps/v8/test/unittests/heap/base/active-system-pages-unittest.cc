@@ -43,6 +43,50 @@ TEST(ActiveSystemPagesTest, AddFullBitset) {
   EXPECT_EQ(pages.Size(kPageSizeBits), size_t{64});
 }
 
+TEST(ActiveSystemPagesTest, Remove) {
+  ActiveSystemPages pages;
+  const size_t kPageSizeBits = 0;
+  EXPECT_EQ(pages.Add(0, 4, kPageSizeBits), size_t{4});
+  EXPECT_EQ(pages.Remove(1, 3, kPageSizeBits), size_t{2});
+  EXPECT_EQ(pages.Size(kPageSizeBits), size_t{2});
+
+  // Removing already removed pages should return 0.
+  EXPECT_EQ(pages.Remove(1, 3, kPageSizeBits), size_t{0});
+  // Removing overlapping range should only count active pages.
+  EXPECT_EQ(pages.Remove(0, 4, kPageSizeBits), size_t{2});
+  EXPECT_EQ(pages.Size(kPageSizeBits), size_t{0});
+}
+
+TEST(ActiveSystemPagesTest, RemoveUnalignedRange) {
+  ActiveSystemPages pages;
+  const size_t kPageSizeBits = 12;
+  const size_t kPageSize = size_t{1} << kPageSizeBits;
+  const size_t kWordSize = 8;
+  EXPECT_EQ(pages.Add(0, 4 * kPageSize, kPageSizeBits), size_t{4});
+
+  // Range smaller than a page or straddling page boundary without covering a
+  // full page should remove 0 pages.
+  EXPECT_EQ(pages.Remove(kWordSize, kPageSize - kWordSize, kPageSizeBits),
+            size_t{0});
+  EXPECT_EQ(
+      pages.Remove(kPageSize - kWordSize, kPageSize + kWordSize, kPageSizeBits),
+      size_t{0});
+
+  // Range [kWordSize, 3 * kPageSize - kWordSize) only fully covers page 1.
+  EXPECT_EQ(pages.Remove(kWordSize, 3 * kPageSize - kWordSize, kPageSizeBits),
+            size_t{1});
+  EXPECT_EQ(pages.Size(kPageSizeBits), size_t{3} * kPageSize);
+}
+
+TEST(ActiveSystemPagesTest, RemoveFullBitset) {
+  ActiveSystemPages pages;
+  const size_t kPageSizeBits = 0;
+  EXPECT_EQ(pages.Add(0, 64, kPageSizeBits), size_t{64});
+  EXPECT_EQ(pages.Remove(0, 64, kPageSizeBits), size_t{64});
+  EXPECT_EQ(pages.Remove(0, 64, kPageSizeBits), size_t{0});
+  EXPECT_EQ(pages.Size(kPageSizeBits), size_t{0});
+}
+
 TEST(ActiveSystemPagesTest, Reduce) {
   ActiveSystemPages original;
   const size_t kPageSizeBits = 0;

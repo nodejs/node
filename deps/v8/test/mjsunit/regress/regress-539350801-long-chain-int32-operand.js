@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
+// Type assertions create too many blocks on the long chain, causing
+// RegisterAllocatorVerifier to OOM in debug builds.
+// Flags: --no-assert-types
 
 const maxFeedback = 1125899906842623;  // 2^50 - 1
 

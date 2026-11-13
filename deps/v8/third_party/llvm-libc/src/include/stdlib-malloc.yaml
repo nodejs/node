@@ -59,8 +59,7 @@ functions:
       - type: size_t
   - name: reallocarray
     standards:
-      - bsd
-      - gnu
+      - posix
     return_type: void *
     arguments:
       - type: void *

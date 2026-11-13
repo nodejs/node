@@ -313,7 +313,7 @@ struct Slab {
         uint32_t before = 0;
         if (gpu::get_lane_id() == leader)
           before = cpp::AtomicRef(get_bitfield()[slot])
-                       .fetch_or(bitmask, cpp::MemoryOrder::RELAXED);
+                       .fetch_or(bitmask, cpp::MemoryOrder::ACQUIRE);
         before = gpu::shuffle(lane_mask, leader, before);
         if (~before & (1u << bit))
           result = ptr_from_index(index, chunk_size);
@@ -343,7 +343,7 @@ struct Slab {
     uint32_t bit = index % BITS_IN_WORD;
 
     cpp::AtomicRef(get_bitfield()[slot])
-        .fetch_and(~(1u << bit), cpp::MemoryOrder::RELAXED);
+        .fetch_and(~(1u << bit), cpp::MemoryOrder::RELEASE);
   }
 
   // The actual memory the slab will manage. All offsets are calculated at

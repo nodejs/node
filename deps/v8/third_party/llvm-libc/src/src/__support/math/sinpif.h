@@ -59,6 +59,10 @@ LIBC_INLINE float sinpif(float x) {
         return x;
       }
 
+      // sinpi(x) underflows for 0 < |x| <= 0x1.45f3p-128.
+      if (LIBC_UNLIKELY(x_abs <= 0x0028'be60U))
+        fputil::set_errno_if_required(ERANGE);
+
       // For very small values we can approximate sinpi(x) with x * pi
       // An exhaustive test shows that this is accurate for |x| < 9.546391 ×
       // 10-8

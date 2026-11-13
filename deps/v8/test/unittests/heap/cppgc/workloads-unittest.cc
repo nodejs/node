@@ -184,11 +184,12 @@ class DynamicallySizedObject final
     : public GarbageCollected<DynamicallySizedObject> {
  public:
   static DynamicallySizedObject* Create(AllocationHandle& allocation_handle,
-                                        size_t size) {
+                                        uint32_t size) {
     CHECK_GT(size, sizeof(DynamicallySizedObject));
     return MakeGarbageCollected<DynamicallySizedObject>(
         allocation_handle,
-        AdditionalBytes(size - sizeof(DynamicallySizedObject)));
+        AdditionalBytes(size -
+                        static_cast<uint32_t>(sizeof(DynamicallySizedObject))));
   }
 
   uint8_t Get(int i) { return *(reinterpret_cast<uint8_t*>(this) + i); }
@@ -275,7 +276,7 @@ TEST_F(WorkloadsTest, BasicFunctionality) {
     EXPECT_EQ(0ul, heap->stats_collector()->allocated_memory_size());
   }
 
-  size_t big = 1008;
+  uint32_t big = 1008;
   Persistent<DynamicallySizedObject> big_area =
       DynamicallySizedObject::Create(GetAllocationHandle(), big);
   total += big;
@@ -285,7 +286,7 @@ TEST_F(WorkloadsTest, BasicFunctionality) {
   Persistent<DynamicallySizedObject>* persistents[kNumPersistents];
 
   for (int i = 0; i < 1000; i++) {
-    size_t size = 128 + i * 8;
+    uint32_t size = 128 + i * 8;
     total += size;
     persistents[persistent_count++] = new Persistent<DynamicallySizedObject>(
         DynamicallySizedObject::Create(GetAllocationHandle(), size));

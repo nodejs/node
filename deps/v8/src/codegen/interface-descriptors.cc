@@ -176,7 +176,7 @@ void WriteBarrierDescriptor::Verify(CallInterfaceDescriptorData* data) {
   VerifyArgumentRegisterCount(data, 4);
 }
 // static
-void IndirectPointerWriteBarrierDescriptor::Verify(
+void TrustedPointerWriteBarrierDescriptor::Verify(
     CallInterfaceDescriptorData* data) {
   WriteBarrierDescriptor::Verify(data);
 }

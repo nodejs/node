@@ -32,7 +32,7 @@ V8_OBJECT class SortState : public HeapObject {
   TaggedMember<JSReceiver> receiver_;
   TaggedMember<Map> initial_receiver_map_;
   TaggedMember<Number> initial_receiver_length_;
-  TaggedMember<Object> user_cmp_fn_;  // Undefined|Callable
+  TaggedMember<UnionOf<JSCallable, Undefined>> user_cmp_fn_;
   TaggedMember<Boolean> is_reset_to_generic_;
   TaggedMember<Smi> min_gallop_;
   TaggedMember<Smi> pending_runs_size_;

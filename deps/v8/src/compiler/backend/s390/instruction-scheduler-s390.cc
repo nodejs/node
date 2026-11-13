@@ -406,6 +406,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_StoreWord16:
     case kS390_StoreWord32:
     case kS390_StoreWord64:
+    case kS390_AtomicStoreCompressTagged:
     case kS390_StoreReverseSimd128:
     case kS390_StoreReverse16:
     case kS390_StoreReverse32:

@@ -4,7 +4,7 @@
 
 #include 'src/objects/js-segment-iterator-inl.h'
 
-@cppScope('JSSegmentIterator')
+@cppScope('JSSegmentIterator::Flags')
 bitfield struct JSSegmentIteratorFlags extends uint31 {
   granularity: JSSegmenterGranularity: 2 bit;
 }

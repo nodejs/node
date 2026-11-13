@@ -195,7 +195,7 @@ TEST_F(PageTest, NormalPageCreationDestruction) {
   space->AddPage(page);
   EXPECT_NE(space->end(), std::find(space->begin(), space->end(), page));
 
-  space->free_list().Add({page->PayloadStart(), page->PayloadSize()});
+  space->free_list().Add({page->PayloadStart(), NormalPage::PayloadSize()});
   EXPECT_TRUE(space->free_list().ContainsForTesting(
       {page->PayloadStart(), page->PayloadSize()}));
 

@@ -1,0 +1,15 @@
+diff --git a/src/maglev/maglev-compiler.cc b/src/maglev/maglev-compiler.cc
+index 3759c9aa7b6..e6b8fb90021 100644
+--- a/src/maglev/maglev-compiler.cc
++++ b/src/maglev/maglev-compiler.cc
+@@ -187,8 +187,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
+       propagate.ProcessGraph(graph);
+       PrintGraph(graph, v8_flags.print_maglev_graphs,
+                  MaglevPhase::kTruncationPropagation);
+-      GraphProcessor<TruncationProcessor> truncate(graph);
+-      truncate.ProcessGraph(graph);
++      GraphProcessor<TruncationProcessor> truncation_processor(graph);
++      truncation_processor.ProcessGraph(graph);
+       PrintAndVerify(graph, v8_flags.print_maglev_graphs,
+                      MaglevPhase::kTruncation);
+     }

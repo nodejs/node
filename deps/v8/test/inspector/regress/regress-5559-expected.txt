@@ -1,0 +1,10 @@
+Tests regress-5559.
+  try {
+    #debugger;             // Break 0.
+    throw 'error';
+
+  thrower();
+#}                         // Break 1.
+
+
+breakCount: 2

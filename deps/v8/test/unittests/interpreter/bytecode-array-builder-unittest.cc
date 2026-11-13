@@ -45,7 +45,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   DeclarationScope scope(zone(), &ast_factory);
 
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(0);
-  int flags = ScopeInfo::HasContextCellsBit::encode(true);
+  auto flags = ScopeInfo::Flags{}.with_has_context_cells(true);
   scope_info->set_flags(flags, kRelaxedStore);
   scope_info->set_context_local_count(0);
   scope_info->set_parameter_count(0);
@@ -195,7 +195,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .PopContext(reg);
 
   Handle<ScopeInfo> scope_info2 = factory->NewScopeInfo(0);
-  int flags2 = ScopeInfo::HasContextCellsBit::encode(false);
+  auto flags2 = ScopeInfo::Flags{}.with_has_context_cells(false);
   scope_info2->set_flags(flags2, kRelaxedStore);
   scope_info2->set_context_local_count(0);
   scope_info2->set_parameter_count(0);
@@ -217,7 +217,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .PopContext(reg);
 
   Handle<ScopeInfo> scope_info3 = factory->NewScopeInfo(0);
-  int flags3 = ScopeInfo::IsHoistedInContextBit::encode(true);
+  auto flags3 = ScopeInfo::Flags{}.with_is_hoisted_in_context(true);
   scope_info3->set_flags(flags3, kRelaxedStore);
   scope_info3->set_context_local_count(0);
   scope_info3->set_parameter_count(0);
@@ -227,7 +227,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                               scope_info3);
   EXPECT_TRUE(fun_scope3.is_hoisted_in_context());
 
-  int flags4 = ScopeInfo::IsHoistedInContextBit::encode(false);
+  auto flags4 = ScopeInfo::Flags{}.with_is_hoisted_in_context(false);
   scope_info3->set_flags(flags4, kRelaxedStore);
   DeclarationScope fun_scope4(zone(), ScopeType::FUNCTION_SCOPE, &ast_factory,
                               scope_info3);
@@ -284,7 +284,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadLookupGlobalSlot(name, TypeofMode::kInside, 1, 0);
 
   // Emit closure operations.
-  builder.CreateClosure(0, 1, static_cast<int>(AllocationType::kYoung));
+  builder.CreateClosure(0, 1, CreateClosureFlags::Encode(false));
 
   // Emit create context operation.
   builder.CreateBlockContext(&scope);
@@ -520,7 +520,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                        LookupHoistingMode::kNormal);
 
   // CreateClosureWide
-  builder.CreateClosure(1000, 321, static_cast<int>(AllocationType::kYoung));
+  builder.CreateClosure(1000, 321, CreateClosureFlags::Encode(false));
 
   // Emit wide variant of literal creation operations.
   builder

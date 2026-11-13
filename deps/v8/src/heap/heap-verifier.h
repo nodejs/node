@@ -5,16 +5,51 @@
 #ifndef V8_HEAP_HEAP_VERIFIER_H_
 #define V8_HEAP_HEAP_VERIFIER_H_
 
+#include <vector>
+
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/handles/handles.h"
 #include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
 
 class Heap;
+class HeapVerification;
+class LocalHeap;
 class BasePage;
 class ReadOnlyHeap;
+
+#ifdef VERIFY_HEAP
+class V8_NODISCARD V8_EXPORT_PRIVATE PendingObjectVerifyScope final {
+  V8_STACK_ALLOCATED();
+
+ public:
+  PendingObjectVerifyScope();
+  ~PendingObjectVerifyScope();
+  PendingObjectVerifyScope(const PendingObjectVerifyScope&) = delete;
+  PendingObjectVerifyScope& operator=(const PendingObjectVerifyScope&) = delete;
+
+  void Add(Handle<HeapObject> object);
+
+ private:
+  friend class HeapVerification;
+  LocalHeap* local_heap_ = nullptr;
+  std::vector<Handle<HeapObject>> objects_;
+};
+#else
+class V8_NODISCARD PendingObjectVerifyScope final {
+  V8_STACK_ALLOCATED();
+
+ public:
+  PendingObjectVerifyScope() {}
+  PendingObjectVerifyScope(const PendingObjectVerifyScope&) = delete;
+  PendingObjectVerifyScope& operator=(const PendingObjectVerifyScope&) = delete;
+
+  void Add(Handle<HeapObject>) {}
+};
+#endif  // VERIFY_HEAP
 
 // Interface for verifying spaces in the heap.
 class SpaceVerificationVisitor {

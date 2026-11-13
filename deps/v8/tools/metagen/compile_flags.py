@@ -24,10 +24,9 @@ instrumentation, warnings-as-errors) or that libclang rejects (input
 file, response files).
 
 The clang builtin headers (stddef.h etc.) are not handled here: the
-build system points metagen.py at the toolchain that holds them, via
---clang-resource-dir or --clang-builtin-headers-dir. Probing for them
-would read paths the build never declared, which a sandboxed action
-cannot do.
+build system passes their toolchain's resource directory to metagen.py
+via --clang-resource-dir. Probing for headers would read paths the build
+never declared, which a sandboxed action cannot do.
 """
 
 from __future__ import annotations
@@ -37,6 +36,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 
 # Single-token drops: compile-only and dep-info flags (these only occur
 # in the Bazel-synthesized command line; gn desc cflags never carry
@@ -118,14 +118,6 @@ def _find_gn(source_root: str) -> str | None:
   return shutil.which("gn")
 
 
-def _is_clang_cl(arg0: str) -> bool:
-  """Detect clang-cl driver by argv[0]'s basename."""
-  name = os.path.basename(arg0).lower()
-  if name.endswith(".exe"):
-    name = name[:-4]
-  return name == "clang-cl"
-
-
 def _filter(args: list[str], input_path: str) -> list[str]:
   out: list[str] = []
   norm_input = os.path.normpath(input_path) if input_path else ""
@@ -157,59 +149,107 @@ def _filter(args: list[str], input_path: str) -> list[str]:
   return out
 
 
-def get_compile_args_from_gn_desc(
-    build_dir: str, target_label: str,
-    source_root: str) -> tuple[list[str], str, bool]:
+def get_compile_args_from_gn_desc(build_dir: str, target_label: str,
+                                  source_root: str) -> tuple[list[str], str]:
   """GN path: reconstruct one target's compile flags via `gn desc`.
 
   `source_root` is the directory holding the build's `.gn` marker. The
   caller passes it in because the build dir need not sit under it.
 
-  Returns (flags, cwd, cl_mode):
+  Returns (flags, cwd):
     flags    libclang args. Path-bearing flags (-I, -isystem, ...) are
              left as-is; the caller must invoke libclang with cwd=`cwd`
              so build-dir-relative paths resolve.
     cwd      The build dir (cflags' paths are relative to it).
-    cl_mode  True iff the toolchain is clang-cl. The caller injects
-             `--driver-mode=cl` when this is set.
 
   cflags/cflags_cc are passed through verbatim; include_dirs are
   source-absolute `//...` and rebased against `source_root` here.
   """
   source_root = os.path.abspath(source_root)
+  build_dir = os.path.abspath(build_dir)
   gn = _find_gn(source_root)
   if not gn:
     raise RuntimeError(
         "[metagen] gn not found under <source-root>/buildtools or on PATH.")
-  out_rel = os.path.relpath(os.path.abspath(build_dir), source_root)
-  try:
-    # -q ("don't print output on success") keeps stdout to the JSON alone.
-    # Without it gn prepends any build-file warning to the document -- an
-    # arm_float_abi that no declare_args() claims on the arm64 bots, say --
-    # and the parse below fails. A gn that actually fails still reports.
-    proc = subprocess.run(
-        [gn, "desc", "-q", out_rel, target_label, "--format=json"],
-        cwd=source_root,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-  except FileNotFoundError:
-    raise RuntimeError(f"[metagen] gn binary not found: {gn}")
-  except subprocess.CalledProcessError as e:
-    raise RuntimeError(f"[metagen] `gn desc {out_rel} {target_label}` failed "
-                       f"(exit {e.returncode}). Has `gn gen` run there?\n"
-                       f"{(e.stderr or '').strip()}")
-  try:
-    desc = json.loads(proc.stdout)
-  except json.JSONDecodeError as e:
-    raise RuntimeError(f"[metagen] `gn desc` output was not valid JSON: {e}")
-  if not isinstance(desc, dict) or not desc:
-    raise RuntimeError(
-        f"[metagen] `gn desc` returned no target for {target_label}.")
-  # Single-target query: the sole value maps the (toolchain-qualified)
-  # label to its resolved fields.
-  fields = next(iter(desc.values()))
+  # GN evaluates build files during `desc`. Some Chromium build scripts write
+  # into the output directory, so querying the active directory during a build
+  # can race with other actions reading those files.
+  # See https://chromium.googlesource.com/chromium/src/+/refs/heads/main/tools/licenses/licenses.py#1005
+  # TODO(jgruber): Pass the resolved flags through GN substitutions instead.
+  with tempfile.TemporaryDirectory(dir=os.path.dirname(build_dir)) as tmp_dir:
+    shutil.copyfile(
+        os.path.join(build_dir, "args.gn"), os.path.join(tmp_dir, "args.gn"))
+    if sys.platform == "darwin":
+      sdk_links = os.path.join(build_dir, "xcode_links")
+      if os.path.isdir(sdk_links):
+        shutil.copytree(
+            sdk_links, os.path.join(tmp_dir, "xcode_links"), symlinks=True)
+      # Explicit SDK paths supplied by embedder build tools must stay below
+      # the query's output directory for Chromium's sdk_inputs action.
+      old_sdk_root = "//" + os.path.relpath(build_dir, source_root) + "/"
+      new_sdk_root = "//" + os.path.relpath(tmp_dir, source_root) + "/"
+      with open(os.path.join(tmp_dir, "args.gn"), "a") as f:
+        f.write("\nif (defined(mac_sdk_path)) {\n")
+        f.write("  mac_sdk_path = string_replace(mac_sdk_path, "
+                f"{json.dumps(old_sdk_root)}, {json.dumps(new_sdk_root)})\n")
+        f.write("}\n")
+    open(os.path.join(tmp_dir, "build.ninja"), "w").close()
+    try:
+      # -q ("don't print output on success") keeps stdout to the JSON alone.
+      # Without it gn prepends any build-file warning to the document -- an
+      # arm_float_abi that no declare_args() claims on the arm64 bots, say --
+      # and the parse below fails. A gn that actually fails still reports.
+      proc = subprocess.run(
+          [
+              gn, "desc", "-q", "--root=" + source_root, tmp_dir, target_label,
+              "--format=json"
+          ],
+          cwd=source_root,
+          capture_output=True,
+          text=True,
+          check=True,
+      )
+    except FileNotFoundError:
+      raise RuntimeError(f"[metagen] gn binary not found: {gn}")
+    except subprocess.CalledProcessError as e:
+      raise RuntimeError(f"[metagen] `gn desc {tmp_dir} {target_label}` failed "
+                         f"(exit {e.returncode}). Is the target part of that "
+                         f"toolchain's build?\n"
+                         f"{(e.stdout or '').strip()}\n"
+                         f"{(e.stderr or '').strip()}")
+    try:
+      desc = json.loads(proc.stdout)
+    except json.JSONDecodeError as e:
+      raise RuntimeError(f"[metagen] `gn desc` output was not valid JSON: {e}")
+    if not isinstance(desc, dict) or not desc:
+      raise RuntimeError(
+          f"[metagen] `gn desc` returned no target for {target_label}.")
+    fields = next(iter(desc.values()))
+
+    # GN reports paths derived from root_build_dir under the temporary output
+    # directory. Point them back to the generated files in the active build.
+    replacements = [(tmp_dir, build_dir),
+                    (tmp_dir.replace(os.sep,
+                                     "/"), build_dir.replace(os.sep, "/"))]
+    try:
+      tmp_rel = os.path.relpath(tmp_dir, source_root).replace(os.sep, "/")
+      build_rel = os.path.relpath(build_dir, source_root).replace(os.sep, "/")
+    except ValueError:
+      # On Windows, the output directory may be on a different drive.
+      pass
+    else:
+      replacements.extend(
+          (("//" + tmp_rel, "//" + build_rel), (tmp_rel, build_rel)))
+
+    def restore_build_path(value):
+      for old, new in replacements:
+        value = value.replace(old, new)
+      return value
+
+    fields = {
+        key: [restore_build_path(value) for value in fields.get(key) or []]
+        for key in ("defines", "include_dirs", "cflags", "cflags_cc")
+    }
 
   flags: list[str] = [f"-D{d}" for d in fields.get("defines") or []]
   for inc in fields.get("include_dirs") or []:
@@ -223,24 +263,19 @@ def get_compile_args_from_gn_desc(
   cflags = (fields.get("cflags") or []) + (fields.get("cflags_cc") or [])
   flags += cflags
 
-  # clang-cl spells its options with a leading slash; posix clang never
-  # does. The caller injects --driver-mode=cl when this is set.
-  cl_mode = any(f.startswith("/") for f in cflags)
-
   # Drop plugin chains (-Xclang -add-plugin ...), backend-only (-mllvm),
   # and sanitizer/coverage/crash-dir flags libclang can't honor under
   # -fsyntax-only. gn desc's cflags never carry -c/-o/@rsp/the input
   # path, so the input-path arg to _filter is unused.
   filtered = _filter(flags, "")
-  return filtered, os.path.abspath(build_dir), cl_mode
+  return filtered, os.path.abspath(build_dir)
 
 
-def get_compile_args_from_file(path: str) -> tuple[list[str], str, bool]:
+def get_compile_args_from_file(path: str) -> tuple[list[str], str]:
   """Bazel path: read the single-entry compile_commands.json the rule
   synthesizes (bazel/defs.bzl).
 
-  Returns (flags, cwd, cl_mode) with the same contract as
-  `get_compile_args_from_gn_desc`. The synthesized entry always carries
+  Returns (flags, cwd). The synthesized entry always carries
   an `arguments` array (never a `command` string), so the flags are read
   directly with no shell tokenization. argv[0] and the bogus source file
   are dropped; `-c`/`-o` and friends go through the shared _filter.
@@ -257,7 +292,5 @@ def get_compile_args_from_file(path: str) -> tuple[list[str], str, bool]:
     raise RuntimeError(
         f"[metagen] compile-commands entry has no `arguments` array: "
         f"{entry}. bazel/defs.bzl must emit `arguments`, not `command`.")
-  arg0, rest = args[0], args[1:]
-  cl_mode = _is_clang_cl(arg0)
   cwd = entry.get("directory") or "."
-  return _filter(rest, entry.get("file", "")), cwd, cl_mode
+  return _filter(args[1:], entry.get("file", "")), cwd

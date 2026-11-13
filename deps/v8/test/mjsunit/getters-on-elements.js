@@ -52,10 +52,10 @@ if (standalone) {
   assertUnoptimized = empty_func;
   assertOptimized = empty_func;
 
-  prepareForOptimize = emtpy_func;
+  prepareForOptimize = empty_func;
   optimize = empty_func;
-  clearFunctionTypeFeedback = empty_func;
   deoptimizeFunction = empty_func;
+  copyFunctionWithFreshFeedback = function(f) { return f; };
 } else {
   optimize = function(name) {
     %OptimizeFunctionOnNextCall(name);
@@ -63,19 +63,24 @@ if (standalone) {
   prepareForOptimize = function(name) {
     %PrepareFunctionForOptimization(name);
   }
-  clearFunctionTypeFeedback = function(name) {
-    %ClearFunctionFeedback(name);
-  }
   deoptimizeFunction = function(name) {
     %DeoptimizeFunction(name);
   }
+}
+
+function getter_foo_template(a) {
+  var x = a[0];
+  return x + 3;
+}
+function getter_bar_template(a) {
+  return a[3] + 600;
 }
 
 function base_getter_test(create_func) {
   var calls = 0;
 
   // Testcase: setter in prototype chain
-  foo = function(a) { var x = a[0]; return x + 3; }
+  foo = copyFunctionWithFreshFeedback(getter_foo_template);
   var a = create_func();
   var ap = [];
   ap.__defineGetter__(0, function() { calls++; return 0; });
@@ -118,9 +123,8 @@ function base_getter_test(create_func) {
   assertOptimized(foo);
 
   // Testcase: getter "deep" in prototype chain.
-  clearFunctionTypeFeedback(foo);
-  deoptimizeFunction(foo);
-  clearFunctionTypeFeedback(foo);
+  foo = copyFunctionWithFreshFeedback(getter_foo_template);
+  prepareForOptimize(foo);
   calls = 0;
 
   a = create_func();
@@ -142,9 +146,7 @@ function base_getter_test(create_func) {
   assertEquals(3, calls);
 
   // Testcase: getter added after optimization (feedback is monomorphic)
-  clearFunctionTypeFeedback(foo);
-  deoptimizeFunction(foo);
-  clearFunctionTypeFeedback(foo);
+  foo = copyFunctionWithFreshFeedback(getter_foo_template);
   calls = 0;
 
   a = create_func();
@@ -165,12 +167,11 @@ function base_getter_test(create_func) {
 
   // Testcase: adding additional getters to a prototype chain that already has
   // one shouldn't deopt anything.
-  clearFunctionTypeFeedback(foo);
   calls = 0;
 
   a = create_func();
   a.__proto__ = ap2;
-  bar = function(a) { return a[3] + 600; }
+  bar = copyFunctionWithFreshFeedback(getter_bar_template);
   prepareForOptimize(bar);
   bar(a);
   bar(a);
@@ -185,14 +186,8 @@ function base_getter_test(create_func) {
   assertOptimized(bar);
   assertEquals(1, calls);
 
-  // Reset the state of foo and bar.
-  clearFunctionTypeFeedback(foo);
   deoptimizeFunction(foo);
-  clearFunctionTypeFeedback(foo);
-
-  clearFunctionTypeFeedback(bar);
   deoptimizeFunction(bar);
-  clearFunctionTypeFeedback(bar);
 }
 
 // Verify that map transitions don't confuse us.

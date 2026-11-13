@@ -21,9 +21,6 @@ EXTRA_FLAGS = [
     (0.5, '--harmony'),
     (0.1, '--hashes-collide'),
     (0.5, '--experimental-fuzzing'),
-    # TODO(v8:13524): Enable when issue is fixed
-    # TODO(v8:13528): Enable when issue is fixed
-    # (0.1, '--harmony-struct'),
     (0.1, '--jit-fuzzing'),
     (0.5, '--js-staging'),
     (0.1, '--liftoff'),
@@ -60,7 +57,6 @@ EXTRA_FLAGS = [
     (0.1, '--regexp-tier-up-ticks=100'),
     (0.1, '--no-regexp-quick-check'),
     (0.1, '--no-regexp-unroll'),
-    (0.1, '--shared-string-table'),
     (0.1, '--shared-heap'),
     (0.1, '--stress-background-compile'),
     (0.2, '--stress-flush-code'),

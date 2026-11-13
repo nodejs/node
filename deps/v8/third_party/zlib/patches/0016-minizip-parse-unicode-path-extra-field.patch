@@ -91,7 +91,7 @@ Date:   Mon Apr 27 13:24:27 2026 +0200
     Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/7797172
 
 diff --git a/third_party/zlib/contrib/minizip/unzip.c b/third_party/zlib/contrib/minizip/unzip.c
-index 56f1468cd8d22..0264f7ac570f7 100644
+index fb5eb0bf0f852..c15f4484f75f7 100644
 --- a/third_party/zlib/contrib/minizip/unzip.c
 +++ b/third_party/zlib/contrib/minizip/unzip.c
 @@ -63,6 +63,7 @@
@@ -129,7 +129,7 @@ index 56f1468cd8d22..0264f7ac570f7 100644
  local int unz64local_getShort(const zlib_filefunc64_32_def* pzlib_filefunc_def,
                                voidpf filestream,
                                uLong *pX) {
-@@ -836,6 +857,10 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
+@@ -780,6 +801,10 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
      uLong uMagic;
      long lSeek=0;
      uLong uL;
@@ -140,7 +140,7 @@ index 56f1468cd8d22..0264f7ac570f7 100644
  
      if (file==NULL)
          return UNZ_PARAMERROR;
-@@ -907,21 +932,34 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
+@@ -851,21 +876,34 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
      file_info_internal.offset_curfile = uL;
  
      lSeek+=file_info.size_filename;
@@ -186,7 +186,7 @@ index 56f1468cd8d22..0264f7ac570f7 100644
      }
  
      /* Read extrafield */
-@@ -1007,6 +1045,62 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
+@@ -951,6 +989,62 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
                  }
  
              }
@@ -249,7 +249,7 @@ index 56f1468cd8d22..0264f7ac570f7 100644
              else
              {
                  if (ZSEEK64(s->z_filefunc, s->filestream,dataSize,ZLIB_FILEFUNC_SEEK_CUR)!=0)
-@@ -1106,6 +1200,9 @@ extern int ZEXPORT unzGetCurrentFileInfo(unzFile file,
+@@ -1050,6 +1144,9 @@ extern int ZEXPORT unzGetCurrentFileInfo(unzFile file,
          pfile_info->compressed_size = (uLong)file_info64.compressed_size;
          pfile_info->uncompressed_size = (uLong)file_info64.uncompressed_size;
  

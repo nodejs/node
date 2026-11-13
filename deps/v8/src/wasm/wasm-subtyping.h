@@ -38,6 +38,10 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool EquivalentTypes(ValueType type1,
                                                    const WasmModule* module1,
                                                    const WasmModule* module2);
 
+V8_EXPORT_PRIVATE bool EquivalentIndices(ModuleTypeIndex index1,
+                                         ModuleTypeIndex index2,
+                                         const WasmModule* module);
+
 // Checks if {subtype}, defined in {module1}, is a subtype of {supertype},
 // defined in {module2}.
 // Subtyping between value types is described by the following rules
@@ -97,8 +101,14 @@ V8_INLINE bool IsHeapSubtypeOf(HeapType subtype, HeapType supertype,
 
 V8_INLINE bool HeapTypesUnrelated(HeapType heap1, HeapType heap2,
                                   const WasmModule* module) {
-  return !IsHeapSubtypeOf(heap1, heap2, module) &&
-         !IsHeapSubtypeOf(heap2, heap1, module);
+  if (heap1.is_bottom() || heap2.is_bottom()) return true;
+  if (heap1.is_top() || heap2.is_top()) return false;
+  if (heap1.is_shared() != heap2.is_shared()) return true;
+  if (heap1.can_be_i31() && heap2.can_be_i31()) return false;
+  HeapType h1 = heap1.AsNonI31();
+  HeapType h2 = heap2.AsNonI31();
+  if (h1.is_none_type() || h2.is_none_type()) return true;
+  return !IsHeapSubtypeOf(h1, h2, module) && !IsHeapSubtypeOf(h2, h1, module);
 }
 
 // Checks whether {subtype_index} is valid as a declared subtype of

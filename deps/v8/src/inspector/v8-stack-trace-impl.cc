@@ -158,13 +158,14 @@ std::unique_ptr<StringBuffer> V8StackTraceId::ToString() {
 
 StackFrame::StackFrame(String16&& functionName, int scriptId,
                        String16&& sourceURL, int lineNumber, int columnNumber,
-                       bool hasSourceURLComment)
+                       bool hasSourceURLComment, bool isScriptOpaque)
     : m_functionName(std::move(functionName)),
       m_scriptId(scriptId),
       m_sourceURL(std::move(sourceURL)),
       m_lineNumber(lineNumber),
       m_columnNumber(columnNumber),
-      m_hasSourceURLComment(hasSourceURLComment) {
+      m_hasSourceURLComment(hasSourceURLComment),
+      m_isScriptOpaque(isScriptOpaque) {
   DCHECK_NE(v8::Message::kNoLineNumberInfo, m_lineNumber + 1);
   DCHECK_NE(v8::Message::kNoColumnInfo, m_columnNumber + 1);
 }
@@ -178,6 +179,8 @@ const String16& StackFrame::sourceURL() const { return m_sourceURL; }
 int StackFrame::lineNumber() const { return m_lineNumber; }
 
 int StackFrame::columnNumber() const { return m_columnNumber; }
+
+bool StackFrame::isScriptOpaque() const { return m_isScriptOpaque; }
 
 std::unique_ptr<protocol::Runtime::CallFrame> StackFrame::buildInspectorObject(
     V8InspectorClient* client) const {
@@ -300,6 +303,10 @@ int V8StackTraceImpl::topScriptId() const { return m_frames[0]->scriptId(); }
 
 StringView V8StackTraceImpl::topFunctionName() const {
   return toStringView(m_frames[0]->functionName());
+}
+
+bool V8StackTraceImpl::isTopScriptOpaque() const {
+  return m_frames[0]->isScriptOpaque();
 }
 
 std::vector<V8StackFrame> V8StackTraceImpl::frames() const {

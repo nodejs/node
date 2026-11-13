@@ -23,7 +23,14 @@ V8_OBJECT class JSGeneratorObject : public JSObject {
   V8_IT_OWN_TYPE;
 
  public:
-  enum ResumeMode { kNext, kReturn, kThrow, kRethrow };
+  enum ResumeMode {
+    kNext,
+    kNextTrySkipAlloc,
+    kReturn,
+    kThrow,
+    kRethrow,
+    kNextAllocSkipped
+  };
 
   inline Tagged<JSFunction> function() const;
   inline void set_function(Tagged<JSFunction> value,
@@ -51,10 +58,6 @@ V8_OBJECT class JSGeneratorObject : public JSObject {
   inline void set_parameters_and_registers(
       Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<JSAny> yielded_value() const;
-  inline void set_yielded_value(Tagged<JSAny> value,
-                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline bool is_closed() const;
   inline bool is_executing() const;
   inline bool is_suspended() const;
@@ -80,7 +83,6 @@ V8_OBJECT class JSGeneratorObject : public JSObject {
   TaggedMember<Smi> resume_mode_;
   TaggedMember<Smi> continuation_;
   TaggedMember<FixedArray> parameters_and_registers_;
-  TaggedMember<JSAny> yielded_value_;
 } V8_OBJECT_END;
 
 V8_OBJECT class JSAsyncFunctionObject final : public JSGeneratorObject {

@@ -26,6 +26,11 @@ class ObjectTemplate;
 class Value;
 class String;
 
+#ifndef V8_EMBEDDER_DATA_ARRAY_SIZE
+// Defined using gn arg `v8_embedder_data_array_size`.
+#define V8_EMBEDDER_DATA_ARRAY_SIZE 5
+#endif
+
 /**
  * A container for extension names.
  */
@@ -104,7 +109,7 @@ class V8_EXPORT Context : public Data {
    *
    * \param context_data_deserializer An optional callback used
    * to deserialize embedder data set by
-   * v8::Context::SetAlignedPointerInEmbedderData() in the default
+   * v8::Context::SetAlignedPointerInEmbedderDataV2() in the default
    * context from the default context snapshot. It does not need to be
    * configured if the default context snapshot contains no pointer embedder
    * data, or if no custom startup snapshot is configured in the
@@ -276,20 +281,19 @@ class V8_EXPORT Context : public Data {
 
   /**
    * Gets the embedder data with the given index, which must have been set by a
-   * previous call to SetEmbedderData with the same index.
+   * previous call to SetEmbedderDataV3 with the same index.
    */
   V8_INLINE Local<Data> GetEmbedderDataV2(int index);
 
   /**
-   * Sets the embedder data with the given index, growing the data as
-   * needed. Note that index 0 currently has a special meaning for Chrome's
-   * debugger.
+   * Sets the embedder data with the given index. The index must be in the
+   * range of [0, V8_EMBEDDER_DATA_ARRAY_SIZE).
    */
-  void SetEmbedderDataV2(int index, Local<Data> value);
+  void SetEmbedderDataV3(int index, Local<Data> value);
 
   /**
    * Gets the embedder data with the given index, which must have been set by a
-   * previous call to SetEmbedderData with the same index.
+   * previous call to SetEmbedderDataV3 with the same index.
    */
   V8_DEPRECATE_SOON("Use GetEmbedderDataV2 instead")
   V8_INLINE Local<Value> GetEmbedderData(int index);
@@ -303,17 +307,9 @@ class V8_EXPORT Context : public Data {
   Local<Object> GetExtrasBindingObject();
 
   /**
-   * Sets the embedder data with the given index, growing the data as
-   * needed. Note that index 0 currently has a special meaning for Chrome's
-   * debugger.
-   */
-  V8_DEPRECATE_SOON("Use SetEmbedderDataV2 instead")
-  void SetEmbedderData(int index, Local<Value> value);
-
-  /**
    * Gets a 2-byte-aligned native pointer from the embedder data with the given
    * index, which must have been set by a previous call to
-   * SetAlignedPointerInEmbedderData with the same index. Note that index 0
+   * SetAlignedPointerInEmbedderDataV2 with the same index. Note that index 0
    * currently has a special meaning for Chrome's debugger.
    */
   V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
@@ -325,15 +321,15 @@ class V8_EXPORT Context : public Data {
   V8_INLINE T* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
                                                  CppHeapPointerTag tag);
 
-  void SetAlignedPointerInEmbedderData(int index, void* value,
-                                       EmbedderDataTypeTag tag);
+  void SetAlignedPointerInEmbedderDataV2(int index, void* value,
+                                         EmbedderDataTypeTag tag);
 
   template <typename T>
     requires(!std::is_void_v<T>) && cppgc::IsGarbageCollectedTypeV<T>
-  void SetAlignedPointerInEmbedderData(int index, T* value,
-                                       CppHeapPointerTag tag) {
-    SetAlignedPointerInEmbedderDataInternal(index, static_cast<void*>(value),
-                                            tag);
+  void SetAlignedPointerInEmbedderDataV2(int index, T* value,
+                                         CppHeapPointerTag tag) {
+    SetAlignedPointerInEmbedderDataInternalV2(index, static_cast<void*>(value),
+                                              tag);
   }
 
   /**
@@ -463,8 +459,8 @@ class V8_EXPORT Context : public Data {
   Local<Value> SlowGetEmbedderData(int index);
   Local<Data> SlowGetEmbedderDataV2(int index);
   void* SlowGetAlignedPointerFromEmbedderData(int index, CppHeapPointerTag tag);
-  void SetAlignedPointerInEmbedderDataInternal(int index, void* value,
-                                               CppHeapPointerTag tag);
+  void SetAlignedPointerInEmbedderDataInternalV2(int index, void* value,
+                                                 CppHeapPointerTag tag);
 };
 
 // --- Implementation ---

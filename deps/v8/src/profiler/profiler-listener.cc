@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/source-position-table.h"
@@ -46,9 +47,9 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->entry =
-      code_entries_.Create(tag, GetName(name), CodeEntry::kEmptyResourceName,
-                           LineAndColumn{}, nullptr);
+  rec->entry = CodeEntryStorage::Create(tag, GetName(name),
+                                        CodeEntry::kEmptyResourceName,
+                                        LineAndColumn{}, nullptr);
   rec->instruction_size = code->InstructionSize();
   weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);
@@ -60,9 +61,9 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->entry =
-      code_entries_.Create(tag, GetName(*name), CodeEntry::kEmptyResourceName,
-                           LineAndColumn{}, nullptr);
+  rec->entry = CodeEntryStorage::Create(tag, GetName(*name),
+                                        CodeEntry::kEmptyResourceName,
+                                        LineAndColumn{}, nullptr);
   rec->instruction_size = code->InstructionSize();
   weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);
@@ -76,9 +77,9 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
   rec->entry =
-      code_entries_.Create(tag, GetName(shared->DebugNameCStr().get()),
-                           GetName(InferScriptName(*script_name, *shared)),
-                           LineAndColumn{}, nullptr);
+      CodeEntryStorage::Create(tag, GetName(shared->DebugNameCStr().get()),
+                               GetName(InferScriptName(*script_name, *shared)),
+                               LineAndColumn{}, nullptr);
   rec->entry->FillFunctionInfo(*shared);
   rec->instruction_size = code->InstructionSize();
   weak_code_registry_.Track(rec->entry, code);
@@ -198,7 +199,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
               isolate_, SourcePosition(pos_info.shared->StartPosition()),
               pos_info.shared);
 
-          CodeEntry* inline_entry = code_entries_.Create(
+          CodeEntry* inline_entry = CodeEntryStorage::Create(
               tag, GetFunctionName(*pos_info.shared), resource_name,
               LineAndColumn{start_pos_info.line + 1, start_pos_info.column + 1},
               nullptr, inline_is_shared_cross_origin);
@@ -217,10 +218,10 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
     }
   }
   rec->entry =
-      code_entries_.Create(tag, GetFunctionName(*shared),
-                           GetName(InferScriptName(*script_name, *shared)),
-                           LineAndColumn{line, column}, std::move(line_table),
-                           is_shared_cross_origin);
+      CodeEntryStorage::Create(tag, GetFunctionName(*shared),
+                               GetName(InferScriptName(*script_name, *shared)),
+                               LineAndColumn{line, column},
+                               std::move(line_table), is_shared_cross_origin);
   if (!inline_stacks.empty()) {
     rec->entry->SetInlineStacks(std::move(cached_inline_entries),
                                 std::move(inline_stacks));
@@ -241,9 +242,10 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
   auto source_url_vec = base::VectorOf(source_url.data(), source_url.size());
-  rec->entry = code_entries_.Create(tag, GetName(name), GetName(source_url_vec),
-                                    LineAndColumn{1, code_offset + 1}, nullptr,
-                                    true, CodeEntry::CodeType::WASM);
+  rec->entry =
+      CodeEntryStorage::Create(tag, GetName(name), GetName(source_url_vec),
+                               LineAndColumn{1, code_offset + 1}, nullptr, true,
+                               CodeEntry::CodeType::WASM);
   rec->entry->set_script_id(script_id);
   rec->entry->set_position(code_offset);
   rec->instruction_size = code->instructions().length();
@@ -256,8 +258,8 @@ void ProfilerListener::CallbackEvent(DirectHandle<Name> name,
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
-  rec->entry = code_entries_.Create(LogEventListener::CodeTag::kCallback,
-                                    GetName(*name));
+  rec->entry = CodeEntryStorage::Create(LogEventListener::CodeTag::kCallback,
+                                        GetName(*name));
   rec->instruction_size = 1;
   DispatchCodeEvent(evt_rec);
 }
@@ -267,8 +269,8 @@ void ProfilerListener::GetterCallbackEvent(DirectHandle<Name> name,
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
-  rec->entry = code_entries_.Create(LogEventListener::CodeTag::kCallback,
-                                    GetConsName("get ", *name));
+  rec->entry = CodeEntryStorage::Create(LogEventListener::CodeTag::kCallback,
+                                        GetConsName("get ", *name));
   rec->instruction_size = 1;
   DispatchCodeEvent(evt_rec);
 }
@@ -278,8 +280,8 @@ void ProfilerListener::SetterCallbackEvent(DirectHandle<Name> name,
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
-  rec->entry = code_entries_.Create(LogEventListener::CodeTag::kCallback,
-                                    GetConsName("set ", *name));
+  rec->entry = CodeEntryStorage::Create(LogEventListener::CodeTag::kCallback,
+                                        GetConsName("set ", *name));
   rec->instruction_size = 1;
   DispatchCodeEvent(evt_rec);
 }
@@ -290,10 +292,10 @@ void ProfilerListener::RegExpCodeCreateEvent(
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->entry = code_entries_.Create(LogEventListener::CodeTag::kRegExp,
-                                    GetConsName("RegExp: ", *escaped_source),
-                                    CodeEntry::kEmptyResourceName,
-                                    LineAndColumn{}, nullptr);
+  rec->entry = CodeEntryStorage::Create(
+      LogEventListener::CodeTag::kRegExp,
+      GetConsName("RegExp: ", *escaped_source), CodeEntry::kEmptyResourceName,
+      LineAndColumn{}, nullptr);
   rec->instruction_size = code->InstructionSize();
   weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);
@@ -366,8 +368,8 @@ void ProfilerListener::CodeSweepEvent() { weak_code_registry_.Sweep(this); }
 
 const char* ProfilerListener::GetName(base::Vector<const char> name) {
   // TODO(all): Change {StringsStorage} to accept non-null-terminated strings.
-  base::OwnedVector<char> null_terminated =
-      base::OwnedVector<char>::New(name.size() + 1);
+  base::UniqueArray<char> null_terminated =
+      base::UniqueArray<char>::New(name.size() + 1);
 #if defined(__GNUC__) && !defined(__clang__)
   // Work around a spurious GCC-12 warning (-Werror=array-bounds).
   if (name.end() < name.begin()) return nullptr;

@@ -7,6 +7,7 @@
 
 #include <atomic>
 
+#include "src/base/macros.h"
 #include "src/handles/global-handles.h"
 #include "src/handles/handles.h"
 
@@ -31,6 +32,8 @@ class BaselineBatchCompiler {
   bool is_enabled() { return enabled_; }
 
   void InstallBatch();
+
+  V8_EXPORT_PRIVATE void FlushForTesting();
 
  private:
   bool concurrent() const;

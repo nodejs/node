@@ -21,15 +21,6 @@ function TestBigIntTruncatedToWord64(x) {
 
 let bi = (2n ** (2n ** 30n - 65n));
 
-// Expect BigIntTooBig for adding bi to itself
-assertThrows(() => TestBigIntTruncatedToWord64(bi), RangeError);
-
-// The BigIntTooBig throw path in the Add stub poisons embedded feedback to
-// kAny so a subsequent optimized call wouldn't loop into the same deopt.
-// Before optimization is armed, we want fresh feedback so that priming with
-// small BigInts below yields clean kBigInt64 speculation.
-%ClearFunctionFeedback(TestBigIntTruncatedToWord64);
-
 %PrepareFunctionForOptimization(TestBigIntTruncatedToWord64);
 TestBigIntTruncatedToWord64(1n);
 TestBigIntTruncatedToWord64(2n);
@@ -40,3 +31,7 @@ TestBigIntTruncatedToWord64(2n);
 // Thus no BigIntTooBig exception is expected.
 TestBigIntTruncatedToWord64(bi);
 assertOptimized(TestBigIntTruncatedToWord64);
+
+// Unoptimized, adding bi to itself throws BigIntTooBig.
+%DeoptimizeFunction(TestBigIntTruncatedToWord64);
+assertThrows(() => TestBigIntTruncatedToWord64(bi), RangeError);

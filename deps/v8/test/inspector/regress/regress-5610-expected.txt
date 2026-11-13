@@ -1,0 +1,16 @@
+Tests stepping over return in async function.
+  var a = 1;
+  #debugger;        // B0 StepOver
+  console.log(1);  // B1 StepOver
+
+  debugger;        // B0 StepOver
+  #console.log(1);  // B1 StepOver
+  return a +       // B2 StepOver
+
+  console.log(1);  // B1 StepOver
+  #return a +       // B2 StepOver
+      0;           // B3 Continue
+
+  return a +       // B2 StepOver
+      0;#           // B3 Continue
+}

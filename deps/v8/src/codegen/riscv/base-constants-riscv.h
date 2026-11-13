@@ -230,11 +230,11 @@ static_assert(kMaxTracepointCode < kMaxStopCode);
 // For example:
 //
 // __ Debug(TRACE_ENABLE | LOG_TRACE);
-// starts tracing: set v8_flags.trace-sim is true.
+// starts tracing: calls Simulator::SetInstructionTracing(true).
 // __ Debug(TRACE_ENABLE | LOG_REGS);
 // PrintAllregs.
 // __ Debug(TRACE_DISABLE | LOG_TRACE);
-// stops tracing: set v8_flags.trace-sim is false.
+// stops tracing: calls Simulator::SetInstructionTracing(false).
 const unsigned kDebuggerTracingDirectivesMask = 0b111 << 3;
 enum DebugParameters : uint32_t {
   NO_PARAM = 1 << 5,
@@ -340,7 +340,7 @@ constexpr int kRvvELEN = 64;
 // Maximum supported VLEN in bits.
 // Code that could fail with larger VLEN should static_assert against this
 // constant.
-constexpr int kMaxRvvVLEN = 512;
+constexpr int kMaxRvvVLEN = 1024;
 
 #if V8_TARGET_ARCH_RISCV64
 constexpr int kRvXLEN = 64;
@@ -754,7 +754,10 @@ class InstructionBase {
     return FirstHalfWord == 0;
   }
 
-  bool IsShortInstruction() const;
+  inline bool IsShortInstruction() const {
+    uint8_t FirstByte = *reinterpret_cast<const uint8_t*>(this);
+    return (FirstByte & 0x03) <= C2;
+  }
 
   inline uint8_t InstructionSize() const {
     return (this->IsShortInstruction()) ? kShortInstrSize : kInstrSize;
@@ -1003,6 +1006,11 @@ class InstructionGetters : public T {
     //  31        12
     int32_t Bits = this->InstructionBits();
     return Bits >> 12;
+  }
+
+  inline uint32_t Imm20UValueUnsigned() const {
+    DCHECK(this->InstructionType() == InstructionBase::kUType);
+    return static_cast<uint32_t>(this->InstructionBits()) >> 12;
   }
 
   inline int Imm20JValue() const {

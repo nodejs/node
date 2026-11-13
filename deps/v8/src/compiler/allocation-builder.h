@@ -63,7 +63,7 @@ class AllocationBuilder final {
 
   // Compound store of a constant into a field.
   void Store(const FieldAccess& access, ObjectRef value) {
-    if (access.machine_type == MachineType::IndirectPointer()) {
+    if (access.machine_type == MachineType::TrustedPointer()) {
       Store(access,
             jsgraph()->TrustedHeapConstant(value.AsHeapObject().object()));
     } else {

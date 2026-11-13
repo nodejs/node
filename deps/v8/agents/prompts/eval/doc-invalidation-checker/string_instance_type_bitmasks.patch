@@ -1,0 +1,33 @@
+diff --git a/src/objects/instance-type.h b/src/objects/instance-type.h
+index 9b74b05fcc5..a4fcd8c3fcd 100644
+--- a/src/objects/instance-type.h
++++ b/src/objects/instance-type.h
+@@ -67,13 +67,13 @@ constexpr uint32_t kExternalOneByteStringTag =
+ constexpr uint32_t kExternalTwoByteStringTag =
+     kExternalStringTag | kTwoByteStringTag;
+ 
+-// For strings, bit 4 indicates whether the data pointer of an external string
++// For strings, bit 5 indicates whether the data pointer of an external string
+ // is cached. Note that the string representation is expected to be
+ // kExternalStringTag.
+-const uint32_t kUncachedExternalStringMask = 1 << 4;
+-const uint32_t kUncachedExternalStringTag = 1 << 4;
++const uint32_t kUncachedExternalStringMask = 1 << 5;
++const uint32_t kUncachedExternalStringTag = 1 << 5;
+ 
+-// For strings, bit 5 indicates that the string is accessible by more than one
++// For strings, bit 4 indicates that the string is accessible by more than one
+ // thread. Note that a string that is allocated in the shared heap is not
+ // accessible by more than one thread until it is explicitly shared (e.g. by
+ // postMessage).
+@@ -87,8 +87,8 @@ const uint32_t kUncachedExternalStringTag = 1 << 4;
+ // are either always shared or always not shared depending on
+ // v8_flags.shared_string_table. This will be hardcoded once
+ // v8_flags.shared_string_table is removed.
+-const uint32_t kSharedStringMask = 1 << 5;
+-const uint32_t kSharedStringTag = 1 << 5;
++const uint32_t kSharedStringMask = 1 << 4;
++const uint32_t kSharedStringTag = 1 << 4;
+ 
+ // For strings, bit 6 indicates that the string is internalized (if not set) or
+ // isn't (if set). It is the highest string bit so that it forms a contiguous

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/accessors.h"
+#include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/roots/roots-inl.h"
 
@@ -21,21 +22,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSource) {
     if (IsScript(*script)) return Cast<Script>(script)->source();
   }
   return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  DirectHandle<JSReceiver> function = args.at<JSReceiver>(0);
-
-  if (IsJSFunction(*function)) {
-    DirectHandle<Object> script(Cast<JSFunction>(function)->shared()->script(),
-                                isolate);
-    if (IsScript(*script)) {
-      return Smi::FromInt(Cast<Script>(script)->id());
-    }
-  }
-  return Smi::FromInt(-1);
 }
 
 RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
@@ -59,21 +45,13 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   return Smi::FromInt(pos);
 }
 
-RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-
-  auto f = Cast<JSFunction>(args[0]);
-  return ReadOnlyRoots(isolate).boolean_value(f->shared()->IsApiFunction());
-}
-
 RUNTIME_FUNCTION(Runtime_Call) {
   HandleScope scope(isolate);
   DCHECK_LE(2, args.length());
   int const argc = args.length() - 2;
   DirectHandle<Object> target = args.at(0);
   DirectHandle<Object> receiver = args.at(1);
-  DirectHandleVector<Object> arguments(isolate, argc);
+  DirectHandleSmallVector<Object, 8> arguments(isolate, argc);
   for (int i = 0; i < argc; ++i) {
     arguments[i] = args.at(2 + i);
   }

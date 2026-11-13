@@ -1,0 +1,18 @@
+Regression test for crbug.com/724858.
+function f(x) {
+  #debugger;          // B0 StepOver
+  with ({}) {        // B1 StepOver
+
+  debugger;          // B0 StepOver
+  #with ({}) {        // B1 StepOver
+    return x         // B2 StepOver
+
+  with ({}) {        // B1 StepOver
+    #return x         // B2 StepOver
+    ;                // B3 Continue
+
+    return x         // B2 StepOver
+    ;#                // B3 Continue
+  }
+
+stepCount: 4

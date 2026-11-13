@@ -1,15 +1,21 @@
-//===-- Definition of EFI_TIME type ---------------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+///
+/// \file
+/// Definition of EFI_TIME type.
+///
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_TYPES_EFI_TIME_H
 #define LLVM_LIBC_TYPES_EFI_TIME_H
 
 #include "../llvm-libc-macros/stdint-macros.h"
+#include <stdbool.h>
 
 typedef struct {
   uint16_t Year;  // 1900 - 9999

@@ -63,9 +63,9 @@ Node* JSGraph::ConstantMaybeHole(ObjectRef ref, JSHeapBroker* broker) {
 }
 
 Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
-  if (ref.IsSmi()) return ConstantMaybeHole(ref.AsSmi());
+  if (ref.IsSmi()) return ConstantNoHole(ref.AsSmi());
   if (ref.IsHeapNumber()) {
-    return ConstantMaybeHole(ref.AsHeapNumber().value());
+    return ConstantNoHole(ref.AsHeapNumber().value());
   }
 
   switch (ref.HoleType()) {
@@ -131,17 +131,11 @@ Node* JSGraph::ConstantNoHole(double value) {
 }
 
 Node* JSGraph::ConstantNoHole(Float64 value) {
-  CHECK(!value.is_hole_nan());
-  return ConstantMaybeHole(value);
-}
-
-Node* JSGraph::ConstantMaybeHole(double value) {
-  return ConstantMaybeHole(Float64::FromBits(base::bit_cast<uint64_t>(value)));
-}
-
-Node* JSGraph::ConstantMaybeHole(Float64 value) {
   if (value == Float64(0.0)) return ZeroConstant();
   if (value == Float64(1.0)) return OneConstant();
+  // Constant double values are always real double values, never sentinel
+  // values.
+  if (value.is_nan()) return NaNConstant();
   // TODO(leszeks): Make NumberConstant store Float64 too.
   return NumberConstant(value.get_scalar());
 }

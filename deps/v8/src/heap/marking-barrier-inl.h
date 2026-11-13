@@ -130,7 +130,8 @@ inline void MarkingBarrier::MarkRange(Tagged<HeapObject> host, TSlot start,
     if (object.GetHeapObject(isolate, &heap_object)) {
       MarkValue(host, heap_object);
       if (record_slots) {
-        major_collector_->RecordSlot(host, HeapObjectSlot(slot), heap_object);
+        MarkCompactCollector::RecordSlot(host, HeapObjectSlot(slot),
+                                         heap_object);
       }
     }
   }

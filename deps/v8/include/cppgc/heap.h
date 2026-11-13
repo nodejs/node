@@ -15,6 +15,7 @@
 #include "cppgc/platform.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
+// TODO(540324230): Remove once embedders migrate to StackStartScope.
 #if V8_CC_MSVC
 #include <intrin.h>  // _AddressOfReturnAddress()
 #endif
@@ -38,6 +39,7 @@ class Heap;
 
 /**
  * A marker that captures the current stack start address.
+ * TODO(540324230): Remove once embedders migrate to StackStartScope.
  */
 class V8_EXPORT StackStartMarker {
  public:
@@ -177,6 +179,11 @@ class V8_EXPORT Heap {
      * heap.
      */
     std::optional<StackStartMarker> stack_start_marker = std::nullopt;
+
+    /**
+     * Optional allocation sampler.
+     */
+    AllocationSampler* allocation_sampler = nullptr;
   };
   /**
    * Creates a new heap that can be used for object allocation.

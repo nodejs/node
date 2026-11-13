@@ -232,6 +232,20 @@ assertEquals(['xyz'], /[\q{W|xyz|xy}a-c]/v.exec('xyzabc'));
 // Empty string is last.
 assertEquals(['a'], /[\q{W|}a-c]/v.exec('abc'));
 
+// Lone lead and trail surrogates in \q{} should not combine into a surrogate
+// pair unless written as a literal surrogate pair or \uXXXX\uYYYY.
+assertFalse(/^[\q{\uD83D\u{DE00}}]$/v.test('\u{1F600}'));
+assertFalse(/^[\q{\u{D83D}\u{DE00}}]$/v.test('\u{1F600}'));
+assertFalse(/^[\q{\u{D83D}\uDE00}]$/v.test('\u{1F600}'));
+assertFalse(/^[\q{\uD83D\u{DE00}x}]$/v.test('\u{1F600}x'));
+assertFalse(/^[\q{\uD83D\u{DE00}}]$/iv.test('\u{1F600}'));
+assertFalse(new RegExp('^[\\q{\uD83D\\uDE00}]$', 'v').test('\u{1F600}'));
+assertFalse(new RegExp('^[\\q{\\uD83D\uDE00}]$', 'v').test('\u{1F600}'));
+assertTrue(/^[\q{\uD83D\uDE00}]$/v.test('\u{1F600}'));
+assertTrue(/^[\q{😀}]$/v.test('\u{1F600}'));
+assertTrue(/^[\q{\u{1F600}}]$/v.test('\u{1F600}'));
+assertTrue(new RegExp('^[\\q{\uD83D\uDE00}]$', 'v').test('\u{1F600}'));
+
 // Some more sophisticated tests taken from
 // https://v8.dev/features/regexp-v-flag
 assertTrue(/^\p{RGI_Emoji}$/v.test('⚽'));
@@ -278,3 +292,16 @@ assertEquals('XXXXXX4#', 'aAbBcC4#'.replaceAll(/\p{Lowercase_Letter}/giv, 'X'));
 assertEquals('XXXXXX4#', 'aAbBcC4#'.replaceAll(/[^\P{Lowercase_Letter}]/giv, 'X'));
 assertFalse(/\P{ASCII}/iv.test('K'));
 assertFalse(/^\P{Lowercase}/iv.test('A'));
+
+// \p{ASCII} must be closed over simple case folding in /vi mode, adding
+// U+017F (LATIN SMALL LETTER LONG S, folds to 's') and U+212A (KELVIN SIGN,
+// folds to 'k').
+assertTrue(/\p{ASCII}/vi.test('\u017f'));
+assertTrue(/\p{ASCII}/vi.test('\u212a'));
+assertFalse(/\P{ASCII}/vi.test('\u017f'));
+assertFalse(/\P{ASCII}/vi.test('\u212a'));
+assertTrue(/[\p{ASCII}&&\p{Lowercase}]/vi.test('\u212a'));
+assertFalse(/[\p{Any}--\p{ASCII}]/vi.test('\u017f'));
+// Without /i there is no case-fold closure.
+assertFalse(/\p{ASCII}/v.test('\u017f'));
+assertTrue(/\P{ASCII}/v.test('\u212a'));

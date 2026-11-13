@@ -43,6 +43,7 @@ enum class ParseResultHolderBase::TypeId {
   kStdString,
   kBool,
   kInt32,
+  kOptionalInt32,
   kDouble,
   kIntegerLiteral,
   kStdVectorOfString,
@@ -403,6 +404,8 @@ class Lexer {
   Symbol* Pattern(PatternFunction pattern) { return &patterns_[pattern]; }
   Symbol* Token(const std::string& keyword) { return &keywords_[keyword]; }
   V8_EXPORT_PRIVATE LexerResult RunLexer(const std::string& input);
+  V8_EXPORT_PRIVATE LexerResult RunLexer(const std::string& input,
+                                         SourcePosition origin);
 
  private:
   PatternFunction match_whitespace_ = [](InputPosition*) { return false; };
@@ -423,6 +426,12 @@ class Grammar {
   std::optional<ParseResult> Parse(const std::string& input) {
     LexerResult tokens = lexer().RunLexer(input);
     return ParseTokens(start_, tokens);
+  }
+
+  std::optional<ParseResult> Parse(Symbol* start, const std::string& input,
+                                   SourcePosition origin) {
+    LexerResult tokens = lexer().RunLexer(input, origin);
+    return ParseTokens(start, tokens);
   }
 
  protected:

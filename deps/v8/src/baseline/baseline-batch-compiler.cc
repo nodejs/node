@@ -6,11 +6,11 @@
 
 #include <algorithm>
 
-#include "src/base/fpu.h"
 #include "src/base/numerics/checked_math.h"
 #include "src/baseline/baseline-compiler.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/isolate.h"
+#include "src/execution/local-isolate-inl.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
@@ -53,9 +53,13 @@ class BaselineCompilerTask {
         local_isolate->heap()->NewPersistentMaybeHandle(compiler.Build());
   }
 
+  void ClearCompilingBit() {
+    shared_function_info_->set_is_sparkplug_compiling(false);
+  }
+
   // Executed in the main thread.
   void Install(Isolate* isolate) {
-    shared_function_info_->set_is_sparkplug_compiling(false);
+    ClearCompilingBit();
     Handle<Code> code;
     if (!maybe_code_.ToHandle(&code)) return;
     if (v8_flags.print_code) {
@@ -125,6 +129,9 @@ class BaselineBatchCompilerJob {
 
   // Executed in the background thread.
   void Compile(LocalIsolate* local_isolate) {
+    // Must never be null here: only DisposeForTesting() resets it, and a
+    // disposed job is not compiled.
+    DCHECK_NOT_NULL(handles_);
     local_isolate->heap()->AttachPersistentHandles(std::move(handles_));
     for (auto& task : tasks_) {
       task.Compile(local_isolate);
@@ -139,6 +146,13 @@ class BaselineBatchCompilerJob {
     for (auto& task : tasks_) {
       task.Install(isolate);
     }
+  }
+
+  // Drops the job without installing code. Must be called on the main thread.
+  void DisposeForTesting() {
+    for (auto& task : tasks_) task.ClearCompilingBit();
+    tasks_.clear();
+    handles_.reset();
   }
 
  private:
@@ -159,8 +173,6 @@ class ConcurrentBaselineCompiler {
           outgoing_queue_(outcoming_queue) {}
 
     void Run(JobDelegate* delegate) override {
-      base::FlushDenormalsScope flush_denormals_scope(
-          isolate_->flush_denormals());
       LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
       UnparkedScope unparked_scope(&local_isolate);
       LocalHandleScope handle_scope(&local_isolate);
@@ -191,15 +203,7 @@ class ConcurrentBaselineCompiler {
   };
 
   explicit ConcurrentBaselineCompiler(Isolate* isolate) : isolate_(isolate) {
-    if (v8_flags.concurrent_sparkplug) {
-      TaskPriority priority =
-          v8_flags.concurrent_sparkplug_high_priority_threads
-              ? TaskPriority::kUserBlocking
-              : TaskPriority::kUserVisible;
-      job_handle_ = V8::GetCurrentPlatform()->PostJob(
-          priority, std::make_unique<JobDispatcher>(isolate_, &incoming_queue_,
-                                                    &outgoing_queue_));
-    }
+    if (v8_flags.concurrent_sparkplug) PostJob();
   }
 
   ~ConcurrentBaselineCompiler() {
@@ -226,7 +230,43 @@ class ConcurrentBaselineCompiler {
     }
   }
 
+  void FlushForTesting() {
+    // 1. Drop the batches that no worker has started yet.
+    for (std::unique_ptr<BaselineBatchCompilerJob> job;
+         incoming_queue_.Dequeue(&job);) {
+      job->DisposeForTesting();
+    }
+
+    // 2. Wait for the workers to return. A worker only checks for cancellation
+    // between batches, so it finishes the batch it is compiling first.
+    isolate_->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+        [this]() { job_handle_->Cancel(); });
+
+    // 3. Post a new job for the next script to use; a cancelled handle cannot
+    // be reused.
+    PostJob();
+
+    // 4. Drop the compiled batches, including the ones finished during step 2.
+    for (std::unique_ptr<BaselineBatchCompilerJob> job;
+         outgoing_queue_.Dequeue(&job);) {
+      job->DisposeForTesting();
+    }
+
+    // 5. Drop the install request posted by the workers; nothing is left to
+    // install.
+    isolate_->stack_guard()->ClearInstallBaselineCode();
+  }
+
  private:
+  void PostJob() {
+    TaskPriority priority = v8_flags.concurrent_sparkplug_high_priority_threads
+                                ? TaskPriority::kUserBlocking
+                                : TaskPriority::kUserVisible;
+    job_handle_ = V8::GetCurrentPlatform()->PostJob(
+        priority, std::make_unique<JobDispatcher>(isolate_, &incoming_queue_,
+                                                  &outgoing_queue_));
+  }
+
   Isolate* isolate_;
   std::unique_ptr<JobHandle> job_handle_ = nullptr;
   LockedQueue<std::unique_ptr<BaselineBatchCompilerJob>> incoming_queue_;
@@ -294,6 +334,12 @@ void BaselineBatchCompiler::Enqueue(DirectHandle<SharedFunctionInfo> shared) {
 void BaselineBatchCompiler::InstallBatch() {
   DCHECK(v8_flags.concurrent_sparkplug);
   concurrent_compiler_->InstallBatch();
+}
+
+void BaselineBatchCompiler::FlushForTesting() {
+  if (concurrent_compiler_) concurrent_compiler_->FlushForTesting();
+  // Forget the functions queued for the next batch and reset its size budget.
+  ClearBatch();
 }
 
 void BaselineBatchCompiler::EnsureQueueCapacity() {

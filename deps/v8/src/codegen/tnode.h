@@ -98,7 +98,7 @@ struct CppHeapPointerHandleT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
 
-struct IndirectPointerHandleT : Uint32T {
+struct TrustedPointerHandleT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
 
@@ -106,7 +106,7 @@ struct JSDispatchHandleT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 struct ExternalPointerT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
@@ -114,7 +114,7 @@ struct ExternalPointerT : Uint32T {
 struct ExternalPointerT : UntaggedT {
   static constexpr MachineType kMachineType = MachineType::Pointer();
 };
-#endif
+#endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_COMPRESS_POINTERS
 struct CppHeapPointerT : Uint32T {
@@ -149,7 +149,7 @@ using TaggedT = IntPtrT;
 #endif
 
 #ifdef V8_ENABLE_SANDBOX
-using TrustedPointerT = IndirectPointerHandleT;
+using TrustedPointerT = TrustedPointerHandleT;
 #else
 using TrustedPointerT = TaggedT;
 #endif
@@ -226,6 +226,9 @@ template <class HeapObjectSubtype>
 constexpr MachineType MachineTypeOf<
     HeapObjectSubtype,
     std::enable_if_t<std::is_base_of_v<HeapObject, HeapObjectSubtype>>>::value;
+
+template <class T>
+struct MachineTypeOf<ReadOnly<T>> : MachineTypeOf<T> {};
 
 template <>
 struct MachineTypeOf<ExternalReference> {

@@ -35,6 +35,9 @@ COPILOT_INCOMPATIBLE_SKILLS = {
     # Requires client-specific approval suppression and agent lifecycle controls
     # not mapped by this adapter.
     "agent-evaluation-framework",
+    # Opt-in workflow requiring v8.presubmit-priority-prefix and internal
+    # Buganizer CLI.
+    "cl-priority-prefix",
     # Mandates a subagent API and model tier not mapped by this adapter.
     "doc-invalidation-checker",
     # Mandates internal Buganizer, session-context, and delegation APIs not

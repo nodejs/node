@@ -36,15 +36,18 @@ void JSRegExpStringIterator::set_iterated_string(Tagged<String> value,
   iterated_string_.store(this, value, mode);
 }
 
-int JSRegExpStringIterator::flags() const { return flags_.load().value(); }
-
-void JSRegExpStringIterator::set_flags(int value) {
-  flags_.store(this, Smi::From31BitPattern(value));
+JSRegExpStringIterator::Flags JSRegExpStringIterator::flags() const {
+  return flags_.load();
 }
 
-BOOL_ACCESSORS(JSRegExpStringIterator, flags, done, DoneBit::kShift)
-BOOL_ACCESSORS(JSRegExpStringIterator, flags, global, GlobalBit::kShift)
-BOOL_ACCESSORS(JSRegExpStringIterator, flags, unicode, UnicodeBit::kShift)
+void JSRegExpStringIterator::set_flags(Flags value) { flags_.store(value); }
+
+BIT_FIELD_ACCESSORS(JSRegExpStringIterator, flags, done,
+                    JSRegExpStringIterator::Flags::DoneBit)
+BIT_FIELD_ACCESSORS(JSRegExpStringIterator, flags, global,
+                    JSRegExpStringIterator::Flags::GlobalBit)
+BIT_FIELD_ACCESSORS(JSRegExpStringIterator, flags, unicode,
+                    JSRegExpStringIterator::Flags::UnicodeBit)
 
 }  // namespace internal
 }  // namespace v8

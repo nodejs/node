@@ -193,6 +193,7 @@
 ['verify_predictable', {
   # https://crbug.com/v8/14397
   'wasm-finish-compilation': [PASS, FAIL],
+  'wasm-compilation-hints-inlining': [SKIP],
 }],  # 'verify_predictable'
 
 ##############################################################################

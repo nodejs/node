@@ -38,6 +38,11 @@ BUILTIN(CallAsyncModuleRejected) {
   DCHECK_EQ(args.length(), 2);
   DirectHandle<Object> exception(args.at(1));
   SourceTextModule::AsyncModuleExecutionRejected(isolate, module, exception);
+  if (isolate->has_exception()) {
+    DCHECK_IMPLIES(v8_flags.strict_termination_checks,
+                   isolate->is_execution_terminating());
+    return ReadOnlyRoots(isolate).exception();
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

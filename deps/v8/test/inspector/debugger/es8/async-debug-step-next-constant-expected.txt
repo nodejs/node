@@ -1,0 +1,4 @@
+Tests stepping over await with constant in async function.
+  debugger;          // B0 StepOver
+  a +=               // B1 StepOver
+  return a;          // B2 Continue

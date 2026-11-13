@@ -39,8 +39,6 @@ function g() {
     if (b) return [{ x: 1.5, y: 1 }];
     else return c;
   }
-  // Clear type feedback from previous stress runs.
-  %ClearFunctionFeedback(f);
   return f;
 }
 

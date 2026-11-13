@@ -425,12 +425,13 @@ bool operator==(const ElementsTransitionWithMultipleSources& lhs,
   return lhs.sources() == rhs.sources();
 }
 
-size_t hash_value(ElementsTransition transition) {
+V8_EXPORT_PRIVATE size_t hash_value(ElementsTransition transition) {
   return base::hash_combine(static_cast<uint8_t>(transition.mode()),
                             transition.source(), transition.target());
 }
 
-size_t hash_value(ElementsTransitionWithMultipleSources transition) {
+V8_EXPORT_PRIVATE size_t
+hash_value(ElementsTransitionWithMultipleSources transition) {
   return base::hash_combine(transition.target(), transition.sources());
 }
 
@@ -772,10 +773,6 @@ const AllocateParameters& AllocateParametersOf(const Operator* op) {
 }
 
 AllocationType AllocationTypeOf(const Operator* op) {
-  if (op->opcode() == IrOpcode::kNewDoubleElements ||
-      op->opcode() == IrOpcode::kNewSmiOrObjectElements) {
-    return OpParameter<AllocationType>(op);
-  }
   return AllocateParametersOf(op).allocation_type();
 }
 
@@ -1167,9 +1164,12 @@ struct SimplifiedOperatorGlobalCache final {
   DEOPTIMIZE_REASON_LIST(CHECK_IF)
 #undef CHECK_IF
 
+  // Looking up a string key can internalize it in place into a ThinString,
+  // so Operator::kNoWrite (and thus Operator::kEliminatable) does not hold.
   struct FindOrderedHashMapEntryOperator final : public Operator {
     FindOrderedHashMapEntryOperator()
-        : Operator(IrOpcode::kFindOrderedHashMapEntry, Operator::kEliminatable,
+        : Operator(IrOpcode::kFindOrderedHashMapEntry,
+                   Operator::kNoThrow | Operator::kNoDeopt,
                    "FindOrderedHashMapEntry", 2, 1, 1, 1, 1, 0) {}
   };
   FindOrderedHashMapEntryOperator kFindOrderedHashMapEntry;
@@ -1183,9 +1183,12 @@ struct SimplifiedOperatorGlobalCache final {
   FindOrderedHashMapEntryForInt32KeyOperator
       kFindOrderedHashMapEntryForInt32Key;
 
+  // Looking up a string key can internalize it in place into a ThinString,
+  // so Operator::kNoWrite (and thus Operator::kEliminatable) does not hold.
   struct FindOrderedHashSetEntryOperator final : public Operator {
     FindOrderedHashSetEntryOperator()
-        : Operator(IrOpcode::kFindOrderedHashSetEntry, Operator::kEliminatable,
+        : Operator(IrOpcode::kFindOrderedHashSetEntry,
+                   Operator::kNoThrow | Operator::kNoDeopt,
                    "FindOrderedHashSetEntry", 2, 1, 1, 1, 1, 0) {}
   };
   FindOrderedHashSetEntryOperator kFindOrderedHashSetEntry;
@@ -2494,24 +2497,20 @@ bool operator==(FastApiCallParameters const& lhs,
          lhs.descriptor() == rhs.descriptor();
 }
 
-const Operator* SimplifiedOperatorBuilder::NewDoubleElements(
-    AllocationType allocation) {
-  return zone()->New<Operator1<AllocationType>>(  // --
-      IrOpcode::kNewDoubleElements,               // opcode
-      Operator::kEliminatable,                    // flags
-      "NewDoubleElements",                        // name
-      1, 1, 1, 1, 1, 0,                           // counts
-      allocation);                                // parameter
+const Operator* SimplifiedOperatorBuilder::NewDoubleElements() {
+  return zone()->New<Operator>(      // --
+      IrOpcode::kNewDoubleElements,  // opcode
+      Operator::kEliminatable,       // flags
+      "NewDoubleElements",           // name
+      1, 1, 1, 1, 1, 0);             // counts
 }
 
-const Operator* SimplifiedOperatorBuilder::NewSmiOrObjectElements(
-    AllocationType allocation) {
-  return zone()->New<Operator1<AllocationType>>(  // --
-      IrOpcode::kNewSmiOrObjectElements,          // opcode
-      Operator::kEliminatable,                    // flags
-      "NewSmiOrObjectElements",                   // name
-      1, 1, 1, 1, 1, 0,                           // counts
-      allocation);                                // parameter
+const Operator* SimplifiedOperatorBuilder::NewSmiOrObjectElements() {
+  return zone()->New<Operator>(           // --
+      IrOpcode::kNewSmiOrObjectElements,  // opcode
+      Operator::kEliminatable,            // flags
+      "NewSmiOrObjectElements",           // name
+      1, 1, 1, 1, 1, 0);                  // counts
 }
 
 const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(

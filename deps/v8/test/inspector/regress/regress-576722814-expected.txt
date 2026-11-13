@@ -1,0 +1,29 @@
+Regression test for b/576722814.
+Evaluating x = 99 on call frame:
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 2
+            exception : {
+                className : ReferenceError
+                description : ReferenceError: Cannot access 'x' from debugger     at eval (eval at assignTdzFromDebugger (:3:3), <anonymous>:1:3)     at assignTdzFromDebugger (<anonymous>:3:3)     at <anonymous>:1:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : ReferenceError
+            description : ReferenceError: Cannot access 'x' from debugger     at eval (eval at assignTdzFromDebugger (:3:3), <anonymous>:1:3)     at assignTdzFromDebugger (<anonymous>:3:3)     at <anonymous>:1:1
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+Returned: threw: Cannot access 'x' before initialization

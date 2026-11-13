@@ -32,7 +32,7 @@
 #undef LIBC_MATH_USE_SYSTEM_FENV
 #endif // LIBC_FULL_BUILD
 
-#if defined(LIBC_MATH_USE_SYSTEM_FENV)
+#if defined(LIBC_MATH_USE_SYSTEM_FENV) && !defined(LIBC_MATH_HAS_NO_EXCEPT)
 
 // Simply call the system libc fenv.h functions, only for those that are used in
 // math function implementations.
@@ -103,9 +103,9 @@ LIBC_INLINE int set_env(const fenv_t *env) {
 
 #if defined(LIBC_TARGET_ARCH_IS_AARCH64) && defined(__ARM_FP)
 #if defined(__APPLE__)
-#include "aarch64/fenv_darwin_impl.h"
+#include "src/__support/FPUtil/aarch64/fenv_darwin_impl.h"
 #else
-#include "aarch64/FEnvImpl.h"
+#include "src/__support/FPUtil/aarch64/FEnvImpl.h"
 #endif
 
 // The extra !defined(APPLE) condition is to cause x86_64 MacOS builds to use
@@ -113,13 +113,16 @@ LIBC_INLINE int set_env(const fenv_t *env) {
 // the apple condition here should be removed.
 // TODO: fully support fenv for MSVC.
 #elif defined(LIBC_TARGET_ARCH_IS_X86) && !defined(__APPLE__)
-#include "x86_64/FEnvImpl.h"
+#include "src/__support/FPUtil/x86_64/FEnvImpl.h"
 #elif defined(LIBC_TARGET_ARCH_IS_ARM) && defined(__ARM_FP) &&                 \
     !defined(LIBC_COMPILER_IS_MSVC)
-#include "arm/FEnvImpl.h"
+#include "src/__support/FPUtil/arm/FEnvImpl.h"
 #elif defined(LIBC_TARGET_ARCH_IS_ANY_RISCV) && defined(__riscv_flen)
-#include "riscv/FEnvImpl.h"
+#include "src/__support/FPUtil/riscv/FEnvImpl.h"
+#elif defined(LIBC_TARGET_ARCH_IS_HEXAGON)
+#include "src/__support/FPUtil/hexagon/FEnvImpl.h"
 #else
+#define LIBC_FPUTIL_HAS_DUMMY_FENV_IMPL
 
 namespace LIBC_NAMESPACE_DECL {
 namespace fputil {
@@ -165,7 +168,6 @@ clear_except_if_required([[maybe_unused]] int excepts) {
     return 0;
   } else {
 #ifndef LIBC_MATH_HAS_NO_EXCEPT
-    LIBC_FENV_ACCESS_ON
     if (math_errhandling & MATH_ERREXCEPT)
       return clear_except(excepts);
 #endif // LIBC_MATH_HAS_NO_EXCEPT
@@ -179,7 +181,6 @@ set_except_if_required([[maybe_unused]] int excepts) {
     return 0;
   } else {
 #ifndef LIBC_MATH_HAS_NO_EXCEPT
-    LIBC_FENV_ACCESS_ON
     if (math_errhandling & MATH_ERREXCEPT)
       return set_except(excepts);
 #endif // LIBC_MATH_HAS_NO_EXCEPT
@@ -193,7 +194,6 @@ raise_except_if_required([[maybe_unused]] int excepts) {
     return 0;
   } else {
 #ifndef LIBC_MATH_HAS_NO_EXCEPT
-    LIBC_FENV_ACCESS_ON
     if (math_errhandling & MATH_ERREXCEPT)
       return raise_except(excepts);
 #endif // LIBC_MATH_HAS_NO_EXCEPT
@@ -211,6 +211,41 @@ set_errno_if_required([[maybe_unused]] int err) {
   }
 }
 
+namespace internal {
+
+template <typename T> LIBC_INLINE_VAR constexpr bool HAS_HW_FPU = false;
+template <typename T> LIBC_INLINE_VAR constexpr T OVERFLOW_FACTOR = T(0);
+template <typename T> LIBC_INLINE_VAR constexpr T UNDERFLOW_FACTOR = T(0);
+
+#if defined(LIBC_TARGET_CPU_HAS_FPU_FLOAT)
+template <> LIBC_INLINE_VAR constexpr bool HAS_HW_FPU<float> = true;
+// 2^97 * (+/-2^97) = +/-2^194 (> max_normal = (2 - 2^-23) * 2^127).
+template <> LIBC_INLINE_VAR constexpr float OVERFLOW_FACTOR<float> = 0x1.0p+97f;
+// 2^-95 * (+/-2^-95) = +/-2^-190 (strictly inside (-2^-150, 2^-150)).
+template <>
+LIBC_INLINE_VAR constexpr float UNDERFLOW_FACTOR<float> = 0x1.0p-95f;
+#endif // LIBC_TARGET_CPU_HAS_FPU_FLOAT
+
+#if defined(LIBC_TARGET_CPU_HAS_FPU_DOUBLE)
+template <> LIBC_INLINE_VAR constexpr bool HAS_HW_FPU<double> = true;
+// 2^769 * (+/-2^769) = +/-2^1538 (> max_normal = (2 - 2^-52) * 2^1023).
+template <>
+LIBC_INLINE_VAR constexpr double OVERFLOW_FACTOR<double> = 0x1.0p+769;
+// 2^-767 * (+/-2^-767) = +/-2^-1534 (strictly inside (-2^-1075, 2^-1075)).
+template <>
+LIBC_INLINE_VAR constexpr double UNDERFLOW_FACTOR<double> = 0x1.0p-767;
+#endif // LIBC_TARGET_CPU_HAS_FPU_DOUBLE
+
+template <typename T>
+LIBC_INLINE_VAR const volatile T OVERFLOW_VAL[2] = {OVERFLOW_FACTOR<T>,
+                                                    -OVERFLOW_FACTOR<T>};
+
+template <typename T>
+LIBC_INLINE_VAR const volatile T UNDERFLOW_VAL[2] = {UNDERFLOW_FACTOR<T>,
+                                                     -UNDERFLOW_FACTOR<T>};
+
+} // namespace internal
+
 template <typename T>
 LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void raise_overflow_except_if_required() {
   raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
@@ -221,26 +256,29 @@ LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void raise_underflow_except_if_required() {
   raise_except_if_required(FE_UNDERFLOW | FE_INEXACT);
 }
 
+#if !defined(LIBC_MATH_HAS_NO_EXCEPT) &&                                       \
+    !defined(LIBC_MATH_USE_SYSTEM_FENV) &&                                     \
+    !defined(LIBC_FPUTIL_HAS_DUMMY_FENV_IMPL)
 #if defined(LIBC_TARGET_CPU_HAS_FPU_FLOAT)
 template <>
 LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void
 raise_overflow_except_if_required<float>() {
-  if (cpp::is_constant_evaluated()) {
-    return;
-  } else {
-    volatile float x = 0x1.0p127f;
-    x = x * 2.0f;
+  if (!cpp::is_constant_evaluated()) {
+    if (math_errhandling & MATH_ERREXCEPT) {
+      float v = internal::OVERFLOW_VAL<float>[0];
+      [[maybe_unused]] volatile float r = v * v;
+    }
   }
 }
 
 template <>
 LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void
 raise_underflow_except_if_required<float>() {
-  if (cpp::is_constant_evaluated()) {
-    return;
-  } else {
-    volatile float x = 0x1.0p-126f;
-    x = x * 0x1.0p-50f;
+  if (!cpp::is_constant_evaluated()) {
+    if (math_errhandling & MATH_ERREXCEPT) {
+      float v = internal::UNDERFLOW_VAL<float>[0];
+      [[maybe_unused]] volatile float r = v * v;
+    }
   }
 }
 #endif // LIBC_TARGET_CPU_HAS_FPU_FLOAT
@@ -249,25 +287,29 @@ raise_underflow_except_if_required<float>() {
 template <>
 LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void
 raise_overflow_except_if_required<double>() {
-  if (cpp::is_constant_evaluated()) {
-    return;
-  } else {
-    volatile double x = 0x1.0p1023;
-    x = x * 2.0;
+  if (!cpp::is_constant_evaluated()) {
+    if (math_errhandling & MATH_ERREXCEPT) {
+      double v = internal::OVERFLOW_VAL<double>[0];
+      [[maybe_unused]] volatile double r = v * v;
+    }
   }
 }
 
 template <>
 LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void
 raise_underflow_except_if_required<double>() {
-  if (cpp::is_constant_evaluated()) {
-    return;
-  } else {
-    volatile double x = 0x1.0p-1022;
-    x = x * 0x1.0p-100;
+  if (!cpp::is_constant_evaluated()) {
+    if (math_errhandling & MATH_ERREXCEPT) {
+      double v = internal::UNDERFLOW_VAL<double>[0];
+      [[maybe_unused]] volatile double r = v * v;
+    }
   }
 }
 #endif // LIBC_TARGET_CPU_HAS_FPU_DOUBLE
+#endif // !LIBC_MATH_HAS_NO_EXCEPT && !LIBC_MATH_USE_SYSTEM_FENV &&
+       // !LIBC_FPUTIL_HAS_DUMMY_FENV_IMPL
+
+#undef LIBC_FPUTIL_HAS_DUMMY_FENV_IMPL
 
 } // namespace fputil
 } // namespace LIBC_NAMESPACE_DECL

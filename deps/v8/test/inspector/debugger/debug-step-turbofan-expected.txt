@@ -1,0 +1,10 @@
+Tests stepping with TurboFan code on stack.
+  debugger;               // Break 0
+}                         // Break 1
+  var a = 0;              // Break 2
+  var b = 1;              // Break 3
+  return a + b;           // Break 4
+  return a + b;           // Break 4
+  var a = 0;              // Break 6
+  return a;               // Break 7
+Total breaks: 8

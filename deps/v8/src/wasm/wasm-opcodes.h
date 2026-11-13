@@ -959,7 +959,16 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static constexpr const FunctionSig* Signature(WasmOpcode);
   static constexpr const FunctionSig* SignatureForAtomicOp(WasmOpcode opcode,
                                                            bool is_memory64);
-  static constexpr bool IsPrefixOpcode(WasmOpcode);
+  static constexpr bool IsPrefixOpcode(WasmOpcode opcode) {
+    switch (opcode) {
+#define CHECK_PREFIX(name, opcode) case k##name##Prefix:
+      FOREACH_PREFIX(CHECK_PREFIX)
+#undef CHECK_PREFIX
+      return true;
+      default:
+        return false;
+    }
+  }
   static constexpr bool IsRelaxedSimdOpcode(WasmOpcode);
   static constexpr bool IsFP16SimdOpcode(WasmOpcode);
   static constexpr bool IsAtomicRmwOpcode(WasmOpcode);

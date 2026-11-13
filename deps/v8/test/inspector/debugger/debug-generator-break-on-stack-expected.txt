@@ -1,0 +1,8 @@
+Tests setting breakpoints on generators that are currently on the stack.
+  setbreaks();
+  #yield 1;  // B1
+}
+
+  yield* g();
+  #return 2;  // B2
+}

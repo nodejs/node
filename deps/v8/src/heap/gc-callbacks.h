@@ -39,6 +39,10 @@ class GCCallbacks final {
     AllowGarbageCollection scope;
     for (const CallbackData& callback_data : callbacks_) {
       if (gc_type & callback_data.gc_type) {
+        Isolate* isolate = reinterpret_cast<Isolate*>(callback_data.isolate);
+        USE(isolate);
+        DCHECK(!AllowJavascriptExecution::IsAllowed(isolate));
+        DCHECK(!AllowJSObjectModification::IsAllowed(isolate));
         callback_data.callback(callback_data.isolate, gc_type,
                                gc_callback_flags, callback_data.user_data);
       }

@@ -46,7 +46,7 @@ WasmWrapperHandle::~WasmWrapperHandle() {
 
 std::optional<Builtin> WasmImportWrapperCache::BuiltinForWrapper(
     const CacheKey& key) {
-  if (key.kind != ImportCallKind::kJSFunction) return {};
+  if (!IsJSFunctionKind(key.kind)) return {};
 
   if (!IsJSCompatibleSignature(key.sig)) {
     return Builtin::kWasmToJsWrapperInvalidSig;
@@ -92,21 +92,6 @@ std::shared_ptr<WasmWrapperHandle> WasmImportWrapperCache::Get(
                               nullptr);
 }
 
-#ifdef DEBUG
-bool WasmImportWrapperCache::IsCompiledWrapper(WasmCodePointer code_pointer) {
-  base::MutexGuard lock(&mutex_);
-  for (auto& [cache_key, weak_handle] : entry_map_) {
-    std::shared_ptr<WasmWrapperHandle> handle = weak_handle.lock();
-    if (!handle) continue;
-
-    if (handle->code_pointer() == code_pointer) {
-      return handle->has_code();
-    }
-  }
-  UNREACHABLE();
-}
-#endif
-
 bool WasmImportWrapperCache::HasCodeForTesting(ImportCallKind kind,
                                                const CanonicalSig* sig,
                                                int expected_arity,
@@ -132,9 +117,12 @@ WasmImportWrapperCache::CompileWrapper(Isolate* isolate,
   switch (cache_key.kind) {
     case ImportCallKind::kLinkError:
     case ImportCallKind::kWasmToWasm:
+    case ImportCallKind::kReexportedJSFunction:
     case ImportCallKind::kWasmToJSFastApi:
       UNREACHABLE();
-    case ImportCallKind::kJSFunction:
+    case ImportCallKind::kJSFunctionUndefinedReceiver:
+    case ImportCallKind::kJSFunctionSameRealmReceiver:
+    case ImportCallKind::kJSFunctionCrossRealmReceiver:
     case ImportCallKind::kUseCallBuiltin:
     case ImportCallKind::kRuntimeTypeError:
       result = compiler::CompileWasmImportCallWrapper(

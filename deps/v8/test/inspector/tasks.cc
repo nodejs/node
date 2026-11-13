@@ -4,6 +4,7 @@
 
 #include "test/inspector/tasks.h"
 
+#include <memory>
 #include <vector>
 
 #include "include/v8-isolate.h"
@@ -99,6 +100,9 @@ void RunSimpleAsyncTask(TaskRunner* task_runner,
       std::move(task), response_task_runner, std::move(response_task)));
 }
 
+ExecuteStringTask::CodeCacheMode ExecuteStringTask::code_cache_mode_ =
+    ExecuteStringTask::CodeCacheMode::kNone;
+
 void ExecuteStringTask::Run(InspectorIsolateData* data) {
   v8::HandleScope handle_scope(data->isolate());
   v8::Local<v8::Context> context = data->GetDefaultContext(context_group_id_);
@@ -122,11 +126,27 @@ void ExecuteStringTask::Run(InspectorIsolateData* data) {
   v8::ScriptCompiler::Source scriptSource(source, origin);
   if (!is_module_) {
     v8::Local<v8::Script> script;
-    if (!v8::ScriptCompiler::Compile(context, &scriptSource).ToLocal(&script)) {
+    v8::ScriptCompiler::CompileOptions compile_options =
+        code_cache_mode_ == CodeCacheMode::kProduceEagerAfterCompile
+            ? v8::ScriptCompiler::kEagerCompile
+            : v8::ScriptCompiler::kNoCompileOptions;
+    if (!v8::ScriptCompiler::Compile(context, &scriptSource, compile_options)
+             .ToLocal(&script)) {
       return;
+    }
+    if (code_cache_mode_ == CodeCacheMode::kProduceAfterCompile ||
+        code_cache_mode_ == CodeCacheMode::kProduceEagerAfterCompile) {
+      std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data(
+          v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
     }
     v8::MaybeLocal<v8::Value> result;
     result = script->Run(context);
+    USE(result);
+    if (code_cache_mode_ == CodeCacheMode::kProduceAfterExecute &&
+        !data->isolate()->IsExecutionTerminating()) {
+      std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data(
+          v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+    }
   } else {
     data->RegisterModule(context, name_, &scriptSource, evaluate_);
   }

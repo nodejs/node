@@ -18,6 +18,7 @@
 #include "src/heap/base/incremental-marking-schedule.h"
 #include "src/heap/base/unsafe-json-emitter.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
@@ -340,7 +341,6 @@ void IncrementalMarking::StartMarkingMinor() {
       minor_collector_->local_marking_worklists();
 
   marking_mode_ = MarkingMode::kMinorMarking;
-  heap_->SetIsMarkingFlag(true);
   heap_->SetIsMinorMarkingFlag(true);
 
   {
@@ -515,20 +515,7 @@ bool IncrementalMarking::Stop() {
   current_local_marking_worklists_ = nullptr;
   current_trace_id_.reset();
 
-  if (isolate()->has_shared_space() && !isolate()->is_shared_space_isolate()) {
-    // When disabling local incremental marking in a client isolate (= worker
-    // isolate), the marking barrier needs to stay enabled when incremental
-    // marking in the shared heap is running.
-    const bool is_marking = isolate()
-                                ->shared_space_isolate()
-                                ->heap()
-                                ->incremental_marking()
-                                ->IsMajorMarking();
-    heap_->SetIsMarkingFlag(is_marking);
-  } else {
-    heap_->SetIsMarkingFlag(false);
-  }
-
+  heap_->SetIsMarkingFlag(false);
   heap_->SetIsMinorMarkingFlag(false);
   is_compacting_ = false;
   FinishBlackAllocation();

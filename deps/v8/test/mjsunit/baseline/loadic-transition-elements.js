@@ -15,8 +15,8 @@ a1[0] = 0.5;
 
 let a2 = allocateArray();
 
-// Check whether the configuration supports mementos.
-let hasMementos = %HasDoubleElements(a2);
+// Check whether the configuration supports allocation site tracking.
+let tracksElementsTransition = %HasDoubleElements(a2);
 
 function accessArray(a) {
   return a[0];
@@ -36,7 +36,7 @@ let smiArray2 = [4, 5, 6];
 assertTrue(%HasSmiElements(smiArray2));
 accessArray(smiArray2);
 
-if (hasMementos) {
+if (tracksElementsTransition) {
   // Loading the element updated the elements kind.
   assertTrue(%HasDoubleElements(smiArray2));
 }

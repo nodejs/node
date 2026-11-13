@@ -10,6 +10,7 @@
 #include "src/base/bits.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/objects/objects-inl.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/allocation.h"
@@ -37,10 +38,11 @@ const char* StringsStorage::GetCopy(const char* src) {
   int len = static_cast<int>(strlen(src));
   base::HashMap::Entry* entry = GetEntry(src, len);
   if (entry->value == nullptr) {
-    base::Vector<char> dst = base::Vector<char>::New(len + 1);
-    base::StrNCpy(dst, src, len);
+    base::UniqueArray<char> dst =
+        base::UniqueArray<char>::NewForOverwrite(len + 1);
+    base::StrNCpy(dst.as_span(), src, len);
     dst[len] = '\0';
-    entry->key = dst.begin();
+    entry->key = dst.ReleaseData().release();
     string_size_ += len;
   }
   entry->value =
@@ -78,10 +80,12 @@ const char* StringsStorage::GetCopy(const AstRawString* src) {
   base::MutexGuard guard(&mutex_);
   base::HashMap::Entry* entry = GetEntry(utf8_buffer.data(), bytes_written);
   if (entry->value == nullptr) {
-    base::Vector<char> dst = base::Vector<char>::New(bytes_written + 1);
-    base::StrNCpy(dst, utf8_buffer.data(), bytes_written);
+    base::UniqueArray<char> dst =
+        base::UniqueArray<char>::NewForOverwrite(bytes_written + 1);
+    base::StrNCpy(dst.as_span(), utf8_buffer.data(),
+                  base::checked_cast<uint32_t>(bytes_written));
     dst[bytes_written] = '\0';
-    entry->key = dst.begin();
+    entry->key = dst.ReleaseData().release();
     string_size_ += bytes_written;
   }
   entry->value =
@@ -113,12 +117,10 @@ const char* StringsStorage::AddOrDisposeString(char* str, size_t len) {
 }
 
 const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
-  base::Vector<char> str = base::Vector<char>::New(4096);
-  int len = base::VSNPrintF(str, format, args);
-  if (len == -1) {
-    return AddOrDisposeString(str.begin(), strlen(str.begin()));
-  }
-  return AddOrDisposeString(str.begin(), len);
+  base::UniqueArray<char> str = base::UniqueArray<char>::NewForOverwrite(4096);
+  int len = base::VSNPrintF(str.as_span(), format, args);
+  size_t str_len = (len == -1) ? strlen(str.begin()) : static_cast<size_t>(len);
+  return AddOrDisposeString(str.ReleaseData().release(), str_len);
 }
 
 const char* StringsStorage::GetSymbol(Tagged<Symbol> sym) {

@@ -1,0 +1,32 @@
+[COV] no shared memory bitmap available, skipping
+[COV] edge flags initialized. Shared memory: anonymous shmem with 2060275 edges
+--maglev
+--maglev-inlining
+--maglev-loop-peeling
+--maglev-optimistic-peeled-loops
+--maglev-poly-calls
+--maglev-truncation
+--maglev-range-analysis
+--maglev-untagged-phis
+--maglev-cse
+--maglev-assert-stack-size
+--invocation-count-for-feedback-allocation=8
+--jit-fuzzing
+--no-turbofan
+--turbo-verify
+--turbo-verify-machine-graph=""
+--turbo-verify-allocation
+--experimental-fuzzing
+--no-future
+--harmony
+--js-staging
+--wasm-staging
+--wasm-opt
+--expose-gc
+--expose-gc-as=""
+--stack-size=984
+--fuzzing
+--no-verify-bytecode-light
+--verify-bytecode-full
+V8 is running with experimental features enabled. Stability and security will suffer.
+[COV] Additional 236330 edges for builtins initialized.

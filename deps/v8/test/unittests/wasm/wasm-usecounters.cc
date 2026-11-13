@@ -6,6 +6,7 @@
 
 #include "include/v8-isolate.h"
 #include "src/base/logging.h"
+#include "src/base/unique-array.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -33,7 +34,7 @@ class WasmUseCounterTest
   }
 
   void AddFunction(std::initializer_list<const uint8_t> body) {
-    AddFunction(sigs_.v_i(), body);
+    AddFunction(TestSignatures::v_i(), body);
   }
 
   void AddFunction(const FunctionSig* sig,
@@ -44,15 +45,14 @@ class WasmUseCounterTest
   }
 
   void Compile() {
-    base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(buffer_);
+    base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(buffer_);
     switch (GetParam()) {
       case kSync:
         return WasmCompileHelper::SyncCompile(isolate(), std::move(bytes));
       case kAsync:
         return WasmCompileHelper::AsyncCompile(isolate(), std::move(bytes));
       case kStreaming:
-        return WasmCompileHelper::StreamingCompile(isolate(),
-                                                   bytes.as_vector());
+        return WasmCompileHelper::StreamingCompile(isolate(), bytes.as_span());
     }
   }
 
@@ -74,7 +74,6 @@ class WasmUseCounterTest
   HandleScope scope_{isolate()};
 
   WasmModuleBuilder builder_{zone()};
-  TestSignatures sigs_;
 };
 
 std::string PrintCompileType(

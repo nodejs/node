@@ -47,8 +47,11 @@ public:
     type result;
     if (LIBC_UNLIKELY((value | other.value) < 0)) {
       result = -1;
-    } else {
-      result = value + other.value;
+    } else if (LIBC_UNLIKELY(add_overflow(value, other.value, result))) {
+      // Signed addition would overflow. Computing `value + other.value`
+      // directly is undefined behavior, so detect the overflow with the
+      // builtin and mark the result invalid instead.
+      result = -1;
     }
     return SafeMemSize{result};
   }

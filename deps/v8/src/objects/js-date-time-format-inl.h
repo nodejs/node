@@ -60,56 +60,48 @@ void JSDateTimeFormat::set_bound_format(
   bound_format_.store(this, value, mode);
 }
 
-int JSDateTimeFormat::flags() const { return flags_.load().value(); }
-void JSDateTimeFormat::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
+JSDateTimeFormat::Flags JSDateTimeFormat::flags() const {
+  return flags_.load();
 }
+void JSDateTimeFormat::set_flags(Flags value) { flags_.store(value); }
 
 BIT_FIELD_ACCESSORS(JSDateTimeFormat, flags, has_to_locale_string_time_zone,
-                    JSDateTimeFormat::HasToLocaleStringTimeZoneBit)
+                    JSDateTimeFormat::Flags::HasToLocaleStringTimeZoneBit)
 
 inline void JSDateTimeFormat::set_explicit_components_in_options(
     int32_t explicit_components_in_options) {
-  int hints = flags();
-  hints = ExplicitComponentsInOptionsBits::update(
-      hints, explicit_components_in_options);
-  set_flags(hints);
+  set_flags(flags().with_explicit_components_in_options(
+      explicit_components_in_options));
 }
 
 inline int32_t JSDateTimeFormat::explicit_components_in_options() const {
-  return ExplicitComponentsInOptionsBits::decode(flags());
+  return flags().explicit_components_in_options();
 }
 
 inline void JSDateTimeFormat::set_hour_cycle(HourCycle hour_cycle) {
-  int hints = flags();
-  hints = HourCycleBits::update(hints, hour_cycle);
-  set_flags(hints);
+  set_flags(flags().with_hour_cycle(hour_cycle));
 }
 
 inline JSDateTimeFormat::HourCycle JSDateTimeFormat::hour_cycle() const {
-  return HourCycleBits::decode(flags());
+  return flags().hour_cycle();
 }
 
 inline void JSDateTimeFormat::set_date_style(
     JSDateTimeFormat::DateTimeStyle date_style) {
-  int hints = flags();
-  hints = DateStyleBits::update(hints, date_style);
-  set_flags(hints);
+  set_flags(flags().with_date_style(date_style));
 }
 
 inline JSDateTimeFormat::DateTimeStyle JSDateTimeFormat::date_style() const {
-  return DateStyleBits::decode(flags());
+  return flags().date_style();
 }
 
 inline void JSDateTimeFormat::set_time_style(
     JSDateTimeFormat::DateTimeStyle time_style) {
-  int hints = flags();
-  hints = TimeStyleBits::update(hints, time_style);
-  set_flags(hints);
+  set_flags(flags().with_time_style(time_style));
 }
 
 inline JSDateTimeFormat::DateTimeStyle JSDateTimeFormat::time_style() const {
-  return TimeStyleBits::decode(flags());
+  return flags().time_style();
 }
 
 }  // namespace internal

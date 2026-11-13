@@ -1,0 +1,4 @@
+Tests debug events with throw in reject handler of custom promise.
+Exception message: reject
+At event line: true
+Log: ["resolve","construct","end main","reject caught","throw in reject"]

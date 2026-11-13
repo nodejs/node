@@ -13,7 +13,7 @@
 #include "include/v8-profiler.h"
 #include "include/v8config.h"
 #include "src/base/logging.h"
-#include "src/base/vector.h"
+#include "src/base/unique-array.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {
@@ -24,7 +24,7 @@ class OutputStreamWriter {
   explicit OutputStreamWriter(v8::OutputStream* stream)
       : stream_(stream),
         chunk_size_(stream->GetChunkSize()),
-        chunk_(base::OwnedVector<char>::NewForOverwrite(chunk_size_)),
+        chunk_(base::UniqueArray<char>::NewForOverwrite(chunk_size_)),
         chunk_pos_(0),
         aborted_(false) {
     DCHECK_GT(chunk_size_, 0);
@@ -98,7 +98,7 @@ class OutputStreamWriter {
 
   v8::OutputStream* stream_;
   int chunk_size_;
-  base::OwnedVector<char> chunk_;
+  base::UniqueArray<char> chunk_;
   int chunk_pos_;
   bool aborted_;
 };

@@ -21,6 +21,8 @@ class CppHeapStackStartMarkerTest : public TestWithPlatform {};
 
 }  // namespace
 
+START_ALLOW_USE_DEPRECATED()
+
 TEST_F(CppHeapStackStartMarkerTest, StackStartMarkerIsUsed) {
   cppgc::StackStartMarker marker;
   CppHeapCreateParams params({});
@@ -62,6 +64,29 @@ TEST_F(CppHeapStackStartMarkerTest, IsolateUsesStackStartMarker) {
 
   i::Isolate* i_isolate = isolate_wrapper.i_isolate();
   EXPECT_EQ(expected_stack_start, i_isolate->heap()->stack().stack_start());
+}
+
+END_ALLOW_USE_DEPRECATED()
+
+TEST_F(CppHeapStackStartMarkerTest, StackStartScopeIsUsedByCppHeapAndIsolate) {
+  const void* original_stack_start = v8::base::Stack::GetEffectiveStackStart();
+  {
+    v8::StackStartScope scope;
+    const void* scoped_stack_start = v8::base::Stack::GetEffectiveStackStart();
+    EXPECT_LT(scoped_stack_start, original_stack_start);
+
+    CppHeapCreateParams params({});
+    auto cpp_heap = CppHeap::Create(platform(), params);
+    CppHeap* internal_heap = CppHeap::From(cpp_heap.get());
+    EXPECT_EQ(scoped_stack_start, internal_heap->stack()->stack_start());
+
+    IsolateWrapper::set_cpp_heap_for_next_isolate(std::move(cpp_heap));
+    IsolateWrapper isolate_wrapper(kNoCounters);
+
+    i::Isolate* i_isolate = isolate_wrapper.i_isolate();
+    EXPECT_EQ(scoped_stack_start, i_isolate->heap()->stack().stack_start());
+  }
+  EXPECT_EQ(original_stack_start, v8::base::Stack::GetEffectiveStackStart());
 }
 
 }  // namespace internal

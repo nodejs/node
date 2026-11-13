@@ -135,6 +135,7 @@ int32_t MacroAssemblerBase::RootRegisterOffsetForExternalReferenceTableEntry(
 bool MacroAssemblerBase::IsAddressableThroughRootRegister(
     Isolate* isolate, const ExternalReference& reference) {
   if (reference.IsIsolateFieldId()) return true;
+  if (isolate == nullptr) return false;
 
   Address address = reference.address();
   return isolate->root_register_addressable_region().contains(address);

@@ -1,0 +1,4 @@
+Test stepping out from baseline function into optimized function.
+    function g() {
+      return f();#  // Break
+    }

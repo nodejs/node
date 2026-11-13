@@ -250,7 +250,7 @@ local void gen_codes(ct_data *tree, int max_code, ushf *bl_count) {
         tree[n].Code = (ush)bi_reverse(next_code[len]++, len);
 
         Tracecv(tree != static_ltree, (stderr,"\nn %3d %c l %2d c %4x (%x) ",
-            n, (isgraph(n) ? n : ' '), len, tree[n].Code, next_code[len] - 1));
+            n, (isgraph(n & 0xff) ? n : ' '), len, tree[n].Code, next_code[len] - 1));
     }
 }
 

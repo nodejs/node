@@ -1,0 +1,11 @@
+Tests regress-debug-deopt-while-recompile.
+  var bar = "foo";
+  var baz = #bar;  // Break point should be here.
+  return bar;
+
+bar = foo
+  var bar = "foo";
+  var baz = #bar;  // Break point should be here.
+  return bar;
+
+bar = foo

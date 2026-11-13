@@ -16,10 +16,11 @@
 #error "Invalid include"
 #endif
 
-#include "hdr/stdint_proxy.h"
 #include "src/__support/CPP/bit.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
+#include "src/__support/macros/attributes.h"
+#include "src/__support/sign.h"
 
 namespace LIBC_NAMESPACE_DECL {
 namespace fputil {
@@ -62,7 +63,7 @@ LIBC_INLINE LIBC_BIT_CAST_CONSTEXPR long double nextafter(long double from,
         // it will never overflow "beyond" infinity.
         from_bits.set_biased_exponent(from_bits.get_biased_exponent() + 1);
         if (from_bits.is_inf())
-          raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
+          raise_overflow_except_if_required<long double>();
         return from_bits.get_val();
       } else {
         from_bits = FPBits(StorageType(from_bits.uintval() + 1));
@@ -105,7 +106,7 @@ LIBC_INLINE LIBC_BIT_CAST_CONSTEXPR long double nextafter(long double from,
         // it will never overflow "beyond" infinity.
         from_bits.set_biased_exponent(from_bits.get_biased_exponent() + 1);
         if (from_bits.is_inf())
-          raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
+          raise_overflow_except_if_required<long double>();
         return from_bits.get_val();
       } else {
         from_bits = FPBits(StorageType(from_bits.uintval() + 1));
@@ -114,7 +115,7 @@ LIBC_INLINE LIBC_BIT_CAST_CONSTEXPR long double nextafter(long double from,
   }
 
   if (!from_bits.get_implicit_bit())
-    raise_except_if_required(FE_UNDERFLOW | FE_INEXACT);
+    raise_underflow_except_if_required<long double>();
 
   return from_bits.get_val();
 }

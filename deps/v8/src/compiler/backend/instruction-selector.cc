@@ -341,14 +341,6 @@ bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
     }
     return false;
   }
-  if (value_op.Is<ProjectionOp>()) {
-    // Projections always have a Tuple use, but it shouldn't count as a use as
-    // far as is_exclusive_user_of is concerned, since no instructions are
-    // emitted for the MakeTupleOp, which is just a Turboshaft "meta operation".
-    // We thus increase the use_count by 1, to attribute the MakeTupleOp use to
-    // the current operation.
-    use_count++;
-  }
   DCHECK_LE(use_count,
             graph->Get(value).saturated_use_count.GetMaybeSaturated());
   return value_op.saturated_use_count.Is(static_cast<int>(use_count));
@@ -419,12 +411,8 @@ OptionalOpIndex InstructionSelector::FindProjection(OpIndex node,
        next = graph->NextIndex(next)) {
     const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
     if (projection == nullptr) break;
-    DCHECK(!projection->saturated_use_count.Is(0));
-    if (projection->saturated_use_count.Is(1)) {
-      // If the projection has a single use, it is the following tuple, so we
-      // don't return it, since there is no point in emitting it.
-      DCHECK(turboshaft_uses(next).size() == 1 &&
-             graph->Get(turboshaft_uses(next)[0]).Is<MakeTupleOp>());
+    if (projection->saturated_use_count.Is(0)) {
+      DCHECK(turboshaft_uses(next).empty());
       continue;
     }
     if (projection->index == projection_index) return next;
@@ -439,11 +427,7 @@ OptionalOpIndex InstructionSelector::FindProjection(OpIndex node,
             this->Get(use).TryCast<ProjectionOp>()) {
       DCHECK_EQ(projection->input(), node);
       if (projection->index == projection_index) {
-        // If we found the projection, it should have a single use: a Tuple
-        // (which doesn't count as a regular use since it is just an artifact of
-        // the Turboshaft graph).
-        DCHECK(turboshaft_uses(use).size() == 1 &&
-               graph->Get(turboshaft_uses(use)[0]).Is<MakeTupleOp>());
+        DCHECK(turboshaft_uses(use).empty());
       }
     }
   }
@@ -578,28 +562,19 @@ void InstructionSelector::SetEffectLevel(OpIndex node, int effect_level) {
 
 bool InstructionSelector::CanAddressRelativeToRootsRegister(
     const ExternalReference& reference) const {
-  // There are three things to consider here:
-  // 1. CanUseRootsRegister: Is kRootRegister initialized?
-  const bool root_register_is_available_and_initialized = CanUseRootsRegister();
-  if (!root_register_is_available_and_initialized) return false;
-
-  // 2. enable_roots_relative_addressing_: Can we address everything on the heap
+  // There are two things to consider here:
+  // 1. enable_roots_relative_addressing_: Can we address everything on the heap
   //    through the root register, i.e. are root-relative addresses to arbitrary
   //    addresses guaranteed not to change between code generation and
   //    execution?
   if (enable_roots_relative_addressing_) return true;
 
-  // 3. IsAddressableThroughRootRegister: Is the target address guaranteed to
-  //    have a fixed root-relative offset? If so, we can ignore 2.
+  // 2. IsAddressableThroughRootRegister: Is the target address guaranteed to
+  //    have a fixed root-relative offset? If so, we can ignore 1.
   const bool this_root_relative_offset_is_constant =
       MacroAssemblerBase::IsAddressableThroughRootRegister(isolate(),
                                                            reference);
   return this_root_relative_offset_is_constant;
-}
-
-bool InstructionSelector::CanUseRootsRegister() const {
-  return linkage()->GetIncomingDescriptor()->flags() &
-         CallDescriptor::kCanUseRoots;
 }
 
 void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
@@ -673,11 +648,8 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
     const Operation& bitcast_input = g->Get(bitcast->input());
     if (const ConstantOp* cst =
             bitcast_input.TryCast<Opmask::kWord32Constant>()) {
-      if constexpr (Is64()) {
-        return g->UseImmediate64(cst->word32());
-      } else {
-        return g->UseImmediate(cst->word32());
-      }
+      DCHECK(!Is64());
+      return g->UseImmediate(cst->word32());
     } else if (Is64() && bitcast_input.Is<Opmask::kWord64Constant>()) {
       if (rep == MachineRepresentation::kWord32) {
         return g->UseImmediate(bitcast_input.Cast<ConstantOp>().word32());
@@ -1180,6 +1152,7 @@ void InstructionSelector::InitializeCallBuffer(
                                     : g.DefineAsLocation(output, location);
         MarkAsRepresentation(rep, op);
 
+        // Caller frame slots are defined later via Peek in VisitCall.
         if (!UnallocatedOperand::cast(op).HasFixedSlotPolicy()) {
           buffer->outputs.push_back(op);
           buffer->output_nodes[i].node = {};
@@ -1837,8 +1810,50 @@ void InstructionSelector::EmitBinarySearchSwitch(
   Emit(kArchBinarySearchSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
+bool InstructionSelector::CanEmitIdentityForTaggedBitcast(OpIndex node) {
+  // HeapObject bitcasts are only used for raw pointer access across regions
+  // where GC cannot happen.
+  if (this->Get(node).Cast<TaggedBitcastOp>().kind ==
+      TaggedBitcastOp::Kind::kHeapObject) {
+    return true;
+  }
+  // Because instructions are selected bottom-up within {current_block_}, all
+  // same-block uses of {node} have already been visited. EmitIdentity is safe
+  // if all uses are in {current_block_} (and not Phis) at the same effect
+  // level, ensuring no call or allocation can intervene between {node} and its
+  // uses.
+  const int node_vreg = GetVirtualRegister(node);
+  auto CheckUse = [&](auto& self, OpIndex use) -> bool {
+    if (!InCurrentBlock(use) || Is<PhiOp>(use)) return false;
+    int use_vreg = virtual_registers_[use.id()];
+    if (IsUsed(use) &&
+        (use_vreg == InstructionOperand::kInvalidVirtualRegister ||
+         GetRename(use_vreg) != node_vreg)) {
+      // {use} emitted an instruction consuming {node_vreg}; verify that no
+      // effectful operation (such as a call) lies between {node} and {use}.
+      return GetEffectLevel(use) == current_effect_level_;
+    }
+    // {use} was either covered by a downstream instruction (!IsUsed(use)) or
+    // itself emitted identity (GetRename(use_vreg) == node_vreg), so check its
+    // transitive uses instead.
+    for (OpIndex transitive_use : turboshaft_uses(use)) {
+      if (!self(self, transitive_use)) return false;
+    }
+    return true;
+  };
+  for (OpIndex use : turboshaft_uses(node)) {
+    if (!CheckUse(CheckUse, use)) return false;
+  }
+  return true;
+}
+
 void InstructionSelector::VisitBitcastTaggedToWord(OpIndex node) {
-  EmitIdentity(node);
+  if (CanEmitIdentityForTaggedBitcast(node)) {
+    return EmitIdentity(node);
+  }
+  OperandGenerator g(this);
+  Emit(kArchNop, g.DefineSameAsFirst(node),
+       g.Use(this->Get(node).Cast<TaggedBitcastOp>().input()));
 }
 
 void InstructionSelector::VisitBitcastWordToTagged(OpIndex node) {
@@ -1848,24 +1863,14 @@ void InstructionSelector::VisitBitcastWordToTagged(OpIndex node) {
 }
 
 void InstructionSelector::VisitBitcastSmiToWord(OpIndex node) {
-  // TODO(dmercadier): using EmitIdentity here is not ideal, because users of
-  // {node} will then use its input, which may not have the Word32
-  // representation. This might in turn lead to the register allocator wrongly
-  // tracking Tagged values that are in fact just Smis. However, using
-  // Emit(kArchNop) hurts performance because it inserts a gap move which cannot
-  // always be eliminated because the operands may have different sizes (and the
-  // move is then truncating or extending). As a temporary work-around until the
-  // register allocator is fixed, we use Emit(kArchNop) in DEBUG mode to silence
-  // the register allocator verifier.
   // Loong64/RISCV64 port needs this gap move to sign-extend the Smis in 64-bit
   // registers.
-#if defined(DEBUG) || defined(V8_TARGET_ARCH_LOONG64) || \
-    defined(V8_TARGET_ARCH_RISCV64)
+#if defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_RISCV64)
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineSameAsFirst(node),
        g.Use(this->Get(node).Cast<TaggedBitcastOp>().input()));
 #else
-  EmitIdentity(node);
+  VisitBitcastTaggedToWord(node);
 #endif
 }
 
@@ -1901,7 +1906,6 @@ VISIT_UNSUPPORTED_OP(Int64LessThan)
 VISIT_UNSUPPORTED_OP(Int64LessThanOrEqual)
 VISIT_UNSUPPORTED_OP(Uint64LessThan)
 VISIT_UNSUPPORTED_OP(Uint64LessThanOrEqual)
-VISIT_UNSUPPORTED_OP(BitcastWord32ToWord64)
 VISIT_UNSUPPORTED_OP(ChangeInt32ToInt64)
 VISIT_UNSUPPORTED_OP(ChangeInt64ToFloat64)
 VISIT_UNSUPPORTED_OP(ChangeUint32ToUint64)
@@ -2035,14 +2039,16 @@ IF_WASM(VISIT_UNSUPPORTED_OP, MemoryFill)
 
 IF_SIMD128(VISIT_UNSUPPORTED_OP, I32x4AddPairwise)
 IF_SIMD128(VISIT_UNSUPPORTED_OP, I32x4DotI8x16S)
+#endif  // !V8_TARGET_ARCH_ARM64
 
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_LOONG64
 IF_SIMD128(VISIT_UNSUPPORTED_OP, I8x16MoveLane)
 IF_SIMD128(VISIT_UNSUPPORTED_OP, I16x8MoveLane)
 IF_SIMD128(VISIT_UNSUPPORTED_OP, I32x4MoveLane)
 IF_SIMD128(VISIT_UNSUPPORTED_OP, I64x2MoveLane)
 IF_SIMD128(VISIT_UNSUPPORTED_OP, F32x4MoveLane)
 IF_SIMD128(VISIT_UNSUPPORTED_OP, F64x2MoveLane)
-#endif  // !V8_TARGET_ARCH_ARM64
+#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_LOONG64
 
 IF_SIMD128(VISIT_UNSUPPORTED_OP, F16x8MoveLane)
 
@@ -2073,11 +2079,9 @@ LinkageLocation ExceptionLocation() {
 
 constexpr InstructionCode EncodeCallDescriptorFlags(
     InstructionCode opcode, CallDescriptor::Flags flags) {
-  // Note: Not all bits of `flags` are preserved.
-  static_assert(CallDescriptor::kFlagsBitsEncodedInInstructionCode ==
-                MiscField::kSize);
+  static_assert(MiscField::is_valid(CallDescriptor::kNoFunctionDescriptor));
   DCHECK(Instruction::IsCallWithDescriptorFlags(opcode));
-  return opcode | MiscField::encode(flags & MiscField::kMax);
+  return opcode | MiscField::encode(flags);
 }
 
 }  // namespace
@@ -2097,6 +2101,10 @@ void InstructionSelector::VisitOsrValue(OpIndex node) {
 void InstructionSelector::VisitPhi(OpIndex node) {
   const Operation& op = Get(node);
   DCHECK_EQ(op.input_count, PredecessorCount(current_block_));
+  if (V8_UNLIKELY(op.input_count == 1)) {
+    EmitIdentity(node);
+    return;
+  }
   PhiInstruction* phi = instruction_zone()->template New<PhiInstruction>(
       instruction_zone(), GetVirtualRegister(node),
       static_cast<size_t>(op.input_count));
@@ -2158,11 +2166,8 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
     return true;
   }
 
-  if (projection0.saturated_use_count.Is(1)) {
-    // If the projection has a single use, it is the following tuple, so we
-    // don't care about the value, and can do branch-if-overflow fusion.
-    DCHECK(turboshaft_uses(projection0_index).size() == 1 &&
-           graph->Get(turboshaft_uses(projection0_index)[0]).Is<MakeTupleOp>());
+  if (projection0.saturated_use_count.Is(0)) {
+    DCHECK(turboshaft_uses(projection0_index).empty());
     return true;
   }
 
@@ -2177,14 +2182,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
   // defined, which will imply that it's fine to define {projection0} and
   // {binop} now.
   for (OpIndex use : turboshaft_uses(projection0_index)) {
-    if (this->Get(use).template Is<MakeTupleOp>()) {
-      // The Tuple won't have any uses since it would have to be accessed
-      // through Projections, and Projections on Tuples return the original
-      // Projection instead (see Assembler::ReduceProjection in
-      // turboshaft/assembler.h).
-      DCHECK(this->Get(use).saturated_use_count.Is(0));
-      continue;
-    }
+    DCHECK(!Is<MakeTupleOp>(use));
     if (IsDefined(use)) continue;
     if (!InCurrentBlock(use)) {
       // {use} is in a later block, so it should already have been visited. Note
@@ -2293,11 +2291,12 @@ void InstructionSelector::VisitCall(
     buffer.instruction_args.push_back(
         g.TempImmediate(call_descriptor->shifted_tag()));
   } else if (call_descriptor->IsJSFunctionCall()) {
-    // For JSFunctions we need to know the number of pushed parameters during
-    // code generation.
-    uint32_t parameter_count =
-        static_cast<uint32_t>(buffer.pushed_nodes.size());
-    buffer.instruction_args.push_back(g.TempImmediate(parameter_count));
+    // For JSFunctions we need to know the function's formal parameter count
+    // used during code generation.
+    uint32_t expected_parameter_count =
+        call_descriptor->expected_parameter_count();
+    buffer.instruction_args.push_back(
+        g.TempImmediate(expected_parameter_count));
   }
 
   // Pass label of exception handler block.
@@ -2469,13 +2468,14 @@ void InstructionSelector::VisitTailCall(OpIndex node) {
     buffer.instruction_args.push_back(g.TempImmediate(callee->shifted_tag()));
   }
 
-  // Add an immediate operand that represents the offset to the first slot
-  // that is unused with respect to the stack pointer that has been updated
-  // for the tail call instruction. Backends that pad arguments can write the
-  // padding value at this offset from the stack.
-  const int optional_padding_offset =
+  // Add an immediate operand carrying the callee's unpadded stack parameter
+  // slot count. Backends that pad odd stack argument areas use this both to
+  // check whether a padding slot is present and to zero that slot above the
+  // parameters (and above any return address on the stack).
+  const int unpadded_stack_param_slots =
       callee->GetOffsetToFirstUnusedStackSlot() - 1;
-  buffer.instruction_args.push_back(g.TempImmediate(optional_padding_offset));
+  buffer.instruction_args.push_back(
+      g.TempImmediate(unpadded_stack_param_slots));
 
   const int first_unused_slot_offset =
       kReturnAddressStackSlotCount + stack_param_delta;
@@ -2512,16 +2512,9 @@ void InstructionSelector::VisitReturn(OpIndex node) {
   } else {
     value_locations[0] = g.UseRegister(ret.pop_count());
   }
-  for (size_t i = 0, return_value_idx = 0; i < return_count; ++i) {
+  for (size_t i = 0; i < return_count; ++i) {
     LinkageLocation loc = linkage()->GetReturnLocation(i);
-    // Return values passed via frame slots have already been stored
-    // on the stack by the GrowableStacksReducer.
-    if (loc.IsCallerFrameSlot() && ret.spill_caller_frame_slots) {
-      continue;
-    }
-    value_locations[return_value_idx + 1] =
-        g.UseLocation(ret.return_values()[return_value_idx], loc);
-    return_value_idx++;
+    value_locations[i + 1] = g.UseLocation(ret.return_values()[i], loc);
   }
   Emit(kArchRet, 0, nullptr, input_count, value_locations);
 }
@@ -2614,10 +2607,8 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
   // {result} back into it through the back edge. In this case, it's
   // normal to schedule {result} before the Phi that uses it.
   for (OpIndex use : turboshaft_uses(result.value())) {
-    // We ignore MakeTupleOp uses, since MakeTupleOp don't lead to emitted
-    // machine instructions and are just Turboshaft "meta operations".
-    if (!Is<MakeTupleOp>(use) && !IsDefined(use) && InCurrentBlock(use) &&
-        !Is<PhiOp>(use)) {
+    DCHECK(!Is<MakeTupleOp>(use));
+    if (!IsDefined(use) && InCurrentBlock(use) && !Is<PhiOp>(use)) {
       return;
     }
   }
@@ -3157,8 +3148,6 @@ void InstructionSelector::VisitNode(OpIndex node) {
           return VisitTruncateInt64ToInt32(node);
         case ChangeOp::Kind::kBitcast:
           switch (multi(change.from, change.to)) {
-            case multi(Rep::Word32(), Rep::Word64()):
-              return VisitBitcastWord32ToWord64(node);
             case multi(Rep::Word32(), Rep::Float32()):
               return VisitBitcastInt32ToFloat32(node);
             case multi(Rep::Word64(), Rep::Float64()):
@@ -3682,7 +3671,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
       MarkAsRepresentation(loaded_type.representation(), node);
       if (load.kind.maybe_unaligned) {
         DCHECK(!load.kind.with_trap_handler);
-        DCHECK(!load.kind.is_atomic);
+        DCHECK(!load.kind.is_atomic());
         if (loaded_type.representation() == MachineRepresentation::kWord8 ||
             InstructionSelector::AlignmentRequirements()
                 .IsUnalignedLoadSupported(loaded_type.representation())) {
@@ -3690,7 +3679,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
         } else {
           return VisitUnalignedLoad(node);
         }
-      } else if (load.kind.is_atomic) {
+      } else if (load.kind.is_atomic()) {
         if (load.result_rep == Rep::Word32()) {
           return VisitWord32AtomicLoad(node);
         } else if (load.result_rep == Rep::Word64()) {
@@ -3727,7 +3716,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
         } else {
           return VisitUnalignedStore(node);
         }
-      } else if (store.kind.is_atomic) {
+      } else if (store.kind.is_atomic()) {
         if (store.stored_rep.SizeInBytes() == 8) {
           return VisitWord64AtomicStore(node);
         } else {
@@ -3766,6 +3755,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
         case multi(Rep::Word32(), Rep::Tagged()):
         case multi(Rep::Word64(), Rep::Tagged()):
           if (cast.kind == TaggedBitcastOp::Kind::kSmi) {
+            DCHECK_EQ(cast.from, Rep::WordPtr());
             MarkAsRepresentation(MachineRepresentation::kTaggedSigned, node);
             return EmitIdentity(node);
           } else {
@@ -4382,10 +4372,16 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
       this->turboshaft_graph()->Get(node).template Cast<FrameStateOp>();
   auto* desc = GetFrameStateDescriptorInternal(instruction_zone(),
                                                this->turboshaft_graph(), state);
-  *max_unoptimized_frame_height_ =
-      std::max(*max_unoptimized_frame_height_,
-               desc->total_conservative_frame_size_in_bytes() +
-                   (desc->max_arguments() * kSystemPointerSize));
+  // Include the maximum stack size needed by each parent frame in the deopt
+  // chain, as a parent frame may have another call site with more outgoing
+  // arguments than the inlined call site leading to this frame state.
+  for (FrameStateDescriptor* iter = desc; iter != nullptr;
+       iter = iter->outer_state()) {
+    *max_unoptimized_frame_height_ =
+        std::max(*max_unoptimized_frame_height_,
+                 iter->total_conservative_frame_size_in_bytes() +
+                     (iter->max_arguments() * kSystemPointerSize));
+  }
   return desc;
 }
 

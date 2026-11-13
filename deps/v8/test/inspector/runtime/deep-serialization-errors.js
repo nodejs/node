@@ -15,6 +15,9 @@ InspectorTest.runAsyncTestSuite([
   async function ArrayThrowingGetter() {
     await testExpression("(()=>{ const a = [1]; Object.defineProperty(a, '1', { get() { throw new Error('array element error'); }, enumerable: true }); return a; })()");
   },
+  async function LargeSparseArray() {
+    await testExpression("(()=>{ const a = []; a.length = 0xFFFFFFFF; return a; })()");
+  },
   async function NestedThrowingGetter() {
     await testExpression("({ a: { b: [ { get c() { throw new Error('nested error'); } } ] } })");
   },

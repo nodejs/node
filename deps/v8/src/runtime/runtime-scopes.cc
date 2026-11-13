@@ -491,7 +491,8 @@ namespace {
 
 // Find the arguments of the JavaScript function invocation that called
 // into C++ code. Collect these in a newly allocated array of handles.
-DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
+// Expect up to 8 arguments in the common case.
+DirectHandleSmallVector<Object, 8> GetCallerArguments(Isolate* isolate) {
   // Find frame containing arguments passed to the caller.
   JavaScriptStackFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
@@ -515,7 +516,7 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
     iter++;
     argument_count--;
 
-    DirectHandleVector<Object> param_data(isolate, argument_count);
+    DirectHandleSmallVector<Object, 8> param_data(isolate, argument_count);
     bool should_deoptimize = false;
     for (int i = 0; i < argument_count; i++) {
       // If we materialize any object, we should deoptimize the frame because we
@@ -533,7 +534,7 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
     return param_data;
   } else {
     uint32_t args_count = frame->GetActualArgumentCount();
-    DirectHandleVector<Object> param_data(isolate, args_count);
+    DirectHandleSmallVector<Object, 8> param_data(isolate, args_count);
     for (uint32_t i = 0; i < args_count; i++) {
       DirectHandle<Object> val =
           DirectHandle<Object>(frame->GetParameter(i), isolate);
@@ -717,20 +718,6 @@ RUNTIME_FUNCTION(Runtime_NewClosure) {
   return *Factory::JSFunctionBuilder{isolate, shared, context}
               .set_feedback_cell(feedback_cell)
               .set_allocation_type(AllocationType::kYoung)
-              .Build();
-}
-
-RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  DirectHandle<SharedFunctionInfo> shared = args.at<SharedFunctionInfo>(0);
-  DirectHandle<FeedbackCell> feedback_cell = args.at<FeedbackCell>(1);
-  DirectHandle<Context> context(isolate->context(), isolate);
-  // The caller ensures that we pretenure closures that are assigned
-  // directly to properties.
-  return *Factory::JSFunctionBuilder{isolate, shared, context}
-              .set_feedback_cell(feedback_cell)
-              .set_allocation_type(AllocationType::kOld)
               .Build();
 }
 
@@ -950,8 +937,7 @@ MaybeDirectHandle<Object> StoreLookupSlot(
       SourceTextModule::StoreVariable(Cast<SourceTextModule>(holder), index,
                                       value);
     } else {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kConstAssign, name));
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kConstAssign));
     }
     return value;
   }
@@ -966,8 +952,7 @@ MaybeDirectHandle<Object> StoreLookupSlot(
     if ((attributes & READ_ONLY) == 0) {
       Context::Set(holder_context, index, value, isolate);
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kConstAssign, name));
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kConstAssign));
     }
     return value;
   }

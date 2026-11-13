@@ -12,22 +12,6 @@
 // Helper types to make boolean flag easier to read at call-site.
 enum class InvokeType { kCall, kJump };
 
-// Flags used for the AllocateInNewSpace functions.
-enum AllocationFlags {
-  // No special flags.
-  NO_ALLOCATION_FLAGS = 0,
-  // The content of the result register already contains the allocation top in
-  // new space.
-  RESULT_CONTAINS_TOP = 1 << 0,
-  // Specify that the requested size of the space to allocate is specified in
-  // words instead of bytes.
-  SIZE_IN_WORDS = 1 << 1,
-  // Align the allocation to a multiple of kDoubleSize
-  DOUBLE_ALIGNMENT = 1 << 2,
-  // Directly allocate in old space
-  PRETENURE = 1 << 3,
-};
-
 enum class JumpMode {
   kJump,          // Does a direct jump to the given address
   kPushAndReturn  // Pushes the given address as the current return address and
@@ -44,6 +28,9 @@ enum class ComparisonMode {
   // This mode can be used when the value to compare may not be located inside
   // the main pointer compression cage.
   kFullPointer,
+  // The caller only tests the result for equality, so the comparison may
+  // leave every flag other than Z undefined.
+  kEqualityOnly,
 };
 
 enum class SetIsolateDataSlots {

@@ -1,0 +1,6 @@
+Regression test for crbug.com/570547314.
+
+Running test: test
+Test 1 result: 13
+Test 2 inner result: 23
+Test 2 outer result: 13

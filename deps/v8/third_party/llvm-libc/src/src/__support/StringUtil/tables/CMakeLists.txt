@@ -12,7 +12,7 @@ add_header_library(
   HDRS
     posix_errors.h
   DEPENDS
-    libc.src.errno.errno
+    libc.hdr.errno_macros
     libc.src.__support.StringUtil.message_mapper
 )
 
@@ -21,8 +21,8 @@ add_header_library(
   HDRS
     linux_extension_errors.h
   DEPENDS
+    libc.hdr.errno_macros
     libc.src.__support.StringUtil.message_mapper
-    libc.src.errno.errno
 )
 
 add_header_library(

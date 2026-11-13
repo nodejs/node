@@ -69,5 +69,3 @@ if (!%IsDictPropertyConstTrackingEnabled()) {
   // transition map changes.
   assertUnoptimized(add_field);
 }
-// Clear type info for stress runs.
-%ClearFunctionFeedback(add_field);

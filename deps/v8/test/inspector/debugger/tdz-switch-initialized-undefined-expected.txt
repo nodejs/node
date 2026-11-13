@@ -1,0 +1,10 @@
+Tests that initialized undefined switch locals are accessible and skipped ones are in TDZ.
+Paused in case 1 (initialized undefined):
+  evaluate x: undefined undefined
+  scope property x: undefined
+Paused in case 2 (skipped declaration in TDZ):
+  evaluate x threw: ReferenceError: Cannot access 'x' from debugger
+    at eval (eval at testSwitch (:9:7), <anonymous>:1:1)
+    at testSwitch (<anonymous>:9:7)
+    at <anonymous>:1:1
+  scope property x: <unavailable>

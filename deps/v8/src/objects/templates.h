@@ -14,6 +14,7 @@
 #include "include/v8-exception.h"
 #include "src/base/bit-field.h"
 #include "src/handles/handles.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/contexts.h"
 #include "src/objects/struct.h"
 
@@ -64,8 +65,21 @@ V8_OBJECT class TemplateInfo : public HeapObject {
 
   inline uint32_t GetHash() const;
 
-  inline uint32_t template_info_flags() const;
-  inline void set_template_info_flags(uint32_t value);
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsCacheableBit = First<bool, 1>;
+    using ShouldPromoteToReadOnlyBit = IsCacheableBit::Next<bool, 1>;
+    using SerialNumberBits = ShouldPromoteToReadOnlyBit::Next<uint32_t, 29>;
+
+    BIT_FIELD_GROUP_ACCESSORS(is_cacheable, IsCacheableBit)
+    BIT_FIELD_GROUP_ACCESSORS(should_promote_to_read_only,
+                              ShouldPromoteToReadOnlyBit)
+    BIT_FIELD_GROUP_ACCESSORS(serial_number, SerialNumberBits)
+  };
+
+  inline Flags template_info_flags() const;
+  inline void set_template_info_flags(Flags value);
 
   // Whether or not to cache every instance: when we materialize a getter or
   // setter from an lazy AccessorPair, we rely on this cache to be able to
@@ -96,13 +110,7 @@ V8_OBJECT class TemplateInfo : public HeapObject {
       Isolate* isolate, DirectHandle<NativeContext> native_context,
       DirectHandle<TemplateInfo> info, CachingMode caching_mode);
 
-  // Bit position in the template_info_base_flags, from least significant bit
-  // position.
-  using IsCacheableBit = base::BitField<bool, 0, 1, uint32_t>;
-  using ShouldPromoteToReadOnlyBit = IsCacheableBit::Next<bool, 1>;
-  using SerialNumberBits = ShouldPromoteToReadOnlyBit::Next<uint32_t, 29>;
-
-  TaggedMember<Smi> template_info_flags_;
+  SmiBitFieldMember<Flags> template_info_flags_;
 } V8_OBJECT_END;
 
 V8_OBJECT class TemplateInfoWithProperties : public TemplateInfo {
@@ -129,6 +137,8 @@ V8_OBJECT class TemplateInfoWithProperties : public TemplateInfo {
 // Contains data members that are rarely set on a FunctionTemplateInfo.
 V8_OBJECT class FunctionTemplateRareData : public Struct {
  public:
+  inline explicit FunctionTemplateRareData(const AllocationWitness& witness);
+
   inline Tagged<UnionOf<Undefined, ObjectTemplateInfo>> prototype_template()
       const;
   inline void set_prototype_template(
@@ -251,8 +261,39 @@ V8_OBJECT class FunctionTemplateInfo : public TemplateInfoWithProperties {
   DECL_RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray)
 #undef DECL_RARE_ACCESSORS
 
-  DECL_PRIMITIVE_ACCESSORS(flag, uint32_t)
-  DECL_RELAXED_UINT32_ACCESSORS(flag)
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsObjectTemplateCallHandlerBit = First<bool, 1>;
+    using HasSideEffectsBit = IsObjectTemplateCallHandlerBit::Next<bool, 1>;
+    using UndetectableBit = HasSideEffectsBit::Next<bool, 1>;
+    using NeedsAccessCheckBit = UndetectableBit::Next<bool, 1>;
+    using ReadOnlyPrototypeBit = NeedsAccessCheckBit::Next<bool, 1>;
+    using RemovePrototypeBit = ReadOnlyPrototypeBit::Next<bool, 1>;
+    using AcceptAnyReceiverBit = RemovePrototypeBit::Next<bool, 1>;
+    using PublishedBit = AcceptAnyReceiverBit::Next<bool, 1>;
+    using AllowedReceiverInstanceTypeRangeStartBits =
+        PublishedBit::Next<InstanceType, 12>;
+    using AllowedReceiverInstanceTypeRangeEndBits =
+        AllowedReceiverInstanceTypeRangeStartBits::Next<InstanceType, 12>;
+
+    BIT_FIELD_GROUP_ACCESSORS(is_object_template_call_handler,
+                              IsObjectTemplateCallHandlerBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_side_effects, HasSideEffectsBit)
+    BIT_FIELD_GROUP_ACCESSORS(undetectable, UndetectableBit)
+    BIT_FIELD_GROUP_ACCESSORS(needs_access_check, NeedsAccessCheckBit)
+    BIT_FIELD_GROUP_ACCESSORS(read_only_prototype, ReadOnlyPrototypeBit)
+    BIT_FIELD_GROUP_ACCESSORS(remove_prototype, RemovePrototypeBit)
+    BIT_FIELD_GROUP_ACCESSORS(accept_any_receiver, AcceptAnyReceiverBit)
+    BIT_FIELD_GROUP_ACCESSORS(published, PublishedBit)
+    BIT_FIELD_GROUP_ACCESSORS(allowed_receiver_instance_type_range_start,
+                              AllowedReceiverInstanceTypeRangeStartBits)
+    BIT_FIELD_GROUP_ACCESSORS(allowed_receiver_instance_type_range_end,
+                              AllowedReceiverInstanceTypeRangeEndBits)
+  };
+
+  DECL_PRIMITIVE_ACCESSORS(flag, Flags)
+  DECL_RELAXED_PRIMITIVE_ACCESSORS(flag, Flags)
 
   // Begin flag bits ---------------------
 
@@ -333,20 +374,6 @@ V8_OBJECT class FunctionTemplateInfo : public TemplateInfoWithProperties {
   uint32_t GetCFunctionsCount() const;
   CFunctionWithSignature GetCFunction(uint32_t index) const;
 
-  // Bit position in the flag, from least significant bit position.
-  using IsObjectTemplateCallHandlerBit = base::BitField<bool, 0, 1, uint32_t>;
-  using HasSideEffectsBit = IsObjectTemplateCallHandlerBit::Next<bool, 1>;
-  using UndetectableBit = HasSideEffectsBit::Next<bool, 1>;
-  using NeedsAccessCheckBit = UndetectableBit::Next<bool, 1>;
-  using ReadOnlyPrototypeBit = NeedsAccessCheckBit::Next<bool, 1>;
-  using RemovePrototypeBit = ReadOnlyPrototypeBit::Next<bool, 1>;
-  using AcceptAnyReceiverBit = RemovePrototypeBit::Next<bool, 1>;
-  using PublishedBit = AcceptAnyReceiverBit::Next<bool, 1>;
-  using AllowedReceiverInstanceTypeRangeStartBits =
-      PublishedBit::Next<InstanceType, 12>;
-  using AllowedReceiverInstanceTypeRangeEndBits =
-      AllowedReceiverInstanceTypeRangeStartBits::Next<InstanceType, 12>;
-
   // C function pointer that can be called from native code.
   inline Address callback(IsolateForSandbox isolate) const;
   inline void set_callback(IsolateForSandbox isolate, Address value);
@@ -367,8 +394,8 @@ V8_OBJECT class FunctionTemplateInfo : public TemplateInfoWithProperties {
 
  private:
   // For ease of use of the BITFIELD macro.
-  inline int32_t relaxed_flag() const;
-  inline void set_relaxed_flag(int32_t flags);
+  inline Flags relaxed_flag() const;
+  inline void set_relaxed_flag(Flags flags);
 
   // Enforce using SetInstanceType() and SetAllowedReceiverInstanceTypeRange()
   // instead of raw accessors.
@@ -439,11 +466,12 @@ V8_OBJECT class FunctionTemplateInfo : public TemplateInfoWithProperties {
   TaggedMember<UnionOf<String, Undefined>> class_name_;
   TaggedMember<UnionOf<String, Undefined>> interface_name_;
   TaggedMember<UnionOf<FunctionTemplateInfo, Undefined>> signature_;
-  TaggedMember<UnionOf<FunctionTemplateRareData, Undefined>> rare_data_;
+  V8_TQ_ACQ_REL TaggedMember<UnionOf<FunctionTemplateRareData, Undefined>>
+      rare_data_;
   TaggedMember<UnionOf<SharedFunctionInfo, Undefined>> shared_function_info_;
   TaggedMember<Object> cached_property_name_;
-  TaggedMember<Object> callback_data_;
-  uint32_t flag_;
+  V8_TQ_ACQ_REL TaggedMember<Object> callback_data_;
+  std::atomic<Flags> flag_;
   int16_t length_;
   InstanceType instance_type_;
   uint32_t exception_context_;
@@ -476,17 +504,23 @@ V8_OBJECT class ObjectTemplateInfo : public TemplateInfoWithProperties {
       Tagged<UnionOf<FunctionTemplateInfo, Undefined>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int data() const;
-  inline void set_data(int value);
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsImmutablePrototypeBit = First<bool, 1>;
+    using IsCodeKindBit = IsImmutablePrototypeBit::Next<bool, 1>;
+    using EmbedderFieldCountBits = IsCodeKindBit::Next<int32_t, 28>;
+
+    BIT_FIELD_GROUP_ACCESSORS(is_immutable_prototype, IsImmutablePrototypeBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_code_kind, IsCodeKindBit)
+    BIT_FIELD_GROUP_ACCESSORS(embedder_field_count, EmbedderFieldCountBits)
+  };
+
+  inline Flags data() const;
+  inline void set_data(Flags value);
 
   TaggedMember<UnionOf<FunctionTemplateInfo, Undefined>> constructor_;
-  TaggedMember<Smi> data_;
-
- private:
-  using IsImmutablePrototypeBit = base::BitField<bool, 0, 1, uint32_t>;
-  using IsCodeKindBit = IsImmutablePrototypeBit::Next<bool, 1>;
-  using EmbedderFieldCountBits = IsCodeKindBit::Next<int32_t, 28>;
-  friend class TorqueGeneratedBitFieldAsserts;
+  SmiBitFieldMember<Flags> data_;
 } V8_OBJECT_END;
 
 V8_OBJECT class DictionaryTemplateInfo : public TemplateInfo {

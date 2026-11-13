@@ -361,12 +361,44 @@ TEST_F(StatusBuilderTest, StatusSourceLocationChaining) {
   }
 }
 
-TEST_F(StatusBuilderTest, SetErrorCode) {
+TEST_F(StatusBuilderTest, SetCode) {
   StatusBuilder builder;
-  builder.SetCode(absl::StatusCode::kResourceExhausted);
+  builder.SetCode(absl::StatusCode::kResourceExhausted) << "extra";
   LOG(INFO) << "Builder code: " << builder;
   EXPECT_FALSE(builder.ok());
   EXPECT_EQ(builder.code(), absl::StatusCode::kResourceExhausted);
+  builder.SetCode(absl::StatusCode::kInternal);
+  EXPECT_FALSE(builder.ok());
+  EXPECT_EQ(builder.code(), absl::StatusCode::kInternal);
+  builder.SetCode(absl::StatusCode::kOk);
+  EXPECT_TRUE(builder.ok());
+  EXPECT_EQ(builder.code(), absl::StatusCode::kOk);
+  EXPECT_EQ(ToStatus(builder), absl::OkStatus());
+  EXPECT_EQ(static_cast<absl::Status>(std::move(builder)), absl::OkStatus());
+
+  EXPECT_EQ(static_cast<absl::Status>(StatusBuilder(absl::CancelledError("msg"))
+                                          .SetCode(absl::StatusCode::kOk)),
+            absl::OkStatus());
+}
+
+TEST_F(StatusBuilderTest, SetErrorCode) {
+  StatusBuilder builder;
+  builder.SetErrorCode(absl::StatusCode::kResourceExhausted) << "extra";
+  LOG(INFO) << "Builder code: " << builder;
+  EXPECT_FALSE(builder.ok());
+  EXPECT_EQ(builder.code(), absl::StatusCode::kResourceExhausted);
+  builder.SetErrorCode(absl::StatusCode::kInternal);
+  EXPECT_FALSE(builder.ok());
+  EXPECT_EQ(builder.code(), absl::StatusCode::kInternal);
+  builder.SetErrorCode(absl::StatusCode::kOk);
+  EXPECT_TRUE(builder.ok());
+  EXPECT_EQ(builder.code(), absl::StatusCode::kOk);
+  EXPECT_EQ(ToStatus(builder), absl::OkStatus());
+  EXPECT_EQ(static_cast<absl::Status>(std::move(builder)), absl::OkStatus());
+
+  EXPECT_EQ(static_cast<absl::Status>(StatusBuilder(absl::CancelledError("msg"))
+                                          .SetErrorCode(absl::StatusCode::kOk)),
+            absl::OkStatus());
 }
 
 TEST_F(StatusBuilderTest, BuilderToStatusOrStatusShouldGiveErrorStatusOr) {

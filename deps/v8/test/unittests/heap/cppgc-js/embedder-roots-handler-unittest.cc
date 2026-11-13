@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
+
 #include "include/v8-embedder-heap.h"
+#include "include/v8-function.h"
 #include "include/v8-traced-handle.h"
 #include "src/handles/handles.h"
 #include "src/handles/traced-handles.h"
@@ -200,6 +203,120 @@ TEST_F(EmbedderRootsHandlerTest,
       v8_isolate(), ConstructDroppableJSApiObject,
       [](TracedReference<v8::Object>& handle) {}, [this]() { InvokeMinorGC(); },
       SurvivalMode::kDies);
+}
+
+namespace {
+
+// Simulates Blink's ScriptWrappable + DOMDataStore multi-world wrapper storage:
+// - `inline_wrappers_` represents main-world wrappers stored inline in
+//   `ScriptWrappable::wrapper_`.
+// - `secondary_wrappers_` represents isolated-world wrappers stored in a
+//   per-world `DOMDataStore::wrapper_map_`.
+// Both the main-world and isolated-world JS wrapper objects for item `i`
+// unwrap via `v8::Object::Unwrap` to the same `&inline_wrappers_[i]` address.
+class SharedWrappableEmbedderRootsHandler final
+    : public v8::EmbedderRootsHandler {
+ public:
+  SharedWrappableEmbedderRootsHandler(
+      v8::Isolate* isolate, v8::TracedReference<v8::Object>* inline_wrappers,
+      v8::TracedReference<v8::Object>* secondary_wrappers)
+      : EmbedderRootsHandler(),
+        isolate_(isolate),
+        inline_wrappers_(inline_wrappers),
+        secondary_wrappers_(secondary_wrappers) {}
+
+  void ResetRoot(const v8::TracedReference<v8::Value>& handle) final {
+    if (TryResetRoot(handle)) {
+      return;
+    }
+    const v8::TracedReference<v8::Object>& traced = handle.As<v8::Object>();
+    auto* inline_wrapper = reinterpret_cast<v8::TracedReference<v8::Object>*>(
+        v8::Object::Unwrap<kTagForTesting>(isolate_, traced));
+    const size_t index = static_cast<size_t>(inline_wrapper - inline_wrappers_);
+    if (secondary_wrappers_[index] == traced) {
+      secondary_wrappers_[index].Reset();
+    }
+  }
+
+  bool TryResetRoot(const v8::TracedReference<v8::Value>& handle) final {
+    const v8::TracedReference<v8::Object>& traced = handle.As<v8::Object>();
+    auto* inline_wrapper = reinterpret_cast<v8::TracedReference<v8::Object>*>(
+        v8::Object::Unwrap<kTagForTesting>(isolate_, traced));
+    if (*inline_wrapper == traced) {
+      inline_wrapper->Reset();
+      return true;
+    }
+    return false;
+  }
+
+ private:
+  v8::Isolate* const isolate_;
+  v8::TracedReference<v8::Object>* const inline_wrappers_;
+  v8::TracedReference<v8::Object>* const secondary_wrappers_;
+};
+
+}  // namespace
+
+TEST_F(EmbedderRootsHandlerTest,
+       YoungGC_ParallelResetRootSharedWrappableAcrossWorlds) {
+  if (v8_flags.single_generation || !v8_flags.reclaim_unmodified_wrappers ||
+      !v8_flags.parallel_reclaim_unmodified_wrappers) {
+    GTEST_SKIP();
+  }
+
+  ManualGCScope manual_gc(i_isolate());
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
+  GrowNewSpaceToMaximumCapacity();
+
+  // ParallelWeakHandlesProcessor spawns up to kMaxParallelTasks = 3 tasks at
+  // kBlocksPerTask = 8 granularity. Allocate pairs of droppable handles in
+  // block-sized batches (256) so that each item's inline_wrapper and
+  // secondary_wrapper reside in adjacent TracedNodeBlocks and are processed
+  // concurrently by different threads during minor GC.
+  constexpr size_t kBatchSize = 256;
+  constexpr size_t kNumWrappables = kBatchSize * 12;
+  std::array<v8::TracedReference<v8::Object>, kNumWrappables> inline_wrappers;
+  std::array<v8::TracedReference<v8::Object>, kNumWrappables>
+      secondary_wrappers;
+
+  SharedWrappableEmbedderRootsHandler handler(
+      v8_isolate(), inline_wrappers.data(), secondary_wrappers.data());
+  TemporaryEmbedderRootsHandleScope roots_handler_scope(v8_isolate(), &handler);
+
+  v8::HandleScope outer_scope(v8_isolate());
+  v8::Local<v8::Context> context = v8_isolate()->GetCurrentContext();
+  v8::Local<v8::Function> ctor = v8::FunctionTemplate::New(v8_isolate())
+                                     ->GetFunction(context)
+                                     .ToLocalChecked();
+
+  auto* traced_handles = i_isolate()->traced_handles();
+  const size_t initial_count = traced_handles->used_node_count();
+
+  for (int round = 0; round < 10; ++round) {
+    for (size_t base = 0; base < kNumWrappables; base += kBatchSize) {
+      v8::HandleScope scope(v8_isolate());
+      for (size_t i = base; i < base + kBatchSize; ++i) {
+        v8::Local<v8::Object> obj = ctor->NewInstance(context).ToLocalChecked();
+        WrapperHelper::SetWrappableConnection(v8_isolate(), obj,
+                                              &inline_wrappers[i]);
+        inline_wrappers[i].Reset(
+            v8_isolate(), obj,
+            typename v8::TracedReference<v8::Object>::IsDroppable{});
+      }
+      for (size_t i = base; i < base + kBatchSize; ++i) {
+        v8::Local<v8::Object> obj = ctor->NewInstance(context).ToLocalChecked();
+        WrapperHelper::SetWrappableConnection(v8_isolate(), obj,
+                                              &inline_wrappers[i]);
+        secondary_wrappers[i].Reset(
+            v8_isolate(), obj,
+            typename v8::TracedReference<v8::Object>::IsDroppable{});
+      }
+    }
+
+    InvokeMinorGC();
+    CHECK_EQ(initial_count, traced_handles->used_node_count());
+  }
 }
 
 }  // namespace v8::internal

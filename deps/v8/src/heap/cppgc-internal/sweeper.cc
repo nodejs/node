@@ -114,7 +114,7 @@ class ObjectStartBitmapVerifier final
     return true;
   }
 
-  PlatformAwareObjectStartBitmap* bitmap_ = nullptr;
+  ObjectStartBitmap* bitmap_ = nullptr;
   HeapObjectHeader* prev_ = nullptr;
 };
 
@@ -352,7 +352,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
   constexpr auto kAtomicAccess = AccessMode::kAtomic;
   FinalizationBuilder builder(*page, page_allocator);
 
-  PlatformAwareObjectStartBitmap& bitmap = page->object_start_bitmap();
+  ObjectStartBitmap& bitmap = page->object_start_bitmap();
 
   size_t live_bytes = 0;
 
@@ -565,10 +565,10 @@ class SweepFinalizer final {
 
       page_state->cached_free_list.Clear();
       page_state->cached_free_list.Add(
-          {normal_page->PayloadStart(), normal_page->PayloadSize()});
+          {normal_page->PayloadStart(), NormalPage::PayloadSize()});
 
       page_state->unfinalized_free_list.clear();
-      page_state->largest_new_free_list_entry = normal_page->PayloadSize();
+      page_state->largest_new_free_list_entry = NormalPage::PayloadSize();
     }
     // We either swept a non-empty page for which the space should already match
     // or we swept an empty page for which the owner was changed.
@@ -735,14 +735,15 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
       auto& target_space = NormalPageSpace::From(page.space());
       target_space.AddPage(&page);
       if (result.is_empty) {
-        target_space.free_list().Add({page.PayloadStart(), page.PayloadSize()});
+        target_space.free_list().Add(
+            {page.PayloadStart(), NormalPage::PayloadSize()});
       } else {
         target_space.free_list().Append(std::move(result.free_list));
       }
       // Verify that the bitmap is consistent with headers.
       ObjectStartBitmapVerifier().Verify(page);
       largest_consecutive_block_ =
-          std::max(result.is_empty ? page.PayloadSize()
+          std::max(result.is_empty ? NormalPage::PayloadSize()
                                    : result.largest_new_free_list_entry,
                    largest_consecutive_block_);
     }

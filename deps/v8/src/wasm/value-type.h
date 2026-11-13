@@ -128,16 +128,17 @@ enum ValueKind : uint8_t {
 //
 // bit 2: if it's a reference, is it nullable? Otherwise: unused.
 // bit 3: if it's a reference, is it an exact reference? Otherwise: unused.
+// bit 4: if it's a reference, can it be an i31? Otherwise: unused.
 //
 // For indexed (aka user defined) types, the next two fields cache information
 // that could also be looked up in the module's definition of the type:
-// bit 4: is it a shared type? Note that we consider numeric types as shared,
+// bit 5: is it a shared type? Note that we consider numeric types as shared,
 //        i.e. "shared" means "safe to use in a shared function".
-// bits 5-7: RefTypeKind: if it's a reference (indexed or generic), what
+// bits 6-8: RefTypeKind: if it's a reference (indexed or generic), what
 //           category of type (struct/array/function/continuation) is it?
 //           Non-reference types store the value "kOther".
 //
-// bits 8-27: For indexed types, the index. For other types, the StandardType.
+// bits 9-29: For indexed types, the index. For other types, the StandardType.
 //            The "ValueType" subclass stores module-specific indices, the
 //            "CanonicalValueType" stores canonicalized indices.
 //            For non-indexed types, we also define their respective
@@ -156,11 +157,12 @@ using HasIndexOrSentinelField = IsRefField::Next<bool, 1>;
 }  // namespace value_type_impl
 
 // Shorthands for the "extra_bits" definitions below. All of these must be
-// subsets of kGenericKindMask below!
+// subsets of kGenericKindMask (or CanBeI31Field for kI31) below!
 #define FUNC value_type_impl::RefTypeKindField::encode(RefTypeKind::kFunction)
 #define STRUCT value_type_impl::RefTypeKindField::encode(RefTypeKind::kStruct)
 #define ARRAY value_type_impl::RefTypeKindField::encode(RefTypeKind::kArray)
 #define CONT value_type_impl::RefTypeKindField::encode(RefTypeKind::kCont)
+#define I31 value_type_impl::CanBeI31Field::encode(true)
 #define REF value_type_impl::IsRefField::encode(true)
 #define SENTINEL value_type_impl::HasIndexOrSentinelField::encode(true)
 
@@ -183,12 +185,11 @@ using HasIndexOrSentinelField = IsRefField::Next<bool, 1>;
   V(Cont, ContRef, REF | CONT, "cont")                                         \
   V(Waitqueue, WaitqueueRef, REF, "waitqueue")
 
-#define FOREACH_ABSTRACT_TYPE(V) /*                           force 80 cols */ \
+#define FOREACH_ABSTRACT_TYPE_WITHOUT_I31(V) /*               force 80 cols */ \
   FOREACH_NONE_TYPE(V)                                                         \
   FOREACH_TOP_TYPE(V)                                                          \
   /* Established (non-proposal) types. */                                      \
   V(Eq, EqRef, REF, "eq")                                                      \
-  V(I31, I31Ref, REF, "i31")                                                   \
   V(Struct, StructRef, REF | STRUCT, "struct")                                 \
   V(Array, ArrayRef, REF | ARRAY, "array")                                     \
   /* Stringref proposal. */                                                    \
@@ -197,12 +198,20 @@ using HasIndexOrSentinelField = IsRefField::Next<bool, 1>;
   V(StringViewWtf16, StringViewWtf16, REF, "stringview_wtf16")                 \
   V(StringViewIter, StringViewIter, REF, "stringview_iter")
 
+#define FOREACH_ABSTRACT_TYPE(V) /*                           force 80 cols */ \
+  FOREACH_ABSTRACT_TYPE_WITHOUT_I31(V)                                         \
+  V(I31, I31Ref, REF | I31, "i31")
+
 // Types that don't fit into any of the other groups.
 #define FOREACH_INTERNAL_TYPE(V) /*                           force 80 cols */ \
   V(Void, Void, SENTINEL, "<void>")                                            \
   V(Top, Void, SENTINEL, "<top>")                                              \
   V(Bottom, Void, SENTINEL, "<bot>")                                           \
   V(ExternString, Void, REF, "<extern_string>")
+
+#define FOREACH_STANDARD_GENERIC_TYPE(V) /*                   force 80 cols */ \
+  FOREACH_INTERNAL_TYPE(V)                                                     \
+  FOREACH_ABSTRACT_TYPE_WITHOUT_I31(V)
 
 #define FOREACH_GENERIC_TYPE(V) /*                            force 80 cols */ \
   FOREACH_INTERNAL_TYPE(V)                                                     \
@@ -234,9 +243,10 @@ static_assert(TypeKindField::kMask ==
 // Non-reference types don't use these bits.
 using IsNullableField = TypeKindField::Next<Nullability, 1>;
 using IsExactField = IsNullableField::Next<Exactness, 1>;
+using CanBeI31Field = IsExactField::Next<bool, 1>;
 // For reference types, we cache some information about the referenced type.
 // Non-reference types don't use these bits.
-using IsSharedField = IsExactField::Next<SharedFlag, 1>;
+using IsSharedField = CanBeI31Field::Next<SharedFlag, 1>;
 using RefTypeKindField = IsSharedField::Next<RefTypeKind, 3>;
 static_assert(RefTypeKindField::is_valid(RefTypeKind::kLastValue));
 
@@ -244,7 +254,7 @@ static_assert(RefTypeKindField::is_valid(RefTypeKind::kLastValue));
 using PayloadField = RefTypeKindField::Next<uint32_t, 21>;
 
 // Reserved for future use.
-using ReservedField = PayloadField::Next<uint32_t, 3>;
+using ReservedField = PayloadField::Next<uint32_t, 2>;
 static_assert(ReservedField::kShift + ReservedField::kSize == 32);
 
 // Useful for HeapTypes, whose "shared" bit is orthogonal to their kind.
@@ -257,7 +267,8 @@ static constexpr uint32_t kNumericExtraBits =
     IsSharedField::encode(SharedFlag{true});
 
 #define COUNT(...) +1
-static constexpr uint32_t kNumberOfGenericKinds = 0 FOREACH_GENERIC_TYPE(COUNT);
+static constexpr uint32_t kNumberOfGenericKinds =
+    0 FOREACH_STANDARD_GENERIC_TYPE(COUNT);
 static constexpr uint32_t kNumberOfNumericKinds =
     0 FOREACH_NUMERIC_VALUE_TYPE(COUNT);
 #undef COUNT
@@ -271,8 +282,10 @@ static constexpr uint32_t kNumberOfStandardTypes =
 // the respective ValueTypes.
 enum class StandardType : uint8_t {
 #define DEF_ENUM(kind, ...) k##kind,
-  FOREACH_GENERIC_TYPE(DEF_ENUM) FOREACH_NUMERIC_VALUE_TYPE(DEF_ENUM)
+  FOREACH_STANDARD_GENERIC_TYPE(DEF_ENUM) FOREACH_NUMERIC_VALUE_TYPE(DEF_ENUM)
 #undef DEF_ENUM
+  // i31 has no dedicated StandardType payload; it uses kNone + CanBeI31Field.
+  kI31 = kNone,
 };
 
 // We additionally define separate enums for generic and numeric types, so that
@@ -301,6 +314,7 @@ enum class NumericKind : uint32_t {
 #undef STRUCT
 #undef ARRAY
 #undef CONT
+#undef I31
 #undef REF
 #undef SENTINEL
 
@@ -342,6 +356,7 @@ class ValueTypeBase {
   static const uint32_t kIsRefBit = value_type_impl::IsRefField::kMask;
   static const uint32_t kIsNullableBit =
       value_type_impl::IsNullableField::kMask;
+  static const uint32_t kCanBeI31Bit = value_type_impl::CanBeI31Field::kMask;
   static const uint32_t kIsSharedBit = value_type_impl::IsSharedField::kMask;
   static const uint32_t kHasIndexBit =
       value_type_impl::HasIndexOrSentinelField::kMask;
@@ -402,6 +417,9 @@ class ValueTypeBase {
     return value_type_impl::IsExactField::decode(bit_field_);
   }
   constexpr bool is_exact() const { return exactness() == Exactness::kExact; }
+  constexpr bool can_be_i31() const {
+    return value_type_impl::CanBeI31Field::decode(bit_field_);
+  }
   constexpr SharedFlag is_shared() const {
     return value_type_impl::IsSharedField::decode(bit_field_);
   }
@@ -421,8 +439,11 @@ class ValueTypeBase {
   }
   constexpr GenericKind generic_kind() const {
     DCHECK(is_generic());
-    return static_cast<GenericKind>(bit_field_ &
-                                    value_type_impl::kGenericKindMask);
+    uint32_t mask = value_type_impl::kGenericKindMask;
+    if (standard_type() == StandardType::kNone) {
+      mask |= value_type_impl::CanBeI31Field::kMask;
+    }
+    return static_cast<GenericKind>(bit_field_ & mask);
   }
 
   constexpr bool is_bottom() const {
@@ -438,7 +459,8 @@ class ValueTypeBase {
     return bits == static_cast<uint32_t>(GenericKind::kVoid);
   }
   constexpr bool is_none_or_bottom() const {
-    uint32_t bits = bit_field_ & value_type_impl::kGenericKindMask;
+    uint32_t bits = bit_field_ & (value_type_impl::kGenericKindMask |
+                                  value_type_impl::CanBeI31Field::kMask);
     return bits == static_cast<uint32_t>(GenericKind::kNone) ||
            bits == static_cast<uint32_t>(GenericKind::kBottom);
   }
@@ -461,7 +483,7 @@ class ValueTypeBase {
   }
   constexpr bool is_uninhabited() const {
     if (is_bottom()) return true;
-    if (is_defaultable()) return false;  // Includes all nullable refs.
+    if (is_defaultable() || can_be_i31()) return false;
     if (has_index()) return false;
     // Non-nullable references to null types are uninhabitable.
     return IsNullKind(generic_kind());
@@ -600,6 +622,7 @@ class ValueTypeBase {
              payload < value_type_impl::kNumberOfStandardTypes;
     }
     if (ref_type_kind() > RefTypeKind::kLastValue) return false;
+    if (can_be_i31() && !is_ref()) return false;
     if (!has_index()) {
       // Generic types must be part of the predefined set.
       if (payload >= value_type_impl::kNumberOfGenericKinds) return false;
@@ -696,6 +719,9 @@ class ValueTypeBase {
                                    SharedFlag is_shared)
       : bit_field_(static_cast<uint32_t>(kind) |
                    value_type_impl::IsNullableField::encode(nullable) |
+                   value_type_impl::CanBeI31Field::encode(
+                       kind == GenericKind::kI31 || kind == GenericKind::kEq ||
+                       kind == GenericKind::kAny) |
                    value_type_impl::IsSharedField::encode(is_shared)) {
     DCHECK(is_generic());
   }
@@ -771,6 +797,12 @@ class HeapType : public ValueTypeBase {
     return HeapType{ValueTypeBase(
         value_type_impl::IsExactField::update(raw_bit_field(), exact))};
   }
+
+  constexpr HeapType AsCanBeI31(bool can_be_i31 = true) const {
+    return HeapType{ValueTypeBase(
+        value_type_impl::CanBeI31Field::update(raw_bit_field(), can_be_i31))};
+  }
+  constexpr HeapType AsNonI31() const { return AsCanBeI31(false); }
 
   int32_t code() const {
     if (has_index()) return static_cast<int32_t>(ref_index().index);
@@ -872,6 +904,13 @@ class ValueType : public ValueTypeBase {
     if V8_LIKELY (!enabled.has_custom_descriptors()) return *this;
     return AsExact(exact);
   }
+
+  constexpr ValueType AsCanBeI31(bool can_be_i31 = true) const {
+    DCHECK(!is_numeric());
+    return ValueType{ValueTypeBase(
+        value_type_impl::CanBeI31Field::update(raw_bit_field(), can_be_i31))};
+  }
+  constexpr ValueType AsNonI31() const { return AsCanBeI31(false); }
 
   constexpr ValueType AsNonShared() const {
     if (!is_ref()) return *this;
@@ -978,6 +1017,13 @@ class CanonicalValueType : public ValueTypeBase {
     return AsExact(exact);
   }
 
+  constexpr CanonicalValueType AsCanBeI31(bool can_be_i31 = true) const {
+    DCHECK(!is_numeric());
+    return CanonicalValueType{ValueTypeBase(
+        value_type_impl::CanBeI31Field::update(raw_bit_field(), can_be_i31))};
+  }
+  constexpr CanonicalValueType AsNonI31() const { return AsCanBeI31(false); }
+
   constexpr CanonicalTypeIndex ref_index() const {
     return CanonicalTypeIndex{raw_index()};
   }
@@ -1033,6 +1079,8 @@ class IndependentValueType : public ValueTypeBase {
   }
 
  protected:
+  explicit constexpr IndependentValueType(uint32_t bit_field)
+      : ValueTypeBase(bit_field) {}
   explicit constexpr IndependentValueType(GenericKind kind,
                                           Nullability nullable,
                                           SharedFlag shared)
@@ -1046,11 +1094,21 @@ class IndependentHeapType : public IndependentValueType {
       : IndependentValueType(kind, nullable, shared) {}
 
   constexpr IndependentHeapType AsNonNull() const {
-    return IndependentHeapType(generic_kind(), kNonNullable, is_shared());
+    return IndependentHeapType{value_type_impl::IsNullableField::update(
+        raw_bit_field(), kNonNullable)};
   }
+  constexpr IndependentHeapType AsCanBeI31(bool can_be_i31 = true) const {
+    return IndependentHeapType{
+        value_type_impl::CanBeI31Field::update(raw_bit_field(), can_be_i31)};
+  }
+  constexpr IndependentHeapType AsNonI31() const { return AsCanBeI31(false); }
 
   constexpr HeapType heap_type() const { return HeapType{*this}; }
   constexpr operator HeapType() const { return HeapType{*this}; }
+
+ private:
+  explicit constexpr IndependentHeapType(uint32_t bit_field)
+      : IndependentValueType(bit_field) {}
 };
 
 // TODO(jkummerow): See how many of these ValueKind-based helpers we can

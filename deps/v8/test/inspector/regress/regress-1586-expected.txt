@@ -1,0 +1,6 @@
+Tests regress-1586.
+    } catch (e) {     // Line 5.
+      #x = 2;          // Line 6.
+    }
+
+i -> 1

@@ -32,7 +32,7 @@ When `v8_enable_static_roots = true` is enabled (supported under pointer compres
 *   **Cage Placement**: The read-only heap is placed at the very beginning of every Pointer Compression Cage. This ensures that the 32-bit compressed offset of any read-only object is constant across all isolates in a process.
 *   **Deterministic Layout**: The `mksnapshot` tool deterministically creates a bit-identical read-only heap.
 *   **Two-Stage Build (Conceptual)**: To use these addresses in C++ code (`libv8`), V8 needs to know them at compile time.
-    1.  `mksnapshot` (or specialized generator tools) is run to generate the addresses and write them to configuration-specific headers (e.g., `src/roots/static-roots-intl-wasm.h`), which are included by `src/roots/static-roots.h` based on build flags.
+    1.  `mksnapshot` (or specialized generator tools) is run to generate the addresses and write them to configuration-specific headers (e.g., `src/gen/intl-wasm/static-roots.h`), which are included by `src/roots/static-roots.h` based on build flags.
     2.  The main V8 binary is compiled, using these hardcoded offsets (e.g., `StaticReadOnlyRoot::kUndefinedValue`).
     *   *Note*: In practice, these generated headers are checked into the repository and only validated as part of normal compilation. If the read-only heap layout changes, the headers have to be regenerated with the `tools/dev/gen-static-roots.py` script.
 

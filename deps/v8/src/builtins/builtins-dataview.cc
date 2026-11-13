@@ -177,7 +177,8 @@ BUILTIN(DataViewConstructor) {
   if (!length_tracking &&
       view_byte_offset + view_byte_length > buffer_byte_length) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidDataViewLength));
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidDataViewLength, byte_length));
   }
 
   // 18. Set O.[[ViewedArrayBuffer]] to buffer.

@@ -18,7 +18,7 @@ diff --git a/third_party/zlib/contrib/minizip/unzip.c b/third_party/zlib/contrib
 index 82275d6c1775d..c8a01b23efd42 100644
 --- a/third_party/zlib/contrib/minizip/unzip.c
 +++ b/third_party/zlib/contrib/minizip/unzip.c
-@@ -1502,6 +1498,7 @@ extern int ZEXPORT unzOpenCurrentFile3(unzFile file, int* method,
+@@ -1499,6 +1501,7 @@ extern int ZEXPORT unzOpenCurrentFile3(unzFile file, int* method,
              zdecode(s->keys,s->pcrc_32_tab,source[i]);
  
          s->pfile_in_zip_read->pos_in_zipfile+=12;
@@ -45,7 +45,7 @@ diff --git a/third_party/zlib/contrib/minizip/unzip.c b/third_party/zlib/contrib
 index 0264f7ac570f7..4eb0de302cfdf 100644
 --- a/third_party/zlib/contrib/minizip/unzip.c
 +++ b/third_party/zlib/contrib/minizip/unzip.c
-@@ -1439,6 +1439,8 @@ local int unz64local_CheckCurrentFileCoherencyHeader(unz64_s* s, uInt* piSizeVar
+@@ -1284,6 +1284,8 @@ local int unz64local_CheckCurrentFileCoherencyHeader(unz64_s* s, uInt* piSizeVar
  */
      if (unz64local_getShort(&s->z_filefunc, s->filestream,&uFlags) != UNZ_OK)
          err=UNZ_ERRNO;

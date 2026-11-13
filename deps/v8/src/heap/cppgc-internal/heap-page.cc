@@ -86,7 +86,7 @@ ConstAddress BasePage::PayloadEnd() const {
 size_t BasePage::AllocatedSize() const {
   return is_large() ? LargePage::PageHeaderSize() +
                           LargePage::From(this)->PayloadSize()
-                    : NormalPage::From(this)->PayloadSize() +
+                    : NormalPage::PayloadSize() +
                           RoundUp(sizeof(NormalPage), kAllocationGranularity);
 }
 
@@ -119,8 +119,7 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
                 .linear_allocation_buffer()
                 .size());
 
-    PlatformAwareObjectStartBitmap& bitmap =
-        NormalPage::From(this)->object_start_bitmap();
+    ObjectStartBitmap& bitmap = NormalPage::From(this)->object_start_bitmap();
     const HeapObjectHeader* header = bitmap.FindHeader<AccessMode::kNonAtomic>(
         static_cast<ConstAddress>(address));
 
@@ -210,7 +209,7 @@ NormalPage* NormalPage::TryCreate(PageBackend& page_backend,
   // This allows to return newly allocated pages to go into that LAB and back
   // into the free list.
   Address begin = normal_page->PayloadStart() + sizeof(HeapObjectHeader);
-  const size_t size = normal_page->PayloadSize() - sizeof(HeapObjectHeader);
+  const size_t size = NormalPage::PayloadSize() - sizeof(HeapObjectHeader);
 #if defined(V8_USE_MEMORY_SANITIZER)
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(begin, size);
 #elif defined(V8_USE_ADDRESS_SANITIZER)

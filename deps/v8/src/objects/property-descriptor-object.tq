@@ -4,7 +4,7 @@
 
 #include 'src/objects/property-descriptor-object.h'
 
-@cppScope('PropertyDescriptorObject')
+@cppScope('PropertyDescriptorObject::Flags')
 bitfield struct PropertyDescriptorObjectFlags extends uint31 {
   is_enumerable: bool: 1 bit;
   has_enumerable: bool: 1 bit;

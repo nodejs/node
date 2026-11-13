@@ -1,0 +1,17 @@
+Tests regress-1639.
+function b() {
+  #c();  // BREAK 0
+}  // BREAK 1
+
+  c();  // BREAK 0
+#}  // BREAK 1
+
+
+  }
+#}  // BREAK 2
+
+
+  a(b);
+  #a(); // BREAK 3
+}
+

@@ -1,0 +1,9 @@
+Tests evaluating outer function variables when inner function calls eval.
+{
+    type : string
+    value : n
+}
+{
+    type : string
+    value : m
+}

@@ -46,7 +46,8 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsEmbeddedObjectMode(mode)) {
       DirectHandle<HeapObject> p = it.rinfo()->target_object_handle(origin);
-      it.rinfo()->set_target_object(this, *p, SKIP_WRITE_BARRIER_SCOPE,
+      it.rinfo()->set_target_object(heap->isolate(), this, *p,
+                                    SKIP_WRITE_BARRIER_SCOPE,
                                     SKIP_ICACHE_FLUSH);
       write_barrier_promise.RegisterAddress(it.rinfo()->pc());
     } else if (RelocInfo::IsCodeTargetMode(mode)) {
@@ -55,9 +56,9 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
       DirectHandle<HeapObject> p = it.rinfo()->target_object_handle(origin);
       Tagged<InstructionStream> target_istream =
           TrustedCast<Code>(*p)->instruction_stream();
-      it.rinfo()->set_target_address(this, target_istream->instruction_start(),
-                                     SKIP_WRITE_BARRIER_SCOPE,
-                                     SKIP_ICACHE_FLUSH);
+      it.rinfo()->set_target_address(
+          heap->isolate(), this, target_istream->instruction_start(),
+          SKIP_WRITE_BARRIER_SCOPE, SKIP_ICACHE_FLUSH);
       write_barrier_promise.RegisterAddress(it.rinfo()->pc());
     } else if (RelocInfo::IsNearBuiltinEntry(mode)) {
       // Rewrite builtin IDs to PC-relative offset to the builtin entry point.
@@ -66,8 +67,8 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
       // This won't trigger a write barrier, but setting mode to
       // UPDATE_WRITE_BARRIER to make it clear that we didn't forget about it
       // below.
-      it.rinfo()->set_target_address(this, p, UPDATE_WRITE_BARRIER,
-                                     SKIP_ICACHE_FLUSH);
+      it.rinfo()->set_target_address(heap->isolate(), this, p,
+                                     UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       DCHECK_EQ(p, it.rinfo()->target_address());
     } else if (RelocInfo::IsWasmStubCall(mode)) {
 #if V8_ENABLE_WEBASSEMBLY
@@ -105,13 +106,14 @@ void InstructionStream::RelocateFromDescWriteBarriers(
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsEmbeddedObjectMode(mode)) {
       Tagged<HeapObject> p = it.rinfo()->target_object();
-      WriteBarrier::ForRelocInfo(this, it.rinfo(), p, UPDATE_WRITE_BARRIER);
+      WriteBarrier::ForRelocInfo(heap->isolate(), this, it.rinfo(), p,
+                                 UPDATE_WRITE_BARRIER);
       write_barrier_promise.ResolveAddress(it.rinfo()->pc());
     } else if (RelocInfo::IsCodeTargetMode(mode)) {
       Tagged<InstructionStream> target_istream =
           InstructionStream::FromTargetAddress(it.rinfo()->target_address());
-      WriteBarrier::ForRelocInfo(this, it.rinfo(), target_istream,
-                                 UPDATE_WRITE_BARRIER);
+      WriteBarrier::ForRelocInfo(heap->isolate(), this, it.rinfo(),
+                                 target_istream, UPDATE_WRITE_BARRIER);
       write_barrier_promise.ResolveAddress(it.rinfo()->pc());
     } else if (RelocInfo::IsJSDispatchHandle(mode)) {
       JSDispatchHandle handle = it.rinfo()->js_dispatch_handle();

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/atomicops.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/common/message-template.h"
 #include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
@@ -44,6 +45,9 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferSetDetachKey) {
         isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
   auto array_buffer = Cast<JSArrayBuffer>(argument);
+  if (!array_buffer->is_detachable()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   JSArrayBuffer::SetDetachKey(array_buffer, key, isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -73,7 +77,10 @@ RUNTIME_FUNCTION(Runtime_GrowableSharedArrayBufferByteLength) {
 
   CHECK_EQ(0, array_buffer->byte_length_unchecked());
   size_t byte_length = array_buffer->GetBackingStore()->byte_length();
-  return *isolate->factory()->NewNumberFromSize(byte_length);
+  DirectHandle<Number> result =
+      isolate->factory()->NewNumberFromSize(byte_length);
+  SYNCHRONIZATION_POINT("GrowableSharedArrayBufferByteLength");
+  return *result;
 }
 
 namespace {

@@ -6,12 +6,13 @@ add_object_library(
     clock_gettime.cpp
   DEPENDS
     libc.include.sys_syscall
-    libc.hdr.types.struct_timespec
     libc.hdr.types.clockid_t
+    libc.hdr.types.struct_timespec
+    libc.src.__support.OSUtil.linux.syscall_wrappers.clock_gettime
+    libc.src.__support.OSUtil.linux.vdso
     libc.src.__support.common
     libc.src.__support.error_or
-    libc.src.__support.OSUtil.osutil
-    libc.src.__support.OSUtil.linux.vdso
+    libc.src.__support.macros.config
 )
 
 add_object_library(
@@ -21,10 +22,10 @@ add_object_library(
   SRCS
     clock_settime.cpp
   DEPENDS
-    libc.include.sys_syscall
-    libc.hdr.types.struct_timespec
     libc.hdr.types.clockid_t
+    libc.hdr.types.struct_timespec
+    libc.src.__support.OSUtil.linux.syscall_wrappers.clock_settime
     libc.src.__support.common
     libc.src.__support.error_or
-    libc.src.__support.OSUtil.osutil
+    libc.src.__support.macros.config
 )

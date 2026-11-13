@@ -247,6 +247,13 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
 
       case Opcode::kCatchBlockBegin:
+        // Throwing an exception can have arbitrary side effects (e.g., via
+        // debugger pause-on-exception), even when the throwing operation itself
+        // does not have `can_write` effects on its non-throwing path.
+        memory_.InvalidateMaybeAliasing();
+        WipeAllMaps();
+        break;
+
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
       case Opcode::kCheckException:
@@ -259,6 +266,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kDebugBreak:
       case Opcode::kJSStackCheck:
 #ifdef V8_ENABLE_WEBASSEMBLY
+      case Opcode::kWasmStackCheck:
       case Opcode::kSimd128LaneMemory:
       case Opcode::kGlobalSet:
       case Opcode::kArraySet:
@@ -272,12 +280,6 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // We explicitly break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
         break;
-
-#ifdef V8_ENABLE_WEBASSEMBLY
-      case Opcode::kWasmStackCheck:
-        ProcessWasmStackCheck(op_idx, op.Cast<WasmStackCheckOp>());
-        break;
-#endif  // V8_ENABLE_WEBASSEMBLY
 
       default:
         // Operations that `can_write` should invalidate the state. All such
@@ -300,12 +302,9 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
     }
     if (op.Effects().can_allocate) {
-      // String maps can be invalidated by the GC. Unfortunately, there is no
-      // way to know if a particular load at offset 0 loads a string map or not.
-      // So, to be safe, we invalidate every load at offset 0 whenever we see an
-      // allocation.
+      // String maps can be invalidated by the GC.
       memory_.InvalidatePotentialLoadedStringMaps();
-      WipeAllMaps();
+      WipeStringMaps();
     }
   }
 
@@ -355,7 +354,7 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
   TRACE("> ProcessLoad(" << op_idx << ")");
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (load.kind.is_atomic && v8_flags.wasm_shared) {
+  if (load.kind.is_atomic() && v8_flags.wasm_shared) {
     // We are not allowed to move a memory access backwards past a seq_cst load.
     // This means that we have to invalidate everything.
     // TODO(manoskouk): Find a way to eliminate atomic-to-atomic and maybe
@@ -373,7 +372,7 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
     return;
   }
 
-  if (load.kind.is_atomic) {
+  if (load.kind.is_atomic()) {
     // Atomic loads cannot be eliminated away, but potential concurrency
     // invalidates known stored values.
     TRACE(">> Atomic load, invalidating related memory");
@@ -465,10 +464,11 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     // eliminates more): We need to add a field allow_seq_cst_replacement to
     // keys. We set this field to true in the beginning.  Only if this field is
     // true should a seq_cst load be eliminated. The DisallowSeqCstReplacement
-    // should iterate all valid keys, and set theirallow_seq_cst_replacement bit
-    // to false.
-    // memory_.DisallowSeqCstReplacement();
+    // should iterate all valid keys, and set their allow_seq_cst_replacement
+    // bit to false.
 
+    // Updating aliases if the value stored was known as non-aliasing.
+    InvalidateIfAlias(store.value());
     return;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -505,22 +505,41 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     non_aliasing_objects_.Set(value, false);
   }
 
-  // If we just stored a map, invalidate all object_maps_.
+  // If we just stored a map, invalidate all potentially-aliasing object_maps_.
   if (store.offset == offsetof(HeapObject, map_) && !store.index().valid()) {
-    // TODO(dmercadier): can we only do this for objects that are potentially
-    // aliasing with the `base` (based on their maps and the maps of `base`)?
-    // Also, it might be worth to record a new map if this is actually a map
-    // store.
-    // TODO(dmercadier): do this only if `value` is a Constant with kind
-    // kHeapObject, since all map stores should store a known constant maps.
-    TRACE(">> Wiping all maps\n");
-    WipeAllMaps();
+    OpIndex base = memory_.ResolveBase(store.base());
+    if (non_aliasing_objects_.Get(base)) {
+      if (auto key = object_maps_.TryGetKeyFor(base)) {
+        object_maps_.Set(*key, MapMaskAndOr{});
+      }
+    } else {
+      // TODO(dmercadier): can we only do this for objects that are potentially
+      // aliasing with the `base` (based on their maps and the maps of `base`)?
+      // Also, it might be worth to record a new map if this is actually a map
+      // store.
+      // TODO(dmercadier): do this only if `value` is a Constant with kind
+      // kHeapObject, since all map stores should store a known constant maps.
+      TRACE(">> Wiping all maps\n");
+      WipeAllMaps();
+    }
   }
 }
 
 void LateLoadEliminationAnalyzer::WipeAllMaps() {
   for (auto it : object_maps_) {
     object_maps_.Set(it.second, MapMaskAndOr{});
+  }
+}
+
+void LateLoadEliminationAnalyzer::WipeStringMaps() {
+  // TODO(dmercadier): Avoid visiting all entries in {object_maps_} by turning
+  // it into a ChangeTrackingSnapshotTable that records entries whose maps may
+  // be String maps in a separate set.
+  for (auto it : object_maps_) {
+    MapMaskAndOr maps = object_maps_.Get(it.second);
+    if (!maps.is_empty() && maps.could_be_string()) {
+      object_maps_.Set(it.second, MapMaskAndOr{});
+    }
   }
 }
 
@@ -542,6 +561,9 @@ void LateLoadEliminationAnalyzer::ProcessAtomicRMW(OpIndex op_idx,
   // TODO(manoskouk): Can we fine-grain this?
   TRACE(">> Invalidating whole memory");
   memory_.InvalidateEverything();
+
+  // Updating aliases if the value stored was known as non-aliasing.
+  InvalidateIfAlias(store.value());
 #endif
 }
 
@@ -721,19 +743,6 @@ void LateLoadEliminationAnalyzer::ProcessChange(OpIndex op_idx,
 
   InvalidateIfAlias(change.input());
 }
-
-#ifdef V8_ENABLE_WEBASSEMBLY
-void LateLoadEliminationAnalyzer::ProcessWasmStackCheck(
-    OpIndex op_idx, const WasmStackCheckOp& op) {
-  TRACE("> ProcessWasmStackCheck(" << op_idx << ")");
-  if (op.kind == WasmStackCheckOp::Kind::kLoop &&
-      op.trusted_instance_data().valid()) {
-    OpIndex instance = op.trusted_instance_data().value();
-    memory_.InvalidateAtOffset(WasmTrustedInstanceData::kMemory0SizeOffset,
-                               instance);
-  }
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 void LateLoadEliminationAnalyzer::FinishBlock(const Block* block) {
   block_to_snapshot_mapping_[block->index()] = Snapshot{

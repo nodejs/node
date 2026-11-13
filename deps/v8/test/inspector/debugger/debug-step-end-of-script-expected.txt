@@ -1,0 +1,3 @@
+Tests stepping over at the end of a script.
+Paused at: "debugger;"
+Paused at: ""

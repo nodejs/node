@@ -9,11 +9,10 @@ function gen_shrl_smi(y) {
 }
 
 function shrl_test(lhs, rhs, expected_result) {
-  const shrl = gen_shrl_smi(rhs);
+  const shrl = copyFunctionWithFreshFeedback(gen_shrl_smi)(rhs);
 
   // Warmup.
   %PrepareFunctionForOptimization(shrl);
-  %ClearFunctionFeedback(shrl);
   shrl(1);
   %OptimizeMaglevOnNextCall(shrl);
 
@@ -26,11 +25,10 @@ function shrl_test(lhs, rhs, expected_result) {
 
 
 function shrl_test_expect_deopt(lhs, rhs, expected_result) {
-  const shrl = gen_shrl_smi(rhs);
+  const shrl = copyFunctionWithFreshFeedback(gen_shrl_smi)(rhs);
 
   // Warmup.
   %PrepareFunctionForOptimization(shrl);
-  %ClearFunctionFeedback(shrl);
   shrl(1);
   %OptimizeMaglevOnNextCall(shrl);
 

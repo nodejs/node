@@ -79,6 +79,7 @@ void ContextSerializer::Serialize(Tagged<Context>* o,
     sink_.Put(kSynchronize, "Finished with api wrapper fields data");
   }
 
+  OptimizeBackReferences();
   Pad();
 }
 
@@ -127,10 +128,9 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   {
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> raw = *obj;
-    if (SerializeHotObject(raw)) return;
     if (SerializeRoot(raw)) return;
-    if (SerializeBackReference(raw)) return;
     if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
+    if (SerializeBackReference(raw)) return;
   }
 
   if (startup_serializer_->SerializeUsingSharedHeapObjectCache(&sink_, obj)) {
@@ -155,7 +155,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   InstanceType instance_type = obj->map()->instance_type();
   if (InstanceTypeChecker::IsFeedbackVector(instance_type)) {
     // Clear literal boilerplates and feedback.
-    Cast<FeedbackVector>(obj)->ClearSlots(isolate());
+    Cast<FeedbackVector>(obj)->ClearICAndLiteralSlots(isolate());
   } else if (InstanceTypeChecker::IsJSObject(instance_type)) {
     Handle<JSObject> js_obj = Cast<JSObject>(obj);
     int embedder_fields_count = js_obj->GetEmbedderFieldCount();

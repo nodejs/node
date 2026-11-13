@@ -738,7 +738,7 @@ inline void MaglevAssembler::Move(Register dst, uint32_t i) {
   MacroAssembler::Move(dst, i);
 }
 
-inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
+inline void MaglevAssembler::Move(Register dst, TrustedPointerTag i) {
   MacroAssembler::Move(dst, i);
 }
 
@@ -751,6 +751,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
 }
 
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  if (TryLoadRoot(dst, obj)) return;
   MacroAssembler::Move(dst, obj);
 }
 
@@ -1168,8 +1169,7 @@ void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
 }
 
 void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
-  Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-  Subsd(value, kScratchDoubleReg);
+  CanonicalizeNaN(value);
 }
 
 void MaglevAssembler::Float64ExtractHighWord32(Register dst,

@@ -25,6 +25,7 @@
 namespace v8 {
 namespace internal {
 
+class AllocationSiteCache;
 class Isolate;
 class MicrotaskQueue;
 class TrustedPointerPublishingScope;
@@ -188,6 +189,10 @@ class IsolateData final {
   Tagged<Object> continuation_preserved_embedder_data() const {
     return continuation_preserved_embedder_data_;
   }
+  Handle<Object> continuation_preserved_embedder_data_handle() {
+    return Handle<Object>(
+        reinterpret_cast<Address*>(&continuation_preserved_embedder_data_));
+  }
   void set_continuation_preserved_embedder_data(Tagged<Object> data) {
     continuation_preserved_embedder_data_ = data;
   }
@@ -238,11 +243,36 @@ class IsolateData final {
     return arraysize(raw_arguments_);
   }
 
+  AllocationSiteCache* allocation_site_cache() const {
+    return allocation_site_cache_;
+  }
+  void set_allocation_site_cache(AllocationSiteCache* cache) {
+    allocation_site_cache_ = cache;
+  }
+
   bool stack_is_iterable() const {
     DCHECK(stack_is_iterable_ == 0 || stack_is_iterable_ == 1);
     return stack_is_iterable_ != 0;
   }
-  bool is_marking() const { return is_marking_flag_; }
+  bool is_marking() const { return is_any_marking_active(); }
+  bool is_local_marking() const {
+    return (is_marking_flag_ & (IsolateMarkingFlag::kLocalMajorMarking |
+                                IsolateMarkingFlag::kLocalMinorMarking)) !=
+           IsolateMarkingFlag::kNoMarking;
+  }
+  bool is_minor_marking() const {
+    return is_marking_flag_.contains(IsolateMarkingFlag::kLocalMinorMarking);
+  }
+  bool is_shared_marking() const {
+    return is_marking_flag_.contains(IsolateMarkingFlag::kSharedMarking);
+  }
+  bool is_any_marking_active() const {
+    return is_marking_flag_ != IsolateMarkingFlag::kNoMarking;
+  }
+  IsolateMarkingFlags is_marking_flag() const { return is_marking_flag_; }
+  void set_marking_flag(IsolateMarkingFlag flag, bool value) {
+    is_marking_flag_.set(flag, value);
+  }
 
   // Returns true if this address points to data stored in this instance. If
   // it's the case then the value can be accessed indirectly through the root
@@ -316,9 +346,8 @@ class IsolateData final {
   //
 
   // These flags are regularly checked by write barriers.
-  // Only valid values are 0 or 1.
-  uint8_t is_marking_flag_ = false;
-  uint8_t is_minor_marking_flag_ = false;
+  IsolateMarkingFlags is_marking_flag_ = IsolateMarkingFlag::kNoMarking;
+  uint8_t is_marking_flag_padding_ = 0;
   uint8_t is_shared_space_isolate_flag_ = false;
   uint8_t uses_shared_heap_flag_ = false;
 
@@ -361,7 +390,7 @@ class IsolateData final {
   LinearAllocationArea new_allocation_info_;
   LinearAllocationArea old_allocation_info_;
 
-  Address last_young_allocation_;
+  Address last_young_allocation_ = kNullAddress;
 
   // Aligns fast_c_call_XXX fields so that they stay in the same CPU cache line.
   Address fast_c_call_alignment_padding_[kFastCCallAlignmentPaddingCount];
@@ -432,6 +461,10 @@ class IsolateData final {
   MicrotaskQueue* current_microtask_queue_ = nullptr;
   Tagged<Object> current_microtask_native_context_ = Smi::zero();
 
+  // Pointer to the direct-mapped AllocationSiteCache owned by Isolate (cleared
+  // on every GC prologue) for JSArray elements transition tracking.
+  AllocationSiteCache* allocation_site_cache_ = nullptr;
+
   RootsTable roots_table_;
   ExternalReferenceTable external_reference_table_;
 
@@ -455,6 +488,9 @@ class IsolateData final {
   // Boolean value indicating that DateCache is used (i.e. JSDate instances
   // were created in this Isolate).
   uint8_t is_date_cache_used_ = false;
+#ifdef V8_INTL_SUPPORT
+  uint8_t default_locale_may_require_special_case_mapping_ = true;
+#endif
 
   // Padding for aligning raw_arguments_.
   V8_NO_UNIQUE_ADDRESS uint8_t raw_arguments_padding_[kRawArgumentsPaddingSize];

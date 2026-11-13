@@ -75,7 +75,7 @@ class SnapshotNativeCounterTest : public TestWithNativeContextAndCounters {
 }  // namespace
 
 TEST_F(AggregatedMemoryHistogramTest, OneSample1) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   AddSample(10, 1000);
   AddSample(20, 1000);
   EXPECT_EQ(1U, samples()->size());
@@ -83,7 +83,7 @@ TEST_F(AggregatedMemoryHistogramTest, OneSample1) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, OneSample2) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   AddSample(10, 500);
   AddSample(20, 1000);
   EXPECT_EQ(1U, samples()->size());
@@ -91,7 +91,7 @@ TEST_F(AggregatedMemoryHistogramTest, OneSample2) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, OneSample3) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   AddSample(10, 500);
   AddSample(15, 500);
   AddSample(15, 1000);
@@ -101,7 +101,7 @@ TEST_F(AggregatedMemoryHistogramTest, OneSample3) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, OneSample4) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   AddSample(10, 500);
   AddSample(15, 750);
   AddSample(20, 1000);
@@ -110,7 +110,7 @@ TEST_F(AggregatedMemoryHistogramTest, OneSample4) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples1) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   AddSample(10, 1000);
   AddSample(30, 1000);
   EXPECT_EQ(2U, samples()->size());
@@ -119,7 +119,7 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples1) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples2) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   AddSample(10, 1000);
   AddSample(20, 1000);
   AddSample(30, 1000);
@@ -129,7 +129,7 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples2) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples3) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   AddSample(10, 1000);
   AddSample(20, 1000);
   AddSample(20, 500);
@@ -140,7 +140,7 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples3) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples4) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   AddSample(10, 1000);
   AddSample(30, 0);
   EXPECT_EQ(2U, samples()->size());
@@ -149,7 +149,7 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples4) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples5) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   AddSample(10, 0);
   AddSample(30, 1000);
   EXPECT_EQ(2U, samples()->size());
@@ -158,7 +158,7 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples5) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples6) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   AddSample(10, 0);
   AddSample(15, 1000);
   AddSample(30, 1000);
@@ -168,7 +168,7 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples6) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples7) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   AddSample(10, 0);
   AddSample(15, 1000);
   AddSample(25, 0);
@@ -179,7 +179,7 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples7) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples8) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   AddSample(10, 1000);
   AddSample(15, 0);
   AddSample(25, 1000);
@@ -190,7 +190,7 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples8) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, ManySamples1) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   const int kMaxSamples = 1000;
   AddSample(0, 0);
   AddSample(10 * kMaxSamples, 10 * kMaxSamples);
@@ -201,7 +201,7 @@ TEST_F(AggregatedMemoryHistogramTest, ManySamples1) {
 }
 
 TEST_F(AggregatedMemoryHistogramTest, ManySamples2) {
-  v8_flags.histogram_interval = 10;
+  v8_flags.histogram_interval.Set(10);
   const int kMaxSamples = 1000;
   AddSample(0, 0);
   AddSample(10 * (2 * kMaxSamples), 10 * (2 * kMaxSamples));

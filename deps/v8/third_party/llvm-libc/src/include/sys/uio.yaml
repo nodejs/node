@@ -4,6 +4,7 @@ standards:
 types:
   - type_name: struct_iovec
   - type_name: ssize_t
+  - type_name: pid_t
 functions:
   - name: writev
     standards:
@@ -21,3 +22,25 @@ functions:
       - type: int
       - type: const struct iovec *
       - type: int
+  - name: process_vm_readv
+    standards:
+      - linux
+    return_type: ssize_t
+    arguments:
+      - type: pid_t
+      - type: const struct iovec *
+      - type: unsigned long
+      - type: const struct iovec *
+      - type: unsigned long
+      - type: unsigned long
+  - name: process_vm_writev
+    standards:
+      - linux
+    return_type: ssize_t
+    arguments:
+      - type: pid_t
+      - type: const struct iovec *
+      - type: unsigned long
+      - type: const struct iovec *
+      - type: unsigned long
+      - type: unsigned long

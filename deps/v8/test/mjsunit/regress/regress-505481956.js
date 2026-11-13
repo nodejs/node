@@ -20,7 +20,7 @@ const o = create(holeNaN);
 
 f64[0] = o.key;
 
-assertNotEquals(Array.from(u32), [0xFFF7FFFF, 0xFFF7FFFF]);
+assertTrue(isNaN(o.key));
 
 function test() {
   let v = o.key;
@@ -33,4 +33,8 @@ for (let i = 0; i < 100; i++) test();
 let result = test();
 f64[0] = result;
 
-assertNotEquals(Array.from(u32), [0xFFF7FFFF, 0xFFF7FFFF]);
+assertTrue(isNaN(result));
+
+o.key = 42;
+assertEquals(42, o.key);
+assertEquals(42, test());

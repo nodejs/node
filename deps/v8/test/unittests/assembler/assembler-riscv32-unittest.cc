@@ -46,7 +46,7 @@ namespace internal {
 using AssemblerRISCV32Test = TestWithIsolate;
 
 // With 512-bit vectors, there are at most 64 elements.
-static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
+static_assert(kMaxRvvVLEN <= 1024, "Unsupported VLEN");
 const int kMaxElements = 64;
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
@@ -3138,7 +3138,40 @@ TEST_F(AssemblerRISCV32Test, RISCV_UTEST_WasmRvvS128const) {
   }
 }
 
+// The constant pool marker is an 'auipc x0, #words' instruction whose 20-bit
+// immediate is a word count, not a signed hi20 offset. The field is unsigned,
+// so a count with bit 19 set must not be sign-extended when read back, or the
+// decoded pool size becomes negative.
+TEST_F(AssemblerRISCV32Test, ConstantPoolMarkerWordCountIsUnsigned) {
+  MacroAssembler assm(isolate(), AssemblerOptions{}, CodeObjectRequired{false});
+  Assembler* a = &assm;
+
+  const int kWordCounts[] = {0, 1, 0x7FFFF, 0x80000, 0xFFFFF};
+  for (int words : kWordCounts) {
+    a->auipc(zero_reg, words);
+    Instruction* marker = a->InstructionAt(a->pc_offset() - kInstrSize);
+    a->EmitPoolGuard();
+    CHECK_EQ(static_cast<uint32_t>(words), marker->Imm20UValueUnsigned());
+    CHECK(Assembler::IsConstantPoolAt(marker));
+    CHECK_EQ(words, Assembler::ConstantPoolSizeAt(marker));
+  }
+
+  // Only the constant pool marker is read as an unsigned field; a real,
+  // executed AUIPC keeps its signed hi20 semantics.
+  a->auipc(t0, -1);
+  Instruction* real_auipc = a->InstructionAt(a->pc_offset() - kInstrSize);
+  CHECK_EQ(-1, real_auipc->Imm20UValue());
+
+  // A 'lui x0' is U-type but is not a constant pool marker.
+  a->lui(zero_reg, 1);
+  Instruction* not_a_marker = a->InstructionAt(a->pc_offset() - kInstrSize);
+  CHECK(!Assembler::IsConstantPoolAt(not_a_marker));
+  CHECK_EQ(-1, Assembler::ConstantPoolSizeAt(not_a_marker));
+}
+
 #undef UTEST_VCPOP_M_WITH_WIDTH
+
 #undef __
+
 }  // namespace internal
 }  // namespace v8

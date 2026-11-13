@@ -1519,6 +1519,30 @@ TEST_F(DisasmArm64Test, load_store_acquire_release) {
   COMPARE(caspal(x4, x5, x6, x7, MemOperand(sp)),
           "caspal x4, x5, x6, x7, [sp]");
 
+  {
+    CpuFeatureScope lrcpc2_scope(assm, LRCPC2,
+                                 CpuFeatureScope::kDontCheckSupported);
+    COMPARE(stlurb(w0, MemOperand(x1, 0)), "stlurb w0, [x1]");
+    COMPARE(stlurb(w2, MemOperand(x3, -1)), "stlurb w2, [x3, #-1]");
+    COMPARE(stlurb(wzr, MemOperand(sp, 255)), "stlurb wzr, [sp, #255]");
+    COMPARE(stlurh(w4, MemOperand(x5, -256)), "stlurh w4, [x5, #-256]");
+    COMPARE(stlurh(wzr, MemOperand(sp, 0)), "stlurh wzr, [sp]");
+    COMPARE(stlur(w6, MemOperand(x7, -1)), "stlur w6, [x7, #-1]");
+    COMPARE(stlur(x8, MemOperand(x9, 7)), "stlur x8, [x9, #7]");
+    COMPARE(stlur(xzr, MemOperand(sp, -8)), "stlur xzr, [sp, #-8]");
+
+    COMPARE(ldapurb(w10, MemOperand(x11, 0)), "ldapurb w10, [x11]");
+    COMPARE(ldapurb(w12, MemOperand(x13, -1)), "ldapurb w12, [x13, #-1]");
+    COMPARE(ldapursb(w14, MemOperand(x15, 127)), "ldapursb w14, [x15, #127]");
+    COMPARE(ldapursb(x16, MemOperand(x17, -128)), "ldapursb x16, [x17, #-128]");
+    COMPARE(ldapurh(w18, MemOperand(x19, 2)), "ldapurh w18, [x19, #2]");
+    COMPARE(ldapursh(w20, MemOperand(x21, -2)), "ldapursh w20, [x21, #-2]");
+    COMPARE(ldapursh(x22, MemOperand(x23, 6)), "ldapursh x22, [x23, #6]");
+    COMPARE(ldapur(w24, MemOperand(x25, -1)), "ldapur w24, [x25, #-1]");
+    COMPARE(ldapur(x26, MemOperand(x27, 15)), "ldapur x26, [cp, #15]");
+    COMPARE(ldapursw(x28, MemOperand(sp, -4)), "ldapursw x28, [sp, #-4]");
+  }
+
   CLEANUP();
 }
 
@@ -2076,6 +2100,16 @@ TEST_F(DisasmArm64Test, brk) {
   COMPARE(brk(0), "brk #0x0");
   COMPARE(brk(1), "brk #0x1");
   COMPARE(brk(65535), "brk #0xffff");
+
+  CLEANUP();
+}
+
+TEST_F(DisasmArm64Test, udf) {
+  SET_UP_ASM();
+
+  COMPARE(dci(0), "udf #0x0");
+  COMPARE(dci(1), "udf #0x1");
+  COMPARE(dci(65535), "udf #0xffff");
 
   CLEANUP();
 }
@@ -5214,6 +5248,20 @@ TEST_F(DisasmArm64Test, sve_bit_permute) {
   COMPARE(Bext(z6.VnD(), z2.VnD(), z5.VnD()), "bext z6.d, z2.d, z5.d");
   COMPARE(Bext(z6.VnH(), z2.VnH(), z5.VnH()), "bext z6.h, z2.h, z5.h");
   COMPARE(Bext(z6.VnS(), z2.VnS(), z5.VnS()), "bext z6.s, z2.s, z5.s");
+
+  CLEANUP();
+}
+
+TEST_F(DisasmArm64Test, mul) {
+  SET_UP_MASM();
+
+  CpuFeatureScope feature_scope(assm, SVE2,
+                                CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE(Mul(z0.VnB(), z1.VnB(), z2.VnB()), "mul z0.b, z1.b, z2.b");
+  COMPARE(Mul(z0.VnH(), z1.VnH(), z2.VnH()), "mul z0.h, z1.h, z2.h");
+  COMPARE(Mul(z0.VnS(), z1.VnS(), z2.VnS()), "mul z0.s, z1.s, z2.s");
+  COMPARE(Mul(z0.VnD(), z1.VnD(), z2.VnD()), "mul z0.d, z1.d, z2.d");
 
   CLEANUP();
 }

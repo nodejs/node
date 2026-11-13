@@ -96,7 +96,7 @@ ABSL_NAMESPACE_BEGIN
 // function:
 //
 //   struct SimpleDelimiter {
-//     const char c_;
+//     char c_;
 //     explicit SimpleDelimiter(char c) : c_(c) {}
 //     absl::string_view Find(absl::string_view text, size_t pos) {
 //       auto found = text.find(c_, pos);
@@ -206,7 +206,7 @@ class ByAnyChar {
   absl::string_view Find(absl::string_view text, size_t pos) const;
 
  private:
-  const std::string delimiters_;
+  std::string delimiters_;
 };
 
 // ByLength
@@ -237,7 +237,7 @@ class ByLength {
   absl::string_view Find(absl::string_view text, size_t pos) const;
 
  private:
-  const ptrdiff_t length_;
+  ptrdiff_t length_;
 };
 
 namespace strings_internal {
@@ -291,7 +291,7 @@ class MaxSplitsImpl {
 
  private:
   Delimiter delimiter_;
-  const int limit_;
+  int limit_;
   int count_;
 };
 
@@ -452,7 +452,8 @@ using EnableSplitIfString =
 // behavior works for:
 //
 // 1) All standard STL containers including `std::vector`, `std::list`,
-//    `std::deque`, `std::set`,`std::multiset`, 'std::map`, and `std::multimap`.
+//    `std::deque`, `std::set`, `std::multiset`, `std::map`, and
+//    `std::multimap`.
 // 2) `std::pair` (which is not actually a container). See below.
 // 3) `std::array`, which is a container but has different behavior due to its
 //    fixed size. See below.

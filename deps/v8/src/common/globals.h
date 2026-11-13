@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <bit>
 #include <limits>
 #include <ostream>
 
@@ -198,8 +199,19 @@ namespace internal {
 // even just 1 KB less than the default stack size would be enough (see
 // crbug.com/1486275); to be more robust towards future CF reports we'll
 // use an even lower limit.
+#if V8_OS_ANDROID
+#define V8_DEFAULT_STACK_SIZE_KB 928
+#else
 #define V8_DEFAULT_STACK_SIZE_KB 960
+#endif
 #define V8_STACK_LIMIT_MARGIN_KB 64
+#elif V8_OS_ANDROID
+// On 64-bit Android, Bionic's default pthread stack size
+// (PTHREAD_STACK_SIZE_DEFAULT) is 992 KB (1 MB minus 32 KB for
+// SIGNAL_STACK_SIZE_WITHOUT_GUARD). Leave the same 40 KB margin as on
+// 1 MB stack systems.
+#define V8_DEFAULT_STACK_SIZE_KB 952
+#define V8_STACK_LIMIT_MARGIN_KB 40
 #else
 // Slightly less than 1MB, since Windows' default stack size for
 // the main execution thread is 1MB.
@@ -257,6 +269,21 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #else
 #define V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL false
 #endif
+
+#ifdef V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#define V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL true
+#else
+#define V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL false
+#endif  // V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#define V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL true
+#else
+#define V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL false
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+
+static_assert(!V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL ||
+              V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL);
 
 // Determine whether dict property constness tracking feature is enabled.
 #ifdef V8_DICT_PROPERTY_CONST_TRACKING
@@ -376,6 +403,12 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_EXPERIMENTAL_TQ_TO_TSA_BOOL true
 #else
 #define V8_EXPERIMENTAL_TQ_TO_TSA_BOOL false
+#endif
+
+#ifdef V8_X64_16BYTE_STACK_ALIGNMENT
+#define V8_X64_16BYTE_STACK_ALIGNMENT_BOOL true
+#else
+#define V8_X64_16BYTE_STACK_ALIGNMENT_BOOL false
 #endif
 
 #ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
@@ -607,8 +640,13 @@ using JSDispatchHandle =
 
 constexpr JSDispatchHandle kNullJSDispatchHandle(0);
 
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+constexpr int kJSDispatchTableEntrySize = 32;
+constexpr int kJSDispatchTableEntrySizeLog2 = 5;
+#else
 constexpr int kJSDispatchTableEntrySize = 16;
 constexpr int kJSDispatchTableEntrySizeLog2 = 4;
+#endif  // V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
 
 // The size of the virtual memory reservation for the JSDispatchTable.
 // As with the other tables, a maximum table size in combination with shifted
@@ -621,7 +659,7 @@ constexpr int kJSDispatchTableEntrySizeLog2 = 4;
 constexpr size_t kJSDispatchTableReservationSize = 128 * MB;
 #else
 constexpr size_t kJSDispatchTableReservationSize =
-    (V8_LOWER_LIMITS_MODE_BOOL ? 16 : 256) * MB;
+    (V8_LOWER_LIMITS_MODE_BOOL ? 1 : 16) * kJSDispatchTableEntrySize * MB;
 #endif  // defined(V8_TARGET_OS_IOS) &&
         // !defined(V8_ENABLE_BUILTINS_OPTIMIZATION)
 // The maximum number of entries in a JSDispatchTable.
@@ -674,7 +712,7 @@ static_assert(kPointerSize == (1 << kPointerSizeLog2));
 // This type defines the raw storage type for external (or off-V8 heap) pointers
 // stored on V8 heap.
 constexpr int kExternalPointerSlotSize = sizeof(ExternalPointer_t);
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 static_assert(kExternalPointerSlotSize == kTaggedSize);
 #else
 static_assert(kExternalPointerSlotSize == kSystemPointerSize);
@@ -689,12 +727,10 @@ static_assert(kCppHeapPointerSlotSize == sizeof(uint32_t));
 static_assert(kCppHeapPointerSlotSize == kSystemPointerSize);
 #endif
 
-constexpr int kIndirectPointerSize = sizeof(IndirectPointerHandle);
-// When the sandbox is enabled, trusted pointers are implemented as indirect
-// pointers (indices into the trusted pointer table). Otherwise they are regular
-// tagged pointers.
+// When the sandbox is enabled, trusted pointers are indices into the trusted
+// pointer table. Otherwise they are regular tagged pointers.
 #ifdef V8_ENABLE_SANDBOX
-constexpr int kTrustedPointerSize = kIndirectPointerSize;
+constexpr int kTrustedPointerSize = sizeof(TrustedPointerHandle);
 using TrustedPointer_t = TrustedPointerHandle;
 #else
 constexpr int kTrustedPointerSize = kTaggedSize;
@@ -907,13 +943,13 @@ enum class ContextMode { kNoContextCells, kHasContextCells };
 // Whether floating point registers should be saved (and restored).
 enum class SaveFPRegsMode { kIgnore, kSave };
 
-// This enum describes the ownership semantics of an indirect pointer.
-enum class IndirectPointerMode {
-  // A regular reference from one HeapObject to another one through an indirect
+// This enum describes the ownership semantics of a trusted pointer.
+enum class TrustedPointerMode {
+  // A regular reference from one HeapObject to another one through a trusted
   // pointer, where the referenced object should be kept alive as long as the
   // referencing object is alive.
   kStrong,
-  // A reference from one HeapObject to another one through an indirect pointer
+  // A reference from one HeapObject to another one through a trusted pointer
   // with custom ownership semantics. Used for example for references from
   // JSFunctions to Code objects which follow custom weak ownership semantics.
   kCustom
@@ -1342,6 +1378,9 @@ using MaybeWeak = Union<T, Weak<T>>;
 // TODO(leszeks): Add a proper Zero type.
 using Zero = Smi;
 
+// NaN is a special HeapNumber value.
+using NaN = HeapNumber;
+
 // Number is either a Smi or a HeapNumber.
 using Number = Union<Smi, HeapNumber>;
 // Numeric is either a Number or a BigInt.
@@ -1516,7 +1555,8 @@ constexpr bool IsAnyNewSpace(AllocationSpace space) {
 }
 constexpr bool IsAnyLargeSpace(AllocationSpace space) {
   return space == NEW_LO_SPACE || space == LO_SPACE || space == CODE_LO_SPACE ||
-         space == SHARED_LO_SPACE || space == TRUSTED_LO_SPACE;
+         space == SHARED_LO_SPACE || space == TRUSTED_LO_SPACE ||
+         space == SHARED_TRUSTED_LO_SPACE;
 }
 
 constexpr const char* ToString(AllocationSpace space) {
@@ -2374,10 +2414,6 @@ inline bool IsLexicalVariableMode(VariableMode mode) {
   return mode <= VariableMode::kLastLexicalVariableMode;
 }
 
-inline bool IsResourceManagedVariableMode(VariableMode mode) {
-  return mode == VariableMode::kUsing || mode == VariableMode::kAwaitUsing;
-}
-
 enum VariableLocation : uint8_t {
   // Before and during variable allocation, a variable whose location is
   // not yet determined.  After allocation, a variable looked up as a
@@ -2542,7 +2578,7 @@ class BinaryOperationFeedback : public AllStatic {
       static_cast<uint32_t>(TypeIndex::kLastTypeIndex) + 1;
   // round up to 2^x for better memory access
   static constexpr uint32_t kTransitionMapStride =
-      base::bits::RoundUpToPowerOfTwo32(kNumTypeIndices);
+      std::bit_ceil(kNumTypeIndices);
 
   static constexpr Type DecodeTypeIndex(TypeIndex index) {
     switch (index) {
@@ -2566,6 +2602,14 @@ class BinaryOperationFeedback : public AllStatic {
     return "Unknown";
   }
 
+  static constexpr TypeIndex CombineTypeIndex(TypeIndex a, TypeIndex b) {
+    Type type_a = DecodeTypeIndex(a);
+    Type type_b = DecodeTypeIndex(b);
+    uint32_t combined_feedback_value =
+        static_cast<uint32_t>(type_a) | static_cast<uint32_t>(type_b);
+    return CalculateTypeIndex(combined_feedback_value);
+  }
+
  private:
   static constexpr TypeIndex CalculateTypeIndex(uint32_t feedback_value) {
 #define CALCULATE_TYPE_INDEX(name)                               \
@@ -2576,14 +2620,6 @@ class BinaryOperationFeedback : public AllStatic {
     BINARY_OPERATION_FEEDBACK_TYPES(CALCULATE_TYPE_INDEX)
 #undef CALCULATE_TYPE_INDEX
     return TypeIndex::kAny;
-  }
-
-  static constexpr TypeIndex CombineTypeIndex(TypeIndex a, TypeIndex b) {
-    Type type_a = DecodeTypeIndex(a);
-    Type type_b = DecodeTypeIndex(b);
-    uint32_t combined_feedback_value =
-        static_cast<uint32_t>(type_a) | static_cast<uint32_t>(type_b);
-    return CalculateTypeIndex(combined_feedback_value);
   }
 
   struct TransitionMap {
@@ -2721,7 +2757,15 @@ class CompareOperationFeedback : public AllStatic {
       static_cast<uint32_t>(TypeIndex::kLastTypeIndex) + 1;
   // round up to 2^x for better memory access
   static constexpr uint32_t kTransitionMapStride =
-      base::bits::RoundUpToPowerOfTwo32(kNumTypeIndices);
+      std::bit_ceil(kNumTypeIndices);
+
+  static constexpr TypeIndex CombineTypeIndex(TypeIndex a, TypeIndex b) {
+    Type type_a = DecodeTypeIndex(a);
+    Type type_b = DecodeTypeIndex(b);
+    uint32_t combined_feedback_value =
+        static_cast<uint32_t>(type_a) | static_cast<uint32_t>(type_b);
+    return CalculateTypeIndex(combined_feedback_value);
+  }
 
  private:
   static constexpr TypeIndex CalculateTypeIndex(uint32_t feedback_value) {
@@ -2733,14 +2777,6 @@ class CompareOperationFeedback : public AllStatic {
     COMPARE_OPERATION_FEEDBACK_TYPES(CALCULATE_TYPE_INDEX)
 #undef CALCULATE_TYPE_INDEX
     return TypeIndex::kAny;
-  }
-
-  static constexpr TypeIndex CombineTypeIndex(TypeIndex a, TypeIndex b) {
-    Type type_a = DecodeTypeIndex(a);
-    Type type_b = DecodeTypeIndex(b);
-    uint32_t combined_feedback_value =
-        static_cast<uint32_t>(type_a) | static_cast<uint32_t>(type_b);
-    return CalculateTypeIndex(combined_feedback_value);
   }
 
   struct TransitionMap {
@@ -2793,10 +2829,12 @@ class TypeOfFeedback {
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
 // kNone -> kEnumCacheKeysAndIndices -> kEnumCacheKeys -> kAny
+// kNone -> kEnumeratorHolder -> kAny
 enum class ForInFeedback : uint8_t {
   kNone = 0x0,
   kEnumCacheKeysAndIndices = 0x1,
   kEnumCacheKeys = 0x3,
+  kEnumeratorHolder = 0x6,
   kAny = 0x7
 };
 static_assert((static_cast<int>(ForInFeedback::kNone) |
@@ -2806,6 +2844,18 @@ static_assert((static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices) |
                static_cast<int>(ForInFeedback::kEnumCacheKeys)) ==
               static_cast<int>(ForInFeedback::kEnumCacheKeys));
 static_assert((static_cast<int>(ForInFeedback::kEnumCacheKeys) |
+               static_cast<int>(ForInFeedback::kAny)) ==
+              static_cast<int>(ForInFeedback::kAny));
+static_assert((static_cast<int>(ForInFeedback::kNone) |
+               static_cast<int>(ForInFeedback::kEnumeratorHolder)) ==
+              static_cast<int>(ForInFeedback::kEnumeratorHolder));
+static_assert((static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices) |
+               static_cast<int>(ForInFeedback::kEnumeratorHolder)) ==
+              static_cast<int>(ForInFeedback::kAny));
+static_assert((static_cast<int>(ForInFeedback::kEnumCacheKeys) |
+               static_cast<int>(ForInFeedback::kEnumeratorHolder)) ==
+              static_cast<int>(ForInFeedback::kAny));
+static_assert((static_cast<int>(ForInFeedback::kEnumeratorHolder) |
                static_cast<int>(ForInFeedback::kAny)) ==
               static_cast<int>(ForInFeedback::kAny));
 
@@ -2865,6 +2915,15 @@ enum class IsolateExecutionModeFlag : uint8_t {
   // See Debug::StartSideEffectCheckMode().
   kCheckSideEffects = 1 << 1,
 };
+
+enum class IsolateMarkingFlag : uint8_t {
+  kNoMarking = 0,
+  kLocalMajorMarking = 1 << 0,
+  kLocalMinorMarking = 1 << 1,
+  kSharedMarking = 1 << 2,
+};
+using IsolateMarkingFlags = base::Flags<IsolateMarkingFlag>;
+DEFINE_OPERATORS_FOR_FLAGS(IsolateMarkingFlags)
 
 // Flags for the runtime function kDefineKeyedOwnPropertyInLiteral.
 // - Whether the function name should be set or not.
@@ -3194,7 +3253,7 @@ using NeedsContext = base::StrongAlias<struct NeedsContextTag, bool>;
 constexpr int kInvalidInfoId = -1;
 constexpr int kFunctionLiteralIdTopLevel = 0;
 
-constexpr int kSwissNameDictionaryInitialCapacity = 4;
+constexpr uint32_t kSwissNameDictionaryInitialCapacity = 4;
 
 constexpr int kSmallOrderedHashSetMinCapacity = 4;
 constexpr int kSmallOrderedHashMapMinCapacity = 4;
@@ -3372,12 +3431,10 @@ struct AcquireLoadTag {};
 struct RelaxedLoadTag {};
 struct ReleaseStoreTag {};
 struct RelaxedStoreTag {};
-struct SeqCstAccessTag {};
 static constexpr AcquireLoadTag kAcquireLoad;
 static constexpr RelaxedLoadTag kRelaxedLoad;
 static constexpr ReleaseStoreTag kReleaseStore;
 static constexpr RelaxedStoreTag kRelaxedStore;
-static constexpr SeqCstAccessTag kSeqCstAccess;
 
 static constexpr int kAdd_StringConstant_Internalize_CacheSlotOffset = 1;
 

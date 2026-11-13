@@ -196,8 +196,10 @@ void ProcessorImpl::CachedMod_MakeInverse(Digits& B) {
   if (Inv[0] != ~digit_t{0} || Inv.msd() != ~digit_t{0}) Add(Inv, 1);
 }
 
-void Processor::CachedMod_MakeInverse(Digits& B) {
-  return static_cast<ProcessorImpl*>(this)->CachedMod_MakeInverse(B);
+Status Processor::CachedMod_MakeInverse(Digits& B) {
+  ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
+  impl->CachedMod_MakeInverse(B);
+  return impl->get_and_clear_status();
 }
 
 }  // namespace bigint

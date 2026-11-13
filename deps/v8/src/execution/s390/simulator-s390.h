@@ -795,6 +795,7 @@ class Simulator : public SimulatorBase {
   EVALUATE(LTEBR);
   EVALUATE(LCEBR);
   EVALUATE(LDEBR);
+  EVALUATE(LDER);
   EVALUATE(LXDBR);
   EVALUATE(LXEBR);
   EVALUATE(MXDBR);
@@ -1224,6 +1225,7 @@ class Simulator : public SimulatorBase {
   EVALUATE(CGRB);
   EVALUATE(CGIB);
   EVALUATE(CIB);
+  EVALUATE(LDE);
   EVALUATE(LDEB);
   EVALUATE(LXDB);
   EVALUATE(LXEB);

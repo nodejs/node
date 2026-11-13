@@ -4,14 +4,14 @@
 
 // Flags: --allow-natives-syntax --maglev
 
-function negate(val) {
+function negate_template(val) {
   return -val;
 }
 
 function test_negate_int32(value, expected) {
+  const negate = copyFunctionWithFreshFeedback(negate_template);
   // Warmup.
   %PrepareFunctionForOptimization(negate);
-  %ClearFunctionFeedback(negate);
   negate(1, -1);
   %OptimizeMaglevOnNextCall(negate);
   assertEquals(expected, negate(value));
@@ -27,9 +27,9 @@ test_negate_int32(42, -42);
 test_negate_int32(-42, 42);
 
 function test_negate_float(value, expected) {
+  const negate = copyFunctionWithFreshFeedback(negate_template);
   // Warmup.
   %PrepareFunctionForOptimization(negate);
-  %ClearFunctionFeedback(negate);
   negate(1.1, -1.1);
   %OptimizeMaglevOnNextCall(negate);
   assertEquals(expected, negate(value));
@@ -50,9 +50,9 @@ test_negate_float(int32_max, -int32_max);
 test_negate_float(int32_min, -int32_min);
 
 function test_negate_int32_expect_deopt(value, expected) {
+  const negate = copyFunctionWithFreshFeedback(negate_template);
   // Warmup.
   %PrepareFunctionForOptimization(negate);
-  %ClearFunctionFeedback(negate);
   negate(12, -12);
   %OptimizeMaglevOnNextCall(negate);
   assertEquals(expected, negate(value));

@@ -11,6 +11,7 @@
 #include "include/v8-value-serializer.h"
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
+#include "src/base/bounds.h"
 #include "src/base/logging.h"
 #include "src/base/platform/memory.h"
 #include "src/execution/isolate.h"
@@ -19,7 +20,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/handles/shared-object-conveyor-handles.h"
-#include "src/heap/factory.h"
+#include "src/heap/factory-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/heap-number-inl.h"
@@ -27,8 +28,6 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
-#include "src/objects/js-shared-array.h"
-#include "src/objects/js-struct.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
@@ -529,6 +528,15 @@ Maybe<bool> ValueSerializer::WriteObject(DirectHandle<Object> object) {
       }
       return WriteJSReceiver(view);
     }
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_CUSTOM_MAP_TYPE:
+      // Like WASM_STRUCT_TYPE in WriteJSReceiver: possibly shared, otherwise
+      // not serializable.
+      if (HeapLayout::InAnySharedSpace(Cast<HeapObject>(*object))) {
+        return WriteSharedObject(Cast<HeapObject>(object));
+      }
+      return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
         WriteString(Cast<String>(object));
@@ -691,13 +699,6 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
       }
       return WriteJSError(js_error);
     }
-    case JS_SHARED_ARRAY_TYPE:
-      return WriteJSSharedArray(Cast<JSSharedArray>(receiver));
-    case JS_SHARED_STRUCT_TYPE:
-      return WriteJSSharedStruct(Cast<JSSharedStruct>(receiver));
-    case JS_ATOMICS_MUTEX_TYPE:
-    case JS_ATOMICS_CONDITION_TYPE:
-      return WriteSharedObject(receiver);
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_MODULE_OBJECT_TYPE:
       return WriteWasmModule(Cast<WasmModuleObject>(receiver));
@@ -1171,17 +1172,17 @@ Maybe<bool> ValueSerializer::WriteJSError(DirectHandle<JSObject> error) {
     return Nothing<bool>();
   }
 
-  if (name->IsOneByteEqualTo(base::CStrVector("EvalError"))) {
+  if (name->IsOneByteEqualTo("EvalError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kEvalErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("RangeError"))) {
+  } else if (name->IsOneByteEqualTo("RangeError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kRangeErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("ReferenceError"))) {
+  } else if (name->IsOneByteEqualTo("ReferenceError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kReferenceErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("SyntaxError"))) {
+  } else if (name->IsOneByteEqualTo("SyntaxError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kSyntaxErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("TypeError"))) {
+  } else if (name->IsOneByteEqualTo("TypeError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kTypeErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("URIError"))) {
+  } else if (name->IsOneByteEqualTo("URIError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kUriErrorPrototype));
   } else {
     // The default prototype in the deserialization side is Error.prototype, so
@@ -1220,17 +1221,6 @@ Maybe<bool> ValueSerializer::WriteJSError(DirectHandle<JSObject> error) {
 
   WriteVarint(static_cast<uint8_t>(ErrorTag::kEnd));
   return ThrowIfOutOfMemory();
-}
-
-Maybe<bool> ValueSerializer::WriteJSSharedStruct(
-    DirectHandle<JSSharedStruct> shared_struct) {
-  // TODO(v8:12547): Support copying serialization for shared structs as well.
-  return WriteSharedObject(shared_struct);
-}
-
-Maybe<bool> ValueSerializer::WriteJSSharedArray(
-    DirectHandle<JSSharedArray> shared_array) {
-  return WriteSharedObject(shared_array);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1365,14 +1355,15 @@ Maybe<bool> ValueSerializer::ThrowIfOutOfMemory() {
 
 Maybe<bool> ValueSerializer::ThrowDataCloneError(
     MessageTemplate template_index) {
-  return ThrowDataCloneError(template_index,
-                             isolate_->factory()->empty_string());
+  return ThrowDataCloneError(template_index, {});
 }
 
 Maybe<bool> ValueSerializer::ThrowDataCloneError(MessageTemplate index,
                                                  DirectHandle<Object> arg0) {
-  DirectHandle<String> message =
-      MessageFormatter::Format(isolate_, index, base::VectorOf({arg0}));
+  DirectHandle<String> message = MessageFormatter::Format(
+      isolate_, index,
+      arg0.is_null() ? base::Vector<const DirectHandle<Object>>{}
+                     : base::VectorOf({arg0}));
   if (delegate_) {
     delegate_->ThrowDataCloneError(Utils::ToLocal(message));
   } else {
@@ -1664,12 +1655,13 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectWrapper() {
   return result;
 }
 
-MaybeDirectHandle<Object> ValueDeserializer::ReadObject() {
+MaybeDirectHandle<Object> ValueDeserializer::ReadObject(
+    InternalizeStrings internalize_strings) {
   DisallowJavascriptExecution no_js(isolate_);
   // If we are at the end of the stack, abort. This function may recurse.
   STACK_CHECK(isolate_, MaybeDirectHandle<Object>());
 
-  MaybeDirectHandle<Object> result = ReadObjectInternal();
+  MaybeDirectHandle<Object> result = ReadObjectInternal(internalize_strings);
 
   // ArrayBufferView is special in that it consumes the value before it, even
   // after format version 0.
@@ -1696,7 +1688,8 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObject() {
   return result;
 }
 
-MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
+MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal(
+    InternalizeStrings internalize_strings) {
   SerializationTag tag;
   if (!ReadTag().To(&tag)) return MaybeDirectHandle<Object>();
   switch (tag) {
@@ -1705,7 +1698,7 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
       if (ReadVarint<uint32_t>().IsNothing()) {
         return MaybeDirectHandle<Object>();
       }
-      return ReadObject();
+      return ReadObject(internalize_strings);
     case SerializationTag::kUndefined:
       return isolate_->factory()->undefined_value();
     case SerializationTag::kNull:
@@ -1732,11 +1725,11 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
     case SerializationTag::kBigInt:
       return ReadBigInt();
     case SerializationTag::kUtf8String:
-      return ReadUtf8String();
+      return ReadUtf8String(internalize_strings);
     case SerializationTag::kOneByteString:
-      return ReadOneByteString();
+      return ReadOneByteString(internalize_strings);
     case SerializationTag::kTwoByteString:
-      return ReadTwoByteString();
+      return ReadTwoByteString(internalize_strings);
     case SerializationTag::kObjectReference: {
       uint32_t id;
       if (!ReadVarint<uint32_t>().To(&id)) return MaybeDirectHandle<Object>();
@@ -1831,28 +1824,44 @@ MaybeDirectHandle<BigInt> ValueDeserializer::ReadBigInt() {
 }
 
 MaybeDirectHandle<String> ValueDeserializer::ReadUtf8String(
-    AllocationType allocation) {
+    InternalizeStrings internalize) {
   uint32_t utf8_length;
   if (!ReadVarint<uint32_t>().To(&utf8_length)) return {};
   // utf8_length is checked in ReadRawBytes.
   base::Vector<const uint8_t> utf8_bytes;
   if (!ReadRawBytes(utf8_length).To(&utf8_bytes)) return {};
-  return isolate_->factory()->NewStringFromUtf8(
-      base::Vector<const char>::cast(utf8_bytes), allocation);
+  if (internalize && utf8_length <= String::kMaxLength) {
+    if (utf8_length == 0) return isolate_->factory()->empty_string();
+    return isolate_->factory()->InternalizeUtf8String(std::string_view(
+        reinterpret_cast<const char*>(utf8_bytes.begin()), utf8_length));
+  }
+  DirectHandle<String> string;
+  if (!isolate_->factory()
+           ->NewStringFromUtf8(utf8_bytes, unibrow::Utf8Variant::kLossyUtf8)
+           .ToHandle(&string)) {
+    return {};
+  }
+  if (internalize) {
+    return isolate_->factory()->InternalizeString(string);
+  }
+  return string;
 }
 
 MaybeDirectHandle<String> ValueDeserializer::ReadOneByteString(
-    AllocationType allocation) {
+    InternalizeStrings internalize) {
   uint32_t byte_length;
   base::Vector<const uint8_t> bytes;
   if (!ReadVarint<uint32_t>().To(&byte_length)) return {};
   // byte_length is checked in ReadRawBytes.
   if (!ReadRawBytes(byte_length).To(&bytes)) return {};
-  return isolate_->factory()->NewStringFromOneByte(bytes, allocation);
+  if (internalize && base::IsInRange(byte_length, 2u, String::kMaxLength)) {
+    return isolate_->factory()->InternalizeString(bytes);
+  }
+  return isolate_->factory()->NewStringFromOneByte(bytes);
 }
 
 MaybeDirectHandle<String> ValueDeserializer::ReadTwoByteString(
-    AllocationType allocation) {
+    InternalizeStrings internalize) {
   uint32_t byte_length;
   base::Vector<const uint8_t> bytes;
   if (!ReadVarint<uint32_t>().To(&byte_length)) return {};
@@ -1865,17 +1874,29 @@ MaybeDirectHandle<String> ValueDeserializer::ReadTwoByteString(
   // Allocate an uninitialized string so that we can do a raw memcpy into the
   // string on the heap (regardless of alignment).
   if (byte_length == 0) return isolate_->factory()->empty_string();
+  uint32_t char_length = byte_length / sizeof(base::uc16);
+  if (internalize && char_length <= String::kMaxLength &&
+      IsAlignedAddress(bytes.begin(), sizeof(base::uc16))) {
+    base::Vector<const base::uc16> chars(
+        reinterpret_cast<const base::uc16*>(bytes.begin()), char_length);
+    return isolate_->factory()->InternalizeString(chars);
+  }
   DirectHandle<SeqTwoByteString> string;
   if (!isolate_->factory()
-           ->NewRawTwoByteString(byte_length / sizeof(base::uc16), allocation)
+           ->NewRawTwoByteString(char_length)
            .ToHandle(&string)) {
     return MaybeDirectHandle<String>();
   }
 
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
-  DisallowGarbageCollection no_gc;
-  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.length());
+  {
+    DisallowGarbageCollection no_gc;
+    memcpy(string->GetChars(no_gc), bytes.begin(), bytes.size());
+  }
+  if (internalize) {
+    return isolate_->factory()->InternalizeString(string);
+  }
   return string;
 }
 
@@ -2086,6 +2107,16 @@ MaybeDirectHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
   return regexp;
 }
 
+namespace {
+
+bool IsValidCollectionKey(Tagged<Object> key) {
+  // Valid ValueSerializer payloads never write -0.0 as a Map/Set key, since
+  // JSMap/JSSet keys are already canonicalized to +0.
+  return !IsHeapNumber(key) || Cast<HeapNumber>(key)->value() != 0.0;
+}
+
+}  // namespace
+
 MaybeDirectHandle<JSMap> ValueDeserializer::ReadJSMap() {
   // If we are at the end of the stack, abort. This function may recurse.
   STACK_CHECK(isolate_, MaybeDirectHandle<JSMap>());
@@ -2095,7 +2126,12 @@ MaybeDirectHandle<JSMap> ValueDeserializer::ReadJSMap() {
   DirectHandle<JSMap> map = isolate_->factory()->NewJSMap();
   AddObjectWithID(id, map);
 
-  DirectHandle<JSFunction> map_set = isolate_->map_set();
+  // We can populate the table directly because:
+  // 1) The resulting object is not observable until deserialization is over, so
+  //    we do not need to deal with live iterators.
+  // 2) We are populating the table from a serialized source JSMap table, so the
+  //    keys are already valid/canonicalized (once strings are internalized) and
+  //    do not contain duplicates.
   uint32_t length = 0;
   while (true) {
     SerializationTag tag;
@@ -2105,16 +2141,20 @@ MaybeDirectHandle<JSMap> ValueDeserializer::ReadJSMap() {
       break;
     }
 
-    DirectHandle<Object> args[2];
-    if (!ReadObject().ToHandle(&args[0]) || !ReadObject().ToHandle(&args[1])) {
+    HandleScope loop_scope(isolate_);
+    DirectHandle<Object> key;
+    DirectHandle<Object> value;
+    if (!ReadObject(InternalizeStrings{true}).ToHandle(&key) ||
+        !IsValidCollectionKey(*key) || !ReadObject().ToHandle(&value)) {
       return MaybeDirectHandle<JSMap>();
     }
 
-    AllowJavascriptExecution allow_js(isolate_);
-    if (Execution::Call(isolate_, map_set, map, base::VectorOf(args))
-            .is_null()) {
+    DCHECK_IMPLIES(IsString(*key), IsInternalizedString(*key));
+    Handle<OrderedHashMap> table(Cast<OrderedHashMap>(map->table()), isolate_);
+    if (!OrderedHashMap::Add(isolate_, table, key, value).ToHandle(&table)) {
       return MaybeDirectHandle<JSMap>();
     }
+    map->set_table(*table);
     length += 2;
   }
 
@@ -2135,7 +2175,13 @@ MaybeDirectHandle<JSSet> ValueDeserializer::ReadJSSet() {
   uint32_t id = next_id_++;
   DirectHandle<JSSet> set = isolate_->factory()->NewJSSet();
   AddObjectWithID(id, set);
-  DirectHandle<JSFunction> set_add = isolate_->set_add();
+
+  // We can populate the table directly because:
+  // 1) The resulting object is not observable until deserialization is over, so
+  //    we do not need to deal with live iterators.
+  // 2) We are populating the table from a serialized source JSSet table, so the
+  //    keys are already valid/canonicalized (once strings are internalized) and
+  //    do not contain duplicates.
   uint32_t length = 0;
   while (true) {
     SerializationTag tag;
@@ -2145,14 +2191,20 @@ MaybeDirectHandle<JSSet> ValueDeserializer::ReadJSSet() {
       break;
     }
 
-    DirectHandle<Object> args[1];
-    if (!ReadObject().ToHandle(&args[0])) return MaybeDirectHandle<JSSet>();
-
-    AllowJavascriptExecution allow_js(isolate_);
-    if (Execution::Call(isolate_, set_add, set, base::VectorOf(args))
-            .is_null()) {
+    HandleScope loop_scope(isolate_);
+    DirectHandle<Object> key;
+    if (!ReadObject(InternalizeStrings{true}).ToHandle(&key) ||
+        !IsValidCollectionKey(*key)) {
       return MaybeDirectHandle<JSSet>();
     }
+
+    DCHECK_IMPLIES(IsString(*key), IsInternalizedString(*key));
+    DirectHandle<OrderedHashSet> table(Cast<OrderedHashSet>(set->table()),
+                                       isolate_);
+    if (!OrderedHashSet::Add(isolate_, table, key).ToHandle(&table)) {
+      return MaybeDirectHandle<JSSet>();
+    }
+    set->set_table(*table);
     length++;
   }
 
@@ -2542,6 +2594,11 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
     return {};
   }
 
+  // A shared JSArrayBuffer is required and can only be deserialized via a
+  // delegate. Check this before allocating an incomplete WasmMemoryObject and
+  // adding it to the ID map.
+  if (delegate_ == nullptr) return {};
+
   // To break a cycle on deserialization, we first allocate the
   // `WasmMemoryObject`, then read the `JSArrayBuffer`, then link the two.
   DirectHandle<WasmMemoryObject> result = WasmMemoryObject::New(
@@ -2684,8 +2741,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     DirectHandle<Map> map(object->map(), isolate_);
     DCHECK(!map->is_dictionary_map());
     DCHECK_EQ(0, map->instance_descriptors()->number_of_descriptors());
-    DirectHandleVector<Object> properties(isolate_);
-    properties.reserve(8);
+    DirectHandleSmallVector<Object, 8> properties(isolate_);
 
     while (transitioning) {
       // If there are no more properties, finish.
@@ -2729,8 +2785,12 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
           }
         } else if (tag == SerializationTag::kUtf8String) {
           base::Vector<const uint8_t> key_chars;
-          if (ReadRawBytes(byte_length).To(&key_chars) &&
-              String::IsAscii(key_chars.begin(), key_chars.length())) {
+          // For ASCII strings, the UTF-8 byte length equals the character
+          // length, so an ASCII string cannot exceed String::kMaxLength.
+          // Non-ASCII or overly long strings fall back to ReadObject() below.
+          if (byte_length <= String::kMaxLength &&
+              ReadRawBytes(byte_length).To(&key_chars) &&
+              String::IsAscii(key_chars.begin(), byte_length)) {
             expected_transition = transitions.ExpectedTransition(key_chars);
           }
         }
@@ -2742,11 +2802,12 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       }
       if (!transition_was_found) {
         position_ = start_position;
-        if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(*key, isolate_)) {
+        if (!ReadObject(InternalizeStrings{true}).ToHandle(&key) ||
+            !IsValidObjectKey(*key, isolate_)) {
           return Nothing<uint32_t>();
         }
         if (IsString(*key)) {
-          key = isolate_->factory()->InternalizeString(Cast<String>(key));
+          DCHECK(IsInternalizedString(*key));
           // Don't reuse |transitions| because it could be stale.
           transitioning = TransitionsAccessor(isolate_, *map)
                               .FindTransitionToField(Cast<String>(key))
@@ -2830,7 +2891,8 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     }
 
     DirectHandle<Object> key;
-    if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(*key, isolate_)) {
+    if (!ReadObject(InternalizeStrings{true}).ToHandle(&key) ||
+        !IsValidObjectKey(*key, isolate_)) {
       return Nothing<uint32_t>();
     }
     DirectHandle<Object> value;

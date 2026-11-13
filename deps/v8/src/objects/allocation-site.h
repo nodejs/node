@@ -5,8 +5,11 @@
 #ifndef V8_OBJECTS_ALLOCATION_SITE_H_
 #define V8_OBJECTS_ALLOCATION_SITE_H_
 
-#include <atomic>
+#include <cstddef>
+#include <cstring>
+#include <type_traits>
 
+#include "src/base/bits.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 
@@ -25,17 +28,6 @@ V8_OBJECT class AllocationSite : public HeapObject {
  public:
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
-  // Values for pretenure decision field.
-  enum PretenureDecision {
-    kUndecided = 0,
-    kDontTenure = 1,
-    kMaybeTenure = 2,
-    kTenure = 3,
-    kLastPretenureDecisionValue = kTenure
-  };
-
-  const char* PretenureDecisionName(PretenureDecision decision);
-
   inline Tagged<UnionOf<Smi, JSObject>> transition_info_or_boilerplate() const;
 
   inline Tagged<JSObject> boilerplate() const;
@@ -53,63 +45,16 @@ V8_OBJECT class AllocationSite : public HeapObject {
   inline void set_nested_site(Tagged<UnionOf<Smi, AllocationSite>> value,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  // Bitfield containing pretenuring information.
-  inline int32_t pretenure_data(RelaxedLoadTag) const;
-  inline void set_pretenure_data(int32_t value, RelaxedStoreTag);
-
-  inline int32_t pretenure_create_count() const;
-  inline void set_pretenure_create_count(int32_t value);
-
   inline Tagged<DependentCode> dependent_code() const;
   inline void set_dependent_code(Tagged<DependentCode> value,
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline void Initialize();
 
-  // Checks if the allocation site contain weak_next field;
-  inline bool HasWeakNext() const;
-
-  // This method is expensive, it should only be called for reporting.
-  bool IsNested();
-
   // transition_info bitfields, for constructed array transition info.
   using ElementsKindBits = base::BitField<ElementsKind, 0, 6>;
   using SpeculationDisabledBit = base::BitField<bool, 6, 1>;
   // Unused bits 7-30.
-
-  // Bitfields for pretenure_data
-  using MementoFoundCountBits = base::BitField<int, 0, 26>;
-  using PretenureDecisionBits = base::BitField<PretenureDecision, 26, 3>;
-  using DeoptDependentCodeBit = base::BitField<bool, 29, 1>;
-  static_assert(PretenureDecisionBits::kMax >= kLastPretenureDecisionValue);
-
-  // Increments the mementos found counter and returns the new count.
-  inline int IncrementMementoFoundCount(int increment = 1);
-
-  inline void IncrementMementoCreateCount();
-
-  AllocationType GetAllocationType() const;
-
-  void ResetPretenureDecision();
-
-  inline PretenureDecision pretenure_decision() const;
-  inline void set_pretenure_decision(PretenureDecision decision);
-
-  inline bool deopt_dependent_code() const;
-  inline void set_deopt_dependent_code(bool deopt);
-
-  inline int memento_found_count() const;
-  inline void set_memento_found_count(int count);
-
-  inline int memento_create_count() const;
-  inline void set_memento_create_count(int count);
-
-  inline bool IsMaybeTenure() const;
-
-  inline bool MakePretenureDecision(PretenureDecision current_decision,
-                                    double ratio, bool maximum_size_scavenge);
-
-  inline bool DigestPretenuringFeedback(bool maximum_size_scavenge);
 
   inline ElementsKind GetElementsKind() const;
   inline void SetElementsKind(ElementsKind kind);
@@ -137,12 +82,8 @@ V8_OBJECT class AllocationSite : public HeapObject {
   class BodyDescriptor;
 
  private:
-  inline bool PretenuringDecisionMade() const;
-
- private:
   friend class CodeStubAssembler;
   friend class ArrayBuiltinsAssembler;
-  friend class ObjectBuiltinsAssembler;
   friend class V8HeapExplorer;
 
   // Contains either a Smi-encoded bitfield or a boilerplate. If it's a Smi the
@@ -150,50 +91,67 @@ V8_OBJECT class AllocationSite : public HeapObject {
   TaggedMember<UnionOf<Smi, JSObject>> transition_info_or_boilerplate_;
   TaggedMember<UnionOf<Smi, AllocationSite>> nested_site_;
   TaggedMember<DependentCode> dependent_code_;
-  std::atomic<int32_t> pretenure_data_;
-  int32_t pretenure_create_count_;
 } V8_OBJECT_END;
 
-V8_OBJECT class AllocationSiteWithWeakNext : public AllocationSite {
-  V8_IT_REUSE_PARENT;
-
+// Direct-mapped cache of (JSArray address -> AllocationSite address) for
+// elements transition tracking. Cleared on every GC prologue.
+//
+// 256 entries (4 KB on 64-bit, 2 KB on 32-bit):
+// - Size rationale: keeps per-Isolate footprint small and GC-prologue clearing
+//   (`memset`) fast.
+// - Low eviction rate: only CSA/runtime young JSArray allocations with an
+//   active AllocationSite write to the cache, and ElementsKind transitions
+//   typically follow allocation immediately. For batch allocations, only a
+//   single surviving entry needs to hit to permanently generalize the site.
+// - On collision/eviction: direct-mapped slots overwrite unconditionally. A tag
+//   mismatch (`entry.object != object`) on lookup misses the cache, skipping
+//   the speculative AllocationSite update for that instance while the JSArray
+//   transitions its own map normally.
+class V8_EXPORT_PRIVATE AllocationSiteCache {
  public:
-  // heap->allocation_site_list() points to the last AllocationSite which form
-  // a linked list through the weak_next property. The GC might remove elements
-  // from the list by updating weak_next.
-  inline Tagged<UnionOf<Undefined, AllocationSiteWithWeakNext>> weak_next()
-      const;
-  inline void set_weak_next(
-      Tagged<UnionOf<Undefined, AllocationSiteWithWeakNext>> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  struct Entry {
+    Address object = kNullAddress;
+    Address site = kNullAddress;
+  };
+  static_assert(sizeof(Entry) == 2 * kSystemPointerSize);
+  static_assert(std::has_unique_object_representations_v<Entry>);
+  static_assert(offsetof(Entry, object) == 0);
+  static_assert(offsetof(Entry, site) == kSystemPointerSize);
+
+  static constexpr int kSize = 256;
+  static_assert(base::bits::IsPowerOfTwo(kSize));
+  static constexpr int kMask = kSize - 1;
+  static constexpr int kShift1 = 3;
+  static constexpr int kShift2 = 11;
+
+  AllocationSiteCache() = default;
+  AllocationSiteCache(const AllocationSiteCache&) = delete;
+  AllocationSiteCache& operator=(const AllocationSiteCache&) = delete;
+
+  // Maps a tagged JSArray address to a slot in [0, 255]:
+  // - `>> 3` drops bits [2:0] (tag bit 0 and sub-8B offset bits [2:1];
+  //   JSArray::kHeaderSize >= 16 even when kObjectAlignmentBits == 2), using
+  //   bits [10:3] to index 8-byte words across a 2 KB window.
+  // - `^ (addr >> 11)` XOR-folds bits [18:11] into [10:3] so 16-byte-strided
+  //   allocations (e.g. 16B empty JSArrays under pointer compression) flip bit
+  //   0 at 2 KB boundaries and populate odd as well as even slots, while
+  //   breaking power-of-two stride aliasing across a 512 KB range.
+  // - `& 0xff` masks to the 256-entry direct-mapped table.
+  static inline size_t ComputeIndex(Tagged<JSArray> object);
+
+  inline void Update(Tagged<JSArray> object, Tagged<AllocationSite> site);
+  inline bool Lookup(Tagged<JSArray> object,
+                     Tagged<AllocationSite>* site_out) const;
+
+  void Clear() { std::memset(entries_, 0, sizeof(entries_)); }
+
+#ifdef VERIFY_HEAP
+  void Verify() const;
+#endif
 
  private:
-  friend class CodeStubAssembler;
-  friend class AllocationSite::BodyDescriptor;
-  template <typename T>
-  friend struct WeakListVisitor;
-  friend class V8HeapExplorer;
-
-  TaggedMember<UnionOf<Undefined, AllocationSiteWithWeakNext>> weak_next_;
-} V8_OBJECT_END;
-
-V8_OBJECT class AllocationMemento : public Struct {
- public:
-  inline void set_allocation_site(Tagged<AllocationSite> value,
-                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  inline Tagged<AllocationSite> GetAllocationSite() const;
-  inline Address GetAllocationSiteUnchecked() const;
-
-  DECL_PRINTER(AllocationMemento)
-  DECL_VERIFIER(AllocationMemento)
-
- private:
-  friend class CodeStubAssembler;
-  friend class TorqueGeneratedAllocationMementoAsserts;
-
-  TaggedMember<AllocationSite> allocation_site_;
-} V8_OBJECT_END;
+  Entry entries_[kSize] = {};
+};
 
 }  // namespace internal
 }  // namespace v8

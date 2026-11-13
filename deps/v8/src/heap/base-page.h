@@ -182,9 +182,16 @@ class BasePage {
 
   bool evacuation_was_aborted() const {
     const bool value = EvacuationWasAbortedField::decode(flags_);
-    // Aborted evacuation candidates are still evacuation candidates.
-    DCHECK_IMPLIES(value, is_evacuation_candidate());
+    // Aborted pages are either evacuation candidates or new space pages.
+    DCHECK_IMPLIES(
+        value, is_evacuation_candidate() || owner()->identity() == NEW_SPACE);
     return value;
+  }
+  void set_evacuation_was_aborted(bool value) {
+    // Only support toggling the value as we should always know which state we
+    // are in.
+    DCHECK_EQ(value, !evacuation_was_aborted());
+    flags_ = EvacuationWasAbortedField::update(flags_, value);
   }
 
   bool never_evacuate() const { return NeverEvacuateField::decode(flags_); }
@@ -236,13 +243,6 @@ class BasePage {
   BasePage(Heap* heap, BaseSpace* space, size_t chunk_size, Address area_start,
            Address area_end, VirtualMemory reservation,
            Executability executability);
-
-  void set_evacuation_was_aborted(bool value) {
-    // Only support toggling the value as we should always know which state we
-    // are in.
-    DCHECK_EQ(value, !evacuation_was_aborted());
-    flags_ = EvacuationWasAbortedField::update(flags_, value);
-  }
 
   void set_is_evacuation_candidate(bool value) {
     // Only support toggling the value as we should always know which state we

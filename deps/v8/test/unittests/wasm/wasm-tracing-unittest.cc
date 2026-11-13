@@ -45,9 +45,9 @@ class WasmTracingTest : public TestWithContextAndZone {
     HandleScope handle_scope(v8_isolate);
 
     DirectHandle<WasmInstanceObject> instance_a =
-        CompileAndRun(sigs_.v_v(), code_a, nullptr);
+        CompileAndRun(TestSignatures::v_v(), code_a, nullptr);
     DirectHandle<WasmInstanceObject> instance_b =
-        CompileAndRun(sigs_.v_v(), code_b, nullptr);
+        CompileAndRun(TestSignatures::v_v(), code_b, nullptr);
 
     Tagged<WasmTrustedInstanceData> instance_data_a =
         instance_a->trusted_data(v8_isolate);
@@ -78,14 +78,14 @@ class WasmTracingTest : public TestWithContextAndZone {
     traces.should_store_trace = true;
 
     std::optional<CppGCManaged<NativeModule>::Ptr> native_module;
-    CompileAndRun(sigs_.v_v(), code_a, &native_module);
+    CompileAndRun(TestSignatures::v_v(), code_a, &native_module);
 
     MemoryTrace memory_trace_a = std::move(traces.memory_trace);
     GlobalTrace global_trace_a = std::move(traces.global_trace);
     traces.memory_trace.clear();
     traces.global_trace.clear();
 
-    CompileAndRun(sigs_.v_v(), code_b, nullptr);
+    CompileAndRun(TestSignatures::v_v(), code_b, nullptr);
 
     MemoryTrace memory_trace_b = std::move(traces.memory_trace);
     GlobalTrace global_trace_b = std::move(traces.global_trace);
@@ -133,7 +133,7 @@ class WasmTracingTest : public TestWithContextAndZone {
     WasmFunctionBuilder* f = builder.AddFunction(sig);
 
     f->AddLocal(ValueType::Primitive(kI32));
-    f->builder()->AddExport(base::CStrVector("main"), f);
+    f->builder()->AddExport("main", f);
 
     f->EmitCode(code.data(), static_cast<uint32_t>(code.size()));
 
@@ -162,7 +162,6 @@ class WasmTracingTest : public TestWithContextAndZone {
     return instance;
   }
 
-  TestSignatures sigs_;
 };
 
 TEST_F(WasmTracingTest, TestTracingNoDiff) {

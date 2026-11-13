@@ -1,0 +1,3 @@
+Tests that object previews handle a pending termination correctly.
+callFunctionOn on internal#entry with Promise key: exception (Uncaught EvalError: Possible side-effect in debug-evaluate)
+sideEffects length: 0

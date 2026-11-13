@@ -170,6 +170,48 @@ void Assembler::emit_rex2_32(Operand op, Rex2MapID m) {
   emit_rex2_prefix(rax, op, m, kRex2W0);
 }
 
+void Assembler::emit_rex2_or_optional_rex_8(Register byte_reg, Rex2MapID m) {
+  if (!byte_reg.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex2_or_rex_32(byte_reg, m);
+  } else {
+    // The only operand is one of al, bl, cl, dl: no REX/REX2 prefix is needed.
+    emit_legacy_map_escape(m);
+  }
+}
+
+void Assembler::emit_rex2_or_optional_rex_8(Register byte_reg, Operand op,
+                                            Rex2MapID m) {
+  if (!byte_reg.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex2_or_rex_32(byte_reg, op, m);
+  } else {
+    emit_optional_rex2_or_rex_32(byte_reg, op, m);
+  }
+}
+
+void Assembler::emit_rex2_or_optional_rex_8(Register byte_reg,
+                                            Register byte_rm_reg, Rex2MapID m) {
+  if (!byte_reg.is_byte_register() || !byte_rm_reg.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex2_or_rex_32(byte_reg, byte_rm_reg, m);
+  } else {
+    // Both operands are one of al, bl, cl, dl: no REX/REX2 prefix is needed.
+    emit_legacy_map_escape(m);
+  }
+}
+
+void Assembler::emit_rex2_or_optional_rex_8_rm(Register reg,
+                                               Register byte_rm_reg,
+                                               Rex2MapID m) {
+  if (!byte_rm_reg.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex2_or_rex_32(reg, byte_rm_reg, m);
+  } else {
+    emit_optional_rex2_or_rex_32(reg, byte_rm_reg, m);
+  }
+}
+
 // Legacy extended evex
 void Assembler::emit_legacy_extended_evex_prefix(Register dst, Register src1,
                                                  Register src2, SIMDPrefix pp,

@@ -91,8 +91,10 @@ function test(test_double, test_object, set, length) {
 }
 
 function run_test(test_double, test_object, set, length) {
-  test(test_double, test_object, set, length);
-    %ClearFunctionFeedback(test);
+  var fresh_test = copyFunctionWithFreshFeedback(test);
+  %EnsureFeedbackVectorForFunction(fresh_test);
+  %EnsureFeedbackVectorForFunction(set);
+  fresh_test(test_double, test_object, set, length);
 }
 
 run_test(false, false, function(a,i,v){ a[i] = v; }, 20);

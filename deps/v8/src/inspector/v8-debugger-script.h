@@ -56,8 +56,8 @@ class V8DebuggerScript {
   enum class Language { JavaScript, WebAssembly };
 
   V8DebuggerScript(v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
-                   bool hadCompileError, V8DebuggerAgentImpl* agent,
-                   V8InspectorClient* client);
+                   bool hadCompileError, int executionContextId,
+                   V8DebuggerAgentImpl* agent, V8InspectorClient* client);
   ~V8DebuggerScript() = default;
   V8DebuggerScript(const V8DebuggerScript&) = delete;
   V8DebuggerScript& operator=(const V8DebuggerScript&) = delete;

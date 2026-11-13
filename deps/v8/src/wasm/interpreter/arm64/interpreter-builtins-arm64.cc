@@ -92,7 +92,7 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
       function_data,
       FieldMemOperand(shared_function_info,
                       offsetof(SharedFunctionInfo, trusted_function_data_)),
-      kWasmExportedFunctionDataIndirectPointerTag);
+      kWasmExportedFunctionDataTrustedPointerTag);
   shared_function_info = no_reg;
 
   LoadWasmInstanceFromFunctionData(masm, function_data, wasm_instance);
@@ -586,8 +586,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   DEFINE_REG(flags);
   __ Ldr(flags, FieldMemOperand(shared_function_info,
                                 offsetof(SharedFunctionInfo, flags_)));
-  __ Tst(flags, Immediate(SharedFunctionInfo::IsNativeBit::kMask |
-                          SharedFunctionInfo::IsStrictBit::kMask));
+  __ Tst(flags, Immediate(SharedFunctionInfo::Flags::IsNativeBit::kMask |
+                          SharedFunctionInfo::Flags::IsStrictBit::kMask));
   FREE_REG(flags);
   __ B(&receiver_undefined, ne);
   __ LoadGlobalProxy(receiver);
@@ -851,6 +851,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // Restore after builtin call.
   __ bind(&finish_param_conversion);
 
+  __ Ldr(cp, MemOperand(fp, kContextOffset));
   __ Ldr(current_param_slot_offset, MemOperand(fp, kCurrentParamOffset));
   __ Add(current_param_slot_offset, current_param_slot_offset, increment);
   __ Ldr(valuetypes_array_ptr, MemOperand(fp, kValueTypesArrayStartOffset));
@@ -1024,8 +1025,9 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
 
   __ bind(&return_kWasmI32);
   __ JumpIfNotSmi(return_reg, &return_kWasmI32_not_smi);
-  // Change the param from Smi to int32.
+  // Untag the Smi and zero-extend the int32 result.
   __ SmiUntag(return_reg);
+  __ Mov(return_reg.W(), return_reg.W());
   __ AssertZeroExtended(return_reg);
   __ Ldr(packed_args, MemOperand(fp, kPackedArrayOffset));
   __ Str(return_reg.W(), MemOperand(packed_args, current_result_offset));

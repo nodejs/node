@@ -4,14 +4,14 @@
 
 // Flags: --allow-natives-syntax --maglev
 
-function sarl(x, y) {
+function sarl_template(x, y) {
   return x >> y;
 }
 
 function sarl_test(lhs, rhs, expected_result) {
+  const sarl = copyFunctionWithFreshFeedback(sarl_template);
   // Warmup.
   %PrepareFunctionForOptimization(sarl);
-  %ClearFunctionFeedback(sarl);
   sarl(1, 1);
   %OptimizeMaglevOnNextCall(sarl);
 
@@ -23,9 +23,9 @@ function sarl_test(lhs, rhs, expected_result) {
 }
 
 function sarl_test_expect_deopt(lhs, rhs, expected_result) {
+  const sarl = copyFunctionWithFreshFeedback(sarl_template);
   // Warmup.
   %PrepareFunctionForOptimization(sarl);
-  %ClearFunctionFeedback(sarl);
   sarl(1, 1);
   %OptimizeMaglevOnNextCall(sarl);
 

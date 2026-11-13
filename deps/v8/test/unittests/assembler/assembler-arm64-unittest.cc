@@ -32,7 +32,9 @@
 #include <cmath>
 #include <limits>
 #include <optional>
+#include <vector>
 
+#include "src/base/memory.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
@@ -282,7 +284,7 @@ class AssemblerArm64Test : public i::TestWithIsolate {
  public:
   AssemblerArm64Test() {
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
-    v8_flags.validate_generated_code = false;
+    v8_flags.validate_generated_code.Set(false);
 #endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR
   }
 
@@ -6769,6 +6771,56 @@ TEST_F(AssemblerArm64Test, ldur_stur) {
   CHECK_EQUAL_64(dst_base + 32, x20);
 }
 
+TEST_F(AssemblerArm64Test, ldapur_stlur) {
+  SETUP();
+  SETUP_FEATURE(LRCPC2);
+
+  uint64_t src[2] = {0x0123456789ABCDEFUL, 0xFEDCBA9876543210UL};
+  uint64_t dst[3] = {0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x28, dst_base + 1);
+  __ Mov(x19, src_base + 15);
+  __ Mov(x20, dst_base + 19);
+  __ Ldapur(w0, MemOperand(x17, -1));
+  __ Stlur(w0, MemOperand(x28, -1));
+  __ Ldapur(w2, MemOperand(x17, 3));
+  __ Stlur(w2, MemOperand(x28, 3));
+  __ Ldapur(x1, MemOperand(x17, 7));
+  __ Stlur(x1, MemOperand(x28, 7));
+  __ Ldapurb(w3, MemOperand(x19, -2));
+  __ Stlurb(w3, MemOperand(x20, -1));
+  __ Ldapursb(x4, MemOperand(x19, -15));
+  __ Ldapursh(x5, MemOperand(x19, -13));
+  __ Ldapursw(x6, MemOperand(x19, -3));
+  __ Ldapurh(w7, MemOperand(x19, -13));
+  __ Stlurh(w7, MemOperand(x20, -3));
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(0x89ABCDEFUL, x0);
+    CHECK_EQUAL_64(0x01234567UL, x2);
+    CHECK_EQUAL_64(0x0123456789ABCDEFUL, dst[0]);
+    CHECK_EQUAL_64(0xFEDCBA9876543210UL, x1);
+    CHECK_EQUAL_64(0xFEDCBA9876543210UL, dst[1]);
+    CHECK_EQUAL_64(0x000000BAUL, x3);
+    CHECK_EQUAL_64(0xFFFFFFFFFFFFFFEFUL, x4);
+    CHECK_EQUAL_64(0xFFFFFFFFFFFF89ABUL, x5);
+    CHECK_EQUAL_64(0xFFFFFFFFFEDCBA98UL, x6);
+    CHECK_EQUAL_64(0x000089ABUL, x7);
+    CHECK_EQUAL_64(0x00BA89ABUL, dst[2]);
+    CHECK_EQUAL_64(src_base + 1, x17);
+    CHECK_EQUAL_64(dst_base + 1, x28);
+    CHECK_EQUAL_64(src_base + 15, x19);
+    CHECK_EQUAL_64(dst_base + 19, x20);
+  }
+}
+
 TEST_F(AssemblerArm64Test, ldr_pcrel_large_offset) {
   SETUP_SIZE(1 * MB);
 
@@ -6825,8 +6877,8 @@ void AssemblerArm64Test::LdrLiteralRangeHelper(
 
   // Emit prepadding to influence alignment of the pool.
   bool currently_aligned = IsAligned(__ pc_offset(), kInt64Size);
-  if ((unaligned_emission == EmitAtUnaligned && currently_aligned) ||
-      (unaligned_emission == EmitAtAligned && !currently_aligned)) {
+  if ((unaligned_emission == EmitAtUnaligned && !currently_aligned) ||
+      (unaligned_emission == EmitAtAligned && currently_aligned)) {
     __ Nop();
   }
 
@@ -6840,7 +6892,7 @@ void AssemblerArm64Test::LdrLiteralRangeHelper(
   auto PoolSizeAt = [&](int pc_offset) {
     // To determine padding, consider the size of the prologue of the pool,
     // and the jump around the pool, which we always need.
-    size_t prologue_size = 2 * kInstrSize + kInstrSize;
+    size_t prologue_size = kInstrSize + kInstrSize;
     size_t pc = pc_offset + prologue_size;
     const size_t padding = IsAligned(pc, kInt64Size) ? 0 : kInt32Size;
     CHECK_EQ(padding == 0, unaligned_emission == EmitAtAligned);
@@ -6897,13 +6949,11 @@ void AssemblerArm64Test::LdrLiteralRangeHelper(
     CHECK_EQ(expected_pool_size, branch->ImmPCOffset());
     Instruction* marker =
         reinterpret_cast<Instruction*>(pool_start + kInstrSize);
-    CHECK(marker->IsLdrLiteralX());
-    size_t pool_data_start_offset = pc_offset_before_emission + kInstrSize;
+    CHECK(marker->IsUdf());
+    size_t pool_data_start_offset = pc_offset_before_emission + 2 * kInstrSize;
     size_t padding =
         IsAligned(pool_data_start_offset, kInt64Size) ? 0 : kInt32Size;
-    size_t marker_size = kInstrSize;
-    CHECK_EQ((first_pool_size_bytes + marker_size + padding) / kInt32Size,
-             marker->ImmLLiteral());
+    CHECK_EQ((first_pool_size_bytes + padding) / kInt32Size, marker->ImmUdf());
   }
 
   RUN();
@@ -11760,6 +11810,48 @@ TEST_F(AssemblerArm64Test, scvtf_ucvtf_float) {
   TestUScvtf32Helper(0xFFFFFFFFFFFFFFFF, 0xBF800000, 0x5F800000);
 }
 
+TEST_F(AssemblerArm64Test, scvtf_ucvtf_upper_bits) {
+  SETUP();
+  START();
+
+  __ Movi(v0.V16B(), 0xFF);
+  __ Movi(v1.V16B(), 0xFF);
+  __ Movi(v4.V16B(), 0xFF);
+  __ Movi(v5.V16B(), 0xFF);
+  __ Movi(v6.V16B(), 0xFF);
+  __ Movi(v7.V16B(), 0xFF);
+
+  __ Mov(w0, 42);
+  __ Dup(v2.V2S(), w0);
+  __ Dup(v3.V2S(), w0);
+
+  // Vector 2S integer-to-float (upper 64 bits must be zeroed).
+  __ Ucvtf(v0.V2S(), v2.V2S());
+  __ Scvtf(v1.V2S(), v3.V2S());
+
+  // Vector 2S fixed-point-to-float (upper 64 bits must be zeroed).
+  __ Ucvtf(v4.V2S(), v2.V2S(), 1);
+  __ Scvtf(v5.V2S(), v3.V2S(), 1);
+
+  // Scalar 1D fixed-point-to-float (upper 64 bits must be zeroed).
+  __ Mov(x0, 42);
+  __ Fmov(v8_.V1D(), x0);
+  __ Ucvtf(v6.V1D(), v8_.V1D(), 1);
+  __ Scvtf(v7.V1D(), v8_.V1D(), 1);
+
+  END();
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x4228000042280000, q0);
+  CHECK_EQUAL_128(0, 0x4228000042280000, q1);
+  // 42 >> 1 = 21.0f = 0x41a80000
+  CHECK_EQUAL_128(0, 0x41a8000041a80000, q4);
+  CHECK_EQUAL_128(0, 0x41a8000041a80000, q5);
+  // 42.0 / 2.0 = 21.0 = 0x4035000000000000
+  CHECK_EQUAL_128(0, 0x4035000000000000, q6);
+  CHECK_EQUAL_128(0, 0x4035000000000000, q7);
+}
+
 TEST_F(AssemblerArm64Test, system_mrs) {
   SETUP();
 
@@ -11865,7 +11957,7 @@ TEST_F(AssemblerArm64Test, system_msr) {
 }
 
 TEST_F(AssemblerArm64Test, system_pauth_b) {
-  i::v8_flags.sim_abort_on_bad_auth = false;
+  i::v8_flags.sim_abort_on_bad_auth.Set(false);
   SETUP();
   START();
 
@@ -15807,6 +15899,161 @@ TEST_F(AssemblerArm64Test, internal_reference_linked) {
   CHECK_EQUAL_64(0x1, x0);
 }
 
+namespace {
+
+struct InternalReferencesWithVeneers {
+  std::vector<int> reference_offsets;
+  int target_offset;
+  int origin_count;
+};
+
+// Mixed chain split twice by veneer pools while keeping dcptr links alive:
+//   (1),(2) dcptr <far>
+//   (3) B.cond <far>, (4) CBZ <far>
+//   (5) TBZ <veneer A>, (6) TBZ <far>, (7) dcptr <far>
+//   veneer A: B <far>   -- splits chain, dropping (3)-(6) onto veneer A
+//   (8) TBZ <veneer B>, (9) TBZ <far>
+//   veneer B: B <far>   -- splits chain again across (7)
+//   far:
+// Execution visits (1)..(9) in sequence via x0; x1 stays 1 iff none miss.
+InternalReferencesWithVeneers GenerateInternalReferencesWithVeneers(
+    MacroAssembler* masm) {
+  const int max_range = Instruction::ImmBranchRange(TestBranchType);
+  const int inter_nops = (max_range / 2 + max_range / 10) / kInstrSize;
+
+  InternalReferencesWithVeneers result;
+  Label fail, done, far_target;
+  static constexpr int kOriginCount = 9;
+  Label origins[kOriginCount];
+  int origin = 0;
+
+  auto next_origin = [&]() {
+    masm->Bind(&origins[origin]);
+    masm->Mov(x0, ++origin);
+  };
+  auto jump_table = [&](int count) {
+    Assembler::BlockPoolsScope block_pools(masm);
+    Label base;
+    masm->Adr(x11, &base);
+    masm->Ldr(x11, MemOperand(x11, x12, LSL, kSystemPointerSizeLog2));
+    masm->Br(x11);
+    masm->Bind(&base);
+    for (int i = 0; i < count; i++) {
+      result.reference_offsets.push_back(masm->pc_offset());
+      masm->dcptr(&far_target);
+    }
+  };
+  auto tbz = [&]() {
+    const int offset = masm->pc_offset();
+    masm->Tbz(x10, 7, &far_target);
+    // Must emit a single TBZ, not TBNZ+B, while the previous link is in range.
+    CHECK_EQ(1 * kInstrSize, masm->pc_offset() - offset);
+  };
+
+  masm->Mov(x0, 0);
+  masm->Mov(x1, 1);
+  masm->Mov(x10, 0);
+
+  // (1), (2): two consecutive dcptr slots.
+  Label jump;
+  next_origin();
+  masm->Mov(x12, 0);
+  masm->B(&jump);
+  next_origin();
+  masm->Mov(x12, 1);
+  masm->Bind(&jump);
+  jump_table(2);
+
+  // (3) B.cond, (4) CBZ.
+  next_origin();
+  masm->Cmp(x10, 0);
+  masm->B(eq, &far_target);
+  masm->B(&fail);
+
+  next_origin();
+  masm->Cbz(x10, &far_target);
+  GenerateLandingNops(masm, inter_nops, &fail);
+
+  // (5) TBZ, (6) TBZ, (7) dcptr -> veneer A splits (6) from (4) after (7).
+  next_origin();
+  tbz();
+  GenerateLandingNops(masm, inter_nops, &fail);
+
+  next_origin();
+  tbz();
+  masm->B(&fail);
+
+  next_origin();
+  masm->Mov(x12, 0);
+  jump_table(1);
+  GenerateLandingNops(masm, inter_nops, &fail);
+
+  // (8) TBZ, (9) TBZ -> veneer B splits (9) from veneer A across (7).
+  next_origin();
+  tbz();
+  GenerateLandingNops(masm, inter_nops + (max_range / 4) / kInstrSize, &fail);
+
+  next_origin();
+  tbz();
+  GenerateLandingNops(masm, inter_nops, &fail);
+  masm->B(&fail);
+
+  CHECK_EQ(kOriginCount, origin);
+  masm->Bind(&far_target, BranchTargetIdentifier::kBtiJump);
+  for (int i = 1; i < kOriginCount; i++) {
+    masm->Cmp(x0, i);
+    masm->B(eq, &origins[i]);
+  }
+  masm->B(&done);
+  masm->Bind(&fail);
+  masm->Mov(x1, 0);
+  masm->Bind(&done);
+
+  result.target_offset = far_target.pos();
+  result.origin_count = kOriginCount;
+  return result;
+}
+
+void CheckInternalReferences(Address base,
+                             const InternalReferencesWithVeneers& generated) {
+  CHECK_EQ(3u, generated.reference_offsets.size());
+  for (int offset : generated.reference_offsets) {
+    CHECK_EQ(base + generated.target_offset,
+             base::ReadUnalignedValue<Address>(base + offset));
+  }
+}
+
+}  // namespace
+
+TEST_F(AssemblerArm64Test, internal_reference_veneer_mixed_link_chain) {
+  SETUP_SIZE(4 * Instruction::ImmBranchRange(TestBranchType));
+  START();
+  auto generated = GenerateInternalReferencesWithVeneers(&masm);
+  END();
+  CheckInternalReferences(code->instruction_start(), generated);
+  RUN();
+  CHECK_EQUAL_64(generated.origin_count, x0);
+  CHECK_EQUAL_64(0x1, x1);
+}
+
+TEST_F(AssemblerArm64Test, internal_reference_veneer_grow_buffer) {
+  // Verify GrowBuffer() relocates dcptr entries both while linked and after
+  // bind().
+  Isolate* isolate = i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler masm(isolate, CodeObjectRequired{false},
+                      NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize));
+  auto generated = GenerateInternalReferencesWithVeneers(&masm);
+  CHECK_LT(AssemblerBase::kDefaultBufferSize, generated.target_offset);
+
+  const int buffer_size = __ buffer_size();
+  while (__ buffer_size() == buffer_size) {
+    __ Nop();
+  }
+  CheckInternalReferences(reinterpret_cast<Address>(__ buffer_start()),
+                          generated);
+}
+
 TEST_F(AssemblerArm64Test, scalar_movi) {
   SETUP();
   START();
@@ -16409,7 +16656,7 @@ TEST_F(AssemblerArm64Test, cssc_smax) {
 TEST_F(AssemblerArm64Test, sve_bit_permute) {
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
   // TODO(523128533): Disarm doesn't support sve.
-  v8_flags.validate_generated_code = false;
+  v8_flags.validate_generated_code.Set(false);
 #endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR
 
   SETUP();
@@ -16439,6 +16686,45 @@ TEST_F(AssemblerArm64Test, sve_bit_permute) {
     CHECK_EQUAL_128(0x0094'0081'0009'000a, 0x0094'0081'0009'000a, q12);
     CHECK_EQUAL_128(0x000000a5'00000049, 0x00eff7fd'0077bf9f, q16);
     CHECK_EQUAL_128(0x0000000024000010, 0x0000000042cb1a4a, q29);
+  }
+}
+
+TEST_F(AssemblerArm64Test, sve2_mul) {
+  SETUP();
+  SETUP_FEATURE(SVE2);
+  START();
+
+  __ Movi(v1.V2D(), 0x00'00'00'00'00'00'00'02, 0x00'00'00'00'00'00'00'04);
+  __ Movi(v2.V2D(), 0x00'00'00'00'00'00'00'03, 0x00'00'00'00'00'00'00'03);
+  __ Movi(v4.V2D(), 0x0000'0000'0000'0002, 0x0000'0000'0000'0004);
+  __ Movi(v5.V2D(), 0x0000'0000'0000'0003, 0x0000'0000'0000'0003);
+  __ Movi(v7.V2D(), 0x00000000'00000002, 0x00000000'00000004);
+  __ Movi(v8.V2D(), 0x00000000'00000003, 0x00000000'00000003);
+  __ Movi(v10.V2D(), 0x7FFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF);
+  __ Movi(v11.V2D(), 0x7FFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF);
+  __ Movi(v12.V2D(), 0x00000000'00000003, 0x00000000'00000003);
+  __ Movi(v13.V2D(), 0x00000000'00000003, 0x00000000'00000003);
+  __ Movi(v14.V2D(), 0x00000000'00000003, 0x00000000'00000004);
+  __ Movi(v15.V2D(), 0x00000000'00000003, 0x00000000'00000004);
+
+  __ Mul(z0.VnB(), z1.VnB(), z2.VnB());
+  __ Mul(z3.VnH(), z4.VnH(), z5.VnH());
+  __ Mul(z6.VnS(), z7.VnS(), z8.VnS());
+  __ Mul(z9.VnD(), z10.VnD(), z11.VnD());
+  __ Mul(z12.VnD(), z12.VnD(), z13.VnD());
+  __ Mul(z15.VnD(), z14.VnD(), z15.VnD());
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_128(0x00'00'00'00'00'00'00'06, 0x00'00'00'00'00'00'00'0c, q0);
+    CHECK_EQUAL_128(0x0000'0000'0000'0006, 0x0000'0000'0000'000c, q3);
+    CHECK_EQUAL_128(0x00000000'00000006, 0x00000000'0000000c, q6);
+    CHECK_EQUAL_128(0x0000000000000001, 0x0000000000000001, q9);
+    CHECK_EQUAL_128(0x0000000000000009, 0x0000000000000009, q12);
+    CHECK_EQUAL_128(0x0000000000000009, 0x0000000000000010, q15);
   }
 }
 

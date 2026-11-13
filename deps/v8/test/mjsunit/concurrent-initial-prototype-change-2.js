@@ -53,5 +53,3 @@ assertUnoptimized(f1);
 %FinalizeOptimization();
 assertUnoptimized(f1);
 assertEquals(2, f1(arr, 1));
-// Clear type info for stress runs.
-%ClearFunctionFeedback(f1);

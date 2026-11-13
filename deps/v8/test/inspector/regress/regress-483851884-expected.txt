@@ -1,0 +1,3 @@
+Regression test for crbug.com/483851884.
+Has error: true
+Error message: Object is too large to be returned by value

@@ -161,20 +161,21 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   bool allow_duplicate_parameters = false;
   CheckConflictingVarDeclarations(inner_scope);
 
-  if (!has_error()) {
-    if (formals.is_simple) {
-      if (is_sloppy(function_scope->language_mode())) {
-        function_scope->HoistSloppyBlockFunctions(nullptr);
-      }
+  if (formals.is_simple) {
+    if (!has_error() && is_sloppy(function_scope->language_mode())) {
+      function_scope->HoistSloppyBlockFunctions(nullptr);
+    }
 
-      allow_duplicate_parameters =
-          is_sloppy(function_scope->language_mode()) && !IsConciseMethod(kind);
-    } else {
+    allow_duplicate_parameters =
+        is_sloppy(function_scope->language_mode()) && !IsConciseMethod(kind);
+  } else {
+    SetLanguageMode(function_scope, inner_scope->language_mode());
+
+    if (!has_error()) {
       if (is_sloppy(inner_scope->language_mode())) {
         inner_scope->HoistSloppyBlockFunctions(nullptr);
       }
 
-      SetLanguageMode(function_scope, inner_scope->language_mode());
       inner_scope->set_end_position(scanner()->peek_location().end_pos);
       if (inner_scope->FinalizeBlockScope() != nullptr) {
         const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
@@ -190,7 +191,14 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   if (stack_overflow()) {
     return kPreParseStackOverflow;
-  } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
+  }
+  if (!IsArrowFunction(kind)) {
+    // Validate parameter names. We can do this only after parsing the
+    // function, since the function can declare itself strict.
+    ValidateFormalParameters(language_mode(), formals,
+                             allow_duplicate_parameters);
+  }
+  if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
     return kPreParseNotIdentifiableError;
   } else if (has_error()) {
     DCHECK(pending_error_handler()->has_pending_error());
@@ -198,18 +206,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     DCHECK_EQ(Token::kRightBrace, scanner()->peek());
 
     if (!IsArrowFunction(kind)) {
-      // Validate parameter names. We can do this only after parsing the
-      // function, since the function can declare itself strict.
-      ValidateFormalParameters(language_mode(), formals,
-                               allow_duplicate_parameters);
-      if (has_error()) {
-        if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
-          return kPreParseNotIdentifiableError;
-        } else {
-          return kPreParseSuccess;
-        }
-      }
-
       // Declare arguments after parsing the function since lexical
       // 'arguments' masks the arguments object. Declare arguments before
       // declaring the function var since the arguments object masks 'function
@@ -228,11 +224,11 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
       return kPreParseNotIdentifiableError;
     }
+  }
 
-    if (is_strict(function_scope->language_mode())) {
-      int end_pos = scanner()->location().end_pos;
-      CheckStrictOctalLiteral(function_scope->start_position(), end_pos);
-    }
+  if (is_strict(function_scope->language_mode())) {
+    int end_pos = scanner()->location().end_pos;
+    CheckStrictOctalLiteral(function_scope->start_position(), end_pos);
   }
 
   DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());
@@ -312,7 +308,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     PreParserScopedStatementList body(pointer_buffer());
     int pos = function_token_pos == kNoSourcePosition ? peek_position()
                                                       : function_token_pos;
-    AcceptINScope scope(this, true);
     ParseFunctionBody(&body, function_name, pos, formals, kind,
                       function_syntax_kind, FunctionBodyType::kBlock);
 
@@ -374,23 +369,6 @@ PreParserBlock PreParser::BuildParameterInitializationBlock(
     const PreParserFormalParameters& parameters) {
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
-  if (scope()->AsDeclarationScope()->sloppy_eval_can_extend_vars() &&
-      preparse_data_builder_ != nullptr) {
-    // We cannot replicate the Scope structure constructed by the Parser,
-    // because we've lost information whether each individual parameter was
-    // simple or not. Give up trying to produce data to skip inner functions.
-    if (preparse_data_builder_->parent() != nullptr) {
-      // Lazy parsing started before the current function; the function which
-      // cannot contain skippable functions is the parent function. (Its inner
-      // functions cannot either; they are implicitly bailed out.)
-      preparse_data_builder_->parent()->Bailout();
-    } else {
-      // Lazy parsing started at the current function; it cannot contain
-      // skippable functions.
-      preparse_data_builder_->Bailout();
-    }
-  }
-
   return PreParserBlock::Default();
 }
 

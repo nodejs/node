@@ -135,11 +135,11 @@ class ReadOnlyArtifacts final {
 
   struct TrustedPointerRegistryEntry {
     TrustedPointerRegistryEntry(TrustedPointerHandle handle, Address value,
-                                IndirectPointerTag tag)
+                                TrustedPointerTag tag)
         : handle(handle), value(value), tag(tag) {}
     TrustedPointerHandle handle;
     Address value;
-    IndirectPointerTag tag;
+    TrustedPointerTag tag;
   };
   void set_trusted_pointer_registry(
       std::vector<TrustedPointerRegistryEntry>&& registry) {

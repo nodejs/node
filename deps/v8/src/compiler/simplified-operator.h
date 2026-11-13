@@ -119,9 +119,9 @@ struct FieldAccess {
   ExternalPointerTag external_pointer_tag =
       kExternalPointerNullTag;  // the external pointer tag if this is an
                                 // external pointer field
-  IndirectPointerTag indirect_pointer_tag =
-      kIndirectPointerNullTag;  // the indirect pointer tag if this is an
-                                // indirect pointer field
+  TrustedPointerTag trusted_pointer_tag =
+      kTrustedPointerNullTag;  // the trusted pointer tag if this is an
+                               // indirect pointer field
   bool maybe_initializing_or_transitioning_store;  // store is potentially
                                                    // initializing a newly
                                                    // allocated object or part
@@ -134,6 +134,8 @@ struct FieldAccess {
                                         // decoding.
   bool is_immutable = false;  // Whether this field is known to be immutable for
                               // the purpose of loads.
+  SharedFlag shared_base = SharedFlag{false};  // Whether the base is a shared
+                                               // tagged object.
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -153,9 +155,10 @@ struct FieldAccess {
               ConstFieldInfo const_field_info = ConstFieldInfo::None(),
               bool is_store_in_literal = false,
               ExternalPointerTag external_pointer_tag = kExternalPointerNullTag,
-              IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag,
+              TrustedPointerTag trusted_pointer_tag = kTrustedPointerNullTag,
               bool maybe_initializing_or_transitioning_store = false,
-              bool is_immutable = false)
+              bool is_immutable = false,
+              SharedFlag shared_base = SharedFlag{false})
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -166,10 +169,11 @@ struct FieldAccess {
         const_field_info(const_field_info),
         is_store_in_literal(is_store_in_literal),
         external_pointer_tag(external_pointer_tag),
-        indirect_pointer_tag(indirect_pointer_tag),
+        trusted_pointer_tag(trusted_pointer_tag),
         maybe_initializing_or_transitioning_store(
             maybe_initializing_or_transitioning_store),
-        is_immutable(is_immutable) {
+        is_immutable(is_immutable),
+        shared_base(shared_base) {
     DCHECK_GE(offset, 0);
     DCHECK_IMPLIES(machine_type.IsMapWord(),
                    offset == offsetof(HeapObject, map_) &&
@@ -632,12 +636,13 @@ class ElementsTransitionWithMultipleSources final {
   FeedbackSource feedback_;
 };
 
-bool operator==(ElementsTransition const&, ElementsTransition const&);
-bool operator==(ElementsTransitionWithMultipleSources const&,
-                ElementsTransitionWithMultipleSources const&);
+V8_EXPORT_PRIVATE bool operator==(ElementsTransition const&,
+                                  ElementsTransition const&);
+V8_EXPORT_PRIVATE bool operator==(ElementsTransitionWithMultipleSources const&,
+                                  ElementsTransitionWithMultipleSources const&);
 
-size_t hash_value(ElementsTransition);
-size_t hash_value(ElementsTransitionWithMultipleSources);
+V8_EXPORT_PRIVATE size_t hash_value(ElementsTransition);
+V8_EXPORT_PRIVATE size_t hash_value(ElementsTransitionWithMultipleSources);
 
 std::ostream& operator<<(std::ostream&, ElementsTransition);
 std::ostream& operator<<(std::ostream&, ElementsTransitionWithMultipleSources);
@@ -1216,8 +1221,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ArgumentsLength();
   const Operator* RestLength(int formal_parameter_count);
 
-  const Operator* NewDoubleElements(AllocationType);
-  const Operator* NewSmiOrObjectElements(AllocationType);
+  const Operator* NewDoubleElements();
+  const Operator* NewSmiOrObjectElements();
 
   // new-arguments-elements arguments-length
   const Operator* NewArgumentsElements(CreateArgumentsType type,

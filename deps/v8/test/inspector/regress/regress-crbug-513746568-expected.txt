@@ -1,0 +1,9 @@
+Tests that Maglev throws TypeError when calling class constructors with break info.
+
+Running test: setUp
+
+Running test: testCallConstantConstructor
+threw TypeError: true
+
+Running test: testCallNewClosureConstructor
+threw TypeError: true

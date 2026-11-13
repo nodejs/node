@@ -37,13 +37,15 @@ function imul_polyfill(a, b) {
 }
 
 function TestMathImul(expected, a, b) {
-  function imul_meth_closure(a, b) {
-    return Math.imul(a, b);
-  };
+  var imul_meth_closure = copyFunctionWithFreshFeedback(
+      function imul_meth_closure(a, b) {
+        return Math.imul(a, b);
+      });
   %PrepareFunctionForOptimization(imul_meth_closure);
-  function imul_func_closure(a, b) {
-    return imul_func(a, b);
-  }
+  var imul_func_closure = copyFunctionWithFreshFeedback(
+      function imul_func_closure(a, b) {
+        return imul_func(a, b);
+      });
 
   // Test reference implementation.
   ;
@@ -67,11 +69,9 @@ function TestMathImul(expected, a, b) {
   %OptimizeFunctionOnNextCall(imul_func_closure);
   assertEquals(expected, imul_func_closure(a, b));
 
-  // Deoptimize closures and forget type feedback.
+  // Deoptimize closures.
   %DeoptimizeFunction(imul_meth_closure);
   %DeoptimizeFunction(imul_func_closure);
-  %ClearFunctionFeedback(imul_meth_closure);
-  %ClearFunctionFeedback(imul_func_closure);
 }
 
 TestMathImul(8, 2, 4);

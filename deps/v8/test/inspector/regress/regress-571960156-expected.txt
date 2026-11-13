@@ -1,0 +1,13 @@
+Regression test for crbug.com/571960156.
+
+Running test: test
+scope (wasm-expression-stack):
+   stack: "0": Exception ((ref exn))
+scope (local):
+   $null_exn: null (exnref)
+   $caught_exn: Exception (exnref)
+scope (module):
+   instance: exports: "main" (Function)
+   module: Module
+   functions: "$main": (Function)
+   globals: "$global0": null (exnref)

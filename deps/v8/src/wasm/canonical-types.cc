@@ -258,7 +258,7 @@ void TypeCanonicalizer::AddPredefinedTypes() {
     DCHECK_EQ(index.index, canonical_singleton_groups_.size());
     static constexpr bool kMutable = true;
     CanonicalArrayType* type =
-        zone_.New<CanonicalArrayType>(element_type, kMutable);
+        zone_.New<CanonicalArrayType>(element_type, kMutable, sharedness);
     AddPredefinedSingletonGroup(
         index, CanonicalType(type, kNoSuper, kFinal, sharedness));
   }
@@ -479,10 +479,11 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
           CanonicalizeTypeIndex(type.describes), type.is_final, type.is_shared);
     }
     case TypeDefinition::kArray: {
+      DCHECK_EQ(type.array_type->is_shared(), type.is_shared);
       CanonicalValueType element_type =
           CanonicalizeValueType(type.array_type->element_type());
       CanonicalArrayType* array_type = zone_.New<CanonicalArrayType>(
-          element_type, type.array_type->mutability());
+          element_type, type.array_type->mutability(), type.is_shared);
       return CanonicalType(array_type, supertype, type.is_final,
                            type.is_shared);
     }
@@ -612,7 +613,8 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
 void TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(Isolate* isolate) {
   ReadOnlyRoots roots(isolate);
   isolate->heap()->SetWasmCanonicalRtts(roots.empty_weak_fixed_array());
-  isolate->heap()->SetJSToWasmWrappers(roots.empty_weak_fixed_array());
+  isolate->heap()->SetJSToWasmWrappers(
+      isolate->heap()->empty_protected_weak_fixed_array());
 }
 
 SharedFlag TypeCanonicalizer::IsShared(CanonicalTypeIndex index) const {
@@ -620,6 +622,9 @@ SharedFlag TypeCanonicalizer::IsShared(CanonicalTypeIndex index) const {
 }
 bool TypeCanonicalizer::has_descriptor(CanonicalTypeIndex index) const {
   return canonical_types_[index]->descriptor.valid();
+}
+bool TypeCanonicalizer::is_descriptor(CanonicalTypeIndex index) const {
+  return canonical_types_[index]->describes.valid();
 }
 
 #ifdef DEBUG

@@ -203,7 +203,17 @@ class StoreLoadInfo {
 
   std::optional<OffsetDiff> operator-(const StoreLoadInfo<Op>& rhs) const {
     DCHECK(is_valid() && rhs.is_valid());
-    if (base_ != rhs.base_) return {};
+    if (base_ != rhs.base_) {
+      const LoadOp* load_lhs = base_->template TryCast<LoadOp>();
+      const LoadOp* load_rhs = rhs.base_->template TryCast<LoadOp>();
+      // We consider two immutable base loads equivalent if they load the same
+      // offset from the same base. This in particular matches the load of the
+      // memory0 start pointer from the WasmTrustedInstanceData.
+      if (!load_lhs || !load_rhs || !load_lhs->kind.is_immutable ||
+          *load_lhs != *load_rhs) {
+        return {};
+      }
+    }
     if (index_ != rhs.index_) return {};
     // Normally consecutive loads and stores will share or have identical
     // constant index. It's rare we need to fold the constant index into offset
@@ -241,7 +251,21 @@ class StoreLoadInfo {
   // indexc comparison, stores with offset=0,indexc=0 and offset=0,indexc=64
   // would compare equal and the second would be discarded from the set.
   bool operator<(const StoreLoadInfo<Op>& other) const {
-    if (base_ != other.base_) return base_ < other.base_;
+    if (base_ != other.base_) {
+      const LoadOp* load_lhs = base_->template TryCast<LoadOp>();
+      const LoadOp* load_rhs = other.base_->template TryCast<LoadOp>();
+      const bool lhs_imm_load = load_lhs && load_lhs->kind.is_immutable;
+      const bool rhs_imm_load = load_rhs && load_rhs->kind.is_immutable;
+      if (lhs_imm_load && rhs_imm_load) {
+        if (*load_lhs != *load_rhs) {
+          return *load_lhs < *load_rhs;
+        }
+      } else if (lhs_imm_load != rhs_imm_load) {
+        return !lhs_imm_load;
+      } else {
+        return base_ < other.base_;
+      }
+    }
     if (index_ != other.index_) return index_ < other.index_;
     if (indexc_ != other.indexc_) return indexc_ < other.indexc_;
     return offset_ < other.offset_;
@@ -389,11 +413,8 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
           break;
         }
 
-        // Check side effect from input to start's previous node to simplify
-        // reducing of force-packing nodes.
-        OpIndex start_prev = graph().PreviousIndex(start);
-        DCHECK(start_prev.valid());
-        if (!IsSideEffectFreeRange(start_prev, input)) {
+        // Check side effect from input to start node.
+        if (!IsSideEffectFreeRange(start, input)) {
           result = true;
           break;
         }
@@ -1070,6 +1091,17 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
   if (is_intersected) {
     TRACE("Partial overlap at #%d,%s!\n", node0.id(),
           GetSimdOpcodeName(op0).c_str());
+    // node0 already triggered intersection above, but node1 may
+    // independently belong to a PackNode that does not support
+    // intersecting (e.g. a DefaultPackNode). Reject that case instead of
+    // silently creating an IntersectPackNode that conflicts with it.
+    if (PackNode* pnode1 = GetPackNode(node1)) {
+      if (!pnode1->IsForcePackNode()) {
+        TRACE("Unsupported partial overlap at #%d,%s!\n", node1.id(),
+              GetSimdOpcodeName(op1).c_str());
+        return nullptr;
+      }
+    }
   } else {
     // Match overlapped PackNode on the second node.
     if (PackNode* pnode = GetPackNode(node1)) {

@@ -332,10 +332,10 @@ TEST(HashtablezSamplerTest, Sample) {
   double sample_rate = 0.0;
   for (int i = 0; i < 1000000; ++i) {
     HashtablezInfoHandle h =
-        Sample(test_element_size,
-               /*key_size=*/test_key_size, /*value_size=*/test_value_size,
-
-               /*soo_capacity=*/0);
+        SampleForTesting(test_element_size,
+                         /*key_size=*/test_key_size,
+                         /*value_size=*/test_value_size,
+                         /*soo_capacity=*/0);
 
     ++total;
     if (h.IsSampled()) {

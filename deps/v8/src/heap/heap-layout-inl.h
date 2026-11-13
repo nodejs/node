@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/flags/flags.h"
+#include "src/heap/base-page-inl.h"
 #include "src/heap/memory-chunk-inl.h"
 #include "src/objects/casting.h"
 #include "src/objects/objects.h"
@@ -19,6 +20,11 @@ namespace v8::internal {
 // static
 bool HeapLayout::InReadOnlySpace(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
+}
+
+template <typename T>
+bool CastTraits<ReadOnly<T>>::AllowFrom(Tagged<HeapObject> value) {
+  return HeapLayout::InReadOnlySpace(value) && CastTraits<T>::AllowFrom(value);
 }
 
 // static
@@ -103,6 +109,28 @@ bool TrustedHeapLayout::IsOwnedByAnyHeap(Tagged<HeapObject> object) {
 // static
 bool TrustedHeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)->Metadata()->is_black_allocated();
+}
+
+// static
+bool TrustedHeapLayout::InYoungGeneration(Tagged<HeapObject> object) {
+#ifdef V8_ENABLE_SANDBOX
+  if constexpr (v8_flags.single_generation.value()) {
+    return false;
+  }
+  if constexpr (v8_flags.sticky_mark_bits.value()) {
+    return InYoungGenerationForStickyMarkbits(object);
+  }
+  const AllocationSpace owner_identity =
+      BasePage::FromHeapObject(object)->owner_identity();
+  return owner_identity == NEW_SPACE || owner_identity == NEW_LO_SPACE;
+#else
+  return HeapLayout::InYoungGeneration(object);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+// static
+bool TrustedHeapLayout::InWritableSharedSpace(Tagged<HeapObject> object) {
+  return BasePage::FromHeapObject(object)->is_writable_shared();
 }
 
 }  // namespace v8::internal

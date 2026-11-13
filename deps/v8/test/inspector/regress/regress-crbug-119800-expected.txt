@@ -1,0 +1,20 @@
+Tests regress-crbug-119800.
+function f() {
+  #console.log(1);
+  console.log(2);
+
+  console.log(1);
+  #console.log(2);
+  console.log(3);
+
+  console.log(2);
+  #console.log(3);
+}
+
+  console.log(3);
+#}
+function run() {
+
+  f();
+#}
+

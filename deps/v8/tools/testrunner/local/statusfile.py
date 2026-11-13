@@ -308,7 +308,6 @@ def _ReadSection(section, variables, rules, prefix_rules):
       _ParseOutcomeList(rule, outcome_list, variables, rules)
 
 JS_TEST_PATHS = {
-    'debugger': [[]],
     'filecheck': [[]],
     'inspector': [[]],
     'intl': [[]],

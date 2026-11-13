@@ -177,8 +177,8 @@ void RegExpBuiltinsAssembler::SlowStoreLastIndex(TNode<Context> context,
 
 TNode<RegExpData> RegExpBuiltinsAssembler::LoadRegExpDataFromObject(
     TNode<HeapObject> object, int offset) {
-  return LoadTrustedPointerFromObject<kRegExpDataIndirectPointerTag>(object,
-                                                                     offset);
+  return LoadTrustedPointerFromObject<kRegExpDataTrustedPointerTag>(object,
+                                                                    offset);
 }
 
 // On a hit, sets {var_result} to a fresh array over the cached parts and jumps
@@ -925,7 +925,7 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
   TVARIABLE(RawPtrT, var_string_start);
   TVARIABLE(RawPtrT, var_string_end);
 #ifdef V8_ENABLE_SANDBOX
-  using kVarCodeT = IndirectPointerHandleT;
+  using kVarCodeT = TrustedPointerHandleT;
 #else
   using kVarCodeT = Object;
 #endif
@@ -970,7 +970,7 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
 
 #ifdef V8_ENABLE_SANDBOX
   GotoIf(
-      Word32Equal(var_code.value(), Int32Constant(kNullIndirectPointerHandle)),
+      Word32Equal(var_code.value(), Int32Constant(kNullTrustedPointerHandle)),
       &runtime);
 #else
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
@@ -1034,7 +1034,7 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
 
 #ifdef V8_ENABLE_SANDBOX
     TNode<Code> code = TrustedCast<Code>(
-        ResolveIndirectPointerHandle(var_code.value(), kCodeIndirectPointerTag),
+        ResolveTrustedPointerHandle(var_code.value(), kCodeTrustedPointerTag),
         "from trusted table");
 #else
     TNode<Code> code = TrustedCast<Code>(var_code.value(), "no sandbox");
@@ -1855,12 +1855,12 @@ TNode<JSAny> RegExpMatchAllAssembler::CreateRegExpStringIterator(
   // 7. Set iterator.[[Global]] to global.
   // 8. Set iterator.[[Unicode]] to fullUnicode.
   // 9. Set iterator.[[Done]] to false.
-  TNode<Int32T> global_flag =
-      Word32Shl(ReinterpretCast<Int32T>(global),
-                Int32Constant(JSRegExpStringIterator::GlobalBit::kShift));
-  TNode<Int32T> unicode_flag =
-      Word32Shl(ReinterpretCast<Int32T>(full_unicode),
-                Int32Constant(JSRegExpStringIterator::UnicodeBit::kShift));
+  TNode<Int32T> global_flag = Word32Shl(
+      ReinterpretCast<Int32T>(global),
+      Int32Constant(JSRegExpStringIterator::Flags::GlobalBit::kShift));
+  TNode<Int32T> unicode_flag = Word32Shl(
+      ReinterpretCast<Int32T>(full_unicode),
+      Int32Constant(JSRegExpStringIterator::Flags::UnicodeBit::kShift));
   TNode<Int32T> iterator_flags = Word32Or(global_flag, unicode_flag);
   StoreObjectFieldNoWriteBarrier(iterator,
                                  offsetof(JSRegExpStringIterator, flags_),

@@ -1,0 +1,94 @@
+Tests stepping into constructors.
+--- Testing f() ---
+Hit 1: f
+function f() {
+  #debugger;
+  new X();
+
+Hit 2: f
+  debugger;
+  #new X();
+}
+
+Hit 3: X
+function X() {
+#}
+
+
+Hit 4: f
+  new X();
+#}
+
+
+Hit 5: 
+f()#
+
+Hits after f() #1: 5
+Hit 6: f
+function f() {
+  #debugger;
+  new X();
+
+Hit 7: f
+  debugger;
+  #new X();
+}
+
+Hit 8: X
+function X() {
+#}
+
+
+Hit 9: f
+  new X();
+#}
+
+
+Hit 10: 
+f()#
+
+Hits after f() #2: 10
+Hit 11: f
+function f() {
+  #debugger;
+  new X();
+
+Hit 12: f
+  debugger;
+  #new X();
+}
+
+Hit 13: X
+function X() {
+#}
+
+
+Hit 14: f
+  new X();
+#}
+
+
+Hit 15: 
+f()#
+
+Hits after f() #3: 15
+--- Testing g() ---
+Hit 1: g
+function g() {
+  #debugger;
+  new Date();
+
+Hit 2: g
+  debugger;
+  #new Date();
+}
+
+Hit 3: g
+  new Date();
+#}
+
+
+Hit 4: 
+g()#
+
+Hits after g(): 4

@@ -619,39 +619,6 @@ const GetTemplateObjectParameters& GetTemplateObjectParametersOf(
   return OpParameter<GetTemplateObjectParameters>(op);
 }
 
-bool operator==(CreateClosureParameters const& lhs,
-                CreateClosureParameters const& rhs) {
-  return lhs.allocation() == rhs.allocation() &&
-         lhs.code_.object().location() == rhs.code_.object().location() &&
-         lhs.shared_info_.object().location() ==
-             rhs.shared_info_.object().location();
-}
-
-
-bool operator!=(CreateClosureParameters const& lhs,
-                CreateClosureParameters const& rhs) {
-  return !(lhs == rhs);
-}
-
-
-size_t hash_value(CreateClosureParameters const& p) {
-  return base::hash_combine(p.allocation(), p.code_.object().location(),
-                            p.shared_info_.object().location());
-}
-
-
-std::ostream& operator<<(std::ostream& os, CreateClosureParameters const& p) {
-  return os << p.allocation() << ", " << Brief(*p.shared_info_.object()) << ", "
-            << Brief(*p.code_.object());
-}
-
-
-const CreateClosureParameters& CreateClosureParametersOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kJSCreateClosure, op->opcode());
-  return OpParameter<CreateClosureParameters>(op);
-}
-
-
 bool operator==(CreateLiteralParameters const& lhs,
                 CreateLiteralParameters const& rhs) {
   return lhs.constant_.object().location() ==
@@ -821,11 +788,13 @@ ForInParameters const& ForInParametersOf(const Operator* op) {
 #if V8_ENABLE_WEBASSEMBLY
 JSWasmCallParameters::JSWasmCallParameters(
     wasm::NativeModule* native_module, int function_index,
-    SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback)
+    SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback,
+    IndirectHandle<WasmInternalFunction> internal_function)
     : native_module_(native_module),
       function_index_(function_index),
       shared_fct_info_(shared_fct_info),
-      feedback_(feedback) {}
+      feedback_(feedback),
+      internal_function_(internal_function) {}
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSWasmCall, op->opcode());
@@ -1536,16 +1505,19 @@ const Operator* JSOperatorBuilder::CreateBoundFunction(size_t arity,
 }
 
 const Operator* JSOperatorBuilder::CreateClosure(
-    SharedFunctionInfoRef shared_info, CodeRef code,
-    AllocationType allocation) {
+    SharedFunctionInfoRef shared_info) {
   static constexpr int kFeedbackCell = 1;
   static constexpr int kArity = kFeedbackCell;
-  CreateClosureParameters parameters(shared_info, code, allocation);
-  return zone()->New<Operator1<CreateClosureParameters>>(   // --
+  return zone()->New<Operator1<SharedFunctionInfoRef>>(     // --
       IrOpcode::kJSCreateClosure, Operator::kEliminatable,  // opcode
       "JSCreateClosure",                                    // name
       kArity, 1, 1, 1, 1, 0,                                // counts
-      parameters);                                          // parameter
+      shared_info);                                         // parameter
+}
+
+SharedFunctionInfoRef SharedFunctionInfoOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateClosure, op->opcode());
+  return OpParameter<SharedFunctionInfoRef>(op);
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralArray(
@@ -1614,7 +1586,7 @@ const Operator* JSOperatorBuilder::GetTemplateObject(
   GetTemplateObjectParameters parameters(description, shared, feedback);
   return zone()->New<Operator1<GetTemplateObjectParameters>>(  // --
       IrOpcode::kJSGetTemplateObject,                          // opcode
-      Operator::kNoDeopt | Operator::kNoThrow,                 // properties
+      Operator::kNoThrow,                                      // properties
       "JSGetTemplateObject",                                   // name
       1, 1, 1, 1, 1, 0,                                        // counts
       parameters);                                             // parameter

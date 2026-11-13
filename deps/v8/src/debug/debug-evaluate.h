@@ -92,6 +92,7 @@ class DebugEvaluate : public AllStatic {
       Handle<Context> wrapped_context;
       Handle<JSObject> materialized_object;
       Handle<StringSet> blocklist;
+      std::vector<std::pair<Handle<String>, Handle<Object>>> original_values;
     };
 
     Handle<Context> evaluation_context_;

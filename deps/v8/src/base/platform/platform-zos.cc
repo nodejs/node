@@ -176,7 +176,8 @@ class PosixMemoryMappedFile final : public OS::MemoryMappedFile {
 
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
-                                                 FileMode mode) {
+                                                 FileMode mode,
+                                                 std::optional<void*> hint) {
   const char* fopen_mode = (mode == FileMode::kReadOnly) ? "r" : "r+";
   int open_mode = (mode == FileMode::kReadOnly) ? O_RDONLY : O_RDWR;
   // use open() instead of fopen() to prevent auto-conversion
@@ -193,7 +194,8 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
       if (mode == FileMode::kReadWrite) {
         prot |= PROT_WRITE;
         flags = MAP_SHARED;
-        memory = mmap(OS::GetRandomMmapAddr(), size, prot, flags, fd, 0);
+        void* const mmap_hint = hint ? *hint : OS::GetRandomMmapAddr();
+        memory = mmap(mmap_hint, size, prot, flags, fd, 0);
         ismmap = true;
       } else {
         memory = __zalloc_for_fd(size, name, fd, 0);

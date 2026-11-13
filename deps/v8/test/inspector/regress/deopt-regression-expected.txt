@@ -1,0 +1,15 @@
+Tests that setting a breakpoint while active Sparkplug baseline code is on the stack preserves accumulator state.
+true
+true
+pause #1:
+foo[Symbol.toPrimitive] = function(hint) {
+  #debugger;
+  return "xyz";
+
+Setting breakpoint...
+pause #2:
+  var o = {[v]: v};
+  return o#["xyz"];
+}
+
+true

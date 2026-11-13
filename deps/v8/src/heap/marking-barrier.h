@@ -47,7 +47,7 @@ class MarkingBarrier {
 
   template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   void Write(Tagged<HeapObject> host, TSlot slot, Tagged<HeapObject> value);
-  void Write(Tagged<HeapObject> host, IndirectPointerSlot slot);
+  void Write(Tagged<HeapObject> host, TrustedPointerSlot slot);
   void Write(Tagged<InstructionStream> host, RelocInfo*,
              Tagged<HeapObject> value);
   void Write(Tagged<JSArrayBuffer> host, ArrayBufferExtension*);
@@ -56,6 +56,11 @@ class MarkingBarrier {
   void WriteWithoutHost(Tagged<HeapObject> value);
 
   inline void MarkValue(Tagged<HeapObject> host, Tagged<HeapObject> value);
+
+  bool is_activated() const { return is_activated_; }
+
+  // True for client isolates iff incremental marking is enabled on the main isolate.
+  bool is_shared() const { return shared_heap_worklists_.has_value(); }
 
   bool is_minor() const { return marking_mode_ == MarkingMode::kMinorMarking; }
 

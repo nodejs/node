@@ -1120,7 +1120,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Cord {
   void SetCrcCordState(crc_internal::CrcCordState state);
   const crc_internal::CrcCordState* absl_nullable MaybeGetCrcCordState() const;
 
-  CharIterator FindImpl(CharIterator it, absl::string_view needle) const;
+  template <typename T>
+  CharIterator FindImpl(CharIterator it, const T& needle) const;
 
   void CopyToArrayImpl(char* absl_nonnull dst) const;
 };

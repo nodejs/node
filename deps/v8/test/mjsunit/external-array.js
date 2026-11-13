@@ -209,7 +209,7 @@ test_result_middle = [253.75, -3, 253, 253, 253, 253, 253, 254, 253.75, 253.75];
 test_result_high_int = [256, 0, 0, 256, 256, 256, 256, 255, 256, 256];
 test_result_high_double = [256.25, 0, 0, 256, 256, 256, 256, 255, 256.25, 256.25];
 
-const kElementCount = 40;
+var kElementCount = 40;
 
 function test_load(array, sum) {
   for (var i = 0; i < kElementCount; i++) {
@@ -296,6 +296,7 @@ function test_store_nan(array, sum) {
 const kRuns = 10;
 
 function run_test(test_func, array, expected_result) {
+  test_func = copyFunctionWithFreshFeedback(test_func);
   %PrepareFunctionForOptimization(test_func);
   for (var i = 0; i < 5; i++) test_func(array, 0);
   %OptimizeFunctionOnNextCall(test_func);
@@ -305,7 +306,6 @@ function run_test(test_func, array, expected_result) {
   }
   assertEquals(expected_result, sum);
   %DeoptimizeFunction(test_func);
-  %ClearFunctionFeedback(test_func);
 }
 
 function run_bounds_test(test_func, array, expected_result) {
@@ -348,34 +348,34 @@ for (var t = 0; t < types.length; t++) {
     assertTrue(delete a.length);
 
     // Make sure bounds checks are handled correctly for external arrays.
-    %PrepareFunctionForOptimization(run_bounds_test);
-    run_bounds_test(a);
-    run_bounds_test(a);
-    run_bounds_test(a);
-    %OptimizeFunctionOnNextCall(run_bounds_test);
-    run_bounds_test(a);
-    %DeoptimizeFunction(run_bounds_test);
-    %ClearFunctionFeedback(run_bounds_test);
+    var bounds_test = copyFunctionWithFreshFeedback(run_bounds_test);
+    %PrepareFunctionForOptimization(bounds_test);
+    bounds_test(a);
+    bounds_test(a);
+    bounds_test(a);
+    %OptimizeFunctionOnNextCall(bounds_test);
+    bounds_test(a);
+    %DeoptimizeFunction(bounds_test);
   }
 
-  function array_load_set_smi_check(a) {
-    return a[0] = a[0] = 1;
-  }
-
+  var array_load_set_smi_check = copyFunctionWithFreshFeedback(
+      function array_load_set_smi_check(a) {
+        return a[0] = a[0] = 1;
+      });
+  %EnsureFeedbackVectorForFunction(array_load_set_smi_check);
   array_load_set_smi_check(a);
   array_load_set_smi_check(0);
 
-  function array_load_set_smi_check2(a) {
-    return a[0] = a[0] = 1;
-  }
-
+  var array_load_set_smi_check2 = copyFunctionWithFreshFeedback(
+      function array_load_set_smi_check2(a) {
+        return a[0] = a[0] = 1;
+      });
   %PrepareFunctionForOptimization(array_load_set_smi_check2);
   array_load_set_smi_check2(a);
   %OptimizeFunctionOnNextCall(array_load_set_smi_check2);
   array_load_set_smi_check2(a);
   array_load_set_smi_check2(0);
   %DeoptimizeFunction(array_load_set_smi_check2);
-  %ClearFunctionFeedback(array_load_set_smi_check2);
 }
 
 // Check handling of undefined in 32- and 64-bit external float arrays.
@@ -637,16 +637,18 @@ var b3 = b0.slice(2, 4)
 assertEquals(2, b3.byteLength)
 assertArrayPrefix([3, 4], new Int8Array(b3))
 
-function goo(a, i) {
+function goo_template(a, i) {
   return a[i];
 }
 
-function boo(a, i, v) {
+function boo_template(a, i, v) {
   return a[i] = v;
 }
 
 function do_tagged_index_external_array_test(constructor) {
   var t_array = new constructor([1, 2, 3, 4, 5, 6]);
+  var goo = copyFunctionWithFreshFeedback(goo_template);
+  var boo = copyFunctionWithFreshFeedback(boo_template);
   %PrepareFunctionForOptimization(goo);
   %PrepareFunctionForOptimization(boo);
   assertEquals(1, goo(t_array, 0));
@@ -657,8 +659,6 @@ function do_tagged_index_external_array_test(constructor) {
   %OptimizeFunctionOnNextCall(boo);
   boo(t_array, 0, 15);
   assertEquals(15, goo(t_array, 0));
-  %ClearFunctionFeedback(goo);
-  %ClearFunctionFeedback(boo);
 }
 
 do_tagged_index_external_array_test(Int8Array);
@@ -671,6 +671,8 @@ do_tagged_index_external_array_test(Float32Array);
 do_tagged_index_external_array_test(Float64Array);
 
 var built_in_array = new Array(1, 2, 3, 4, 5, 6);
+var goo = copyFunctionWithFreshFeedback(goo_template);
+var boo = copyFunctionWithFreshFeedback(boo_template);
 %PrepareFunctionForOptimization(goo);
 %PrepareFunctionForOptimization(boo);
 assertEquals(1, goo(built_in_array, 0));
@@ -679,10 +681,10 @@ assertEquals(1, goo(built_in_array, 0));
 %OptimizeFunctionOnNextCall(boo);
 boo(built_in_array, 0, 11);
 assertEquals(11, goo(built_in_array, 0));
-%ClearFunctionFeedback(goo);
-%ClearFunctionFeedback(boo);
 
 built_in_array = new Array(1.5, 2, 3, 4, 5, 6);
+goo = copyFunctionWithFreshFeedback(goo_template);
+boo = copyFunctionWithFreshFeedback(boo_template);
 %PrepareFunctionForOptimization(goo);
 %PrepareFunctionForOptimization(boo);
 assertEquals(1.5, goo(built_in_array, 0));
@@ -691,8 +693,6 @@ assertEquals(1.5, goo(built_in_array, 0));
 %OptimizeFunctionOnNextCall(boo);
 boo(built_in_array, 0, 2.5);
 assertEquals(2.5, goo(built_in_array, 0));
-%ClearFunctionFeedback(goo);
-%ClearFunctionFeedback(boo);
 
 // Check all int range edge cases
 function checkRange() {

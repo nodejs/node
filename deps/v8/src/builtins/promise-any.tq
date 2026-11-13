@@ -94,8 +94,8 @@ transitioning javascript builtin PromiseAnyRejectElementClosure(
   // If all promises were already rejected, the remaining count will already be
   // 0.
   if (remainingElementsCount == 0) deferred {
-      return Undefined;
-    }
+    return Undefined;
+  }
 
   // 6. Let errors be F.[[Errors]].
   let errorsRef:&FixedArray = ContextSlot(
@@ -120,17 +120,17 @@ transitioning javascript builtin PromiseAnyRejectElementClosure(
   const newCapacity =
       IntPtrMax(SmiUntag(remainingElementsCount) - 1, index + 1);
   if (newCapacity > errors.length_intptr) deferred {
-      errors = ExtractFixedArray(
-          errors, 0, errors.length_intptr, newCapacity, PromiseHole);
-      *errorsRef = errors;
-    }
+    errors = ExtractFixedArray(
+        errors, 0, errors.length_intptr, newCapacity, PromiseHole);
+    *errorsRef = errors;
+  }
 
   // 2. Let alreadyCalled be F.[[AlreadyCalled]].
   // 3. If alreadyCalled.[[Value]] is true, return undefined.
   // 4. Set alreadyCalled.[[Value]] to true.
   if (errors.objects[index] != PromiseHole) deferred {
-      return Undefined;
-    }
+    return Undefined;
+  }
 
   // Make sure that we never see the PromiseHole here as a result.
   check(value != PromiseHole);
@@ -286,12 +286,12 @@ Reject(JSAny) {
       // For catch prediction, mark that rejections here are
       // semantically handled by the combined Promise.
       if (IsDebugActive() && Is<JSPromise>(thenResult)) deferred {
-          SetPropertyStrict(
-              context, thenResult, kPromiseHandledBySymbol,
-              resultCapability.promise);
-          SetPropertyStrict(
-              context, rejectElement, kPromiseForwardingHandlerSymbol, True);
-        }
+        SetPropertyStrict(
+            context, thenResult, kPromiseHandledBySymbol,
+            resultCapability.promise);
+        SetPropertyStrict(
+            context, rejectElement, kPromiseForwardingHandlerSymbol, True);
+      }
     }
   } catch (e, _message) deferred {
     iterator::IteratorCloseOnException(iteratorRecord.object);
@@ -309,25 +309,25 @@ Reject(JSAny) {
 
   // iii. If remainingElementsCount.[[Value]] is 0, then
   if (remainingElementsCount == 0) deferred {
-      // 1. Let error be a newly created AggregateError object.
-      // 2. Set error.[[AggregateErrors]] to errors.
+    // 1. Let error be a newly created AggregateError object.
+    // 2. Set error.[[AggregateErrors]] to errors.
 
-      // We may already have elements in "errors" - this happens when the
-      // Thenable calls the reject callback immediately.
-      const errorsRef:&FixedArray = ContextSlot(
-          rejectElementContext,
-          PromiseAnyRejectElementContextSlots::
-              kPromiseAnyRejectElementErrorsSlot);
-      const errors: FixedArray = *errorsRef;
+    // We may already have elements in "errors" - this happens when the
+    // Thenable calls the reject callback immediately.
+    const errorsRef:&FixedArray = ContextSlot(
+        rejectElementContext,
+        PromiseAnyRejectElementContextSlots::
+            kPromiseAnyRejectElementErrorsSlot);
+    const errors: FixedArray = *errorsRef;
 
-      // After this point, errors escapes to user code. Clear the slot.
-      *errorsRef = kEmptyFixedArray;
+    // After this point, errors escapes to user code. Clear the slot.
+    *errorsRef = kEmptyFixedArray;
 
-      check(errors.length_intptr == Convert<intptr>(index - 1));
-      const error = ConstructAggregateError(errors);
-      // 3. Return ThrowCompletion(error).
-      goto Reject(error);
-    }
+    check(errors.length_intptr == Convert<intptr>(index - 1));
+    const error = ConstructAggregateError(errors);
+    // 3. Return ThrowCompletion(error).
+    goto Reject(error);
+  }
   // iv. Return resultCapability.[[Promise]].
   return resultCapability.promise;
 }

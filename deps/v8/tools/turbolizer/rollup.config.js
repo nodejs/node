@@ -18,7 +18,8 @@ const warningHandler = (warning) => {
 export default {
   input: "src/turbo-visualizer.ts",
   plugins: [node(), typescript({
-    abortOnError: false
+    abortOnError: false,
+    include: ["*.ts", "**/*.ts", "*.tsx", "**/*.tsx"]
   })],
   output: {
     file: "build/turbolizer.js",

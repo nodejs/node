@@ -303,6 +303,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       UNREACHABLE();
     case IrOpcode::kDeadValue:
       CheckValueInputIs(node, 0, Type::None());
+      CHECK_NE(NodeProperties::GetValueInput(node, 0), node);
       CheckTypeIs(node, Type::None());
       break;
     case IrOpcode::kUnreachable:
@@ -1925,7 +1926,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kStore:
     case IrOpcode::kStorePair:
-    case IrOpcode::kStoreIndirectPointer:
+    case IrOpcode::kStoreTrustedPointer:
     case IrOpcode::kStackSlot:
     case IrOpcode::kWord32And:
     case IrOpcode::kWord32Or:
@@ -2069,7 +2070,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
     case IrOpcode::kBitcastWordToTagged:
     case IrOpcode::kBitcastWordToTaggedSigned:
-    case IrOpcode::kBitcastWord32ToWord64:
     case IrOpcode::kChangeInt32ToInt64:
     case IrOpcode::kChangeUint32ToUint64:
     case IrOpcode::kChangeInt32ToFloat64:
@@ -2151,7 +2151,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
 
 #define SIMD_MACHINE_OP_CASE(Name) case IrOpcode::k##Name:
       MACHINE_SIMD128_OP_LIST(SIMD_MACHINE_OP_CASE)
-      IF_SIMD256(MACHINE_SIMD256_OP_LIST, SIMD_MACHINE_OP_CASE)
 #undef SIMD_MACHINE_OP_CASE
 
       // TODO(rossberg): Check.

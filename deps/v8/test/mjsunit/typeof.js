@@ -45,12 +45,12 @@ assertEquals('function', typeof Object);
 
 // Optimizing TypeOf
 
-function test2(v, t) {
+function test2_typeof(v, t) {
   assertEquals(typeof v, t);
 }
-%PrepareFunctionForOptimization(test2);
 function test(v1, t1, v2, t2) {
-  %ClearFunctionFeedback(test2);
+  var test2 = copyFunctionWithFreshFeedback(test2_typeof);
+  %PrepareFunctionForOptimization(test2);
   test2(v1, t1);
   test2(v1, t1);
   test2(v1, t1);
@@ -69,7 +69,7 @@ test(true, 'boolean', null, 'object');
 
 // Optimizing TestTypeOf
 
-function test2(v) {
+function test2_test_typeof(v) {
   if (v) v.x
   if (typeof v == "number") return "number";
   if (typeof v == "object") return "object";
@@ -78,9 +78,9 @@ function test2(v) {
   if (typeof v == "boolean") return "boolean";
   if (typeof v == "string") return "string";
 }
-%PrepareFunctionForOptimization(test2);
-function test(v1, t1, v2, t2) {
-  %ClearFunctionFeedback(test2);
+function test_branch(v1, t1, v2, t2) {
+  var test2 = copyFunctionWithFreshFeedback(test2_test_typeof);
+  %PrepareFunctionForOptimization(test2);
   assertEquals(test2(v1), t1);
   assertEquals(test2(v1), t1);
   assertEquals(test2(v1), t1);
@@ -88,11 +88,11 @@ function test(v1, t1, v2, t2) {
   assertEquals(test2(v1), t1);
   assertEquals(test2(v2), t2);
 }
-test(function(){}, 'function', {}, 'object');
-test(1, 'number', {}, 'object');
-test(1.2, 'number', {}, 'object');
-test("asdF", 'string', {}, 'object');
-test(undefined, 'undefined', {}, 'object');
-test(undefined, 'undefined', null, 'object');
-test(null, 'object', undefined, 'undefined');
-test(true, 'boolean', null, 'object');
+test_branch(function(){}, 'function', {}, 'object');
+test_branch(1, 'number', {}, 'object');
+test_branch(1.2, 'number', {}, 'object');
+test_branch("asdF", 'string', {}, 'object');
+test_branch(undefined, 'undefined', {}, 'object');
+test_branch(undefined, 'undefined', null, 'object');
+test_branch(null, 'object', undefined, 'undefined');
+test_branch(true, 'boolean', null, 'object');

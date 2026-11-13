@@ -24,7 +24,7 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(1),
                 B(Star1),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(1),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(1),
@@ -34,6 +34,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [20],
+  Smi [10],
   Smi [10],
   Smi [7],
 ]
@@ -57,7 +58,7 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(1),
                 B(Star1),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(1),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(1),
@@ -67,6 +68,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [20],
+  Smi [10],
   Smi [10],
   Smi [7],
 ]
@@ -92,13 +94,13 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(2),
                 B(Star2),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(2),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(2),
                 B(Return),
   /*   32 S> */ B(LdaModuleVariable), I8(-1), U8(0),
-                B(ThrowReferenceErrorIfTdzHole), U8(3:"goo"),
+                B(ThrowReferenceErrorIfTdzHole), U8(4:"goo"),
                 B(Star2),
                 B(LdaSmi), I8(42),
                 B(Star3),
@@ -115,6 +117,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [20],
+  Smi [10],
   Smi [10],
   Smi [7],
   INTERNALIZED_ONE_BYTE_STRING_TYPE ["goo"],
@@ -141,7 +144,7 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(2),
                 B(Star2),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(2),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(2),
@@ -161,6 +164,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [20],
+  Smi [10],
   Smi [10],
   Smi [7],
 ]
@@ -190,7 +194,7 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(2),
                 B(Star2),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(2:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(2:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(2),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(2),
@@ -211,6 +215,7 @@ bytecodes: [
 constant pool: [
   Smi [31],
   FIXED_ARRAY_TYPE,
+  Smi [10],
   Smi [10],
   Smi [7],
 ]
@@ -240,7 +245,7 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(2),
                 B(Star2),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(2:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(2:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(2),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(2),
@@ -261,6 +266,7 @@ bytecodes: [
 constant pool: [
   Smi [31],
   FIXED_ARRAY_TYPE,
+  Smi [10],
   Smi [10],
   Smi [7],
 ]
@@ -288,12 +294,12 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(1),
                 B(Star1),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(2:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(2:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(1),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(1),
                 B(Return),
-                B(CreateClosure), U8(4:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x0),
+                B(CreateClosure), U8(5:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x0),
                 B(StaModuleVariable), I8(1), U8(0),
                 B(LdaUndefined),
   /*   33 S> */ B(Return),
@@ -301,6 +307,7 @@ bytecodes: [
 constant pool: [
   Smi [31],
   FIXED_ARRAY_TYPE,
+  Smi [10],
   Smi [10],
   Smi [7],
   SHARED_FUNCTION_INFO_TYPE,
@@ -329,16 +336,16 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(1),
                 B(Star1),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(2:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(2:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(1),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(1),
                 B(Return),
                 B(LdaTheHole),
                 B(Star4),
-                B(CreateClosure), U8(5:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x0),
+                B(CreateClosure), U8(6:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x0),
                 B(Star1),
-                B(LdaConstant), U8(4:CLASS_BOILERPLATE_TYPE),
+                B(LdaConstant), U8(5:CLASS_BOILERPLATE_TYPE),
                 B(Star2),
                 B(Mov), R(1), R(3),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(2), RegCount8(3),
@@ -350,6 +357,7 @@ bytecodes: [
 constant pool: [
   Smi [31],
   FIXED_ARRAY_TYPE,
+  Smi [10],
   Smi [10],
   Smi [7],
   CLASS_BOILERPLATE_TYPE,
@@ -375,7 +383,7 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(1),
                 B(Star1),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(1),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(1),
@@ -385,6 +393,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [20],
+  Smi [10],
   Smi [10],
   Smi [7],
 ]
@@ -408,7 +417,7 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(1),
                 B(Star1),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(1),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(1),
@@ -418,6 +427,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [20],
+  Smi [10],
   Smi [10],
   Smi [7],
 ]
@@ -446,14 +456,14 @@ bytecodes: [
                 B(ResumeGenerator), R(0), R(0), RegCount8(2),
                 B(Star2),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), RegCount8(1),
-                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(1:Smi [10]), U8(3), I8(0),
                 B(Ldar), R(2),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(2),
                 B(Return),
-  /*   31 S> */ B(GetNamedProperty), R(1), U8(3:"f"), FBV(0),
+  /*   31 S> */ B(GetNamedProperty), R(1), U8(4:"f"), FBV(0),
                 B(Star2),
-  /*   42 E> */ B(GetNamedProperty), R(1), U8(4:"x"), FBV(2),
+  /*   42 E> */ B(GetNamedProperty), R(1), U8(5:"x"), FBV(2),
                 B(Star5),
   /*   31 E> */ B(CallProperty2), R(2), R(1), R(1), R(5), FBV(4),
                 B(LdaUndefined),
@@ -461,6 +471,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [28],
+  Smi [10],
   Smi [10],
   Smi [7],
   INTERNALIZED_ONE_BYTE_STRING_TYPE ["f"],

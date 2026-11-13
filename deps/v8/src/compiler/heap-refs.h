@@ -29,6 +29,7 @@ class BytecodeArray;
 class FixedDoubleArray;
 class FunctionTemplateInfo;
 class HeapNumber;
+class UninitializedHeapNumber;
 class InternalizedString;
 class JSBoundFunction;
 class JSDataView;
@@ -159,6 +160,7 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(FixedArrayBase)                                       \
   NEVER_SERIALIZED(FunctionTemplateInfo)                                      \
   NEVER_SERIALIZED(HeapNumber)                                                \
+  NEVER_SERIALIZED(UninitializedHeapNumber)                                   \
   NEVER_SERIALIZED(ContextCell)                                               \
   BACKGROUND_SERIALIZED(JSReceiver)                                           \
   BACKGROUND_SERIALIZED(Map)                                                  \
@@ -306,6 +308,8 @@ template <>
 struct ref_traits<Boolean> : public ref_traits<HeapObject> {};
 template <>
 struct ref_traits<JSWrappedFunction> : public ref_traits<JSFunction> {};
+template <typename T>
+struct ref_traits<ReadOnly<T>> : public ref_traits<T> {};
 
 template <class... T>
 struct ref_traits<Union<T...>> {
@@ -679,7 +683,6 @@ class JSObjectRef : public JSReceiverRef {
   // background-serialized) elements.
   OptionalFixedArrayBaseRef elements(JSHeapBroker* broker,
                                      RelaxedLoadTag) const;
-  bool IsElementsTenured(FixedArrayBaseRef elements);
 
   OptionalMapRef GetObjectCreateMap(JSHeapBroker* broker) const;
 
@@ -759,9 +762,10 @@ class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
   int flags() const;
 };
 
-// HeapNumberRef is only created for immutable HeapNumbers. Mutable
-// HeapNumbers (those owned by in-object or backing store fields with
-// representation type Double are not exposed to the compiler through
+// HeapNumberRef is only created for immutable HeapNumbers and for initialized
+// Double fields of boilerplate objects read via RawInobjectPropertyAt.
+// Mutable HeapNumbers (those owned by in-object or backing store fields with
+// representation type Double) are not exposed to the compiler through
 // HeapNumberRef. Instead, we read their value, and protect that read
 // with a field-constness Dependency.
 class HeapNumberRef : public HeapObjectRef {
@@ -772,6 +776,15 @@ class HeapNumberRef : public HeapObjectRef {
 
   V8_EXPORT_PRIVATE double value() const;
   uint64_t value_as_bits() const;
+};
+
+// UninitializedHeapNumberRef is only created for uninitialized Double fields
+// of boilerplate objects read via RawInobjectPropertyAt.
+class UninitializedHeapNumberRef : public HeapObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(UninitializedHeapNumber, HeapObjectRef)
+
+  IndirectHandle<UninitializedHeapNumber> object() const;
 };
 
 class DataHandlerRef : public HeapObjectRef {
@@ -795,7 +808,7 @@ class ContextCellRef : public HeapObjectRef {
   OptionalObjectRef tagged_value(JSHeapBroker* broker) const;
 };
 
-class ContextRef : public HeapObjectRef {
+class V8_EXPORT_PRIVATE ContextRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Context, HeapObjectRef)
 
@@ -859,7 +872,7 @@ class ContextRef : public HeapObjectRef {
   V(Map, with_context_map)                       \
   V(ScriptContextTable, script_context_table)
 
-class NativeContextRef : public ContextRef {
+class V8_EXPORT_PRIVATE NativeContextRef : public ContextRef {
  public:
   DEFINE_REF_CONSTRUCTOR(NativeContext, ContextRef)
 
@@ -927,8 +940,6 @@ class FeedbackVectorRef : public HeapObjectRef {
 
   FeedbackCellRef GetClosureFeedbackCell(JSHeapBroker* broker, int index) const;
 
-  bool was_once_deoptimized() const;
-
   HeapObjectRef GetClosureFeedbackCellArrayRef(JSHeapBroker* broker);
 };
 
@@ -946,7 +957,6 @@ class AllocationSiteRef : public HeapObjectRef {
   IndirectHandle<AllocationSite> object() const;
 
   bool PointsToLiteral() const;
-  AllocationType GetAllocationType() const;
   ObjectRef nested_site(JSHeapBroker* broker) const;
 
   OptionalJSObjectRef boilerplate(JSHeapBroker* broker) const;
@@ -997,6 +1007,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   int construction_counter() const;
   bool is_migration_target() const;
   bool is_extensible() const;
+  bool is_prototype_map() const;
   bool supports_fast_array_iteration(JSHeapBroker* broker) const;
   bool supports_fast_array_resize(JSHeapBroker* broker) const;
   bool is_abandoned_prototype_map() const;
@@ -1019,6 +1030,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool IsBooleanMap(JSHeapBroker* broker) const;
   bool IsNullMap(JSHeapBroker* broker) const;
   bool IsUndefinedMap(JSHeapBroker* broker) const;
+  bool IsAnyWasmObjectMap() const;
 
   OptionalHeapObjectRef GetBackPointer(JSHeapBroker* broker) const;
 
@@ -1042,6 +1054,8 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   MapRef FindRootMap(JSHeapBroker* broker) const;
   OptionalObjectRef GetConstructor(JSHeapBroker* broker) const;
   NativeContextRef native_context(JSHeapBroker* broker) const;
+  bool BelongsToSameNativeContextAs(JSHeapBroker* broker,
+                                    ContextRef context) const;
 };
 
 struct HolderLookupResult {
@@ -1208,6 +1222,7 @@ class ScopeInfoRef : public HeapObjectRef {
   MaybeAssignedFlag ContextLocalMaybeAssignedFlag(int var) const;
   VariableMode ContextLocalMode(int var) const;
   bool HasContext() const;
+  bool HasContextCells() const;
   bool HasOuterScopeInfo() const;
   bool HasContextExtensionSlot() const;
   bool SomeContextHasExtension() const;
@@ -1245,6 +1260,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   int context_header_size() const;
   int context_parameters_start() const;
   BytecodeArrayRef GetBytecodeArray(JSHeapBroker* broker) const;
+  bool is_eager_inlining_disabled(JSHeapBroker* broker) const;
   bool HasBreakInfo(JSHeapBroker* broker) const;
   SharedFunctionInfo::Inlineability GetInlineability(
       CodeKind code_kind, JSHeapBroker* broker) const;
@@ -1270,7 +1286,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   }
 };
 
-class StringRef : public NameRef {
+class V8_EXPORT_PRIVATE StringRef : public NameRef {
  public:
   DEFINE_REF_CONSTRUCTOR(String, NameRef)
 
@@ -1293,11 +1309,11 @@ class StringRef : public NameRef {
   std::optional<double> ToNumber(JSHeapBroker* broker);
   std::optional<double> ToInt(JSHeapBroker* broker, int radix);
 
-  V8_EXPORT_PRIVATE bool IsSeqString() const;
+  bool IsSeqString() const;
   bool IsExternalString() const;
 
   bool IsContentAccessible() const;
-  V8_EXPORT_PRIVATE bool IsOneByteRepresentation() const;
+  bool IsOneByteRepresentation() const;
 
  private:
   // With concurrent inlining on, we currently support reading directly
@@ -1384,8 +1400,8 @@ class JSGlobalObjectRef : public JSObjectRef {
   bool IsDetachedFrom(JSGlobalProxyRef proxy) const;
 
   // Can be called even when there is no property cell for the given name.
-  OptionalPropertyCellRef GetPropertyCell(JSHeapBroker* broker,
-                                          NameRef name) const;
+  OptionalPropertyCellRef GetPropertyCell(JSHeapBroker* broker, NameRef name,
+                                          AccessMode access_mode) const;
 };
 
 class JSGlobalProxyRef : public JSObjectRef {

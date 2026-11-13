@@ -195,7 +195,7 @@ TEST_F(DecompressionOptimizerTest, Word32ShlSmiTag) {
   Node* word32_shl =
       graph()->NewNode(machine()->Word32Shl(), load, smi_shift_bits);
   graph()->SetEnd(
-      graph()->NewNode(machine()->BitcastWord32ToWord64(), word32_shl));
+      graph()->NewNode(machine()->ChangeUint32ToUint64(), word32_shl));
   // Change the nodes, and test the change.
   Reduce();
   EXPECT_EQ(LoadMachRep(load), CompressedMachRep(MachineType::AnyTagged()));

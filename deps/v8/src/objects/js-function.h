@@ -56,8 +56,8 @@ V8_OBJECT class JSBoundFunction
   inline void set_bound_target_function(
       Tagged<JSCallable> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Object> bound_this() const;
-  inline void set_bound_this(Tagged<Object> value,
+  inline Tagged<UnionOf<JSAny, SourceTextModule>> bound_this() const;
+  inline void set_bound_this(Tagged<UnionOf<JSAny, SourceTextModule>> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<FixedArray> bound_arguments() const;
@@ -77,7 +77,7 @@ V8_OBJECT class JSBoundFunction
 
  public:
   TaggedMember<JSCallable> bound_target_function_;
-  TaggedMember<Object> bound_this_;
+  TaggedMember<UnionOf<JSAny, SourceTextModule>> bound_this_;
   TaggedMember<FixedArray> bound_arguments_;
 } V8_OBJECT_END;
 
@@ -350,10 +350,6 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
                                      IsCompiledScope* compiled_scope,
                                      bool reset_budget_for_feedback_allocation);
 
-  // Unconditionally clear the type feedback vector, even those that we usually
-  // keep (e.g.: BinaryOp feedback).
-  void ClearAllTypeFeedbackInfoForTesting(Isolate* isolate);
-
   // Resets function to clear compiled data after bytecode has been flushed.
   inline bool NeedsResetDueToFlushedBytecode(Isolate* isolate);
   inline bool NeedsResetDueToFlushedBytecode(Isolate* isolate,
@@ -490,8 +486,9 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
 
   // The function's string representation implemented according to
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static DirectHandle<String> ToString(Isolate* isolate,
-                                       DirectHandle<JSFunction> function);
+  static MaybeDirectHandle<String> ToString(
+      Isolate* isolate, DirectHandle<JSFunction> function,
+      ShouldThrow should_throw = kThrowOnError);
 
   class BodyDescriptor;
 
@@ -516,14 +513,6 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
 
   inline void UpdateCodeImpl(Isolate* isolate, Tagged<Code> code,
                              WriteBarrierMode mode, bool keep_tiering_request);
-
-  // Updates the Code in this function's dispatch table entry.
-  inline void UpdateDispatchEntry(
-      Isolate* isolate, Tagged<Code> new_code,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
-  inline void UpdateDispatchEntryKeepTieringRequest(
-      Isolate* isolate, Tagged<Code> new_code,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Returns the set of code kinds of compilation artifacts (bytecode,
   // generated code) attached to this JSFunction.
@@ -591,7 +580,8 @@ V8_OBJECT class JSFunctionWithPrototype : public JSFunction {
   DECL_VERIFIER(JSFunctionWithPrototype)
 
  public:
-  TaggedMember<Object> prototype_or_initial_map_;
+  TaggedMember<UnionOf<JSReceiver, Map, Tuple2, TheHole>>
+      prototype_or_initial_map_;
 } V8_OBJECT_END;
 
 inline constexpr int JSFunctionWithPrototype::kHeaderSize =

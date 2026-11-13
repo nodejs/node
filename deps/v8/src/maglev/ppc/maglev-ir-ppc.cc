@@ -302,8 +302,8 @@ void Int32Multiply::GenerateCode(MaglevAssembler* masm,
   // TODO(leszeks): peephole optimise multiplication by a constant.
   __ mullw(out, left, right);
 
-  // Making sure that the 32-bit output is zero-extended.
-  __ ZeroExtWord32(out, out);
+  // Making sure that the 32-bit output is sign-extended.
+  __ extsw(out, out);
 }
 
 void Int32MultiplyOverflownBits::SetValueLocationConstraints() {
@@ -321,8 +321,8 @@ void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
   // TODO(leszeks): peephole optimise multiplication by a constant.
   __ mulhw(out, left, right);
 
-  // Making sure that the 32-bit output is zero-extended.
-  __ ZeroExtWord32(out, out);
+  // Making sure that the 32-bit output is sign-extended.
+  __ extsw(out, out);
 }
 
 void Int32Divide::SetValueLocationConstraints() {
@@ -432,8 +432,8 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 
-  // Making sure that the 32-bit output is zero-extended.
-  __ ZeroExtWord32(out, out);
+  // Making sure that the 32-bit output is sign-extended.
+  __ extsw(out, out);
 
   // If the result is zero, check if either lhs or rhs is negative.
   Label end;
@@ -664,8 +664,37 @@ DEF_BITWISE_BINOP(Int32BitwiseXor, xor_)
   }
 DEF_SHIFT_BINOP(Int32ShiftLeft, ShiftLeftU32)
 DEF_SHIFT_BINOP(Int32ShiftRight, ShiftRightS32)
-DEF_SHIFT_BINOP(Int32ShiftRightLogical, ShiftRightU32)
 #undef DEF_SHIFT_BINOP
+
+void Int32ShiftRightLogical::SetValueLocationConstraints() {
+  UseRegister(LeftInput());
+  if (RightInput().node()->Is<Int32Constant>()) {
+    UseAny(RightInput());
+  } else {
+    UseRegister(RightInput());
+  }
+  DefineAsRegister(this);
+}
+
+void Int32ShiftRightLogical::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  Register left = ToRegister(LeftInput());
+  Register out = ToRegister(result());
+  if (Int32Constant* constant = RightInput().node()->TryCast<Int32Constant>()) {
+    uint32_t shift = constant->value() & 31;
+    if (shift == 0) {
+      __ ZeroExtend<uint32_t>(out, left);
+      return;
+    }
+    __ ShiftRightU32(out, left, Operand(shift));
+  } else {
+    MaglevAssembler::TemporaryRegisterScope temps(masm);
+    Register scratch = temps.AcquireScratch();
+    Register right = ToRegister(RightInput());
+    __ andi(scratch, right, Operand(31));
+    __ ShiftRightU32(out, left, scratch);
+  }
+}
 
 void Int32BitwiseNot::SetValueLocationConstraints() {
   UseRegister(ValueInput());
@@ -1108,12 +1137,15 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ LeaveFrame(StackFrame::MAGLEV);
 
   // If actual is bigger than formal, then we should use it to free up the stack
-  // arguments.
-  Label drop_dynamic_arg_size;
-  __ CmpS32(actual_params_size, Operand(formal_params_size));
-  __ bgt(&drop_dynamic_arg_size);
-  __ mov(actual_params_size, Operand(formal_params_size));
-  __ bind(&drop_dynamic_arg_size);
+  // arguments. Both counts include the receiver, so without formal parameters
+  // the actual count is never smaller.
+  if (formal_params_size > 1) {
+    Label drop_dynamic_arg_size;
+    __ CmpS32(actual_params_size, Operand(formal_params_size));
+    __ bgt(&drop_dynamic_arg_size);
+    __ mov(actual_params_size, Operand(formal_params_size));
+    __ bind(&drop_dynamic_arg_size);
+  }
 
   // Drop receiver + arguments according to dynamic arguments size.
   __ DropArguments(actual_params_size);

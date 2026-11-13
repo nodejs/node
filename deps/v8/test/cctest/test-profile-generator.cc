@@ -27,6 +27,8 @@
 //
 // Tests of profiles generator and utilities.
 
+#include <array>
+
 #include "include/v8-function.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
@@ -315,13 +317,13 @@ TEST(CodeMapAddCode) {
   CodeEntryStorage storage;
   InstructionStreamMap instruction_stream_map(storage);
   CodeEntry* entry1 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "aaa");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "aaa");
   CodeEntry* entry2 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "bbb");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "bbb");
   CodeEntry* entry3 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "ccc");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "ccc");
   CodeEntry* entry4 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "ddd");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "ddd");
   instruction_stream_map.AddCode(ToAddress(0x1500), entry1, 0x200);
   instruction_stream_map.AddCode(ToAddress(0x1700), entry2, 0x100);
   instruction_stream_map.AddCode(ToAddress(0x1900), entry3, 0x50);
@@ -352,9 +354,9 @@ TEST(CodeMapMoveAndDeleteCode) {
   CodeEntryStorage storage;
   InstructionStreamMap instruction_stream_map(storage);
   CodeEntry* entry1 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "aaa");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "aaa");
   CodeEntry* entry2 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "bbb");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "bbb");
   instruction_stream_map.AddCode(ToAddress(0x1500), entry1, 0x200);
   instruction_stream_map.AddCode(ToAddress(0x1700), entry2, 0x100);
   CHECK_EQ(entry1, instruction_stream_map.FindEntry(ToAddress(0x1500)));
@@ -369,9 +371,9 @@ TEST(CodeMapClear) {
   CodeEntryStorage storage;
   InstructionStreamMap instruction_stream_map(storage);
   CodeEntry* entry1 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "aaa");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "aaa");
   CodeEntry* entry2 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "bbb");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "bbb");
   instruction_stream_map.AddCode(ToAddress(0x1500), entry1, 0x200);
   instruction_stream_map.AddCode(ToAddress(0x1700), entry2, 0x100);
 
@@ -388,10 +390,12 @@ namespace {
 class TestSetup {
  public:
   TestSetup() : old_flag_prof_browser_mode_(i::v8_flags.prof_browser_mode) {
-    i::v8_flags.prof_browser_mode = false;
+    i::v8_flags.prof_browser_mode.Set(false);
   }
 
-  ~TestSetup() { i::v8_flags.prof_browser_mode = old_flag_prof_browser_mode_; }
+  ~TestSetup() {
+    i::v8_flags.prof_browser_mode.Set(old_flag_prof_browser_mode_);
+  }
 
  private:
   bool old_flag_prof_browser_mode_;
@@ -405,11 +409,11 @@ TEST(SymbolizeTickSample) {
   InstructionStreamMap instruction_stream_map(storage);
   Symbolizer symbolizer(&instruction_stream_map);
   CodeEntry* entry1 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "aaa");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "aaa");
   CodeEntry* entry2 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "bbb");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "bbb");
   CodeEntry* entry3 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "ccc");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "ccc");
   symbolizer.instruction_stream_map()->AddCode(ToAddress(0x1500), entry1,
                                                0x200);
   symbolizer.instruction_stream_map()->AddCode(ToAddress(0x1700), entry2,
@@ -480,11 +484,11 @@ TEST(SampleIds) {
   InstructionStreamMap instruction_stream_map(storage);
   Symbolizer symbolizer(&instruction_stream_map);
   CodeEntry* entry1 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "aaa");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "aaa");
   CodeEntry* entry2 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "bbb");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "bbb");
   CodeEntry* entry3 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "ccc");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "ccc");
   symbolizer.instruction_stream_map()->AddCode(ToAddress(0x1500), entry1,
                                                0x200);
   symbolizer.instruction_stream_map()->AddCode(ToAddress(0x1700), entry2,
@@ -717,7 +721,7 @@ TEST(NoSamples) {
   InstructionStreamMap instruction_stream_map(storage);
   Symbolizer symbolizer(&instruction_stream_map);
   CodeEntry* entry1 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "aaa");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "aaa");
   symbolizer.instruction_stream_map()->AddCode(ToAddress(0x1500), entry1,
                                                0x200);
 
@@ -752,7 +756,7 @@ static const ProfileNode* PickChild(const ProfileNode* parent,
 TEST(RecordStackTraceAtStartProfiling) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
-  i::v8_flags.turbo_inlining = false;
+  i::v8_flags.turbo_inlining.Set(false);
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -801,20 +805,16 @@ TEST(Issue51919) {
   CpuProfilesCollection collection(CcTest::i_isolate());
   CpuProfiler profiler(CcTest::i_isolate());
   collection.set_cpu_profiler(&profiler);
-  base::EmbeddedVector<char*, CpuProfilesCollection::kMaxSimultaneousProfiles>
+  std::array<std::array<char, 16>,
+             CpuProfilesCollection::kMaxSimultaneousProfiles>
       titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
-    base::Vector<char> title = v8::base::Vector<char>::New(16);
-    base::SNPrintF(title, "%d", i);
+    base::SNPrintF(titles[i], "%d", i);
     CHECK_EQ(CpuProfilingStatus::kStarted,
-             collection.StartProfiling(title.begin()).status);
-    titles[i] = title.begin();
+             collection.StartProfiling(titles[i].data()).status);
   }
   CHECK_EQ(CpuProfilingStatus::kErrorTooManyProfilers,
            collection.StartProfiling("maximum").status);
-  for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
-    i::DeleteArray(titles[i]);
-  }
 }
 
 static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
@@ -832,7 +832,7 @@ static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
 TEST(ProfileNodeScriptId) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
-  i::v8_flags.turbo_inlining = false;
+  i::v8_flags.turbo_inlining.Set(false);
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -932,8 +932,8 @@ TEST(LineNumber) {
 
 TEST(BailoutReason) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-  i::v8_flags.allow_natives_syntax = true;
-  i::v8_flags.turbofan = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
+  i::v8_flags.turbofan.Set(true);
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -1041,7 +1041,7 @@ TEST(CodeMapRemoveCode) {
   InstructionStreamMap instruction_stream_map(storage);
 
   CodeEntry* entry =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "aaa");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "aaa");
   instruction_stream_map.AddCode(ToAddress(0x1000), entry, 0x100);
   CHECK(instruction_stream_map.RemoveCode(entry));
   CHECK(!instruction_stream_map.FindEntry(ToAddress(0x1000)));
@@ -1049,9 +1049,9 @@ TEST(CodeMapRemoveCode) {
   // Test that when two entries share the same address, we remove only the
   // entry that we desired to.
   CodeEntry* colliding_entry1 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "aaa");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "aaa");
   CodeEntry* colliding_entry2 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "aaa");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "aaa");
   instruction_stream_map.AddCode(ToAddress(0x1000), colliding_entry1, 0x100);
   instruction_stream_map.AddCode(ToAddress(0x1000), colliding_entry2, 0x100);
 
@@ -1067,11 +1067,11 @@ TEST(CodeMapMoveOverlappingCode) {
   CodeEntryStorage storage;
   InstructionStreamMap instruction_stream_map(storage);
   CodeEntry* colliding_entry1 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "aaa");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "aaa");
   CodeEntry* colliding_entry2 =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "bbb");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "bbb");
   CodeEntry* after_entry =
-      storage.Create(i::LogEventListener::CodeTag::kFunction, "ccc");
+      CodeEntryStorage::Create(i::LogEventListener::CodeTag::kFunction, "ccc");
 
   instruction_stream_map.AddCode(ToAddress(0x1400), colliding_entry1, 0x200);
   instruction_stream_map.AddCode(ToAddress(0x1400), colliding_entry2, 0x200);

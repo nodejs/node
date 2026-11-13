@@ -5,6 +5,7 @@
 #include "src/wasm/interpreter/wasm-interpreter.h"
 
 #include <atomic>
+#include <bit>
 #include <limits>
 #include <optional>
 #include <type_traits>
@@ -224,6 +225,15 @@ void WasmInterpreter::CodeMap::Preprocess(uint32_t function_index) {
   // Compute the control targets map and the local declarations.
   BytecodeIterator it(code->start, code->end, &code->locals, zone_);
 
+  // {BytecodeIterator} decodes the local declarations without a module, so
+  // indexed reference types are left with a default {RefTypeKind::kOther}.
+  // Populate them now that the module is available, otherwise subtyping checks
+  // performed while generating the bytecode (e.g. for ref.cast/ref.test) would
+  // hit an UNREACHABLE in {UpcastToStandardType}.
+  for (uint32_t i = 0; i < code->locals.num_locals; i++) {
+    value_type_reader::Populate(&code->locals.local_types[i], module_);
+  }
+
   WasmBytecodeGenerator bytecode_generator(function_index, code, module_);
   code->bytecode = bytecode_generator.GenerateBytecode();
 
@@ -260,7 +270,7 @@ WasmInterpreterThreadMap* WasmInterpreterThread::thread_interpreter_map_s =
 
 WasmInterpreterThread* WasmInterpreterThreadMap::GetCurrentInterpreterThread(
     Isolate* isolate) {
-  const int current_thread_id = ThreadId::Current().ToInteger();
+  const int current_thread_id = base::ThreadId::Current().ToInteger();
   // Key by both the OS thread id and the isolate: the same OS thread can run
   // wasm for different isolates over time (v8::Locker multiplexing), and each
   // isolate needs its own WasmInterpreterThread so that isolate_,
@@ -567,7 +577,7 @@ WasmInterpreterThread::~WasmInterpreterThread() {
 
 void WasmInterpreterThread::EnsureRefStackSpace(size_t new_size) {
   if (V8_LIKELY(current_ref_stack_size_ >= new_size)) return;
-  size_t requested_size = base::bits::RoundUpToPowerOfTwo64(new_size);
+  size_t requested_size = std::bit_ceil(new_size);
   new_size = std::max(size_t{8},
                       std::max(2 * current_ref_stack_size_, requested_size));
   int grow_by = static_cast<int>(new_size - current_ref_stack_size_);
@@ -5669,8 +5679,9 @@ class Handlers : public HandlersBase {
 
       DirectHandle<WasmExceptionPackage> exception_object =
           wasm_runtime->CreateWasmExceptionPackage(tag_index);
-      DirectHandle<FixedArray> encoded_values = TrustedCast<FixedArray>(
-          WasmExceptionPackage::GetExceptionValues(isolate, exception_object));
+      DirectHandle<FixedArray> encoded_values =
+          WasmInterpreterRuntime::GetExceptionValuesField(isolate,
+                                                          exception_object);
 
       // Encode the exception values on the operand stack into the exception
       // package allocated above.
@@ -5710,10 +5721,9 @@ class Handlers : public HandlersBase {
           }
           case kRef:
           case kRefNull: {
+            // Store refs unchanged (as Liftoff does): internal-type nulls stay
+            // WasmNull and extern-type nulls stay JS null.
             DirectHandle<Object> ref = pop<WasmRef>(sp, code, wasm_runtime);
-            if (IsWasmNull(*ref)) {
-              ref = direct_handle(ReadOnlyRoots(isolate).null_value(), isolate);
-            }
             encoded_values->set(encoded_index++, *ref);
             break;
           }
@@ -6239,7 +6249,7 @@ class Handlers : public HandlersBase {
     DCHECK(IsWasmStruct(*struct_obj));
     Address field_addr = (*struct_obj).ptr() + field_offset;
     StoreRefIntoMemory(
-        TrustedCast<HeapObject>(*struct_obj), field_addr,
+        Cast<HeapObject>(*struct_obj), field_addr,
         field_offset +
             kHeapObjectTag,  // field_offset is offset into tagged object.
         *ref, UPDATE_WRITE_BARRIER);
@@ -6323,7 +6333,7 @@ class Handlers : public HandlersBase {
       Address element_addr = array->ElementAddress(0);
       uint32_t element_offset = array->element_offset(0);
       for (uint32_t i = 0; i < elem_count; i++) {
-        StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
+        StoreRefIntoMemory(Cast<HeapObject>(*array), element_addr,
                            element_offset, *value, mode);
         element_addr += sizeof(Tagged_t);
         element_offset += sizeof(Tagged_t);
@@ -6396,7 +6406,7 @@ class Handlers : public HandlersBase {
                                           ? UPDATE_WRITE_BARRIER
                                           : SKIP_WRITE_BARRIER;
               WasmRef ref = pop<WasmRef>(sp, code, wasm_runtime);
-              StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
+              StoreRefIntoMemory(Cast<HeapObject>(*array), element_addr,
                                  element_offset, *ref, mode);
               break;
             }
@@ -6468,7 +6478,7 @@ class Handlers : public HandlersBase {
             WriteBarrierMode mode = array_new_result.needs_write_barrier
                                         ? UPDATE_WRITE_BARRIER
                                         : SKIP_WRITE_BARRIER;
-            StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
+            StoreRefIntoMemory(Cast<HeapObject>(*array), element_addr,
                                element_offset,
                                wasm_runtime->GetNullValue(element_type), mode);
             break;
@@ -6512,8 +6522,10 @@ class Handlers : public HandlersBase {
       TRAP(MessageTemplate::kWasmTrapArrayTooLarge)
     }
 
-    WasmRef result = wasm_runtime->WasmArrayNewSegment(array_index, data_index,
-                                                       offset, length);
+    constexpr bool is_element =
+        OutOfBoundsError == MessageTemplate::kWasmTrapElementSegmentOutOfBounds;
+    WasmRef result = wasm_runtime->WasmArrayNewSegment(
+        is_element, array_index, data_index, offset, length);
     if (V8_UNLIKELY(result.is_null())) {
       MessageTemplate reason = WasmInterpreterThread::GetRuntimeLastWasmError(
           wasm_runtime->GetIsolate());
@@ -6570,8 +6582,8 @@ class Handlers : public HandlersBase {
       TRAP(MessageTemplate::kWasmTrapNullDereference)
     }
 
-    bool ok = wasm_runtime->WasmArrayInitSegment(data_index, array, dest_offset,
-                                                 src_offset, size);
+    bool ok = wasm_runtime->WasmArrayInitSegment(!init_data, data_index, array,
+                                                 dest_offset, src_offset, size);
     if (V8_UNLIKELY(!ok)) {
       MessageTemplate reason = WasmInterpreterThread::GetRuntimeLastWasmError(
           wasm_runtime->GetIsolate());
@@ -6597,7 +6609,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     push<int32_t>(sp, code, wasm_runtime, array->length());
 
     NextOp();
@@ -6626,12 +6638,12 @@ class Handlers : public HandlersBase {
     } else if (V8_UNLIKELY(wasm_runtime->IsRefNull(dest_array))) {
       TRAP(MessageTemplate::kWasmTrapNullDereference)
     } else if (V8_UNLIKELY(dest_offset + size >
-                           TrustedCast<WasmArray>(*dest_array)->length())) {
+                           Cast<WasmArray>(*dest_array)->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     } else if (V8_UNLIKELY(wasm_runtime->IsRefNull(src_array))) {
       TRAP(MessageTemplate::kWasmTrapNullDereference)
     } else if (V8_UNLIKELY(src_offset + size >
-                           TrustedCast<WasmArray>(*src_array)->length())) {
+                           Cast<WasmArray>(*src_array)->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
 
@@ -6661,7 +6673,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(index >= array->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
@@ -6691,7 +6703,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(index >= array->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
@@ -6716,7 +6728,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(index >= array->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
@@ -6745,7 +6757,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(index >= array->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
@@ -6772,7 +6784,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(static_cast<uint64_t>(offset) + size > array->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
@@ -6810,7 +6822,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(static_cast<uint64_t>(offset) + size > array->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
@@ -7898,8 +7910,6 @@ void WasmBytecodeGenerator::StoreBlockParamsIntoSlots(
       if (update_stack) {
         DCHECK_EQ(GetParamType(target_block_data, i),
                   slots_[first_param_slot_index + i].value_type);
-        DCHECK_EQ(GetParamType(target_block_data, i),
-                  slots_[first_param_slot_index + i].value_type);
         UpdateStack(stack_top_index() - (params_count - 1) + i,
                     first_param_slot_index + i);
 
@@ -7963,8 +7973,6 @@ void WasmBytecodeGenerator::StoreBlockParamsAndResultsIntoSlots(
     stack_.resize(new_stack_height);
 
     for (uint32_t i = 0; i < rets_count; i++) {
-      DCHECK_EQ(GetReturnType(target_block_data, i),
-                slots_[target_block_data.first_block_index_ + i].value_type);
       DCHECK_EQ(GetReturnType(target_block_data, i),
                 slots_[target_block_data.first_block_index_ + i].value_type);
       UpdateStack(target_block_data.stack_size_ - params_count + i,
@@ -10214,9 +10222,17 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
                                                              CurrentCodePos());
       }
 
+      // Tail-call validation guarantees matching caller and callee result
+      // counts.
+      CHECK_IMPLIES(
+          is_tail_call,
+          sig->return_count() == wasm_code_->function->sig->return_count());
+      const FunctionSig* result_slot_sig =
+          is_tail_call ? wasm_code_->function->sig : sig;
+
       // Function results are pushed to the stack.
       for (size_t index = 0; index < sig->return_count(); index++) {
-        const ValueType value_type = sig->GetReturn(index);
+        const ValueType value_type = result_slot_sig->GetReturn(index);
         const ValueKind kind = value_type.kind();
         switch (kind) {
           case kI32:
@@ -10306,9 +10322,17 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
                                                              CurrentCodePos());
       }
 
+      // Tail-call validation guarantees matching caller and callee result
+      // counts.
+      CHECK_IMPLIES(
+          is_tail_call,
+          sig->return_count() == wasm_code_->function->sig->return_count());
+      const FunctionSig* result_slot_sig =
+          is_tail_call ? wasm_code_->function->sig : sig;
+
       // Function result is pushed to the stack.
       for (size_t index = 0; index < sig->return_count(); index++) {
-        ValueType value_type = sig->GetReturn(index);
+        const ValueType value_type = result_slot_sig->GetReturn(index);
         switch (value_type.kind()) {
           case kI32:
           case kI64:
@@ -10388,9 +10412,17 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
                                                              CurrentCodePos());
       }
 
+      // Tail-call validation guarantees matching caller and callee result
+      // counts.
+      CHECK_IMPLIES(
+          is_tail_call,
+          sig->return_count() == wasm_code_->function->sig->return_count());
+      const FunctionSig* result_slot_sig =
+          is_tail_call ? wasm_code_->function->sig : sig;
+
       // Function result is pushed to the stack.
       for (size_t index = 0; index < sig->return_count(); index++) {
-        const ValueType value_type = sig->GetReturn(index);
+        const ValueType value_type = result_slot_sig->GetReturn(index);
         const ValueKind kind = value_type.kind();
         switch (kind) {
           case kI32:

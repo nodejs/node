@@ -32,102 +32,17 @@ class LoopMergePointInterpreterFrameState;
 class MergePointInterpreterFrameState;
 struct LoopEffects;
 
-// Bundles a static ScopeInfoRef with the distance (in Context::previous() hops)
-// from this scope to MaglevCompilationInfo::specialization_context().
-// - If specialization_context_distance() has a value, walking outward that many
-//   steps reaches the specialization context.
-// - If specialization_context_distance() is std::nullopt (stored compactly as
-//   kNoDistance to keep sizeof(ContextScopeInfo) == 16), either there is no
-//   specialization context, this scope is inside an inlined compilation unit,
-//   or we have walked outward past the specialization context.
-class ContextScopeInfo {
- public:
-  ContextScopeInfo() = default;
-  ContextScopeInfo(std::nullopt_t) {}  // NOLINT(runtime/explicit)
-  ContextScopeInfo(compiler::OptionalScopeInfoRef scope_info,
-                   std::optional<size_t> specialization_context_distance =
-                       std::nullopt)  // NOLINT(runtime/explicit)
-      : scope_info_(scope_info),
-        specialization_context_distance_(
-            scope_info.has_value()
-                ? specialization_context_distance.value_or(kNoDistance)
-                : kNoDistance) {}
-
-  bool has_value() const { return scope_info_.has_value(); }
-  compiler::ScopeInfoRef value() const { return scope_info_.value(); }
-  operator compiler::ScopeInfoRef() const { return value(); }
-  compiler::OptionalScopeInfoRef scope_info() const { return scope_info_; }
-
-  bool HasOuterScopeInfo() const { return scope_info_->HasOuterScopeInfo(); }
-  bool HasContextExtensionSlot() const {
-    return scope_info_->HasContextExtensionSlot();
-  }
-  ScopeType scope_type() const { return scope_info_->scope_type(); }
-
-  std::optional<size_t> specialization_context_distance() const {
-    if (!has_value() || specialization_context_distance_ == kNoDistance) {
-      return std::nullopt;
-    }
-    return specialization_context_distance_;
-  }
-
-  V8_NODISCARD ContextScopeInfo Push(compiler::ScopeInfoRef inner_scope) const {
-    std::optional<size_t> inner_dist;
-    if (specialization_context_distance_ != kNoDistance) {
-      inner_dist = specialization_context_distance_ + 1;
-    }
-    return ContextScopeInfo(inner_scope, inner_dist);
-  }
-
-  V8_NODISCARD ContextScopeInfo
-  OuterScopeInfo(compiler::JSHeapBroker* broker) const {
-    DCHECK(has_value());
-    DCHECK(HasOuterScopeInfo());
-    std::optional<size_t> outer_dist;
-    if (specialization_context_distance_ != kNoDistance &&
-        specialization_context_distance_ > 0) {
-      outer_dist = specialization_context_distance_ - 1;
-    }
-    return ContextScopeInfo(scope_info_->OuterScopeInfo(broker), outer_dist);
-  }
-
-  bool operator==(const ContextScopeInfo& other) const {
-    DCHECK_IMPLIES(scope_info_.equals(other.scope_info_),
-                   specialization_context_distance_ ==
-                       other.specialization_context_distance_);
-    return scope_info_.equals(other.scope_info_);
-  }
-
-  friend std::ostream& operator<<(std::ostream& os,
-                                  const ContextScopeInfo& info) {
-    if (info.has_value()) {
-      return os << info.value();
-    }
-    return os << "<empty>";
-  }
-
- private:
-  static constexpr size_t kNoDistance = std::numeric_limits<size_t>::max();
-
-  compiler::OptionalScopeInfoRef scope_info_;
-  size_t specialization_context_distance_ = kNoDistance;
-};
-
 class InterpreterFrameState {
  public:
   InterpreterFrameState(const MaglevCompilationUnit& info,
-                        KnownNodeAspects* known_node_aspects)
-      : frame_(info), known_node_aspects_(known_node_aspects) {
+                        KnownNodeAspects::Ptr known_node_aspects)
+      : frame_(info), known_node_aspects_(std::move(known_node_aspects)) {
     frame_[interpreter::Register::virtual_accumulator()] = nullptr;
   }
 
-  explicit InterpreterFrameState(const MaglevCompilationUnit& info)
-      : InterpreterFrameState(
-            info, info.zone()->New<KnownNodeAspects>(info.zone())) {}
-
   void CopyFrom(const MaglevCompilationUnit& info,
                 MergePointInterpreterFrameState& state,
-                bool preserve_known_node_aspects = false, Zone* zone = nullptr);
+                bool preserve_known_node_aspects = false);
 
   void set_accumulator(ValueNode* value) {
     // Conversions should be stored in known_node_aspects/NodeInfo.
@@ -160,21 +75,20 @@ class InterpreterFrameState {
 
   const RegisterFrameArray<ValueNode*>& frame() const { return frame_; }
 
-  KnownNodeAspects* known_node_aspects() { return known_node_aspects_; }
+  KnownNodeAspects* known_node_aspects() { return known_node_aspects_.get(); }
   const KnownNodeAspects* known_node_aspects() const {
-    return known_node_aspects_;
+    return known_node_aspects_.get();
   }
 
-  void set_known_node_aspects(KnownNodeAspects* known_node_aspects) {
+  void set_known_node_aspects(KnownNodeAspects::Ptr known_node_aspects) {
     DCHECK_NOT_NULL(known_node_aspects);
-    known_node_aspects_ = known_node_aspects;
+    known_node_aspects_ = std::move(known_node_aspects);
   }
 
-  void clear_known_node_aspects() { known_node_aspects_ = nullptr; }
-
-  void add_object(VirtualObject* vobject) {
-    known_node_aspects_->virtual_objects().Add(vobject);
+  KnownNodeAspects::Ptr TakeKnownNodeAspects() {
+    return std::move(known_node_aspects_);
   }
+
   const VirtualObjectList& virtual_objects() const {
     DCHECK_NOT_NULL(known_node_aspects_);
     return known_node_aspects_->virtual_objects();
@@ -182,7 +96,7 @@ class InterpreterFrameState {
 
  private:
   RegisterFrameArray<ValueNode*> frame_;
-  KnownNodeAspects* known_node_aspects_;
+  KnownNodeAspects::Ptr known_node_aspects_;
 };
 
 class CompactInterpreterFrameState {
@@ -442,11 +356,7 @@ class MergePointInterpreterFrameState {
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
   }
 
-  void clear_is_loop() {
-    bitfield_ =
-        kBasicBlockTypeBits::update(bitfield_, BasicBlockType::kDefault);
-    bitfield_ = kIsResumableLoopBit::update(bitfield_, false);
-  }
+  inline void clear_is_loop();
 
   // Merges a dead loop framestate (e.g. one where the block containing the
   // JumpLoop has been early terminated with a deopt).
@@ -472,36 +382,33 @@ class MergePointInterpreterFrameState {
 
   // Returns and clears the known node aspects on this state. Expects to only
   // ever be called once, when starting a basic block with this state.
-  KnownNodeAspects* TakeKnownNodeAspects() {
+  KnownNodeAspects::Ptr TakeKnownNodeAspects() {
     DCHECK_NOT_NULL(known_node_aspects_);
-    return std::exchange(known_node_aspects_, nullptr);
+    return std::move(known_node_aspects_);
   }
 
-  KnownNodeAspects* CloneKnownNodeAspects(Zone* zone) {
-    return known_node_aspects_->Clone(zone);
+  KnownNodeAspects::Ptr CloneKnownNodeAspects() {
+    return known_node_aspects_->Clone();
   }
 
-  void ClearKnownNodeAspects() { known_node_aspects_ = nullptr; }
+  void ClearKnownNodeAspects() { known_node_aspects_.reset(); }
 
   void MergeNodeAspects(Zone* zone,
                         const KnownNodeAspects& known_node_aspects) {
     if (!known_node_aspects_) {
-      known_node_aspects_ = known_node_aspects.Clone(zone);
+      known_node_aspects_ = known_node_aspects.Clone();
     } else {
       known_node_aspects_->Merge(known_node_aspects, zone);
     }
   }
 
-  // Adopts or merges `known_node_aspects`, and nulls it out to guarantee
-  // it is not reused by the caller.
-  void MergeNodeAspects(Zone* zone, KnownNodeAspects** known_node_aspects) {
+  void MergeNodeAspects(Zone* zone, KnownNodeAspects::Ptr known_node_aspects) {
     DCHECK_NOT_NULL(known_node_aspects);
-    KnownNodeAspects* source = std::exchange(*known_node_aspects, nullptr);
-    DCHECK_NOT_NULL(source);
     if (!known_node_aspects_) {
-      known_node_aspects_ = source;
+      known_node_aspects_ = std::move(known_node_aspects);
     } else {
-      known_node_aspects_->Merge(*source, zone);
+      DCHECK_NE(known_node_aspects.get(), known_node_aspects_.get());
+      known_node_aspects_->Merge(*known_node_aspects, zone);
     }
   }
 
@@ -663,19 +570,6 @@ class MergePointInterpreterFrameState {
 
   V8_EXPORT_PRIVATE void ReducePhiPredecessorCount(unsigned num);
 
-  void MergeVirtualObjects(Graph* graph, bool is_tracing,
-                           const MaglevCompilationUnit& compilation_unit,
-                           const KnownNodeAspects& unmerged_aspects);
-
-  void MergeVirtualObject(Graph* graph, bool is_tracing,
-                          const VirtualObjectList unmerged_vos,
-                          const KnownNodeAspects& unmerged_aspects,
-                          VirtualObject* merged, VirtualObject* unmerged);
-
-  std::optional<ValueNode*> MergeVirtualObjectValue(
-      Graph* graph, const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
-      ValueNode* unmerged);
-
   ValueNode* NewLoopPhi(Zone* zone, interpreter::Register reg);
 
   ValueNode* NewExceptionPhi(Zone* zone, interpreter::Register reg) {
@@ -700,7 +594,7 @@ class MergePointInterpreterFrameState {
   Phi::List phis_;
   CompactInterpreterFrameState frame_state_;
 
-  KnownNodeAspects* known_node_aspects_ = nullptr;
+  KnownNodeAspects::Ptr known_node_aspects_ = nullptr;
   ContextScopeInfo context_scope_info_;
 
   union {
@@ -757,8 +651,10 @@ class LoopMergePointInterpreterFrameState final
 
   KnownNodeAspects* backedge_known_node_aspects() const {
     DCHECK_NOT_NULL(backedge_known_node_aspects_);
-    return backedge_known_node_aspects_;
+    return backedge_known_node_aspects_.get();
   }
+
+  void ClearBackedgeKnownNodeAspects() { backedge_known_node_aspects_.reset(); }
 
  private:
   template <typename T, typename... Args>
@@ -775,7 +671,7 @@ class LoopMergePointInterpreterFrameState final
 
   const LoopEffects* loop_effects_ = nullptr;
   // The KNA from the backedge (end of the loop).
-  KnownNodeAspects* backedge_known_node_aspects_ = nullptr;
+  KnownNodeAspects::Ptr backedge_known_node_aspects_ = nullptr;
   uint32_t loop_header_effect_epoch_ = KnownNodeAspects::kEffectEpochOverflow;
   // The deopt frame for the backedge, in case we want to insert a deopting
   // conversion during phi untagging. It is set when visiting the JumpLoop.
@@ -792,6 +688,15 @@ inline const LoopMergePointInterpreterFrameState*
 MergePointInterpreterFrameState::AsLoopHeader() const {
   DCHECK(is_loop());
   return static_cast<const LoopMergePointInterpreterFrameState*>(this);
+}
+
+inline void MergePointInterpreterFrameState::clear_is_loop() {
+  if (is_loop()) {
+    AsLoopHeader()->ClearBackedgeKnownNodeAspects();
+    ClearKnownNodeAspects();
+  }
+  bitfield_ = kBasicBlockTypeBits::update(bitfield_, BasicBlockType::kDefault);
+  bitfield_ = kIsResumableLoopBit::update(bitfield_, false);
 }
 
 #if V8_HOST_ARCH_64_BIT

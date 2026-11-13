@@ -41,19 +41,26 @@ void AstFunctionLiteralIdReindexer::VisitCall(Call* expr) {
   }
 }
 
+#define RECURSE(call)               \
+  do {                              \
+    DCHECK(!HasStackOverflow());    \
+    call;                           \
+    if (HasStackOverflow()) return; \
+  } while (false)
+
 void AstFunctionLiteralIdReindexer::VisitClassLiteral(ClassLiteral* expr) {
   // Manually visit the class literal so that we can change the property walk.
   // This should be kept in-sync with AstTraversalVisitor::VisitClassLiteral.
 
   if (expr->extends() != nullptr) {
-    Visit(expr->extends());
+    RECURSE(Visit(expr->extends()));
   }
-  Visit(expr->constructor());
+  RECURSE(Visit(expr->constructor()));
   if (expr->static_initializer() != nullptr) {
-    Visit(expr->static_initializer());
+    RECURSE(Visit(expr->static_initializer()));
   }
   if (expr->instance_members_initializer_function() != nullptr) {
-    Visit(expr->instance_members_initializer_function());
+    RECURSE(Visit(expr->instance_members_initializer_function()));
   }
   ZonePtrList<ClassLiteral::Property>* private_members =
       expr->private_members();
@@ -67,7 +74,7 @@ void AstFunctionLiteralIdReindexer::VisitClassLiteral(ClassLiteral* expr) {
         prop->kind() == ClassLiteralProperty::Kind::AUTO_ACCESSOR) {
       CheckVisited(prop->value());
     } else {
-      Visit(prop->value());
+      RECURSE(Visit(prop->value()));
     }
   }
   ZonePtrList<ClassLiteral::Property>* props = expr->public_members();
@@ -88,12 +95,14 @@ void AstFunctionLiteralIdReindexer::VisitClassLiteral(ClassLiteral* expr) {
       CheckVisited(prop->value());
     } else {
       if (!prop->key()->IsLiteral()) {
-        Visit(prop->key());
+        RECURSE(Visit(prop->key()));
       }
-      Visit(prop->value());
+      RECURSE(Visit(prop->value()));
     }
   }
 }
+
+#undef RECURSE
 
 #ifdef DEBUG
 namespace {

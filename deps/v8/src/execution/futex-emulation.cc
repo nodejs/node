@@ -893,7 +893,8 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
     return;
   }
 
-  if (!node->async_state_->promise.IsEmpty()) {
+  if (!node->async_state_->promise.IsEmpty() &&
+      !isolate->is_execution_terminating()) {
     DCHECK(!node->async_state_->native_context.IsEmpty());
     Local<v8::Context> native_context =
         node->async_state_->native_context.Get(v8_isolate);
@@ -912,7 +913,8 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
     }
     MaybeDirectHandle<Object> resolve_result =
         JSPromise::Resolve(promise, result_string);
-    DCHECK(!resolve_result.is_null());
+    DCHECK_IMPLIES(resolve_result.is_null(),
+                   isolate->is_execution_terminating());
     USE(resolve_result);
   }
 }

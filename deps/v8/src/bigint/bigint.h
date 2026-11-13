@@ -350,7 +350,7 @@ class Processor {
   // {kKaratsubaThreshold} defined in {bigint-inl.h}.
   // 32 digits is enough for 2048 bit divisors on a 64-bit platform.
   static constexpr uint32_t kMaxCachedModDivisorSize = 32;
-  void CachedMod_MakeInverse(Digits& B);
+  Status CachedMod_MakeInverse(Digits& B);
   digit_t CachedMod(RWDigits& R, Digits& A);
   Digits& GetCachedDivisor() {
     BIGINT_H_DCHECK(cached_divisor_.digits() != nullptr);
@@ -362,10 +362,27 @@ class Processor {
   int inc_divisor_count() { return ++divisor_count_; }
   void reset_divisor_count() { divisor_count_ = 1; }
 
-  // Callers that want to ensure that the next small operation won't be the
-  // one that exhausts the interrupt check budget and thereby causes an
-  // interrupt check can call this to reset the budget.
-  void ResetInterruptCheckBudget() { work_estimate_ = 0; }
+  // Temporarily disables interrupt checks for callers that cannot handle
+  // termination.
+  class [[nodiscard]] IgnoreInterruptsScope {
+   public:
+    explicit IgnoreInterruptsScope(Processor* processor)
+        : processor_(processor), prev_(processor->ignore_interrupts_) {
+      BIGINT_H_DCHECK(processor->status_ == Status::kOk);
+      processor_->ignore_interrupts_ = true;
+    }
+    ~IgnoreInterruptsScope() {
+      BIGINT_H_DCHECK(processor_->status_ == Status::kOk);
+      processor_->ignore_interrupts_ = prev_;
+    }
+
+    IgnoreInterruptsScope(const IgnoreInterruptsScope&) = delete;
+    IgnoreInterruptsScope& operator=(const IgnoreInterruptsScope&) = delete;
+
+   private:
+    Processor* processor_;
+    bool prev_;
+  };
 
   Platform* platform() { return platform_.get(); }
 
@@ -415,6 +432,7 @@ class Processor {
   // TODO(jkummerow): Consider merging ProcessorImpl and Processor.
   std::unique_ptr<Platform> platform_;
   Status status_{Status::kOk};
+  bool ignore_interrupts_{false};
   uintptr_t work_estimate_{0};
 
  private:

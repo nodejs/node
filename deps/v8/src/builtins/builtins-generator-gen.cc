@@ -122,6 +122,10 @@ void GeneratorBuiltinsAssembler::InnerResume(
       case JSGeneratorObject::kRethrow:
         // Currently only async generators use this mode.
         UNREACHABLE();
+      case JSGeneratorObject::kNextTrySkipAlloc:
+      case JSGeneratorObject::kNextAllocSkipped:
+        // Handshake states only set by optimized callers or the generator body.
+        UNREACHABLE();
     }
     args->PopAndReturn(builtin_result);
   }
@@ -332,11 +336,6 @@ TF_BUILTIN(ResumeGeneratorTrampoline_WithCatch, GeneratorBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(
       receiver, offsetof(JSGeneratorObject, continuation_),
       SmiConstant(JSGeneratorObject::kGeneratorClosed));
-  // Note: While a closed generator doesn't strictly leak yielded_value_ to JS,
-  // we clear it here as defense-in-depth to avoid leaving TheHole in the
-  // object.
-  StoreObjectFieldRoot(receiver, offsetof(JSGeneratorObject, yielded_value_),
-                       RootIndex::kUndefinedValue);
   CallRuntime(Runtime::kReThrow, context, var_exception.value());
   Unreachable();
 }

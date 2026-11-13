@@ -309,6 +309,14 @@ LSPAIR_MACRO_LIST(DEFINE_FUNCTION)
 LDA_STL_MACRO_LIST(DEFINE_FUNCTION)
 #undef DEFINE_FUNCTION
 
+#define DEFINE_FUNCTION(FN, OP)                                       \
+  void MacroAssembler::FN(const Register& rt, const MemOperand& op) { \
+    DCHECK(allow_macro_instructions());                               \
+    OP(rt, op);                                                       \
+  }
+LDA_STL_UNSCALED_MACRO_LIST(DEFINE_FUNCTION)
+#undef DEFINE_FUNCTION
+
 #define DEFINE_FUNCTION(FN, OP)                                   \
   void MacroAssembler::FN(const Register& rs, const Register& rt, \
                           const Register& rn) {                   \

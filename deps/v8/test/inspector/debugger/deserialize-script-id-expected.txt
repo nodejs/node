@@ -1,0 +1,5 @@
+Test that script ids are unique and loaded script ids match.
+Loaded script IDs found: true
+All loaded script IDs unique: true
+Parsed script IDs found: true
+All parsed script IDs unique: true

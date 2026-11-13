@@ -1,0 +1,5 @@
+Tests evaluateOnCallFrame inside with blocks.
+break 1: a=2, b=2
+break 2: a=3, b=1
+break 3: foo=local
+breakPointCount: 3

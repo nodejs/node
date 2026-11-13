@@ -1,0 +1,17 @@
+Tests regress-crbug-568477-1.
+  var a = 1;
+  #debugger;
+  var x = y;
+
+  debugger;
+  var x = #y;
+  return x;
+
+  var a = 1;
+  #debugger;
+  var x = y;
+
+  debugger;
+  var x = #y;
+  return x;
+

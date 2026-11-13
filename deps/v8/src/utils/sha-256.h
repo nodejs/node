@@ -2,6 +2,32 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_UTILS_SHA_256_H_
+#define V8_UTILS_SHA_256_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include "include/v8config.h"
+
+#if !defined(V8_HOST_ARCH_PPC64) && !defined(V8_HOST_ARCH_S390X) && \
+    !defined(V8_HOST_ARCH_LOONG64)
+#define V8_BORINGSSL_SHA256 1
+#else
+#define V8_BORINGSSL_SHA256 0
+#endif
+
+const size_t kSizeOfSha256Digest = 32;
+const size_t kSizeOfFormattedSha256Digest = (kSizeOfSha256Digest * 2) + 1;
+
+namespace v8 {
+namespace internal {
+
+// Convenience method. Returns digest address.
+const uint8_t* SHA256_hash(const void* data, size_t len, uint8_t* digest);
+
+#if !V8_BORINGSSL_SHA256
+
 // Copyright 2013 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,25 +57,13 @@
 // This is intended simply to provide a minimal-impact SHA256 hash utility
 // to support the stack trace source hash functionality.
 
-#ifndef V8_UTILS_SHA_256_H_
-#define V8_UTILS_SHA_256_H_
-
-#include <stddef.h>
-#include <stdint.h>
-
 #define LITE_LShiftU64(a, b) ((a) << (b))
 #define LITE_RShiftU64(a, b) ((a) >> (b))
-
-const size_t kSizeOfSha256Digest = 32;
-const size_t kSizeOfFormattedSha256Digest = (kSizeOfSha256Digest * 2) + 1;
-
-namespace v8 {
-namespace internal {
 
 typedef struct HASH_VTAB {
   void (*const init)(struct HASH_CTX*);
   void (*const update)(struct HASH_CTX*, const void*, size_t);
-  const uint8_t* (*const final)(struct HASH_CTX*);
+  void (*const final)(uint8_t*, struct HASH_CTX*);
   const uint8_t* (*const hash)(const void*, size_t, uint8_t*);
   unsigned int size;
 } HASH_VTAB;
@@ -61,14 +75,13 @@ typedef struct HASH_CTX {
   uint32_t state[8];  // upto SHA2-256
 } HASH_CTX;
 
-typedef HASH_CTX LITE_SHA256_CTX;
+typedef HASH_CTX SHA256_CTX;
 
-void SHA256_init(LITE_SHA256_CTX* ctx);
-void SHA256_update(LITE_SHA256_CTX* ctx, const void* data, size_t len);
-const uint8_t* SHA256_final(LITE_SHA256_CTX* ctx);
+void SHA256_Init(SHA256_CTX* ctx);
+void SHA256_Update(SHA256_CTX* ctx, const void* data, size_t len);
+void SHA256_Final(uint8_t* digest, SHA256_CTX* ctx);
 
-// Convenience method. Returns digest address.
-const uint8_t* SHA256_hash(const void* data, size_t len, uint8_t* digest);
+#endif  // !V8_BORINGSSL_SHA256
 
 }  // namespace internal
 }  // namespace v8

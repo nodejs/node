@@ -1,0 +1,7 @@
+Tests async debug basic.
+frame(0) evaluate('a'): a
+listenerDone: true
+exceptionThrown: true
+breakpointCount: 1
+asyncStackTrace present: true
+async parent: f, <anonymous>

@@ -240,15 +240,11 @@ class PropagateTruncationProcessor {
     return node->can_truncate_to_int32() && IsAdditiveOperation(node->opcode());
   }
 
-  // Largest absolute value an input can hold, as an operand of `user_opcode`.
-  static int64_t GetMaxExactInputValue(Opcode user_opcode, ValueNode* node) {
+  // Largest absolute value an input can hold, as an operand of `user`.
+  static int64_t GetMaxExactInputValue(ValueNode* user, ValueNode* node) {
     node = UnwrapForTruncation(node);
     if (auto constant = node->TryCast<Float64Constant>()) {
-      double value = std::abs(constant->value().get_scalar());
-      if (!(value <= static_cast<double>(kMaxExactlyRepresentableValue))) {
-        return kMaxSaturatedValue;
-      }
-      return static_cast<int64_t>(std::ceil(value));
+      return GetMaxExactValueOfRange(constant->GetStaticRange());
     }
     // A multiply this pass truncates keeps only the low 32 bits of a product
     // that its own safe integer check bounds by 2^53, so charge the product.
@@ -266,10 +262,14 @@ class PropagateTruncationProcessor {
     // either, since refusing a node also refuses everything it is computed
     // from, so its static range still describes the value it holds.
     int64_t max_abs_value = GetMaxExactValueOfRange(node->GetStaticRange());
-    if (user_opcode == Opcode::kFloat64SpeculateSafeAdd) {
+    if (auto* safe_add = user->TryCast<Float64SpeculateSafeAdd>();
+        safe_add && !safe_add->range().IsSafeInt()) {
       // Speculative truncation reaches a Float64 operand through a conversion
       // that range checks it against the additive safe integer feedback range,
-      // so that check bounds it too.
+      // so that check bounds it too. Non-speculating safe additions (whose
+      // static range is already a safe integer) emit no range check, and
+      // additions that abandon speculation clear `can_truncate_to_int32` so
+      // any speculating user range-checks their result.
       max_abs_value = std::min(max_abs_value, -kMinAdditiveSafeIntegerFeedback);
     }
     return max_abs_value;
@@ -316,10 +316,10 @@ class PropagateTruncationProcessor {
       int64_t max_abs_value = 0;
       for (int i = 0; i < node->input_count(); i++) {
         ValueNode* input = UnwrapForTruncation(node->input_node(i));
-        max_abs_value = add_saturated(
-            max_abs_value, IsTruncatableAdditiveOperation(input)
-                               ? max_exact_value_.at(input)
-                               : GetMaxExactInputValue(node->opcode(), input));
+        max_abs_value = add_saturated(max_abs_value,
+                                      IsTruncatableAdditiveOperation(input)
+                                          ? max_exact_value_.at(input)
+                                          : GetMaxExactInputValue(node, input));
       }
       stack.pop_back();
       max_exact_value_.emplace(node, max_abs_value);
@@ -522,26 +522,34 @@ class TruncationProcessor {
     ValueNode* input = node->input_node(index);
     if (input->Is<Phi>()) return true;
     if (input->is_conversion()) return IsSafeIntInputOrPhi(input, 0);
+    // A truncatable Float64 operation that stayed Float64 after partial
+    // truncation holds its value modulo 2^32, so it must be consumed truncated
+    // even if its cached range was reset.
+    if (input->is_float64() && input->can_truncate_to_int32()) return true;
     return input->GetStaticRange().IsSafeInt();
   }
 
   void ProcessFloat64SpeculateSafeAdd(Float64SpeculateSafeAdd* node) {
-    if (!node->can_truncate_to_int32() || IsUnsafeIntConstant(node, 0) ||
-        IsUnsafeIntConstant(node, 1)) {
+    if (!node->can_truncate_to_int32()) {
       // Don't truncate this node.
       node->OverwriteWith<Float64Add>();
       return;
     }
+    DCHECK(!IsUnsafeIntConstant(node, 0) && !IsUnsafeIntConstant(node, 1));
     if (node->range().IsSafeInt()) {
-      // Non-speculating truncation.
-      ProcessFloat64BinaryOp<Int32Add>(node);
+      // Non-speculating truncation. Lower to Float64Add first in case not all
+      // inputs are Int32.
+      ProcessFloat64BinaryOp<Int32Add>(node->OverwriteWith<Float64Add>());
       return;
     }
     // Checking both inputs are usually expensive, so we only speculate if one
     // of the inputs is already a safe int. However since truncation happens
     // before phi representation selector, we also speculate if we see a phi.
     if (!IsSafeIntInputOrPhi(node, 0) && !IsSafeIntInputOrPhi(node, 1)) {
-      // Don't truncate this node.
+      // Don't truncate this node. Neither operand is truncated, so this is an
+      // exact Float64Add; clear `can_truncate_to_int32` so speculating users
+      // still range-check it.
+      node->set_can_truncate_to_int32(false);
       node->OverwriteWith<Float64Add>();
       return;
     }
@@ -552,9 +560,8 @@ class TruncationProcessor {
     node->OverwriteWith<Int32Add>();
   }
 
-  template <typename NodeT>
-
-  void ProcessFloat64BinaryOp(ValueNode* node) {
+  template <typename NodeT, typename InputNodeT>
+  void ProcessFloat64BinaryOp(InputNodeT* node) {
     if (!node->can_truncate_to_int32()) return;
 
     switch (NonInt32InputCount(node)) {
@@ -564,14 +571,20 @@ class TruncationProcessor {
         TRACE_TRUNCATION("truncating "
                          << PrintNodeBrief{node} << " to "
                          << OpcodeToString(Node::opcode_of<NodeT>));
-        node->OverwriteWith<NodeT>();
+        node->template OverwriteWith<NodeT>();
         break;
       case 1:
         // Convert nodes back to float64 and don't truncate.
         ConvertInputsToFloat64(node);
-        break;
+        [[fallthrough]];
       case 2:
-        // Don't truncate.
+        // Don't truncate. Either a direct input (case 1) or a transitive
+        // descendant of a Float64 input that hit case 1 (case 2) may have been
+        // truncated to Int32, shifting its value by multiples of 2^32 and
+        // invalidating the pre-truncation range cached on this node during
+        // graph building. Since at least one input is not Int32, the new static
+        // range would be wider than Int32 anyway, so reset it.
+        node->set_range(Range::All());
         break;
       default:
         UNREACHABLE();
