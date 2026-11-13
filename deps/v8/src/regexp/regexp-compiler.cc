@@ -346,7 +346,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
     return CompilationResult::RegExpTooBig();
   };
 
-  ZoneVector<RegExpNode*> work_list(zone());
+  ZoneVector<WorkItem> work_list(zone());
   work_list_ = &work_list;
   Label fail;
   macro_assembler_->PushBacktrack(&fail);
@@ -357,11 +357,13 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   macro_assembler_->BindJumpTarget(&fail);
   macro_assembler_->Fail();
   while (!work_list.empty()) {
-    RegExpNode* node = work_list.back();
+    WorkItem item = work_list.back();
+    RegExpNode* node = item.node;
     TRACE_WITH_NODE(this, "Popping from worklist ", node);
     work_list.pop_back();
     node->set_on_work_list(false);
     if (!node->label()->is_bound()) {
+      set_flags(item.flags);
       if (node->Emit(this, &new_trace).IsError()) {
         return ReportError();
       }
@@ -2132,6 +2134,7 @@ EmitResult AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler,
   }
   bool at_boundary = (assertion_type_ == AssertionNode::AT_BOUNDARY);
   if (next_is_word_character == Trace::UNKNOWN) {
+    const RegExpFlags flags = compiler->flags();
     Label before_non_word;
     Label before_word;
     if (trace->characters_preloaded() != 1) {
@@ -2146,6 +2149,7 @@ EmitResult AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler,
                                         at_boundary ? kIsNonWord : kIsWord));
     assembler->GoTo(&ok);
 
+    compiler->set_flags(flags);
     assembler->Bind(&before_word);
     RETURN_IF_ERROR(BacktrackIfPrevious(compiler, trace,
                                         at_boundary ? kIsWord : kIsNonWord));
@@ -3841,8 +3845,13 @@ class Analysis : public NodeVisitor {
   }
 
   void VisitChoice(ChoiceNode* that) override {
+    // Flags need to be reset to the state of the ChoiceNode at the beginning
+    // of each alternative, as flags might be modified when visiting an
+    // alternative.
+    RegExpFlags header_flags = flags();
     for (int i = 0; i < that->alternatives()->length(); i++) {
       EnsureAnalyzed(that->alternatives()->at(i).node());
+      set_flags(header_flags);
       if (has_failed()) return;
       STATIC_FOR_EACH(Propagators::VisitChoice(that, i));
     }
@@ -3880,11 +3889,13 @@ class Analysis : public NodeVisitor {
       NegativeLookaroundChoiceNode* that) override {
     DCHECK_EQ(that->alternatives()->length(), 2);  // Lookaround and continue.
 
+    RegExpFlags header_flags = flags();
     EnsureAnalyzed(that->lookaround_node());
     if (has_failed()) return;
     STATIC_FOR_EACH(
         Propagators::VisitNegativeLookaroundChoiceLookaroundNode(that));
 
+    set_flags(header_flags);
     EnsureAnalyzed(that->continue_node());
     if (has_failed()) return;
     STATIC_FOR_EACH(
