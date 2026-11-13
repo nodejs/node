@@ -32,7 +32,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: '3.15'
-  XCODE_VERSION: '16.1'
+  XCODE_VERSION: '16.4'
   FLAKY_TESTS: keep_retrying
 
 permissions:
@@ -43,7 +43,7 @@ jobs:
     if: github.event.pull_request.draft == false
     strategy:
       fail-fast: false
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} gcc
       CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} g++
