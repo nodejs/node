@@ -386,7 +386,8 @@ emits the [`'error'`][]
 event for the limit it reached, if any, and the [`'exit'`][] event with exit
 code `1`, and the process emits a `GreenThreadWarning`. The green thread is
 abandoned: it never runs again, and the memory it uses is not freed until the
-process exits.
+process exits. Its ports and `BroadcastChannel`s are closed, so the ports they
+are entangled with emit `'close'` events, and messages don't queue up for it.
 
 Node.js then stops the pool thread that was running it as soon as that thread
 runs JavaScript code, so that it can run other green threads again. Where that
