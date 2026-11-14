@@ -1,7 +1,7 @@
 [package]
 name = "diplomat-runtime"
 description = "Common runtime utilities used by diplomat codegen"
-version.workspace = true
+version = "0.15.1"
 rust-version.workspace = true
 authors.workspace = true
 categories.workspace = true

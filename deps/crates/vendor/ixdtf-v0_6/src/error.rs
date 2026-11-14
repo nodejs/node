@@ -76,10 +76,6 @@ pub enum ParseError {
 impl core::error::Error for ParseError {}
 
 impl ParseError {
-    pub(crate) fn abrupt_end(location: &'static str) -> Self {
-        ParseError::AbruptEnd { location }
-    }
-
     /// Convert this error to a static string representation
     pub fn to_static_string(&self) -> &'static str {
         match *self {

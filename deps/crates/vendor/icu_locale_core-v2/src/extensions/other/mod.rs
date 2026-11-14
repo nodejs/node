@@ -93,7 +93,7 @@ impl Other {
     ///
     /// # Panics
     ///
-    /// Panics if `ext` is not ASCII alphabetic.
+    /// Panics if `ext` is not ASCII alphanumeric.
     ///
     /// # Examples
     ///
@@ -114,7 +114,7 @@ impl Other {
 
     #[allow(dead_code)]
     pub(crate) fn from_short_slice_unchecked(ext: u8, keys: ShortBoxSlice<Subtag>) -> Self {
-        assert!(ext.is_ascii_alphabetic());
+        assert!(ext.is_ascii_alphanumeric());
         // Safety invariant upheld here: ext checked as ASCII above
         Self { ext, keys }
     }
@@ -156,7 +156,7 @@ impl Other {
     /// assert_eq!(other_ext.get_ext_str(), "a");
     /// ```
     pub fn get_ext_str(&self) -> &str {
-        debug_assert!(self.ext.is_ascii_alphabetic());
+        debug_assert!(self.ext.is_ascii_alphanumeric());
         // Safety: from safety invariant on self.ext (that it is ASCII)
         unsafe { core::str::from_utf8_unchecked(core::slice::from_ref(&self.ext)) }
     }
@@ -253,6 +253,9 @@ mod tests {
     fn test_other_extension_fromstr() {
         let oe: Other = "o-foo-bar".parse().expect("Failed to parse Other");
         assert_eq!(oe.to_string(), "o-foo-bar");
+
+        let oe: Other = "1-foo-bar".parse().expect("Failed to parse Other");
+        assert_eq!(oe.to_string(), "1-foo-bar");
 
         let oe: Result<Other, _> = "o".parse();
         assert!(oe.is_err());
