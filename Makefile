@@ -189,7 +189,7 @@ out/Makefile: config.gypi common.gypi node.gyp \
 
 # node_version.h is listed because the N-API version is taken from there
 # and included in config.gypi
-config.gypi: configure configure.py src/node_version.h
+config.gypi: configure configure.py tools/configure.d/openssl.py src/node_version.h
 	@if [ -x config.status ]; then \
 		export PATH="$(NO_BIN_OVERRIDE_PATH)" && ./config.status; \
 	else \
