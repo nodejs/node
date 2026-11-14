@@ -133,6 +133,8 @@ using node::CppgcMixin;
 class RealmBoundWrap final : CPPGC_MIXIN(RealmBoundWrap) {
  public:
   SET_CPPGC_NAME(RealmBoundWrap)
+  static constexpr v8::CppHeapPointerTag kCppHeapPointerTag =
+      v8::CppHeapPointerTag::kLastEmbedderWrappableTag;
   DEFAULT_CPPGC_TRACE()
   SET_NO_MEMORY_INFO()
 

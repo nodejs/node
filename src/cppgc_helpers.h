@@ -8,6 +8,7 @@
 #include "cppgc/name-provider.h"
 #include "cppgc/persistent.h"
 #include "memory_tracker.h"
+#include "node_v8_embedder.h"
 #include "util.h"
 #include "v8-cppgc.h"
 #include "v8-sandbox.h"
@@ -37,6 +38,7 @@ class CppgcWrapperListNode;
  * class MyWrap final : CPPGC_MIXIN(MyWrap) {
  *  public:
  *   SET_CPPGC_NAME(MyWrap)  // Sets the heap snapshot name to "Node / MyWrap"
+ *   SET_CPPGC_TAG(MyWrap)   // Uses CppgcWrapperTag::kMyWrap for Wrap/Unwrap
  *   void Trace(cppgc::Visitor* visitor) const final {
  *     CppgcMixin::Trace(visitor);
  *     visitor->Trace(...);  // Trace any additional owned traceable data
@@ -125,6 +127,12 @@ class CppgcMixin : public cppgc::GarbageCollectedMixin, public MemoryRetainer {
     return "Node / " #Klass;                                                   \
   }                                                                            \
   inline const char* MemoryInfoName() const override { return #Klass; }
+
+// This macro sets the tag used to wrap and unwrap the class. Each class needs
+// its own entry in node::CppgcWrapperTag.
+#define SET_CPPGC_TAG(Klass)                                                   \
+  static constexpr v8::CppHeapPointerTag kCppHeapPointerTag =                  \
+      ToCppHeapPointerTag(CppgcWrapperTag::k##Klass);
 
 /**
  * Similar to ASSIGN_OR_RETURN_UNWRAP() but works on cppgc-managed types
