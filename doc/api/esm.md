@@ -199,8 +199,7 @@ ES modules are resolved and cached as URLs. This means that special characters
 must be [percent-encoded][], such as `#` with `%23` and `?` with `%3F`.
 
 `file:`, `node:`, and `data:` URL schemes are supported. A specifier like
-`'https://example.com/app.js'` is not supported natively in Node.js unless using
-a [custom HTTPS loader][].
+`'https://example.com/app.js'` is not supported natively in Node.js.
 
 #### `file:` URLs
 
@@ -493,8 +492,6 @@ resolutions are subject to the permitted exports resolutions within the package.
 
 * This can result in synchronous file-system operations, which
   can impact performance similarly to `require.resolve`.
-* This feature is not available within custom loaders (it would
-  create a deadlock).
 
 **Non-standard API**:
 
@@ -1316,8 +1313,8 @@ _isImports_, _conditions_)
 ### Customizing ESM specifier resolution algorithm
 
 [Module customization hooks][] provide a mechanism for customizing the ESM
-specifier resolution algorithm. An example that provides CommonJS-style
-resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
+specifier resolution algorithm, for example to provide CommonJS-style
+resolution for ESM specifiers.
 
 <!-- Note: The merve link should be kept in-sync with the deps version -->
 
@@ -1360,8 +1357,6 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
 [`require(esm)`]: modules.md#loading-ecmascript-modules-using-require
 [`url.fileURLToPath()`]: url.md#urlfileurltopathurl-options
-[commonjs-extension-resolution-loader]: https://github.com/nodejs/loaders-test/tree/main/commonjs-extension-resolution-loader
-[custom https loader]: module.md#import-from-https
 [import.meta.resolve]: #importmetaresolvespecifier
 [merve]: https://github.com/anonrig/merve/tree/v1.0.0
 [percent-encoded]: url.md#percent-encoding-in-urls

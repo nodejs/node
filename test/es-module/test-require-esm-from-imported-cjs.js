@@ -20,17 +20,3 @@ spawnSyncAndAssert(
     stdout: / default: { hello: 'world' }/,
   }
 );
-
-spawnSyncAndAssert(
-  process.execPath,
-  [
-    '--experimental-require-module',
-    '--import',
-    fixtures.fileURL('es-modules', 'require-esm-in-cjs-cache', 'instrument.js'),
-    fixtures.path('es-modules', 'require-esm-in-cjs-cache', 'app.cjs'),
-  ],
-  {
-    trim: true,
-    stdout: / default: { hello: 'world' }/,
-  }
-);
