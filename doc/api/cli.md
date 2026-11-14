@@ -2248,7 +2248,8 @@ added: v22.4.0
 
 > Stability: 1.2 - Release candidate.
 
-The file used to store `localStorage` data. If the file does not exist, it is
+The file used to store `localStorage` data. A relative path is resolved against
+the current working directory at startup. If the file does not exist, it is
 created the first time `localStorage` is accessed. The same file may be shared
 between multiple Node.js processes concurrently.
 

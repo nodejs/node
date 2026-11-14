@@ -1208,7 +1208,8 @@ operating-system restriction on executable memory allocated by native addons or
 throw \fBERR_RX_MEMORY_NOT_SUPPORTED\fR.
 .
 .It Fl -localstorage-file Ns = Ns Ar file
-The file used to store \fBlocalStorage\fR data. If the file does not exist, it is
+The file used to store \fBlocalStorage\fR data. A relative path is resolved against
+the current working directory at startup. If the file does not exist, it is
 created the first time \fBlocalStorage\fR is accessed. The same file may be shared
 between multiple Node.js processes concurrently.
 .
