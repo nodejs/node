@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <testsuites>
-	<testcase name="failing" time="*" classname="test" file="*" failure="error">
+	<testcase name="failing" time="*" classname="test" file="*">
 		<failure type="testCodeFailure" message="error">
 [Error [ERR_TEST_FAILURE]: error] {
   code: 'ERR_TEST_FAILURE',
