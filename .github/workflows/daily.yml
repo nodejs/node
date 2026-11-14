@@ -28,3 +28,18 @@ jobs:
           sudo apt-get update && sudo apt-get install ninja-build -y
           ./configure --enable-lto --ninja
           ninja -C out/Release
+
+  # Once main builds, tell nodejs/devcontainer to publish new nightly images from the same commit.
+  # Its build workflow listens for this `node-daily` event.
+  trigger-devcontainer:
+    needs: build-lto
+    if: github.repository == 'nodejs/node' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-slim
+    steps:
+      - name: Dispatch a nodejs/devcontainer build
+        run: |
+          gh api repos/nodejs/devcontainer/dispatches \
+            -f event_type=node-daily \
+            -f "client_payload[sha]=$GITHUB_SHA"
+        env:
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
