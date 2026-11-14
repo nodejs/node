@@ -113,6 +113,7 @@ using v8::Value;
 using v8::ValueDeserializer;
 using v8::ValueSerializer;
 using worker::MessagePortData;
+using worker::SiblingGroup;
 
 namespace {
 
@@ -1552,6 +1553,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     IsolateGroupKind group = DefaultIsolateGroupKind();
     std::optional<IsolateGroup> shared_group;
     uint64_t group_id = 0;
+    // The names of the BroadcastChannels that the green thread can use,
+    // which are those of Node.js, process-wide.
+    std::vector<std::string> broadcast_scopes;
 
     // Only what is fixed when the isolate is created, with which isolates in
     // the warm pool are created.
@@ -2099,6 +2103,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     state_ = State::kRunning;
     max_cpu_time_ = options.max_cpu_time;
     max_task_cpu_time_ = options.max_task_cpu_time;
+    broadcast_scopes_.insert(options.broadcast_scopes.begin(),
+                             options.broadcast_scopes.end());
     RunTask(kDefaultInvocation, [&](Isolate* isolate, Local<Context> context) {
       if (CallRuntime(isolate, context, "start", 0, nullptr).IsEmpty()) {
         return;
@@ -3083,6 +3089,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                           FunctionTemplate::New(isolate, PortStartCallback));
     natives_template->Set(FIXED_ONE_BYTE_STRING(isolate, "portClose"),
                           FunctionTemplate::New(isolate, PortCloseCallback));
+    natives_template->Set(
+        FIXED_ONE_BYTE_STRING(isolate, "broadcastChannel"),
+        FunctionTemplate::New(isolate, BroadcastChannelCallback));
     static constexpr std::pair<const char*, FunctionCallback> kModuleNatives[] =
         {
             {"compileModule", CompileModuleCallback},
@@ -3190,6 +3199,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
           reinterpret_cast<intptr_t>(PortPostMessageCallback),
           reinterpret_cast<intptr_t>(PortStartCallback),
           reinterpret_cast<intptr_t>(PortCloseCallback),
+          reinterpret_cast<intptr_t>(BroadcastChannelCallback),
           reinterpret_cast<intptr_t>(CompileModuleCallback),
           reinterpret_cast<intptr_t>(CreateJsonModuleCallback),
           reinterpret_cast<intptr_t>(ModuleRequestsCallback),
@@ -3756,6 +3766,21 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     args.GetReturnValue().Set(Array::New(isolate, ports, arraysize(ports)));
   }
 
+  // broadcastChannel(name): a port in Node.js' BroadcastChannel `name`, or
+  // undefined if it is not one of the green thread's broadcast scopes.
+  static void BroadcastChannelCallback(
+      const FunctionCallbackInfo<Value>& args) {
+    GreenIsolate* self = Current();
+    CHECK(args[0]->IsString());
+    std::string name = Utf8Value(args.GetIsolate(), args[0]).ToString();
+    if (!self->broadcast_scopes_.contains(name)) return;
+    auto data = std::make_unique<MessagePortData>(nullptr);
+    SiblingGroup::Get(name)->Entangle(data.get());
+    Local<Object> port;
+    if (!self->CreatePort(std::move(data)).ToLocal(&port)) return;
+    args.GetReturnValue().Set(port);
+  }
+
   // portPostMessage(port, value, transfer). Like Node.js' ports, ports that
   // are closed serialize the value, and then drop it.
   static void PortPostMessageCallback(const FunctionCallbackInfo<Value>& args) {
@@ -4065,6 +4090,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   std::atomic<uint64_t> cpu_checks_serviced_{0};
   bool fatal_ = false;
   bool close_requested_ = false;
+  std::unordered_set<std::string> broadcast_scopes_;
   std::atomic<bool> out_of_memory_{false};
   uint32_t next_context_id_ = 0;
   uint32_t running_context_id_ = 0;
@@ -4831,6 +4857,17 @@ class GreenThreadWrap final : public HandleWrap {
       }
     }
     options.is_module = args[12]->IsTrue();
+    // args[13]: the names of the BroadcastChannels it can use, if any.
+    if (args[13]->IsArray()) {
+      Local<Array> scopes = args[13].As<Array>();
+      for (uint32_t i = 0; i < scopes->Length(); i++) {
+        Local<Value> scope;
+        if (!scopes->Get(env->context(), i).ToLocal(&scope)) return;
+        CHECK(scope->IsString());
+        options.broadcast_scopes.push_back(
+            Utf8Value(env->isolate(), scope).ToString());
+      }
+    }
 
     auto* wrap = new GreenThreadWrap(env, args.This(), std::move(options));
     if (!rpc_hooks.IsEmpty()) wrap->rpc_hooks_.Reset(env->isolate(), rpc_hooks);
