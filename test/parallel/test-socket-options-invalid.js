@@ -9,7 +9,8 @@ const net = require('net');
     'readableObjectMode',
     'writableObjectMode',
   ];
-  invalidKeys.forEach((invalidKey) => {
+
+  for (const invalidKey of invalidKeys) {
     const option = {
       [invalidKey]: true
     };
@@ -23,5 +24,5 @@ const net = require('net');
       name: 'TypeError',
       message: new RegExp(message)
     });
-  });
+  }
 }
