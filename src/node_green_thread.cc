@@ -91,7 +91,11 @@ namespace {
 
 constexpr size_t kStackSize = 4 * 1024 * 1024;
 constexpr size_t kStackBufferSize = 192 * 1024;
-constexpr unsigned int kMaxPoolThreads = 8;
+// The default number of pool threads is the available parallelism, up to
+// kMaxDefaultPoolThreads. NODE_GREEN_THREADS_POOL_SIZE sets it instead, up to
+// kMaxPoolThreads.
+constexpr unsigned int kMaxDefaultPoolThreads = 8;
+constexpr unsigned int kMaxPoolThreads = 1024;
 constexpr size_t kMB = 1024 * 1024;
 constexpr size_t kExtraHeapAllowance = 16 * kMB;
 // The maximum number of work items an isolate runs per slice.
@@ -348,7 +352,17 @@ class GreenThreadPool {
  private:
   GreenThreadPool() {
     unsigned int count =
-        std::clamp(uv_available_parallelism(), 1u, kMaxPoolThreads);
+        std::clamp(uv_available_parallelism(), 1u, kMaxDefaultPoolThreads);
+    std::string size;
+    if (credentials::SafeGetenv("NODE_GREEN_THREADS_POOL_SIZE", &size) &&
+        !size.empty() && size[0] >= '0' && size[0] <= '9') {
+      char* end;
+      const unsigned long value = strtoul(size.c_str(), &end, 10);  // NOLINT
+      if (*end == '\0' && value > 0) {
+        count = static_cast<unsigned int>(
+            std::min<unsigned long>(value, kMaxPoolThreads));  // NOLINT
+      }
+    }
     for (unsigned int i = 0; i < count; i++) {
       threads_.push_back(std::make_unique<PoolThread>(this, i));
     }

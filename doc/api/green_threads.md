@@ -30,6 +30,9 @@ collector, and it can be terminated without affecting any other thread.
 Unlike a [`Worker`][], a green thread does not get its own OS thread, event
 loop, or Node.js environment. Green threads are scheduled onto a small,
 process-wide pool of OS threads, which makes them much cheaper to create.
+The pool has as many threads as [`os.availableParallelism()`][], up to 8, or
+as many as the [`NODE_GREEN_THREADS_POOL_SIZE`][] environment variable sets.
+At most that many green threads run JavaScript at the same time.
 
 A green thread only has the JavaScript built-ins defined by ECMAScript, plus
 the following globals:
@@ -708,6 +711,7 @@ Calls [`greenThread.terminate()`][].
 [`IsolateGroup`]: #class-isolategroup
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessagePort`]: worker_threads.md#class-messageport
+[`NODE_GREEN_THREADS_POOL_SIZE`]: cli.md#node_green_threads_pool_sizesize
 [`RpcTarget`]: #class-rpctarget
 [`Worker`]: worker_threads.md#class-worker
 [`greenThread.evaluate()`]: #greenthreadevaluatesource-options
@@ -715,5 +719,6 @@ Calls [`greenThread.terminate()`][].
 [`greenThread.postMessage()`]: #greenthreadpostmessagevalue-transfer
 [`greenThread.terminate()`]: #greenthreadterminate
 [`greenThreads.setUnresponsiveTimeouts()`]: #greenthreadssetunresponsivetimeoutstimeouts
+[`os.availableParallelism()`]: os.md#osavailableparallelism
 [`port.postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [green threads that don't stop]: #green-threads-that-dont-stop

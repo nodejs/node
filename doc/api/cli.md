@@ -4220,6 +4220,21 @@ The `NODE_EXTRA_CA_CERTS` environment variable is only read when the Node.js
 process is first launched. Changing the value at runtime using
 `process.env.NODE_EXTRA_CA_CERTS` has no effect on the current process.
 
+### `NODE_GREEN_THREADS_POOL_SIZE=size`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Set the number of OS threads that [green threads][] are scheduled onto to
+`size`. Values above `1024` mean `1024`, and values that aren't positive
+integers are ignored. By default, the pool
+has as many threads as [`os.availableParallelism()`][], up to `8`. The pool is
+created when the first green thread starts, so the variable has to be set
+before then.
+
 ### `NODE_ICU_DATA=file`
 
 <!-- YAML
@@ -5014,6 +5029,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
 [`node:vfs`]: vfs.md
+[`os.availableParallelism()`]: os.md#osavailableparallelism
 [`permission.drop()`]: permissions.md#permissiondropscope-reference
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`session.connectToMainThread()`]: inspector.md#sessionconnecttomainthread
@@ -5038,6 +5054,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [environment_variables]: #environment-variables-1
 [filtering tests by name]: test.md#filtering-tests-by-name
 [global setup and teardown]: test.md#global-setup-and-teardown
+[green threads]: green_threads.md
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [module compile cache]: module.md#module-compile-cache
