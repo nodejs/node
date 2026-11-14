@@ -194,6 +194,11 @@ void Dotenv::ParseContent(const std::string_view input) {
     content.remove_prefix(equal_or_newline + 1);
     key = trim_spaces(key);
 
+    // Only strip spaces and tabs here: trim_spaces() also strips '\n', which
+    // would turn the next line into the value of an empty `KEY= `.
+    content.remove_prefix(
+        std::min(content.find_first_not_of(" \t"), content.size()));
+
     // If the value is not present (e.g. KEY=) set it to an empty string
     if (content.empty() || content.front() == '\n') {
       store_.insert_or_assign(std::string(key), "");

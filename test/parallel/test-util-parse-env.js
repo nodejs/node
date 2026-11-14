@@ -66,6 +66,11 @@ assert.deepStrictEqual(util.parseEnv(''), { __proto__: null });
 assert.deepStrictEqual(util.parseEnv('FOO=bar\nFOO=baz\n'),
                        { __proto__: null, FOO: 'baz' });
 
+// Whitespace after an empty value must not pull in the next line.
+// Refs: https://github.com/nodejs/node/issues/67400
+assert.deepStrictEqual(util.parseEnv('A= \nB=b\nC=\t\nD=d\nE= '),
+                       { __proto__: null, A: '', B: 'b', C: '', D: 'd', E: '' });
+
 // Test for invalid input.
 assert.throws(() => {
   for (const value of [null, undefined, {}, []]) {
