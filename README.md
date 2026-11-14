@@ -775,6 +775,8 @@ maintaining the Node.js project.
   **Efe Karasakal** <<hi@efe.dev>> (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
+* [GrinZero](https://github.com/GrinZero) -
+  **bugyaluwang** <<bugyaluwang@qq.com>>
 * [haramj](https://github.com/haramj) -
   **Haram Jeong** <<haramj.dev@gmail.com>>
 * [HBSPS](https://github.com/HBSPS) -
