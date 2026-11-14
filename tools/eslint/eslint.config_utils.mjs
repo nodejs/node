@@ -17,6 +17,10 @@ export const noRestrictedSyntaxCommonAll = [
     message: 'Use `new` keyword when throwing an `Error`.',
   },
   {
+    selector: 'ExpressionStatement > NewExpression[callee.name=/Error$/]',
+    message: 'Throw, return, or assign the `Error`; constructing it alone does nothing.',
+  },
+  {
     selector: "CallExpression[callee.property.name='substr']",
     message: 'Use String.prototype.slice() or String.prototype.substring() instead of String.prototype.substr()',
   },
