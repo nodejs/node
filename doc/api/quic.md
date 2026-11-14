@@ -1959,10 +1959,10 @@ added: v23.8.0
 * Type: {Promise}
 
 A promise that is fulfilled when the stream is fully closed. It resolves
-when the stream closes cleanly (including idle timeout). It rejects with
+when the stream closes without a QUIC error, including idle timeout and a
+`RESET_STREAM` whose application code represents no error. It rejects with
 an `ERR_QUIC_APPLICATION_ERROR` or `ERR_QUIC_TRANSPORT_ERROR` when the
-stream is closed due to a QUIC error (e.g., stream reset by the peer,
-CONNECTION\_CLOSE with a non-zero error code).
+stream is closed due to a QUIC error.
 
 ### `stream.destroy([error[, options]])`
 
@@ -3496,10 +3496,11 @@ selects how the stream's async iterator reports this:
 
 * `'ignore'` - The truncation itself is ignored: only a stream or connection
   error is reported, and any clean abort/cancellation or similar simply ends
-  the stream. A non-zero peer reset, non-zero local stop-sending or connection
-  error still fails, but a truncation with no error at all (an idle timeout,
-  a graceful close, or a plain `stopSending()`) ends the read cleanly with the
-  data received. This matches `stream.closed`, which rejects only on an error.
+  the stream. A peer reset or local stop-sending with an application code that
+  represents an error, or a connection error, still fails, but a truncation
+  with no error at all (an idle timeout, a graceful close, or a plain
+  `stopSending()`) ends the read cleanly with the data received. This matches
+  `stream.closed`, which rejects only on an error.
 
 #### `sessionOptions.verifyPeer` (client only)
 
@@ -4096,7 +4097,7 @@ added: v23.8.0
 -->
 
 * `this` {quic.QuicStream}
-* `error` {any}
+* `error` {Error}
 
 ### Callback: `OnHeadersCallback`
 
@@ -4790,7 +4791,7 @@ added:
 
 * `stream` {quic.QuicStream}
 * `session` {quic.QuicSession}
-* `error` {any} The QUIC error associated with the reset.
+* `error` {Error} The QUIC error associated with the reset.
 
 Published when a stream receives a RESET\_STREAM frame from the peer,
 indicating the peer has aborted its sending direction. This is a key signal
