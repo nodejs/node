@@ -56,6 +56,8 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
@@ -4830,10 +4832,22 @@ CpError CopyUtimes(const std::filesystem::path& src,
   }
 
   const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
+  auto dest_file_path_str = ConvertPathToUTF8(dest);
+
+#ifdef __POSIX__
+  struct timespec ts[2];
+  ts[0].tv_sec = s->st_atim.tv_sec;
+  ts[0].tv_nsec = s->st_atim.tv_nsec;
+  ts[1].tv_sec = s->st_mtim.tv_sec;
+  ts[1].tv_nsec = s->st_mtim.tv_nsec;
+  if (utimensat(AT_FDCWD, dest_file_path_str.c_str(), ts, 0) != 0) {
+    return CpError::Uv(
+        uv_translate_sys_error(errno), "utime", dest_file_path_str);
+  }
+#else
   const double source_atime = s->st_atim.tv_sec + s->st_atim.tv_nsec / 1e9;
   const double source_mtime = s->st_mtim.tv_sec + s->st_mtim.tv_nsec / 1e9;
 
-  auto dest_file_path_str = ConvertPathToUTF8(dest);
   int utime_result = uv_fs_utime(nullptr,
                                  &req,
                                  dest_file_path_str.c_str(),
@@ -4843,6 +4857,7 @@ CpError CopyUtimes(const std::filesystem::path& src,
   if (is_uv_error(utime_result)) {
     return CpError::Uv(utime_result, "utime", dest_file_path_str);
   }
+#endif
   return {};
 }
 
