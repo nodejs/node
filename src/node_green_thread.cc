@@ -2014,6 +2014,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     max_cpu_time_ = options.max_cpu_time;
     max_task_cpu_time_ = options.max_task_cpu_time;
     RunTask(kDefaultInvocation, [&](Isolate* isolate, Local<Context> context) {
+      if (CallRuntime(isolate, context, "start", 0, nullptr).IsEmpty()) {
+        return;
+      }
       if (options.testing_globals && (!DefineFunction(isolate,
                                                       context,
                                                       context->Global(),

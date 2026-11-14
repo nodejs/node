@@ -1,33 +1,37 @@
 // Flags: --experimental-green-threads --no-warnings
 'use strict';
 
-// Green threads in isolate groups of their own start from a snapshot with
-// their runtime already bootstrapped. Each of them must still get state of
-// its own.
+// Green threads start from a snapshot with their runtime already
+// bootstrapped: Node.js' own in V8's default isolate group, and one of their
+// own in other groups. Each of them must still get state of its own.
 
 const common = require('../common');
 const assert = require('assert');
 const { once } = require('events');
 const { GreenThread, IsolateGroup } = require('node:green_threads');
 
-if (!IsolateGroup.supported) {
-  common.skip('isolate groups are not supported');
-}
-
 const source = `
   const randoms = [];
   for (let i = 0; i < 4; i++) randoms.push(Math.random());
   const { port1, port2 } = new MessageChannel();
   port2.onmessage = ({ data }) => {
-    postMessage({ randoms, echoed: data, controller: typeof AbortController });
+    postMessage({
+      randoms,
+      echoed: data,
+      controller: typeof AbortController,
+      // Relative to when the green thread started, not to when the
+      // snapshot was made.
+      timeStamp: new Event('x').timeStamp,
+    });
     port2.close();
   };
   port1.postMessage('port');
 `;
 
 (async () => {
-  const shared = new IsolateGroup();
-  for (const isolateGroup of ['new', shared]) {
+  const groups = ['default'];
+  if (IsolateGroup.supported) groups.push('new', new IsolateGroup());
+  for (const isolateGroup of groups) {
     const results = await Promise.all(Array.from({ length: 4 }, async () => {
       const greenThread = new GreenThread(source, { isolateGroup });
       const [result] = await once(greenThread, 'message');
@@ -36,9 +40,10 @@ const source = `
     }));
     const randoms = new Set(results.flatMap(({ randoms }) => randoms));
     assert.strictEqual(randoms.size, 16);
-    for (const { echoed, controller } of results) {
+    for (const { echoed, controller, timeStamp } of results) {
       assert.strictEqual(echoed, 'port');
       assert.strictEqual(controller, 'function');
+      assert(timeStamp >= 0 && timeStamp < 10_000, `${timeStamp}`);
     }
   }
 })().then(common.mustCall());
