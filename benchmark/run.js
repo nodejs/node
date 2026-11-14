@@ -54,11 +54,24 @@ function runBenchmark(filename) {
 
   const args = cli.test ? ['--test'] : cli.optional.set;
   const cpuCore = cli.getCpuCoreSetting();
+
+  // Benchmarks under async_hooks/ call createHook(), which is disabled by
+  // default and requires --enable-async-hooks.
+  const nodeArgs = filename.startsWith('async_hooks/') ?
+    ['--enable-async-hooks'] :
+    [];
+
   let child;
   if (cpuCore !== null) {
-    child = spawn('taskset', ['-c', cpuCore, process.execPath, scriptPath, ...args], {
+    child = spawn('taskset', ['-c', cpuCore, process.execPath, ...nodeArgs, scriptPath, ...args], {
       stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
     });
+  } else if (nodeArgs.length > 0) {
+    child = fork(
+      scriptPath,
+      args,
+      { execArgv: nodeArgs },
+    );
   } else {
     child = fork(
       scriptPath,

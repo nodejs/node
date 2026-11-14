@@ -807,6 +807,7 @@ test-with-async-hooks: ## Run tests with async hooks.
 	$(MAKE) build-node-api-tests
 	$(MAKE) cctest
 	NODE_TEST_WITH_ASYNC_HOOKS=1 $(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
+		--node-args=--enable-async-hooks \
 		$(JS_SUITES) \
 		$(NATIVE_SUITES)
 

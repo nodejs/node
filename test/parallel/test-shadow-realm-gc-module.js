@@ -1,4 +1,4 @@
-// Flags: --experimental-shadow-realm --max-old-space-size=20
+// Flags: --enable-async-hooks --experimental-shadow-realm --max-old-space-size=20
 'use strict';
 
 /**
