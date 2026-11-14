@@ -1312,6 +1312,13 @@ std::unordered_map<GreenIsolate*, std::weak_ptr<GreenIsolate>>&
         *new std::unordered_map<GreenIsolate*, std::weak_ptr<GreenIsolate>>();
 // The sources and code cache of built-in modules, for pool threads. Set by
 // the first Environment that loads the binding; leaked.
+// GetMemoryForHeapDefaults(), queried once: it reads files, and green
+// threads may be created thousands of times per second.
+uint64_t MemoryForHeapDefaults() {
+  static const uint64_t memory = GetMemoryForHeapDefaults();
+  return memory;
+}
+
 Mutex shared_builtin_loader_mutex;
 builtins::BuiltinLoader* shared_builtin_loader = nullptr;
 // While a snapshot is made outside a pool thread, the loader that the
@@ -1940,6 +1947,11 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     if (max_old_generation_size > 0) {
       params.constraints.set_max_old_generation_size_in_bytes(
           max_old_generation_size);
+    } else if (const uint64_t memory = MemoryForHeapDefaults()) {
+      // What NewIsolate() would do, but without querying the memory each
+      // time, and before the young generation's limit is set, which it
+      // would replace.
+      params.constraints.ConfigureDefaults(memory, 0);
     }
     if (options.max_young_generation_size > 0) {
       params.constraints.set_max_young_generation_size_in_bytes(
@@ -3846,9 +3858,39 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         FIXED_ONE_BYTE_STRING(isolate, "isolateGroup"),
         FIXED_ONE_BYTE_STRING(isolate, "usesNodeSnapshot"),
         FIXED_ONE_BYTE_STRING(isolate, "heapUsed"),
+        FIXED_ONE_BYTE_STRING(isolate, "heapSpaces"),
     };
     v8::HeapStatistics heap;
     isolate->GetHeapStatistics(&heap);
+    // { [name]: { size, used, physical } }, in bytes.
+    Local<Object> spaces = Object::New(isolate, v8::Null(isolate), nullptr,
+                                       nullptr, 0);
+    for (size_t i = 0; i < isolate->NumberOfHeapSpaces(); i++) {
+      v8::HeapSpaceStatistics space;
+      if (!isolate->GetHeapSpaceStatistics(&space, i)) continue;
+      Local<Name> space_names[] = {
+          FIXED_ONE_BYTE_STRING(isolate, "size"),
+          FIXED_ONE_BYTE_STRING(isolate, "used"),
+          FIXED_ONE_BYTE_STRING(isolate, "physical"),
+      };
+      Local<Value> space_values[] = {
+          Number::New(isolate, static_cast<double>(space.space_size())),
+          Number::New(isolate, static_cast<double>(space.space_used_size())),
+          Number::New(isolate,
+                      static_cast<double>(space.physical_space_size())),
+      };
+      if (spaces
+              ->Set(context,
+                    OneByteString(isolate, space.space_name()),
+                    Object::New(isolate,
+                                v8::Null(isolate),
+                                space_names,
+                                space_values,
+                                arraysize(space_names)))
+              .IsNothing()) {
+        return;
+      }
+    }
     Local<Value> values[] = {
         Number::New(isolate, current_pool_thread->index()),
         Number::New(isolate, GreenThreadPool::Get()->size()),
@@ -3859,10 +3901,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         Number::New(isolate, static_cast<double>(self->group_id_)),
         Boolean::New(isolate, self->uses_node_snapshot_),
         Number::New(isolate, static_cast<double>(heap.used_heap_size())),
+        spaces,
     };
     args.GetReturnValue().Set(Object::New(
         isolate, v8::Null(isolate), names, values, arraysize(names)));
-    USE(context);
   }
 
   static void ConsoleCallback(const FunctionCallbackInfo<Value>& args) {
