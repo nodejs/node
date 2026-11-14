@@ -188,6 +188,14 @@ void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
 }
 
+static void IsArrayBufferViewImmutable(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsArrayBufferView());
+  Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
+  // On-heap views cannot have immutable backing storage.
+  args.GetReturnValue().Set(view->HasBuffer() && view->Buffer()->IsImmutable());
+}
+
 static uint32_t GetUVHandleTypeCode(const uv_handle_type type) {
   // TODO(anonrig): We can use an enum here and then create the array in the
   // binding, which will remove the hard-coding in C++ and JS land.
@@ -508,6 +516,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetExternalValue);
   registry->Register(Sleep);
   registry->Register(ArrayBufferViewHasBuffer);
+  registry->Register(IsArrayBufferViewImmutable);
   registry->Register(GuessHandleType);
   registry->Register(fast_guess_handle_type_);
   registry->Register(ParseEnv);
@@ -637,6 +646,10 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "parseEnv", ParseEnv);
   SetMethod(
       context, target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
+  SetMethodNoSideEffect(context,
+                        target,
+                        "isArrayBufferViewImmutable",
+                        IsArrayBufferViewImmutable);
   SetMethod(context,
             target,
             "constructSharedArrayBuffer",

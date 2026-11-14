@@ -32,6 +32,7 @@ export interface UtilBinding {
   sleep(msec: number): void;
   isConstructor(fn: Function): boolean;
   arrayBufferViewHasBuffer(view: ArrayBufferView): boolean;
+  isArrayBufferViewImmutable(view: ArrayBufferView): boolean;
   propertyFilter: {
     ALL_PROPERTIES: 0;
     ONLY_WRITABLE: 1;
