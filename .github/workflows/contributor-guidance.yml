@@ -70,6 +70,25 @@ jobs:
       contents: read
       pull-requests: write
     steps:
+      - name: Find other open pull requests
+        id: other-prs
+        if: needs.contributor.outputs.is_first_time == 'true'
+        # Still post the welcome if this advisory lookup fails.
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTHOR_ID: ${{ github.event.pull_request.user.id }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # List PRs directly to avoid search-index delays after creation.
+          pull_requests=$(gh api --paginate --slurp \
+            "/repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" |
+            jq -r --argjson author "$AUTHOR_ID" --argjson number "$NUMBER" \
+              '[.[][] | select(.user.id == $author and .number != $number)] |
+               sort_by(.number) | map("#\(.number)") | join(", ")')
+          echo "pull_requests=$pull_requests" >> "$GITHUB_OUTPUT"
+
       - name: Scan contributor activity
         id: agentscan
         # The welcome should still be posted if this advisory scan fails.
@@ -98,6 +117,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_FIRST_TIME: ${{ needs.contributor.outputs.is_first_time }}
           NUMBER: ${{ github.event.pull_request.number }}
+          OTHER_OPEN_PRS: ${{ steps.other-prs.outputs.pull_requests }}
           WELCOME_MESSAGE: >2-
               Welcome to Node.js, and thank you for your first contribution!
 
@@ -114,6 +134,17 @@ jobs:
             For a first pull request, GitHub Actions require collaborator
             approval and Jenkins CI must be started by a collaborator or triager,
             so an initial wait is normal.
+          MULTIPLE_PRS_MESSAGE: |-
+            > [!IMPORTANT]
+            > The recommendations in:
+            >
+            >   * [Guides and FAQs for first-time contributors](https://github.com/nodejs/node/blob/HEAD/doc/contributing/first-contributions.md)
+            >
+            > advise you should tackle only one issue at a time and that you should not open any new PRs until your first PR has been approved.
+            >
+            > Until the first PR has been approved and has landed in the `main` branch, GitHub classifies you as "first-time contributor". Each PR commit you push needs to be individually approved by team members to run in GitHub Actions CI. This causes delays for you as a contributor, and it adds to the work load for the team.
+            >
+            > Waiting until the first PR has landed ensures that you as a contributor have experienced the complete process from PR submission to successful landing. After this has been completed, any new PRs or new commits to an existing PR are treated to rules for regular Contributors. GitHub Actions CI workflows are then run automatically without intervention by a team member.
           CAUTION_MESSAGE: >-
             > [!CAUTION]
 
@@ -129,6 +160,10 @@ jobs:
             [automation policy](https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md#automation-and-bots)
             for additional context.
         run: |
+          if [[ "$IS_FIRST_TIME" == "true" && -n "$OTHER_OPEN_PRS" ]]; then
+            WELCOME_MESSAGE+=$'\n\n'"$MULTIPLE_PRS_MESSAGE"$'\n>\n'"> Other open PRs: $OTHER_OPEN_PRS"
+          fi
+
           if [[ "$IS_FIRST_TIME" == "true" && "$ADD_CAUTION" == "true" ]]; then
             body="$WELCOME_MESSAGE"$'\n\n'"$CAUTION_MESSAGE"
           elif [[ "$IS_FIRST_TIME" == "true" ]]; then
