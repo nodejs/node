@@ -30,6 +30,7 @@ namespace node {
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::EVPKeyPointer;
 using ncrypto::KeyAlgorithm;
+using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::SSLSessionPointer;
 using ncrypto::StackOfX509;
@@ -49,6 +50,7 @@ using v8::Value;
 namespace crypto {
 
 SSLSessionPointer GetTLSSession(const unsigned char* buf, size_t length) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   return SSLSessionPointer(d2i_SSL_SESSION(nullptr, &buf, length));
 }
 
