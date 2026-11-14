@@ -54,8 +54,7 @@ BACKPORTED_COMMITS=$(
 )
 
 LAST_FETCHED=
-ORIGINAL_COMMITS=
-while IFS= read -r LINE; do
+ORIGINAL_COMMITS=$(while IFS= read -r LINE; do
   COMMIT_SHA=$(echo "$LINE" | cut -f1)
   COMMIT_TITLE=$(echo "$LINE" | cut -f2)
   PR_URL=$(echo "$LINE" | cut -f3)
@@ -73,20 +72,17 @@ while IFS= read -r LINE; do
   GIT_LOG_OUT=$(
     git log FETCH_HEAD --fixed-strings --grep="$COMMIT_TITLE" --format="%H%x09%s%x09%(trailers:key=PR-URL,only,valueonly)"
   )
-  ORIGINAL_COMMIT=$(
-    awk -F'\t' -v t="$COMMIT_TITLE" -v p="$PR_URL" '$2 == t && $3 == p { print $1; exit }' <<EOF
-$GIT_LOG_OUT
-EOF
-  )
-
-  [ -n "$ORIGINAL_COMMIT" ] || {
+  [ -n "$GIT_LOG_OUT" ] || {
       echo "Error: Could not locate landed commit with title '$COMMIT_TITLE' in $REMOTE/$ORIGINAL_BASE" >&2
       continue
   }
-  ORIGINAL_COMMITS="${ORIGINAL_COMMITS:+$ORIGINAL_COMMITS }${ORIGINAL_COMMIT}"
+  awk -F'\t' -v t="$COMMIT_TITLE" -v p="$PR_URL" '$2 == t && $3 == p { print $1; exit }' <<EOF
+$GIT_LOG_OUT
+EOF
 done <<EOF
 ${BACKPORTED_COMMITS:?No commits found in PR $BACKPORT_PR}
 EOF
+)
 
 xargs git format-patch --no-signature --stdout --root --no-walk > "$BUFFER" <<EOF
 ${ORIGINAL_COMMITS:?Could not find any commit being backported}
