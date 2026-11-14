@@ -59,6 +59,8 @@ the following globals:
   green thread.
 * [`MessageChannel`][], [`MessagePort`][] and `MessageEvent`. See
   [Message ports][].
+* [`BroadcastChannel`][], for the names in the `broadcastScopes` option of the
+  [`GreenThread`][] constructor. See [Broadcast channels][].
 * `env`: The `env` option of the [`GreenThread`][] constructor, if it was
   given. See [RPC][].
 * [`RpcTarget`][]: See [RPC][].
@@ -209,6 +211,43 @@ and other ports, but not [RPC][] stubs. A message from Node.js that a green
 thread can't receive, such as one with a {FileHandle} or a
 `WebAssembly.Module`, is a `'messageerror'` event whose `data` is a
 `DataCloneError`.
+
+## Broadcast channels
+
+Green threads have the web's [`BroadcastChannel`][], but only for the names in
+the `broadcastScopes` option of the [`GreenThread`][] constructor. For any other
+name, the constructor throws an error with the code
+[`ERR_GREEN_THREAD_BROADCAST_SCOPE`][]. The channels are those of Node.js, for
+the whole process: messages posted to a channel in a green thread reach every
+other `BroadcastChannel` with the same name, in the main thread, in
+[`Worker`][]s, and in other green threads, and the other way around.
+
+```cjs
+const { GreenThread } = require('node:green_threads');
+
+const greenThread = new GreenThread(`
+  const channel = new BroadcastChannel('config');
+  channel.onmessage = ({ data }) => {
+    postMessage(data);
+    channel.close();
+  };
+  postMessage('ready');
+`, { broadcastScopes: ['config'] });
+const channel = new BroadcastChannel('config');
+greenThread.once('message', () => {
+  channel.postMessage({ feature: true });
+  greenThread.once('message', (value) => {
+    console.log(value);  // Prints: { feature: true }
+    channel.close();
+    greenThread.terminate();
+  });
+});
+```
+
+As elsewhere in Node.js, messages can't transfer anything, and a channel
+delivers them as `'message'` events, or `'messageerror'` events for those that
+the green thread can't receive, whether or not it has listeners. Channels stay
+open until they are closed or their green thread exits.
 
 ## ES modules
 
@@ -512,6 +551,9 @@ added: REPLACEME
 * `source` {string} The script, or with `type: 'module'` the main module, to
   run in the green thread.
 * `options` {Object}
+  * `broadcastScopes` {string\[]} The names of the [`BroadcastChannel`][]s
+    that the green thread can use. See [Broadcast channels][].
+    **Default:** `[]`.
   * `env` {Object} The `env` global of the green thread. Functions in it, at
     any depth within plain objects and arrays, and [`RpcTarget`][]s, are
     passed as stubs. Everything else is cloned. See [RPC][].
@@ -705,6 +747,7 @@ added: REPLACEME
 
 Calls [`greenThread.terminate()`][].
 
+[Broadcast channels]: #broadcast-channels
 [CPU time limits]: #cpu-time-limits
 [ES modules]: #es-modules
 [Errors]: #errors
@@ -719,7 +762,9 @@ Calls [`greenThread.terminate()`][].
 [`--experimental-green-threads`]: cli.md#--experimental-green-threads
 [`AbortController`]: globals.md#class-abortcontroller
 [`AbortSignal`]: globals.md#class-abortsignal
+[`BroadcastChannel`]: worker_threads.md#class-broadcastchannel-extends-eventtarget
 [`DOMException`]: globals.md#class-domexception
+[`ERR_GREEN_THREAD_BROADCAST_SCOPE`]: errors.md#err_green_thread_broadcast_scope
 [`ERR_GREEN_THREAD_CPU_LIMIT`]: errors.md#err_green_thread_cpu_limit
 [`ERR_GREEN_THREAD_EXITED`]: errors.md#err_green_thread_exited
 [`ERR_GREEN_THREAD_ISOLATE_GROUPS_UNSUPPORTED`]: errors.md#err_green_thread_isolate_groups_unsupported
