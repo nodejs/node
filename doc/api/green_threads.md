@@ -46,6 +46,8 @@ the following globals:
   the [`MessagePort`][]s that were transferred with it.
 * `close()`: Stops the green thread once the current task has completed. The
   exit code is `0`.
+* `onclose`: Set this to a function to be called when the host calls
+  [`greenThread.close()`][].
 * `queueMicrotask(callback)`
 * `setTimeout(callback, delay)`, `clearTimeout(id)`,
   `setInterval(callback, delay)`, `clearInterval(id)`. Extra arguments are not
@@ -592,6 +594,51 @@ added: REPLACEME
 Starts a green thread that runs `source`. See [Resource limits][] for what
 happens when a limit is reached.
 
+### `greenThread.close([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `timeoutMs` {number} How long to wait for the green thread to exit, in
+    milliseconds, before it is terminated. `Infinity` waits without a limit.
+    **Default:** `5000`.
+* Returns: {Promise} Fulfilled with the exit code.
+
+Asks the green thread to finish what it is doing and exit. The green thread's
+`onclose` function, if it has one, is called. From then on, messages posted to
+the green thread are dropped, and [`greenThread.evaluate()`][] rejects with
+[`ERR_GREEN_THREAD_CLOSING`][]. The green thread exits with exit code `0` once
+nothing it waits for is pending:
+
+* its timers, and its RPC calls to the host,
+* RPC calls from the host to it, calls to [`greenThread.evaluate()`][], and
+  the evaluation of its main module,
+* the tasks already queued for it, like messages posted before `close()`, or
+  messages its ports have received.
+
+Open ports and `BroadcastChannel`s don't keep the green thread running, and
+nor do promises that wait for anything else, such as `Atomics.waitAsync()`.
+The green thread can also call `close()` itself, for example from `onclose`.
+If it hasn't exited after `timeoutMs`, it is terminated, as with
+[`greenThread.terminate()`][], and the exit code is `1`. Calling `close()`
+again returns the same promise.
+
+```cjs
+const { GreenThread } = require('node:green_threads');
+
+const greenThread = new GreenThread(`
+  onclose = () => {
+    // Flush something before exiting.
+    setTimeout(() => console.log('flushed'), 10);
+  };
+`);
+greenThread.close().then((code) => {
+  console.log(code);  // Prints: 0, after 'flushed'.
+});
+```
+
 ### `greenThread.exports`
 
 <!-- YAML
@@ -766,6 +813,7 @@ Calls [`greenThread.terminate()`][].
 [`BroadcastChannel`]: worker_threads.md#class-broadcastchannel-extends-eventtarget
 [`DOMException`]: globals.md#class-domexception
 [`ERR_GREEN_THREAD_BROADCAST_SCOPE`]: errors.md#err_green_thread_broadcast_scope
+[`ERR_GREEN_THREAD_CLOSING`]: errors.md#err_green_thread_closing
 [`ERR_GREEN_THREAD_CPU_LIMIT`]: errors.md#err_green_thread_cpu_limit
 [`ERR_GREEN_THREAD_EXITED`]: errors.md#err_green_thread_exited
 [`ERR_GREEN_THREAD_ISOLATE_GROUPS_UNSUPPORTED`]: errors.md#err_green_thread_isolate_groups_unsupported
@@ -780,6 +828,7 @@ Calls [`greenThread.terminate()`][].
 [`NODE_GREEN_THREADS_POOL_SIZE`]: cli.md#node_green_threads_pool_sizesize
 [`RpcTarget`]: #class-rpctarget
 [`Worker`]: worker_threads.md#class-worker
+[`greenThread.close()`]: #greenthreadcloseoptions
 [`greenThread.evaluate()`]: #greenthreadevaluatesource-options
 [`greenThread.exports`]: #greenthreadexports
 [`greenThread.postMessage()`]: #greenthreadpostmessagevalue-transfer

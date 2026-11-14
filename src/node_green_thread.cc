@@ -1690,6 +1690,27 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Submit([id](GreenIsolate* self) { self->DrainPort(id); });
   }
 
+  // May be called from any thread. Calls the green thread's onclose, and
+  // makes it exit once it is idle (see IsIdle()).
+  void RequestClose() {
+    Submit([](GreenIsolate* self) {
+      if (self->closing_) return;
+      self->closing_ = true;
+      self->RunTask(
+          kNewInvocation, [&](Isolate* isolate, Local<Context> context) {
+            Local<Value> handler;
+            if (!context->Global()
+                     ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "onclose"))
+                     .ToLocal(&handler) ||
+                !handler->IsFunction()) {
+              return;
+            }
+            USE(handler.As<Function>()->Call(
+                context, context->Global(), 0, nullptr));
+          });
+    });
+  }
+
   // May be called from any thread. Interrupts running JS, if any.
   void Terminate() {
     terminate_requested_ = true;
@@ -1830,6 +1851,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       running_thread_ = nullptr;
       if (!completed) return OnCutOff(thread, std::move(work));
       work_epoch_++;
+      if (closing_ && !close_requested_ && IsIdle()) close_requested_ = true;
     }
     // Only after `work` is gone, since it may own V8 tasks that must not
     // outlive the isolate.
@@ -1948,6 +1970,31 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   bool CanRunJS(Isolate* isolate) const {
     return !terminate_requested_ && !fatal_ && !out_of_memory_ &&
            !cpu_limit_exceeded_ && !isolate->IsExecutionTerminating();
+  }
+
+  // Whether nothing that the green thread waits for is pending: no work is
+  // queued, no timers are set, its RPC calls have their results, and the
+  // host's RPC calls, its evaluations and its main module have settled.
+  bool IsIdle() {
+    if (state_ != State::kRunning || !timers_.empty() ||
+        pending_evaluations_ > 0) {
+      return false;
+    }
+    for (const auto& [id, invocation] : contexts_) {
+      if (invocation.pending > 0) return false;
+    }
+    {
+      Mutex::ScopedLock lock(scheduler_mutex_);
+      if (!queue_.empty()) return false;
+    }
+    bool idle = false;
+    RunTask(kDefaultInvocation, [&](Isolate* isolate, Local<Context> context) {
+      Local<Value> result;
+      idle = CallRuntime(isolate, context, "isIdle", 0, nullptr)
+                 .ToLocal(&result) &&
+             result->IsTrue();
+    });
+    return idle;
   }
 
   bool ShouldShutdown() const {
@@ -2853,12 +2900,15 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                   false,
                   try_catch.Exception());
       }
+      return;
     }
+    pending_evaluations_++;
   }
 
   static void OnEvalSettled(const FunctionCallbackInfo<Value>& args, bool ok) {
     GreenIsolate* self = current_green_isolate;
     CHECK_NOT_NULL(self);
+    self->pending_evaluations_--;
     Isolate* isolate = args.GetIsolate();
     int32_t id = args.Data().As<Int32>()->Value();
     self->PushValue(isolate,
@@ -4128,6 +4178,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   std::atomic<uint64_t> cpu_checks_serviced_{0};
   bool fatal_ = false;
   bool close_requested_ = false;
+  // Whether the host asked the green thread to close once it is idle.
+  bool closing_ = false;
+  // Evaluations whose completion values are promises that haven't settled.
+  uint32_t pending_evaluations_ = 0;
   std::unordered_set<std::string> broadcast_scopes_;
   std::atomic<bool> out_of_memory_{false};
   uint32_t next_context_id_ = 0;
@@ -4695,6 +4749,7 @@ class GreenThreadWrap final : public HandleWrap {
     SetProtoMethod(isolate, constructor, "rpc", Rpc);
     SetProtoMethod(isolate, constructor, "evaluate", Evaluate);
     SetProtoMethod(isolate, constructor, "terminate", Terminate);
+    SetProtoMethod(isolate, constructor, "requestClose", RequestClose);
 
     SetConstructorFunction(context, target, "GreenThread", constructor);
     SetMethod(context, target, "setWarmPoolSize", SetWarmPoolSize);
@@ -4780,6 +4835,7 @@ class GreenThreadWrap final : public HandleWrap {
     registry->Register(Rpc);
     registry->Register(Evaluate);
     registry->Register(Terminate);
+    registry->Register(RequestClose);
     registry->Register(SetWarmPoolSize);
     registry->Register(SetUnresponsiveTimeouts);
     registry->Register(TestingBroadcastChannelSize);
@@ -5008,6 +5064,12 @@ class GreenThreadWrap final : public HandleWrap {
     GreenThreadWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
     if (wrap->green_) wrap->green_->Terminate();
+  }
+
+  static void RequestClose(const FunctionCallbackInfo<Value>& args) {
+    GreenThreadWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+    if (wrap->green_) wrap->green_->RequestClose();
   }
 
   static void OnAsync(uv_async_t* handle) {
