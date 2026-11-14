@@ -1021,6 +1021,12 @@ inline void Environment::RemoveHeapProfileNearHeapLimitCallback(
   }
 }
 
+inline void Environment::set_pointer_compression_heap_warning_thresholds(
+    uint64_t likely_bytes, uint64_t certain_bytes) {
+  pointer_compression_heap_likely_threshold_ = likely_bytes;
+  pointer_compression_heap_certain_threshold_ = certain_bytes;
+}
+
 }  // namespace node
 
 // These two files depend on each other. Including base_object-inl.h after this
