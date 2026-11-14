@@ -11,24 +11,41 @@ if (myModule === 'https') {
 }
 
 const http = require(myModule);
+const { createHistogram } = require('perf_hooks');
 
 const duration = +process.env.duration;
 const url = process.env.test_url;
 
 const start = process.hrtime();
 let throughput = 0;
+const latencies = createHistogram();
+let requestStart;
+
+function latencyInMs() {
+  if (latencies.count === 0) {
+    return undefined;
+  }
+  const toMs = (ns) => ns / 1e6;
+  return {
+    p50: toMs(latencies.percentile(50)),
+    p90: toMs(latencies.percentile(90)),
+    p99: toMs(latencies.percentile(99)),
+    p99_9: toMs(latencies.percentile(99.9)),
+  };
+}
 
 function request(res, client) {
   res.resume();
   res.on('error', () => {});
   res.on('end', () => {
     throughput++;
+    latencies.record(process.hrtime.bigint() - requestStart);
     const [sec, nanosec] = process.hrtime(start);
     const ms = sec * 1000 + nanosec / 1e6;
     if (ms < duration * 1000) {
       run();
     } else {
-      console.log(JSON.stringify({ throughput }));
+      console.log(JSON.stringify({ throughput, latency: latencyInMs() }));
       if (client) {
         client.destroy();
         process.exit(0);
@@ -38,6 +55,7 @@ function request(res, client) {
 }
 
 function run() {
+  requestStart = process.hrtime.bigint();
   if (http.get) { // HTTP or HTTPS
     if (options) {
       http.get(url, options, request);
