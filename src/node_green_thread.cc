@@ -46,40 +46,64 @@ namespace node {
 namespace green_thread {
 
 using v8::Array;
+using v8::ArrayBuffer;
+using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::Boolean;
 using v8::ConstructorBehavior;
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
+using v8::Data;
 using v8::Exception;
+using v8::FixedArray;
 using v8::Function;
+using v8::FunctionCallback;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::GCCallbackFlags;
+using v8::GCType;
 using v8::Global;
 using v8::HandleScope;
+using v8::HeapSpaceStatistics;
+using v8::HeapStatistics;
 using v8::IdleTask;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
+using v8::IsolateGroup;
 using v8::Just;
+using v8::kPromiseHandlerAddedAfterReject;
+using v8::kPromiseRejectWithNoHandler;
 using v8::Local;
 using v8::LocalVector;
 using v8::Locker;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Message;
+using v8::Module;
+using v8::ModuleRequest;
 using v8::Name;
 using v8::Nothing;
+using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::PageAllocator;
+using v8::Private;
 using v8::Promise;
-using v8::PromiseRejectEvent;
 using v8::PromiseRejectMessage;
 using v8::PropertyAttribute;
 using v8::Script;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
+using v8::SharedArrayBuffer;
+using v8::SnapshotCreator;
 using v8::SourceLocation;
+using v8::StartupData;
 using v8::String;
+using v8::Symbol;
 using v8::Task;
 using v8::TaskRunner;
 using v8::TryCatch;
@@ -88,6 +112,7 @@ using v8::Undefined;
 using v8::Value;
 using v8::ValueDeserializer;
 using v8::ValueSerializer;
+using worker::MessagePortData;
 
 namespace {
 
@@ -157,7 +182,6 @@ int CutOffSignal() {
 #endif
 
 using Bytes = std::vector<uint8_t>;
-using worker::MessagePortData;
 using PortDataList = std::vector<std::unique_ptr<MessagePortData>>;
 
 // A value serialized by Serialize(), with the ArrayBuffers and MessagePorts
@@ -166,8 +190,8 @@ using PortDataList = std::vector<std::unique_ptr<MessagePortData>>;
 // MessagePorts.
 struct SerializedValue {
   Bytes data;
-  std::vector<std::shared_ptr<v8::BackingStore>> array_buffers;
-  std::vector<std::shared_ptr<v8::BackingStore>> shared_array_buffers;
+  std::vector<std::shared_ptr<BackingStore>> array_buffers;
+  std::vector<std::shared_ptr<BackingStore>> shared_array_buffers;
   // Taken by Deserialize(). Shared so that work that delivers the value can
   // be copied.
   std::shared_ptr<PortDataList> ports;
@@ -509,21 +533,21 @@ uint64_t ThreadCpuTime() {
 // allocations that would take the isolate over its memory limit, together
 // with the size of the JS heap as of the last GC. Free() may be called from
 // any thread.
-class LimitedAllocator final : public v8::ArrayBuffer::Allocator {
+class LimitedAllocator final : public ArrayBuffer::Allocator {
  public:
   // In sandbox builds, memory has to come from the sandbox of the isolate's
   // group.
-  LimitedAllocator(size_t limit, const v8::IsolateGroup& group)
+  LimitedAllocator(size_t limit, const IsolateGroup& group)
 #if defined(V8_COMPRESS_POINTERS) &&                                           \
     !defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
-      : allocator_(v8::ArrayBuffer::Allocator::NewDefaultAllocator(group)),
+      : allocator_(ArrayBuffer::Allocator::NewDefaultAllocator(group)),
 #else
-      : allocator_(v8::ArrayBuffer::Allocator::NewDefaultAllocator()),
+      : allocator_(ArrayBuffer::Allocator::NewDefaultAllocator()),
 #endif
         limit_(limit) {
   }
 
-  v8::PageAllocator* GetPageAllocator() override {
+  PageAllocator* GetPageAllocator() override {
     return allocator_->GetPageAllocator();
   }
 
@@ -559,14 +583,14 @@ class LimitedAllocator final : public v8::ArrayBuffer::Allocator {
   // A copy of `store` in memory that doesn't count towards the limit, for
   // ArrayBuffers that are transferred away. Returns nullptr if allocating
   // fails.
-  static std::unique_ptr<v8::BackingStore> CopyUntracked(
-      std::shared_ptr<LimitedAllocator> self, const v8::BackingStore& store) {
+  static std::unique_ptr<BackingStore> CopyUntracked(
+      std::shared_ptr<LimitedAllocator> self, const BackingStore& store) {
     const size_t length = store.ByteLength();
     void* data = self->allocator_->AllocateUninitialized(length);
     if (data == nullptr && length > 0) return nullptr;
     if (length > 0) memcpy(data, store.Data(), length);
     auto* holder = new std::shared_ptr<LimitedAllocator>(std::move(self));
-    return v8::ArrayBuffer::NewBackingStore(
+    return ArrayBuffer::NewBackingStore(
         data,
         length,
         [](void* data, size_t length, void* holder_data) {
@@ -595,7 +619,7 @@ class LimitedAllocator final : public v8::ArrayBuffer::Allocator {
 
   static constexpr size_t kHeadroomDivisor = 16;
 
-  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_;
+  std::unique_ptr<ArrayBuffer::Allocator> allocator_;
   const size_t limit_;
   std::atomic<size_t> allocated_{0};
   std::atomic<size_t> heap_used_{0};
@@ -677,15 +701,15 @@ class Watchdog {
 
 // The private symbol that RpcTargets and RPC stubs are branded with, in both
 // green threads and their hosts. See internal/green_threads/rpc.
-Local<v8::Private> RpcBrand(Isolate* isolate) {
-  return v8::Private::ForApi(
+Local<Private> RpcBrand(Isolate* isolate) {
+  return Private::ForApi(
       isolate, FIXED_ONE_BYTE_STRING(isolate, "node:green_thread:rpc"));
 }
 
 // The private symbol that holds the ID of a green thread's MessagePort. See
 // internal/green_threads/runtime/message_port.
-Local<v8::Private> PortIdSymbol(Isolate* isolate) {
-  return v8::Private::ForApi(
+Local<Private> PortIdSymbol(Isolate* isolate) {
+  return Private::ForApi(
       isolate, FIXED_ONE_BYTE_STRING(isolate, "node:green_thread:port_id"));
 }
 
@@ -754,13 +778,13 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
     transfer_ports_ = transfer_ports;
   }
   void set_shared_array_buffers(
-      std::vector<std::shared_ptr<v8::BackingStore>>* shared_array_buffers) {
+      std::vector<std::shared_ptr<BackingStore>>* shared_array_buffers) {
     shared_array_buffers_ = shared_array_buffers;
   }
 
   Maybe<uint32_t> GetSharedArrayBufferId(
-      Isolate* isolate, Local<v8::SharedArrayBuffer> buffer) override {
-    std::shared_ptr<v8::BackingStore> store = buffer->GetBackingStore();
+      Isolate* isolate, Local<SharedArrayBuffer> buffer) override {
+    std::shared_ptr<BackingStore> store = buffer->GetBackingStore();
     for (size_t i = 0; i < shared_array_buffers_->size(); i++) {
       if ((*shared_array_buffers_)[i] == store) {
         return Just(static_cast<uint32_t>(i));
@@ -832,14 +856,14 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
   }
 
   // Once the value is serialized.
-  Local<v8::Array> descriptors() {
+  Local<Array> descriptors() {
     if (descriptors_.empty()) return {};
     LocalVector<Value> values(isolate_);
     values.reserve(descriptors_.size());
     for (const Global<Value>& descriptor : descriptors_) {
       values.push_back(descriptor.Get(isolate_));
     }
-    return v8::Array::New(isolate_, values.data(), values.size());
+    return Array::New(isolate_, values.data(), values.size());
   }
 
  private:
@@ -862,12 +886,11 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
   Local<Context> context_;
   bool is_host_;
   Local<Object> rpc_hooks_;
-  Local<v8::Private> rpc_brand_;
+  Local<Private> rpc_brand_;
   Local<Value> abort_signal_prototype_;
   ValueSerializer* serializer_ = nullptr;
   std::vector<Global<Value>> descriptors_;
-  std::vector<std::shared_ptr<v8::BackingStore>>* shared_array_buffers_ =
-      nullptr;
+  std::vector<std::shared_ptr<BackingStore>>* shared_array_buffers_ = nullptr;
   PortAdapter* ports_ = nullptr;
   const LocalVector<Object>* transfer_ports_ = nullptr;
 };
@@ -876,15 +899,15 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
 // before deserializing, since JS can't run while V8 deserializes.
 class DeserializerDelegate final : public ValueDeserializer::Delegate {
  public:
-  DeserializerDelegate(Local<Context> context,
-                       Local<v8::Array> objects,
-                       const std::vector<std::shared_ptr<v8::BackingStore>>*
-                           shared_array_buffers)
+  DeserializerDelegate(
+      Local<Context> context,
+      Local<Array> objects,
+      const std::vector<std::shared_ptr<BackingStore>>* shared_array_buffers)
       : context_(context),
         objects_(objects),
         shared_array_buffers_(shared_array_buffers) {}
 
-  MaybeLocal<v8::SharedArrayBuffer> GetSharedArrayBufferFromId(
+  MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
       Isolate* isolate, uint32_t id) override {
     if (shared_array_buffers_ == nullptr ||
         id >= shared_array_buffers_->size()) {
@@ -892,7 +915,7 @@ class DeserializerDelegate final : public ValueDeserializer::Delegate {
           FIXED_ONE_BYTE_STRING(isolate, "Invalid SharedArrayBuffer")));
       return {};
     }
-    return v8::SharedArrayBuffer::New(isolate, (*shared_array_buffers_)[id]);
+    return SharedArrayBuffer::New(isolate, (*shared_array_buffers_)[id]);
   }
 
   void set_deserializer(ValueDeserializer* deserializer) {
@@ -920,8 +943,8 @@ class DeserializerDelegate final : public ValueDeserializer::Delegate {
 
  private:
   Local<Context> context_;
-  Local<v8::Array> objects_;
-  const std::vector<std::shared_ptr<v8::BackingStore>>* shared_array_buffers_;
+  Local<Array> objects_;
+  const std::vector<std::shared_ptr<BackingStore>>* shared_array_buffers_;
   ValueDeserializer* deserializer_ = nullptr;
 };
 
@@ -942,11 +965,11 @@ std::optional<Bytes> SerializeBytes(
     Local<Value> value,
     bool is_host,
     Local<Object> rpc_hooks,
-    const LocalVector<v8::ArrayBuffer>& transfer,
+    const LocalVector<ArrayBuffer>& transfer,
     PortAdapter* ports,
     const LocalVector<Object>& transfer_ports,
-    std::vector<std::shared_ptr<v8::BackingStore>>* shared_array_buffers,
-    Local<v8::Array>* descriptors) {
+    std::vector<std::shared_ptr<BackingStore>>* shared_array_buffers,
+    Local<Array>* descriptors) {
   SerializerDelegate delegate(isolate, context, is_host, rpc_hooks);
   // Before V8 asks the delegate whether it has custom host objects.
   if (ports != nullptr) delegate.set_ports(ports, &transfer_ports);
@@ -988,7 +1011,7 @@ std::optional<SerializedValue> Serialize(Isolate* isolate,
                                          Local<Object> rpc_hooks = {},
                                          const TransferOptions& options = {}) {
   SerializedValue result;
-  LocalVector<v8::ArrayBuffer> transfer(isolate);
+  LocalVector<ArrayBuffer> transfer(isolate);
   LocalVector<Object> transfer_ports(isolate);
   const Local<Value> transfer_list = options.list;
   const std::shared_ptr<LimitedAllocator>& limited_allocator =
@@ -1002,7 +1025,7 @@ std::optional<SerializedValue> Serialize(Isolate* isolate,
     if (!transfer_list->IsArray()) {
       return fail("The transfer list must be an array");
     }
-    Local<v8::Array> array = transfer_list.As<v8::Array>();
+    Local<Array> array = transfer_list.As<Array>();
     for (uint32_t i = 0; i < array->Length(); i++) {
       Local<Value> item;
       if (!array->Get(context, i).ToLocal(&item)) return std::nullopt;
@@ -1029,7 +1052,7 @@ std::optional<SerializedValue> Serialize(Isolate* isolate,
                 ? "Only ArrayBuffers and MessagePorts can be transferred"
                 : "Only ArrayBuffers can be transferred");
       }
-      Local<v8::ArrayBuffer> buffer = item.As<v8::ArrayBuffer>();
+      Local<ArrayBuffer> buffer = item.As<ArrayBuffer>();
       if (!buffer->IsDetachable() || buffer->WasDetached()) {
         return fail("An ArrayBuffer is detached or can't be detached");
       }
@@ -1041,7 +1064,7 @@ std::optional<SerializedValue> Serialize(Isolate* isolate,
     }
   }
 
-  Local<v8::Array> descriptors;
+  Local<Array> descriptors;
   std::optional<Bytes> bytes =
       SerializeBytes(isolate,
                      context,
@@ -1063,7 +1086,7 @@ std::optional<SerializedValue> Serialize(Isolate* isolate,
                          descriptors,
                          is_host,
                          {},
-                         LocalVector<v8::ArrayBuffer>(isolate),
+                         LocalVector<ArrayBuffer>(isolate),
                          nullptr,
                          LocalVector<Object>(isolate),
                          &result.shared_array_buffers,
@@ -1080,8 +1103,8 @@ std::optional<SerializedValue> Serialize(Isolate* isolate,
   }
   result.data.insert(result.data.end(), bytes->begin(), bytes->end());
 
-  for (Local<v8::ArrayBuffer> buffer : transfer) {
-    std::shared_ptr<v8::BackingStore> store = buffer->GetBackingStore();
+  for (Local<ArrayBuffer> buffer : transfer) {
+    std::shared_ptr<BackingStore> store = buffer->GetBackingStore();
     if (limited_allocator && !store->IsResizableByUserJavaScript()) {
       store = LimitedAllocator::CopyUntracked(limited_allocator, *store);
       if (!store) {
@@ -1093,7 +1116,7 @@ std::optional<SerializedValue> Serialize(Isolate* isolate,
     result.array_buffers.push_back(std::move(store));
   }
   // Nothing can fail anymore.
-  for (Local<v8::ArrayBuffer> buffer : transfer) {
+  for (Local<ArrayBuffer> buffer : transfer) {
     CHECK(buffer->Detach(Local<Value>()).FromJust());
   }
   if (!transfer_ports.empty()) {
@@ -1110,9 +1133,9 @@ MaybeLocal<Value> DeserializeBytes(
     Local<Context> context,
     const uint8_t* data,
     size_t size,
-    const LocalVector<v8::ArrayBuffer>& transferred,
-    const std::vector<std::shared_ptr<v8::BackingStore>>& shared_array_buffers,
-    Local<v8::Array> host_objects = {}) {
+    const LocalVector<ArrayBuffer>& transferred,
+    const std::vector<std::shared_ptr<BackingStore>>& shared_array_buffers,
+    Local<Array> host_objects = {}) {
   DeserializerDelegate delegate(context, host_objects, &shared_array_buffers);
   ValueDeserializer deserializer(isolate, data, size, &delegate);
   delegate.set_deserializer(&deserializer);
@@ -1133,8 +1156,8 @@ MaybeLocal<Value> Deserialize(Isolate* isolate,
                               Local<Object> rpc_hooks = {},
                               bool copy_array_buffers = false,
                               PortAdapter* ports = nullptr,
-                              Local<v8::Array>* port_list = nullptr) {
-  Local<v8::Array> port_objects;
+                              Local<Array>* port_list = nullptr) {
+  Local<Array> port_objects;
   if (value.ports && !value.ports->empty()) {
     CHECK(rpc_hooks.IsEmpty());
     CHECK_NOT_NULL(ports);
@@ -1145,24 +1168,23 @@ MaybeLocal<Value> Deserialize(Isolate* isolate,
       if (!ports->CreatePort(std::move(port_data)).ToLocal(&object)) return {};
       objects.push_back(object);
     }
-    port_objects = v8::Array::New(isolate, objects.data(), objects.size());
+    port_objects = Array::New(isolate, objects.data(), objects.size());
   }
   if (port_list != nullptr) {
-    *port_list =
-        port_objects.IsEmpty() ? v8::Array::New(isolate, 0) : port_objects;
+    *port_list = port_objects.IsEmpty() ? Array::New(isolate, 0) : port_objects;
   }
 
-  LocalVector<v8::ArrayBuffer> transferred(isolate);
-  for (const std::shared_ptr<v8::BackingStore>& store : value.array_buffers) {
+  LocalVector<ArrayBuffer> transferred(isolate);
+  for (const std::shared_ptr<BackingStore>& store : value.array_buffers) {
     if (!copy_array_buffers || store->IsResizableByUserJavaScript()) {
-      transferred.push_back(v8::ArrayBuffer::New(isolate, store));
+      transferred.push_back(ArrayBuffer::New(isolate, store));
       continue;
     }
-    std::unique_ptr<v8::BackingStore> copy = v8::ArrayBuffer::NewBackingStore(
+    std::unique_ptr<BackingStore> copy = ArrayBuffer::NewBackingStore(
         isolate,
         store->ByteLength(),
-        v8::BackingStoreInitializationMode::kUninitialized,
-        v8::BackingStoreOnFailureMode::kReturnNull);
+        BackingStoreInitializationMode::kUninitialized,
+        BackingStoreOnFailureMode::kReturnNull);
     if (!copy) {
       isolate->ThrowException(Exception::RangeError(
           FIXED_ONE_BYTE_STRING(isolate, "Array buffer allocation failed")));
@@ -1171,7 +1193,7 @@ MaybeLocal<Value> Deserialize(Isolate* isolate,
     if (store->ByteLength() > 0) {
       memcpy(copy->Data(), store->Data(), store->ByteLength());
     }
-    transferred.push_back(v8::ArrayBuffer::New(isolate, std::move(copy)));
+    transferred.push_back(ArrayBuffer::New(isolate, std::move(copy)));
   }
 
   const Bytes& bytes = value.data;
@@ -1189,7 +1211,7 @@ MaybeLocal<Value> Deserialize(Isolate* isolate,
   memcpy(&length, bytes.data(), sizeof(length));
   CHECK_LE(length, bytes.size() - sizeof(length));
   const uint8_t* descriptors = bytes.data() + sizeof(length);
-  Local<v8::Array> host_objects;
+  Local<Array> host_objects;
   if (length > 0) {
     Local<Value> descriptor_array;
     Local<Value> objects;
@@ -1197,7 +1219,7 @@ MaybeLocal<Value> Deserialize(Isolate* isolate,
                           context,
                           descriptors,
                           length,
-                          LocalVector<v8::ArrayBuffer>(isolate),
+                          LocalVector<ArrayBuffer>(isolate),
                           value.shared_array_buffers)
              .ToLocal(&descriptor_array) ||
         !CallRpcHook(
@@ -1206,7 +1228,7 @@ MaybeLocal<Value> Deserialize(Isolate* isolate,
       return {};
     }
     CHECK(objects->IsArray());
-    host_objects = objects.As<v8::Array>();
+    host_objects = objects.As<Array>();
   }
   return DeserializeBytes(isolate,
                           context,
@@ -1222,10 +1244,10 @@ std::shared_ptr<worker::Message> ToMessage(SerializedValue&& value) {
   MallocedBuffer<char> payload(value.data.size());
   memcpy(payload.data, value.data.data(), value.data.size());
   auto message = std::make_shared<worker::Message>(std::move(payload));
-  for (std::shared_ptr<v8::BackingStore>& store : value.array_buffers) {
+  for (std::shared_ptr<BackingStore>& store : value.array_buffers) {
     message->AddArrayBuffer(std::move(store));
   }
-  for (std::shared_ptr<v8::BackingStore>& store : value.shared_array_buffers) {
+  for (std::shared_ptr<BackingStore>& store : value.shared_array_buffers) {
     message->AddSharedArrayBuffer(std::move(store));
   }
   if (value.ports) {
@@ -1388,8 +1410,8 @@ enum class IsolateGroupKind : int32_t { kDefault = 0, kNew = 1, kShared = 2 };
 // Like Node.js' own isolates, green isolates get a group of their own if the
 // build supports that.
 IsolateGroupKind DefaultIsolateGroupKind() {
-  return v8::IsolateGroup::CanCreateNewGroups() ? IsolateGroupKind::kNew
-                                                : IsolateGroupKind::kDefault;
+  return IsolateGroup::CanCreateNewGroups() ? IsolateGroupKind::kNew
+                                            : IsolateGroupKind::kDefault;
 }
 
 // Identifies isolate groups in tests. 0 is V8's default group.
@@ -1528,7 +1550,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     // The isolate group to create the isolate in: V8's default group, a new
     // one, or `shared_group`. `group_id` identifies the group in tests.
     IsolateGroupKind group = DefaultIsolateGroupKind();
-    std::optional<v8::IsolateGroup> shared_group;
+    std::optional<IsolateGroup> shared_group;
     uint64_t group_id = 0;
 
     // Only what is fixed when the isolate is created, with which isolates in
@@ -1833,7 +1855,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // The ES modules of the green thread. The runtime's module loader
   // (internal/green_threads/runtime/modules) refers to them by their IDs.
   struct ModuleRecord {
-    Global<v8::Module> module;
+    Global<Module> module;
     std::string url;
     // The value of a JSON module.
     Global<Value> json;
@@ -1934,10 +1956,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     PoolThread* thread = current_pool_thread;
 
     Isolate::CreateParams params;
-    v8::IsolateGroup group = v8::IsolateGroup::GetDefault();
+    IsolateGroup group = IsolateGroup::GetDefault();
     group_id_ = 0;
     if (options.group == IsolateGroupKind::kNew) {
-      group = v8::IsolateGroup::Create();
+      group = IsolateGroup::Create();
       group_id_ = next_isolate_group_id++;
     } else if (options.group == IsolateGroupKind::kShared) {
       group = *options.shared_group;
@@ -1947,10 +1969,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     // isolates in it use, Node.js' own. Groups that only contain green
     // isolates can use V8's built-in snapshot, which is much smaller, since
     // green threads don't need any of Node.js' per-isolate state.
-    uses_node_snapshot_ = group == v8::IsolateGroup::GetDefault();
+    uses_node_snapshot_ = group == IsolateGroup::GetDefault();
     // Isolates in the same group must all use the same snapshot, which the
     // green snapshot is once it exists. Without it, V8's.
-    const v8::StartupData* green_snapshot = nullptr;
+    const StartupData* green_snapshot = nullptr;
     if (!uses_node_snapshot_) {
       green_snapshot = GreenSnapshot(platform_);
     } else {
@@ -1989,13 +2011,13 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     settings.allow_wasm_code_generation_callback =
         [](Local<Context>, Local<String>) { return true; };
 
-    Isolate* isolate = NewIsolate(
-        &params,
-        this,
-        platform_,
-        settings,
-        group,
-        uses_node_snapshot_ && green_snapshot == nullptr);
+    Isolate* isolate =
+        NewIsolate(&params,
+                   this,
+                   platform_,
+                   settings,
+                   group,
+                   uses_node_snapshot_ && green_snapshot == nullptr);
     if (isolate == nullptr) {
       fatal_ = true;
       return;
@@ -2062,7 +2084,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         if (!fatal_) runtime_.Reset(isolate, runtime);
         // Until the first GC, ArrayBuffer allocations are checked against
         // the heap as it is now.
-        v8::HeapStatistics stats;
+        HeapStatistics stats;
         isolate->GetHeapStatistics(&stats);
         allocator_->set_heap_used(stats.used_heap_size());
       }
@@ -2138,7 +2160,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // the context they were created in, as long as it's still alive, and
   // otherwise in that of the running task.
   uint32_t CurrentInvocationContextId(Isolate* isolate) {
-    Local<v8::Data> data = isolate->GetContinuationPreservedEmbedderData();
+    Local<Data> data = isolate->GetContinuationPreservedEmbedderData();
     if (!data.IsEmpty() && data->IsValue() && data.As<Value>()->IsUint32()) {
       uint32_t id = data.As<Value>().As<Uint32>()->Value();
       if (contexts_.contains(id)) return id;
@@ -2295,11 +2317,11 @@ class GreenIsolate final : public IsolatePlatformDelegate,
 
   // Enforces the memory limit for the heap and ArrayBuffers together.
   static void AfterGarbageCollection(Isolate* isolate,
-                                     v8::GCType,
-                                     v8::GCCallbackFlags,
+                                     GCType,
+                                     GCCallbackFlags,
                                      void* data) {
     GreenIsolate* self = static_cast<GreenIsolate*>(data);
-    v8::HeapStatistics stats;
+    HeapStatistics stats;
     isolate->GetHeapStatistics(&stats);
     self->allocator_->set_heap_used(stats.used_heap_size());
     if (stats.used_heap_size() + self->allocator_->allocated() >
@@ -2397,10 +2419,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     pthread_sigmask(SIG_UNBLOCK, &set, nullptr);
 #endif
     current_green_isolate = nullptr;
-    for (int i = 0; i < 8 && v8::Isolate::TryGetCurrent() == isolate_; i++) {
+    for (int i = 0; i < 8 && Isolate::TryGetCurrent() == isolate_; i++) {
       isolate_->Exit();
     }
-    CHECK_NE(v8::Isolate::TryGetCurrent(), isolate_);
+    CHECK_NE(Isolate::TryGetCurrent(), isolate_);
     in_cpu_limited_task_ = false;
     Watchdog::Get()->Disarm(this);
     Watchdog::Get()->Disarm(&backup_epoch_);
@@ -2551,7 +2573,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       return;
     }
     Local<Value> value;
-    Local<v8::Array> ports;
+    Local<Array> ports;
     if (!Deserialize(
              isolate, context, data, {}, has_memory_limit(), this, &ports)
              .ToLocal(&value)) {
@@ -2691,7 +2713,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     if (it == ports_.end()) return;
     Local<Object> port = it->second->object.Get(isolate);
     Local<Value> data;
-    Local<v8::Array> ports;
+    Local<Array> ports;
     bool ok;
     {
       TryCatch try_catch(isolate);
@@ -2719,7 +2741,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Local<Value> argv[] = {
         port,
         data,
-        ok ? ports.As<Value>() : v8::Undefined(isolate).As<Value>(),
+        ok ? ports.As<Value>() : Undefined(isolate).As<Value>(),
         Boolean::New(isolate, ok),
     };
     USE(CallRuntime(
@@ -2848,7 +2870,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         Integer::New(isolate, minimal ? kEncodedString : kEncodedValue),
         minimal ? string.As<Value>() : error,
     };
-    return v8::Array::New(isolate, elements, arraysize(elements));
+    return Array::New(isolate, elements, arraysize(elements));
   }
 
   // Sends `value` to the host, or if `ok` is false, the thrown value
@@ -2908,12 +2930,12 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Isolate* isolate = Isolate::GetCurrent();
     Local<Promise> promise = message.GetPromise();
     auto& pending = self->pending_rejections_;
-    if (message.GetEvent() == v8::kPromiseRejectWithNoHandler) {
+    if (message.GetEvent() == kPromiseRejectWithNoHandler) {
       Local<Value> value = message.GetValue();
       if (value.IsEmpty()) value = Undefined(isolate);
       pending.emplace_back(Global<Promise>(isolate, promise),
                            Global<Value>(isolate, value));
-    } else if (message.GetEvent() == v8::kPromiseHandlerAddedAfterReject) {
+    } else if (message.GetEvent() == kPromiseHandlerAddedAfterReject) {
       std::erase_if(pending, [&](const auto& entry) {
         return entry.first.Get(isolate) == promise;
       });
@@ -2938,7 +2960,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     // allocation fail with a RangeError then. The committed size is checked,
     // since fragmentation may keep the used size well below the limit when
     // the heap really is full.
-    v8::HeapStatistics stats;
+    HeapStatistics stats;
     self->isolate_->GetHeapStatistics(&stats);
     if (stats.total_heap_size() < current_heap_limit / 4 * 3) {
       return current_heap_limit;
@@ -2953,7 +2975,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                              Local<Context> context,
                              Local<Object> target,
                              const char* name,
-                             v8::FunctionCallback callback,
+                             FunctionCallback callback,
                              Local<Value> data = Local<Value>()) {
     Local<String> name_string = OneByteString(isolate, name);
     Local<Function> fn;
@@ -2972,7 +2994,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Local<Object> global = context->Global();
     auto define = [&](Local<Object> target,
                       const char* name,
-                      v8::FunctionCallback callback,
+                      FunctionCallback callback,
                       Local<Value> data = Local<Value>()) {
       return DefineFunction(isolate, context, target, name, callback, data);
     };
@@ -3007,7 +3029,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
            global
                ->Set(context,
                      FIXED_ONE_BYTE_STRING(isolate, "onmessage"),
-                     v8::Null(isolate))
+                     Null(isolate))
                .IsJust();
   }
 
@@ -3040,7 +3062,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     };
     Local<Object> per_context_exports = Object::New(isolate);
     Local<Object> primordials =
-        Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
+        Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
 
     // What internalBinding() returns in the runtime's modules. Private
     // symbols can only be passed to JS through templates.
@@ -3061,8 +3083,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                           FunctionTemplate::New(isolate, PortStartCallback));
     natives_template->Set(FIXED_ONE_BYTE_STRING(isolate, "portClose"),
                           FunctionTemplate::New(isolate, PortCloseCallback));
-    static constexpr std::pair<const char*, v8::FunctionCallback>
-        kModuleNatives[] = {
+    static constexpr std::pair<const char*, FunctionCallback> kModuleNatives[] =
+        {
             {"compileModule", CompileModuleCallback},
             {"createJsonModule", CreateJsonModuleCallback},
             {"moduleRequests", ModuleRequestsCallback},
@@ -3080,7 +3102,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         ObjectTemplate::New(isolate);
     private_symbols_template->Set(
         FIXED_ONE_BYTE_STRING(isolate, "transfer_mode_private_symbol"),
-        v8::Private::ForApi(
+        Private::ForApi(
             isolate,
             FIXED_ONE_BYTE_STRING(isolate, "node:green_thread:transfer_mode")));
     Local<Object> natives;
@@ -3088,7 +3110,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Local<Object> per_isolate_symbols = Object::New(isolate);
     Local<Object> bindings = Object::New(isolate);
     Local<Object> modules = Object::New(isolate);
-    Local<v8::Array> data = v8::Array::New(isolate, kRequireDataLength);
+    Local<Array> data = Array::New(isolate, kRequireDataLength);
     Local<Function> internal_binding;
     Local<Function> require;
     if (!natives_template->NewInstance(context).ToLocal(&natives) ||
@@ -3096,10 +3118,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
             &private_symbols) ||
         !set(per_isolate_symbols,
              "messaging_clone_symbol",
-             v8::Symbol::New(isolate)) ||
+             Symbol::New(isolate)) ||
         !set(per_isolate_symbols,
              "messaging_deserialize_symbol",
-             v8::Symbol::New(isolate)) ||
+             Symbol::New(isolate)) ||
         !set(bindings, "green_thread_runtime", natives) ||
         !set(bindings, "per_context", per_context_exports) ||
         !Function::New(context, InternalBindingCallback, bindings)
@@ -3183,8 +3205,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       // Ends with 0.
       const std::vector<intptr_t>& node_references =
           SnapshotBuilder::CollectExternalReferences();
-      result.insert(result.end(), node_references.begin(),
-                    node_references.end());
+      result.insert(
+          result.end(), node_references.begin(), node_references.end());
       return result;
     }();
     return references.data();
@@ -3193,10 +3215,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
  public:
   // Creates the green snapshot (see GreenSnapshot()) with `loader`, outside
   // a pool thread. Empty if that failed.
-  static v8::StartupData CreateGreenSnapshotWith(
-      MultiIsolatePlatform* platform,
-      builtins::BuiltinLoader* loader,
-      bool default_group = false) {
+  static StartupData CreateGreenSnapshotWith(MultiIsolatePlatform* platform,
+                                             builtins::BuiltinLoader* loader,
+                                             bool default_group = false) {
     bootstrap_builtin_loader = loader;
     auto reset = OnScopeLeave([] { bootstrap_builtin_loader = nullptr; });
     return CreateGreenSnapshot(platform, default_group);
@@ -3214,8 +3235,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // bootstrapped context, but with the read-only heap of Node.js' own. So it
   // can be used in the group if Node.js' own snapshot is, but its isolate
   // snapshot is much smaller. nullptr if it can't be used.
-  static const v8::StartupData* DefaultGroupSnapshot() {
-    const v8::StartupData* blob =
+  static const StartupData* DefaultGroupSnapshot() {
+    const StartupData* blob =
         SnapshotBuilder::GetEmbeddedGreenDefaultGroupSnapshot();
     const SnapshotData* node_snapshot =
         SnapshotBuilder::GetEmbeddedSnapshotData();
@@ -3226,14 +3247,14 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     return blob;
   }
 
-  static const v8::StartupData* GreenSnapshot(MultiIsolatePlatform* platform) {
-    if (const v8::StartupData* embedded =
+  static const StartupData* GreenSnapshot(MultiIsolatePlatform* platform) {
+    if (const StartupData* embedded =
             SnapshotBuilder::GetEmbeddedGreenSnapshot()) {
       return embedded;
     }
     static Mutex mutex;
     static bool created = false;
-    static v8::StartupData blob{nullptr, 0};
+    static StartupData blob{nullptr, 0};
     Mutex::ScopedLock lock(mutex);
     if (!created) {
       created = true;
@@ -3246,8 +3267,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // bootstrapped, in a new isolate group or in V8's default one. In the
   // default group, the read-only heap is the group's, so the snapshot can
   // only be used in it if that doesn't change.
-  static v8::StartupData CreateGreenSnapshot(MultiIsolatePlatform* platform,
-                                             bool default_group = false) {
+  static StartupData CreateGreenSnapshot(MultiIsolatePlatform* platform,
+                                         bool default_group = false) {
     // The bootstrap doesn't run in a green isolate.
     CurrentScope current_scope(nullptr);
     std::unique_ptr<ArrayBufferAllocator> allocator =
@@ -3255,19 +3276,18 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Isolate::CreateParams params;
     params.array_buffer_allocator = allocator.get();
     params.external_references = SnapshotExternalReferences();
-    Isolate* isolate = Isolate::Allocate(default_group
-                                             ? v8::IsolateGroup::GetDefault()
-                                             : v8::IsolateGroup::Create());
+    Isolate* isolate = Isolate::Allocate(
+        default_group ? IsolateGroup::GetDefault() : IsolateGroup::Create());
     if (isolate == nullptr) return {nullptr, 0};
     SnapshotPlatformDelegate delegate;
     // Before the isolate is initialized, which may use the platform.
     platform->RegisterIsolate(isolate, &delegate);
     params.cpp_heap =
-        v8::CppHeap::Create(platform, v8::CppHeapCreateParams{{}}).release();
+        CppHeap::Create(platform, CppHeapCreateParams{{}}).release();
 
-    v8::StartupData blob{nullptr, 0};
+    StartupData blob{nullptr, 0};
     {
-      v8::SnapshotCreator creator(isolate, params);
+      SnapshotCreator creator(isolate, params);
       Locker locker(isolate);
       if (current_pool_thread != nullptr) {
         isolate->SetStackLimit(current_pool_thread->stack_limit());
@@ -3292,8 +3312,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         }
       }
       if (bootstrapped) {
-        blob = creator.CreateBlob(
-            v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+        blob = creator.CreateBlob(SnapshotCreator::FunctionCodeHandling::kKeep);
       }
     }
     isolate->Deinitialize();
@@ -3337,7 +3356,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // modules, once each.
   static MaybeLocal<Value> Require(Isolate* isolate,
                                    Local<Context> context,
-                                   Local<v8::Array> data,
+                                   Local<Array> data,
                                    Local<String> id) {
     Local<Value> modules_value;
     if (!data->Get(context, kRequireDataModules).ToLocal(&modules_value)) {
@@ -3369,7 +3388,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Local<Value> args[] = {exports,
                            require,
                            module,
-                           v8::Undefined(isolate),
+                           Undefined(isolate),
                            internal_binding,
                            primordials};
     Local<Value> result;
@@ -3394,7 +3413,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Local<Value> result;
     if (Require(isolate,
                 isolate->GetCurrentContext(),
-                args.Data().As<v8::Array>(),
+                args.Data().As<Array>(),
                 args[0].As<String>())
             .ToLocal(&result)) {
       args.GetReturnValue().Set(result);
@@ -3445,7 +3464,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   }
 
   uint32_t AddModule(Isolate* isolate,
-                     Local<v8::Module> module,
+                     Local<Module> module,
                      std::string url,
                      Local<Value> json = {}) {
     const uint32_t id = next_module_id_++;
@@ -3457,7 +3476,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     return id;
   }
 
-  ModuleRecord* FindModule(Isolate* isolate, Local<v8::Module> module) {
+  ModuleRecord* FindModule(Isolate* isolate, Local<Module> module) {
     auto [begin, end] = modules_by_hash_.equal_range(module->GetIdentityHash());
     for (auto it = begin; it != end; ++it) {
       ModuleRecord& record = modules_.at(it->second);
@@ -3489,7 +3508,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     ScriptOrigin origin(
         args[1], 0, 0, false, -1, Local<Value>(), false, false, true);
     ScriptCompiler::Source source(args[0].As<String>(), origin);
-    Local<v8::Module> module;
+    Local<Module> module;
     if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
       return;
     }
@@ -3499,7 +3518,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   }
 
   static MaybeLocal<Value> EvaluateJsonModule(Local<Context> context,
-                                              Local<v8::Module> module) {
+                                              Local<Module> module) {
     Isolate* isolate = Isolate::GetCurrent();
     ModuleRecord* record = Current()->FindModule(isolate, module);
     CHECK_NOT_NULL(record);
@@ -3511,9 +3530,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
             .IsNothing()) {
       return {};
     }
-    Local<v8::Promise::Resolver> resolver;
-    if (!v8::Promise::Resolver::New(context).ToLocal(&resolver) ||
-        resolver->Resolve(context, v8::Undefined(isolate)).IsNothing()) {
+    Local<Promise::Resolver> resolver;
+    if (!Promise::Resolver::New(context).ToLocal(&resolver) ||
+        resolver->Resolve(context, Undefined(isolate)).IsNothing()) {
       return {};
     }
     return resolver->GetPromise();
@@ -3526,15 +3545,15 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Isolate* isolate = args.GetIsolate();
     CHECK(args[0]->IsString());
     Local<String> export_names[] = {FIXED_ONE_BYTE_STRING(isolate, "default")};
-    Local<v8::Module> module = v8::Module::CreateSyntheticModule(
+    Local<Module> module = Module::CreateSyntheticModule(
         isolate,
         args[0].As<String>(),
         export_names,
         [](Local<Context> context,
-           Local<v8::Module> module) -> MaybeLocal<v8::Promise> {
+           Local<Module> module) -> MaybeLocal<Promise> {
           Local<Value> promise;
           if (!EvaluateJsonModule(context, module).ToLocal(&promise)) return {};
-          return promise.As<v8::Promise>();
+          return promise.As<Promise>();
         });
     Utf8Value url(isolate, args[0]);
     args.GetReturnValue().Set(Uint32::NewFromUnsigned(
@@ -3549,13 +3568,13 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Local<Context> context = isolate->GetCurrentContext();
     ModuleRecord* record = ModuleArg(args);
     if (record == nullptr) return;
-    Local<v8::Module> module = record->module.Get(isolate);
+    Local<Module> module = record->module.Get(isolate);
     LocalVector<Value> requests(isolate);
     if (!module->IsSyntheticModule()) {
-      Local<v8::FixedArray> module_requests = module->GetModuleRequests();
+      Local<FixedArray> module_requests = module->GetModuleRequests();
       for (int i = 0; i < module_requests->Length(); i++) {
-        Local<v8::ModuleRequest> request =
-            module_requests->Get(i).As<v8::ModuleRequest>();
+        Local<ModuleRequest> request =
+            module_requests->Get(i).As<ModuleRequest>();
         Local<Object> attributes;
         if (!ImportAttributesToObject(
                  context, request->GetImportAttributes(), 3)
@@ -3563,20 +3582,20 @@ class GreenIsolate final : public IsolatePlatformDelegate,
           return;
         }
         Local<Value> pair[] = {request->GetSpecifier(), attributes};
-        requests.push_back(v8::Array::New(isolate, pair, arraysize(pair)));
+        requests.push_back(Array::New(isolate, pair, arraysize(pair)));
       }
     }
     args.GetReturnValue().Set(
-        v8::Array::New(isolate, requests.data(), requests.size()));
+        Array::New(isolate, requests.data(), requests.size()));
   }
 
   // An object with the attributes in `attributes`, whose entries have
   // `stride` elements, starting with the key and the value.
   static MaybeLocal<Object> ImportAttributesToObject(
-      Local<Context> context, Local<v8::FixedArray> attributes, int stride) {
+      Local<Context> context, Local<FixedArray> attributes, int stride) {
     Isolate* isolate = Isolate::GetCurrent();
     Local<Object> object =
-        Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
+        Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
     for (int i = 0; i + 1 < attributes->Length(); i += stride) {
       Local<Value> key = attributes->Get(i).As<Value>();
       Local<Value> value = attributes->Get(i + 1).As<Value>();
@@ -3593,7 +3612,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     ModuleRecord* record = ModuleArg(args);
     if (record == nullptr) return;
     CHECK(args[1]->IsArray());
-    Local<v8::Array> ids = args[1].As<v8::Array>();
+    Local<Array> ids = args[1].As<Array>();
     std::vector<uint32_t> dependencies;
     for (uint32_t i = 0; i < ids->Length(); i++) {
       Local<Value> id;
@@ -3606,9 +3625,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     record->linked = true;
   }
 
-  static MaybeLocal<v8::Module> ResolveModule(Local<Context> context,
-                                              size_t index,
-                                              Local<v8::Module> referrer) {
+  static MaybeLocal<Module> ResolveModule(Local<Context> context,
+                                          size_t index,
+                                          Local<Module> referrer) {
     Isolate* isolate = Isolate::GetCurrent();
     GreenIsolate* self = Current();
     ModuleRecord* record = self->FindModule(isolate, referrer);
@@ -3638,7 +3657,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Isolate* isolate = args.GetIsolate();
     ModuleRecord* record = ModuleArg(args);
     if (record == nullptr) return;
-    Local<v8::Promise> promise;
+    Local<Promise> promise;
     if (record->module.Get(isolate)
             ->Evaluate(isolate->GetCurrentContext())
             .ToLocal(&promise)) {
@@ -3681,12 +3700,12 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   }
 
   // import(): the runtime's module loader imports the module.
-  static MaybeLocal<v8::Promise> ImportModuleDynamically(
+  static MaybeLocal<Promise> ImportModuleDynamically(
       Local<Context> context,
-      Local<v8::Data> host_defined_options,
+      Local<Data> host_defined_options,
       Local<Value> resource_name,
       Local<String> specifier,
-      Local<v8::FixedArray> import_attributes) {
+      Local<FixedArray> import_attributes) {
     Isolate* isolate = Isolate::GetCurrent();
     GreenIsolate* self = Current();
     Local<Object> attributes;
@@ -3696,7 +3715,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     }
     Local<Value> argv[] = {
         specifier,
-        resource_name->IsString() ? resource_name : v8::Undefined(isolate),
+        resource_name->IsString() ? resource_name : Undefined(isolate),
         attributes,
     };
     Local<Value> promise;
@@ -3706,11 +3725,11 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       return {};
     }
     CHECK(promise->IsPromise());
-    return promise.As<v8::Promise>();
+    return promise.As<Promise>();
   }
 
   static void InitializeImportMeta(Local<Context> context,
-                                   Local<v8::Module> module,
+                                   Local<Module> module,
                                    Local<Object> meta) {
     Isolate* isolate = Isolate::GetCurrent();
     ModuleRecord* record = Current()->FindModule(isolate, module);
@@ -3734,7 +3753,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       return;
     }
     Local<Value> ports[] = {port1, port2};
-    args.GetReturnValue().Set(v8::Array::New(isolate, ports, arraysize(ports)));
+    args.GetReturnValue().Set(Array::New(isolate, ports, arraysize(ports)));
   }
 
   // portPostMessage(port, value, transfer). Like Node.js' ports, ports that
@@ -3894,13 +3913,13 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         FIXED_ONE_BYTE_STRING(isolate, "heapSpaces"),
         FIXED_ONE_BYTE_STRING(isolate, "fromWarmPool"),
     };
-    v8::HeapStatistics heap;
+    HeapStatistics heap;
     isolate->GetHeapStatistics(&heap);
     // { [name]: { size, used, physical } }, in bytes.
-    Local<Object> spaces = Object::New(isolate, v8::Null(isolate), nullptr,
-                                       nullptr, 0);
+    Local<Object> spaces =
+        Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
     for (size_t i = 0; i < isolate->NumberOfHeapSpaces(); i++) {
-      v8::HeapSpaceStatistics space;
+      HeapSpaceStatistics space;
       if (!isolate->GetHeapSpaceStatistics(&space, i)) continue;
       Local<Name> space_names[] = {
           FIXED_ONE_BYTE_STRING(isolate, "size"),
@@ -3917,7 +3936,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
               ->Set(context,
                     OneByteString(isolate, space.space_name()),
                     Object::New(isolate,
-                                v8::Null(isolate),
+                                Null(isolate),
                                 space_names,
                                 space_values,
                                 arraysize(space_names)))
@@ -3938,8 +3957,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         spaces,
         Boolean::New(isolate, self->from_warm_pool_),
     };
-    args.GetReturnValue().Set(Object::New(
-        isolate, v8::Null(isolate), names, values, arraysize(names)));
+    args.GetReturnValue().Set(
+        Object::New(isolate, Null(isolate), names, values, arraysize(names)));
   }
 
   static void ConsoleCallback(const FunctionCallbackInfo<Value>& args) {
@@ -4249,9 +4268,8 @@ class WarmPool {
   void RefillLocked(Pool* pool) {
     for (; pool->idle.size() + pool->refilling < pool->size;
          pool->refilling++) {
-      GreenThreadPool::Get()->PostBackground([this, pool]() {
-        RefillOne(pool);
-      });
+      GreenThreadPool::Get()->PostBackground(
+          [this, pool]() { RefillOne(pool); });
     }
   }
 
@@ -4293,10 +4311,9 @@ class WarmPool {
 
   void MaybeNotifyLocked(Pool* pool) {
     if (pool->waiters.empty()) return;
-    const size_t ready =
-        std::count_if(pool->idle.begin(), pool->idle.end(), [](const Entry& e) {
-          return e.ready;
-        });
+    const size_t ready = std::count_if(pool->idle.begin(),
+                                       pool->idle.end(),
+                                       [](const Entry& e) { return e.ready; });
     if (ready < pool->size) return;
     for (auto& waiter : pool->waiters)
       waiter->Push({kEventWarmPoolFull, 0, true, {}});
@@ -4347,8 +4364,8 @@ bool TerminateAll() {
   return abandoned_green_isolates->empty();
 }
 
-v8::StartupData CreateSnapshotBlob(MultiIsolatePlatform* platform) {
-  if (!v8::IsolateGroup::CanCreateNewGroups()) return {nullptr, 0};
+StartupData CreateSnapshotBlob(MultiIsolatePlatform* platform) {
+  if (!IsolateGroup::CanCreateNewGroups()) return {nullptr, 0};
   builtins::BuiltinLoader loader;
   return GreenIsolate::CreateGreenSnapshotWith(platform, &loader);
 }
@@ -4369,18 +4386,18 @@ constexpr size_t kFirstContextOffsetOffset = 88;
 // it, and padding.
 constexpr size_t kReadOnlyTrailerMaxSize = 16;
 
-uint32_t Get(const v8::StartupData& blob, size_t offset) {
+uint32_t Get(const StartupData& blob, size_t offset) {
   uint32_t value;
   memcpy(&value, blob.data + offset, sizeof(value));
   return value;
 }
 
-void Set(v8::StartupData* blob, size_t offset, uint32_t value) {
+void Set(StartupData* blob, size_t offset, uint32_t value) {
   memcpy(const_cast<char*>(blob->data) + offset, &value, sizeof(value));
 }
 
 // What V8 computes, with zlib.
-uint32_t Checksum(const v8::StartupData& blob) {
+uint32_t Checksum(const StartupData& blob) {
   const size_t start = kReadOnlyChecksumOffset;
   return static_cast<uint32_t>(
       adler32(0,
@@ -4389,9 +4406,7 @@ uint32_t Checksum(const v8::StartupData& blob) {
 }
 
 // The read-only snapshot, which comes right after the header.
-bool ReadOnlySnapshot(const v8::StartupData& blob,
-                      size_t* offset,
-                      size_t* size) {
+bool ReadOnlySnapshot(const StartupData& blob, size_t* offset, size_t* size) {
   if (blob.raw_size < 0 ||
       static_cast<size_t>(blob.raw_size) < kFirstContextOffsetOffset) {
     return false;
@@ -4400,8 +4415,8 @@ bool ReadOnlySnapshot(const v8::StartupData& blob,
   if (contexts > 64) return false;
   constexpr size_t kAlignment = sizeof(void*);
   const size_t start =
-      (kFirstContextOffsetOffset + contexts * 4 + kAlignment - 1) /
-      kAlignment * kAlignment;
+      (kFirstContextOffsetOffset + contexts * 4 + kAlignment - 1) / kAlignment *
+      kAlignment;
   const size_t end = Get(blob, kStartupOffsetOffset);
   if (end <= start || end > static_cast<size_t>(blob.raw_size)) return false;
   *offset = start;
@@ -4410,39 +4425,36 @@ bool ReadOnlySnapshot(const v8::StartupData& blob,
 }
 }  // namespace blob_layout
 
-v8::StartupData CreateDefaultGroupSnapshotBlob(
-    MultiIsolatePlatform* platform, const v8::StartupData& node_snapshot) {
+StartupData CreateDefaultGroupSnapshotBlob(MultiIsolatePlatform* platform,
+                                           const StartupData& node_snapshot) {
   builtins::BuiltinLoader loader;
-  v8::StartupData blob =
+  StartupData blob =
       GreenIsolate::CreateGreenSnapshotWith(platform, &loader, true);
   if (blob.data == nullptr) return blob;
 
   // The read-only heap of the group is the one that `node_snapshot` has,
   // so the read-only snapshots differ only in their trailers. Make them the
   // same, so that V8 can check that they are.
-  using blob_layout::Checksum;
-  using blob_layout::Get;
-  using blob_layout::kChecksumOffset;
-  using blob_layout::kReadOnlyChecksumOffset;
-  using blob_layout::kReadOnlyTrailerMaxSize;
-  using blob_layout::ReadOnlySnapshot;
-  using blob_layout::Set;
   size_t node_offset, node_size, offset, size;
-  bool same = Checksum(blob) == Get(blob, kChecksumOffset) &&
-              ReadOnlySnapshot(node_snapshot, &node_offset, &node_size) &&
-              ReadOnlySnapshot(blob, &offset, &size) && size == node_size &&
-              size > kReadOnlyTrailerMaxSize &&
-              memcmp(node_snapshot.data + node_offset,
-                     blob.data + offset,
-                     size - kReadOnlyTrailerMaxSize) == 0;
+  bool same =
+      blob_layout::Checksum(blob) ==
+          blob_layout::Get(blob, blob_layout::kChecksumOffset) &&
+      blob_layout::ReadOnlySnapshot(node_snapshot, &node_offset, &node_size) &&
+      blob_layout::ReadOnlySnapshot(blob, &offset, &size) &&
+      size == node_size && size > blob_layout::kReadOnlyTrailerMaxSize &&
+      memcmp(node_snapshot.data + node_offset,
+             blob.data + offset,
+             size - blob_layout::kReadOnlyTrailerMaxSize) == 0;
   if (same) {
     memcpy(const_cast<char*>(blob.data) + offset,
            node_snapshot.data + node_offset,
            size);
-    Set(&blob,
-        kReadOnlyChecksumOffset,
-        Get(node_snapshot, kReadOnlyChecksumOffset));
-    Set(&blob, kChecksumOffset, Checksum(blob));
+    blob_layout::Set(
+        &blob,
+        blob_layout::kReadOnlyChecksumOffset,
+        blob_layout::Get(node_snapshot, blob_layout::kReadOnlyChecksumOffset));
+    blob_layout::Set(
+        &blob, blob_layout::kChecksumOffset, blob_layout::Checksum(blob));
   }
   if (!same || !blob.CanBeRehashed()) {
     fprintf(stderr,
@@ -4453,7 +4465,6 @@ v8::StartupData CreateDefaultGroupSnapshotBlob(
   }
   return blob;
 }
-
 
 namespace {
 
@@ -4472,7 +4483,7 @@ class IsolateGroupWrap final : public BaseObject {
     registry->Register(New);
   }
 
-  const v8::IsolateGroup& group() const { return group_; }
+  const IsolateGroup& group() const { return group_; }
   uint64_t id() const { return id_; }
 
   SET_NO_MEMORY_INFO()
@@ -4482,19 +4493,19 @@ class IsolateGroupWrap final : public BaseObject {
  private:
   static void New(const FunctionCallbackInfo<Value>& args) {
     CHECK(args.IsConstructCall());
-    CHECK(v8::IsolateGroup::CanCreateNewGroups());
+    CHECK(IsolateGroup::CanCreateNewGroups());
     new IsolateGroupWrap(Environment::GetCurrent(args), args.This());
   }
 
   IsolateGroupWrap(Environment* env, Local<Object> object)
       : BaseObject(env, object),
-        group_(v8::IsolateGroup::Create()),
+        group_(IsolateGroup::Create()),
         id_(next_isolate_group_id++) {
     MakeWeak();
   }
 
   // Green isolates hold their own references to the group.
-  v8::IsolateGroup group_;
+  IsolateGroup group_;
   const uint64_t id_;
 };
 
@@ -4636,7 +4647,7 @@ class GreenThreadWrap final : public HandleWrap {
     target
         ->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "isolateGroupsSupported"),
-              Boolean::New(isolate, v8::IsolateGroup::CanCreateNewGroups()))
+              Boolean::New(isolate, IsolateGroup::CanCreateNewGroups()))
         .Check();
 #ifdef NODE_GREEN_THREAD_CAN_CUT_OFF
     constexpr bool can_cut_off_threads = true;
@@ -4742,7 +4753,7 @@ class GreenThreadWrap final : public HandleWrap {
     if (!kind->IsInt32()) return true;
     options->group = static_cast<IsolateGroupKind>(kind.As<Int32>()->Value());
     CHECK(options->group == IsolateGroupKind::kDefault ||
-          v8::IsolateGroup::CanCreateNewGroups());
+          IsolateGroup::CanCreateNewGroups());
     if (options->group == IsolateGroupKind::kShared) {
       IsolateGroupWrap* group;
       ASSIGN_OR_RETURN_UNWRAP(&group, handle, false);

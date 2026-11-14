@@ -408,15 +408,14 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
                     const IsolateSettings& settings,
                     const IsolateGroup& group,
                     bool use_first_snapshot) {
-  return NewIsolateImpl(params,
-                        platform,
-                        nullptr,
-                        settings,
-                        group,
-                        use_first_snapshot,
-                        [&](Isolate* isolate) {
-                          platform->RegisterIsolate(isolate, delegate);
-                        });
+  return NewIsolateImpl(
+      params,
+      platform,
+      nullptr,
+      settings,
+      group,
+      use_first_snapshot,
+      [&](Isolate* isolate) { platform->RegisterIsolate(isolate, delegate); });
 }
 
 Isolate* NewIsolate(ArrayBufferAllocator* allocator,
