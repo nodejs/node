@@ -8,6 +8,7 @@
 #include "node_internals.h"
 #include "node_messaging.h"
 #include "node_mutex.h"
+#include "node_snapshot_builder.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
@@ -1298,6 +1299,10 @@ std::unordered_map<GreenIsolate*, std::weak_ptr<GreenIsolate>>&
 // the first Environment that loads the binding; leaked.
 Mutex shared_builtin_loader_mutex;
 builtins::BuiltinLoader* shared_builtin_loader = nullptr;
+// While a snapshot is made outside a pool thread, the loader that the
+// bootstrap uses. See GreenIsolate::GetBuiltinLoader().
+// NOLINTNEXTLINE(runtime/thread_local)
+thread_local builtins::BuiltinLoader* bootstrap_builtin_loader = nullptr;
 
 // Green isolates that didn't stop when asked to, and were abandoned. They are
 // never freed. Guarded by live_green_isolates_mutex.
@@ -1969,13 +1974,21 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       }
       isolate->AddMessageListenerWithErrorLevel(
           OnMessage, Isolate::MessageErrorLevel::kMessageError);
-      // The green snapshot has a context with the runtime bootstrapped.
-      // Otherwise, the default context of the startup snapshot contains only
-      // what V8 creates.
+      // The green snapshot has a context with the runtime bootstrapped, and
+      // so does Node.js' own, unless it was built by users. Otherwise, the
+      // default context of the startup snapshot contains only what V8
+      // creates.
       Local<Context> context;
+      bool bootstrapped = false;
       if (green_snapshot != nullptr) {
         USE(Context::FromSnapshot(isolate, kGreenSnapshotContextIndex)
                 .ToLocal(&context));
+        bootstrapped = true;
+      } else if (uses_node_snapshot_ &&
+                 Context::FromSnapshot(isolate,
+                                       SnapshotData::kNodeGreenContextIndex)
+                     .ToLocal(&context)) {
+        bootstrapped = true;
       } else {
         context = Context::New(isolate);
       }
@@ -1985,7 +1998,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         Context::Scope context_scope(context);
         context_.Reset(isolate, context);
         Local<Object> runtime;
-        if (green_snapshot != nullptr) {
+        if (bootstrapped) {
           if (!context
                    ->GetDataFromSnapshotOnce<Object>(kGreenSnapshotRuntimeIndex)
                    .ToLocal(&runtime)) {
@@ -2952,6 +2965,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // that loaded the binding, like workers do. Pool threads live until the
   // process exits.
   static builtins::BuiltinLoader* GetBuiltinLoader() {
+    if (bootstrap_builtin_loader != nullptr) return bootstrap_builtin_loader;
     // NOLINTNEXTLINE(runtime/thread_local)
     thread_local builtins::BuiltinLoader* loader = []() {
       auto* loader = new builtins::BuiltinLoader();
@@ -3078,49 +3092,94 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     return bootstrap_exports.As<Object>();
   }
 
+ public:
   // The indexes of the bootstrapped context in the green snapshot, and of
-  // the bootstrap's exports in its data.
+  // the bootstrap's exports in the data of a bootstrapped context, in the
+  // green snapshot and in Node.js' own.
   static constexpr size_t kGreenSnapshotContextIndex = 0;
   static constexpr size_t kGreenSnapshotRuntimeIndex = 0;
 
-  // The external references of the green snapshot: the callbacks of the
-  // functions that InstallGlobals() and RunBootstrap() create.
-  static const intptr_t* SnapshotExternalReferences() {
-    static const intptr_t references[] = {
-        reinterpret_cast<intptr_t>(PostMessageCallback),
-        reinterpret_cast<intptr_t>(CloseCallback),
-        reinterpret_cast<intptr_t>(QueueMicrotaskCallback),
-        reinterpret_cast<intptr_t>(SetTimeoutCallback),
-        reinterpret_cast<intptr_t>(SetIntervalCallback),
-        reinterpret_cast<intptr_t>(ClearTimerCallback),
-        reinterpret_cast<intptr_t>(ConsoleCallback),
-        reinterpret_cast<intptr_t>(RpcSendCallback),
-        reinterpret_cast<intptr_t>(MessageChannelCallback),
-        reinterpret_cast<intptr_t>(PortPostMessageCallback),
-        reinterpret_cast<intptr_t>(PortStartCallback),
-        reinterpret_cast<intptr_t>(PortCloseCallback),
-        reinterpret_cast<intptr_t>(CompileModuleCallback),
-        reinterpret_cast<intptr_t>(CreateJsonModuleCallback),
-        reinterpret_cast<intptr_t>(ModuleRequestsCallback),
-        reinterpret_cast<intptr_t>(LinkModuleCallback),
-        reinterpret_cast<intptr_t>(InstantiateModuleCallback),
-        reinterpret_cast<intptr_t>(EvaluateModuleCallback),
-        reinterpret_cast<intptr_t>(ModuleNamespaceCallback),
-        reinterpret_cast<intptr_t>(ResolveUrlCallback),
-        reinterpret_cast<intptr_t>(InternalBindingCallback),
-        reinterpret_cast<intptr_t>(RequireCallback),
-        0,
+ private:
+  // The callbacks of the functions that InstallGlobals() and RunBootstrap()
+  // create, which snapshots of a bootstrapped context refer to.
+  static std::vector<v8::FunctionCallback> BootstrapCallbacks() {
+    return {
+        PostMessageCallback,       CloseCallback,
+        QueueMicrotaskCallback,    SetTimeoutCallback,
+        SetIntervalCallback,       ClearTimerCallback,
+        ConsoleCallback,           RpcSendCallback,
+        MessageChannelCallback,    PortPostMessageCallback,
+        PortStartCallback,         PortCloseCallback,
+        CompileModuleCallback,     CreateJsonModuleCallback,
+        ModuleRequestsCallback,    LinkModuleCallback,
+        InstantiateModuleCallback, EvaluateModuleCallback,
+        ModuleNamespaceCallback,   ResolveUrlCallback,
+        InternalBindingCallback,   RequireCallback,
     };
-    return references;
   }
 
+  // The external references of the green snapshot.
+  static const intptr_t* SnapshotExternalReferences() {
+    static const std::vector<intptr_t> references = []() {
+      std::vector<intptr_t> references;
+      for (v8::FunctionCallback callback : BootstrapCallbacks()) {
+        references.push_back(reinterpret_cast<intptr_t>(callback));
+      }
+      references.push_back(0);
+      return references;
+    }();
+    return references.data();
+  }
+
+ public:
+  // For Node.js' snapshot, which has a bootstrapped context too.
+  static void RegisterBootstrapCallbacks(ExternalReferenceRegistry* registry) {
+    for (v8::FunctionCallback callback : BootstrapCallbacks()) {
+      registry->Register(callback);
+    }
+  }
+
+  // A new context in which the runtime is bootstrapped, using `loader`, and
+  // the exports of its bootstrap. For snapshots made outside pool threads.
+  static MaybeLocal<Context> NewBootstrappedContext(
+      Isolate* isolate,
+      builtins::BuiltinLoader* loader,
+      Local<Object>* runtime) {
+    CurrentScope current_scope(nullptr);
+    bootstrap_builtin_loader = loader;
+    auto reset = OnScopeLeave([] { bootstrap_builtin_loader = nullptr; });
+    Local<Context> context = Context::New(isolate);
+    if (context.IsEmpty()) return {};
+    Context::Scope context_scope(context);
+    if (!InstallGlobals(isolate, context) ||
+        !RunBootstrap(isolate, context).ToLocal(runtime)) {
+      return {};
+    }
+    return context;
+  }
+
+  // Creates the green snapshot (see GreenSnapshot()) with `loader`, outside
+  // a pool thread. Empty if that failed.
+  static v8::StartupData CreateGreenSnapshotWith(
+      MultiIsolatePlatform* platform, builtins::BuiltinLoader* loader) {
+    bootstrap_builtin_loader = loader;
+    auto reset = OnScopeLeave([] { bootstrap_builtin_loader = nullptr; });
+    return CreateGreenSnapshot(platform);
+  }
+
+ private:
   // The startup snapshot of isolates in groups that only green isolates use:
   // V8's own snapshot, with a context in which the runtime is bootstrapped.
   // This saves each green thread running the bootstrap, and compiling it,
   // since V8 rejects Node.js' code cache in isolates that don't use Node.js'
-  // snapshot. Created on a pool thread the first time it's needed. nullptr
-  // if creating it failed.
+  // snapshot. Built along with Node.js' snapshot, or, in builds without one,
+  // created on a pool thread the first time it's needed. nullptr if creating
+  // it failed.
   static const v8::StartupData* GreenSnapshot(MultiIsolatePlatform* platform) {
+    if (const v8::StartupData* embedded =
+            SnapshotBuilder::GetEmbeddedGreenSnapshot()) {
+      return embedded;
+    }
     static Mutex mutex;
     static bool created = false;
     static v8::StartupData blob{nullptr, 0};
@@ -3152,7 +3211,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     {
       v8::SnapshotCreator creator(isolate, params);
       Locker locker(isolate);
-      isolate->SetStackLimit(current_pool_thread->stack_limit());
+      if (current_pool_thread != nullptr) {
+        isolate->SetStackLimit(current_pool_thread->stack_limit());
+      }
       bool bootstrapped = false;
       {
         HandleScope handle_scope(isolate);
@@ -4142,6 +4203,29 @@ bool TerminateAll() {
   return abandoned_green_isolates->empty();
 }
 
+v8::StartupData CreateSnapshotBlob(MultiIsolatePlatform* platform) {
+  if (!v8::IsolateGroup::CanCreateNewGroups()) return {nullptr, 0};
+  builtins::BuiltinLoader loader;
+  return GreenIsolate::CreateGreenSnapshotWith(platform, &loader);
+}
+
+bool AddContextToSnapshot(Isolate* isolate,
+                          v8::SnapshotCreator* creator,
+                          Local<Context> context,
+                          Local<Object> runtime) {
+  if (creator->AddData(context, runtime) !=
+      GreenIsolate::kGreenSnapshotRuntimeIndex) {
+    return false;
+  }
+  return creator->AddContext(context) == SnapshotData::kNodeGreenContextIndex;
+}
+
+MaybeLocal<Context> NewBootstrappedContext(Isolate* isolate,
+                                           builtins::BuiltinLoader* loader,
+                                           Local<Object>* runtime) {
+  return GreenIsolate::NewBootstrappedContext(isolate, loader, runtime);
+}
+
 namespace {
 
 // A V8 isolate group that green threads can share.
@@ -4381,6 +4465,7 @@ class GreenThreadWrap final : public HandleWrap {
     registry->Register(SetUnresponsiveTimeouts);
     WarmPoolWaiter::RegisterExternalReferences(registry);
     IsolateGroupWrap::RegisterExternalReferences(registry);
+    GreenIsolate::RegisterBootstrapCallbacks(registry);
   }
 
   void Close(Local<Value> close_callback) override {

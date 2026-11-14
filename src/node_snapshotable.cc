@@ -811,6 +811,7 @@ static void WriteCodeCacheInitializer(std::ostream* ss,
 
 void FormatBlob(std::ostream& ss,
                 const SnapshotData* data,
+                const v8::StartupData& green_snapshot,
                 bool use_array_literals) {
   ss << R"(#include <cstddef>
 #include "env.h"
@@ -830,6 +831,14 @@ namespace node {
 
   ss << R"(static const int v8_snapshot_blob_size = )"
      << data->v8_snapshot_blob_data.raw_size << ";\n";
+
+  if (green_snapshot.raw_size > 0) {
+    WriteByteVectorLiteral(&ss,
+                           green_snapshot.data,
+                           green_snapshot.raw_size,
+                           "green_snapshot_blob_data",
+                           use_array_literals);
+  }
 
   // Windows can't deal with too many large vector initializers.
   // Store the data into static arrays first.
@@ -879,6 +888,18 @@ namespace node {
 const SnapshotData* SnapshotBuilder::GetEmbeddedSnapshotData() {
   return &snapshot_data;
 }
+
+const v8::StartupData* SnapshotBuilder::GetEmbeddedGreenSnapshot() {
+)";
+  if (green_snapshot.raw_size > 0) {
+    ss << "  static const v8::StartupData green_snapshot{\n"
+       << "      green_snapshot_blob_data, " << green_snapshot.raw_size
+       << "};\n"
+       << "  return &green_snapshot;\n";
+  } else {
+    ss << "  return nullptr;\n";
+  }
+  ss << R"(}
 }  // namespace node
 )";
 }
@@ -1238,6 +1259,17 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
     }
     ResetContextSettingsBeforeSnapshot(base_context);
 
+    // The context of green threads in V8's default isolate group, only in
+    // Node.js' own snapshot.
+    Local<Context> green_context;
+    Local<Object> green_runtime;
+    if (snapshot_type == SnapshotMetadata::Type::kDefault &&
+        !green_thread::NewBootstrappedContext(
+             isolate, env->builtin_loader(), &green_runtime)
+             .ToLocal(&green_context)) {
+      return ExitCode::kBootstrapFailure;
+    }
+
     {
       Context::Scope context_scope(main_context);
 
@@ -1275,6 +1307,10 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
                                             env),
         v8::SerializeContextDataCallback(SerializeNodeContextData, env));
     CHECK_EQ(index, SnapshotData::kNodeMainContextIndex);
+    if (!green_context.IsEmpty()) {
+      CHECK(green_thread::AddContextToSnapshot(
+          isolate, creator, green_context, green_runtime));
+    }
   }
 
   // Must be out of HandleScope
@@ -1344,7 +1380,12 @@ ExitCode SnapshotBuilder::GenerateAsSource(
   if (exit_code != ExitCode::kNoFailure) {
     return exit_code;
   }
-  FormatBlob(out, &data, use_array_literals);
+  // Green threads in isolate groups of their own start from a snapshot of
+  // their own.
+  v8::StartupData green_snapshot =
+      green_thread::CreateSnapshotBlob(per_process::v8_platform.Platform());
+  FormatBlob(out, &data, green_snapshot, use_array_literals);
+  delete[] green_snapshot.data;
 
   if (!out) {
     std::cerr << "Failed to write to " << out_path << "\n";

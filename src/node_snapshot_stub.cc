@@ -10,4 +10,8 @@ const SnapshotData* SnapshotBuilder::GetEmbeddedSnapshotData() {
   return nullptr;
 }
 
+const v8::StartupData* SnapshotBuilder::GetEmbeddedGreenSnapshot() {
+  return nullptr;
+}
+
 }  // namespace node
