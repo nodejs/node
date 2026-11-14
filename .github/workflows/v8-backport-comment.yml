@@ -14,6 +14,8 @@ jobs:
     # A triager/collaborator can add the v8-backport-to-main label when opening the pull
     # request to skip the comment when it is already known to meet the criteria.
     if: >-
+      github.run_attempt == 1 &&
+      github.event.pull_request.user.type != 'Bot' &&
       github.repository == 'nodejs/node' &&
       !startsWith(github.event.pull_request.title, 'Revert ') &&
       !contains(github.event.pull_request.labels.*.name, 'v8-backport-to-main')
