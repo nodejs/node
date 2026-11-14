@@ -946,10 +946,9 @@ Process files with the extension `.sjs` as `.js`:
 require.extensions['.sjs'] = require.extensions['.js'];
 ```
 
-**Deprecated.** In the past, this list has been used to load non-JavaScript
-modules into Node.js by compiling them on-demand. However, in practice, there
-are much better ways to do this, such as loading modules via some other Node.js
-program, or compiling them to JavaScript ahead of time.
+**Deprecated.** Use [`module.registerHooks()`][] to customize module loading
+instead. Its [synchronous customization hooks][] support both `require()` and
+`import`. Alternatively, compile non-JavaScript modules to JavaScript ahead of time.
 
 Avoid using `require.extensions`. Use could cause subtle bugs and resolving the
 extensions gets slower with each registered extension.
@@ -1299,6 +1298,7 @@ This section was moved to
 [`module.builtinModules`]: module.md#modulebuiltinmodules
 [`module.children`]: #modulechildren
 [`module.id`]: #moduleid
+[`module.registerHooks()`]: module.md#moduleregisterhooksoptions
 [`module` core module]: module.md
 [`module` object]: #the-module-object
 [`node:ffi`]: ffi.md
@@ -1316,3 +1316,4 @@ This section was moved to
 [native addons]: addons.md
 [subpath exports]: packages.md#subpath-exports
 [subpath imports]: packages.md#subpath-imports
+[synchronous customization hooks]: module.md#synchronous-customization-hooks

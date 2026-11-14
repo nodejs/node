@@ -931,6 +931,7 @@ changes:
 Type: Documentation-only
 
 The [`require.extensions`][] property is deprecated.
+Use [`module.registerHooks()`][] to customize module loading instead.
 
 ### DEP0040: `node:punycode` module
 
