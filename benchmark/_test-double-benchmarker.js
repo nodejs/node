@@ -5,15 +5,17 @@ if (!['http', 'https', 'http2'].includes(myModule)) {
   throw new Error(`Invalid module for benchmark test double: ${myModule}`);
 }
 
+const url = process.env.test_url;
+
 let options;
-if (myModule === 'https') {
+if (myModule === 'https' ||
+    (myModule === 'http2' && url.startsWith('https:'))) {
   options = { rejectUnauthorized: false };
 }
 
 const http = require(myModule);
 
 const duration = +process.env.duration;
-const url = process.env.test_url;
 
 const start = process.hrtime();
 let throughput = 0;
@@ -45,7 +47,7 @@ function run() {
       http.get(url, request);
     }
   } else { // HTTP/2
-    const client = http.connect(url);
+    const client = http.connect(url, options);
     client.on('error', () => {});
     request(client.request(), client);
   }

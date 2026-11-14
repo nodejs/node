@@ -4937,16 +4937,802 @@ const agent1 = new http.Agent({ proxyEnv: { http_proxy: 'http://proxy.example.co
 const agent2 = new http.Agent({ proxyEnv: process.env });
 ```
 
+## Fetch Server API
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development. Enable this API with the
+> [`--experimental-http-serve`][] CLI flag.
+
+`http.fetchServer` is a prototype of the WinterTC [Fetch Server API][]
+proposal. It is a server model built on request and response objects: a
+handler receives a context for each exchange and returns a response. The API
+is independent of the [`http.Server`][] and [`http.ServerResponse`][] classes
+documented above; it is available only when the
+[`--experimental-http-serve`][] flag is set, and accessing `http.fetchServer`
+emits an `ExperimentalWarning` the first time.
+
+```mjs
+import http from 'node:http';
+const { serve, ServerResponse } = http.fetchServer;
+
+const server = serve({
+  async fetch(ctx) {
+    const url = new URL(ctx.request.url);
+    if (url.pathname === '/hello') {
+      return ServerResponse.json({ hello: 'world' });
+    }
+    return new ServerResponse('Not found', { status: 404 });
+  },
+}, { port: 8080 });
+
+await server.ready;
+```
+
+```cjs
+const http = require('node:http');
+const { serve, ServerResponse } = http.fetchServer;
+
+const server = serve({
+  async fetch(ctx) {
+    const url = new URL(ctx.request.url);
+    if (url.pathname === '/hello') {
+      return ServerResponse.json({ hello: 'world' });
+    }
+    return new ServerResponse('Not found', { status: 404 });
+  },
+}, { port: 8080 });
+
+server.ready.then(() => console.log('listening'));
+```
+
+The implementation is built on the `node:http` and `node:http2` modules. A
+listener without TLS accepts HTTP/1.1 and HTTP/2 with prior knowledge (h2c),
+distinguished by the HTTP/2 connection preface. A listener with TLS negotiates
+`h2` or `http/1.1` using ALPN. HTTP/3, QUIC, and WebTransport are currently not
+supported; see [Fetch Server API limitations][].
+
+The objects that the API supplies to a handler (contexts, requests, and
+headers) are protocol objects: they can be wrapped or substituted by
+middleware. For example, a context can be extended with `Object.create(ctx)`
+and still be used with every method of the original context.
+
+### Handlers
+
+A handler is an object whose methods the server calls. The following methods
+are currently defined; at least one of `fetch` and `connect` must be present.
+Other properties of the handler are ignored.
+
+* `fetch(ctx)`: Handles a request/response exchange. `ctx` is a
+  {ServerContext}. It returns, or resolves to, a
+  {fetchServer.ServerResponse} or a WHATWG {Response}, or `undefined` if it
+  called [`ctx.deny()`][].
+* `connect(ctx)`: Handles `CONNECT` requests, HTTP/2 extended `CONNECT`
+  requests, and HTTP/1.1 requests that carry an `Upgrade` header field. `ctx`
+  is a {ConnectContext}. It establishes a tunnel with
+  [`ctx.accept()`][], [`ctx.upgradeWebSocket()`][], or
+  [`ctx.upgradeWebSocketStream()`][], or refuses it with a response or
+  [`ctx.deny()`][].
+* `error(ctx, error)`: Called when `fetch()` or `connect()` throws, rejects,
+  or returns an invalid value before a response has been committed. It can
+  return a response to send instead. If it is absent, throws, or returns
+  nothing usable, a fallback response with status 500 is sent (502 for
+  `CONNECT`, and 413 when the request content exceeds
+  `limits.maxRequestBodySize`).
+
+The methods are called with the handler object as `this`. A handler can
+declare the protocol version it implements by setting the
+`Symbol.for('wintertc.server.protocol')` property to `1`; any other value is
+rejected.
+
+When a request arrives for a method that has no handler, the server responds
+with status 501. An HTTP/1.1 upgrade request is routed to `connect()` only if
+it is present; otherwise the `Upgrade` header field is ignored and the request
+is routed to `fetch()`. A `connect()` handler can also decline only the upgrade
+offer, so that the request is handled by `fetch()`, by calling
+`ctx.deny(Symbol.for('wintertc.server.fallthrough'))`.
+
+Errors that are not handled by `error()`, such as rejections of
+[`ctx.waitUntil()`][] promises, are reported as process warnings.
+
+### `http.fetchServer.serve(handler[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `handler` {Object} A handler object. See [Fetch Server handlers][].
+* `options` {Object}
+  * `autoContinue` {boolean} Whether a `100 (Continue)` response is sent
+    automatically when the handler starts reading the content of a request
+    that carries `Expect: 100-continue`. **Default:** `true`.
+  * `signal` {AbortSignal} Destroys the server when aborted, with the abort
+    reason.
+  * `hostname`, `port`, `tls`, and the other members of
+    [Fetch Server listen options][]. If `port` is given, the server binds a
+    first listener with these options.
+* Returns: {fetchServer.Server}
+
+Creates a server for `handler`. If `options.port` is absent, the server has no
+listeners until [`server.listen()`][fetchServer.server.listen] is called.
+
+```mjs
+import http from 'node:http';
+const { serve, ServerResponse } = http.fetchServer;
+
+const server = serve({
+  fetch: () => new ServerResponse('ok'),
+});
+const listener = await server.listen({ port: 0, hostname: '127.0.0.1' });
+console.log(listener.address.port);
+```
+
+#### Fetch Server listen options
+
+The following members are accepted by both `serve()` and
+[`server.listen()`][fetchServer.server.listen]:
+
+* `hostname` {string} The address to bind. **Default:** all interfaces.
+* `port` {integer} The port to bind. `0` selects an available port.
+* `backlog` {integer} The listen backlog.
+* `ipv6Only` {boolean} Whether to bind only IPv6 when `hostname` is `::`.
+  **Default:** `false`.
+* `reusePort` {boolean} See the `reusePort` option of [`server.listen()`][].
+  **Default:** `false`.
+* `tls` {Object} Enables TLS.
+  * `cert` {string|ArrayBuffer|TypedArray|DataView} The certificate chain in
+    PEM format.
+  * `key` {string|ArrayBuffer|TypedArray|DataView} The private key in PEM
+    format.
+  * `alpn` {string\[]} The ALPN protocols to offer, in order of preference.
+    Only `'h2'` and `'http/1.1'` are supported. **Default:**
+    `['h2', 'http/1.1']`.
+  * `sni` {Object|Function} Either an object that maps host names to
+    `{ cert, key }` objects, or a function that is called with the host name
+    and returns such an object, or a promise for one.
+* `altSvc` {string|boolean} An `Alt-Svc` header field value to add to every
+  response sent over TLS that does not already have one. A boolean, which the
+  proposal uses to advertise HTTP/3, is accepted and has no effect.
+* `extendedConnect` {boolean} Whether HTTP/2 extended `CONNECT` ([RFC 8441][])
+  is enabled. **Default:** `true` if the handler has a `connect()` method.
+* `limits` {Object}
+  * `maxHeaderSize` {integer} The maximum size of a request head, in bytes.
+  * `maxRequestBodySize` {integer} The maximum size of request content, in
+    bytes. A request that declares a larger size is answered with status 413
+    before the handler runs; a request that exceeds the limit while its
+    content is read fails with `ERR_HTTP_CONTENT_TOO_LARGE`. `0` disables the
+    limit. **Default:** `0`.
+  * `maxRequestsPerConnection` {integer}
+  * `maxConcurrentStreams` {integer} For HTTP/2.
+  * `maxConnections` {integer}
+* `timeouts` {Object} Activity timeouts, in milliseconds. `0` disables a
+  timeout.
+  * `handshake` {integer} For the TLS handshake.
+  * `headers` {integer} For receiving the request head.
+  * `idle` {integer} For idle keep-alive connections.
+  * `closeHandshake` {integer} For a WebSocket peer to complete the closing
+    handshake. **Default:** `30000`.
+  * `tunnelIdle` {integer} For a WebSocket connection with no frames flowing
+    in either direction. **Default:** `0`.
+  * `waitUntil` {integer} How long an exchange waits for its
+    [`ctx.waitUntil()`][] promises after the response has completed.
+    **Default:** `30000`.
+  * `receive` {integer}
+  * `send` {integer}
+* `quic`, `datagrams`, `webTransport` {boolean} Not supported. Setting `quic`
+  or `webTransport` to `true` throws a `NotSupportedError` {DOMException}.
+
+A member given to `listen()` overrides the same member given to `serve()`. The
+`limits` and `timeouts` objects are merged member by member.
+
+### Class: `fetchServer.Server`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A server created by [`http.fetchServer.serve()`][]. It is iterable: iterating
+it yields its active {fetchServer.Listener} objects. It supports
+`await using`, which closes the server and waits for it to close.
+
+#### `server.ready`
+
+* Type: {Promise}
+
+Fulfilled with `undefined` once the listener requested by `serve()`, if any, is
+bound. Rejected if binding fails.
+
+#### `server.listen([options])`
+
+* `options` {Object} [Fetch Server listen options][].
+* Returns: {Promise} Fulfills with a {fetchServer.Listener}.
+
+Binds a new listener. Rejects with an `InvalidStateError` {DOMException} once
+the server is closing or closed.
+
+#### `server.busy`
+
+* Type: {boolean}
+
+While `true`, new exchanges are refused without invoking the handler: HTTP/1.1
+requests receive a `503 (Service Unavailable)` response and HTTP/2 streams are
+reset with `REFUSED_STREAM`. Setting it sets `listener.busy` on every active
+listener. **Default:** `false`.
+
+#### `server.close()`
+
+* Returns: {Promise}
+
+Starts a graceful shutdown of every listener: no new connections are accepted,
+HTTP/2 connections receive `GOAWAY`, new exchanges on existing connections are
+refused as `busy` refuses them, and WebSocket connections are sent a Close
+frame with code 1001 (Going Away). In-flight exchanges, including tunnels and
+outstanding [`ctx.waitUntil()`][] promises, are allowed to complete. The
+returned promise settles as `server.closed` does.
+
+#### `server.destroy([error])`
+
+* `error` {any}
+
+Terminates every listener and in-flight exchange immediately. `server.closed`
+is rejected with `error`, or with an `AbortError` {DOMException}.
+
+#### `server.closed`
+
+* Type: {Promise}
+
+Fulfilled once the server has closed gracefully. Rejected if it was destroyed,
+or if the initial bind failed.
+
+### Class: `fetchServer.Listener`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A bound address of a {fetchServer.Server}. Listeners are obtained from
+[`server.listen()`][fetchServer.server.listen] or by iterating the server.
+A listener has the same `busy`, `close()`, `destroy([error])`, and `closed`
+members as a server, which apply to that listener only, and it supports
+`await using`.
+
+#### `listener.address`
+
+* Type: {Object}
+  * `address` {string}
+  * `port` {integer}
+  * `family` {string} `'IPv4'` or `'IPv6'`.
+
+### Class: `fetchServer.ServerResponse`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A response created by a handler. It is similar to the WHATWG {Response}, but
+its body is consumed as an async iterable of `Uint8Array` batches rather than
+as a {ReadableStream}, and it can carry trailer fields.
+
+#### `new ServerResponse([body[, init]])`
+
+* `body` {any} The content: a {string}, an {ArrayBuffer}, a {TypedArray}, a
+  {DataView}, a {Blob}, a {URLSearchParams}, a {FormData}, a
+  {ReadableStream}, an async or sync iterable that yields arrays of
+  `Uint8Array` chunks, another {fetchServer.ServerResponse}, or `null`. An
+  iterable that yields anything else fails the response when it is sent.
+  **Default:** `null`.
+* `init` {Object}
+  * `status` {integer} In the range 200 to 599. **Default:** `200`.
+  * `statusText` {string} **Default:** `''`.
+  * `headers` {Object|Array|Headers|ServerHeaders} The header fields.
+  * `trailers` {Promise} A promise for the trailer fields, as any value
+    accepted by `headers`. Only the fields named in the `Trailer` header
+    field are sent, and fields that are not permitted in trailers are
+    dropped.
+
+As for {Response}, a `Content-Type` header field is added for string,
+{URLSearchParams}, and {FormData} bodies, and for a {Blob} that has a type. A body cannot be given with
+status 204, 205, or 304.
+
+#### Static method: `ServerResponse.error()`
+
+* Returns: {fetchServer.ServerResponse}
+
+Returns a network error response. Returning it from a handler resets the
+stream, or closes the HTTP/1.1 connection, instead of sending a response.
+
+#### Static method: `ServerResponse.json(data[, init])`
+
+* `data` {any}
+* `init` {Object} As for the constructor.
+* Returns: {fetchServer.ServerResponse}
+
+Returns a response whose body is `JSON.stringify(data)`, with
+`Content-Type: application/json`.
+
+#### Static method: `ServerResponse.redirect(url[, status])`
+
+* `url` {string} The `Location` header field value. It can be relative.
+* `status` {integer} One of 301, 302, 303, 307, or 308. **Default:** `302`.
+* Returns: {fetchServer.ServerResponse}
+
+#### Static method: `ServerResponse.from(response)`
+
+* `response` {Response}
+* Returns: {fetchServer.ServerResponse}
+
+Converts a WHATWG {Response}, for example one obtained from `fetch()`. The
+body of `response` is transferred, so it must not be locked or used.
+
+#### `serverResponse.status`, `serverResponse.statusText`, `serverResponse.ok`, `serverResponse.type`, `serverResponse.url`, `serverResponse.redirected`
+
+These have the same meaning as for {Response}. `url` is always `''` and
+`redirected` is always `false`.
+
+#### `serverResponse.headers`
+
+* Type: {ServerHeaders}
+
+The header fields. They can be modified until the response is sent.
+
+#### `serverResponse.trailers`
+
+* Type: {Promise} Fulfills with a {ServerHeaders}.
+
+The trailer fields, after the fields that are not declared or not permitted
+have been removed.
+
+#### `serverResponse[Symbol.asyncIterator]()`
+
+Returns an iterator over the body, which yields arrays of `Uint8Array` chunks.
+The body can be read only once.
+
+#### `serverResponse.clone()`
+
+* Returns: {fetchServer.ServerResponse}
+
+Returns a copy whose body yields the same data. Throws if the body has been
+read.
+
+### Class: `ServerHeaders`
+
+A set of header fields, with the methods of the WHATWG {Headers} class:
+`append()`, `delete()`, `get()`, `getSetCookie()`, `has()`, `set()`,
+`forEach()`, `entries()`, `keys()`, `values()`, and `[Symbol.iterator]()`.
+Unlike {Headers}, it has no guards that forbid particular field names. The
+headers of a request and the trailers of a response or request are immutable;
+modifying them throws an `ERR_HTTP_HEADERS_SENT` error.
+
+### Class: `ServerRequest`
+
+The request of an exchange, available as [`ctx.request`][].
+
+* `request.method` {string}
+* `request.url` {string} The absolute URL, using the scheme of the connection
+  and the host given by the request.
+* `request.headers` {ServerHeaders} Immutable.
+* `request.signal` {AbortSignal} Aborted, with a protocol error, if the client
+  cancels the request or the connection is lost before the exchange
+  completes. See [Fetch Server errors][].
+* `request.trailers` {Promise} Fulfills with a {ServerHeaders} of the request
+  trailer fields once the content has been read. It is rejected for a
+  `CONNECT` request, which has no content.
+* `request[Symbol.asyncIterator]()` Returns an iterator over the content,
+  which yields arrays of `Uint8Array` chunks. The content can be read only
+  once. Ending the iteration early refuses the rest of the content.
+
+```mjs
+import http from 'node:http';
+const { serve, ServerResponse } = http.fetchServer;
+
+serve({
+  async fetch({ request }) {
+    let size = 0;
+    for await (const chunks of request) {
+      for (const chunk of chunks) size += chunk.byteLength;
+    }
+    return new ServerResponse(`received ${size} bytes`);
+  },
+}, { port: 8080 });
+```
+
+### Class: `ServerContext`
+
+The context of a request/response exchange, passed to `fetch()`.
+
+#### `ctx.request`
+
+* Type: {ServerRequest}
+
+#### `ctx.remoteAddress`, `ctx.localAddress`
+
+* Type: {Object}
+  * `address` {string}
+  * `port` {integer}
+  * `family` {string} `'IPv4'` or `'IPv6'`.
+
+#### `ctx.alpnProtocol`
+
+* Type: {string} `'http/1.1'`, `'h2'`, or, without TLS, `'h2c'`.
+
+#### `ctx.encrypted`
+
+* Type: {boolean} Whether the connection uses TLS.
+
+#### `ctx.serverName`
+
+* Type: {string|null} The TLS server name indication sent by the client.
+
+#### `ctx.clientPriority`
+
+* Type: {Object} The priority requested by the client with the `Priority`
+  header field ([RFC 9218][]).
+  * `urgency` {integer} From 0 to 7. **Default:** `3`.
+  * `incremental` {boolean} **Default:** `false`.
+
+#### `ctx.serverPriority`
+
+* Type: {Object|null} A priority, as for `ctx.clientPriority`, that overrides
+  the client's. It is recorded but does not yet affect scheduling.
+
+#### `ctx.onpriority`
+
+* Type: {Function|null} Called when the client changes the priority of the
+  request. It is not yet called by this implementation.
+
+#### `ctx.autoContinue`
+
+* Type: {boolean} The `autoContinue` option of the server.
+
+#### `ctx.completed`
+
+* Type: {Promise}
+
+Fulfilled when the response has been handed in full to the transport, or the
+exchange has been denied. Rejected with the abort reason if the exchange is
+aborted.
+
+#### `ctx.sendInformational(status[, headers])`
+
+* `status` {integer} From 100 to 199, except 101.
+* `headers` {Object|Array|Headers|ServerHeaders}
+
+Sends an informational response, such as `103 (Early Hints)`, before the final
+response. Status 100 can be sent only when the request expects it and
+`autoContinue` has not sent it already. Throws an `InvalidStateError`
+{DOMException} once a final response has been committed. Informational
+responses are not sent to HTTP/1.0 clients.
+
+#### `ctx.deny([error])`
+
+* `error` {any}
+
+Refuses the exchange without a response: the HTTP/2 stream is reset, or the
+HTTP/1.1 connection is closed. If `error` has a `code` property of
+`'ERR_HTTP_REQUEST_REJECTED'`, `'ERR_HTTP_REQUEST_CANCELLED'`,
+`'ERR_HTTP_INTERNAL_ERROR'`, or `'ERR_HTTP_GOAWAY'` (or, in a `connect()`
+handler for a `CONNECT` request, `'ERR_HTTP_CONNECT_ERROR'`), the stream is
+reset with the corresponding HTTP/2 error code; `'ERR_HTTP_GOAWAY'` also sends `GOAWAY`
+for the connection. Otherwise `REFUSED_STREAM` is used, which tells the client
+the request was not processed and can be retried. The handler then returns
+`undefined`.
+
+#### `ctx.waitUntil(promise)`
+
+* `promise` {Promise}
+
+Extends the lifetime of the exchange until `promise` settles, so that work can
+continue after the response has been sent, for example logging. Graceful
+shutdown waits for these promises, up to the `timeouts.waitUntil` limit. A
+rejection is reported as a process warning.
+
+`sendInformational`, `deny`, and `waitUntil` are bound to the context, so they
+can be destructured.
+
+### Class: `ConnectContext`
+
+* Extends: {ServerContext}
+
+The context passed to `connect()`.
+
+#### `ctx.connectProtocol`
+
+* Type: {string|null}
+
+`null` for a plain `CONNECT` request; the `:protocol` pseudo-header field of an
+HTTP/2 extended `CONNECT` request, such as `'websocket'` or `'connect-udp'`;
+or, for an HTTP/1.1 upgrade, the first protocol named in the `Upgrade` header
+field, lowercased and without its version.
+
+#### `ctx.accept([init])`
+
+* `init` {Object}
+  * `headers` {Object|Array|Headers|ServerHeaders} Header fields for the
+    response that establishes the tunnel.
+  * `protocol` {string} For an HTTP/1.1 upgrade, the offered protocol to
+    select. **Default:** the first protocol offered.
+* Returns: {Promise} Fulfills with a {Tunnel}.
+
+Establishes a tunnel by sending a `200` response (for `CONNECT`) or a
+`101 (Switching Protocols)` response (for an HTTP/1.1 upgrade). For the
+`connect-udp` and `connect-ip` protocols, a `Capsule-Protocol: ?1` header field
+is added.
+
+A `connect()` handler can instead refuse the tunnel by returning a
+{fetchServer.ServerResponse}. For a `CONNECT` request, it must not have a 2xx
+status; for an HTTP/1.1 upgrade, any status other than 101 is allowed.
+
+```mjs
+import http from 'node:http';
+import net from 'node:net';
+const { serve, ServerResponse } = http.fetchServer;
+
+// A minimal CONNECT proxy.
+serve({
+  async connect(ctx) {
+    if (ctx.connectProtocol !== null) {
+      return new ServerResponse(null, { status: 501 });
+    }
+    const { hostname, port } = new URL(ctx.request.url);
+    const upstream = net.connect(port, hostname);
+    const tunnel = await ctx.accept();
+    (async () => {
+      for await (const chunk of upstream) await tunnel.writer.write(chunk);
+      await tunnel.writer.end();
+    })();
+    for await (const chunks of tunnel.readable) {
+      for (const chunk of chunks) upstream.write(chunk);
+    }
+    upstream.end();
+  },
+}, { port: 8080 });
+```
+
+#### `ctx.upgradeWebSocket([options])`
+
+* `options` {Object}
+  * `protocol` {string\[]} The subprotocols the server supports, in order of
+    preference. The first that the client offered in
+    `Sec-WebSocket-Protocol` is selected. If none was offered, no subprotocol
+    is selected.
+  * `compression` {boolean} Whether to accept the `permessage-deflate`
+    extension ([RFC 7692][]) if the client offers it. **Default:** `false`.
+  * `pingInterval` {integer} If not `0`, a Ping frame is sent whenever this
+    many milliseconds pass without a frame from the client. **Default:** `0`.
+* Returns: {WebSocket}
+
+Completes a WebSocket opening handshake, over an HTTP/1.1 upgrade or an HTTP/2
+extended `CONNECT` request ([RFC 8441][]), and returns an object with the
+interface of the WHATWG {WebSocket}, already open. Messages are dispatched as
+`message` events as they arrive, without backpressure. Ping frames are
+answered automatically. The object is not an instance of the global
+`WebSocket` class.
+
+Its `close([code[, reason]])` method accepts the close codes that a server can
+send: 1000 to 1003, 1007 to 1009, 1011 to 1014, and 3000 to 4999. Messages
+passed to `send()` before `close()` are still sent.
+
+Throws an `InvalidStateError` {DOMException} if `ctx.connectProtocol` is not
+`'websocket'`, or the exchange has already been accepted, answered, or denied.
+Throws a `TypeError` if the request is not a valid opening handshake; the
+handler can then still respond, for example with status 426 and
+`Sec-WebSocket-Version: 13`. If the client has already gone away, the returned
+object fires `error` and `close` events, with code 1006.
+
+```mjs
+import http from 'node:http';
+const { serve, ServerResponse } = http.fetchServer;
+
+serve({
+  connect(ctx) {
+    if (ctx.connectProtocol !== 'websocket') {
+      return new ServerResponse(null, { status: 501 });
+    }
+    const ws = ctx.upgradeWebSocket({ protocol: ['chat'] });
+    ws.onmessage = (event) => ws.send(`echo: ${event.data}`);
+  },
+}, { port: 8080 });
+```
+
+#### `ctx.upgradeWebSocketStream([options])`
+
+* `options` {Object} As for [`ctx.upgradeWebSocket()`][].
+* Returns: {ServerWebSocketStream}
+
+Completes a WebSocket opening handshake, as `ctx.upgradeWebSocket()` does, and
+returns a {ServerWebSocketStream}, whose messages are read and written as
+streams with backpressure.
+
+#### `ctx.upgradeWebTransport()`
+
+* Returns: {Promise}
+
+WebTransport is not supported. The promise is rejected with a
+`NotSupportedError` {DOMException}.
+
+### Class: `ServerWebSocketStream`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An established WebSocket connection whose messages are read and written as
+streams. It is the server-side counterpart of the proposed `WebSocketStream`
+interface. It supports `await using`, which closes the connection and waits
+for the closing handshake.
+
+```mjs
+import http from 'node:http';
+const { serve } = http.fetchServer;
+
+serve({
+  async connect(ctx) {
+    await using wss = ctx.upgradeWebSocketStream();
+    const { readable, writable } = await wss.opened;
+    const writer = writable.getWriter();
+    // The next message is not read until this one has been echoed, and each
+    // write waits while the client is not keeping up.
+    for await (const message of readable) {
+      await writer.write(message);
+    }
+  },
+}, { port: 8080 });
+```
+
+#### `wss.opened`
+
+* Type: {Promise} Fulfills with an {Object}:
+  * `readable` {ReadableStream} Each chunk is one received message: a
+    {string} for a text message, or a {Uint8Array} for a binary message. It
+    closes once the client has started the closing handshake and every
+    message has been read. Cancelling it starts the closing handshake.
+  * `writable` {WritableStream} Each chunk written is sent as one message:
+    an {ArrayBuffer}, {TypedArray}, or {DataView} as a binary message, and
+    any other value, converted to a string, as a text message. Closing it
+    starts the closing handshake without a close code.
+  * `protocol` {string} The selected subprotocol, or `''`.
+  * `extensions` {string} The negotiated extensions, or `''`.
+
+The promise is already settled when the object is returned. It is rejected if
+the client had gone away before the upgrade.
+
+#### `wss.closed`
+
+* Type: {Promise}
+
+Fulfills with an {Object} with `closeCode` and `reason` properties, taken from
+the client's Close frame (with `closeCode` 1005 if it had none), once the
+closing handshake has completed. It is rejected with a protocol error if the
+connection is lost, the client violates the protocol, or the closing handshake
+times out. See [Fetch Server errors][].
+
+#### `wss.close([closeInfo])`
+
+* `closeInfo` {Object}
+  * `closeCode` {integer} A close code that a server can send, as for
+    [`ctx.upgradeWebSocket()`][].
+  * `reason` {string} At most 123 bytes when encoded as UTF-8.
+    **Default:** `''`.
+
+Starts the closing handshake. Messages written to the writable stream that have
+not been sent yet are discarded, and their writes are rejected with an
+`InvalidStateError` {DOMException}. To close after every written message has
+been sent, close the writable stream instead.
+
+#### `wss.destroy([error])`
+
+* `error` {any}
+
+Terminates the connection immediately, without a closing handshake: the
+HTTP/2 stream is reset with `CANCEL`, or the HTTP/1.1 connection is closed.
+The streams are errored and `wss.closed` is rejected with `error`, or with a
+protocol error with code `ERR_HTTP_REQUEST_CANCELLED`.
+
+### Class: `Tunnel`
+
+An established tunnel, returned by [`ctx.accept()`][]. A tunnel is part of its
+exchange: the exchange remains in flight until the tunnel closes, even after
+`connect()` has returned.
+
+* `tunnel.readable` {AsyncIterable} The bytes received from the client, as
+  arrays of `Uint8Array` chunks.
+* `tunnel.writer` {Object} A writer for the bytes sent to the client, with
+  `write(chunk)`, `writev(chunks)`, and `end()` methods that return promises,
+  and synchronous `writeSync()`, `writevSync()`, and `endSync()` variants.
+* `tunnel.capsules()` Returns a {CapsuleStream}, which reads and sends the
+  data stream as capsules of the Capsule Protocol ([RFC 9297][]). It can be
+  used instead of `readable` and `writer`, but not for a plain `CONNECT`
+  tunnel or a WebSocket.
+* `tunnel.datagrams()` Returns an object with `readable` and `writer`
+  members for HTTP Datagrams, which are sent as `DATAGRAM` capsules.
+  `unreliable` is always `false`. It is available only for protocols that use
+  the Capsule Protocol, such as `connect-udp`.
+* `tunnel.close()` Ends the send direction. Returns a promise that settles as
+  `tunnel.closed` does.
+* `tunnel.destroy([error])` Terminates the tunnel immediately. The HTTP/2
+  stream is reset with `CONNECT_ERROR`, or the HTTP/1.1 connection is closed.
+* `tunnel.closed` {Promise} Fulfilled once both directions have ended.
+  Rejected with a protocol error if the tunnel terminates abnormally.
+
+`Tunnel` supports `await using`.
+
+### Class: `CapsuleStream`
+
+The capsules of a tunnel, returned by `tunnel.capsules()`.
+
+* `capsuleStream.readable` {AsyncIterable} The capsules received from the
+  client, as objects with `type` {integer} and `data` {Uint8Array}
+  properties. `DATAGRAM` capsules are delivered by `tunnel.datagrams()`
+  instead, if it has been called, and are otherwise discarded.
+* `capsuleStream.send(capsule)` Sends a capsule, an object with `type` and
+  `data` properties. Returns a {Promise}.
+
+### Fetch Server errors
+
+When an exchange is aborted, for example because the client reset the stream
+or the connection was lost, `request.signal` is aborted and pending
+operations are rejected with a protocol error: a `TypeError` with one of the
+following `code` values. When the error comes from an HTTP/2 `RST_STREAM`
+frame, it also has a `detail` property, an object with `protocol`,
+`errorCode`, and `errorName` properties that describe the received error code.
+
+* `ERR_HTTP_REQUEST_REJECTED`: The stream was refused (`REFUSED_STREAM`).
+* `ERR_HTTP_REQUEST_CANCELLED`: The client cancelled the request (`CANCEL`).
+* `ERR_HTTP_INTERNAL_ERROR`: An internal error (`INTERNAL_ERROR`).
+* `ERR_HTTP_STREAM_RESET`: The stream was reset with another error code.
+* `ERR_HTTP_GOAWAY`: The connection is going away.
+* `ERR_HTTP_PROTOCOL_ERROR`: The client violated the HTTP protocol.
+* `ERR_HTTP_CONNECT_ERROR`: A tunnel failed (`CONNECT_ERROR`), the client
+  violated the WebSocket protocol, or the connection closed before the
+  WebSocket closing handshake completed.
+* `ERR_HTTP_REQUEST_BODY_REJECTED`: The rest of the request content was
+  refused.
+* `ERR_HTTP_CONNECTION_RESET`: The connection was lost.
+* `ERR_HTTP_TIMEOUT`: A timeout expired.
+* `ERR_HTTP_CONTENT_TOO_LARGE`: The request content exceeded
+  `limits.maxRequestBodySize`.
+
+These codes are part of the Fetch Server API and are not listed in
+[Errors][].
+
+### Fetch Server API limitations
+
+This prototype differs from the proposal in the following ways:
+
+* HTTP/3, QUIC, WebTransport, and unreliable datagrams are not supported.
+* HTTP/2 stream priorities are not applied: `ctx.serverPriority` is recorded,
+  and `ctx.onpriority` is never called.
+* The object returned by `ctx.upgradeWebSocket()` implements the
+  {WebSocket} interface but is not an instance of the global `WebSocket`
+  class.
+* WebSocket messages are limited to 64 MiB. A larger message fails the
+  connection with close code 1009 (Message Too Big).
+* The `receive` and `send` timeouts are not enforced, and `tunnelIdle`
+  applies only to WebSocket connections.
+
 [Built-in Proxy Support]: #built-in-proxy-support
+[Errors]: errors.md
+[Fetch Server API]: https://fetch-server.proposal.wintertc.org/
+[Fetch Server API limitations]: #fetch-server-api-limitations
+[Fetch Server errors]: #fetch-server-errors
+[Fetch Server handlers]: #handlers
+[Fetch Server listen options]: #fetch-server-listen-options
 [RFC 6455, Section 5.3]: https://datatracker.ietf.org/doc/html/rfc6455#section-5.3
+[RFC 7692]: https://www.rfc-editor.org/rfc/rfc7692
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
+[RFC 8441]: https://www.rfc-editor.org/rfc/rfc8441
 [RFC 9110 Section 6.6.1]: https://www.rfc-editor.org/rfc/rfc9110#section-6.6.1
+[RFC 9218]: https://www.rfc-editor.org/rfc/rfc9218
+[RFC 9297]: https://www.rfc-editor.org/rfc/rfc9297
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
 [`'checkContinue'`]: #event-checkcontinue
 [`'finish'`]: #event-finish
 [`'request'`]: #event-request
 [`'response'`]: #event-response
 [`'upgrade'`]: #event-upgrade
+[`--experimental-http-serve`]: cli.md#--experimental-http-serve
 [`--insecure-http-parser`]: cli.md#--insecure-http-parser
 [`--max-http-header-size`]: cli.md#--max-http-header-sizesize
 [`Agent`]: #class-httpagent
@@ -4958,6 +5744,12 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`URL`]: url.md#the-whatwg-url-api
 [`agent.createConnection()`]: #agentcreateconnectionoptions-callback
 [`agent.getName()`]: #agentgetnameoptions
+[`ctx.accept()`]: #ctxacceptinit
+[`ctx.deny()`]: #ctxdenyerror
+[`ctx.request`]: #ctxrequest
+[`ctx.upgradeWebSocket()`]: #ctxupgradewebsocketoptions
+[`ctx.upgradeWebSocketStream()`]: #ctxupgradewebsocketstreamoptions
+[`ctx.waitUntil()`]: #ctxwaituntilpromise
 [`destroy()`]: #agentdestroy
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.lookup()` hints]: dns.md#supported-getaddrinfo-flags
@@ -4968,6 +5760,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`http.ServerResponse`]: #class-httpserverresponse
 [`http.Server`]: #class-httpserver
 [`http.createServer()`]: #httpcreateserveroptions-requestlistener
+[`http.fetchServer.serve()`]: #httpfetchserverservehandler-options
 [`http.get()`]: #httpgetoptions-callback
 [`http.globalAgent`]: #httpglobalagent
 [`http.request()`]: #httprequestoptions-callback
@@ -5034,6 +5827,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`writable.uncork()`]: stream.md#writableuncork
 [`writable.write()`]: stream.md#writablewritechunk-encoding-callback
 [absolute form]: https://datatracker.ietf.org/doc/html/rfc9112#section-3.2.2
+[fetchServer.server.listen]: #serverlistenoptions
 [information event]: #event-information
 [initial delay]: net.md#socketsetkeepaliveenable-initialdelay-interval-count
 [request target]: https://datatracker.ietf.org/doc/html/rfc9112#section-3.2
