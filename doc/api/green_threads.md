@@ -405,7 +405,7 @@ isolate. Isolates in the warm pool are created in the background, when pool
 threads have nothing else to do, so green threads that use them start almost
 immediately. Each isolate is used by one green thread only: the pool is
 refilled after a green thread takes one. Isolates in the warm pool use memory,
-about 3 MB each.
+about 1.5 MB each.
 
 Only green threads without the `maxMemoryMb`, `maxOldGenerationSizeMb` and
 `maxYoungGenerationSizeMb` options, and in their default isolate group, use the
@@ -422,9 +422,9 @@ creating isolate groups.
 
 Where it does, each green thread gets an isolate group of its own by default,
 so that green threads can't use up the heap space of the main thread or of
-each other. Isolates in groups that only green threads use also start from
-V8's own startup snapshot, which is smaller than the one Node.js uses, so they
-use less memory. The `isolateGroup` option of the [`GreenThread`][] constructor
+each other. A group of its own makes a green thread take about 0.2 ms longer
+to start, and use about 0.4 MB more memory, for its copy of the read-only part
+of the heap. The `isolateGroup` option of the [`GreenThread`][] constructor
 selects the group instead:
 
 * `'new'`: a group of its own. The default where isolate groups are supported.

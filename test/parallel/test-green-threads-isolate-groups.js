@@ -48,7 +48,8 @@ assert.throws(() => new GreenThread('', { isolateGroup: {} }),
               { code: 'ERR_INVALID_ARG_VALUE' });
 
 (async () => {
-  // V8's default group is always available, and uses Node.js' snapshot.
+  // V8's default group is always available, and uses the read-only snapshot
+  // of Node.js' own.
   {
     const { isolateGroup, usesNodeSnapshot } = await info(kIsolateGroupDefault);
     assert.strictEqual(isolateGroup, 0);
@@ -69,7 +70,7 @@ assert.throws(() => new GreenThread('', { isolateGroup: {} }),
   }
 
   // By default, and with 'new', each green thread gets a group of its own,
-  // and uses V8's own, smaller, snapshot.
+  // and uses V8's own read-only snapshot.
   {
     const infos = await Promise.all([
       info(), info(), info(kIsolateGroupNew), info(kIsolateGroupNew),
@@ -80,9 +81,6 @@ assert.throws(() => new GreenThread('', { isolateGroup: {} }),
     for (const { usesNodeSnapshot } of infos) {
       assert.strictEqual(usesNodeSnapshot, false);
     }
-    const inDefault = await info(kIsolateGroupDefault);
-    assert(infos[0].heapUsed < inDefault.heapUsed,
-           `${infos[0].heapUsed} >= ${inDefault.heapUsed}`);
   }
 
   // Green threads can share a group.

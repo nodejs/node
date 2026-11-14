@@ -1,9 +1,9 @@
 // Flags: --experimental-green-threads --no-warnings
 'use strict';
 
-// Green threads start from a snapshot with their runtime already
-// bootstrapped: Node.js' own in V8's default isolate group, and one of their
-// own in other groups. Each of them must still get state of its own.
+// Green threads start from snapshots with their runtime already
+// bootstrapped, in V8's default isolate group and in groups of their own.
+// Each of them must still get state of its own.
 
 const common = require('../common');
 const assert = require('assert');

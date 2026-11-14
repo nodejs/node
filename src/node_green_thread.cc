@@ -12,6 +12,7 @@
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
+#include "zlib.h"
 
 #include <algorithm>
 #include <atomic>
@@ -1906,8 +1907,12 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     uses_node_snapshot_ = group == v8::IsolateGroup::GetDefault();
     // Isolates in the same group must all use the same snapshot, which the
     // green snapshot is once it exists. Without it, V8's.
-    const v8::StartupData* green_snapshot =
-        uses_node_snapshot_ ? nullptr : GreenSnapshot(platform_);
+    const v8::StartupData* green_snapshot = nullptr;
+    if (!uses_node_snapshot_) {
+      green_snapshot = GreenSnapshot(platform_);
+    } else {
+      green_snapshot = DefaultGroupSnapshot();
+    }
     if (green_snapshot != nullptr) {
       params.snapshot_blob = green_snapshot;
       params.external_references = SnapshotExternalReferences();
@@ -1937,7 +1942,12 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         [](Local<Context>, Local<String>) { return true; };
 
     Isolate* isolate = NewIsolate(
-        &params, this, platform_, settings, group, uses_node_snapshot_);
+        &params,
+        this,
+        platform_,
+        settings,
+        group,
+        uses_node_snapshot_ && green_snapshot == nullptr);
     if (isolate == nullptr) {
       fatal_ = true;
       return;
@@ -1974,21 +1984,14 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       }
       isolate->AddMessageListenerWithErrorLevel(
           OnMessage, Isolate::MessageErrorLevel::kMessageError);
-      // The green snapshot has a context with the runtime bootstrapped, and
-      // so does Node.js' own, unless it was built by users. Otherwise, the
-      // default context of the startup snapshot contains only what V8
-      // creates.
+      // Green snapshots have a context with the runtime bootstrapped.
+      // Otherwise, the default context of the startup snapshot contains only
+      // what V8 creates.
       Local<Context> context;
-      bool bootstrapped = false;
-      if (green_snapshot != nullptr) {
+      const bool bootstrapped = green_snapshot != nullptr;
+      if (bootstrapped) {
         USE(Context::FromSnapshot(isolate, kGreenSnapshotContextIndex)
                 .ToLocal(&context));
-        bootstrapped = true;
-      } else if (uses_node_snapshot_ &&
-                 Context::FromSnapshot(isolate,
-                                       SnapshotData::kNodeGreenContextIndex)
-                     .ToLocal(&context)) {
-        bootstrapped = true;
       } else {
         context = Context::New(isolate);
       }
@@ -3092,79 +3095,52 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     return bootstrap_exports.As<Object>();
   }
 
- public:
-  // The indexes of the bootstrapped context in the green snapshot, and of
-  // the bootstrap's exports in the data of a bootstrapped context, in the
-  // green snapshot and in Node.js' own.
+  // The indexes of the bootstrapped context in green snapshots, and of the
+  // bootstrap's exports in its data.
   static constexpr size_t kGreenSnapshotContextIndex = 0;
   static constexpr size_t kGreenSnapshotRuntimeIndex = 0;
 
- private:
-  // The callbacks of the functions that InstallGlobals() and RunBootstrap()
-  // create, which snapshots of a bootstrapped context refer to.
-  static std::vector<v8::FunctionCallback> BootstrapCallbacks() {
-    return {
-        PostMessageCallback,       CloseCallback,
-        QueueMicrotaskCallback,    SetTimeoutCallback,
-        SetIntervalCallback,       ClearTimerCallback,
-        ConsoleCallback,           RpcSendCallback,
-        MessageChannelCallback,    PortPostMessageCallback,
-        PortStartCallback,         PortCloseCallback,
-        CompileModuleCallback,     CreateJsonModuleCallback,
-        ModuleRequestsCallback,    LinkModuleCallback,
-        InstantiateModuleCallback, EvaluateModuleCallback,
-        ModuleNamespaceCallback,   ResolveUrlCallback,
-        InternalBindingCallback,   RequireCallback,
-    };
-  }
-
-  // The external references of the green snapshot.
+  // The external references of the green snapshot: the callbacks of the
+  // functions that InstallGlobals() and RunBootstrap() create.
   static const intptr_t* SnapshotExternalReferences() {
-    static const std::vector<intptr_t> references = []() {
-      std::vector<intptr_t> references;
-      for (v8::FunctionCallback callback : BootstrapCallbacks()) {
-        references.push_back(reinterpret_cast<intptr_t>(callback));
-      }
-      references.push_back(0);
-      return references;
-    }();
-    return references.data();
+    static const intptr_t references[] = {
+        reinterpret_cast<intptr_t>(PostMessageCallback),
+        reinterpret_cast<intptr_t>(CloseCallback),
+        reinterpret_cast<intptr_t>(QueueMicrotaskCallback),
+        reinterpret_cast<intptr_t>(SetTimeoutCallback),
+        reinterpret_cast<intptr_t>(SetIntervalCallback),
+        reinterpret_cast<intptr_t>(ClearTimerCallback),
+        reinterpret_cast<intptr_t>(ConsoleCallback),
+        reinterpret_cast<intptr_t>(RpcSendCallback),
+        reinterpret_cast<intptr_t>(MessageChannelCallback),
+        reinterpret_cast<intptr_t>(PortPostMessageCallback),
+        reinterpret_cast<intptr_t>(PortStartCallback),
+        reinterpret_cast<intptr_t>(PortCloseCallback),
+        reinterpret_cast<intptr_t>(CompileModuleCallback),
+        reinterpret_cast<intptr_t>(CreateJsonModuleCallback),
+        reinterpret_cast<intptr_t>(ModuleRequestsCallback),
+        reinterpret_cast<intptr_t>(LinkModuleCallback),
+        reinterpret_cast<intptr_t>(InstantiateModuleCallback),
+        reinterpret_cast<intptr_t>(EvaluateModuleCallback),
+        reinterpret_cast<intptr_t>(ModuleNamespaceCallback),
+        reinterpret_cast<intptr_t>(ResolveUrlCallback),
+        reinterpret_cast<intptr_t>(InternalBindingCallback),
+        reinterpret_cast<intptr_t>(RequireCallback),
+        0,
+    };
+    return references;
   }
 
  public:
-  // For Node.js' snapshot, which has a bootstrapped context too.
-  static void RegisterBootstrapCallbacks(ExternalReferenceRegistry* registry) {
-    for (v8::FunctionCallback callback : BootstrapCallbacks()) {
-      registry->Register(callback);
-    }
-  }
-
-  // A new context in which the runtime is bootstrapped, using `loader`, and
-  // the exports of its bootstrap. For snapshots made outside pool threads.
-  static MaybeLocal<Context> NewBootstrappedContext(
-      Isolate* isolate,
-      builtins::BuiltinLoader* loader,
-      Local<Object>* runtime) {
-    CurrentScope current_scope(nullptr);
-    bootstrap_builtin_loader = loader;
-    auto reset = OnScopeLeave([] { bootstrap_builtin_loader = nullptr; });
-    Local<Context> context = Context::New(isolate);
-    if (context.IsEmpty()) return {};
-    Context::Scope context_scope(context);
-    if (!InstallGlobals(isolate, context) ||
-        !RunBootstrap(isolate, context).ToLocal(runtime)) {
-      return {};
-    }
-    return context;
-  }
-
   // Creates the green snapshot (see GreenSnapshot()) with `loader`, outside
   // a pool thread. Empty if that failed.
   static v8::StartupData CreateGreenSnapshotWith(
-      MultiIsolatePlatform* platform, builtins::BuiltinLoader* loader) {
+      MultiIsolatePlatform* platform,
+      builtins::BuiltinLoader* loader,
+      bool default_group = false) {
     bootstrap_builtin_loader = loader;
     auto reset = OnScopeLeave([] { bootstrap_builtin_loader = nullptr; });
-    return CreateGreenSnapshot(platform);
+    return CreateGreenSnapshot(platform, default_group);
   }
 
  private:
@@ -3175,6 +3151,22 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // snapshot. Built along with Node.js' snapshot, or, in builds without one,
   // created on a pool thread the first time it's needed. nullptr if creating
   // it failed.
+  // The snapshot of green isolates in V8's default group: V8's, with a
+  // bootstrapped context, but with the read-only heap of Node.js' own. So it
+  // can be used in the group if Node.js' own snapshot is, but its isolate
+  // snapshot is much smaller. nullptr if it can't be used.
+  static const v8::StartupData* DefaultGroupSnapshot() {
+    const v8::StartupData* blob =
+        SnapshotBuilder::GetEmbeddedGreenDefaultGroupSnapshot();
+    const SnapshotData* node_snapshot =
+        SnapshotBuilder::GetEmbeddedSnapshotData();
+    if (blob == nullptr || node_snapshot == nullptr ||
+        !IsFirstSnapshotBlob(node_snapshot->v8_snapshot_blob_data.data)) {
+      return nullptr;
+    }
+    return blob;
+  }
+
   static const v8::StartupData* GreenSnapshot(MultiIsolatePlatform* platform) {
     if (const v8::StartupData* embedded =
             SnapshotBuilder::GetEmbeddedGreenSnapshot()) {
@@ -3191,7 +3183,12 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     return blob.data != nullptr ? &blob : nullptr;
   }
 
-  static v8::StartupData CreateGreenSnapshot(MultiIsolatePlatform* platform) {
+  // Creates a snapshot from V8's, with a context in which the runtime is
+  // bootstrapped, in a new isolate group or in V8's default one. In the
+  // default group, the read-only heap is the group's, so the snapshot can
+  // only be used in it if that doesn't change.
+  static v8::StartupData CreateGreenSnapshot(MultiIsolatePlatform* platform,
+                                             bool default_group = false) {
     // The bootstrap doesn't run in a green isolate.
     CurrentScope current_scope(nullptr);
     std::unique_ptr<ArrayBufferAllocator> allocator =
@@ -3199,7 +3196,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     Isolate::CreateParams params;
     params.array_buffer_allocator = allocator.get();
     params.external_references = SnapshotExternalReferences();
-    Isolate* isolate = Isolate::Allocate(v8::IsolateGroup::Create());
+    Isolate* isolate = Isolate::Allocate(default_group
+                                             ? v8::IsolateGroup::GetDefault()
+                                             : v8::IsolateGroup::Create());
     if (isolate == nullptr) return {nullptr, 0};
     SnapshotPlatformDelegate delegate;
     // Before the isolate is initialized, which may use the platform.
@@ -4209,22 +4208,107 @@ v8::StartupData CreateSnapshotBlob(MultiIsolatePlatform* platform) {
   return GreenIsolate::CreateGreenSnapshotWith(platform, &loader);
 }
 
-bool AddContextToSnapshot(Isolate* isolate,
-                          v8::SnapshotCreator* creator,
-                          Local<Context> context,
-                          Local<Object> runtime) {
-  if (creator->AddData(context, runtime) !=
-      GreenIsolate::kGreenSnapshotRuntimeIndex) {
-    return false;
-  }
-  return creator->AddContext(context) == SnapshotData::kNodeGreenContextIndex;
+// Parts of the layout of V8's startup snapshot blobs (see SnapshotImpl in
+// deps/v8/src/snapshot/snapshot.cc), to give the snapshot of green threads
+// in the default isolate group the read-only snapshot of Node.js' own.
+// Everything that depends on the layout is checked, and if a check fails,
+// the snapshot isn't used.
+namespace blob_layout {
+constexpr size_t kNumberOfContextsOffset = 0;
+constexpr size_t kChecksumOffset = 8;
+constexpr size_t kReadOnlyChecksumOffset = 12;
+constexpr size_t kStartupOffsetOffset = 80;
+constexpr size_t kFirstContextOffsetOffset = 88;
+// The read-only snapshot ends with the next ID of functions of the isolate
+// that made it, which is only used if the read-only heap is created from
+// it, and padding.
+constexpr size_t kReadOnlyTrailerMaxSize = 16;
+
+uint32_t Get(const v8::StartupData& blob, size_t offset) {
+  uint32_t value;
+  memcpy(&value, blob.data + offset, sizeof(value));
+  return value;
 }
 
-MaybeLocal<Context> NewBootstrappedContext(Isolate* isolate,
-                                           builtins::BuiltinLoader* loader,
-                                           Local<Object>* runtime) {
-  return GreenIsolate::NewBootstrappedContext(isolate, loader, runtime);
+void Set(v8::StartupData* blob, size_t offset, uint32_t value) {
+  memcpy(const_cast<char*>(blob->data) + offset, &value, sizeof(value));
 }
+
+// What V8 computes, with zlib.
+uint32_t Checksum(const v8::StartupData& blob) {
+  const size_t start = kReadOnlyChecksumOffset;
+  return static_cast<uint32_t>(
+      adler32(0,
+              reinterpret_cast<const Bytef*>(blob.data + start),
+              static_cast<uInt>(blob.raw_size - start)));
+}
+
+// The read-only snapshot, which comes right after the header.
+bool ReadOnlySnapshot(const v8::StartupData& blob,
+                      size_t* offset,
+                      size_t* size) {
+  if (blob.raw_size < 0 ||
+      static_cast<size_t>(blob.raw_size) < kFirstContextOffsetOffset) {
+    return false;
+  }
+  const size_t contexts = Get(blob, kNumberOfContextsOffset);
+  if (contexts > 64) return false;
+  constexpr size_t kAlignment = sizeof(void*);
+  const size_t start =
+      (kFirstContextOffsetOffset + contexts * 4 + kAlignment - 1) /
+      kAlignment * kAlignment;
+  const size_t end = Get(blob, kStartupOffsetOffset);
+  if (end <= start || end > static_cast<size_t>(blob.raw_size)) return false;
+  *offset = start;
+  *size = end - start;
+  return true;
+}
+}  // namespace blob_layout
+
+v8::StartupData CreateDefaultGroupSnapshotBlob(
+    MultiIsolatePlatform* platform, const v8::StartupData& node_snapshot) {
+  builtins::BuiltinLoader loader;
+  v8::StartupData blob =
+      GreenIsolate::CreateGreenSnapshotWith(platform, &loader, true);
+  if (blob.data == nullptr) return blob;
+
+  // The read-only heap of the group is the one that `node_snapshot` has,
+  // so the read-only snapshots differ only in their trailers. Make them the
+  // same, so that V8 can check that they are.
+  using blob_layout::Checksum;
+  using blob_layout::Get;
+  using blob_layout::kChecksumOffset;
+  using blob_layout::kReadOnlyChecksumOffset;
+  using blob_layout::kReadOnlyTrailerMaxSize;
+  using blob_layout::ReadOnlySnapshot;
+  using blob_layout::Set;
+  size_t node_offset, node_size, offset, size;
+  bool same = Checksum(blob) == Get(blob, kChecksumOffset) &&
+              ReadOnlySnapshot(node_snapshot, &node_offset, &node_size) &&
+              ReadOnlySnapshot(blob, &offset, &size) && size == node_size &&
+              size > kReadOnlyTrailerMaxSize &&
+              memcmp(node_snapshot.data + node_offset,
+                     blob.data + offset,
+                     size - kReadOnlyTrailerMaxSize) == 0;
+  if (same) {
+    memcpy(const_cast<char*>(blob.data) + offset,
+           node_snapshot.data + node_offset,
+           size);
+    Set(&blob,
+        kReadOnlyChecksumOffset,
+        Get(node_snapshot, kReadOnlyChecksumOffset));
+    Set(&blob, kChecksumOffset, Checksum(blob));
+  }
+  if (!same || !blob.CanBeRehashed()) {
+    fprintf(stderr,
+            "Not building the startup snapshot of green threads in the "
+            "default isolate group: its read-only snapshot differs.\n");
+    delete[] blob.data;
+    blob = {nullptr, 0};
+  }
+  return blob;
+}
+
 
 namespace {
 
@@ -4465,7 +4549,6 @@ class GreenThreadWrap final : public HandleWrap {
     registry->Register(SetUnresponsiveTimeouts);
     WarmPoolWaiter::RegisterExternalReferences(registry);
     IsolateGroupWrap::RegisterExternalReferences(registry);
-    GreenIsolate::RegisterBootstrapCallbacks(registry);
   }
 
   void Close(Local<Value> close_callback) override {
