@@ -1655,12 +1655,39 @@ Unlike `http.client.request.start`, this event is emitted before the request has
 
 Emitted when client starts a request.
 
+##### Event: `'http.client.request.bodyChunkSent'`
+
+* `request` {http.ClientRequest}
+* `chunk` {Buffer|string|Uint8Array}
+* `encoding` {string|null|undefined}
+
+Emitted when a non-empty chunk is passed to [`request.write()`][] or
+[`request.end()`][]. The chunk is the value the caller passed, before it is
+written to the socket.
+
+##### Event: `'http.client.request.bodySent'`
+
+* `request` {http.ClientRequest}
+
+Emitted when `request.end()` is called on a client request that has
+written at least one non-empty body chunk. The body may still be buffered and
+not yet written to the socket. Requests without a body, such as most `GET`
+requests, do not emit this event.
+
 ##### Event: `'http.client.request.error'`
 
 * `request` {http.ClientRequest}
 * `error` {Error}
 
 Emitted when an error occurs during a client request.
+
+##### Event: `'http.client.response.bodyChunkReceived'`
+
+* `request` {http.ClientRequest}
+* `response` {http.IncomingMessage}
+* `chunk` {Buffer|Uint8Array}
+
+Emitted when raw bytes of a client response body chunk are received.
 
 ##### Event: `'http.client.response.finish'`
 
@@ -2067,6 +2094,8 @@ statement, since both are still in use while the event is being delivered; see
 [`locks.request()`]: worker_threads.md#locksrequestname-options-callback
 [`net.Server.listen()`]: net.md#serverlisten
 [`process.execve()`]: process.md#processexecvefile-args-env
+[`request.end()`]: http.md#requestenddata-encoding-callback
+[`request.write()`]: http.md#requestwritechunk-encoding-callback
 [`start` event]: #startevent
 [`statement.close()`]: sqlite.md#statementclose
 [`worker_threads.locks`]: worker_threads.md#worker_threadslocks

@@ -1,4 +1,5 @@
 #include "base_object-inl.h"
+#include "inspector/network_agent.h"
 #include "inspector/network_resource_manager.h"
 #include "inspector/protocol_helper.h"
 #include "inspector_agent.h"
@@ -477,6 +478,12 @@ void Initialize(Local<Object> target, Local<Value> unused,
   SetMethod(context, target, "setupNetworkTracking", SetupNetworkTracking);
   SetMethod(context, target, "putNetworkResource", PutNetworkResource);
 
+  SetConstructorFunction(context,
+                         target,
+                         "NetworkInitiator",
+                         NetworkInitiator::GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
+
   Local<String> console_string = FIXED_ONE_BYTE_STRING(isolate, "console");
 
   // Grab the console from the binding object and expose those to our binding
@@ -511,6 +518,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsEnabled);
   registry->Register(EmitProtocolEvent);
   registry->Register(SetupNetworkTracking);
+  registry->Register(NetworkInitiator::New);
 
   registry->Register(JSBindingsConnection<LocalConnection>::New);
   registry->Register(JSBindingsConnection<LocalConnection>::Dispatch);

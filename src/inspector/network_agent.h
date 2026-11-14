@@ -1,11 +1,13 @@
 #ifndef SRC_INSPECTOR_NETWORK_AGENT_H_
 #define SRC_INSPECTOR_NETWORK_AGENT_H_
 
+#include "base_object.h"
 #include "env.h"
 #include "io_agent.h"
 #include "network_requests_buffer.h"
 #include "network_resource_manager.h"
 #include "node/inspector/protocol/Network.h"
+#include "v8-inspector.h"
 
 #include <map>
 #include <memory>
@@ -15,6 +17,29 @@ namespace node {
 namespace inspector {
 
 class NetworkInspector;
+
+// An opaque, GC-managed snapshot shared by all sessions observing a request.
+class NetworkInitiator final : public BaseObject {
+ public:
+  NetworkInitiator(Environment* env,
+                   v8::Local<v8::Object> object,
+                   std::unique_ptr<v8_inspector::V8StackTrace> stack);
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static NetworkInitiator* FromObject(Environment* env,
+                                      v8::Local<v8::Object> object);
+
+  const v8_inspector::V8StackTrace* stack() const { return stack_.get(); }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(NetworkInitiator)
+  SET_SELF_SIZE(NetworkInitiator)
+
+ private:
+  std::unique_ptr<v8_inspector::V8StackTrace> stack_;
+};
 
 class NetworkAgent : public protocol::Network::Backend {
  public:
