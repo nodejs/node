@@ -17,6 +17,11 @@ namespace worker {
 class MessagePortData;
 class MessagePort;
 
+struct WorkerExitNotification {
+  uint64_t thread_id;
+  ExitCode exit_code;
+};
+
 typedef MaybeStackBuffer<v8::Value, 8> TransferList;
 
 // Used to represent the in-flight structure of an object that is being
@@ -49,6 +54,10 @@ class Message : public MemoryRetainer {
   // V8 ValueSerializer API. If `payload` is empty, this message indicates
   // that the receiving message port should close itself.
   explicit Message(MallocedBuffer<char>&& payload = MallocedBuffer<char>());
+
+  explicit Message(WorkerExitNotification notification)
+      : worker_exit_notification_(std::move(notification)) {}
+
   ~Message() = default;
 
   Message(Message&& other) = default;
@@ -59,6 +68,14 @@ class Message : public MemoryRetainer {
   // Whether this is a message indicating that the port is to be closed.
   // This is the last message to be received by a MessagePort.
   bool IsCloseMessage() const;
+
+  bool IsWorkerExitMessage() const {
+    return worker_exit_notification_.has_value();
+  }
+
+  const WorkerExitNotification& worker_exit_notification() const {
+    return worker_exit_notification_.value();
+  }
 
   // Deserialize the contained JS value. May only be called once, and only
   // after Serialize() has been called (e.g. by another thread).
@@ -118,6 +135,7 @@ class Message : public MemoryRetainer {
   std::vector<std::unique_ptr<TransferData>> transferables_;
   std::vector<v8::CompiledWasmModule> wasm_modules_;
   std::optional<v8::SharedValueConveyor> shared_value_conveyor_;
+  std::optional<WorkerExitNotification> worker_exit_notification_;
 
   friend class MessagePort;
 };
@@ -148,6 +166,10 @@ class SiblingGroup final : public std::enable_shared_from_this<SiblingGroup> {
   void Entangle(MessagePortData* data);
   void Entangle(std::initializer_list<MessagePortData*> data);
   void Disentangle(MessagePortData* data);
+
+  void NotifyWorkerExit(MessagePortData* exiting_port,
+                        uint64_t thread_id,
+                        ExitCode exit_code);
 
   const std::string& name() const { return name_; }
 
@@ -185,6 +207,8 @@ class MessagePortData : public TransferData {
   v8::Maybe<bool> Dispatch(
       std::shared_ptr<Message> message,
       std::string* error = nullptr);
+  // Internal worker-exit notification.
+  void AddWorkerExitNotification(uint64_t thread_id, ExitCode exit_code);
 
   // Turns `a` and `b` into siblings, i.e. connects the sending side of one
   // to the receiving side of the other. This is not thread-safe.
@@ -213,6 +237,8 @@ class MessagePortData : public TransferData {
   // once that is available with C++17, because std::shared_ptr comes with
   // overhead that is only necessary for BroadcastChannel.
   std::deque<std::shared_ptr<Message>> incoming_messages_;
+  bool GetWorkerExitNotification(WorkerExitNotification* notification);
+  std::deque<WorkerExitNotification> worker_exit_notifications_;
   MessagePort* owner_ = nullptr;
   std::shared_ptr<SiblingGroup> group_;
   friend class MessagePort;
@@ -308,7 +334,8 @@ class MessagePort : public HandleWrap {
   v8::MaybeLocal<v8::Value> ReceiveMessage(
       v8::Local<v8::Context> context,
       MessageProcessingMode mode,
-      v8::Local<v8::Value>* port_list = nullptr);
+      v8::Local<v8::Value>* port_list = nullptr,
+      std::optional<WorkerExitNotification>* worker_exit = nullptr);
 
   std::unique_ptr<MessagePortData> data_ = nullptr;
   bool receiving_messages_ = false;
