@@ -1481,6 +1481,16 @@ void Environment::ClosePerEnvHandles() {
   close_and_finish(reinterpret_cast<uv_handle_t*>(immediate_idle_handle()));
   close_and_finish(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   close_and_finish(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
+  // Other threads may still call SetImmediateThreadsafe() or
+  // RequestInterrupt(), e.g. when V8 frees the backing store of an external
+  // Buffer on a sweeper thread. uv_async_send() must not be called on a closing
+  // handle (it aborts on Windows), so stop them from waking task_queues_async_
+  // before it is closed. Anything they queue from here on is still run by
+  // RunCleanup().
+  {
+    Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+    task_queues_async_initialized_ = false;
+  }
   close_and_finish(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 }
 
