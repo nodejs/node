@@ -13,3 +13,19 @@ assert.throws(() => {
 });
 
 assert.deepStrictEqual(url, ref);
+
+const setHref = Object.getOwnPropertyDescriptor(URL.prototype, 'href').set;
+let calls = 0;
+
+assert.throws(() => {
+  setHref.call({}, {
+    toString() {
+      calls++;
+      return 'https://example.com/';
+    },
+  });
+}, {
+  name: 'TypeError',
+});
+
+assert.strictEqual(calls, 0);
