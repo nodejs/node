@@ -240,6 +240,13 @@ self-cleaning temporary image instead, while `lib.path` keeps reporting
 the virtual path. Libraries on the real file system are unaffected and
 load directly.
 
+When using the [Permission Model][], loading a library from a virtual file
+system also requires [`--allow-fs-write`][] access to the temporary
+directory: the `TMPDIR` environment variable, or `/tmp` if it is unset, on
+POSIX, and the directory returned by `GetTempPathW()` on Windows. The path is
+matched as given, without resolving symbolic links. This applies even on
+platforms where the image is held in memory.
+
 When `definitions` is omitted, `functions` is returned as an empty object until
 symbols are resolved explicitly.
 
@@ -1052,6 +1059,7 @@ and keep callback and pointer lifetimes explicit on the native side.
 [Fast API call path]: #fast-api-call-path
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
+[`--allow-fs-write`]: cli.md#--allow-fs-write
 [`ffi.dlopen()`]: #ffidlopenpath-definitions
 [`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy
 [`library.functions`]: #libraryfunctions
