@@ -41,7 +41,6 @@ export interface WorkerBinding {
   threadId: number;
   threadName: string;
   isMainThread: boolean;
-  isInternalThread: boolean;
   ownsProcessState: boolean;
   resourceLimits?: Float64Array;
   kMaxYoungGenerationSizeMb: number;
