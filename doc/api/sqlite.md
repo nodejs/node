@@ -102,10 +102,13 @@ exception.
 | Storage class | JavaScript to SQLite                                            | SQLite to JavaScript                  |
 | ------------- | --------------------------------------------------------------- | ------------------------------------- |
 | `NULL`        | {null} or {undefined}                                           | {null}                                |
-| `INTEGER`     | {number}, {bigint}, or {boolean}                                | {number} or {bigint} _(configurable)_ |
+| `INTEGER`     | {bigint} or {boolean}                                           | {number} or {bigint} _(configurable)_ |
 | `REAL`        | {number}                                                        | {number}                              |
 | `TEXT`        | {string}                                                        | {string}                              |
 | `BLOB`        | {TypedArray}, {DataView}, {ArrayBuffer}, or {SharedArrayBuffer} | {Uint8Array}                          |
+
+A {number} is always written as `REAL`, even when it has no fractional part;
+see [Writing numbers and BigInts][].
 
 Booleans are written as the `INTEGER` values `1` and `0`. Like any other
 `INTEGER` value, they are read back as {number} by default, or as {bigint}
@@ -123,6 +126,45 @@ such as the `readBigInts` option for statements and the `useBigIntArguments`
 option for user-defined functions. If Node.js reads an `INTEGER` value from
 SQLite that is outside the JavaScript [safe integer][] range, and the option to
 read BigInts is not enabled, then an `ERR_OUT_OF_RANGE` error will be thrown.
+
+### Writing numbers and BigInts
+
+A {number} is always written as `REAL`, even when it has no fractional part,
+because every JavaScript {number} is a double. Use a {bigint} to write
+`INTEGER`:
+
+```js
+const database = new Database(':memory:');
+
+console.log(database.prepare('SELECT typeof(?) AS type').get(3));
+// Prints: [Object: null prototype] { type: 'real' }
+console.log(database.prepare('SELECT typeof(?) AS type').get(3n));
+// Prints: [Object: null prototype] { type: 'integer' }
+```
+
+This distinction keeps the mapping between the two languages unambiguous: it is
+what makes it possible to write a `REAL` such as `3.0`, which would otherwise be
+indistinguishable from the `INTEGER` `3`.
+
+Most of the time the distinction does not matter, because a column's [type
+affinity][] converts the value on the way in. Writing the {number} `3` to a
+column declared `INTEGER` stores the `INTEGER` `3`. It matters when no affinity
+applies, such as a column declared `TEXT`, a column declared without a type, or
+an expression:
+
+```js
+const database = new Database(':memory:');
+database.exec('CREATE TABLE users(id TEXT, name TEXT)');
+database.exec("INSERT INTO users VALUES ('3', 'Alice')");
+
+const query = database.prepare('SELECT name FROM users WHERE id = ?');
+
+// The number 3 is REAL, so it compares as '3.0' and does not match.
+console.log(query.get(3));
+// Prints: undefined
+console.log(query.get(3n));
+// Prints: [Object: null prototype] { name: 'Alice' }
+```
 
 ## Class: `Database`
 
@@ -916,11 +958,11 @@ in two ways:
 Hidden columns can be used to pass parameters to the `rows` function using
 table-valued function syntax (e.g., `SELECT * FROM module_name(param1, param2)`).
 
-Values yielded by `rows` follow the conversion rules in [Type conversion between
-JavaScript and SQLite][]: a {number} is stored as `REAL` and a {bigint} is
-stored as `INTEGER`, regardless of the column's declared `type`. Unlike an
-ordinary table, a virtual table does not apply column affinity to the values it
-returns, so yield a {bigint} when a column needs `INTEGER` storage:
+Values yielded by `rows` follow the rules in [Writing numbers and BigInts][]:
+a {number} is stored as `REAL` and a {bigint} is stored as `INTEGER`,
+regardless of the column's declared `type`. Unlike an ordinary table, a virtual
+table does not apply column affinity to the values it returns, so yield a
+{bigint} when a column needs `INTEGER` storage:
 
 ```js
 db.createModule('counter', {
@@ -2105,6 +2147,7 @@ callback function to indicate what type of operation is being authorized.
 [Run-Time Limits]: https://www.sqlite.org/c3ref/limit.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
+[Writing numbers and BigInts]: #writing-numbers-and-bigints
 [`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`ERR_INVALID_STATE`]: errors.md#err_invalid_state
@@ -2165,3 +2208,4 @@ callback function to indicate what type of operation is being authorized.
 [parameters are bound]: https://www.sqlite.org/c3ref/bind_blob.html
 [prepared statement]: https://www.sqlite.org/c3ref/stmt.html
 [safe integer]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
+[type affinity]: https://www.sqlite.org/datatype3.html#type_affinity
