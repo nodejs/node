@@ -50,6 +50,25 @@ fs.opendir(tmpdir.path, { bufferSize: 1 }, common.mustSucceed((dir) => {
   }));
 }
 
+// The other options are copied and validated before the directory is opened,
+// so a getter can't pass the checks and then hand an invalid value to the Dir
+// constructor. The call either fails or succeeds, never from the internal
+// callback.
+for (let validReads = 0; validReads < 5; validReads++) {
+  let reads = 0;
+  const options = {
+    get encoding() {
+      return reads++ < validReads ? 'utf8' : 'bogus';
+    },
+  };
+  fs.promises.opendir(tmpdir.path, options).then(
+    (dir) => dir.closeSync(),
+    (err) => {
+      if (err.code !== 'ERR_INVALID_ARG_VALUE') throw err;
+    },
+  ).then(common.mustCall());
+}
+
 // A non-enumerable bufferSize is ignored, the same as in fs.opendirSync().
 {
   const options = {};
