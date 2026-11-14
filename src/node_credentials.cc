@@ -1,4 +1,5 @@
 #include "env-inl.h"
+#include "node_dotenv.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
@@ -71,7 +72,10 @@ static bool HasOnly(int capability) {
 // process only has the capability CAP_NET_BIND_SERVICE set. If the current
 // process does not have any capabilities set and the process is running as
 // setuid root then lookup will not be allowed.
-bool SafeGetenv(const char* key, std::string* text, Environment* env) {
+// Whether the process runs with privileges it was not started with: setuid,
+// setgid or, on Linux, file capabilities. Configuration that comes from the
+// environment is not trusted in that case.
+static bool HasElevatedPrivileges() {
 #if !defined(__CloudABI__) && !defined(_WIN32)
 #if defined(__linux__)
   if ((!HasOnly(CAP_NET_BIND_SERVICE) && linux_at_secure()) ||
@@ -79,8 +83,22 @@ bool SafeGetenv(const char* key, std::string* text, Environment* env) {
 #else
   if (linux_at_secure() || getuid() != geteuid() || getgid() != getegid())
 #endif
-    return false;
+    return true;
 #endif
+  return false;
+}
+
+bool SafeGetenvFromEnvFile(const char* key, std::string* text) {
+  if (HasElevatedPrivileges()) return false;
+
+  std::optional<std::string> value = per_process::dotenv_file.Get(key);
+  if (!value.has_value()) return false;
+  *text = *value;
+  return true;
+}
+
+bool SafeGetenv(const char* key, std::string* text, Environment* env) {
+  if (HasElevatedPrivileges()) return false;
 
   // Fallback to system environment which reads the real environment variable
   // through uv_os_getenv.
