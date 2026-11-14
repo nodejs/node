@@ -189,10 +189,10 @@ OSSLContext::~OSSLContext() {
 
 void OSSLContext::reset() {
   if (ctx_) {
-    // The SSL object inside the ngtcp2 ctx may not have been set if
-    // SSL creation failed. Guard against null before clearing app data.
-    if (SSL* ssl = *this; ssl != nullptr) {
-      SSL_set_app_data(ssl, nullptr);
+    if (ssl_) {
+      SSL_set_app_data(ssl_.get(), nullptr);
+      ngtcp2_crypto_ossl_ctx_set_ssl(ctx_, nullptr);
+      ssl_.reset();
     }
     // connection_ is set during Initialize(). If Initialize() was
     // never called (e.g. SSL creation failed), it's still nullptr.
@@ -206,19 +206,20 @@ void OSSLContext::reset() {
 }
 
 OSSLContext::operator SSL*() const {
-  return ngtcp2_crypto_ossl_ctx_get_ssl(ctx_);
+  return ssl_.get();
 }
 
 OSSLContext::operator ngtcp2_crypto_ossl_ctx*() const {
   return ctx_;
 }
 
-void OSSLContext::Initialize(SSL* ssl,
+void OSSLContext::Initialize(SSLPointer ssl,
                              ngtcp2_crypto_conn_ref* ref,
                              ngtcp2_conn* connection,
                              SSL_CTX* ssl_ctx) {
   CHECK(ssl);
-  ngtcp2_crypto_ossl_ctx_set_ssl(ctx_, ssl);
+  ssl_ = std::move(ssl);
+  ngtcp2_crypto_ossl_ctx_set_ssl(ctx_, ssl_.get());
   SSL_set_app_data(*this, ref);
   // TODO(@jasnell): Later when BoringSSL is also supported, the native
   // handle will be different. The ngtcp2_crypto_ossl.h impl requires
@@ -899,7 +900,7 @@ void TLSSession::Initialize(
     EnableTrace(session_->env(), &bio_trace_, ssl);
   }
 
-  ossl_context_.Initialize(ssl.release(), &ref_, session(), ctx);
+  ossl_context_.Initialize(std::move(ssl), &ref_, session(), ctx);
 
   switch (ctx.side()) {
     case Side::SERVER: {
