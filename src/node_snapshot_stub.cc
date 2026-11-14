@@ -14,4 +14,8 @@ const v8::StartupData* SnapshotBuilder::GetEmbeddedGreenSnapshot() {
   return nullptr;
 }
 
+const v8::StartupData* SnapshotBuilder::GetEmbeddedGreenDefaultGroupSnapshot() {
+  return nullptr;
+}
+
 }  // namespace node

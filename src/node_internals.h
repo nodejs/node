@@ -430,20 +430,13 @@ bool TerminateAll();
 // bootstrapped. For node_mksnapshot. Empty if this build doesn't support
 // isolate groups, or creating it failed.
 v8::StartupData CreateSnapshotBlob(MultiIsolatePlatform* platform);
-
-// For Node.js' snapshot, which green threads in V8's default isolate group
-// start from: a new context in which the green thread runtime is
-// bootstrapped, using `loader`, and the exports of its bootstrap.
-v8::MaybeLocal<v8::Context> NewBootstrappedContext(
-    v8::Isolate* isolate,
-    builtins::BuiltinLoader* loader,
-    v8::Local<v8::Object>* runtime);
-// Adds such a context to the snapshot, as
-// SnapshotData::kNodeGreenContextIndex.
-bool AddContextToSnapshot(v8::Isolate* isolate,
-                          v8::SnapshotCreator* creator,
-                          v8::Local<v8::Context> context,
-                          v8::Local<v8::Object> runtime);
+// The snapshot that green threads in V8's default isolate group start from
+// when isolates in it use `node_snapshot`, Node.js' own: V8's snapshot, with
+// a context in which their runtime is bootstrapped, and the read-only heap
+// of `node_snapshot`. For node_mksnapshot, after `node_snapshot` is created.
+// Empty if creating it failed.
+v8::StartupData CreateDefaultGroupSnapshotBlob(
+    MultiIsolatePlatform* platform, const v8::StartupData& node_snapshot);
 }  // namespace green_thread
 
 // This overload automatically picks the right 'main_script_id' if no callback
