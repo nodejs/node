@@ -11,6 +11,7 @@
 #include "v8.h"
 
 #include <climits>  // INT_MIN
+#include <memory>
 
 namespace node {
 
@@ -211,10 +212,16 @@ class CustomBufferJSListener : public ReportWritesToJSStreamListener {
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
   void OnStreamDestroy() override { delete this; }
 
-  explicit CustomBufferJSListener(uv_buf_t buffer) : buffer_(buffer) {}
+  CustomBufferJSListener(v8::Local<v8::Object> object,
+                         v8::Local<v8::ArrayBufferView> view);
 
  private:
-  uv_buf_t buffer_;
+  void SetBuffer(v8::Local<v8::Object> object,
+                 v8::Local<v8::ArrayBufferView> view);
+
+  std::shared_ptr<v8::BackingStore> backing_store_;
+  uv_buf_t buffer_ = uv_buf_init(nullptr, 0);
+  bool using_fallback_buffer_ = false;
 };
 
 
@@ -314,6 +321,7 @@ class StreamBase : public StreamResource {
     kSlot = BaseObject::kSlot,
     kStreamBaseField = AsyncWrap::kInternalFieldCount,
     kOnReadFunctionField,
+    kUserBufferField,
     kInternalFieldCount
   };
 
