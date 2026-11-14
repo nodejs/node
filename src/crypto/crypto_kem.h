@@ -10,8 +10,6 @@
 #include "memory_tracker.h"
 #include "node_external_reference.h"
 
-#if OPENSSL_WITH_KEM
-
 namespace node {
 namespace crypto {
 
@@ -110,22 +108,5 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace crypto
 }  // namespace node
 
-#else
-
-// Provide stub implementations when KEM is unavailable.
-namespace node {
-namespace crypto {
-namespace KEM {
-inline void Initialize(Environment* env, v8::Local<v8::Object> target) {
-  // No-op when KEM is unavailable.
-}
-inline void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  // No-op when KEM is unavailable.
-}
-}  // namespace KEM
-}  // namespace crypto
-}  // namespace node
-
-#endif
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_KEM_H_

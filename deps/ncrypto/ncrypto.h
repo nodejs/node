@@ -28,22 +28,14 @@
   (OPENSSL_VERSION_NUMBER >= (((maj) << 28) | ((min) << 20)))
 #endif
 
-// BoringSSL reports itself as OpenSSL 1.1.1, so it has to be excluded here.
-#if !defined(OPENSSL_IS_BORINGSSL) && !OPENSSL_VERSION_PREREQ(3, 0)
-#error "OpenSSL 1.x is no longer supported, v3.0.0 or later is required."
-#endif
-
 // BoringSSL declares the EVP_*_do_all* APIs, but their implementation may
 // live in libdecrepit. This matches standalone ncrypto's build flag.
 #ifndef NCRYPTO_BSSL_LIBDECREPIT_MISSING
 #define NCRYPTO_BSSL_LIBDECREPIT_MISSING 0
 #endif
 
-#if defined(OPENSSL_IS_BORINGSSL) && NCRYPTO_BSSL_LIBDECREPIT_MISSING
-#define NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK 1
-#else
-#define NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK 0
-#endif
+#define NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK                              \
+  (NCRYPTO_USE_BORINGSSL && NCRYPTO_BSSL_LIBDECREPIT_MISSING)
 
 // Backend split:
 // - OpenSSL uses provider APIs and hides deprecated low-level objects.
@@ -59,71 +51,18 @@
 #error "Unsupported crypto backend"
 #endif
 
-#define NCRYPTO_USE_LEGACY_KEY_TYPES NCRYPTO_USE_BORINGSSL
-
-// OpenSSL 4 makes ASN1_STRING opaque and provides a checked BIT STRING length
-// accessor. Earlier OpenSSL releases and pinned BoringSSL expose the decoded
-// unused-bit count through ASN1_STRING::flags.
-#if NCRYPTO_USE_OPENSSL_PROVIDER && OPENSSL_VERSION_PREREQ(4, 0)
-#define NCRYPTO_HAS_ASN1_BIT_STRING_GET_LENGTH 1
-#elif NCRYPTO_USE_OPENSSL_PROVIDER || NCRYPTO_USE_BORINGSSL
-#define NCRYPTO_HAS_ASN1_BIT_STRING_GET_LENGTH 0
-#else
-#error "Unsupported crypto backend"
-#endif
-
-// BoringSSL's X.509 signer can encode only its restricted RSA-PSS parameter
-// profile. Other supported backends accept the full runtime signing profile.
-#if NCRYPTO_USE_BORINGSSL
-#define NCRYPTO_HAS_X509_RSA_PSS_FLEXIBLE_PARAMETERS 0
-#elif NCRYPTO_USE_OPENSSL_PROVIDER
-#define NCRYPTO_HAS_X509_RSA_PSS_FLEXIBLE_PARAMETERS 1
-#else
-#error "Unsupported crypto backend"
-#endif
-
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 #include <openssl/core_names.h>
 #include <openssl/encoder.h>
 #include <openssl/param_build.h>
 #endif
 
-#if !defined(OPENSSL_IS_BORINGSSL)
-#define OPENSSL_WITH_AES_OCB 1
-#elif defined(OPENSSL_IS_BORINGSSL)
-#define OPENSSL_WITH_AES_OCB 0
-#endif
-
-#if !defined(OPENSSL_NO_ARGON2) && OPENSSL_VERSION_PREREQ(3, 2)
-#define OPENSSL_WITH_ARGON2 1
-#else
-#define OPENSSL_WITH_ARGON2 0
-#endif
-
-#define OPENSSL_WITH_KEM 1
-
-#if !defined(OPENSSL_IS_BORINGSSL)
-#define OPENSSL_WITH_EVP_MAC 1
-#elif defined(OPENSSL_IS_BORINGSSL)
-#define OPENSSL_WITH_EVP_MAC 0
-#endif
-
-#if !defined(OPENSSL_IS_BORINGSSL)
-#define OPENSSL_WITH_AES_SIV 1
-#elif defined(OPENSSL_IS_BORINGSSL)
-#define OPENSSL_WITH_AES_SIV 0
-#endif
-
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 2)
-#define OPENSSL_WITH_AES_GCM_SIV 1
-#else
-#define OPENSSL_WITH_AES_GCM_SIV 0
-#endif
-
-#if !defined(OPENSSL_IS_BORINGSSL)
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 #define OSSL3_CONST const
 #elif defined(OPENSSL_IS_BORINGSSL)
 #define OSSL3_CONST
+#else
+#error "Unsupported crypto backend"
 #endif
 
 #ifdef __GNUC__
@@ -136,8 +75,10 @@
 // Boringssl has opted to use size_t for some size related
 // APIs while Openssl is still using ints
 using OPENSSL_SIZE_T = size_t;
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
 using OPENSSL_SIZE_T = int;
+#else
+#error "Unsupported crypto backend"
 #endif
 
 namespace ncrypto {
@@ -307,7 +248,7 @@ template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
 using PKCS8Pointer = DeleteFnPtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_free>;
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
 using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
 #endif
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
@@ -359,7 +300,7 @@ class Digest final {
   Digest(const Digest& other);
   Digest& operator=(const Digest& other);
   inline Digest& operator=(const EVP_MD* md) {
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
     fetched_md_.reset();
 #endif
     md_ = md;
@@ -387,7 +328,7 @@ class Digest final {
 
  private:
   const EVP_MD* md_ = nullptr;
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   explicit Digest(DeleteFnPtr<EVP_MD, EVP_MD_free> md);
   DeleteFnPtr<EVP_MD, EVP_MD_free> fetched_md_;
 #endif
@@ -439,7 +380,7 @@ class DigestCache final {
   Result insert(const char* name, const EVP_MD* digest, uint64_t generation);
   void reset(uint64_t generation);
   const AliasMap& aliases() const;
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   // Returns an HMAC context for the cached digest that has no key yet.
   // Duplicating it avoids fetching HMAC and the digest for every context.
   const HMACCtxPointer* getHmacTemplate(const EVP_MD* digest,
@@ -448,7 +389,7 @@ class DigestCache final {
 
  private:
   uint64_t generation_ = 0;
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   using EVPMDPointer = DeleteFnPtr<EVP_MD, EVP_MD_free>;
 
   // IDs are not reused across generations because JavaScript caches them
@@ -475,14 +416,14 @@ class CipherCache final {
   NCRYPTO_DISALLOW_COPY_AND_MOVE(CipherCache)
 
   const EVP_CIPHER* lookup(const char* name, uint64_t generation);
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   const EVP_CIPHER* insert(const char* name,
                            DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free>&& cipher,
                            uint64_t generation);
 #endif
 
  private:
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   using EVPCipherPointer = DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free>;
 
   uint64_t generation_ = 0;
@@ -516,7 +457,7 @@ class Cipher final {
   Cipher(const Cipher& other);
   Cipher& operator=(const Cipher& other);
   inline Cipher& operator=(const EVP_CIPHER* cipher) {
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
     fetched_cipher_.reset();
 #endif
     cipher_ = cipher;
@@ -612,7 +553,7 @@ class Cipher final {
 
  private:
   const EVP_CIPHER* cipher_ = nullptr;
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   explicit Cipher(DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher);
   DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched_cipher_;
 #endif
@@ -642,7 +583,7 @@ class Dsa final {
 #else
 #error "Unsupported crypto backend"
 #endif
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   inline operator OSSL3_CONST DSA*() const { return dsa_; }
 #endif
 
@@ -689,7 +630,7 @@ class Rsa final {
 #else
 #error "Unsupported crypto backend"
 #endif
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   inline operator OSSL3_CONST RSA*() const { return rsa_; }
 #endif
 
@@ -794,7 +735,7 @@ class Ec final {
   int getCurve() const;
 
   inline operator bool() const { return ec_ != nullptr; }
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   inline operator OSSL3_CONST EC_KEY*() const { return ec_; }
 #endif
 
@@ -1358,7 +1299,7 @@ class EVPKeyPointer final {
 
   bool assign(const ECKeyPointer& eckey);
   bool set(const ECKeyPointer& eckey);
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   operator const EC_KEY*() const;
 #endif
 
@@ -1903,7 +1844,7 @@ class ECKeyPointer final {
  public:
   ECKeyPointer();
   explicit ECKeyPointer(const EVPKeyPointer& key);
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   explicit ECKeyPointer(EC_KEY* key);
 #endif
   ECKeyPointer(ECKeyPointer&& other) noexcept;
@@ -1951,7 +1892,7 @@ class ECKeyPointer final {
   static ECKeyPointer New(const EC_GROUP* group);
   static ECKeyPointer NewByCurveName(int nid);
 
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   static const EC_POINT* GetPublicKey(const EC_KEY* key);
   static const BIGNUM* GetPrivateKey(const EC_KEY* key);
   static const EC_GROUP* GetGroup(const EC_KEY* key);
@@ -1991,7 +1932,7 @@ class EVPMDCtxPointer final {
   inline bool digestInit(const Digest& digest) {
     return digestInit(digest.get());
   }
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
+#if !NCRYPTO_USE_BORINGSSL
   bool digestInit(const EVP_MD* digest, const OSSL_PARAM* params);
   inline bool digestInit(const Digest& digest, const OSSL_PARAM* params) {
     return digestInit(digest.get(), params);
@@ -2065,7 +2006,7 @@ class HMACCtxPointer final {
 };
 #endif  // NCRYPTO_USE_BORINGSSL
 
-#if OPENSSL_WITH_EVP_MAC
+#if !NCRYPTO_USE_BORINGSSL
 class EVPMacPointer final {
  public:
   EVPMacPointer() = default;
@@ -2202,7 +2143,7 @@ class HMACCtxPointer final {
   const EVP_MD* md_ = nullptr;
   size_t md_size_ = 0;
 };
-#endif  // OPENSSL_WITH_EVP_MAC
+#endif  // !NCRYPTO_USE_BORINGSSL
 
 #if NCRYPTO_USE_BORINGSSL
 class MacCache final {
@@ -2256,7 +2197,7 @@ Buffer<char> ExportChallenge(const char* input, size_t length);
 // ============================================================================
 // KDF
 
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 class KDF final {
  public:
   KDF() = default;
@@ -2311,7 +2252,7 @@ DataPointer pbkdf2(const Digest& md,
                    uint32_t iterations,
                    size_t length);
 
-#if OPENSSL_WITH_ARGON2
+#if defined(OSSL_KDF_PARAM_ARGON2_LANES)
 enum class Argon2Type { ARGON2D, ARGON2I, ARGON2ID };
 
 DataPointer argon2(const Buffer<const char>& pass,
@@ -2328,7 +2269,6 @@ DataPointer argon2(const Buffer<const char>& pass,
 
 // ============================================================================
 // KEM (Key Encapsulation Mechanism)
-#if OPENSSL_WITH_KEM
 
 class KEM final {
  public:
@@ -2352,13 +2292,11 @@ class KEM final {
                                  const Buffer<const void>& ciphertext);
 
  private:
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   static bool SetOperationParameter(EVP_PKEY_CTX* ctx,
                                     const EVPKeyPointer& key);
 #endif
 };
-
-#endif  // OPENSSL_WITH_KEM
 
 // ============================================================================
 // Version metadata

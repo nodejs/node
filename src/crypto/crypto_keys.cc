@@ -653,7 +653,7 @@ static KeyObjectData ImportRawKey(Environment* env,
       throw_invalid();
       return {};
     }
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
     eckey.release();
 #endif
     return KeyObjectData::CreateAsymmetric(target_type, std::move(pkey));
@@ -1316,11 +1316,7 @@ void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
       ClearErrorOnReturn clear_error_on_return;
       EVP_PKEY* pkey = key.GetAsymmetricKey().get();
       EVP_PKEY* pkey2 = key2.GetAsymmetricKey().get();
-#ifndef OPENSSL_IS_BORINGSSL
       int ok = EVP_PKEY_eq(pkey, pkey2);
-#elif defined(OPENSSL_IS_BORINGSSL)
-      int ok = EVP_PKEY_cmp(pkey, pkey2);
-#endif
       if (ok == -2) {
         Environment* env = Environment::GetCurrent(args);
         return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);

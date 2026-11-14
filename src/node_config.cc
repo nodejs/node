@@ -13,6 +13,7 @@
 
 namespace node {
 
+using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
@@ -52,15 +53,13 @@ static void InitConfig(Local<Object> target,
   READONLY_FALSE_PROPERTY(target, "isDebugBuild");
 #endif  // defined(DEBUG) && DEBUG
 
-#ifdef OPENSSL_IS_BORINGSSL
-  READONLY_TRUE_PROPERTY(target, "openSSLIsBoringSSL");
-#else
-  READONLY_FALSE_PROPERTY(target, "openSSLIsBoringSSL");
-#endif  // OPENSSL_IS_BORINGSSL
-
 #if HAVE_OPENSSL
+  READONLY_PROPERTY(target,
+                    "openSSLIsBoringSSL",
+                    Boolean::New(isolate, NCRYPTO_USE_BORINGSSL));
   READONLY_TRUE_PROPERTY(target, "hasOpenSSL");
 #else
+  READONLY_FALSE_PROPERTY(target, "openSSLIsBoringSSL");
   READONLY_FALSE_PROPERTY(target, "hasOpenSSL");
 #endif  // HAVE_OPENSSL
 

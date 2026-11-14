@@ -5,7 +5,7 @@
 #include "memory_tracker-inl.h"
 #include "threadpoolwork-inl.h"
 
-#if OPENSSL_WITH_ARGON2
+#if defined(OSSL_KDF_PARAM_ARGON2_LANES)
 #include <openssl/core_names.h>
 
 namespace node::crypto {

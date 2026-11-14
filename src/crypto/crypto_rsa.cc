@@ -20,7 +20,7 @@ using ncrypto::Digest;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::KeyAlgorithm;
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
 using ncrypto::RSAPointer;
 #endif
 using v8::Array;

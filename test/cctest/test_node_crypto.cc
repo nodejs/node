@@ -17,7 +17,7 @@
 #include <string_view>
 #include <vector>
 
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
 #include <openssl/params.h>
@@ -174,7 +174,7 @@ TEST(NodeCrypto, KeyAlgorithmNames) {
   EXPECT_FALSE(empty.isA(static_cast<const char*>(nullptr)));
 }
 
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 TEST(NodeCrypto, DhNamedGroupCheckDoesNotRequireRandomness) {
   ncrypto::ClearErrorOnReturn clear_errors;
   ncrypto::DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> libctx(
@@ -491,7 +491,7 @@ TEST(NodeCrypto, RsaPrimeProduct) {
   EXPECT_FALSE(rsa.checkPrimeProduct());
 }
 
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 namespace {
 constexpr int kMinimumPrimeChecks = 64;
 
@@ -690,7 +690,7 @@ TEST(NodeCrypto, ResolveKeyAlgorithm) {
     key.reset();
     EXPECT_EQ(key.getAlgorithm(), nullptr);
   }
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   // Legacy keys must resolve even without provider-backed key material.
   key = EVPKeyPointer::New();
   ASSERT_EQ(EVP_PKEY_set_type(key.get(), NID_rsaEncryption), 1);
@@ -714,7 +714,7 @@ TEST(NodeCrypto, PublicKeyTypeNames) {
   EXPECT_STREQ(key.getKeyTypeName(), "ed25519");
 }
 
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 TEST(NodeCrypto, LegacyKeyAlgorithmResolution) {
   ncrypto::ClearErrorOnReturn clear_errors;
   auto key = EVPKeyPointer::New();
@@ -760,7 +760,7 @@ TEST(NodeCrypto, EcGroupNames) {
   }
 }
 
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 namespace {
 // Deliberately longer than the fixed-size group buffer formerly used by
 // ncrypto.
@@ -950,7 +950,7 @@ TEST(NodeCrypto, NamedRawKey) {
   EXPECT_TRUE(key.supportsRawPublic());
   EXPECT_TRUE(key.supportsRawPrivate());
   EXPECT_EQ(key.getAlgorithm()->seedSize(), 0);
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   // Provider aliases are recognized without comparing the primary type name.
   EXPECT_TRUE(key.isA("1.3.101.112"));
   auto ctx = ncrypto::EVPKeyCtxPointer::NewFromName("1.3.101.112");
@@ -1005,7 +1005,7 @@ TEST(NodeCrypto, ProviderPqcKeyWithoutLegacyId) {
                                                      algorithm->seedSize()};
     auto key = EVPKeyPointer::NewRawSeed(*algorithm, input);
     ASSERT_TRUE(key);
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
     EXPECT_EQ(EVP_PKEY_id(key.get()), -1);
 #endif
     EXPECT_TRUE(key.isA(*algorithm));
@@ -1082,7 +1082,7 @@ TEST(NodeCrypto, UnavailableBoringSSLKeyAlgorithms) {
 }
 #endif
 
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 TEST(NodeCrypto, PrivateKeyEncodingOwnsFetchedCipher) {
   ncrypto::ClearErrorOnReturn clear_errors;
   EVPKeyPointer::PrivateKeyEncodingConfig assigned;

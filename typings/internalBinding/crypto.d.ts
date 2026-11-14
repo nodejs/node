@@ -1071,6 +1071,7 @@ export interface CryptoBinding {
     certificate: InternalCryptoBinding.X509CertificateHandle,
   ): InternalCryptoBinding.Buffer[];
   isCryptoKey(key: unknown): boolean;
+  isKdfAlgorithmAvailable(name: string): boolean;
   isKeyAlgorithmAvailable(name: string): boolean;
   isKeyObject(key: unknown): boolean;
   isX509Certificate(value: unknown): boolean;

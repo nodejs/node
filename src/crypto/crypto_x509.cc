@@ -749,7 +749,14 @@ MaybeLocal<Value> CreateSignature(Environment* env,
   if (native_length < 0 || (native_length > 0 && native_data == nullptr)) {
     return {};
   }
-#if NCRYPTO_HAS_ASN1_BIT_STRING_GET_LENGTH
+  // Exposed ASN1_STRING flags encode the unused-bit count in the low
+  // three bits. Opaque values provide a checked accessor instead.
+#if defined(ASN1_STRING_FLAG_BITS_LEFT)
+  if ((native_signature->flags & ASN1_STRING_FLAG_BITS_LEFT) != 0 &&
+      (native_signature->flags & 0x07) != 0) {
+    return {};
+  }
+#else
   size_t byte_length = 0;
   int unused_bits = 0;
   if (ASN1_BIT_STRING_get_length(
@@ -757,13 +764,6 @@ MaybeLocal<Value> CreateSignature(Environment* env,
       unused_bits != 0 || byte_length != static_cast<size_t>(native_length)) {
     return {};
   }
-#elif NCRYPTO_USE_OPENSSL_PROVIDER || NCRYPTO_USE_BORINGSSL
-  if ((native_signature->flags & ASN1_STRING_FLAG_BITS_LEFT) != 0 &&
-      (native_signature->flags & 0x07) != 0) {
-    return {};
-  }
-#else
-#error "Unsupported crypto backend"
 #endif
 
   const ncrypto::Buffer<const unsigned char> signature{

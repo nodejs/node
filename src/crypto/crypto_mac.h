@@ -28,7 +28,7 @@ class Mac final : public BaseObject {
   static void GetMacs(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetCachedAliases(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-#if OPENSSL_WITH_EVP_MAC
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   Mac(Environment* env,
       v8::Local<v8::Object> wrap,
       ncrypto::EVPMacCtxPointer&& context,
@@ -41,6 +41,8 @@ class Mac final : public BaseObject {
   bool has_output_length_ = false;
 #elif defined(OPENSSL_IS_BORINGSSL)
   Mac(Environment* env, v8::Local<v8::Object> wrap);
+#else
+#error "Unsupported crypto backend"
 #endif
 };
 

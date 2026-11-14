@@ -40,10 +40,8 @@
 #include "crypto/crypto_hash.h"
 #include "crypto/crypto_hkdf.h"
 #include "crypto/crypto_hmac.h"
-#if OPENSSL_WITH_KEM
 #include "crypto/crypto_kem.h"
-#endif
-#if OPENSSL_WITH_EVP_MAC
+#if !NCRYPTO_USE_BORINGSSL
 #include "crypto/crypto_kmac.h"
 #endif
 #include "crypto/crypto_keygen.h"

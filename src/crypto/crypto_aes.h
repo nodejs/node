@@ -31,20 +31,24 @@ constexpr unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
   V(KW_128, AES_KW_Cipher, static_cast<const EVP_CIPHER*>(nullptr))            \
   V(KW_192, AES_KW_Cipher, static_cast<const EVP_CIPHER*>(nullptr))            \
   V(KW_256, AES_KW_Cipher, static_cast<const EVP_CIPHER*>(nullptr))
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
 #define VARIANTS_KW(V)                                                         \
   V(KW_128, AES_Cipher, ncrypto::Cipher::AES_128_KW())                         \
   V(KW_192, AES_Cipher, ncrypto::Cipher::AES_192_KW())                         \
   V(KW_256, AES_Cipher, ncrypto::Cipher::AES_256_KW())
+#else
+#error "Unsupported crypto backend"
 #endif
 
-#if OPENSSL_WITH_AES_OCB
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 #define VARIANTS_OCB(V)                                                        \
   V(OCB_128, AES_Cipher, ncrypto::Cipher::AES_128_OCB())                       \
   V(OCB_192, AES_Cipher, ncrypto::Cipher::AES_192_OCB())                       \
   V(OCB_256, AES_Cipher, ncrypto::Cipher::AES_256_OCB())
 #elif defined(OPENSSL_IS_BORINGSSL)
 #define VARIANTS_OCB(V)
+#else
+#error "Unsupported crypto backend"
 #endif
 
 #define VARIANTS(V)                                                            \

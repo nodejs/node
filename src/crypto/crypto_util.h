@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#if OPENSSL_VERSION_NUMBER >= 0x30200000L && !defined(OPENSSL_NO_COMP_ALG)
+#if defined(TLSEXT_comp_cert_limit) && !defined(OPENSSL_NO_COMP_ALG)
 #define NODE_OPENSSL_HAS_CERT_COMP 1
 #endif
 

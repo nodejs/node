@@ -76,7 +76,7 @@ constexpr BoringSSLDigest kBoringSSLDigests[] = {
 void ResetHashCache(Environment* env,
                     uint64_t generation,
                     Local<Object> algorithm_cache = Local<Object>()) {
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   ncrypto::DigestCache* cache = env->provider_digest_cache.get();
   CHECK_NOT_NULL(cache);
   if (!algorithm_cache.IsEmpty()) {
@@ -294,7 +294,7 @@ void Hash::GetCachedAliases(const FunctionCallbackInfo<Value>& args) {
   size_t size = 0;
   LocalVector<Name> names(isolate);
   LocalVector<Value> values(isolate);
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   const auto& aliases = env->provider_digest_cache->aliases();
   size = aliases.size();
   names.reserve(size);
@@ -372,6 +372,8 @@ const ncrypto::Digest GetDigest(Environment* env, const char* name) {
   return result.digest;
 #elif NCRYPTO_USE_BORINGSSL
   return ncrypto::Digest::FromName(name);
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
@@ -384,7 +386,7 @@ const ncrypto::Digest GetDigestForJob(Environment* env,
 
 ncrypto::HMACCtxPointer NewHmacContext(Environment* env,
                                        const ncrypto::Digest& md) {
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   SynchronizeHashCache(env);
   if (const auto* hmac_template = env->provider_digest_cache->getHmacTemplate(
           md, env->hash_cache_generation)) {
@@ -656,7 +658,7 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
     xof_md_len = Just<unsigned int>(args[1].As<Uint32>()->Value());
   }
 
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   // This is the common path after the first lookup. Avoid constructing a
   // digest owner when the Environment already owns the cached implementation.
   if (args.Length() == 4 && args[0]->IsString()) {

@@ -20,16 +20,13 @@
 #include "math.h"
 
 #ifndef OPENSSL_IS_BORINGSSL
+#include <openssl/core_names.h>
+#include <openssl/params.h>
 #include "openssl/provider.h"
 #endif
 
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+#if defined(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR)
 #include <openssl/indicator.h>
-#endif
-
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
-#include <openssl/core_names.h>
-#include <openssl/params.h>
 #endif
 
 namespace node {
@@ -107,7 +104,7 @@ bool CShakeOptions::Initialize(ncrypto::EVPMDCtxPointer* ctx,
   if (!ctx || !*ctx || digest == nullptr) return false;
   if (empty()) return ctx->digestInit(digest);
 
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const bool is_cshake =
       EVP_MD_is_a(digest, "CSHAKE-128") || EVP_MD_is_a(digest, "CSHAKE-256");
   if (!is_cshake) return false;
@@ -116,20 +113,23 @@ bool CShakeOptions::Initialize(ncrypto::EVPMDCtxPointer* ctx,
   size_t count = 0;
   if (has(kFunctionName)) {
     params[count++] = OSSL_PARAM_construct_utf8_string(
-        OSSL_DIGEST_PARAM_FUNCTION_NAME,
+        "function-name",
         const_cast<char*>(function_name.c_str()),
         function_name.size());
   }
   if (has(kCustomization)) {
     params[count++] = OSSL_PARAM_construct_utf8_string(
-        OSSL_DIGEST_PARAM_CUSTOMIZATION,
+        "customization",
         const_cast<char*>(customization.c_str()),
         customization.size());
   }
   params[count] = OSSL_PARAM_construct_end();
   return ctx->digestInit(digest, params);
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
+  // BoringSSL does not support these cSHAKE parameters.
   return false;
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
@@ -211,7 +211,7 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
   return 0;
 }
 
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+#if defined(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR)
 namespace {
 
 constexpr size_t kMaxPendingFipsIndicatorEvents = 256;
@@ -421,7 +421,7 @@ class FipsIndicatorState final {
 #endif
 
 void InstallFipsIndicatorCallback() {
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+#if defined(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR)
   const auto& options = per_process::cli_options;
   const bool strict = options->force_fips_crypto &&
                       options->force_fips_crypto_policy == "strict";
@@ -432,7 +432,7 @@ void InstallFipsIndicatorCallback() {
 }
 
 void SetupFipsIndicatorChannel(const FunctionCallbackInfo<Value>& args) {
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+#if defined(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR)
   Environment* env = Environment::GetCurrent(args);
   if (env->owns_process_state() &&
       per_process::cli_options->enable_fips_indicator_events) {
@@ -913,7 +913,7 @@ Maybe<void> Decorate(Environment* env,
 
 #ifdef OPENSSL_IS_BORINGSSL
 #define OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
 #define OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)                                   \
   V(PKCS12)                                                                    \
   V(DSO)                                                                       \
@@ -924,6 +924,8 @@ Maybe<void> Decorate(Environment* env,
   V(ASYNC)                                                                     \
   V(KDF)                                                                       \
   V(SM2)
+#else
+#error "Unsupported crypto backend"
 #endif
 
 #define OSSL_ERROR_CODES_MAP(V)                                                \
@@ -1146,6 +1148,20 @@ void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
       BigInt::New(args.GetIsolate(), DataPointer::GetSecureHeapUsed()));
 }
+
+void IsKdfAlgorithmAvailable(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  const Utf8Value name(args.GetIsolate(), args[0]);
+  ncrypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+  args.GetReturnValue().Set(static_cast<bool>(ncrypto::KDF::Fetch(*name)));
+#elif NCRYPTO_USE_BORINGSSL
+  // BoringSSL does not provide the provider KDF API.
+  args.GetReturnValue().Set(false);
+#else
+#error "Unsupported crypto backend"
+#endif
+}
 }  // namespace
 
 namespace Util {
@@ -1168,6 +1184,8 @@ void Initialize(Environment* env, Local<Object> target) {
 
   SetMethodNoSideEffect(
       context, target, "getOpenSSLSecLevelCrypto", GetOpenSSLSecLevelCrypto);
+  SetMethodNoSideEffect(
+      context, target, "isKdfAlgorithmAvailable", IsKdfAlgorithmAvailable);
 }
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetFipsCrypto);
@@ -1178,6 +1196,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SecureBuffer);
   registry->Register(SecureHeapUsed);
   registry->Register(GetOpenSSLSecLevelCrypto);
+  registry->Register(IsKdfAlgorithmAvailable);
 }
 
 }  // namespace Util

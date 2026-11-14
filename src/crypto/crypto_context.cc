@@ -1561,9 +1561,11 @@ int CertVerifyCallback(X509_STORE_CTX* ctx, void*) {
   // recorded there.
   (void)depth;
   (void)offender;
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
   X509_STORE_CTX_set_error_depth(ctx, depth);
   X509_STORE_CTX_set_current_cert(ctx, offender);
+#else
+#error "Unsupported crypto backend"
 #endif
   // The per-certificate callback is the one carried by the SSL object; it is
   // what the library installs on the store context before calling this hook.
@@ -2134,7 +2136,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error setting temp DH parameter");
   }
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   dh_pkey.release();
 #endif
 }

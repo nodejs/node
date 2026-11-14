@@ -46,6 +46,7 @@ namespace crypto {
   V(Hash)                                                                      \
   V(HKDFJob)                                                                   \
   V(Hmac)                                                                      \
+  V(KEM)                                                                       \
   V(Keygen)                                                                    \
   V(Keys)                                                                      \
   V(Mac)                                                                       \
@@ -65,23 +66,19 @@ namespace crypto {
   V(X509Generation)                                                            \
   V(X509GenerateJob)
 
-#if OPENSSL_WITH_ARGON2
+#if defined(OSSL_KDF_PARAM_ARGON2_LANES)
 #define ARGON2_NAMESPACE_LIST(V) V(Argon2)
 #else
 #define ARGON2_NAMESPACE_LIST(V)
-#endif  // OPENSSL_WITH_ARGON2
-
-#if OPENSSL_WITH_KEM
-#define KEM_NAMESPACE_LIST(V) V(KEM)
-#else
-#define KEM_NAMESPACE_LIST(V)
 #endif
 
-#if OPENSSL_WITH_EVP_MAC
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 #define KMAC_NAMESPACE_LIST(V) V(Kmac)
 #elif defined(OPENSSL_IS_BORINGSSL)
 #define KMAC_NAMESPACE_LIST(V)
-#endif  // OPENSSL_WITH_EVP_MAC
+#else
+#error "Unsupported crypto backend"
+#endif  // NCRYPTO_USE_OPENSSL_PROVIDER
 
 #define TURBOSHAKE_NAMESPACE_LIST(V) V(TurboShake)
 
@@ -94,7 +91,6 @@ namespace crypto {
 #define CRYPTO_NAMESPACE_LIST(V)                                               \
   CRYPTO_NAMESPACE_LIST_BASE(V)                                                \
   ARGON2_NAMESPACE_LIST(V)                                                     \
-  KEM_NAMESPACE_LIST(V)                                                        \
   KMAC_NAMESPACE_LIST(V)                                                       \
   SCRYPT_NAMESPACE_LIST(V)                                                     \
   TURBOSHAKE_NAMESPACE_LIST(V)

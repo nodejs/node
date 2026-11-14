@@ -10,7 +10,7 @@
 #include "permission/env_permission.h"
 #include "uv.h"
 #if HAVE_OPENSSL
-#include "ncrypto.h"  // Defines OPENSSL_VERSION_PREREQ for BoringSSL.
+#include "ncrypto.h"
 #include "quic/guard.h"
 #endif
 
@@ -142,7 +142,7 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
         "invalid value for --force-fips; expected 'provider' or 'strict'");
   }
 
-#if defined(OPENSSL_IS_BORINGSSL) || !OPENSSL_VERSION_PREREQ(3, 4)
+#if !defined(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR)
   if (enable_fips_indicator_events) {
     errors->push_back(
         "--enable-fips-indicator-events requires OpenSSL 3.4 or later");

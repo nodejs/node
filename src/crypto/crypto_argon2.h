@@ -7,7 +7,7 @@
 #include "crypto/crypto_util.h"
 
 namespace node::crypto {
-#if OPENSSL_WITH_ARGON2
+#if defined(OSSL_KDF_PARAM_ARGON2_LANES)
 
 // Argon2 is a password-based key derivation algorithm
 // defined in https://datatracker.ietf.org/doc/html/rfc9106
@@ -75,11 +75,6 @@ void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Argon2
 
-#else
-// If there is no Argon2 support, Argon2Job becomes a non-op
-struct Argon2Job {
-  static void Initialize(Environment* env, v8::Local<v8::Object> target) {}
-};
 #endif
 
 }  // namespace node::crypto

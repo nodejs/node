@@ -85,7 +85,7 @@ TEST_F(NodeCryptoEnv, InvalidEcJwkClearsErrorQueue) {
   EXPECT_EQ(ERR_peek_error(), 0UL);
 }
 
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 TEST_F(NodeCryptoEnv, ExportIncompleteRsaPrivateKeyAsJwk) {
   v8::HandleScope handle_scope(isolate_);
   Argv argv;

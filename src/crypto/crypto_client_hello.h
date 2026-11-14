@@ -9,6 +9,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include "ncrypto.h"
 
 namespace node::crypto {
 
@@ -35,12 +36,14 @@ class ClientHelloContext final {
   static constexpr Result kContinueResult = ssl_select_cert_success;
   static constexpr Result kRetryResult = ssl_select_cert_retry;
   static constexpr Result kFailResult = ssl_select_cert_error;
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
   using Handle = SSL*;
   using Result = int;
   static constexpr Result kContinueResult = SSL_CLIENT_HELLO_SUCCESS;
   static constexpr Result kRetryResult = SSL_CLIENT_HELLO_RETRY;
   static constexpr Result kFailResult = SSL_CLIENT_HELLO_ERROR;
+#else
+#error "Unsupported crypto backend"
 #endif
 
   explicit ClientHelloContext(Handle handle, int* alert = nullptr)
@@ -89,10 +92,12 @@ struct ClientHelloCallback final {
   static ssl_select_cert_result_t Invoke(const SSL_CLIENT_HELLO* hello) {
     return ClientHelloContext::Encode(Fn(ClientHelloContext(hello)));
   }
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
   static int Invoke(SSL* ssl, int* alert, void* arg) {
     return ClientHelloContext::Encode(Fn(ClientHelloContext(ssl, alert)));
   }
+#else
+#error "Unsupported crypto backend"
 #endif
 };
 
@@ -101,8 +106,10 @@ template <ClientHelloResult (*Fn)(const ClientHelloContext&)>
 inline void SetClientHelloCallback(SSL_CTX* ctx) {
 #ifdef OPENSSL_IS_BORINGSSL
   SSL_CTX_set_select_certificate_cb(ctx, ClientHelloCallback<Fn>::Invoke);
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
   SSL_CTX_set_client_hello_cb(ctx, ClientHelloCallback<Fn>::Invoke, nullptr);
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 

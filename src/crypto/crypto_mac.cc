@@ -7,7 +7,7 @@
 #include "string_bytes.h"
 #include "v8.h"
 
-#if OPENSSL_WITH_EVP_MAC
+#if !NCRYPTO_USE_BORINGSSL
 #include <openssl/core_names.h>
 #include <openssl/evp.h>
 #include <openssl/params.h>
@@ -39,7 +39,7 @@ using v8::Value;
 
 namespace crypto {
 
-#if OPENSSL_WITH_EVP_MAC
+#if !NCRYPTO_USE_BORINGSSL
 namespace {
 
 struct InitializedMac final {
@@ -495,9 +495,9 @@ const std::vector<std::string>& GetSupportedMacAlgorithms(Environment* env) {
 }
 
 }  // namespace
-#endif  // OPENSSL_WITH_EVP_MAC
+#endif  // !NCRYPTO_USE_BORINGSSL
 
-#if OPENSSL_WITH_EVP_MAC
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 bool Mac::MacUpdate(const char* data, size_t length) {
   if (!context_) return false;
   if (length == 0) return true;
@@ -526,13 +526,17 @@ Mac::Mac(Environment* env,
 Mac::Mac(Environment* env, Local<Object> wrap) : BaseObject(env, wrap) {
   MakeWeak();
 }
+#else
+#error "Unsupported crypto backend"
 #endif
 
 void Mac::MemoryInfo(MemoryTracker* tracker) const {
-#if OPENSSL_WITH_EVP_MAC
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   tracker->TrackFieldWithSize("context", context_ ? kSizeOf_EVP_MAC_CTX : 0);
 #elif defined(OPENSSL_IS_BORINGSSL)
   static_cast<void>(tracker);
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
@@ -560,7 +564,7 @@ void Mac::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 void Mac::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-#if OPENSSL_WITH_EVP_MAC
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   CHECK(args.Length() == 5 || args.Length() == 10);
   Environment* env = Environment::GetCurrent(args);
   InitializedMac initialized;
@@ -573,11 +577,13 @@ void Mac::New(const FunctionCallbackInfo<Value>& args) {
 #elif defined(OPENSSL_IS_BORINGSSL)
   THROW_ERR_CRYPTO_MAC_NOT_SUPPORTED(Environment::GetCurrent(args),
                                      "MAC is not supported");
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
 void Mac::MacUpdate(const FunctionCallbackInfo<Value>& args) {
-#if OPENSSL_WITH_EVP_MAC
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   Decode<Mac>(args,
               [](Mac* mac,
                  const FunctionCallbackInfo<Value>& args,
@@ -588,11 +594,13 @@ void Mac::MacUpdate(const FunctionCallbackInfo<Value>& args) {
 #elif defined(OPENSSL_IS_BORINGSSL)
   THROW_ERR_CRYPTO_MAC_NOT_SUPPORTED(Environment::GetCurrent(args),
                                      "MAC is not supported");
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
 void Mac::MacFinal(const FunctionCallbackInfo<Value>& args) {
-#if OPENSSL_WITH_EVP_MAC
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   Mac* mac;
   ASSIGN_OR_RETURN_UNWRAP(&mac, args.This());
   Environment* env = mac->env();
@@ -616,11 +624,13 @@ void Mac::MacFinal(const FunctionCallbackInfo<Value>& args) {
 #elif defined(OPENSSL_IS_BORINGSSL)
   THROW_ERR_CRYPTO_MAC_NOT_SUPPORTED(Environment::GetCurrent(args),
                                      "MAC is not supported");
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
 void Mac::GetMacs(const FunctionCallbackInfo<Value>& args) {
-#if OPENSSL_WITH_EVP_MAC
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   Local<Context> context = args.GetIsolate()->GetCurrentContext();
   Environment* env = Environment::GetCurrent(context);
   Local<Value> result;
@@ -629,6 +639,8 @@ void Mac::GetMacs(const FunctionCallbackInfo<Value>& args) {
   }
 #elif defined(OPENSSL_IS_BORINGSSL)
   args.GetReturnValue().Set(Array::New(args.GetIsolate(), 0));
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
@@ -636,7 +648,7 @@ void Mac::GetCachedAliases(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   LocalVector<Name> names(isolate);
   LocalVector<Value> values(isolate);
-#if OPENSSL_WITH_EVP_MAC
+#if !NCRYPTO_USE_BORINGSSL
   Environment* env = Environment::GetCurrent(args);
   SynchronizeMacCache(env);
   const auto& aliases = env->provider_mac_cache->aliases();

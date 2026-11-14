@@ -122,7 +122,7 @@ X509Pointer NewCertificate() {
 #elif NCRYPTO_USE_BORINGSSL
   return X509Pointer(X509_new());
 #else
-#error "Unsupported ncrypto backend"
+#error "Unsupported crypto backend"
 #endif
 }
 
@@ -895,7 +895,8 @@ Maybe<void> X509GenerateTraits::AdditionalConfig(
     params->padding = args[padding_offset].As<v8::Int32>()->Value();
   }
 
-#if !NCRYPTO_HAS_X509_RSA_PSS_FLEXIBLE_PARAMETERS
+  // BoringSSL's X.509 signer supports only restricted RSA-PSS parameters.
+#if NCRYPTO_USE_BORINGSSL
   const EVPKeyPointer& native_signing_key = signing_key.GetAsymmetricKey();
   if (native_signing_key.isRsaVariant()) {
     const int padding =

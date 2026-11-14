@@ -81,8 +81,10 @@ MaybeLocal<Value> DataPointerToBuffer(Environment* env, DataPointer&& data) {
 void PutDhError(int reason) {
 #ifdef OPENSSL_IS_BORINGSSL
   OPENSSL_PUT_ERROR(DH, reason);
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
   ERR_raise(ERR_LIB_DH, reason);
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
@@ -116,11 +118,13 @@ void New(const FunctionCallbackInfo<Value>& args) {
   if (args[0]->IsInt32()) {
     int32_t bits = args[0].As<Int32>()->Value();
     if (bits < 2) {
-#ifndef OPENSSL_IS_BORINGSSL
+#if NCRYPTO_USE_OPENSSL_PROVIDER
       PutDhError(DH_R_MODULUS_TOO_SMALL);
 #elif defined(OPENSSL_IS_BORINGSSL)
       PutBnError(BN_R_BITS_TOO_SMALL);
-#endif  // OPENSSL_IS_BORINGSSL
+#else
+#error "Unsupported crypto backend"
+#endif
       return ThrowCryptoError(env, ERR_get_error(), "Invalid prime length");
     }
 
@@ -185,7 +189,7 @@ void New(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-#if NCRYPTO_USE_OPENSSL_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   if (BN_num_bits(bn_p.get()) >= 512 && BN_cmp(bn_g.get(), bn_p.get()) >= 0) {
     PutDhError(DH_R_BAD_GENERATOR);
     return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
