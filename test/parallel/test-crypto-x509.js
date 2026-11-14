@@ -395,11 +395,9 @@ oans248kpal88CGqsN2so/wZKxVnpiXlPHMdiNL7hRSUqlHkUi07FrP2Htg8kjI=
     legacyObjectCheck.serialNumberPattern);
 }
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   // BoringSSL rejects certificates with malformed times during parsing. The
-  // formatter fallback is covered for all backends by the ncrypto cctest.
-  // ASN1_TIME_print() documents "Bad time value" as the representation of an
-  // invalid time. Ensure that detecting output errors does not discard it.
+  // native formatter fallback remains covered by the ncrypto cctest.
   const invalidTimeDer = Buffer.from(der);
   const validFromOffset = invalidTimeDer.indexOf('220903214037Z');
   assert.notStrictEqual(validFromOffset, -1);
@@ -407,11 +405,10 @@ if (!process.features.openssl_is_boringssl) {
   invalidTimeDer[validFromOffset + 3] = 0x33;
 
   const invalidTimeCert = new X509Certificate(invalidTimeDer);
-  assert.strictEqual(invalidTimeCert.validFrom, 'Bad time value');
-  assert(Number.isNaN(invalidTimeCert.validFromDate.getTime()));
-  assert.strictEqual(
-    invalidTimeCert.toLegacyObject().valid_from,
-    'Bad time value');
+  const expectedError = { code: 'ERR_CRYPTO_OPERATION_FAILED' };
+  assert.throws(() => invalidTimeCert.validFrom, expectedError);
+  assert.throws(() => invalidTimeCert.validFromDate, expectedError);
+  assert.throws(() => invalidTimeCert.toLegacyObject(), expectedError);
 }
 
 {

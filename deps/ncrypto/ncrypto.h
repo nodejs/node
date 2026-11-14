@@ -1731,7 +1731,7 @@ class X509View final {
   BIOPointer getSubject() const;
   BIOPointer getSubjectAltName(bool* has_extension = nullptr) const;
   BIOPointer getIssuer() const;
-  BIOPointer getInfoAccess() const;
+  BIOPointer getInfoAccess(bool* has_extension = nullptr) const;
   BIOPointer getValidFrom() const;
   BIOPointer getValidTo() const;
   std::optional<std::string_view> getSignatureAlgorithm() const;
@@ -1750,7 +1750,7 @@ class X509View final {
   bool isCA() const;
   bool isIssuedBy(const X509View& other) const;
   CheckKeyResult checkPrivateKey(const EVPKeyPointer& pkey) const;
-  bool checkPublicKey(const EVPKeyPointer& pkey) const;
+  Result<bool, int> checkPublicKey(const EVPKeyPointer& pkey) const;
 
   std::optional<std::string> getFingerprint(const Digest& method) const;
 
@@ -1768,8 +1768,13 @@ class X509View final {
   CheckMatch checkEmail(std::string_view email, int flags) const;
   CheckMatch checkIp(const Buffer<const unsigned char>& ip, int flags) const;
 
+  enum class UsageResult {
+    ABSENT,
+    PRESENT,
+    OPERATION_FAILED,
+  };
   using UsageCallback = std::function<void(const char*)>;
-  bool enumUsages(UsageCallback callback) const;
+  UsageResult enumUsages(UsageCallback callback) const;
 
   template <typename T>
   using KeyCallback = std::function<bool(const T& t)>;

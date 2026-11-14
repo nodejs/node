@@ -9,6 +9,7 @@
 #include <openssl/rand.h>
 #include <openssl/x509v3.h>
 #if NCRYPTO_USE_OPENSSL_PROVIDER
+#include <openssl/asn1err.h>
 #include <openssl/decoder.h>
 #endif
 #if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
@@ -1484,13 +1485,15 @@ BIOPointer X509View::getIssuer() const {
   return bio;
 }
 
-BIOPointer X509View::getInfoAccess() const {
+BIOPointer X509View::getInfoAccess(bool* has_extension) const {
   MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (has_extension != nullptr) *has_extension = false;
   if (cert_ == nullptr) return {};
+  const int index = X509_get_ext_by_NID(cert_, NID_info_access, -1);
+  if (index < 0) return {};
+  if (has_extension != nullptr) *has_extension = true;
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
-  int index = X509_get_ext_by_NID(cert_, NID_info_access, -1);
-  if (index < 0) return {};
   const X509_EXTENSION* extension = X509_get_ext(cert_, index);
   if (extension == nullptr || !SafeX509InfoAccessPrint(bio, extension)) {
     return {};
@@ -1850,10 +1853,22 @@ X509View::CheckKeyResult X509View::checkPrivateKey(
   }
 }
 
-bool X509View::checkPublicKey(const EVPKeyPointer& pkey) const {
+Result<bool, int> X509View::checkPublicKey(const EVPKeyPointer& pkey) const {
   ClearErrorOnReturn clearErrorOnReturn;
-  if (cert_ == nullptr || pkey == nullptr) return false;
-  return X509_verify(const_cast<X509*>(cert_), pkey.get()) == 1;
+  if (cert_ == nullptr || pkey == nullptr) return Result<bool, int>(-1);
+  const int result = X509_verify(const_cast<X509*>(cert_), pkey.get());
+  if (result >= 0) return Result<bool, int>(result == 1);
+
+  const auto error = ERR_peek_last_error();
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  // A wrong key type or malformed signature BIT STRING cannot verify.
+  if (ERR_GET_LIB(error) == ERR_LIB_ASN1 &&
+      (ERR_GET_REASON(error) == ASN1_R_WRONG_PUBLIC_KEY_TYPE ||
+       ERR_GET_REASON(error) == ASN1_R_INVALID_BIT_STRING_BITS_LEFT)) {
+    return Result<bool, int>(false);
+  }
+#endif
+  return Result<bool, int>(int{result}, error);
 }
 
 X509View::CheckMatch X509View::checkHost(const std::string_view host,
@@ -1972,15 +1987,19 @@ Result<X509Pointer, int> X509Pointer::Parse(
   return Result<X509Pointer, int>(ERR_get_error());
 }
 
-bool X509View::enumUsages(UsageCallback callback) const {
-  if (cert_ == nullptr) return false;
+X509View::UsageResult X509View::enumUsages(UsageCallback callback) const {
+  if (cert_ == nullptr) return UsageResult::OPERATION_FAILED;
   StackOfASN1 eku;
+  int critical = -1;
   {
     MarkPopErrorOnReturn mark_pop_error_on_return;
     eku.reset(static_cast<STACK_OF(ASN1_OBJECT)*>(
-        X509_get_ext_d2i(cert_, NID_ext_key_usage, nullptr, nullptr)));
+        X509_get_ext_d2i(cert_, NID_ext_key_usage, &critical, nullptr)));
   }
-  if (!eku) return false;
+  if (!eku) {
+    // The decoder reports absence as -1 and duplicate extensions as -2.
+    return critical == -1 ? UsageResult::ABSENT : UsageResult::OPERATION_FAILED;
+  }
   const int count = sk_ASN1_OBJECT_num(eku.get());
 
   for (int i = 0; i < count; i++) {
@@ -1989,10 +2008,10 @@ bool X509View::enumUsages(UsageCallback callback) const {
       MarkPopErrorOnReturn mark_pop_error_on_return;
       usage = ObjectToText(sk_ASN1_OBJECT_value(eku.get(), i), true);
     }
-    if (!usage.has_value()) return false;
+    if (!usage.has_value()) return UsageResult::OPERATION_FAILED;
     callback(usage->c_str());
   }
-  return true;
+  return UsageResult::PRESENT;
 }
 
 bool X509View::ifRsa(KeyCallback<Rsa> callback) const {
