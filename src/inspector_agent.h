@@ -74,11 +74,8 @@ class Agent {
   void EmitProtocolEvent(v8::Local<v8::Context> context,
                          const v8_inspector::StringView& event,
                          v8::Local<v8::Object> params);
-
-  void SetupNetworkTracking(v8::Local<v8::Function> enable_function,
-                            v8::Local<v8::Function> disable_function);
-  void EnableNetworkTracking();
-  void DisableNetworkTracking();
+  // Returns true if any session has enabled the Network domain.
+  bool IsNetworkDomainEnabled();
 
   // Async stack traces instrumentation.
   void AsyncTaskScheduled(const v8_inspector::StringView& taskName, void* task,
@@ -134,7 +131,6 @@ class Agent {
 
  private:
   void SyncAsyncHookState();
-  void ToggleNetworkTracking(v8::Isolate* isolate, v8::Local<v8::Function> fn);
 
   node::Environment* parent_env_;
   // Encapsulates majority of the Inspector functionality
@@ -164,9 +160,6 @@ class Agent {
   void StopAcceptingIoThreadStarts();
   static void StopAcceptingIoThreadStartsHook(void* agent);
 
-  bool network_tracking_enabled_ = false;
-  bool pending_enable_network_tracking = false;
-  bool pending_disable_network_tracking = false;
   std::shared_ptr<NetworkResourceManager> network_resource_manager_;
 };
 
