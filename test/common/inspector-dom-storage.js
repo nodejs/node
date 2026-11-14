@@ -1,21 +1,20 @@
 'use strict';
-const common = require('../common');
-common.skipIfSQLiteMissing();
-common.skipIfInspectorDisabled();
 
 const assert = require('assert');
-const { spawnSync } = require('child_process');
-const { join } = require('path');
 const { DatabaseSync } = require('node:sqlite');
-const { NodeInstance } = require('../common/inspector-helper.js');
-const tmpdir = require('../common/tmpdir');
-tmpdir.refresh();
+const common = require('./');
+const { NodeInstance } = require('./inspector-helper.js');
+const tmpdir = require('./tmpdir');
 
 // While JavaScript runs, a message from a remote frontend is dispatched from a
 // V8 API interrupt, where JavaScript must not run. Reading a store has to work
 // from there, whether or not the application has touched it yet. The script
-// counts calls to the storage getters and to a setter that a JavaScript error
-// created by Node.js would hit, and reports the count once the reads are done.
+// keeps the main thread in a loop while the reads arrive, counts calls to the
+// storage getters and to a setter that a JavaScript error created by Node.js
+// would hit, and reports the count once the reads are done. If the loop ends
+// first, e.g. on a slow machine, the interval keeps the process alive and the
+// reads are dispatched from the event loop instead, where the count still
+// applies.
 async function getItemsWhileBusy(localStorageFile, prelude, storageIds) {
   const script = `
   globalThis.jsCalls = 0;
@@ -31,6 +30,7 @@ async function getItemsWhileBusy(localStorageFile, prelude, storageIds) {
   });
   ${prelude}
   globalThis.jsCalls = 0;
+  globalThis.interval = setInterval(() => {}, 1000);
   console.log('Ready');
   const deadline = Date.now() + ${common.platformTimeout(10000)};
   while (!globalThis.done && Date.now() < deadline);
@@ -66,7 +66,11 @@ async function getItemsWhileBusy(localStorageFile, prelude, storageIds) {
 
   const { result } = await session.send({
     method: 'Runtime.evaluate',
-    params: { expression: 'globalThis.done = true; globalThis.jsCalls' },
+    params: {
+      expression:
+        'globalThis.done = true; clearInterval(globalThis.interval); ' +
+        'globalThis.jsCalls',
+    },
   });
   assert.strictEqual(result.value, 0);
   await session.waitForDisconnect();
@@ -74,10 +78,12 @@ async function getItemsWhileBusy(localStorageFile, prelude, storageIds) {
   return results;
 }
 
-// Node's own tables are created with IF NOT EXISTS, so a file that already
-// holds tables of those names is adopted as-is, wrong types included.
-function malformedLocalStorage(name) {
-  const file = join(tmpdir.path, name);
+// Node's own tables are STRICT, but they are created with IF NOT EXISTS, so a
+// file that already contains tables of those names is adopted as-is. Declare
+// the same schema without STRICT: BLOB columns have no affinity, so a TEXT
+// value stays TEXT.
+function malformedLocalStorage(name, schemaVersion, value) {
+  const file = tmpdir.resolve(name);
   const db = new DatabaseSync(file);
   db.exec(`
     CREATE TABLE nodejs_webstorage(
@@ -90,49 +96,16 @@ function malformedLocalStorage(name) {
       single_row_ INTEGER NOT NULL DEFAULT 1 CHECK(single_row_ = 1),
       PRIMARY KEY(single_row_)
     );
-    INSERT INTO nodejs_webstorage_state (total_size, schema_version)
-      VALUES (0, 'one');
   `);
+  db.prepare('INSERT INTO nodejs_webstorage (key, value) VALUES (?, ?)')
+    .run(Buffer.from('greeting', 'utf16le'), value);
+  db.prepare('INSERT INTO nodejs_webstorage_state (total_size, schema_version)' +
+    ' VALUES (0, ?)').run(schemaVersion);
   db.close();
   return file;
 }
 
-async function runTest() {
-  // Stores the application never touched, with localStorage written by an
-  // earlier run.
-  const file = join(tmpdir.path, 'storage.db');
-  const { status } = spawnSync(process.execPath, [
-    `--localstorage-file=${file}`,
-    '-e', 'localStorage.setItem("l", "local")',
-  ]);
-  assert.strictEqual(status, 0);
-  const [local, session] = await getItemsWhileBusy(file, '', [true, false]);
-  assert.deepStrictEqual(local.entries, [['l', 'local']]);
-  assert.deepStrictEqual(session.entries, []);
-
-  // Both stores in memory and never touched.
-  const untouched = await getItemsWhileBusy(':memory:', '', [true, false]);
-  assert.deepStrictEqual(untouched.map((r) => r.entries), [[], []]);
-
-  // Both stores in memory, sessionStorage created first.
-  const [memLocal, memSession] = await getItemsWhileBusy(':memory:', `
-    sessionStorage.setItem('s', 'session');
-    localStorage.setItem('l', 'local');
-  `, [true, false]);
-  assert.deepStrictEqual(memLocal.entries, [['l', 'local']]);
-  assert.deepStrictEqual(memSession.entries, [['s', 'session']]);
-
-  // A file that cannot be opened is reported without creating a JavaScript
-  // error.
-  for (const [name, touch] of [['untouched.db', ''],
-                               ['touched.db', 'globalThis.localStorage;']]) {
-    const [err] = await getItemsWhileBusy(
-      malformedLocalStorage(name), touch, [true]);
-    assert.strictEqual(
-      err.message,
-      'Could not read DOM storage items: Uncaught Error: localStorage ' +
-      'database is malformed: expected schema_version to be an integer');
-  }
-}
-
-runTest().then(common.mustCall());
+module.exports = {
+  getItemsWhileBusy,
+  malformedLocalStorage,
+};

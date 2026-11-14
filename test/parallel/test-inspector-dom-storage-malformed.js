@@ -9,38 +9,10 @@ const common = require('../common');
 common.skipIfSQLiteMissing();
 common.skipIfInspectorDisabled();
 const { NodeInstance } = require('../common/inspector-helper.js');
+const { malformedLocalStorage } = require('../common/inspector-dom-storage');
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
-const { join } = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
 tmpdir.refresh();
-
-// Node's own tables are STRICT, but they are created with IF NOT EXISTS, so a
-// file that already contains tables of those names is adopted as-is. Declare
-// the same schema without STRICT: BLOB columns have no affinity, so a TEXT
-// value stays TEXT.
-function malformedLocalStorage(name, schemaVersion, value) {
-  const file = join(tmpdir.path, name);
-  const db = new DatabaseSync(file);
-  db.exec(`
-    CREATE TABLE nodejs_webstorage(
-      key BLOB NOT NULL, value BLOB NOT NULL, PRIMARY KEY(key)
-    );
-    CREATE TABLE nodejs_webstorage_state(
-      max_size INTEGER NOT NULL DEFAULT 10485760,
-      total_size INTEGER NOT NULL,
-      schema_version INTEGER NOT NULL DEFAULT 1,
-      single_row_ INTEGER NOT NULL DEFAULT 1 CHECK(single_row_ = 1),
-      PRIMARY KEY(single_row_)
-    );
-  `);
-  db.prepare('INSERT INTO nodejs_webstorage (key, value) VALUES (?, ?)')
-    .run(Buffer.from('greeting', 'utf16le'), value);
-  db.prepare('INSERT INTO nodejs_webstorage_state (total_size, schema_version)' +
-    ' VALUES (0, ?)').run(schemaVersion);
-  db.close();
-  return file;
-}
 
 async function getDOMStorageItems(localStorageFile) {
   const instance = new NodeInstance([
