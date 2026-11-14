@@ -401,6 +401,10 @@ v8::IsolateGroup GetOrCreateIsolateGroup();
 
 // The blob every isolate is created from, see NewIsolate(). It is never freed.
 bool IsFirstSnapshotBlob(const char* data);
+// The memory that SetIsolateCreateParamsForNode() configures the heap of
+// isolates for: the total memory, or the constrained memory if it's less.
+// Reads files, on some platforms.
+uint64_t GetMemoryForHeapDefaults();
 v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
                         uv_loop_t* event_loop,
                         MultiIsolatePlatform* platform,
