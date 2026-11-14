@@ -380,18 +380,22 @@ example after a long garbage collection. With an `abortTimeoutMs` of
 `Infinity`, a pool thread that can't be stopped keeps using CPU time until the
 process exits, and the process doesn't wait for it when it exits.
 
-## `greenThreads.setWarmPoolSize(size)`
+## `greenThreads.setWarmPoolSize(size[, options])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
 * `size` {integer} An integer between `0` and `1024`.
+* `options` {Object}
+  * `isolateGroup` {string|IsolateGroup} As for [`new GreenThread()`][].
+  * `resourceLimits` {Object} As for [`new GreenThread()`][]. `maxCpuTimeMs`
+    and `maxTaskCpuTimeMs` are ignored.
 * Returns: {Promise} Fulfilled with `undefined` once the pool holds `size`
   isolates that are ready to use.
 
-Sets how many green threads are prepared ahead of time, for the whole process.
-**Default:** `0`.
+Sets how many green threads with the given isolate group and memory limits are
+prepared ahead of time, for the whole process. **Default:** `0`.
 
 ```cjs
 const { GreenThread, setWarmPoolSize } = require('node:green_threads');
@@ -410,9 +414,25 @@ immediately. Each isolate is used by one green thread only: the pool is
 refilled after a green thread takes one. Isolates in the warm pool use memory,
 about 1.5 MB each.
 
-Only green threads without the `maxMemoryMb`, `maxOldGenerationSizeMb` and
-`maxYoungGenerationSizeMb` options, and in their default isolate group, use the
-warm pool.
+There is a warm pool for each isolate group and set of `maxMemoryMb`,
+`maxOldGenerationSizeMb` and `maxYoungGenerationSizeMb` options that
+`setWarmPoolSize()` was called with. Green threads only use the pool for their
+own isolate group and memory limits, and get the same limits from it as
+without it. Their CPU time limits don't matter. A warm pool for an
+[`IsolateGroup`][] keeps it alive until its size is set to `0`.
+
+```cjs
+const { GreenThread, setWarmPoolSize } = require('node:green_threads');
+
+const options = { resourceLimits: { maxMemoryMb: 64 } };
+(async () => {
+  await setWarmPoolSize(16, options);
+  // These use the warm pool. Green threads without `maxMemoryMb: 64` don't.
+  const greenThreads = Array.from({ length: 16 }, () => new GreenThread('', {
+    resourceLimits: { maxMemoryMb: 64, maxCpuTimeMs: 1000 },
+  }));
+})();
+```
 
 ## Isolate groups
 
@@ -719,6 +739,7 @@ Calls [`greenThread.terminate()`][].
 [`greenThread.postMessage()`]: #greenthreadpostmessagevalue-transfer
 [`greenThread.terminate()`]: #greenthreadterminate
 [`greenThreads.setUnresponsiveTimeouts()`]: #greenthreadssetunresponsivetimeoutstimeouts
+[`new GreenThread()`]: #new-greenthreadsource-options
 [`os.availableParallelism()`]: os.md#osavailableparallelism
 [`port.postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [green threads that don't stop]: #green-threads-that-dont-stop

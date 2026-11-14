@@ -25,9 +25,11 @@
 #include <ctime>
 #include <deque>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -1529,11 +1531,29 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     std::optional<v8::IsolateGroup> shared_group;
     uint64_t group_id = 0;
 
-    // Whether an isolate created with the default options (i.e. a warm one)
-    // can be used.
-    bool CanUseDefaultIsolate() const {
-      return max_old_generation_size == 0 && max_young_generation_size == 0 &&
-             max_memory == 0 && group == DefaultIsolateGroupKind();
+    // Only what is fixed when the isolate is created, with which isolates in
+    // the warm pool are created.
+    Options IsolateOptions() const {
+      Options result;
+      result.max_old_generation_size = max_old_generation_size;
+      result.max_young_generation_size = max_young_generation_size;
+      result.max_memory = max_memory;
+      result.group = group;
+      result.shared_group = shared_group;
+      result.group_id = group_id;
+      return result;
+    }
+
+    // Identifies IsolateOptions(): isolates created with the same key are
+    // interchangeable.
+    using IsolateKey =
+        std::tuple<size_t, size_t, size_t, IsolateGroupKind, uint64_t>;
+    IsolateKey isolate_key() const {
+      return {max_old_generation_size,
+              max_young_generation_size,
+              max_memory,
+              group,
+              group == IsolateGroupKind::kShared ? group_id : 0};
     }
   };
 
@@ -1563,6 +1583,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // Makes Prepare()'s work background work, which only runs when pool threads
   // have nothing else to do. Must be called before Prepare().
   void set_low_priority() { low_priority_ = true; }
+  // For __greenThreadInfo(). Must be called before Activate().
+  void set_from_warm_pool() { from_warm_pool_ = true; }
 
   // Called on a pool thread once Prepare()'s work has run, with whether the
   // isolate is ready to be activated. Must be set before Prepare().
@@ -3859,6 +3881,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         FIXED_ONE_BYTE_STRING(isolate, "usesNodeSnapshot"),
         FIXED_ONE_BYTE_STRING(isolate, "heapUsed"),
         FIXED_ONE_BYTE_STRING(isolate, "heapSpaces"),
+        FIXED_ONE_BYTE_STRING(isolate, "fromWarmPool"),
     };
     v8::HeapStatistics heap;
     isolate->GetHeapStatistics(&heap);
@@ -3902,6 +3925,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         Boolean::New(isolate, self->uses_node_snapshot_),
         Number::New(isolate, static_cast<double>(heap.used_heap_size())),
         spaces,
+        Boolean::New(isolate, self->from_warm_pool_),
     };
     args.GetReturnValue().Set(Object::New(
         isolate, v8::Null(isolate), names, values, arraysize(names)));
@@ -3979,6 +4003,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   bool scheduled_ = false;
   // Until Prepare()'s work has run. See set_low_priority().
   bool low_priority_ = false;
+  bool from_warm_pool_ = false;
   bool stopped_ = false;
   uint64_t next_delayed_v8_task_id_ = 0;
   DelayedV8Tasks delayed_v8_tasks_;
@@ -4111,6 +4136,8 @@ void GreenThreadPool::RunReady(PoolThread* thread, size_t budget) {
 // so that starting a green thread doesn't have to wait for one. Used isolates
 // are never returned; the pool is refilled instead. Created on first use and
 // intentionally never destroyed.
+// Isolates initialized ahead of time, for each set of isolate options that
+// setWarmPoolSize() was called with.
 class WarmPool {
  public:
   static WarmPool* Get() {
@@ -4124,14 +4151,18 @@ class WarmPool {
   void Shutdown() {
     Mutex::ScopedLock lock(mutex_);
     shut_down_ = true;
-    size_ = 0;
-    waiters_.clear();
+    for (auto& [key, pool] : pools_) {
+      pool->size = 0;
+      pool->waiters.clear();
+    }
   }
 
-  // Sets the size of the pool. Once it holds that many initialized isolates,
-  // an event is pushed to `waiter`, unless it is null. May be called from any
-  // thread but a pool thread.
+  // Sets the size of the pool of isolates created with the isolate options of
+  // `options`. Once it holds that many initialized isolates, an event is
+  // pushed to `waiter`, unless it is null. May be called from any thread but
+  // a pool thread.
   void SetSize(size_t size,
+               const GreenIsolate::Options& options,
                MultiIsolatePlatform* platform,
                std::shared_ptr<HostChannel> waiter) {
     std::deque<Entry> removed;
@@ -4139,98 +4170,145 @@ class WarmPool {
       Mutex::ScopedLock lock(mutex_);
       if (shut_down_) return;
       if (platform_ != platform) {
-        removed.swap(idle_);
+        for (auto& [key, pool] : pools_) {
+          for (Entry& entry : pool->idle) removed.push_back(std::move(entry));
+          pool->idle.clear();
+          pool->size = 0;
+          pool->waiters.clear();
+        }
         platform_ = platform;
       }
-      size_ = size;
-      while (idle_.size() > size_) {
-        removed.push_back(std::move(idle_.back()));
-        idle_.pop_back();
+      std::unique_ptr<Pool>& pool = pools_[options.isolate_key()];
+      if (!pool) {
+        pool = std::make_unique<Pool>();
+        pool->options = options.IsolateOptions();
       }
-      if (waiter) waiters_.push_back(std::move(waiter));
-      RefillLocked();
-      MaybeNotifyLocked();
+      pool->size = size;
+      while (pool->idle.size() > size) {
+        removed.push_back(std::move(pool->idle.back()));
+        pool->idle.pop_back();
+      }
+      if (waiter) pool->waiters.push_back(std::move(waiter));
+      RefillLocked(pool.get());
+      MaybeNotifyLocked(pool.get());
+      RemoveUnusedLocked();
     }
     for (Entry& entry : removed) entry.green->Terminate();
   }
 
-  // Returns nullptr if no isolate is available. May be called from any
-  // thread but a pool thread.
-  std::shared_ptr<GreenIsolate> Take(MultiIsolatePlatform* platform) {
+  // An initialized isolate created with the isolate options of `options`, or
+  // nullptr if none is available. May be called from any thread but a pool
+  // thread.
+  std::shared_ptr<GreenIsolate> Take(MultiIsolatePlatform* platform,
+                                     const GreenIsolate::Options& options) {
     Mutex::ScopedLock lock(mutex_);
     if (platform_ != platform) return nullptr;
+    auto pool = pools_.find(options.isolate_key());
+    if (pool == pools_.end()) return nullptr;
+    std::deque<Entry>& idle = pool->second->idle;
     // An isolate that is still being initialized would make the green thread
     // wait for background work.
     auto it = std::find_if(
-        idle_.begin(), idle_.end(), [](const Entry& e) { return e.ready; });
-    if (it == idle_.end()) return nullptr;
+        idle.begin(), idle.end(), [](const Entry& e) { return e.ready; });
+    if (it == idle.end()) return nullptr;
     std::shared_ptr<GreenIsolate> green = std::move(it->green);
-    idle_.erase(it);
-    RefillLocked();
+    idle.erase(it);
+    RefillLocked(pool->second.get());
     return green;
   }
 
  private:
-  // Refilling happens in the background, so that it doesn't delay green
-  // threads that are starting, which may be what emptied the pool.
-  void RefillLocked() {
-    for (; idle_.size() + refilling_ < size_; refilling_++) {
-      GreenThreadPool::Get()->PostBackground([this]() { RefillOne(); });
-    }
-  }
-
-  void RefillOne() {
-    Mutex::ScopedLock lock(mutex_);
-    refilling_--;
-    if (shut_down_ || idle_.size() + refilling_ >= size_) return;
-    auto green = std::make_shared<GreenIsolate>(platform_);
-    green->set_on_initialized(
-        [this, key = green.get()](bool ok) { OnInitialized(key, ok); });
-    green->set_low_priority();
-    green->Prepare({});
-    idle_.push_back({std::move(green), false});
-  }
-
-  // Runs on a pool thread.
-  void OnInitialized(const GreenIsolate* key, bool ok) {
-    Mutex::ScopedLock lock(mutex_);
-    auto it = std::find_if(idle_.begin(), idle_.end(), [&](const Entry& e) {
-      return e.green.get() == key;
-    });
-    // It may have been taken already.
-    if (it == idle_.end()) return;
-    if (ok) {
-      it->ready = true;
-    } else {
-      idle_.erase(it);
-      RefillLocked();
-    }
-    MaybeNotifyLocked();
-  }
-
-  void MaybeNotifyLocked() {
-    if (waiters_.empty()) return;
-    const size_t ready = std::count_if(
-        idle_.begin(), idle_.end(), [](const Entry& e) { return e.ready; });
-    if (ready < size_) return;
-    for (auto& waiter : waiters_)
-      waiter->Push({kEventWarmPoolFull, 0, true, {}});
-    waiters_.clear();
-  }
-
   struct Entry {
     std::shared_ptr<GreenIsolate> green;
     // Whether its isolate has been initialized.
     bool ready;
   };
 
+  struct Pool {
+    // Only isolate options. Keeps a shared isolate group alive.
+    GreenIsolate::Options options;
+    size_t size = 0;
+    size_t refilling = 0;
+    std::deque<Entry> idle;
+    std::vector<std::shared_ptr<HostChannel>> waiters;
+  };
+
+  // Refilling happens in the background, so that it doesn't delay green
+  // threads that are starting, which may be what emptied the pool.
+  void RefillLocked(Pool* pool) {
+    for (; pool->idle.size() + pool->refilling < pool->size;
+         pool->refilling++) {
+      GreenThreadPool::Get()->PostBackground([this, pool]() {
+        RefillOne(pool);
+      });
+    }
+  }
+
+  // `pool` is not removed while it is refilling.
+  void RefillOne(Pool* pool) {
+    Mutex::ScopedLock lock(mutex_);
+    pool->refilling--;
+    if (!shut_down_ && pool->idle.size() + pool->refilling < pool->size) {
+      auto green = std::make_shared<GreenIsolate>(platform_);
+      green->set_on_initialized(
+          [this, key = green.get()](bool ok) { OnInitialized(key, ok); });
+      green->set_low_priority();
+      green->Prepare(pool->options);
+      pool->idle.push_back({std::move(green), false});
+    }
+    RemoveUnusedLocked();
+  }
+
+  // Runs on a pool thread. The isolate may have been taken or removed from
+  // its pool already, and the pool may be gone.
+  void OnInitialized(const GreenIsolate* key, bool ok) {
+    Mutex::ScopedLock lock(mutex_);
+    for (auto& [pool_key, pool] : pools_) {
+      auto it = std::find_if(
+          pool->idle.begin(), pool->idle.end(), [&](const Entry& e) {
+            return e.green.get() == key;
+          });
+      if (it == pool->idle.end()) continue;
+      if (ok) {
+        it->ready = true;
+      } else {
+        pool->idle.erase(it);
+        RefillLocked(pool.get());
+      }
+      MaybeNotifyLocked(pool.get());
+      return;
+    }
+  }
+
+  void MaybeNotifyLocked(Pool* pool) {
+    if (pool->waiters.empty()) return;
+    const size_t ready =
+        std::count_if(pool->idle.begin(), pool->idle.end(), [](const Entry& e) {
+          return e.ready;
+        });
+    if (ready < pool->size) return;
+    for (auto& waiter : pool->waiters)
+      waiter->Push({kEventWarmPoolFull, 0, true, {}});
+    pool->waiters.clear();
+  }
+
+  // Removes pools that are empty and stay so, which releases the isolate
+  // groups that they keep alive.
+  void RemoveUnusedLocked() {
+    for (auto it = pools_.begin(); it != pools_.end();) {
+      const Pool& pool = *it->second;
+      if (pool.size == 0 && pool.refilling == 0 && pool.idle.empty()) {
+        it = pools_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+
   Mutex mutex_;
-  size_t size_ = 0;
-  size_t refilling_ = 0;
   bool shut_down_ = false;
   MultiIsolatePlatform* platform_ = nullptr;
-  std::deque<Entry> idle_;
-  std::vector<std::shared_ptr<HostChannel>> waiters_;
+  std::map<GreenIsolate::Options::IsolateKey, std::unique_ptr<Pool>> pools_;
 };
 
 }  // namespace
@@ -4634,13 +4712,50 @@ class GreenThreadWrap final : public HandleWrap {
     if (args[1]->IsNumber()) cut_off_period = nanoseconds(args[1]);
   }
 
-  // setWarmPoolSize(size, waiter)
+  // A number of megabytes, in bytes. Clamped, since out-of-range float to
+  // integer conversions are undefined.
+  static size_t Megabytes(Local<Value> value) {
+    constexpr double kMaxMegabytes = 1 << 20;
+    if (!value->IsNumber()) return 0;
+    const double megabytes = value.As<Number>()->Value();
+    if (!(megabytes > 0)) return 0;
+    return static_cast<size_t>(std::min(megabytes, kMaxMegabytes) * kMB);
+  }
+
+  // Sets the isolate group of `options` from `kind`, an IsolateGroupKind or
+  // undefined for the default, and `handle`, the IsolateGroup for kShared.
+  // false if an exception is pending.
+  static bool SetIsolateGroup(Local<Value> kind,
+                              Local<Value> handle,
+                              GreenIsolate::Options* options) {
+    if (!kind->IsInt32()) return true;
+    options->group = static_cast<IsolateGroupKind>(kind.As<Int32>()->Value());
+    CHECK(options->group == IsolateGroupKind::kDefault ||
+          v8::IsolateGroup::CanCreateNewGroups());
+    if (options->group == IsolateGroupKind::kShared) {
+      IsolateGroupWrap* group;
+      ASSIGN_OR_RETURN_UNWRAP(&group, handle, false);
+      options->shared_group = group->group();
+      options->group_id = group->id();
+    }
+    return true;
+  }
+
+  // setWarmPoolSize(size, waiter, maxOldGenerationSizeMb,
+  //                 maxYoungGenerationSizeMb, maxMemoryMb, groupKind,
+  //                 groupHandle)
   static void SetWarmPoolSize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK(args[0]->IsUint32());
     WarmPoolWaiter* waiter;
     ASSIGN_OR_RETURN_UNWRAP(&waiter, args[1]);
+    GreenIsolate::Options options;
+    options.max_old_generation_size = Megabytes(args[2]);
+    options.max_young_generation_size = Megabytes(args[3]);
+    options.max_memory = Megabytes(args[4]);
+    if (!SetIsolateGroup(args[5], args[6], &options)) return;
     WarmPool::Get()->SetSize(args[0].As<Uint32>()->Value(),
+                             options,
                              env->isolate_data()->platform(),
                              waiter->channel());
   }
@@ -4660,15 +4775,8 @@ class GreenThreadWrap final : public HandleWrap {
     GreenIsolate::Options options;
     options.source = Utf8Value(env->isolate(), args[0]).ToString();
     options.filename = Utf8Value(env->isolate(), args[1]).ToString();
-    // Clamped, since out-of-range float to integer conversions are undefined.
-    auto megabytes = [](Local<Value> value) -> size_t {
-      constexpr double kMaxMegabytes = 1 << 20;
-      const double megabytes = value.As<Number>()->Value();
-      if (!(megabytes > 0)) return 0;
-      return static_cast<size_t>(std::min(megabytes, kMaxMegabytes) * kMB);
-    };
-    options.max_old_generation_size = megabytes(args[2]);
-    options.max_young_generation_size = megabytes(args[3]);
+    options.max_old_generation_size = Megabytes(args[2]);
+    options.max_young_generation_size = Megabytes(args[3]);
     options.testing_globals =
         (args[4].As<Uint32>()->Value() & kFlagTestingGlobals) != 0;
     options.testing_ignore_termination =
@@ -4681,23 +4789,12 @@ class GreenThreadWrap final : public HandleWrap {
       return static_cast<uint64_t>(
           std::max(std::min(milliseconds, kMaxMilliseconds) * 1e6, 1.0));
     };
-    if (args[5]->IsNumber()) options.max_memory = megabytes(args[5]);
+    options.max_memory = Megabytes(args[5]);
     options.max_cpu_time = milliseconds(args[6]);
     options.max_task_cpu_time = milliseconds(args[7]);
     // args[8]: an IsolateGroupKind, or undefined for the default. args[9]: the
     // IsolateGroup for kShared.
-    if (args[8]->IsInt32()) {
-      options.group =
-          static_cast<IsolateGroupKind>(args[8].As<Int32>()->Value());
-      CHECK(options.group == IsolateGroupKind::kDefault ||
-            v8::IsolateGroup::CanCreateNewGroups());
-      if (options.group == IsolateGroupKind::kShared) {
-        IsolateGroupWrap* group;
-        ASSIGN_OR_RETURN_UNWRAP(&group, args[9]);
-        options.shared_group = group->group();
-        options.group_id = group->id();
-      }
-    }
+    if (!SetIsolateGroup(args[8], args[9], &options)) return;
     // args[10]: the hooks of the host's RpcSession. args[11]: what the
     // runtime's initialize() gets, if anything, which is serialized with
     // them. args[12]: whether the source is an ES module.
@@ -4727,10 +4824,10 @@ class GreenThreadWrap final : public HandleWrap {
     CHECK_EQ(uv_async_init(env->event_loop(), &async_, OnAsync), 0);
     channel_ = std::make_shared<HostChannel>(&async_);
     MultiIsolatePlatform* platform = env->isolate_data()->platform();
-    if (options.CanUseDefaultIsolate()) {
-      green_ = WarmPool::Get()->Take(platform);
-    }
-    if (!green_) {
+    green_ = WarmPool::Get()->Take(platform, options);
+    if (green_) {
+      green_->set_from_warm_pool();
+    } else {
       green_ = std::make_shared<GreenIsolate>(platform);
       green_->Prepare(options);
     }
