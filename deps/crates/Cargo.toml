@@ -9,6 +9,11 @@ rust-version = "1.86"
 [lib]
 crate-type = [ "staticlib" ]
 
+[dependencies.icu_locale]
+version = "2.2.0"
+default-features = false
+features = [ "compiled_data" ]
+
 [dependencies.icu_locale_core]
 version = "2.2.0"
 default-features = false
@@ -22,10 +27,10 @@ version = "2"
 features = [ "full" ]
 
 [dependencies.temporal_capi]
-version = "0.2.3"
+version = "0.2.4"
 features = [ "zoneinfo64" ]
 
 [dependencies.temporal_rs]
-version = "0.2.3"
+version = "0.2.4"
 default-features = false
 features = [ "float64_representable_durations" ]
