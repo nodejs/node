@@ -182,8 +182,9 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
 
 void MacroAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id) {
+  ASM_CODE_COMMENT(this);
   // ----------- S t a t e -------------
-  //  -- a0 : actual argument count
+  //  -- a0 : actual argument count (preserved for callee)
   //  -- a1 : target function (preserved for callee)
   //  -- a3 : new target (preserved for callee)
   //  -- a4 : dispatch handle (preserved for callee)
@@ -194,26 +195,27 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     // argument count, and the dispatch handle.
     // Push function as parameter to the runtime call.
     SmiTag(kJavaScriptCallArgCountRegister);
-#if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
-    defined(V8_TARGET_ARCH_RISCV64)
-    // No need to SmiTag as dispatch handles always look like Smis.
+    Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
+         kJavaScriptCallArgCountRegister);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+    // No need to SmiTag since dispatch handles always look like Smis.
     static_assert(kJSDispatchHandleShift > 0);
     AssertSmi(kJavaScriptCallDispatchHandleRegister);
     Push(kJavaScriptCallDispatchHandleRegister);
 #endif
-    Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
-         kJavaScriptCallArgCountRegister);
+    // Function is also the parameter to the runtime call.
+    Push(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
-    // Use the return value before restoring a0
     LoadCodeInstructionStart(a2, a0, kJSEntrypointTag);
-    // Restore target function, new target and actual argument count.
-    Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
-        kJavaScriptCallArgCountRegister);
-#if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
-    defined(V8_TARGET_ARCH_RISCV64)
+
+    // Restore target function, new target, actual argument count and dispatch
+    // handle.
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
     Pop(kJavaScriptCallDispatchHandleRegister);
 #endif
+    Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
+        kJavaScriptCallArgCountRegister);
     SmiUntag(kJavaScriptCallArgCountRegister);
   }
 
