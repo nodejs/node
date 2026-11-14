@@ -4,6 +4,7 @@
 
 #include "base_object.h"
 #include "ffi.h"
+#include "ffi/cxx_exceptions.h"
 #include "ffi/fast.h"
 #include "uv.h"
 
@@ -55,7 +56,8 @@ struct FFIFunction {
       nullptr, ffi_call_plan_free};
 #endif
 
-  void Invoke(void* result, void** values);
+  [[nodiscard]] std::optional<cxx_exceptions::CxxExceptionInfo> Invoke(
+      void* result, void** values);
 };
 
 class FFIFunctionInfo final : public BaseObject {
@@ -182,8 +184,10 @@ class DynamicLibrary : public BaseObject {
   static void CleanupFunctionInfo(
       const v8::WeakCallbackInfo<FFIFunctionInfo>& data);
   bool is_closed() const;
+  bool supports_exceptions() const;
 
   uv_lib_t lib_ = {};
+  bool supports_exceptions_ = false;
   std::string path_;
   std::unordered_map<std::string, void*> symbols_;
   std::unordered_map<std::string, std::shared_ptr<FFIFunction>> functions_;
