@@ -2201,6 +2201,10 @@ The \fBNODE_EXTRA_CA_CERTS\fR environment variable is only read when the Node.js
 process is first launched. Changing the value at runtime using
 \fBprocess.env.NODE_EXTRA_CA_CERTS\fR has no effect on the current process.
 .
+.It Ev NODE_GREEN_THREADS_POOL_SIZE Ar size
+Set the number of OS threads that green threads are scheduled onto, up to 1024.
+By default, it is the available parallelism, up to 8.
+.
 .It Ev NODE_ICU_DATA Ar file
 Data path for ICU (\fBIntl\fR object) data. Will extend linked-in data when compiled
 with small-icu support.
