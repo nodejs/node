@@ -3823,6 +3823,43 @@
     "search": "",
     "hash": ""
   },
+  "Leading and trailing U+007F DELETE are not trimmed",
+  {
+    "input": "\u007Fhttp://example.com/",
+    "base": null,
+    "failure": true,
+    "relativeTo": "non-opaque-path-base"
+  },
+  {
+    "input": "\u007Fjavascript:alert(1)",
+    "base": "http://example.org/foo/bar",
+    "href": "http://example.org/foo/%7Fjavascript:alert(1)",
+    "origin": "http://example.org",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "example.org",
+    "hostname": "example.org",
+    "port": "",
+    "pathname": "/foo/%7Fjavascript:alert(1)",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "http://example.com/\u007F",
+    "base": null,
+    "href": "http://example.com/%7F",
+    "origin": "http://example.com",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "example.com",
+    "hostname": "example.com",
+    "port": "",
+    "pathname": "/%7F",
+    "search": "",
+    "hash": ""
+  },
   {
     "input": "non-special:opaque  ",
     "base": null,

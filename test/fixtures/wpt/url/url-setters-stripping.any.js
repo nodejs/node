@@ -121,5 +121,26 @@ for(const scheme of ["https", "wpt++"]) {
         }, `Setting ${property} with ${type} ${cpReference} (${scheme}:)`);
       }
     }
+
+    // searchParams has to reflect the resulting query, also when it was obtained before setting
+    // search
+    for (const [type, input] of [
+      ["leading", String.fromCodePoint(i) + "test"],
+      ["middle", "te" + String.fromCodePoint(i) + "st"],
+      ["trailing", "test" + String.fromCodePoint(i)]
+    ]) {
+      for (const searchParamsFirst of [false, true]) {
+        test(() => {
+          const expected = stripped ? "test" : input;
+          const url = urlRecord(scheme);
+          if (searchParamsFirst) {
+            url.searchParams;
+          }
+          url.search = input;
+          assert_array_equals([...url.searchParams.keys()], [expected], "keys");
+          assert_array_equals([...url.searchParams.values()], [""], "values");
+        }, `Setting search with ${type} ${cpReference} updates ${searchParamsFirst ? "previously obtained " : ""}searchParams (${scheme}:)`);
+      }
+    }
   }
 }
