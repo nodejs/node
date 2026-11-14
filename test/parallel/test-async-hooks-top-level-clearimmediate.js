@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --enable-async-hooks
 
 // Regression test for https://github.com/nodejs/node/issues/13262
 

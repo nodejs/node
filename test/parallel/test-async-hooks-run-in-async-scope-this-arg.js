@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --enable-async-hooks
 
 // Test that passing thisArg to runInAsyncScope() works.
 

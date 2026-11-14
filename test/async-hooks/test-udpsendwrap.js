@@ -1,4 +1,4 @@
-// Flags: --test-udp-no-try-send
+// Flags: --enable-async-hooks --test-udp-no-try-send
 'use strict';
 
 const common = require('../common');

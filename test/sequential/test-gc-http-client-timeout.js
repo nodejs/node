@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose-gc
+// Flags: --enable-async-hooks --expose-gc
 // Like test-gc-http-client.js, but with a timeout set.
 
 const common = require('../common');

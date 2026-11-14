@@ -33,7 +33,7 @@ expect('--no-extra-info-on-fatal-exception', 'B\n');
 expect('--redirect-warnings=_', 'B\n');
 expect('--trace-deprecation', 'B\n');
 expect('--trace-sync-io', 'B\n');
-expectNoWorker('--trace-events-enabled', 'B\n');
+expectNoWorker('--trace-events-enabled --enable-async-hooks', 'B\n');
 expect('--track-heap-objects', 'B\n');
 expect('--throw-deprecation',
        /.*DeprecationWarning: Buffer\(\) is deprecated due to security and usability issues.*/,
@@ -49,7 +49,7 @@ expectNoWorker(
 );
 // eslint-disable-next-line no-template-curly-in-string
 expectNoWorker('--trace-event-file-pattern {pid}-${rotation}.trace_events ' +
-       '--trace-event-categories node.async_hooks', 'B\n');
+       '--trace-event-categories node.async_hooks --enable-async-hooks', 'B\n');
 expect('--unhandled-rejections=none', 'B\n');
 
 if (common.isLinux) {

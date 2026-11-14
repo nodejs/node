@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --enable-async-hooks
 const common = require('../common');
 const { Console } = require('console');
 const { Writable } = require('stream');

@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose-gc
+// Flags: --enable-async-hooks --expose-gc
 // just a simple http server and client.
 
 const common = require('../common');

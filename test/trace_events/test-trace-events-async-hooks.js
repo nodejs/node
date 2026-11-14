@@ -22,7 +22,7 @@ tmpdir.refresh();
 const FILE_NAME = tmpdir.resolve(defaultTraceFileName);
 
 const proc = cp.spawn(process.execPath,
-                      [ '--trace-event-categories', 'node.async_hooks',
+                      [ '--enable-async-hooks', '--trace-event-categories', 'node.async_hooks',
                         '-e', CODE ],
                       { cwd: tmpdir.path });
 

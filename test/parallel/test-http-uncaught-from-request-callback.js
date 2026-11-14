@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --enable-async-hooks
 const common = require('../common');
 const asyncHooks = require('async_hooks');
 const http = require('http');

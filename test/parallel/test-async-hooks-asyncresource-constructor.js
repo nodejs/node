@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --enable-async-hooks
 
 // This tests that AsyncResource throws an error if bad parameters are passed
 

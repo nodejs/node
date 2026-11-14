@@ -10,4 +10,4 @@ if (!common.enoughTestMem)
 
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('async_hooks');
+runBenchmark('async_hooks', { NODE_OPTIONS: '--enable-async-hooks' });

@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --enable-async-hooks
 
 const common = require('../common');
 const initHooks = require('./init-hooks');

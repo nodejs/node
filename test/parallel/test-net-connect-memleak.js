@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// Flags: --expose-gc
+// Flags: --enable-async-hooks --expose-gc
 
 const common = require('../common');
 const { onGC } = require('../common/gc');

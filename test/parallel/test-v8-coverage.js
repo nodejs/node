@@ -153,6 +153,7 @@ function nextdir() {
 {
   const coverageDirectory = tmpdir.resolve(nextdir());
   const output = spawnSync(process.execPath, [
+    '--enable-async-hooks',
     require.resolve('../fixtures/v8-coverage/async-hooks'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (output.status !== 0) {

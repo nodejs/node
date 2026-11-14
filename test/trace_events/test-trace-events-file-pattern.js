@@ -18,6 +18,7 @@ const CODE =
   'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1)';
 
 const proc = cp.spawn(process.execPath, [
+  '--enable-async-hooks',
   '--trace-events-enabled',
   '--trace-event-file-pattern',
   // eslint-disable-next-line no-template-curly-in-string

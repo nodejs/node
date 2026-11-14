@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --enable-async-hooks
 
 const common = require('../common');
 const assert = require('assert');
@@ -25,7 +26,7 @@ if (process.argv[2] === 'child') {
   });
 
 } else {
-  const args = process.argv.slice(1).concat('child');
+  const args = ['--enable-async-hooks', ...process.argv.slice(1), 'child'];
   spawn(process.execPath, args)
     .on('close', common.mustCall((code) => {
       // No error because the type was defaulted

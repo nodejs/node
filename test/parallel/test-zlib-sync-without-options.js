@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --enable-async-hooks
 // Synchronous convenience methods called without options skip the stream and
 // reuse an internal output buffer. Check that they behave exactly like calls
 // that pass an empty options object, which go through the stream.
