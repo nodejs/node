@@ -122,7 +122,7 @@ X509Pointer NewCertificate() {
 #elif NCRYPTO_USE_BORINGSSL
   return X509Pointer(X509_new());
 #else
-#error "Unsupported ncrypto backend"
+#error "Unsupported crypto backend"
 #endif
 }
 

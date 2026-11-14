@@ -372,6 +372,8 @@ const ncrypto::Digest GetDigest(Environment* env, const char* name) {
   return result.digest;
 #elif NCRYPTO_USE_BORINGSSL
   return ncrypto::Digest::FromName(name);
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
