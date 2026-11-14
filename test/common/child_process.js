@@ -160,6 +160,7 @@ function spawnSyncAndAssert(...args) {
 }
 
 module.exports = {
+  checkOutput,
   cleanupStaleProcess,
   logAfterTime,
   kExpiringChildRunTime,
