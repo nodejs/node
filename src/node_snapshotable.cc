@@ -1245,8 +1245,13 @@ ExitCode SnapshotBuilder::Generate(
   return ExitCode::kNoFailure;
 }
 
-// Created by CreateSnapshot() along with Node.js' own snapshot, for
-// GenerateAsSource(). See green_thread::CreateDefaultGroupSnapshotBlob().
+// Created by CreateSnapshot() along with Node.js' own snapshot, when
+// GenerateAsSource() sets build_green_default_group_snapshot. Snapshots
+// created otherwise, e.g. by embedders through
+// CommonEnvironmentSetup::CreateSnapshot(), don't contain it, and their
+// process may not have per_process::v8_platform. See
+// green_thread::CreateDefaultGroupSnapshotBlob().
+static bool build_green_default_group_snapshot = false;
 static v8::StartupData green_default_group_snapshot{nullptr, 0};
 
 ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
@@ -1344,7 +1349,8 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
   // While this isolate exists, so does the read-only heap that the snapshot
   // has, which the snapshot of green threads in the default isolate group
   // must have too.
-  if (snapshot_type == SnapshotMetadata::Type::kDefault) {
+  if (build_green_default_group_snapshot &&
+      snapshot_type == SnapshotMetadata::Type::kDefault) {
     delete[] green_default_group_snapshot.data;
     green_default_group_snapshot = green_thread::CreateDefaultGroupSnapshotBlob(
         per_process::v8_platform.Platform(), out->v8_snapshot_blob_data);
@@ -1400,9 +1406,13 @@ ExitCode SnapshotBuilder::GenerateAsSource(
   }
 
   SnapshotData data;
+  build_green_default_group_snapshot = true;
   ExitCode exit_code =
       Generate(&data, args, exec_args, builder_script_optional, config);
+  build_green_default_group_snapshot = false;
   if (exit_code != ExitCode::kNoFailure) {
+    delete[] green_default_group_snapshot.data;
+    green_default_group_snapshot = {nullptr, 0};
     return exit_code;
   }
   // Green threads in isolate groups of their own start from a snapshot of
