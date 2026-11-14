@@ -655,3 +655,21 @@ test('coverage with directory and file named "file"', skipIfNoInspector, () => {
   assert.strictEqual(result.status, 0);
   assertIncludesReport(result, 'start of coverage report');
 });
+
+test('merges call counts of functions without block coverage', skipIfNoInspector, () => {
+  const args = [
+    '--test',
+    '--experimental-test-coverage',
+    '--test-coverage-exclude=!test/**',
+    '--test-reporter',
+    'tap',
+    'test.js',
+  ];
+  const result = spawnSync(process.execPath, args, {
+    cwd: fixtures.path('test-runner', 'coverage-function-counts'),
+  });
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert.strictEqual(result.status, 0);
+  assert.match(result.stdout.toString(), /# lib\.js +\| 100\.00 \| +100\.00 \| +100\.00 \|/);
+});
