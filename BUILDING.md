@@ -796,7 +796,7 @@ easily. These files will install the following
 [WinGet](https://learn.microsoft.com/en-us/windows/package-manager/winget/) packages:
 
 * Git for Windows with the `git` and Unix tools added to the `PATH`
-* `Python 3.14`
+* `Python 3.15`
 * `Visual Studio 2022` (Build Tools, Community, Professional or Enterprise Edition) and
   "Desktop development with C++" workload, Clang and ClangToolset optional components
 * `Rust Toolchain MSVC`
@@ -813,7 +813,7 @@ The following Desired State Configuration (DSC) files are available:
 
 Use one of the above DSC files with
 [winget configure](https://learn.microsoft.com/en-us/windows/package-manager/winget/configure#configure-subcommands)
-in a PowerShell Terminal to install Node.js prerequisites.
+in an Administrator PowerShell terminal to install Node.js prerequisites.
 For example, using the DSC file for Visual Studio Community Edition, execute the following command line:
 
 ```powershell
