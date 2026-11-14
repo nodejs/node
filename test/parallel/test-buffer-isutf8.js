@@ -3,7 +3,6 @@
 require('../common');
 const assert = require('assert');
 const { isUtf8, Buffer } = require('buffer');
-const { TextEncoder } = require('util');
 
 const encoder = new TextEncoder();
 
