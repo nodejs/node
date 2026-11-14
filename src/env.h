@@ -322,11 +322,12 @@ class EnabledDebugList;
 class StreamReadSlab {
  public:
   // Sized to match the read buffer size that libuv suggests for stream
-  // reads: a slab typically serves a single large read (still avoiding the
-  // copy that right-sizing the buffer would need), or many small ones.
-  // Larger slabs amortize allocations further, but stay alive (pinned by
-  // chunk views) long enough to be promoted to V8's old generation, where
-  // their external memory is only reclaimed by major GCs.
+  // reads: a slab serves a single large read (still avoiding the copy that
+  // right-sizing the buffer would need), or is reused for small reads that
+  // are copied out of it. Larger slabs amortize allocations further, but
+  // stay alive (pinned by chunk views) long enough to be promoted to V8's
+  // old generation, where their external memory is only reclaimed by major
+  // GCs.
   static constexpr size_t kSlabSize = 64 * 1024;
 
   // Reserve `suggested` bytes. Starts a new slab if the current one does
