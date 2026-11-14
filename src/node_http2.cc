@@ -3166,6 +3166,19 @@ void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  // maxSessionMemory is documented to reject new streams while the limit is
+  // exceeded. CanAddStream() enforces that for peer-initiated streams; apply
+  // the same memory check to locally initiated requests so that a session
+  // whose socket is not draining cannot queue frames without bound. Like the
+  // response header check, queued request bodies are not counted, so large
+  // uploads do not prevent unrelated requests on the same session.
+  if (!session->has_available_session_memory(sizeof(Http2Stream),
+                                             /* exclude_outbound */ true))
+      [[unlikely]] {
+    Debug(session, "not submitting request: session memory limit exceeded");
+    return args.GetReturnValue().Set(false);
+  }
+
   Debug(session, "request submitted");
 
   int32_t ret = 0;
