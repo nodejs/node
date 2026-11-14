@@ -75,7 +75,12 @@ The current security stewards are documented in the main Node.js
     `vulnerabilities.json`.
 
 * [ ] 4\. **Requesting CVEs:**
-  * Request CVEs for the reports with `git node security --request-cve`.
+  * Request CVEs for the reports with `git node security --request-cve`, or
+    add the `request-cves` label to the security release pull request in the
+    [security-release][] repository. The label does the same from the
+    repository, no local credentials needed, and reports the result as a
+    comment. On failure, remove the `request-cves-failed` label and add
+    `request-cves` again to retry.
   * Make sure to have a green CI before requesting a CVE.
   * Check if there is a need to issue a CVE for any version that became
     EOL after the last security release through [this issue](https://github.com/nodejs/security-wg/issues/1419).
