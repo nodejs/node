@@ -1407,6 +1407,72 @@ class GreenPort final : public MessagePortData::Owner {
   std::atomic<bool> notified_ = false;
 };
 
+// The platform delegate of the isolate that creates the green snapshot (see
+// GreenIsolate::GreenSnapshot()). Its foreground tasks are never run, since
+// the isolate only exists until the snapshot is made, and are destroyed
+// with Clear().
+class SnapshotPlatformDelegate final : public IsolatePlatformDelegate {
+ public:
+  std::shared_ptr<TaskRunner> GetForegroundTaskRunner() override {
+    return runner_;
+  }
+  bool IdleTasksEnabled() override { return false; }
+
+  // Must be called after the isolate is deinitialized.
+  void Clear() { runner_->Clear(); }
+
+ private:
+  class Runner final : public TaskRunner {
+   public:
+    bool IdleTasksEnabled() override { return false; }
+    bool NonNestableTasksEnabled() const override { return true; }
+    bool NonNestableDelayedTasksEnabled() const override { return true; }
+
+    void Clear() {
+      std::vector<std::unique_ptr<Task>> tasks;
+      {
+        Mutex::ScopedLock lock(mutex_);
+        tasks.swap(tasks_);
+      }
+    }
+
+   private:
+    void PostTaskImpl(std::unique_ptr<Task> task,
+                      const SourceLocation& location) override {
+      Keep(std::move(task));
+    }
+    void PostNonNestableTaskImpl(std::unique_ptr<Task> task,
+                                 const SourceLocation& location) override {
+      Keep(std::move(task));
+    }
+    void PostDelayedTaskImpl(std::unique_ptr<Task> task,
+                             double delay_in_seconds,
+                             const SourceLocation& location) override {
+      Keep(std::move(task));
+    }
+    void PostNonNestableDelayedTaskImpl(
+        std::unique_ptr<Task> task,
+        double delay_in_seconds,
+        const SourceLocation& location) override {
+      Keep(std::move(task));
+    }
+    void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
+                          const SourceLocation& location) override {
+      UNREACHABLE();
+    }
+
+    void Keep(std::unique_ptr<Task> task) {
+      Mutex::ScopedLock lock(mutex_);
+      tasks_.push_back(std::move(task));
+    }
+
+    Mutex mutex_;
+    std::vector<std::unique_ptr<Task>> tasks_;
+  };
+
+  std::shared_ptr<Runner> runner_ = std::make_shared<Runner>();
+};
+
 class GreenIsolate final : public IsolatePlatformDelegate,
                            public PortAdapter,
                            public std::enable_shared_from_this<GreenIsolate> {
@@ -1833,6 +1899,14 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     // isolates can use V8's built-in snapshot, which is much smaller, since
     // green threads don't need any of Node.js' per-isolate state.
     uses_node_snapshot_ = group == v8::IsolateGroup::GetDefault();
+    // Isolates in the same group must all use the same snapshot, which the
+    // green snapshot is once it exists. Without it, V8's.
+    const v8::StartupData* green_snapshot =
+        uses_node_snapshot_ ? nullptr : GreenSnapshot(platform_);
+    if (green_snapshot != nullptr) {
+      params.snapshot_blob = green_snapshot;
+      params.external_references = SnapshotExternalReferences();
+    }
     allocator_ = std::make_shared<LimitedAllocator>(options.max_memory, group);
     params.array_buffer_allocator_shared = allocator_;
     size_t max_old_generation_size = options.max_old_generation_size;
@@ -1895,18 +1969,33 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       }
       isolate->AddMessageListenerWithErrorLevel(
           OnMessage, Isolate::MessageErrorLevel::kMessageError);
-      // The default context of the startup snapshot contains only what V8
-      // creates.
-      Local<Context> context = Context::New(isolate);
+      // The green snapshot has a context with the runtime bootstrapped.
+      // Otherwise, the default context of the startup snapshot contains only
+      // what V8 creates.
+      Local<Context> context;
+      if (green_snapshot != nullptr) {
+        USE(Context::FromSnapshot(isolate, kGreenSnapshotContextIndex)
+                .ToLocal(&context));
+      } else {
+        context = Context::New(isolate);
+      }
       if (context.IsEmpty()) {
         fatal_ = true;
       } else {
         Context::Scope context_scope(context);
         context_.Reset(isolate, context);
-        if (!InstallGlobals(isolate, context) ||
-            !RunBootstrap(isolate, context)) {
+        Local<Object> runtime;
+        if (green_snapshot != nullptr) {
+          if (!context
+                   ->GetDataFromSnapshotOnce<Object>(kGreenSnapshotRuntimeIndex)
+                   .ToLocal(&runtime)) {
+            fatal_ = true;
+          }
+        } else if (!InstallGlobals(isolate, context) ||
+                   !RunBootstrap(isolate, context).ToLocal(&runtime)) {
           fatal_ = true;
         }
+        if (!fatal_) runtime_.Reset(isolate, runtime);
         // Until the first GC, ArrayBuffer allocations are checked against
         // the heap as it is now.
         v8::HeapStatistics stats;
@@ -2812,7 +2901,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         .IsJust();
   }
 
-  bool InstallGlobals(Isolate* isolate, Local<Context> context) {
+  static bool InstallGlobals(Isolate* isolate, Local<Context> context) {
     Local<Object> global = context->Global();
     auto define = [&](Local<Object> target,
                       const char* name,
@@ -2874,7 +2963,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // Runs the JS part of the green thread runtime: its primordials, Node.js'
   // DOMException, then internal/green_threads/runtime/bootstrap, whose exports
   // are kept in runtime_.
-  bool RunBootstrap(Isolate* isolate, Local<Context> context) {
+  // Returns the exports of the bootstrap, or nothing if it failed.
+  static MaybeLocal<Object> RunBootstrap(Isolate* isolate,
+                                         Local<Context> context) {
     TryCatch try_catch(isolate);
     auto set = [&](Local<Object> target, const char* name, Local<Value> value) {
       return target->Set(context, OneByteString(isolate, name), value).IsJust();
@@ -2957,7 +3048,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                 FIXED_ONE_BYTE_STRING(
                     isolate, "internal/green_threads/runtime/primordials"))
             .IsEmpty()) {
-      return ReportBootstrapError(isolate, context, try_catch);
+      ReportBootstrapError(isolate, context, try_catch);
+      return {};
     }
 
     Local<Value> args[] = {
@@ -2976,11 +3068,124 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                  FIXED_ONE_BYTE_STRING(
                      isolate, "internal/green_threads/runtime/bootstrap"))
              .ToLocal(&bootstrap_exports)) {
-      return ReportBootstrapError(isolate, context, try_catch);
+      ReportBootstrapError(isolate, context, try_catch);
+      return {};
     }
     CHECK(bootstrap_exports->IsObject());
-    runtime_.Reset(isolate, bootstrap_exports.As<Object>());
-    return true;
+    return bootstrap_exports.As<Object>();
+  }
+
+  // The indexes of the bootstrapped context in the green snapshot, and of
+  // the bootstrap's exports in its data.
+  static constexpr size_t kGreenSnapshotContextIndex = 0;
+  static constexpr size_t kGreenSnapshotRuntimeIndex = 0;
+
+  // The external references of the green snapshot: the callbacks of the
+  // functions that InstallGlobals() and RunBootstrap() create.
+  static const intptr_t* SnapshotExternalReferences() {
+    static const intptr_t references[] = {
+        reinterpret_cast<intptr_t>(PostMessageCallback),
+        reinterpret_cast<intptr_t>(CloseCallback),
+        reinterpret_cast<intptr_t>(QueueMicrotaskCallback),
+        reinterpret_cast<intptr_t>(SetTimeoutCallback),
+        reinterpret_cast<intptr_t>(SetIntervalCallback),
+        reinterpret_cast<intptr_t>(ClearTimerCallback),
+        reinterpret_cast<intptr_t>(ConsoleCallback),
+        reinterpret_cast<intptr_t>(RpcSendCallback),
+        reinterpret_cast<intptr_t>(MessageChannelCallback),
+        reinterpret_cast<intptr_t>(PortPostMessageCallback),
+        reinterpret_cast<intptr_t>(PortStartCallback),
+        reinterpret_cast<intptr_t>(PortCloseCallback),
+        reinterpret_cast<intptr_t>(CompileModuleCallback),
+        reinterpret_cast<intptr_t>(CreateJsonModuleCallback),
+        reinterpret_cast<intptr_t>(ModuleRequestsCallback),
+        reinterpret_cast<intptr_t>(LinkModuleCallback),
+        reinterpret_cast<intptr_t>(InstantiateModuleCallback),
+        reinterpret_cast<intptr_t>(EvaluateModuleCallback),
+        reinterpret_cast<intptr_t>(ModuleNamespaceCallback),
+        reinterpret_cast<intptr_t>(ResolveUrlCallback),
+        reinterpret_cast<intptr_t>(InternalBindingCallback),
+        reinterpret_cast<intptr_t>(RequireCallback),
+        0,
+    };
+    return references;
+  }
+
+  // The startup snapshot of isolates in groups that only green isolates use:
+  // V8's own snapshot, with a context in which the runtime is bootstrapped.
+  // This saves each green thread running the bootstrap, and compiling it,
+  // since V8 rejects Node.js' code cache in isolates that don't use Node.js'
+  // snapshot. Created on a pool thread the first time it's needed. nullptr
+  // if creating it failed.
+  static const v8::StartupData* GreenSnapshot(MultiIsolatePlatform* platform) {
+    static Mutex mutex;
+    static bool created = false;
+    static v8::StartupData blob{nullptr, 0};
+    Mutex::ScopedLock lock(mutex);
+    if (!created) {
+      created = true;
+      blob = CreateGreenSnapshot(platform);
+    }
+    return blob.data != nullptr ? &blob : nullptr;
+  }
+
+  static v8::StartupData CreateGreenSnapshot(MultiIsolatePlatform* platform) {
+    // The bootstrap doesn't run in a green isolate.
+    CurrentScope current_scope(nullptr);
+    std::unique_ptr<ArrayBufferAllocator> allocator =
+        ArrayBufferAllocator::Create();
+    Isolate::CreateParams params;
+    params.array_buffer_allocator = allocator.get();
+    params.external_references = SnapshotExternalReferences();
+    Isolate* isolate = Isolate::Allocate(v8::IsolateGroup::Create());
+    if (isolate == nullptr) return {nullptr, 0};
+    SnapshotPlatformDelegate delegate;
+    // Before the isolate is initialized, which may use the platform.
+    platform->RegisterIsolate(isolate, &delegate);
+    params.cpp_heap =
+        v8::CppHeap::Create(platform, v8::CppHeapCreateParams{{}}).release();
+
+    v8::StartupData blob{nullptr, 0};
+    {
+      v8::SnapshotCreator creator(isolate, params);
+      Locker locker(isolate);
+      isolate->SetStackLimit(current_pool_thread->stack_limit());
+      bool bootstrapped = false;
+      {
+        HandleScope handle_scope(isolate);
+        // V8 requires a default context. It is never used.
+        Local<Context> default_context = Context::New(isolate);
+        Local<Context> context = Context::New(isolate);
+        if (!default_context.IsEmpty() && !context.IsEmpty()) {
+          creator.SetDefaultContext(default_context);
+          Context::Scope context_scope(context);
+          Local<Object> runtime;
+          if (InstallGlobals(isolate, context) &&
+              RunBootstrap(isolate, context).ToLocal(&runtime)) {
+            CHECK_EQ(creator.AddData(context, runtime),
+                     kGreenSnapshotRuntimeIndex);
+            CHECK_EQ(creator.AddContext(context), kGreenSnapshotContextIndex);
+            bootstrapped = true;
+          }
+        }
+      }
+      if (bootstrapped) {
+        blob = creator.CreateBlob(
+            v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+      }
+    }
+    isolate->Deinitialize();
+    delegate.Clear();
+    platform->UnregisterIsolate(isolate);
+    Isolate::Free(isolate);
+
+    // Otherwise V8 would keep the hash seed of the snapshot, the same for
+    // all green threads, which would make hash flooding possible.
+    if (blob.data != nullptr && !blob.CanBeRehashed()) {
+      delete[] blob.data;
+      blob = {nullptr, 0};
+    }
+    return blob;
   }
 
   // A bug in the runtime, which runs before any user code.
