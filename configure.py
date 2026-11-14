@@ -2538,7 +2538,12 @@ def configure_static(o):
       return
 
     if options.fully_static:
-      o['libraries'] += ['-static']
+      if flavor == 'linux':
+        # `-static` drops the `-pie` from common.gypi, e.g. clang:
+        # https://github.com/llvm/llvm-project/blob/68b03cf380e61c86aa59f94a10e8ce2d4c10cbb0/clang/lib/Driver/ToolChains/Gnu.cpp#L351-L366
+        o['libraries'] += ['-static-pie']
+      else:
+        o['libraries'] += ['-static']
     elif options.partly_static:
       o['libraries'] += ['-static-libgcc', '-static-libstdc++']
       if options.enable_asan:
