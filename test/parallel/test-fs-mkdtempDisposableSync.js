@@ -66,6 +66,97 @@ if (isMainThread) {
   process.chdir(originalCwd);
 }
 
+// Buffer paths
+{
+  const prefix = tmpdir.resolve('foo.');
+  for (const result of [
+    fs.mkdtempDisposableSync(Buffer.from(prefix)),
+    fs.mkdtempDisposableSync(prefix, { encoding: 'buffer' }),
+  ]) {
+    assert(Buffer.isBuffer(result.path));
+    assert.strictEqual(path.dirname(result.path.toString()), tmpdir.path);
+    assert(fs.existsSync(result.path));
+
+    result.remove();
+
+    assert(!fs.existsSync(result.path));
+  }
+}
+
+// `chdir` does not affect removal of a relative Buffer path
+// Can't use chdir in workers
+if (isMainThread) {
+  const originalCwd = process.cwd();
+
+  process.chdir(tmpdir.path);
+  const result = fs.mkdtempDisposableSync(Buffer.from('buffer.'));
+  const fullPath = path.join(tmpdir.path, result.path.toString());
+
+  assert(fs.existsSync(fullPath));
+
+  process.chdir(originalCwd);
+  result.remove();
+
+  assert(!fs.existsSync(fullPath));
+}
+
+// Buffer paths that are not valid UTF-8 are removed as is
+// macOS rejects such file names, and Windows converts paths from UTF-8
+if (common.isLinux) {
+  const prefix = Buffer.concat([Buffer.from(tmpdir.resolve('foo')), Buffer.from([0xff, 0x2e])]);
+  const result = fs.mkdtempDisposableSync(prefix);
+
+  assert.deepStrictEqual(result.path.subarray(0, prefix.length), prefix);
+  assert(fs.existsSync(result.path));
+
+  result.remove();
+
+  assert(!fs.existsSync(result.path));
+}
+
+// Relative Buffer path under a non-ASCII cwd
+// Can't use chdir in workers
+if (isMainThread) {
+  const originalCwd = process.cwd();
+  const nonAscii = fs.mkdtempSync(path.join(tmpdir.path, '\u7528\u6237-'));
+
+  process.chdir(nonAscii);
+  const result = fs.mkdtempDisposableSync(Buffer.from('buffer.'));
+  const fullPath = path.join(nonAscii, result.path.toString());
+
+  assert(fs.existsSync(fullPath));
+
+  process.chdir(originalCwd);
+  result.remove();
+
+  assert(!fs.existsSync(fullPath));
+  fs.rmSync(nonAscii, { recursive: true });
+}
+
+// `..` after a symlink is resolved by the OS at creation. remove() has to
+// use those bytes; lexical normalization points at a directory that was
+// never created. Windows normalizes `..` before following the symlink.
+if (!common.isWindows) {
+  const outside = fs.mkdtempSync(path.join(tmpdir.path, 'outside-'));
+  const parent = fs.mkdtempSync(path.join(tmpdir.path, 'parent-'));
+  const link = path.join(parent, 'link');
+  fs.symlinkSync(outside, link);
+
+  const prefix = Buffer.from(`${link}/../foo.`);
+  const result = fs.mkdtempDisposableSync(prefix);
+  const baseName = path.basename(result.path.toString());
+  const createdPath = path.join(path.dirname(outside), baseName);
+
+  assert(fs.existsSync(createdPath));
+  assert(!fs.existsSync(path.join(parent, baseName)));
+
+  result.remove();
+
+  assert(!fs.existsSync(createdPath));
+  fs.rmSync(outside, { recursive: true });
+  fs.rmSync(parent, { recursive: true });
+}
+
 // Errors from cleanup are thrown
 // It is difficult to arrange for rmdir to fail on windows
 if (!common.isWindows && process.getuid() !== 0) {
