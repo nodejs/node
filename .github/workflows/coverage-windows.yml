@@ -84,7 +84,7 @@ jobs:
         run: choco install nasm
       - name: Install Rust ${{ env.RUSTC_VERSION }}
         run: |
-          rustup override set "$RUSTC_VERSION"
+          rustup override set ${{ env.RUSTC_VERSION }}
           rustup --version
       - name: Build
         run: ./vcbuild.bat clang-cl v8temporal
