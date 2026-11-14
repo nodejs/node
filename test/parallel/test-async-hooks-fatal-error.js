@@ -41,7 +41,7 @@ function main() {
     for (const [valueType, expect] of valueTypes) {
       const cp = childProcess.spawnSync(
         process.execPath,
-        [ __filename, 'child', type, valueType ],
+        [ '--no-deprecation', __filename, 'child', type, valueType ],
         {
           encoding: 'utf8',
         });
