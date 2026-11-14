@@ -160,7 +160,7 @@ class JSBindingsConnection : public BaseObject {
 
   void FlushPendingMessages() {
     flush_scheduled_ = false;
-    if (pending_messages_.empty()) return;
+    if (pending_messages_.empty() || !env()->can_call_into_js()) return;
     Isolate* isolate = env()->isolate();
     HandleScope handle_scope(isolate);
     Context::Scope context_scope(env()->context());
