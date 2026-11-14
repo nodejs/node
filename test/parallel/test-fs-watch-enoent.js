@@ -64,7 +64,11 @@ tmpdir.refresh();
     );
   } else {
     const watcher = fs.watch(nonexistentFile, { throwIfNoEntry: false }, common.mustNotCall());
-    watcher.close();
+    if (common.isLinux) {
+      setTimeout(common.mustCall(() => watcher.close()), common.platformTimeout(10));
+    } else {
+      watcher.close();
+    }
   }
 }
 
