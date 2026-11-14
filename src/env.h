@@ -705,6 +705,9 @@ struct SnapshotData {
   static const SnapshotIndex kNodeVMContextIndex = 0;
   static const SnapshotIndex kNodeBaseContextIndex = kNodeVMContextIndex + 1;
   static const SnapshotIndex kNodeMainContextIndex = kNodeBaseContextIndex + 1;
+  // A context in which the green thread runtime is bootstrapped, for green
+  // threads in V8's default isolate group. Only in Node.js' own snapshot.
+  static const SnapshotIndex kNodeGreenContextIndex = kNodeMainContextIndex + 1;
 
   DataOwnership data_ownership = DataOwnership::kOwned;
 
