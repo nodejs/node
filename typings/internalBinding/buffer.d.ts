@@ -16,9 +16,9 @@ export interface BufferBinding {
 
   copyArrayBuffer(destination: ArrayBuffer | SharedArrayBuffer, destinationOffset: number, source: ArrayBuffer | SharedArrayBuffer, sourceOffset: number, bytesToCopy: number): void;
 
-  swap16(buf: ArrayBufferView): ArrayBufferView;
-  swap32(buf: ArrayBufferView): ArrayBufferView;
-  swap64(buf: ArrayBufferView): ArrayBufferView;
+  swap16(buffer: ArrayBuffer | SharedArrayBuffer, byteOffset: number, byteLength: number): boolean;
+  swap32(buffer: ArrayBuffer | SharedArrayBuffer, byteOffset: number, byteLength: number): boolean;
+  swap64(buffer: ArrayBuffer | SharedArrayBuffer, byteOffset: number, byteLength: number): boolean;
 
   isUtf8(input: ArrayBufferView | ArrayBuffer | SharedArrayBuffer): boolean;
   isAscii(input: ArrayBufferView | ArrayBuffer | SharedArrayBuffer): boolean;
