@@ -1535,6 +1535,12 @@ The number of file system events queued without being handled exceeded the size 
 A [green thread][] created a `BroadcastChannel` whose name isn't one of its
 `broadcastScopes`.
 
+<a id="ERR_GREEN_THREAD_CLOSING"></a>
+
+### `ERR_GREEN_THREAD_CLOSING`
+
+[`greenThread.evaluate()`][] was called after [`greenThread.close()`][].
+
 <a id="ERR_GREEN_THREAD_CPU_LIMIT"></a>
 
 ### `ERR_GREEN_THREAD_CPU_LIMIT`
@@ -4928,6 +4934,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`fs.symlinkSync()`]: fs.md#fssymlinksynctarget-path-type
 [`fs.unlink`]: fs.md#fsunlinkpath-callback
 [`fs`]: fs.md
+[`greenThread.close()`]: green_threads.md#greenthreadcloseoptions
 [`greenThread.evaluate()`]: green_threads.md#greenthreadevaluatesource-options
 [`hash.digest()`]: crypto.md#hashdigestencoding
 [`hash.update()`]: crypto.md#hashupdatedata-inputencoding
