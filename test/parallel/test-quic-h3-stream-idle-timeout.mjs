@@ -39,6 +39,7 @@ const encoder = new TextEncoder();
       streamDestroyed.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     streamIdleTimeout: 100,
     onheaders() {
@@ -47,6 +48,7 @@ const encoder = new TextEncoder();
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
@@ -94,6 +96,7 @@ const encoder = new TextEncoder();
       await serverSession.close();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     streamIdleTimeout: 500,
     onheaders: mustCall(function(headers) {
@@ -104,6 +107,7 @@ const encoder = new TextEncoder();
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
   });
@@ -146,6 +150,7 @@ const encoder = new TextEncoder();
     await setTimeout(700);
     await serverSession.close();
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     streamIdleTimeout: 0,  // Disabled
     onheaders: mustCall(function(headers) {
@@ -154,6 +159,7 @@ const encoder = new TextEncoder();
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
   });

@@ -62,6 +62,7 @@ const clientSession = await connect(serverEndpoint.address, {
 
 await clientSession.opened;
 
+assert.strictEqual(clientSession.maxPendingDatagrams, 128);
 clientSession.maxPendingDatagrams = 2;
 
 // Send 5 datagrams. With drop-oldest and queue size 2:

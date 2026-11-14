@@ -20,7 +20,7 @@ const serverDone = Promise.withResolvers();
 // Create a server endpoint
 const serverEndpoint = await quic.listen(mustCall(async (serverSession) => {
   await serverSession.opened;
-  assert.ok(serverSession.endpoint !== null);
+  assert.ok(serverSession.connection.endpoint !== null);
   assert.strictEqual(serverSession.destroyed, false);
 
   const stats = serverSession.stats;
@@ -31,7 +31,7 @@ const serverEndpoint = await quic.listen(mustCall(async (serverSession) => {
 
   serverDone.resolve();
   serverSession.close();
-}), { sni: { '*': { keys, certs } } });
+}), { alpn: ['quic-test'], sni: { '*': { keys, certs } } });
 
 assert.strictEqual(serverEndpoint.busy, false);
 assert.strictEqual(serverEndpoint.closing, false);
@@ -50,16 +50,17 @@ assert.ok(epStats.createdAt > 0n);
 
 // Connect with a client
 const clientSession = await quic.connect(serverEndpoint.address, {
+  alpn: 'quic-test',
   verifyPeer: 'manual',
 });
 
 assert.strictEqual(clientSession.destroyed, false);
-assert.ok(clientSession.endpoint !== null);
+assert.ok(clientSession.connection.endpoint !== null);
 assert.strictEqual(clientSession.stats.isConnected, true);
 
 const clientInfo = await clientSession.opened;
 assert.strictEqual(clientInfo.servername, 'localhost');
-assert.strictEqual(clientInfo.protocol, 'h3');
+assert.strictEqual(clientInfo.protocol, 'quic-test');
 assert.strictEqual(clientInfo.cipherVersion, 'TLSv1.3');
 assert.ok(clientInfo.local !== undefined);
 assert.ok(clientInfo.remote !== undefined);
@@ -85,7 +86,7 @@ assert.strictEqual(stream.stats.isConnected, true);
 // Destroying the session should destroy it and the stream, and clear its properties.
 clientSession.destroy();
 assert.strictEqual(clientSession.destroyed, true);
-assert.strictEqual(clientSession.endpoint, null);
+assert.strictEqual(clientSession.connection.endpoint, null);
 assert.strictEqual(clientSession.stats.isConnected, false);
 assert.strictEqual(typeof clientSession.stats.cwnd, 'bigint');
 assert.strictEqual(typeof clientSession.stats.streamsIdleTimedOut, 'bigint');

@@ -47,6 +47,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     stream.onerror = () => {};
   }, kRequests);
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   onheaders: mustCall(function() {
     this.sendHeaders({ ':status': '200' });
@@ -55,6 +56,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 });
 
 const clientSession = await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
   transportParams: {

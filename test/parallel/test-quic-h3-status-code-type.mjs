@@ -29,6 +29,7 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
     }
   }, codes.length);
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   onheaders: mustCall(function() {
     const status = codes[serverResponses - 1];
@@ -38,6 +39,7 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
 });
 
 const clientSession = await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
 });

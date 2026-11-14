@@ -53,6 +53,7 @@ async function makeRequest(clientSession, path) {
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(2);
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     // Server disables QPACK dynamic table.
     application: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
@@ -67,6 +68,7 @@ async function makeRequest(clientSession, path) {
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     // Client also disables QPACK dynamic table.
@@ -92,6 +94,7 @@ async function makeRequest(clientSession, path) {
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(2);
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     application: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
     onheaders: mustCall(function(headers) {
@@ -105,6 +108,7 @@ async function makeRequest(clientSession, path) {
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     application: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },

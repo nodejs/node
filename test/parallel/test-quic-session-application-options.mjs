@@ -32,7 +32,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     // After the stream arrives, the handshake and ALPN negotiation are
     // complete, so applicationOptions should be available.
-    const opts = serverSession.applicationOptions;
+    const opts = serverSession.connection.applicationOptions;
 
     assert.ok(opts != null, 'server applicationOptions should be available after handshake');
     assert.strictEqual(typeof opts, 'object');
@@ -69,7 +69,7 @@ await clientSession.opened;
 
 // After opened, ALPN negotiation is complete and applicationOptions
 // should be available on the client session.
-const clientOpts = clientSession.applicationOptions;
+const clientOpts = clientSession.connection.applicationOptions;
 assert.ok(clientOpts != null, 'client applicationOptions should be available after handshake');
 assert.strictEqual(typeof clientOpts, 'object');
 assert.strictEqual(Object.getPrototypeOf(clientOpts), null);
@@ -98,6 +98,6 @@ await Promise.all([stream.closed, serverDone.promise]);
 
 // After close, applicationOptions should return null.
 await clientSession.close();
-assert.strictEqual(clientSession.applicationOptions, null);
+assert.strictEqual(clientSession.connection.applicationOptions, null);
 
 await serverEndpoint.close();

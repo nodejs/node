@@ -40,6 +40,7 @@ const decoder = new TextDecoder();
     ss.close();
     serverDone.resolve();
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     application: { enableDatagrams: true },
     transportParams: { maxDatagramFrameSize: 100 },
@@ -62,6 +63,7 @@ const decoder = new TextDecoder();
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     application: { enableDatagrams: true },
@@ -121,6 +123,7 @@ const decoder = new TextDecoder();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     // Server explicitly disables H3 datagrams.
     application: { enableDatagrams: false },
@@ -136,6 +139,7 @@ const decoder = new TextDecoder();
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     application: { enableDatagrams: true },

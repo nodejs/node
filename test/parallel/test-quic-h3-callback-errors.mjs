@@ -33,6 +33,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     await ss.closed;
     done.resolve();
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     transportParams: { maxIdleTimeout: 1 },
     onheaders: onheadersHandler,
@@ -52,6 +53,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   );
 
   const c = await connect(ep.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
@@ -92,6 +94,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   );
 
   const c = await connect(ep.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
@@ -137,6 +140,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   );
 
   const c = await connect(ep.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
@@ -174,6 +178,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   const serverEndpoint = await listen(mustCall(async (ss) => {
     await ss.closed;
   }), {
+    alpn: ['h3'],
     sni: {
       '*': { keys: [key], certs: [cert] },
       'example.com': { keys: [key], certs: [cert] },
@@ -186,15 +191,16 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'example.com',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
-    onorigin: mustCall(function() {
-      throw new Error('onorigin error');
-    }),
     onerror: mustCall(function(error) {
       assert.strictEqual(error.message, 'onorigin error');
     }),
+  });
+  clientSession.onorigin = mustCall(function() {
+    throw new Error('onorigin error');
   });
   await clientSession.opened;
 
@@ -238,6 +244,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     await ss.closed;
     serverDone.resolve();
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     transportParams: { maxIdleTimeout: 1 },
     onheaders: mustCall(function(headers) {
@@ -251,6 +258,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },

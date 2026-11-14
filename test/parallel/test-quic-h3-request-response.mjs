@@ -41,11 +41,10 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverDone.resolve();
   });
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
-  // Default ALPN is h3 — omitted intentionally to exercise the default.
-  //
-  // onheaders is provided via listen options so it is applied to
-  // incoming streams (via kStreamCallbacks) BEFORE onstream fires.
+  // The onheaders callback is provided via listen options so it is applied
+  // to incoming streams (via kStreamCallbacks) BEFORE onstream fires.
   // For H3, onheaders must be set because the H3 application delivers
   // headers and stream[kHeaders] asserts the callback exists.
   onheaders: mustCall(function(headers) {
@@ -73,9 +72,9 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 });
 
 const clientSession = await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
-  // Default ALPN is h3.
 });
 
 const info = await clientSession.opened;
