@@ -2930,7 +2930,10 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
   Http2Session* session = static_cast<Http2Session*>(user_data);
   Debug(session, "reading outbound data for stream %d", id);
   BaseObjectPtr<Http2Stream> stream = session->FindStream(id);
-  if (!stream) return 0;
+  // The stream was destroyed without nghttp2 being told. Returning 0 here
+  // would make nghttp2 send empty DATA frames forever, so have it reset
+  // the stream instead.
+  if (!stream) return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
   if (stream->statistics_.first_byte_sent == 0)
     stream->statistics_.first_byte_sent = uv_hrtime();
   CHECK_EQ(id, stream->id());
