@@ -208,6 +208,12 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
   Local<Uint8Array> dest = args[1].As<Uint8Array>();
   Local<ArrayBuffer> buf = dest->Buffer();
 
+  // Read-only backing store: return false so the JS caller throws instead.
+  if (buf->IsImmutable()) {
+    args.GetReturnValue().Set(false);
+    return;
+  }
+
   // Handle detached buffers - return {read: 0, written: 0}
   if (buf->Data() == nullptr) {
     binding_data->encode_into_results_buffer_[0] = 0;
