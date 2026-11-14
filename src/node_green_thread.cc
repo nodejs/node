@@ -2382,12 +2382,29 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                true,
                {}});
     PushExit(1);
+    ReleasePorts();
     {
       Mutex::ScopedLock lock(disposal_mutex_);
       disposal_cv_.Broadcast(lock);
     }
     cut_off_deadline_ = DeadlineAfter(cut_off_period.load());
     TryCutOff(epoch);
+  }
+
+  // Disentangles the ports of an abandoned green thread, which closes the
+  // ports they are entangled with, and removes them from their
+  // BroadcastChannels, so that messages don't queue up for it, and drops the
+  // messages they have. Their MessagePortData stays, as the green isolate
+  // may still use it.
+  void ReleasePorts() {
+    Mutex::ScopedLock lock(ports_mutex_);
+    for (auto& [id, port] : ports_) {
+      MessagePortData* data = port->data();
+      if (data == nullptr) continue;
+      data->Disentangle();
+      while (data->TakeIncomingMessage(false)) {
+      }
+    }
   }
 
   // On the watchdog thread. Tries to cut off the pool thread that is stuck in
@@ -2499,7 +2516,12 @@ class GreenIsolate final : public IsolatePlatformDelegate,
         for (auto& [id, timer] : timers_) timer.handle->Close();
         timers_.clear();
         // Closes them, which closes the ports they are entangled with.
-        ports_.clear();
+        std::unordered_map<uint32_t, std::unique_ptr<GreenPort>> ports;
+        {
+          Mutex::ScopedLock lock(ports_mutex_);
+          ports.swap(ports_);
+        }
+        ports.clear();
         modules_.clear();
         modules_by_hash_.clear();
         contexts_.clear();
@@ -2655,6 +2677,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   std::unique_ptr<MessagePortData> TakePort(Local<Object> object) override {
     auto it = ports_.find(PortId(object));
     CHECK(it != ports_.end());
+    Mutex::ScopedLock lock(ports_mutex_);
     std::unique_ptr<MessagePortData> data = it->second->Detach();
     ports_.erase(it);
     return data;
@@ -2676,6 +2699,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     auto port = std::make_unique<GreenPort>(this, id);
     port->object.Reset(isolate, object.As<Object>());
     GreenPort* raw_port = port.get();
+    Mutex::ScopedLock lock(ports_mutex_);
     ports_.emplace(id, std::move(port));
     raw_port->Attach(std::move(data));
     return object.As<Object>();
@@ -2689,12 +2713,11 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     if (it == ports_.end()) return;
     it->second->ClearNotified();
     for (size_t n = 0; n < kMessageBudget; n++) {
+      if (ShouldShutdown()) return;
       it = ports_.find(id);
-      if (it == ports_.end() || it->second->data() == nullptr ||
-          ShouldShutdown()) {
-        return;
-      }
+      if (it == ports_.end()) return;
       GreenPort* port = it->second.get();
+      if (port->data() == nullptr) return;
       std::shared_ptr<worker::Message> message =
           port->data()->TakeIncomingMessage(!port->started);
       if (!message) return;
@@ -2758,15 +2781,24 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   // its 'close' event.
   void ClosePort(uint32_t id) {
     auto it = ports_.find(id);
-    if (it == ports_.end() || it->second->data() == nullptr) return;
-    std::unique_ptr<MessagePortData> data = it->second->Detach();
-    data->Disentangle();
+    if (it == ports_.end()) return;
+    std::unique_ptr<MessagePortData> data;
+    {
+      Mutex::ScopedLock lock(ports_mutex_);
+      data = it->second->Detach();
+      if (!data) return;
+      data->Disentangle();
+    }
     data.reset();
     Submit([id](GreenIsolate* self) {
       auto it = self->ports_.find(id);
       if (it == self->ports_.end()) return;
-      std::unique_ptr<GreenPort> port = std::move(it->second);
-      self->ports_.erase(it);
+      std::unique_ptr<GreenPort> port;
+      {
+        Mutex::ScopedLock lock(self->ports_mutex_);
+        port = std::move(it->second);
+        self->ports_.erase(it);
+      }
       self->RunTask(
           kNewInvocation, [&](Isolate* isolate, Local<Context> context) {
             Local<Value> argv[] = {port->object.Get(isolate)};
@@ -3799,7 +3831,9 @@ class GreenIsolate final : public IsolatePlatformDelegate,
                   self->Transfer(transfer, args[0].As<Object>()));
     if (!value) return;
     GreenPort* port = self->FindPort(args[0]);
-    if (port == nullptr || port->data() == nullptr) return;
+    if (port == nullptr) return;
+    Mutex::ScopedLock lock(self->ports_mutex_);
+    if (port->data() == nullptr) return;
     USE(port->data()->Dispatch(ToMessage(std::move(*value))));
   }
 
@@ -4070,6 +4104,10 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   Global<Object> runtime_;
   std::shared_ptr<LimitedAllocator> allocator_;
   std::unordered_map<uint32_t, std::unique_ptr<GreenPort>> ports_;
+  // Held while ports_ changes, and while ports are entangled with others,
+  // disentangled, or post messages, since ReleasePorts() disentangles them on
+  // another thread. Never held while JS runs.
+  Mutex ports_mutex_;
   uint32_t next_port_id_ = 1;
 
   // See ModuleRecord.
@@ -4662,6 +4700,10 @@ class GreenThreadWrap final : public HandleWrap {
     SetMethod(context, target, "setWarmPoolSize", SetWarmPoolSize);
     SetMethod(
         context, target, "setUnresponsiveTimeouts", SetUnresponsiveTimeouts);
+    SetMethod(context,
+              target,
+              "testingBroadcastChannelSize",
+              TestingBroadcastChannelSize);
     SetConstructorFunction(context,
                            target,
                            "WarmPoolWaiter",
@@ -4721,6 +4763,17 @@ class GreenThreadWrap final : public HandleWrap {
 #undef V
   }
 
+  // testingBroadcastChannelSize(name): how many BroadcastChannels named
+  // `name` are open in the process, for tests.
+  static void TestingBroadcastChannelSize(
+      const FunctionCallbackInfo<Value>& args) {
+    CHECK(args[0]->IsString());
+    std::string name = Utf8Value(args.GetIsolate(), args[0]).ToString();
+    args.GetReturnValue().Set(Integer::NewFromUnsigned(
+        args.GetIsolate(),
+        static_cast<uint32_t>(SiblingGroup::Get(name)->size())));
+  }
+
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
     registry->Register(New);
     registry->Register(PostMessage);
@@ -4729,6 +4782,7 @@ class GreenThreadWrap final : public HandleWrap {
     registry->Register(Terminate);
     registry->Register(SetWarmPoolSize);
     registry->Register(SetUnresponsiveTimeouts);
+    registry->Register(TestingBroadcastChannelSize);
     WarmPoolWaiter::RegisterExternalReferences(registry);
     IsolateGroupWrap::RegisterExternalReferences(registry);
   }
