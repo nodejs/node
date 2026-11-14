@@ -1019,9 +1019,13 @@ the byte length as reported by `.byteLength` is returned.
 
 <!-- YAML
 added: v26.11.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: DataView is now supported.
 -->
 
-* `input` {Buffer | ArrayBuffer | TypedArray} The bytes that would be decoded.
+* `input` {Buffer | ArrayBuffer | TypedArray | DataView} The bytes that would be decoded.
 * `encoding` {string} The character encoding `input` would be decoded with.
   **Default:** `'utf8'`.
 * Returns: {integer}
@@ -5398,6 +5402,9 @@ added:
   - v19.6.0
   - v18.15.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: DataView is now supported.
   - version:
      - v26.8.0
      - v24.21.0
@@ -5406,7 +5413,7 @@ changes:
                  as empty.
 -->
 
-* `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* `input` {Buffer | ArrayBuffer | TypedArray | DataView} The input to validate.
 * Returns: {boolean}
 
 This function returns `true` if `input` contains only valid ASCII-encoded data,
@@ -5468,6 +5475,9 @@ added:
   - v19.4.0
   - v18.14.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: DataView is now supported.
   - version:
      - v26.8.0
      - v24.21.0
@@ -5476,7 +5486,7 @@ changes:
                  as empty.
 -->
 
-* `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* `input` {Buffer | ArrayBuffer | TypedArray | DataView} The input to validate.
 * Returns: {boolean}
 
 This function returns `true` if `input` contains only valid UTF-8-encoded data,

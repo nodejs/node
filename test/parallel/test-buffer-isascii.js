@@ -10,6 +10,9 @@ const encoder = new TextEncoder();
 assert.strictEqual(isAscii(encoder.encode('hello')), true);
 assert.strictEqual(isAscii(encoder.encode('ğ')), false);
 assert.strictEqual(isAscii(Buffer.from([])), true);
+assert.strictEqual(isAscii(new DataView(new ArrayBuffer(0))), true);
+assert.strictEqual(isAscii(new DataView(encoder.encode('hello').buffer)), true);
+assert.strictEqual(isAscii(new DataView(encoder.encode('ğ').buffer)), false);
 
 [
   undefined,
@@ -34,10 +37,12 @@ assert.strictEqual(isAscii(Buffer.from([])), true);
   const arrayBuffer = new ArrayBuffer(1);
   const typedArray = new Uint8Array(arrayBuffer);
   typedArray[0] = 0xff;
+  const dataView = new DataView(arrayBuffer);
   const inputs = [
     arrayBuffer,
     typedArray,
     Buffer.from(arrayBuffer),
+    dataView,
   ];
   for (const input of inputs) {
     assert.strictEqual(isAscii(input), false);
@@ -46,4 +51,10 @@ assert.strictEqual(isAscii(Buffer.from([])), true);
   for (const input of inputs) {
     assert.strictEqual(isAscii(input), true);
   }
+}
+
+{
+  const buffer = Buffer.from('hello world');
+  const view = new DataView(buffer.buffer, buffer.byteOffset, 5);
+  assert.strictEqual(isAscii(view), true);
 }
