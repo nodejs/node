@@ -4618,8 +4618,8 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
 
   std::error_code error_code;
   auto src_status = dereference
-                        ? std::filesystem::symlink_status(src_path, error_code)
-                        : std::filesystem::status(src_path, error_code);
+                        ? std::filesystem::status(src_path, error_code)
+                        : std::filesystem::symlink_status(src_path, error_code);
 
   if (error_code) {
 #ifdef _WIN32
@@ -4637,9 +4637,7 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
 
   bool dest_exists = !error_code && dest_status.type() !=
                                         std::filesystem::file_type::not_found;
-  bool src_is_dir =
-      (src_status.type() == std::filesystem::file_type::directory) ||
-      (dereference && src_status.type() == std::filesystem::file_type::symlink);
+  bool src_is_dir = src_status.type() == std::filesystem::file_type::directory;
 
   auto src_path_str = ConvertPathToUTF8(src_path);
   auto dest_path_str = ConvertPathToUTF8(dest_path);
