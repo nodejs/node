@@ -1,0 +1,80 @@
+name: Comment on V8 backports to the main branch
+
+on:
+  pull_request_target:
+    types: [opened]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  comment:
+    name: Comment on V8 backports to the main branch
+    # A triager/collaborator can add the v8-backport-to-main label when opening the pull
+    # request to skip the comment when it is already known to meet the criteria.
+    if: >-
+      github.repository == 'nodejs/node' &&
+      !startsWith(github.event.pull_request.title, 'Revert ') &&
+      !contains(github.event.pull_request.labels.*.name, 'v8-backport-to-main')
+    runs-on: ubuntu-slim
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Check whether the pull request is a backport of individual V8 patches
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Major and patch updates to V8 would update deps/v8/include/v8-version.h,
+          # while individual backports do not.
+          # The API lists at most 3000 files sorted by path. The version header
+          # should appear early enough to show up within the limit even for major updates.
+          gh api --paginate \
+            "/repos/$GITHUB_REPOSITORY/pulls/$NUMBER/files?per_page=100" > files.json
+          files=$(jq -r '.[].filename' files.json)
+          if printf '%s\n' "$files" | grep -q '^deps/v8/' &&
+             ! printf '%s\n' "$files" | grep -qx 'deps/v8/include/v8-version.h'; then
+            echo 'is_backport=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'is_backport=false' >> "$GITHUB_OUTPUT"
+          fi
+          # Check if the patch bumps v8_embedder_string in common.gypi.
+          if jq -r '.[] | select(.filename == "common.gypi") | .patch // ""' files.json |
+             grep -q '^+.*v8_embedder_string'; then
+            echo 'bumps_embedder_string=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'bumps_embedder_string=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Comment with V8 backport guidance
+        if: steps.check.outputs.is_backport == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          BUMPS_EMBEDDER_STRING: ${{ steps.check.outputs.bumps_embedder_string }}
+          # GitHub renders line breaks as-is, so keep each paragraph on a single line.
+          MESSAGE: |-
+            Hi! This pull request changes `deps/v8` on the `main` branch without updating the V8 version, so you are likely submitting a backport of individual V8 patches.
+
+            In general we recommend waiting for a V8 patch to be included in the next V8 major version update instead of fast-tracking it, since individual backports add audit cost and can delay the major update.
+
+            A patch may be backported to `main` when at least one of these criteria applies:
+
+            * It fixes a build issue on a platform or toolchain supported on `main`.
+            * It fixes a security issue.
+            * It unblocks a pending V8 update, for example by adjusting how the Node.js code uses a V8 API so that it works with the future update.
+
+            If the patch has demonstrated real-world urgency and impact that justifies landing it before the next V8 major version update, it's recommended to backport it to the release staging branches like `v<MAJOR>.x-staging` (see [Criteria for backporting](https://github.com/nodejs/node/blob/HEAD/doc/contributing/backporting-to-release-lines.md#criteria-for-backporting) to decide what release line to target) instead of `main`.
+
+            Please explain in the pull request description which of these criteria applies. Otherwise, consider closing this pull request and waiting for the next V8 update instead of fast-tracking a backport. See [Backporting patches to `main`](https://github.com/nodejs/node/blob/HEAD/doc/contributing/maintaining/maintaining-V8.md#backporting-patches-to-main) for details.
+          EMBEDDER_STRING_MESSAGE: |-
+            Additional note: This pull request does not appear to bump `v8_embedder_string` in `common.gypi`. Backports of V8 patches should increment it. `git node v8 backport` from [`@node-core/utils`](https://github.com/nodejs/node-core-utils) does this automatically.
+        run: |
+          {
+            printf '%s\n' "$MESSAGE"
+            if [ "$BUMPS_EMBEDDER_STRING" != 'true' ]; then
+              printf '\n%s\n' "$EMBEDDER_STRING_MESSAGE"
+            fi
+          } | gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
