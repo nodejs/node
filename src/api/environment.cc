@@ -207,17 +207,23 @@ void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
   delete allocator;
 }
 
-void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
+uint64_t GetMemoryForHeapDefaults() {
   const uint64_t constrained_memory = uv_get_constrained_memory();
-  const uint64_t total_memory = constrained_memory > 0 ?
-      std::min(uv_get_total_memory(), constrained_memory) :
-      uv_get_total_memory();
-  if (total_memory > 0 &&
-      params->constraints.max_old_generation_size_in_bytes() == 0) {
-    // V8 defaults to 700MB or 1.4GB on 32 and 64 bit platforms respectively.
-    // This default is based on browser use-cases. Tell V8 to configure the
-    // heap based on the actual physical memory.
-    params->constraints.ConfigureDefaults(total_memory, 0);
+  return constrained_memory > 0
+             ? std::min(uv_get_total_memory(), constrained_memory)
+             : uv_get_total_memory();
+}
+
+void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
+  // Querying the memory reads files, so only do it if it's needed.
+  if (params->constraints.max_old_generation_size_in_bytes() == 0) {
+    const uint64_t total_memory = GetMemoryForHeapDefaults();
+    if (total_memory > 0) {
+      // V8 defaults to 700MB or 1.4GB on 32 and 64 bit platforms
+      // respectively. This default is based on browser use-cases. Tell V8 to
+      // configure the heap based on the actual physical memory.
+      params->constraints.ConfigureDefaults(total_memory, 0);
+    }
   }
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
