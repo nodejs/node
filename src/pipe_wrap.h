@@ -65,7 +65,9 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
   static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-#ifdef _WIN32
+#ifndef _WIN32
+  static void GetPeerName(const v8::FunctionCallbackInfo<v8::Value>& args);
+#else
   static void SetPendingInstances(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif
