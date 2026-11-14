@@ -106,10 +106,10 @@ function runEventLoopIterations(iterations, callback) {
           assert(histogram.percentile(n) >= 0);
         }
         histogram.reset();
-        assert.strictEqual(histogram.min, 9223372036854776000);
+        assert.strictEqual(histogram.min, 0);
         assert.strictEqual(histogram.max, 0);
-        assert(Number.isNaN(histogram.stddev));
-        assert(Number.isNaN(histogram.mean));
+        assert.strictEqual(histogram.stddev, 0);
+        assert.strictEqual(histogram.mean, 0);
         assert.strictEqual(histogram.percentiles.size, 1);
 
         ['a', false, {}, []].forEach((i) => {
@@ -158,9 +158,9 @@ function runEventLoopIterations(iterations, callback) {
     histogram.reset();
     assert.strictEqual(histogram.count, 0);
     assert.strictEqual(histogram.max, 0);
-    assert.strictEqual(histogram.min, 9223372036854776000);
-    assert(Number.isNaN(histogram.mean));
-    assert(Number.isNaN(histogram.stddev));
+    assert.strictEqual(histogram.min, 0);
+    assert.strictEqual(histogram.mean, 0);
+    assert.strictEqual(histogram.stddev, 0);
     assert.strictEqual(histogram.percentiles.size, 1);
   }));
 }

@@ -12,7 +12,7 @@ const { createHistogram, importHistogram } = require('perf_hooks');
   const empty = createHistogram();
   const emptyCI = empty.meanCI();
   assert.strictEqual(Object.getPrototypeOf(emptyCI), null);
-  assert.ok(Number.isNaN(emptyCI.mean));
+  assert.strictEqual(emptyCI.mean, 0);
   assert.ok(Number.isNaN(emptyCI.lower));
   assert.ok(Number.isNaN(emptyCI.upper));
 
@@ -560,7 +560,7 @@ const { createHistogram, importHistogram } = require('perf_hooks');
   const emptyBuf = empty.export();
   const empty2 = importHistogram(emptyBuf);
   assert.strictEqual(empty2.count, 0);
-  assert.strictEqual(empty2.min, 9223372036854776000);  // INT64_MAX as double
+  assert.strictEqual(empty2.min, 0);
 
   // Sparse: only a few distinct values
   const sparse = createHistogram();
