@@ -632,6 +632,34 @@ async function tests() {
   }
 
   {
+    // An already destroyed stream with autoDestroy: false and an async _destroy
+    // must not emit an unhandled 'error' event after the iterator finishes.
+    // Refs: https://github.com/nodejs/node/issues/67418
+
+    const stream = new Readable({
+      read() {},
+      autoDestroy: false,
+      destroy(err, cb) {
+        setTimeout(common.mustCall(() => cb(err)), 10);
+      },
+    });
+
+    const expectedErr = new Error('stream error');
+    stream.destroy(expectedErr);
+
+    (async () => {
+      let caught = false;
+      try {
+        for await (const chunk of stream) {} // eslint-disable-line no-unused-vars
+      } catch (err) {
+        caught = true;
+        assert.strictEqual(err, expectedErr);
+      }
+      assert.strictEqual(caught, true);
+    })().then(common.mustCall());
+  }
+
+  {
     // Don't destroy before 'end'.
 
     const r = new Readable({
