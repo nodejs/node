@@ -936,6 +936,7 @@ class FdEntry final : public EntryImpl {
 
   bool is_modified(const uv_stat_t& other) {
     return other.st_size != stat_.st_size ||
+           other.st_mtim.tv_sec != stat_.st_mtim.tv_sec ||
            other.st_mtim.tv_nsec != stat_.st_mtim.tv_nsec;
   }
 
