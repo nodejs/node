@@ -94,6 +94,35 @@ test('callback failing test', (t, done) => {
 
 If any tests fail, the process exit code is set to `1`.
 
+## Suites
+
+The [`suite()`][] function groups related tests and nested suites together.
+The suite callback receives a [`SuiteContext`][] object and registers any
+nested [`test()`][] or [`suite()`][] calls declared within it.
+
+```js
+suite('math operations', () => {
+  test('addition', () => {
+    assert.strictEqual(1 + 1, 2);
+  });
+
+  suite('multiplication', () => {
+    test('negative one', () => {
+      assert.strictEqual(2 * -1, -2);
+    });
+
+    test('zero', () => {
+      assert.strictEqual(2 * 0, 0);
+    });
+  });
+});
+```
+
+Unlike [`test()`][], `suite()` always waits for all of its nested tests and
+suites to finish before completing, so nested tests do not need to be
+awaited. A suite does not make assertions of its own; it passes if all of
+its nested tests and suites pass, and fails if any of them throw or fail.
+
 ## Subtests
 
 The test context's `test()` method allows subtests to be created.
