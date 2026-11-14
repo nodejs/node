@@ -4,7 +4,7 @@
 // variable NODE_COMPILE_CACHE overrides.
 
 require('../common');
-const { spawnSyncAndAssert } = require('../common/child_process');
+const { spawnSyncAndAssert } = require('../common/compile-cache');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');

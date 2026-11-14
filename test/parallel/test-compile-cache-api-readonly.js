@@ -4,7 +4,7 @@
 // entries are read, nothing is written, and a missing directory is not created.
 
 const common = require('../common');
-const { spawnSyncAndAssert } = require('../common/child_process');
+const { spawnSyncAndAssert } = require('../common/compile-cache');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');

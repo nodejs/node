@@ -4,7 +4,7 @@
 // environment variable.
 
 require('../common');
-const { spawnSyncAndAssert } = require('../common/child_process');
+const { spawnSyncAndAssert } = require('../common/compile-cache');
 const assert = require('assert');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
