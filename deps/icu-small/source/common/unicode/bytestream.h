@@ -149,8 +149,9 @@ public:
    */
   virtual char* GetAppendBuffer(int32_t min_capacity,
                                 int32_t desired_capacity_hint,
-                                char* scratch, int32_t scratch_capacity,
-                                int32_t* result_capacity);
+                                char* scratch U_LIFETIME_BOUND,
+                                int32_t scratch_capacity,
+                                int32_t* result_capacity) U_LIFETIME_BOUND;
 
   /**
    * Flush internal buffers.
@@ -201,7 +202,7 @@ public:
    * @return *this
    * @stable ICU 4.6
    */
-  virtual CheckedArrayByteSink& Reset();
+  virtual CheckedArrayByteSink& Reset() U_LIFETIME_BOUND;
   /**
    * Append "bytes[0,n-1]" to this.
    * @param bytes the pointer to the bytes
@@ -225,8 +226,9 @@ public:
    */
   virtual char* GetAppendBuffer(int32_t min_capacity,
                                 int32_t desired_capacity_hint,
-                                char* scratch, int32_t scratch_capacity,
-                                int32_t* result_capacity) override;
+                                char* scratch U_LIFETIME_BOUND,
+                                int32_t scratch_capacity,
+                                int32_t* result_capacity) U_LIFETIME_BOUND override;
   /**
    * Returns the number of bytes actually written to the sink.
    * @return number of bytes written to the buffer

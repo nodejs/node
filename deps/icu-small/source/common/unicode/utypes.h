@@ -827,6 +827,34 @@ typedef enum UErrorCode {
 #   define U_FAILURE(x) ((x)>U_ZERO_ERROR)
 #endif
 
+/* Distinguishing MessageFormat recoverable errors */
+#ifdef __cplusplus
+    /**
+     * Does the error code indicate a MessageFormat recoverable error?
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+    static
+    inline UBool U_MF_RECOVERABLE_ERROR(UErrorCode code) {
+        return (code == U_MF_OPERAND_MISMATCH_ERROR)
+            || (code == U_MF_FORMATTING_ERROR)
+            || (code == U_MF_BAD_OPTION);
+    }
+#else
+    /**
+     * Does the error code indicate success?
+     *
+     * @internal ICU 79 technology preview
+     * @deprecated This API is for technology preview only.
+     */
+#   define U_MF_RECOVERABLE_ERROR(x) ((code == U_MF_OPERAND_MISMATCH_ERROR) \
+            || (code == U_MF_FORMATTING_ERROR) \
+            || (code == U_MF_BAD_OPTION))
+#endif
+
+
+
 /**
  * Return a string for a UErrorCode value.
  * The string will be the same as the name of the error code constant

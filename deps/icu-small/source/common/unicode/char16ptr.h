@@ -268,8 +268,8 @@ namespace U_ICU_NAMESPACE_OR_INTERNAL {
 
 #ifndef U_FORCE_HIDE_INTERNAL_API
 /** @internal */
-template<typename T, typename = std::enable_if_t<std::is_same_v<T, UChar>>>
-inline const char16_t *uprv_char16PtrFromUChar(const T *p) {
+template <typename T, typename = std::enable_if_t<std::is_same_v<T, UChar>>>
+inline const char16_t* uprv_char16PtrFromUChar(const T* p U_LIFETIME_BOUND) {
     if constexpr (std::is_same_v<UChar, char16_t>) {
         return p;
     } else {
@@ -285,7 +285,7 @@ inline const char16_t *uprv_char16PtrFromUChar(const T *p) {
 }
 #if !U_CHAR16_IS_TYPEDEF && (!defined(_LIBCPP_VERSION) || _LIBCPP_VERSION < 180000)
 /** @internal */
-inline const char16_t *uprv_char16PtrFromUint16(const uint16_t *p) {
+inline const char16_t* uprv_char16PtrFromUint16(const uint16_t* p U_LIFETIME_BOUND) {
 #if U_SHOW_CPLUSPLUS_API
     return ConstChar16Ptr(p).get();
 #else
@@ -298,7 +298,7 @@ inline const char16_t *uprv_char16PtrFromUint16(const uint16_t *p) {
 #endif
 #if U_SIZEOF_WCHAR_T==2
 /** @internal */
-inline const char16_t *uprv_char16PtrFromWchar(const wchar_t *p) {
+inline const char16_t* uprv_char16PtrFromWchar(const wchar_t* p U_LIFETIME_BOUND) {
 #if U_SHOW_CPLUSPLUS_API
     return ConstChar16Ptr(p).get();
 #else
@@ -318,7 +318,7 @@ inline const char16_t *uprv_char16PtrFromWchar(const wchar_t *p) {
  * @return p as const UChar *
  * @stable ICU 59
  */
-inline const UChar *toUCharPtr(const char16_t *p) {
+inline const UChar* toUCharPtr(const char16_t* p U_LIFETIME_BOUND) {
 #ifdef U_ALIASING_BARRIER
     U_ALIASING_BARRIER(p);
 #endif
@@ -332,7 +332,7 @@ inline const UChar *toUCharPtr(const char16_t *p) {
  * @return p as UChar *
  * @stable ICU 59
  */
-inline UChar *toUCharPtr(char16_t *p) {
+inline UChar* toUCharPtr(char16_t* p U_LIFETIME_BOUND) {
 #ifdef U_ALIASING_BARRIER
     U_ALIASING_BARRIER(p);
 #endif
@@ -346,7 +346,7 @@ inline UChar *toUCharPtr(char16_t *p) {
  * @return p as const OldUChar *
  * @stable ICU 59
  */
-inline const OldUChar *toOldUCharPtr(const char16_t *p) {
+inline const OldUChar* toOldUCharPtr(const char16_t* p U_LIFETIME_BOUND) {
 #ifdef U_ALIASING_BARRIER
     U_ALIASING_BARRIER(p);
 #endif
@@ -360,7 +360,7 @@ inline const OldUChar *toOldUCharPtr(const char16_t *p) {
  * @return p as OldUChar *
  * @stable ICU 59
  */
-inline OldUChar *toOldUCharPtr(char16_t *p) {
+inline OldUChar* toOldUCharPtr(char16_t* p U_LIFETIME_BOUND) {
 #ifdef U_ALIASING_BARRIER
     U_ALIASING_BARRIER(p);
 #endif
@@ -397,7 +397,7 @@ namespace internal {
  * Pass-through overload.
  * @internal
  */
-inline std::u16string_view toU16StringView(std::u16string_view sv) { return sv; }
+inline std::u16string_view toU16StringView(std::u16string_view sv U_LIFETIME_BOUND) { return sv; }
 
 #if !U_CHAR16_IS_TYPEDEF && (!defined(_LIBCPP_VERSION) || _LIBCPP_VERSION < 180000)
 /**
@@ -405,7 +405,7 @@ inline std::u16string_view toU16StringView(std::u16string_view sv) { return sv; 
  * from std::basic_string_view<uint16_t> to std::u16string_view.
  * @internal
  */
-inline std::u16string_view toU16StringView(std::basic_string_view<uint16_t> sv) {
+inline std::u16string_view toU16StringView(std::basic_string_view<uint16_t> sv U_LIFETIME_BOUND) {
     return { ConstChar16Ptr(sv.data()), sv.length() };
 }
 #endif
@@ -416,7 +416,7 @@ inline std::u16string_view toU16StringView(std::basic_string_view<uint16_t> sv) 
  * from std::wstring_view to std::u16string_view.
  * @internal
  */
-inline std::u16string_view toU16StringView(std::wstring_view sv) {
+inline std::u16string_view toU16StringView(std::wstring_view sv U_LIFETIME_BOUND) {
     return { ConstChar16Ptr(sv.data()), sv.length() };
 }
 #endif
@@ -427,7 +427,7 @@ inline std::u16string_view toU16StringView(std::wstring_view sv) {
  */
 template <typename T,
           typename = typename std::enable_if_t<!std::is_pointer_v<std::remove_reference_t<T>>>>
-inline std::u16string_view toU16StringViewNullable(const T& text) {
+inline std::u16string_view toU16StringViewNullable(const T& text U_LIFETIME_BOUND) {
     return toU16StringView(text);
 }
 
@@ -438,7 +438,7 @@ inline std::u16string_view toU16StringViewNullable(const T& text) {
 template <typename T,
           typename = typename std::enable_if_t<std::is_pointer_v<std::remove_reference_t<T>>>,
           typename = void>
-inline std::u16string_view toU16StringViewNullable(const T& text) {
+inline std::u16string_view toU16StringViewNullable(const T& text U_LIFETIME_BOUND) {
     if (text == nullptr) return {};  // For backward compatibility.
     return toU16StringView(text);
 }

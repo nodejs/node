@@ -192,7 +192,7 @@ const int32_t SCRIPT_PROPS[] = {
     0x112BE | EXCLUSION,  // Sind
     0x118B4 | EXCLUSION | CASED,  // Wara
     0,
-    0,
+    0x18F1A | EXCLUSION | LB_LETTERS,  // Jurc
     0x16A4F | EXCLUSION,  // Mroo
     0x1B1C4 | EXCLUSION | LB_LETTERS,  // Nshu
     0x11183 | EXCLUSION,  // Shrd
@@ -256,6 +256,9 @@ const int32_t SCRIPT_PROPS[] = {
     0x10950 | EXCLUSION | RTL,  // Sidt
     0x1E6D5 | EXCLUSION | LB_LETTERS,  // Tayo
     0x11DC6 | EXCLUSION,  // Tols
+    0,
+    0x125AD | EXCLUSION,  // Pcun
+    0x3EA10 | EXCLUSION | LB_LETTERS,  // Seal
     // End copy-paste from parsescriptmetadata.py
 };
 

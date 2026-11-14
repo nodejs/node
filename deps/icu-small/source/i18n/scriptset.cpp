@@ -225,9 +225,8 @@ ScriptSet &ScriptSet::parseScripts(const UnicodeString &scriptString, UErrorCode
             }
         }
         if (oneScriptName.length() > 0) {
-            char buf[40];
+            char buf[40] = {};
             oneScriptName.extract(0, oneScriptName.length(), buf, sizeof(buf)-1, US_INV);
-            buf[sizeof(buf)-1] = 0;
             int32_t sc = u_getPropertyValueEnum(UCHAR_SCRIPT, buf);
             if (sc == UCHAR_INVALID_CODE) {
                 status = U_ILLEGAL_ARGUMENT_ERROR;

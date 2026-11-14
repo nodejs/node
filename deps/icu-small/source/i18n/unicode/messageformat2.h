@@ -35,6 +35,7 @@ namespace message2 {
     class MessageContext;
     class StaticErrors;
     class InternalValue;
+    class BaseValue;
 
     /**
      * <p>MessageFormatter is a Technical Preview API implementing MessageFormat 2.0.
@@ -74,6 +75,11 @@ namespace message2 {
         /**
          * Formats the message to a string, using the data model that was previously set or parsed,
          * and the given `arguments` object.
+         *
+         * This method is non-const due to the function registry being non-const,
+         * which is in turn due to the values (`Function` objects in the map) having mutable state.
+         * In other words, formatting a message can mutate the underlying `MessageFormatter` by changing
+         * state within the objects that represent custom functions.
          *
          * @param arguments Reference to message arguments
          * @param status    Input/output error code used to indicate syntax errors, data model
@@ -168,6 +174,38 @@ namespace message2 {
         } UMFErrorHandlingBehavior;
 
         /**
+         * Used in conjunction with the
+         * MessageFormatter::Builder::setBidiContext() method.
+         *
+         * @internal ICU 79 technology preview
+         * @deprecated This API is for technology preview only.
+         */
+        typedef enum UMFBidiContext {
+            /**
+             * Denotes a left-to-right message.
+             *
+             * @internal ICU 79 technology preview
+             * @deprecated This API is for technology preview only.
+             */
+            U_MF_BIDI_CONTEXT_LTR = 0,
+            /**
+             * Denotes a right-to-left message.
+             *
+             * @internal ICU 79 technology preview
+             * @deprecated This API is for technology preview only.
+             */
+            U_MF_BIDI_CONTEXT_RTL,
+            /**
+             * Indicates that the message directionality should be
+             * inferred from the locale.
+             *
+             * @internal ICU 79 technology preview
+             * @deprecated This API is for technology preview only.
+             */
+            U_MF_BIDI_CONTEXT_AUTO,
+            U_MF_BIDI_CONTEXT_DEFAULT = U_MF_BIDI_CONTEXT_AUTO
+        } UMFBidiContext;
+        /**
          * The mutable Builder class allows each part of the MessageFormatter to be initialized
          * separately; calling its `build()` method yields an immutable MessageFormatter.
          *
@@ -196,6 +234,12 @@ namespace message2 {
             const MFFunctionRegistry* customMFFunctionRegistry;
             // Error behavior; see comment in `MessageFormatter` class
             bool signalErrors = false;
+            // Bidi isolation strategy
+            UMFBidiIsolationStrategy bidiIsolationStrategy = U_MF_BIDI_DEFAULT;
+            // Message directionality
+            MessageFormatter::UMFBidiContext msgdir = U_MF_BIDI_CONTEXT_DEFAULT;
+            // Bidi isolation style
+            UMFBidiIsolationStyle bidiStyle = U_MF_BIDI_STYLE_DEFAULT;
 
             void clearState();
         public:
@@ -235,6 +279,8 @@ namespace message2 {
              *        and the caller must ensure its lifetime contains
              *        the lifetime of the `MessageFormatter` object built by this
              *        builder.
+             *        Functions with the same name as standard functions will
+             *        override the standard functions.
              * @return       A reference to the builder.
              *
              * @internal ICU 75 technology preview
@@ -282,6 +328,62 @@ namespace message2 {
              */
             U_I18N_API Builder& setErrorHandlingBehavior(UMFErrorHandlingBehavior type);
             /**
+             * Set the bidi isolation behavior for this formatter.
+             *
+             * "OFF" means that no bidi isolation will be performed.
+             * "AUTO" means that the default bidi isolation strategy
+             * as described in the MF2 specification
+             * ( https://github.com/unicode-org/message-format-wg/blob/main/spec/formatting.md#handling-bidirectional-text )
+             * will be applied.
+             *
+             * @param strategy An enum with type UMFBidiIsolationStrategy;
+             *                 that specifies how bidi isolation marks are inserted into
+             *                 the formatting result. The default is U_MF_BIDI_AUTO.
+             *
+             * @return       A reference to the builder.
+             *
+             * @internal ICU 79 technology preview
+             * @deprecated This API is for technology preview only.
+             */
+            U_I18N_API Builder& setBidiIsolationStrategy(UMFBidiIsolationStrategy strategy);
+            /**
+             * Set the bidi isolation style for this formatter.
+             *
+             * "CONTROL" means that bidi control characters will be inserted into
+             * the formatted result.
+             * "HTML_SPAN" means that HTML markup will be inserted into
+             * the formatted result.
+             *
+             * @param style An enum with type UMFBidiIsolationStyle
+             *                 that specifies how bidi isolation is applied to
+             *                 the formatting result. The default is
+             *                 U_MF_BIDI_STYLE_CONTROL.
+             *
+             * @return       A reference to the builder.
+             *
+             * @internal ICU 79 technology preview
+             * @deprecated This API is for technology preview only.
+             */
+            U_I18N_API Builder& setBidiIsolationStyle(UMFBidiIsolationStyle style);
+            /**
+             * Set the directionality context of the input message.
+             *
+             * "LTR" means left-to-right and "RTL" means right-to-left.
+             * "AUTO" means to infer the context from the locale
+             * (either what was set with setLocale(), or the default locale
+             * if setLocale() was never called on the builder.)
+              *
+             * @param dir An enum with type UMFBidiContext
+             *                 that specifies the directionality of the message.
+             *                 The default is U_MF_BIDI_CONTEXT_AUTO..
+             *
+             * @return       A reference to the builder.
+             *
+             * @internal ICU 79 technology preview
+             * @deprecated This API is for technology preview only.
+             */
+            U_I18N_API Builder& setBidiContext(UMFBidiContext dir);
+            /**
              * Constructs a new immutable MessageFormatter using the pattern or data model
              * that was previously set, and the locale (if it was previously set)
              * or default locale (otherwise).
@@ -317,14 +419,12 @@ namespace message2 {
             U_I18N_API virtual ~Builder();
         }; // class MessageFormatter::Builder
 
-        // TODO: Shouldn't be public; only used for testing
         /**
          * Returns a string consisting of the input with optional spaces removed.
          *
          * @return        A normalized string representation of the input
          *
-         * @internal ICU 75 technology preview
-         * @deprecated This API is for technology preview only.
+         * @internal ICU 75: This API is ICU internal only.
          */
         U_I18N_API const UnicodeString& getNormalizedPattern() const { return normalizedInput; }
 
@@ -344,49 +444,34 @@ namespace message2 {
         // Selection methods
 
         // Takes a vector of FormattedPlaceholders
-        void resolveSelectors(MessageContext&, const Environment& env, UErrorCode&, UVector&) const;
+        void resolveSelectors(MessageContext&, Environment& env, UErrorCode&, UVector&) const;
         // Takes a vector of vectors of strings (input) and a vector of PrioritizedVariants (output)
         void filterVariants(const UVector&, UVector&, UErrorCode&) const;
         // Takes a vector of vectors of strings (input) and a vector of PrioritizedVariants (input/output)
         void sortVariants(const UVector&, UVector&, UErrorCode&) const;
         // Takes a vector of strings (input) and a vector of strings (output)
-        void matchSelectorKeys(const UVector&, MessageContext&, InternalValue* rv, UVector&, UErrorCode&) const;
+        void matchSelectorKeys(const UVector&, MessageContext&, InternalValue&& rv, UVector&, UErrorCode&) const;
         // Takes a vector of FormattedPlaceholders (input),
         // and a vector of vectors of strings (output)
         void resolvePreferences(MessageContext&, UVector&, UVector&, UErrorCode&) const;
 
-        // Formatting methods
+        bool checkSelectOption(const FunctionValue&) const;
 
-        [[nodiscard]] FormattedPlaceholder formatLiteral(const UnicodeString&, const data_model::Literal&) const;
-        void formatPattern(MessageContext&, const Environment&, const data_model::Pattern&, UErrorCode&, UnicodeString&) const;
-        // Evaluates a function call
-        // Dispatches on argument type
-        [[nodiscard]] InternalValue* evalFunctionCall(FormattedPlaceholder&& argument,
-                                                     MessageContext& context,
-                                                     UErrorCode& status) const;
-        // Dispatches on function name
-        [[nodiscard]] InternalValue* evalFunctionCall(const FunctionName& functionName,
-                                                     InternalValue* argument,
-                                                     FunctionOptions&& options,
-                                                     MessageContext& context,
-                                                     UErrorCode& status) const;
-        // Formats an expression that appears in a pattern or as the definition of a local variable
-        [[nodiscard]] InternalValue* formatExpression(const UnicodeString&,
-                                                      const Environment&,
-                                                      const data_model::Expression&,
-                                                      MessageContext&,
-                                                      UErrorCode&) const;
-        [[nodiscard]] FunctionOptions resolveOptions(const Environment& env, const OptionMap&, MessageContext&, UErrorCode&) const;
-        [[nodiscard]] InternalValue* formatOperand(const UnicodeString&,
-                                                   const Environment&,
-                                                   const data_model::Operand&,
-                                                   MessageContext&,
-                                                   UErrorCode&) const;
-        [[nodiscard]] FormattedPlaceholder evalArgument(const UnicodeString&,
-                                                        const data_model::VariableName&,
-                                                        MessageContext&,
-                                                        UErrorCode&) const;
-        void formatSelectors(MessageContext& context, const Environment& env, UErrorCode &status, UnicodeString& result) const;
+        // Formatting methods
+        [[nodiscard]] InternalValue evalLiteral(const UnicodeString&, const data_model::Literal&, UErrorCode&) const;
+        [[nodiscard]] UnicodeString& bidiIsolate(UMFBidiOption, UMFDirectionality, UnicodeString&) const;
+        void formatPattern(MessageContext&, Environment&, const data_model::Pattern&, UErrorCode&, UnicodeString&) const;
+        FunctionContext makeFunctionContext(const FunctionOptions&, const FunctionName&) const;
+        [[nodiscard]] InternalValue& apply(Environment&, const FunctionName&, InternalValue&, FunctionOptions&&,
+                                           MessageContext&, UErrorCode&) const;
+        [[nodiscard]] InternalValue& evalExpression(const UnicodeString&, Environment&, const data_model::Expression&, MessageContext&, UErrorCode&) const;
+        [[nodiscard]] FunctionOptions resolveOptions(Environment& env, const OptionMap&, MessageContext&, UErrorCode&) const;
+        [[nodiscard]] InternalValue& evalOperand(const UnicodeString&, Environment&, const data_model::Operand&, MessageContext&, UErrorCode&) const;
+        bool operandToStringWithBadOptionError(MessageContext&, Environment&, const Operand&, UnicodeString&, UErrorCode&) const;
+        void validateUOptionsOnMarkup(MessageContext&, Environment&, const Markup&, UErrorCode&) const;
+        [[nodiscard]] InternalValue& evalVariableReference(const UnicodeString&, Environment&, const data_model::VariableName&, MessageContext&, UErrorCode&) const;
+        [[nodiscard]] InternalValue evalArgument(const UnicodeString&, const data_model::VariableName&, MessageContext&, UErrorCode&) const;
+        void formatSelectors(MessageContext& context, Environment& env, UErrorCode &status, UnicodeString& result) const;
 
         // Function registry methods
         bool hasCustomMFFunctionRegistry() const {
@@ -398,18 +483,11 @@ namespace message2 {
         // (a FormatterFactory can have mutable state)
         const MFFunctionRegistry& getCustomMFFunctionRegistry() const;
 
-        bool isCustomFormatter(const FunctionName&) const;
-        FormatterFactory* lookupFormatterFactory(const FunctionName&, UErrorCode& status) const;
-        bool isBuiltInSelector(const FunctionName&) const;
-        bool isBuiltInFormatter(const FunctionName&) const;
-        bool isCustomSelector(const FunctionName&) const;
-        const SelectorFactory* lookupSelectorFactory(MessageContext&, const FunctionName&, UErrorCode&) const;
-        bool isSelector(const FunctionName& fn) const { return isBuiltInSelector(fn) || isCustomSelector(fn); }
-        bool isFormatter(const FunctionName& fn) const { return isBuiltInFormatter(fn) || isCustomFormatter(fn); }
-        const Formatter* lookupFormatter(const FunctionName&, UErrorCode&) const;
-
-        Selector* getSelector(MessageContext&, const FunctionName&, UErrorCode&) const;
-        Formatter* getFormatter(const FunctionName&, UErrorCode&) const;
+        bool isCustomFunction(const FunctionName&) const;
+        bool isBuiltInFunction(const FunctionName&) const;
+        bool isFunction(const FunctionName& fn) const { return isBuiltInFunction(fn) || isCustomFunction(fn); }
+        void setNotSelectableError(MessageContext&, const InternalValue&, UErrorCode&) const;
+        const Function* lookupFunction(const FunctionName&, UErrorCode&) const;
         bool getDefaultFormatterNameByType(const UnicodeString&, FunctionName&) const;
 
         // Checking for resolution errors
@@ -426,7 +504,7 @@ namespace message2 {
         /* const */ Locale locale;
 
         // Registry for built-in functions
-        MFFunctionRegistry standardMFFunctionRegistry;
+        const MFFunctionRegistry *standardMFFunctionRegistry;
         // Registry for custom functions; may be null if no custom registry supplied
         // Note: this is *not* owned by the MessageFormatter object
         // The reason for this choice is to have a non-destructive MessageFormatter::Builder,
@@ -459,6 +537,16 @@ namespace message2 {
         // formatting methods return best-effort output.
         // The default is false.
         bool signalErrors = false;
+
+        // Bidi isolation strategy.
+        UMFBidiIsolationStrategy bidiIsolationStrategy = U_MF_BIDI_DEFAULT;
+
+        // Message directionality
+        // Inferred from locale by default
+        UMFDirectionality msgdir = U_MF_DIRECTIONALITY_DEFAULT;
+
+        // Bidi isolation style
+        UMFBidiIsolationStyle bidiIsolationStyle = U_MF_BIDI_STYLE_DEFAULT;
 
     }; // class MessageFormatter
 

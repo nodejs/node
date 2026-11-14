@@ -230,7 +230,7 @@ public:
      * Set the string text to be searched. Text iteration will hence begin at 
      * the start of the text string. This method is useful if you want to 
      * re-use an iterator to search for the same pattern within a different 
-     * body of text. The user is responsible for deleting the text.
+     * body of text.
      * @param text string to be searched.
      * @param status for errors. If the text length is 0, 
      *        an U_ILLEGAL_ARGUMENT_ERROR is returned.
@@ -247,7 +247,6 @@ public:
      * Note: No parsing of the text within the <tt>CharacterIterator</tt> 
      * will be done during searching for this version. The block of text 
      * in <tt>CharacterIterator</tt> will be used as it is.
-     * The user is responsible for deleting the text.
      * @param text string iterator to be searched.
      * @param status for errors if any. If the text length is 0 then an 
      *        U_ILLEGAL_ARGUMENT_ERROR is returned.

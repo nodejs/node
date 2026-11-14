@@ -61,7 +61,7 @@ U_CDECL_BEGIN
  * @see u_getUnicodeVersion
  * @stable ICU 2.0
  */
-#define U_UNICODE_VERSION "17.0"
+#define U_UNICODE_VERSION "18.0"
 
 /**
  * \file
@@ -2000,6 +2000,23 @@ enum UBlockCode {
     /** @stable ICU 78 */
     UBLOCK_TOLONG_SIKI = 346, /*[11DB0]*/
 
+    // New blocks in Unicode 18.0.0
+
+    /** @stable ICU 79 */
+    UBLOCK_ARCHAIC_CUNEIFORM_NUMERALS = 347, /*[12550]*/
+    /** @stable ICU 79 */
+    UBLOCK_BENGALI_SUPPLEMENT = 348, /*[11DF0]*/
+    /** @stable ICU 79 */
+    UBLOCK_JURCHEN = 349, /*[18E00]*/
+    /** @stable ICU 79 */
+    UBLOCK_JURCHEN_RADICALS = 350, /*[191A0]*/
+    /** @stable ICU 79 */
+    UBLOCK_MISCELLANEOUS_SYMBOLS_AND_ARROWS_EXTENDED = 351, /*[1DB00]*/
+    /** @stable ICU 79 */
+    UBLOCK_MUSICAL_SYMBOLS_SUPPLEMENT = 352, /*[1D250]*/
+    /** @stable ICU 79 */
+    UBLOCK_SEAL = 353, /*[3D000]*/
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UBlockCode value.
@@ -2007,7 +2024,7 @@ enum UBlockCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UBLOCK_COUNT = 347,
+    UBLOCK_COUNT = 354,
 #endif  // U_HIDE_DEPRECATED_API
 
     /** @stable ICU 2.0 */
@@ -2305,6 +2322,17 @@ typedef enum UJoiningGroup {
     U_JG_KASHMIRI_YEH,  /**< @stable ICU 76 */
 
     U_JG_THIN_NOON,  /**< @stable ICU 78 */
+
+    U_JG_CROWN_AIN,  /**< @stable ICU 79 */
+    U_JG_CROWN_BEH,  /**< @stable ICU 79 */
+    U_JG_CROWN_FEH,  /**< @stable ICU 79 */
+    U_JG_CROWN_HAH,  /**< @stable ICU 79 */
+    U_JG_CROWN_HEH,  /**< @stable ICU 79 */
+    U_JG_CROWN_KAF,  /**< @stable ICU 79 */
+    U_JG_CROWN_MEEM,  /**< @stable ICU 79 */
+    U_JG_CROWN_SAD,  /**< @stable ICU 79 */
+    U_JG_CROWN_SEEN,  /**< @stable ICU 79 */
+    U_JG_CROWN_TAH,  /**< @stable ICU 79 */
 
 #ifndef U_HIDE_DEPRECATED_API
     /**
@@ -2781,6 +2809,15 @@ typedef enum UIndicConjunctBreak {
     U_INCB_EXTEND,
     /** @stable ICU 76 */
     U_INCB_LINKER,
+#ifndef U_HIDE_INTERNAL_API
+    /**
+     * One more than the highest normal UIndicConjunctBreak value.
+     * The highest value is available via u_getIntPropertyMaxValue(UCHAR_INDIC_CONJUNCT_BREAK).
+     *
+     * @internal The numeric value may change over time, see ICU ticket #12420.
+     */
+    U_INTERNAL_INCB_COUNT
+#endif  // U_HIDE_INTERNAL_API
 } UIndicConjunctBreak;
 
 /**

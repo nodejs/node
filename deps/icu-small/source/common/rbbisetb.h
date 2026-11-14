@@ -96,8 +96,7 @@ public:
     int32_t  getTrieSize() /*const*/;        // Size in bytes of the serialized Trie.
     void     serializeTrie(uint8_t *where);  // write out the serialized Trie.
     UChar32  getFirstChar(int32_t  val) const;
-    UBool    sawBOF() const;                 // Indicate whether any references to the {bof} pseudo
-                                             //   character were encountered.
+
     /**
      * Merge two character categories that have been identified as having equivalent behavior.
      * The ranges belonging to the second category (table column) will be added to the first.
@@ -131,8 +130,6 @@ private:
     // The number of the first dictionary char category.
     // If there are no Dictionary categories, set to the last category + 1.
     int32_t               fDictCategoriesStart;
-
-    UBool                 fSawBOF;
 
     RBBISetBuilder(const RBBISetBuilder &other) = delete; // forbid copying of this class
     RBBISetBuilder &operator=(const RBBISetBuilder &other) = delete; // forbid copying of this class

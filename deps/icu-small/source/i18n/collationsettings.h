@@ -42,6 +42,10 @@ struct U_I18N_API CollationSettings : public SharedObject {
      *
      * Treat digit sequences as numbers with CE sequences in numeric order,
      * rather than returning a normal CE for each digit.
+     * 
+     * This bit is also used for indicating that digits are reordered in the fast-Latin code.
+     * When the fast-Latin code encounters a digit and this bit is set in the options, it bails out
+     * and fallback to the regular collation code.
      */
     static const int32_t NUMERIC = 2;
     /**

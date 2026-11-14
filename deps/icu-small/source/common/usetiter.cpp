@@ -19,7 +19,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(UnicodeSetIterator)
  * Create an iterator
  * @param set set to iterate over
  */
-UnicodeSetIterator::UnicodeSetIterator(const UnicodeSet& uSet) {
+UnicodeSetIterator::UnicodeSetIterator(const UnicodeSet& uSet U_LIFETIME_BOUND) {
     cpString  = nullptr;
     reset(uSet);
 }
@@ -134,7 +134,7 @@ void UnicodeSetIterator::loadRange(int32_t iRange) {
 }
 
 
-const UnicodeString& UnicodeSetIterator::getString()  {
+const UnicodeString& UnicodeSetIterator::getString() U_LIFETIME_BOUND {
     if (string == nullptr && codepoint != static_cast<UChar32>(IS_STRING)) {
        if (cpString == nullptr) {
           cpString = new UnicodeString();
