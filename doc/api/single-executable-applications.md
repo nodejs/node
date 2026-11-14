@@ -361,12 +361,14 @@ platform-specific, like the code cache of the main script.
 
 `"useVfs": true` cannot be used together with `"useSnapshot": true`.
 
-#### Native addon limitations
+#### Native addons
 
-Native addons (`.node` files) cannot be loaded directly from the VFS because
-`process.dlopen()` requires files on the real file system. To use native
-addons in a SEA with VFS, write the asset to a temporary file first. See
-[Using native addons in the injected main script][] for an example.
+Native addons (`.node` files) bundled as assets can be loaded from the VFS
+with `require()` or `process.dlopen()`. The operating system's dynamic loader
+cannot open a virtual path, so the addon is loaded from a private,
+self-cleaning temporary image instead. See [module loader integration][] for
+details. Without `useVfs`, see
+[Using native addons in the injected main script][].
 
 ### Startup snapshot support
 
