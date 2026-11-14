@@ -2202,8 +2202,12 @@ process is first launched. Changing the value at runtime using
 \fBprocess.env.NODE_EXTRA_CA_CERTS\fR has no effect on the current process.
 .
 .It Ev NODE_GREEN_THREADS_POOL_SIZE Ar size
-Set the number of OS threads that green threads are scheduled onto, up to 1024.
-By default, it is the available parallelism, up to 8.
+
+Set the number of OS threads that green threads are scheduled onto to
+\fBsize\fR. Values above \fB1024\fR mean \fB1024\fR, and values that aren't positive
+integers are ignored. By default, the pool has as many threads as
+\fBos.availableParallelism()\fR, up to \fB8\fR. The pool is created when the first
+green thread starts, so the variable has to be set before then.
 .
 .It Ev NODE_ICU_DATA Ar file
 Data path for ICU (\fBIntl\fR object) data. Will extend linked-in data when compiled

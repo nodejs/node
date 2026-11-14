@@ -4288,10 +4288,9 @@ added: REPLACEME
 
 Set the number of OS threads that [green threads][] are scheduled onto to
 `size`. Values above `1024` mean `1024`, and values that aren't positive
-integers are ignored. By default, the pool
-has as many threads as [`os.availableParallelism()`][], up to `8`. The pool is
-created when the first green thread starts, so the variable has to be set
-before then.
+integers are ignored. By default, the pool has as many threads as
+[`os.availableParallelism()`][], up to `8`. The pool is created when the first
+green thread starts, so the variable has to be set before then.
 
 ### `NODE_ICU_DATA=file`
 
