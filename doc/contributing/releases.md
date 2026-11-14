@@ -1634,7 +1634,7 @@ Notify the `@nodejs/npm` team in the release proposal PR to inform them of the
 upcoming release.
 
 Major release proposal should contain a single commit, the release one. All
-semver-major changes must have landed in a alpha version before the major is
+semver-major changes must have landed in an alpha version before the major is
 released. Semver-major changes that have missed the alpha period will be included
 in the next major release line.
 
