@@ -2184,6 +2184,12 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
+  // The bundled zlib only detects CPU features in deflateInit2() and when
+  // crc32() or adler32() is called with a NULL buffer. zlib.crc32() always
+  // passes a buffer, so trigger detection here to let it use the SIMD path
+  // before any stream has been created.
+  crc32(0, nullptr, 0);
+
   Environment* env = Environment::GetCurrent(context);
 
   MakeClass<ZlibStream>::Make(env, target, "Zlib");
