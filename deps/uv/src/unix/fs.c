@@ -167,7 +167,7 @@ static int uv__fs_close(int fd) {
 }
 
 
-static ssize_t uv__fs_fsync(uv_fs_t* req) {
+static int uv__fs_fsync(uv_fs_t* req) {
 #if defined(__APPLE__)
   /* Apple's fdatasync and fsync explicitly do NOT flush the drive write cache
    * to the drive platters. This is in contrast to Linux's fdatasync and fsync
@@ -191,7 +191,7 @@ static ssize_t uv__fs_fsync(uv_fs_t* req) {
 }
 
 
-static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
+static int uv__fs_fdatasync(uv_fs_t* req) {
 #if defined(__linux__) || defined(__sun) || defined(__NetBSD__)
   return fdatasync(req->file);
 #elif defined(__APPLE__)
@@ -233,7 +233,7 @@ static struct timespec uv__fs_to_timespec(double time) {
 #endif
 
 
-static ssize_t uv__fs_futime(uv_fs_t* req) {
+static int uv__fs_futime(uv_fs_t* req) {
 #if defined(__APPLE__)                                                        \
     || defined(_AIX71)                                                        \
     || defined(__DragonFly__)                                                 \
@@ -263,7 +263,7 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
 }
 
 
-static ssize_t uv__fs_mkdtemp(uv_fs_t* req) {
+static int uv__fs_mkdtemp(uv_fs_t* req) {
   return mkdtemp((char*) req->path) ? 0 : -1;
 }
 
@@ -359,7 +359,7 @@ clobber:
 }
 
 
-static ssize_t uv__fs_open(uv_fs_t* req) {
+static int uv__fs_open(uv_fs_t* req) {
 #ifdef O_CLOEXEC
   return open(req->path, req->flags | O_CLOEXEC, req->mode);
 #else  /* O_CLOEXEC */
@@ -388,11 +388,11 @@ static ssize_t uv__fs_open(uv_fs_t* req) {
 }
 
 
-static ssize_t uv__preadv_or_pwritev_emul(int fd,
-                                          const struct iovec* bufs,
-                                          size_t nbufs,
-                                          off_t off,
-                                          int is_pread) {
+static int uv__preadv_or_pwritev_emul(int fd,
+                                      const struct iovec* bufs,
+                                      size_t nbufs,
+                                      off_t off,
+                                      int is_pread) {
   ssize_t total;
   ssize_t r;
   size_t i;
@@ -435,18 +435,18 @@ typedef size_t uv__iovcnt;
 #endif
 
 
-static ssize_t uv__preadv_emul(int fd,
-                               const struct iovec* bufs,
-                               uv__iovcnt nbufs,
-                               off_t off) {
+static int uv__preadv_emul(int fd,
+                           const struct iovec* bufs,
+                           uv__iovcnt nbufs,
+                           off_t off) {
   return uv__preadv_or_pwritev_emul(fd, bufs, nbufs, off, /*is_pread*/1);
 }
 
 
-static ssize_t uv__pwritev_emul(int fd,
-                                const struct iovec* bufs,
-                                uv__iovcnt nbufs,
-                                off_t off) {
+static int uv__pwritev_emul(int fd,
+                            const struct iovec* bufs,
+                            uv__iovcnt nbufs,
+                            off_t off) {
   return uv__preadv_or_pwritev_emul(fd, bufs, nbufs, off, /*is_pread*/0);
 }
 
@@ -454,14 +454,14 @@ static ssize_t uv__pwritev_emul(int fd,
 /* The function pointer cache is an uintptr_t because _Atomic void*
  * doesn't work on macos/ios/etc...
  */
-static ssize_t uv__preadv_or_pwritev(int fd,
-                                     const struct iovec* bufs,
-                                     size_t nbufs,
-                                     off_t off,
-                                     _Atomic uintptr_t* cache,
-                                     int is_pread) {
+static int uv__preadv_or_pwritev(int fd,
+                                 const struct iovec* bufs,
+                                 size_t nbufs,
+                                 off_t off,
+                                 _Atomic uintptr_t* cache,
+                                 int is_pread) {
   union {
-    ssize_t (*f)(int, const struct iovec*, uv__iovcnt, off_t);
+    int (*f)(int, const struct iovec*, uv__iovcnt, off_t);
     void* p;
   } u;
 
@@ -485,7 +485,7 @@ static ssize_t uv__preadv_or_pwritev(int fd,
 }
 
 
-static ssize_t uv__preadv(int fd,
+static int uv__preadv(int fd,
                           const struct iovec* bufs,
                           size_t nbufs,
                           off_t off) {
@@ -494,16 +494,16 @@ static ssize_t uv__preadv(int fd,
 }
 
 
-static ssize_t uv__pwritev(int fd,
-                           const struct iovec* bufs,
-                           size_t nbufs,
-                           off_t off) {
+static int uv__pwritev(int fd,
+                       const struct iovec* bufs,
+                       size_t nbufs,
+                       off_t off) {
   static _Atomic uintptr_t cache;
   return uv__preadv_or_pwritev(fd, bufs, nbufs, off, &cache, /*is_pread*/0);
 }
 
 
-static ssize_t uv__fs_read(uv_fs_t* req) {
+static int uv__fs_read(uv_fs_t* req) {
   const struct iovec* bufs;
   unsigned int iovmax;
   size_t nbufs;
@@ -520,17 +520,35 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
   if (nbufs > iovmax)
     nbufs = iovmax;
 
+  /* Truncate multi-buf reads to UV__IO_MAX_BYTES total, dropping trailing bufs. */
+  if (nbufs > 1) {
+    size_t total;
+    size_t n;
+    for (total = 0, n = 0; n < nbufs; n++) {
+      if (bufs[n].iov_len > UV__IO_MAX_BYTES - total)
+        break;
+      total += bufs[n].iov_len;
+    }
+    nbufs = n > 0 ? n : 1;
+  }
+
   r = 0;
   if (off < 0) {
-    if (nbufs == 1)
-      r = read(fd, bufs->iov_base, bufs->iov_len);
-    else if (nbufs > 1)
+    if (nbufs == 1) {
+      r = read(fd, bufs->iov_base,
+               bufs->iov_len > UV__IO_MAX_BYTES ? UV__IO_MAX_BYTES : bufs->iov_len);
+    } else if (nbufs > 1) {
       r = readv(fd, bufs, nbufs);
+    }
   } else {
-    if (nbufs == 1)
-      r = pread(fd, bufs->iov_base, bufs->iov_len, off);
-    else if (nbufs > 1)
+    if (nbufs == 1) {
+      r = pread(fd, bufs->iov_base,
+                bufs->iov_len > UV__IO_MAX_BYTES ? UV__IO_MAX_BYTES : bufs->iov_len,
+                off);
+    }
+    else if (nbufs > 1) {
       r = uv__preadv(fd, bufs, nbufs, off);
+    }
   }
 
 #ifdef __PASE__
@@ -567,7 +585,7 @@ static int uv__fs_scandir_sort(const uv__dirent_t** a, const uv__dirent_t** b) {
 }
 
 
-static ssize_t uv__fs_scandir(uv_fs_t* req) {
+static int uv__fs_scandir(uv_fs_t* req) {
   uv__dirent_t** dents;
   int n;
 
@@ -732,7 +750,7 @@ static ssize_t uv__fs_pathmax_size(const char* path) {
   return pathmax;
 }
 
-static ssize_t uv__fs_readlink(uv_fs_t* req) {
+static int uv__fs_readlink(uv_fs_t* req) {
   ssize_t maxlen;
   ssize_t len;
   char* buf;
@@ -791,7 +809,7 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
   return 0;
 }
 
-static ssize_t uv__fs_realpath(uv_fs_t* req) {
+static int uv__fs_realpath(uv_fs_t* req) {
   char* buf;
   char* tmp;
 
@@ -829,7 +847,7 @@ static ssize_t uv__fs_realpath(uv_fs_t* req) {
   return 0;
 }
 
-static ssize_t uv__fs_sendfile_emul(uv_fs_t* req) {
+static int uv__fs_sendfile_emul(uv_fs_t* req) {
   struct pollfd pfd;
   int use_pread;
   off_t offset;
@@ -1027,7 +1045,7 @@ static ssize_t uv__fs_try_copy_file_range(int in_fd, off_t* off,
 #endif  /* __linux__ */
 
 
-static ssize_t uv__fs_sendfile(uv_fs_t* req) {
+static int uv__fs_sendfile(uv_fs_t* req) {
   int in_fd;
   int out_fd;
 
@@ -1116,7 +1134,7 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
      */
     if (r == 0 || ((errno == EAGAIN || errno == EINTR) && len != 0)) {
       req->off += len;
-      return (ssize_t) len;
+      return len;
     }
 
     if (errno == EINVAL ||
@@ -1139,7 +1157,7 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
 }
 
 
-static ssize_t uv__fs_utime(uv_fs_t* req) {
+static int uv__fs_utime(uv_fs_t* req) {
 #if defined(__APPLE__)                                                        \
     || defined(_AIX71)                                                        \
     || defined(__DragonFly__)                                                 \
@@ -1174,7 +1192,7 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
 }
 
 
-static ssize_t uv__fs_lutime(uv_fs_t* req) {
+static int uv__fs_lutime(uv_fs_t* req) {
 #if defined(__APPLE__)                                                        \
     || defined(_AIX71)                                                        \
     || defined(__DragonFly__)                                                 \
@@ -1196,7 +1214,7 @@ static ssize_t uv__fs_lutime(uv_fs_t* req) {
 }
 
 
-static ssize_t uv__fs_write(uv_fs_t* req) {
+static int uv__fs_write(uv_fs_t* req) {
   const struct iovec* bufs;
   size_t nbufs;
   ssize_t r;
@@ -1225,7 +1243,7 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
 }
 
 
-static ssize_t uv__fs_copyfile(uv_fs_t* req) {
+static int uv__fs_copyfile(uv_fs_t* req) {
   uv_fs_t fs_req;
   uv_file srcfd;
   uv_file dstfd;
@@ -1378,11 +1396,10 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   bytes_to_send = src_statsbuf.st_size;
   in_offset = 0;
   while (bytes_to_send != 0) {
-    bytes_chunk = SSIZE_MAX;
+    bytes_chunk = UV__IO_MAX_BYTES;
     if (bytes_to_send < (off_t) bytes_chunk)
       bytes_chunk = bytes_to_send;
-    uv_fs_sendfile(NULL, &fs_req, dstfd, srcfd, in_offset, bytes_chunk, NULL);
-    bytes_written = fs_req.result;
+    bytes_written = uv_fs_sendfile(NULL, &fs_req, dstfd, srcfd, in_offset, bytes_chunk, NULL);
     uv_fs_req_cleanup(&fs_req);
 
     if (bytes_written < 0) {
@@ -1630,7 +1647,7 @@ static size_t uv__fs_buf_offset(uv_buf_t* bufs, size_t size) {
   return offset;
 }
 
-static ssize_t uv__fs_write_all(uv_fs_t* req) {
+static int uv__fs_write_all(uv_fs_t* req) {
   unsigned int iovmax;
   unsigned int nbufs;
   uv_buf_t* bufs;
@@ -1679,7 +1696,7 @@ static ssize_t uv__fs_write_all(uv_fs_t* req) {
 static void uv__fs_work(struct uv__work* w) {
   int retry_on_eintr;
   uv_fs_t* req;
-  ssize_t r;
+  int r;
 
   req = container_of(w, uv_fs_t, work_req);
   retry_on_eintr = !(req->fs_type == UV_FS_CLOSE ||
@@ -2147,6 +2164,8 @@ int uv_fs_sendfile(uv_loop_t* loop,
   req->flags = in_fd; /* hack */
   req->file = out_fd;
   req->off = off;
+  if (len > UV__IO_MAX_BYTES)
+    return UV_EINVAL;
   req->bufsml[0].len = len;
   POST;
 }
@@ -2212,6 +2231,9 @@ int uv_fs_write(uv_loop_t* loop,
   INIT(WRITE);
 
   if (bufs == NULL || nbufs == 0)
+    return UV_EINVAL;
+
+  if (uv__count_bufs(bufs, nbufs) > UV__IO_MAX_BYTES)
     return UV_EINVAL;
 
   req->file = file;

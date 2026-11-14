@@ -508,8 +508,8 @@ int uv_uptime(double* uptime) {
 unsigned int uv_available_parallelism(void) {
   DWORD_PTR procmask;
   DWORD_PTR sysmask;
-  unsigned count;
-  unsigned i;
+  int count;
+  unsigned int i;
 
   /* TODO(bnoordhuis) Use GetLogicalProcessorInformationEx() to support systems
    * with > 64 CPUs? See https://github.com/libuv/libuv/pull/3458
@@ -627,7 +627,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos_ptr, int* cpu_count_ptr) {
 
     uv__convert_utf16_to_utf8(cpu_brand,
                               cpu_brand_size / sizeof(WCHAR),
-                              &(cpu_info->model));
+                              (char**) &(cpu_info->model));
   }
 
   uv__free(sppi);
@@ -639,12 +639,8 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos_ptr, int* cpu_count_ptr) {
 
  error:
   if (cpu_infos != NULL) {
-    /* This is safe because the cpu_infos array is zeroed on allocation. */
-    for (i = 0; i < cpu_count; i++)
-      uv__free(cpu_infos[i].model);
+    uv_free_cpu_info(cpu_infos, cpu_count);
   }
-
-  uv__free(cpu_infos);
   uv__free(sppi);
 
   return uv_translate_sys_error(err);

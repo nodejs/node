@@ -85,7 +85,7 @@ API
 .. c:function:: uint64_t uv_timer_get_due_in(const uv_timer_t* handle)
 
     Get the timer due value or 0 if it has expired. The time is relative to
-    :c:func:`uv_now()`.
+    :c:func:`uv_now`.
 
     .. versionadded:: 1.40.0
 
