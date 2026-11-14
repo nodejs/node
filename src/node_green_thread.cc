@@ -3148,35 +3148,46 @@ class GreenIsolate final : public IsolatePlatformDelegate,
   static constexpr size_t kGreenSnapshotContextIndex = 0;
   static constexpr size_t kGreenSnapshotRuntimeIndex = 0;
 
-  // The external references of the green snapshot: the callbacks of the
-  // functions that InstallGlobals() and RunBootstrap() create.
+  // The external references of green snapshots: the callbacks of the
+  // functions that InstallGlobals() and RunBootstrap() create, and Node.js'
+  // own, which include the sources of builtins. With those, the snapshot
+  // refers to the sources of the runtime in the binary instead of containing
+  // copies of them, which every green thread would deserialize.
   static const intptr_t* SnapshotExternalReferences() {
-    static const intptr_t references[] = {
-        reinterpret_cast<intptr_t>(PostMessageCallback),
-        reinterpret_cast<intptr_t>(CloseCallback),
-        reinterpret_cast<intptr_t>(QueueMicrotaskCallback),
-        reinterpret_cast<intptr_t>(SetTimeoutCallback),
-        reinterpret_cast<intptr_t>(SetIntervalCallback),
-        reinterpret_cast<intptr_t>(ClearTimerCallback),
-        reinterpret_cast<intptr_t>(ConsoleCallback),
-        reinterpret_cast<intptr_t>(RpcSendCallback),
-        reinterpret_cast<intptr_t>(MessageChannelCallback),
-        reinterpret_cast<intptr_t>(PortPostMessageCallback),
-        reinterpret_cast<intptr_t>(PortStartCallback),
-        reinterpret_cast<intptr_t>(PortCloseCallback),
-        reinterpret_cast<intptr_t>(CompileModuleCallback),
-        reinterpret_cast<intptr_t>(CreateJsonModuleCallback),
-        reinterpret_cast<intptr_t>(ModuleRequestsCallback),
-        reinterpret_cast<intptr_t>(LinkModuleCallback),
-        reinterpret_cast<intptr_t>(InstantiateModuleCallback),
-        reinterpret_cast<intptr_t>(EvaluateModuleCallback),
-        reinterpret_cast<intptr_t>(ModuleNamespaceCallback),
-        reinterpret_cast<intptr_t>(ResolveUrlCallback),
-        reinterpret_cast<intptr_t>(InternalBindingCallback),
-        reinterpret_cast<intptr_t>(RequireCallback),
-        0,
-    };
-    return references;
+    static const std::vector<intptr_t> references = [] {
+      const intptr_t callbacks[] = {
+          reinterpret_cast<intptr_t>(PostMessageCallback),
+          reinterpret_cast<intptr_t>(CloseCallback),
+          reinterpret_cast<intptr_t>(QueueMicrotaskCallback),
+          reinterpret_cast<intptr_t>(SetTimeoutCallback),
+          reinterpret_cast<intptr_t>(SetIntervalCallback),
+          reinterpret_cast<intptr_t>(ClearTimerCallback),
+          reinterpret_cast<intptr_t>(ConsoleCallback),
+          reinterpret_cast<intptr_t>(RpcSendCallback),
+          reinterpret_cast<intptr_t>(MessageChannelCallback),
+          reinterpret_cast<intptr_t>(PortPostMessageCallback),
+          reinterpret_cast<intptr_t>(PortStartCallback),
+          reinterpret_cast<intptr_t>(PortCloseCallback),
+          reinterpret_cast<intptr_t>(CompileModuleCallback),
+          reinterpret_cast<intptr_t>(CreateJsonModuleCallback),
+          reinterpret_cast<intptr_t>(ModuleRequestsCallback),
+          reinterpret_cast<intptr_t>(LinkModuleCallback),
+          reinterpret_cast<intptr_t>(InstantiateModuleCallback),
+          reinterpret_cast<intptr_t>(EvaluateModuleCallback),
+          reinterpret_cast<intptr_t>(ModuleNamespaceCallback),
+          reinterpret_cast<intptr_t>(ResolveUrlCallback),
+          reinterpret_cast<intptr_t>(InternalBindingCallback),
+          reinterpret_cast<intptr_t>(RequireCallback),
+      };
+      std::vector<intptr_t> result(std::begin(callbacks), std::end(callbacks));
+      // Ends with 0.
+      const std::vector<intptr_t>& node_references =
+          SnapshotBuilder::CollectExternalReferences();
+      result.insert(result.end(), node_references.begin(),
+                    node_references.end());
+      return result;
+    }();
+    return references.data();
   }
 
  public:
