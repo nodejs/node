@@ -1517,6 +1517,12 @@ added:
   - v15.7.0
   - v14.18.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67454
+    description: The own enumerable properties of the `url` argument are now
+                 only carried over when `url` is a WHATWG `URL` instance created
+                 by this realm's `URL` constructor, rather than for any
+                 duck-typed object.
   - version:
     - v19.9.0
     - v18.17.0
@@ -1544,6 +1550,14 @@ changes:
 
 This utility function converts a URL object into an ordinary options object as
 expected by the [`http.request()`][] and [`https.request()`][] APIs.
+
+If `url` is a WHATWG `URL` instance created by this realm's `URL` constructor,
+the returned object will also contain all of its own enumerable properties. This
+allows a `URL` object to be extended with additional request options (for
+example `url.headers = { 'X-Foo': 'bar' }`). Objects that merely share the
+shape of a `URL` (as accepted by the duck-typed `isURL()` check used by
+`http.request()`) are **not** treated this way, so they cannot smuggle
+connection/transport options such as `socketPath` into the request.
 
 ```mjs
 import { urlToHttpOptions } from 'node:url';
