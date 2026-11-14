@@ -7,18 +7,21 @@
 import '../common/index.mjs';
 import * as assert from 'assert';
 
-globalThis.eval_list ||= [];
+globalThis.eval_list = [];
 
 import * as non_deferred from '../fixtures/es-modules/module-with-module-tree.mjs';
 import defer * as deferred from '../fixtures/es-modules/module-deferred-eval.mjs';
 
+assert.strictEqual(globalThis.eval_list.length, 0);
+
 // Check that the module has been evaluated exactly once.
-assert.strictEqual(globalThis.eval_list.length, 1);
 assert.strictEqual(deferred.foo, 42);
+assert.strictEqual(globalThis.eval_list.length, 1);
 assert.partialDeepStrictEqual(['defer-1'], globalThis.eval_list);
 
 // Skip linter warning
 assert.strictEqual(non_deferred.bar, 64);
+assert.strictEqual(globalThis.eval_list.length, 1);
 
 // Clean-up
 delete globalThis.eval_list;
