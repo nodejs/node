@@ -19,6 +19,8 @@
  ********************************************************************************
  */
 
+#include <typeinfo>
+
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
@@ -40,7 +42,7 @@
 #if defined( U_DEBUG_CALSVC ) || defined (U_DEBUG_CAL)
 #include <stdio.h>
 #endif
-#include <typeinfo>
+
 
 // *****************************************************************************
 // class DateFormat
@@ -421,17 +423,37 @@ DateFormat::createDateInstance(DateFormat::EStyle style,
 }
 
 //----------------------------------------------------------------------
+namespace {
 
+UBool isValidStyle(int32_t style) {
+    return (style >= DateFormat::kFull && style <= DateFormat::kShort) ||
+           (style >= DateFormat::kFullRelative && style <= DateFormat::kShortRelative);
+}
+
+UBool isValidTimeStyle(int32_t style) {
+    return (style >= DateFormat::kFull && style <= DateFormat::kShort);
+}
+
+} // namespace
 DateFormat* U_EXPORT2
 DateFormat::createDateTimeInstance(EStyle dateStyle,
                                    EStyle timeStyle,
-                                   const Locale& aLocale)
+                                   const Locale& aLocale) UPRV_NO_SANITIZE_UNDEFINED
 {
-   if(dateStyle != kNone)
-   {
-       dateStyle = static_cast<EStyle>(dateStyle + kDateOffset);
+   int32_t dateStyleInt = dateStyle;
+   int32_t timeStyleInt = timeStyle;
+
+   if (dateStyleInt != kNone && !isValidStyle(dateStyleInt)) {
+       return nullptr;
    }
-   return create(timeStyle, dateStyle, aLocale);
+   if (timeStyleInt != kNone && !isValidTimeStyle(timeStyleInt)) {
+       return nullptr;
+   }
+   if(dateStyleInt != kNone)
+   {
+       dateStyleInt = dateStyleInt + kDateOffset;
+   }
+   return create(timeStyle, static_cast<EStyle>(dateStyleInt), aLocale);
 }
 
 //----------------------------------------------------------------------

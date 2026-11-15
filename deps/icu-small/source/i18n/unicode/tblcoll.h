@@ -196,7 +196,6 @@ public:
     *              Must be the root collator, must not be nullptr.
     *              The base is required to be present through the lifetime of the collator.
     *  @param status for catching errors
-    *  @return newly created collator
     *  @see cloneBinary
     *  @stable ICU 3.4
     */

@@ -74,7 +74,7 @@ class U_I18N_API CurrencyAmount: public Measure {
      * Assignment operator
      * @stable ICU 3.0
      */
-    CurrencyAmount& operator=(const CurrencyAmount& other);
+    CurrencyAmount& operator=(const CurrencyAmount& other) U_LIFETIME_BOUND;
 
     /**
      * Return a polymorphic clone of this object.  The result will
@@ -111,16 +111,16 @@ class U_I18N_API CurrencyAmount: public Measure {
      * Return the currency unit object of this object.
      * @stable ICU 3.0
      */
-    const CurrencyUnit& getCurrency() const;
+    const CurrencyUnit& getCurrency() const U_LIFETIME_BOUND;
 
     /**
      * Return the ISO currency code of this object.
      * @stable ICU 3.0
      */
-    inline const char16_t* getISOCurrency() const;
+    inline const char16_t* getISOCurrency() const U_LIFETIME_BOUND;
 };
 
-inline const char16_t* CurrencyAmount::getISOCurrency() const {
+inline const char16_t* CurrencyAmount::getISOCurrency() const U_LIFETIME_BOUND {
     return getCurrency().getISOCurrency();
 }
 

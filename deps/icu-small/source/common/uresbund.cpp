@@ -113,7 +113,7 @@ static UBool hasVariant(const char* localeID) {
 
 static const char* performFallbackLookup(const char* key,
                                          const char* keyStrs,
-                                         const char* valueStrs,
+                                         const char* valueStrs U_LIFETIME_BOUND,
                                          const int32_t* lookupTable,
                                          int32_t lookupTableLength) {
     const int32_t* bottom = lookupTable;
@@ -1150,20 +1150,29 @@ ures_close(UResourceBundle* resB)
 
 namespace {
 
-UResourceBundle *init_resb_result(
-        UResourceDataEntry *dataEntry, Resource r, const char *key, int32_t idx,
-        UResourceDataEntry *validLocaleDataEntry, const char *containerResPath,
-        int32_t recursionDepth,
-        UResourceBundle *resB, UErrorCode *status);
+UResourceBundle* init_resb_result(UResourceDataEntry* dataEntry,
+                                  Resource r,
+                                  const char* key,
+                                  int32_t idx,
+                                  UResourceDataEntry* validLocaleDataEntry,
+                                  const char* containerResPath,
+                                  int32_t recursionDepth,
+                                  UResourceBundle* resB U_LIFETIME_BOUND,
+                                  UErrorCode* status);
 
 // TODO: Try to refactor further, so that we output a dataEntry + Resource + (optionally) resPath,
 // rather than a UResourceBundle.
 // May need to entryIncrease() the resulting dataEntry.
-UResourceBundle *getAliasTargetAsResourceBundle(
-        const ResourceData &resData, Resource r, const char *key, int32_t idx,
-        UResourceDataEntry *validLocaleDataEntry, const char *containerResPath,
-        int32_t recursionDepth,
-        UResourceBundle *resB, UErrorCode *status) {
+UResourceBundle*
+getAliasTargetAsResourceBundle(const ResourceData& resData,
+                               Resource r,
+                               const char* key,
+                               int32_t idx,
+                               UResourceDataEntry* validLocaleDataEntry,
+                               const char* containerResPath,
+                               int32_t recursionDepth,
+                               UResourceBundle* resB U_LIFETIME_BOUND,
+                               UErrorCode* status) {
     // TODO: When an error occurs: Should we return nullptr vs. resB?
     if (U_FAILURE(*status)) { return resB; }
     U_ASSERT(RES_GET_TYPE(r) == URES_ALIAS);
@@ -1382,11 +1391,15 @@ UResourceBundle *getAliasTargetAsResourceBundle(
 
 // Recursive function, should be called only by itself, by its simpler wrapper,
 // or by getAliasTargetAsResourceBundle().
-UResourceBundle *init_resb_result(
-        UResourceDataEntry *dataEntry, Resource r, const char *key, int32_t idx,
-        UResourceDataEntry *validLocaleDataEntry, const char *containerResPath,
-        int32_t recursionDepth,
-        UResourceBundle *resB, UErrorCode *status) {
+UResourceBundle* init_resb_result(UResourceDataEntry* dataEntry,
+                                  Resource r,
+                                  const char* key,
+                                  int32_t idx,
+                                  UResourceDataEntry* validLocaleDataEntry,
+                                  const char* containerResPath,
+                                  int32_t recursionDepth,
+                                  UResourceBundle* resB U_LIFETIME_BOUND,
+                                  UErrorCode* status) {
     // TODO: When an error occurs: Should we return nullptr vs. resB?
     if(status == nullptr || U_FAILURE(*status)) {
         return resB;
@@ -1449,14 +1462,14 @@ UResourceBundle *init_resb_result(
     }
     if(key != nullptr) {
         ures_appendResPath(resB, key, static_cast<int32_t>(uprv_strlen(key)), status);
-        if(resB->fResPath[resB->fResPathLen-1] != RES_PATH_SEPARATOR) {
+        if(resB->fResPathLen > 0 && resB->fResPath[resB->fResPathLen-1] != RES_PATH_SEPARATOR) {
             ures_appendResPath(resB, RES_PATH_SEPARATOR_S, 1, status);
         }
     } else if(idx >= 0) {
         char buf[256];
         int32_t len = T_CString_integerToString(buf, idx, 10);
         ures_appendResPath(resB, buf, len, status);
-        if(resB->fResPath[resB->fResPathLen-1] != RES_PATH_SEPARATOR) {
+        if(resB->fResPathLen > 0 && resB->fResPath[resB->fResPathLen-1] != RES_PATH_SEPARATOR) {
             ures_appendResPath(resB, RES_PATH_SEPARATOR_S, 1, status);
         }
     }
@@ -1473,11 +1486,14 @@ UResourceBundle *init_resb_result(
     return resB;
 }
 
-UResourceBundle *init_resb_result(
-        UResourceDataEntry *dataEntry, Resource r, const char *key, int32_t idx,
-        // validLocaleDataEntry + containerResPath
-        const UResourceBundle *container,
-        UResourceBundle *resB, UErrorCode *status) {
+UResourceBundle* init_resb_result(UResourceDataEntry* dataEntry,
+                                  Resource r,
+                                  const char* key,
+                                  int32_t idx,
+                                  // validLocaleDataEntry + containerResPath
+                                  const UResourceBundle* container,
+                                  UResourceBundle* resB U_LIFETIME_BOUND,
+                                  UErrorCode* status) {
     return init_resb_result(
         dataEntry, r, key, idx,
         container->fValidLocaleDataEntry, container->fResPath, 0, resB, status);
@@ -1485,7 +1501,9 @@ UResourceBundle *init_resb_result(
 
 }  // namespace
 
-UResourceBundle *ures_copyResb(UResourceBundle *r, const UResourceBundle *original, UErrorCode *status) {
+UResourceBundle* ures_copyResb(UResourceBundle* r U_LIFETIME_BOUND,
+                               const UResourceBundle* original,
+                               UErrorCode* status) {
     UBool isStackObject;
     if(U_FAILURE(*status) || r == original) {
         return r;
@@ -1521,7 +1539,9 @@ UResourceBundle *ures_copyResb(UResourceBundle *r, const UResourceBundle *origin
  * Functions to retrieve data from resource bundles.
  */
 
-U_CAPI const char16_t* U_EXPORT2 ures_getString(const UResourceBundle* resB, int32_t* len, UErrorCode* status) {
+U_CAPI const char16_t* U_EXPORT2 ures_getString(const UResourceBundle* resB U_LIFETIME_BOUND,
+                                                int32_t* len,
+                                                UErrorCode* status) {
     const char16_t *s;
     if (status==nullptr || U_FAILURE(*status)) {
         return nullptr;
@@ -1537,11 +1557,13 @@ U_CAPI const char16_t* U_EXPORT2 ures_getString(const UResourceBundle* resB, int
     return s;
 }
 
-static const char *
-ures_toUTF8String(const char16_t *s16, int32_t length16,
-                  char *dest, int32_t *pLength,
+static const char*
+ures_toUTF8String(const char16_t* s16,
+                  int32_t length16,
+                  char* dest U_LIFETIME_BOUND,
+                  int32_t* pLength,
                   UBool forceCopy,
-                  UErrorCode *status) {
+                  UErrorCode* status) {
     int32_t capacity;
 
     if (U_FAILURE(*status)) {
@@ -1599,18 +1621,19 @@ ures_toUTF8String(const char16_t *s16, int32_t length16,
     }
 }
 
-U_CAPI const char * U_EXPORT2
-ures_getUTF8String(const UResourceBundle *resB,
-                   char *dest, int32_t *pLength,
+U_CAPI const char* U_EXPORT2
+ures_getUTF8String(const UResourceBundle* resB,
+                   char* dest U_LIFETIME_BOUND,
+                   int32_t* pLength,
                    UBool forceCopy,
-                   UErrorCode *status) {
+                   UErrorCode* status) {
     int32_t length16;
     const char16_t *s16 = ures_getString(resB, &length16, status);
     return ures_toUTF8String(s16, length16, dest, pLength, forceCopy, status);
 }
 
-U_CAPI const uint8_t* U_EXPORT2 ures_getBinary(const UResourceBundle* resB, int32_t* len, 
-                                               UErrorCode*               status) {
+U_CAPI const uint8_t* U_EXPORT2
+ures_getBinary(const UResourceBundle* resB U_LIFETIME_BOUND, int32_t* len, UErrorCode* status) {
   const uint8_t *p;
   if (status==nullptr || U_FAILURE(*status)) {
     return nullptr;
@@ -1626,8 +1649,8 @@ U_CAPI const uint8_t* U_EXPORT2 ures_getBinary(const UResourceBundle* resB, int3
   return p;
 }
 
-U_CAPI const int32_t* U_EXPORT2 ures_getIntVector(const UResourceBundle* resB, int32_t* len, 
-                                                   UErrorCode*               status) {
+U_CAPI const int32_t* U_EXPORT2
+ures_getIntVector(const UResourceBundle* resB U_LIFETIME_BOUND, int32_t* len, UErrorCode* status) {
   const int32_t *p;
   if (status==nullptr || U_FAILURE(*status)) {
     return nullptr;
@@ -1682,7 +1705,8 @@ U_CAPI UResType U_EXPORT2 ures_getType(const UResourceBundle *resB) {
   return res_getPublicType(resB->fRes);
 }
 
-U_CAPI const char * U_EXPORT2 ures_getKey(const UResourceBundle *resB) {
+U_CAPI const char* U_EXPORT2
+ures_getKey(const UResourceBundle* resB U_LIFETIME_BOUND) {
   //
   // TODO: Trace ures_getKey? I guess not usually.
   //
@@ -1706,7 +1730,12 @@ U_CAPI int32_t U_EXPORT2 ures_getSize(const UResourceBundle *resB) {
   return resB->fSize;
 }
 
-static const char16_t* ures_getStringWithAlias(const UResourceBundle *resB, Resource r, int32_t sIndex, int32_t *len, UErrorCode *status) {
+static const char16_t*
+ures_getStringWithAlias(const UResourceBundle* resB U_LIFETIME_BOUND,
+                        Resource r,
+                        int32_t sIndex,
+                        int32_t* len,
+                        UErrorCode* status) {
   if(RES_GET_TYPE(r) == URES_ALIAS) {
     const char16_t* result = nullptr;
     UResourceBundle *tempRes = ures_getByIndex(resB, sIndex, nullptr, status);
@@ -1732,7 +1761,11 @@ U_CAPI UBool U_EXPORT2 ures_hasNext(const UResourceBundle *resB) {
   return resB->fIndex < resB->fSize-1;
 }
 
-U_CAPI const char16_t* U_EXPORT2 ures_getNextString(UResourceBundle *resB, int32_t* len, const char ** key, UErrorCode *status) {
+U_CAPI const char16_t* U_EXPORT2
+ures_getNextString(UResourceBundle* resB U_LIFETIME_BOUND,
+                   int32_t* len,
+                   const char** key,
+                   UErrorCode* status) {
   Resource r = RES_BOGUS;
   
   if (status==nullptr || U_FAILURE(*status)) {
@@ -1781,7 +1814,10 @@ U_CAPI const char16_t* U_EXPORT2 ures_getNextString(UResourceBundle *resB, int32
   return nullptr;
 }
 
-U_CAPI UResourceBundle* U_EXPORT2 ures_getNextResource(UResourceBundle *resB, UResourceBundle *fillIn, UErrorCode *status) {
+U_CAPI UResourceBundle* U_EXPORT2
+ures_getNextResource(UResourceBundle* resB,
+                     UResourceBundle* fillIn U_LIFETIME_BOUND,
+                     UErrorCode* status) {
     const char *key = nullptr;
     Resource r = RES_BOGUS;
 
@@ -1831,7 +1867,11 @@ U_CAPI UResourceBundle* U_EXPORT2 ures_getNextResource(UResourceBundle *resB, UR
     return fillIn;
 }
 
-U_CAPI UResourceBundle* U_EXPORT2 ures_getByIndex(const UResourceBundle *resB, int32_t indexR, UResourceBundle *fillIn, UErrorCode *status) {
+U_CAPI UResourceBundle* U_EXPORT2
+ures_getByIndex(const UResourceBundle* resB,
+                int32_t indexR,
+                UResourceBundle* fillIn U_LIFETIME_BOUND,
+                UErrorCode* status) {
     const char* key = nullptr;
     Resource r = RES_BOGUS;
 
@@ -1879,7 +1919,11 @@ U_CAPI UResourceBundle* U_EXPORT2 ures_getByIndex(const UResourceBundle *resB, i
     return fillIn;
 }
 
-U_CAPI const char16_t* U_EXPORT2 ures_getStringByIndex(const UResourceBundle *resB, int32_t indexS, int32_t* len, UErrorCode *status) {
+U_CAPI const char16_t* U_EXPORT2
+ures_getStringByIndex(const UResourceBundle* resB U_LIFETIME_BOUND,
+                      int32_t indexS,
+                      int32_t* len,
+                      UErrorCode* status) {
     const char* key = nullptr;
     Resource r = RES_BOGUS;
 
@@ -1929,12 +1973,13 @@ U_CAPI const char16_t* U_EXPORT2 ures_getStringByIndex(const UResourceBundle *re
     return nullptr;
 }
 
-U_CAPI const char * U_EXPORT2
-ures_getUTF8StringByIndex(const UResourceBundle *resB,
+U_CAPI const char* U_EXPORT2
+ures_getUTF8StringByIndex(const UResourceBundle* resB,
                           int32_t idx,
-                          char *dest, int32_t *pLength,
+                          char* dest U_LIFETIME_BOUND,
+                          int32_t* pLength,
                           UBool forceCopy,
-                          UErrorCode *status) {
+                          UErrorCode* status) {
     int32_t length16;
     const char16_t *s16 = ures_getStringByIndex(resB, idx, &length16, status);
     return ures_toUTF8String(s16, length16, dest, pLength, forceCopy, status);
@@ -1945,7 +1990,7 @@ ures_getUTF8StringByIndex(const UResourceBundle *resB,
 }*/
 
 U_CAPI UResourceBundle* U_EXPORT2
-ures_findResource(const char* path, UResourceBundle *fillIn, UErrorCode *status) 
+ures_findResource(const char* path, UResourceBundle* fillIn U_LIFETIME_BOUND, UErrorCode* status)
 {
   UResourceBundle *first = nullptr; 
   UResourceBundle *result = fillIn;
@@ -2000,7 +2045,10 @@ ures_findResource(const char* path, UResourceBundle *fillIn, UErrorCode *status)
 }
 
 U_CAPI UResourceBundle* U_EXPORT2
-ures_findSubResource(const UResourceBundle *resB, char* path, UResourceBundle *fillIn, UErrorCode *status) 
+ures_findSubResource(const UResourceBundle* resB,
+                     char* path,
+                     UResourceBundle* fillIn U_LIFETIME_BOUND,
+                     UErrorCode* status)
 {
   Resource res = RES_BOGUS;
   UResourceBundle *result = fillIn;
@@ -2026,12 +2074,12 @@ ures_findSubResource(const UResourceBundle *resB, char* path, UResourceBundle *f
 
   return result;
 }
-U_CAPI const char16_t* U_EXPORT2
-ures_getStringByKeyWithFallback(const UResourceBundle *resB, 
-                                const char* inKey, 
-                                int32_t* len,
-                                UErrorCode *status) {
 
+U_CAPI const char16_t* U_EXPORT2
+ures_getStringByKeyWithFallback(const UResourceBundle* resB U_LIFETIME_BOUND,
+                                const char* inKey,
+                                int32_t* len,
+                                UErrorCode* status) {
     UResourceBundle stack;
     const char16_t* retVal = nullptr;
     ures_initStackObject(&stack);
@@ -2158,10 +2206,10 @@ static void createPath(const char* origResPath,
 }
 
 U_CAPI UResourceBundle* U_EXPORT2
-ures_getByKeyWithFallback(const UResourceBundle *resB,
+ures_getByKeyWithFallback(const UResourceBundle* resB,
                           const char* inKey,
-                          UResourceBundle *fillIn,
-                          UErrorCode *status) {
+                          UResourceBundle* fillIn U_LIFETIME_BOUND,
+                          UErrorCode* status) {
     Resource res = RES_BOGUS, rootRes = RES_BOGUS;
     UResourceBundle *helper = nullptr;
 
@@ -2490,7 +2538,11 @@ ures_getAllItemsWithFallback(const UResourceBundle *bundle, const char *path,
     getAllItemsWithFallback(rb, value, sink, errorCode);
 }
 
-U_CAPI UResourceBundle* U_EXPORT2 ures_getByKey(const UResourceBundle *resB, const char* inKey, UResourceBundle *fillIn, UErrorCode *status) {
+U_CAPI UResourceBundle* U_EXPORT2
+ures_getByKey(const UResourceBundle* resB,
+              const char* inKey,
+              UResourceBundle* fillIn U_LIFETIME_BOUND,
+              UErrorCode* status) {
     Resource res = RES_BOGUS;
     UResourceDataEntry *dataEntry = nullptr;
     const char *key = inKey;
@@ -2543,7 +2595,11 @@ U_CAPI UResourceBundle* U_EXPORT2 ures_getByKey(const UResourceBundle *resB, con
     return fillIn;
 }
 
-U_CAPI const char16_t* U_EXPORT2 ures_getStringByKey(const UResourceBundle *resB, const char* inKey, int32_t* len, UErrorCode *status) {
+U_CAPI const char16_t* U_EXPORT2
+ures_getStringByKey(const UResourceBundle* resB U_LIFETIME_BOUND,
+                    const char* inKey,
+                    int32_t* len,
+                    UErrorCode* status) {
     Resource res = RES_BOGUS;
     UResourceDataEntry *dataEntry = nullptr;
     const char* key = inKey;
@@ -2626,12 +2682,13 @@ U_CAPI const char16_t* U_EXPORT2 ures_getStringByKey(const UResourceBundle *resB
     return nullptr;
 }
 
-U_CAPI const char * U_EXPORT2
-ures_getUTF8StringByKey(const UResourceBundle *resB,
-                        const char *key,
-                        char *dest, int32_t *pLength,
+U_CAPI const char* U_EXPORT2
+ures_getUTF8StringByKey(const UResourceBundle* resB,
+                        const char* key,
+                        char* dest U_LIFETIME_BOUND,
+                        int32_t* pLength,
                         UBool forceCopy,
-                        UErrorCode *status) {
+                        UErrorCode* status) {
     int32_t length16;
     const char16_t *s16 = ures_getStringByKey(resB, key, &length16, status);
     return ures_toUTF8String(s16, length16, dest, pLength, forceCopy, status);
@@ -2643,8 +2700,8 @@ ures_getUTF8StringByKey(const UResourceBundle *resB,
  *  INTERNAL: Get the name of the first real locale (not placeholder) 
  *  that has resource bundle data.
  */
-U_CAPI const char*  U_EXPORT2
-ures_getLocaleInternal(const UResourceBundle* resourceBundle, UErrorCode* status)
+U_CAPI const char* U_EXPORT2
+ures_getLocaleInternal(const UResourceBundle* resourceBundle U_LIFETIME_BOUND, UErrorCode* status)
 {
     if (status==nullptr || U_FAILURE(*status)) {
         return nullptr;
@@ -2657,17 +2714,15 @@ ures_getLocaleInternal(const UResourceBundle* resourceBundle, UErrorCode* status
     }
 }
 
-U_CAPI const char* U_EXPORT2 
-ures_getLocale(const UResourceBundle* resourceBundle, 
-               UErrorCode* status)
+U_CAPI const char* U_EXPORT2
+ures_getLocale(const UResourceBundle* resourceBundle U_LIFETIME_BOUND, UErrorCode* status)
 {
   return ures_getLocaleInternal(resourceBundle, status);
 }
 
-
-U_CAPI const char* U_EXPORT2 
-ures_getLocaleByType(const UResourceBundle* resourceBundle, 
-                     ULocDataLocaleType type, 
+U_CAPI const char* U_EXPORT2
+ures_getLocaleByType(const UResourceBundle* resourceBundle U_LIFETIME_BOUND,
+                     ULocDataLocaleType type,
                      UErrorCode* status) {
     if (status==nullptr || U_FAILURE(*status)) {
         return nullptr;
@@ -2689,7 +2744,8 @@ ures_getLocaleByType(const UResourceBundle* resourceBundle,
     }
 }
 
-U_CFUNC const char* ures_getName(const UResourceBundle* resB) {
+U_CFUNC const char*
+ures_getName(const UResourceBundle* resB U_LIFETIME_BOUND) {
   if(resB == nullptr) {
     return nullptr;
   }
@@ -2698,7 +2754,8 @@ U_CFUNC const char* ures_getName(const UResourceBundle* resB) {
 }
 
 #ifdef URES_DEBUG
-U_CFUNC const char* ures_getPath(const UResourceBundle* resB) {
+U_CFUNC const char*
+ures_getPath(const UResourceBundle* resB U_LIFETIME_BOUND) {
   if(resB == nullptr) {
     return nullptr;
   }
@@ -2708,8 +2765,11 @@ U_CFUNC const char* ures_getPath(const UResourceBundle* resB) {
 #endif
 
 static UResourceBundle*
-ures_openWithType(UResourceBundle *r, const char* path, const char* localeID,
-                  UResOpenType openType, UErrorCode* status) {
+ures_openWithType(UResourceBundle* r U_LIFETIME_BOUND,
+                  const char* path,
+                  const char* localeID,
+                  UResOpenType openType,
+                  UErrorCode* status) {
     if(U_FAILURE(*status)) {
         return nullptr;
     }
@@ -2854,8 +2914,8 @@ ures_countArrayItems(const UResourceBundle* resourceBundle,
  * @see ures_getVersion
  * @internal
  */
-U_CAPI const char* U_EXPORT2 
-ures_getVersionNumberInternal(const UResourceBundle *resourceBundle)
+U_CAPI const char* U_EXPORT2
+ures_getVersionNumberInternal(const UResourceBundle* resourceBundle U_LIFETIME_BOUND)
 {
     if (!resourceBundle) return nullptr;
 
@@ -2898,8 +2958,8 @@ ures_getVersionNumberInternal(const UResourceBundle *resourceBundle)
     return resourceBundle->fVersion;
 }
 
-U_CAPI const char*  U_EXPORT2
-ures_getVersionNumber(const UResourceBundle*   resourceBundle)
+U_CAPI const char* U_EXPORT2
+ures_getVersionNumber(const UResourceBundle* resourceBundle U_LIFETIME_BOUND)
 {
     return ures_getVersionNumberInternal(resourceBundle);
 }

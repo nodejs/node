@@ -37,8 +37,8 @@ U_CAPI int32_t U_EXPORT2 udbg_stoi(const icu::UnicodeString &s);
 
 U_CAPI double U_EXPORT2 udbg_stod(const icu::UnicodeString &s);
 
-U_CAPI icu::UnicodeString * U_EXPORT2
-udbg_escape(const icu::UnicodeString &s, icu::UnicodeString *dst);
+U_CAPI icu::UnicodeString* U_EXPORT2
+udbg_escape(const icu::UnicodeString& s, icu::UnicodeString* dst U_LIFETIME_BOUND);
 
 #endif
 

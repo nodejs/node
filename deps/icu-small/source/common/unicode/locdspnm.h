@@ -87,7 +87,7 @@ public:
      * @return the display locale
      * @stable ICU 4.4
      */
-    virtual const Locale& getLocale() const = 0;
+    virtual const Locale& getLocale() const U_LIFETIME_BOUND = 0;
 
     /**
      * Returns the dialect handling used in the display names.
@@ -113,7 +113,7 @@ public:
      * @stable ICU 4.4
      */
     virtual UnicodeString& localeDisplayName(const Locale& locale,
-                         UnicodeString& result) const = 0;
+                                             UnicodeString& result U_LIFETIME_BOUND) const = 0;
 
     /**
      * Returns the display name of the provided locale id.
@@ -123,7 +123,7 @@ public:
      * @stable ICU 4.4
      */
     virtual UnicodeString& localeDisplayName(const char* localeId,
-                         UnicodeString& result) const = 0;
+                                             UnicodeString& result U_LIFETIME_BOUND) const = 0;
 
     // names for components of a locale id
     /**
@@ -134,7 +134,7 @@ public:
      * @stable ICU 4.4
      */
     virtual UnicodeString& languageDisplayName(const char* lang,
-                           UnicodeString& result) const = 0;
+                                               UnicodeString& result U_LIFETIME_BOUND) const = 0;
 
     /**
      * Returns the display name of the provided script code.
@@ -144,7 +144,7 @@ public:
      * @stable ICU 4.4
      */
     virtual UnicodeString& scriptDisplayName(const char* script,
-                         UnicodeString& result) const = 0;
+                                             UnicodeString& result U_LIFETIME_BOUND) const = 0;
 
     /**
      * Returns the display name of the provided script code.
@@ -154,7 +154,7 @@ public:
      * @stable ICU 4.4
      */
     virtual UnicodeString& scriptDisplayName(UScriptCode scriptCode,
-                         UnicodeString& result) const = 0;
+                                             UnicodeString& result U_LIFETIME_BOUND) const = 0;
 
     /**
      * Returns the display name of the provided region code.
@@ -164,7 +164,7 @@ public:
      * @stable ICU 4.4
      */
     virtual UnicodeString& regionDisplayName(const char* region,
-                         UnicodeString& result) const = 0;
+                                             UnicodeString& result U_LIFETIME_BOUND) const = 0;
 
     /**
      * Returns the display name of the provided variant.
@@ -174,7 +174,7 @@ public:
      * @stable ICU 4.4
      */
     virtual UnicodeString& variantDisplayName(const char* variant,
-                          UnicodeString& result) const = 0;
+                                              UnicodeString& result U_LIFETIME_BOUND) const = 0;
 
     /**
      * Returns the display name of the provided locale key.
@@ -184,7 +184,7 @@ public:
      * @stable ICU 4.4
      */
     virtual UnicodeString& keyDisplayName(const char* key,
-                      UnicodeString& result) const = 0;
+                                          UnicodeString& result U_LIFETIME_BOUND) const = 0;
 
     /**
      * Returns the display name of the provided value (used with the provided key).
@@ -195,7 +195,7 @@ public:
      * @stable ICU 4.4
      */
     virtual UnicodeString& keyValueDisplayName(const char* key, const char* value,
-                           UnicodeString& result) const = 0;
+                                               UnicodeString& result U_LIFETIME_BOUND) const = 0;
 };
 
 inline LocaleDisplayNames* LocaleDisplayNames::createInstance(const Locale& locale) {

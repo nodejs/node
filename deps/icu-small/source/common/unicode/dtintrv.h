@@ -101,7 +101,7 @@ public:
      * Default assignment operator
      * @stable ICU 4.0
      */
-    DateInterval& operator=(const DateInterval&);
+    DateInterval& operator=(const DateInterval&) U_LIFETIME_BOUND;
 
     /**
      * Equality operator.

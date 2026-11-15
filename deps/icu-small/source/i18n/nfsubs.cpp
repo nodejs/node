@@ -972,7 +972,7 @@ ModulusSubstitution::doParse(const UnicodeString& text,
         // use the specific rule's doParse() method, and then we have to
         // do some of the other work of NFRuleSet.parse()
     } else {
-        ruleToUse->doParse(text, parsePosition, false, upperBound, nonNumericalExecutedRuleMask, recursionCount, result);
+        ruleToUse->doParse(text, parsePosition, false, upperBound, nonNumericalExecutedRuleMask, recursionCount + 1, result);
 
         if (parsePosition.getIndex() != 0) {
             UErrorCode status = U_ZERO_ERROR;
@@ -1305,7 +1305,7 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
     int32_t zeroCount = 0;
     UnicodeString workText(text);
 
-    if (withZeros) {
+    if (withZeros && getRuleSet() != nullptr) {
         ParsePosition workPos(1);
         Formattable temp;
 
@@ -1343,10 +1343,16 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
         int64_t n = result.getLong(status); // force conversion!
         int64_t d = 1;
         while (d <= n) {
+            if (d > INT64_MAX / 10) {
+                return false;
+            }
             d *= 10;
         }
         // now add the zeros
         while (zeroCount > 0) {
+            if (d > INT64_MAX / 10) {
+                return false;
+            }
             d *= 10;
             --zeroCount;
         }

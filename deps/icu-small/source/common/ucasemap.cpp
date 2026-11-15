@@ -46,26 +46,33 @@ U_NAMESPACE_USE
 
 /* UCaseMap service object -------------------------------------------------- */
 
-UCaseMap::UCaseMap(const char *localeID, uint32_t opts, UErrorCode *pErrorCode) :
+// The public type, unicode/ucasemap.h struct UCaseMap, is an opaque C type.
+// We define a parallel C++ type in the ICU namespace for entry point renaming.
+
+U_NAMESPACE_BEGIN
+
+UCaseMapImpl::UCaseMapImpl(const char *localeID, uint32_t opts, UErrorCode *pErrorCode) :
 #if !UCONFIG_NO_BREAK_ITERATION
         iter(nullptr),
 #endif
         caseLocale(UCASE_LOC_UNKNOWN), options(opts) {
-    ucasemap_setLocale(this, localeID, pErrorCode);
+    ucasemap_setLocale(reinterpret_cast<UCaseMap *>(this), localeID, pErrorCode);
 }
 
-UCaseMap::~UCaseMap() {
+UCaseMapImpl::~UCaseMapImpl() {
 #if !UCONFIG_NO_BREAK_ITERATION
     delete iter;
 #endif
 }
+
+U_NAMESPACE_END
 
 U_CAPI UCaseMap * U_EXPORT2
 ucasemap_open(const char *locale, uint32_t options, UErrorCode *pErrorCode) {
     if(U_FAILURE(*pErrorCode)) {
         return nullptr;
     }
-    UCaseMap *csm = new UCaseMap(locale, options, pErrorCode);
+    UCaseMapImpl *csm = new UCaseMapImpl(locale, options, pErrorCode);
     if(csm==nullptr) {
         *pErrorCode = U_MEMORY_ALLOCATION_ERROR;
         return nullptr;
@@ -73,22 +80,22 @@ ucasemap_open(const char *locale, uint32_t options, UErrorCode *pErrorCode) {
         delete csm;
         return nullptr;
     }
-    return csm;
+    return reinterpret_cast<UCaseMap *>(csm);
 }
 
 U_CAPI void U_EXPORT2
 ucasemap_close(UCaseMap *csm) {
-    delete csm;
+    delete reinterpret_cast<UCaseMapImpl *>(csm);
 }
 
-U_CAPI const char * U_EXPORT2
-ucasemap_getLocale(const UCaseMap *csm) {
-    return csm->locale;
+U_CAPI const char* U_EXPORT2
+ucasemap_getLocale(const UCaseMap* csm U_LIFETIME_BOUND) {
+    return reinterpret_cast<const UCaseMapImpl *>(csm)->locale;
 }
 
 U_CAPI uint32_t U_EXPORT2
 ucasemap_getOptions(const UCaseMap *csm) {
-    return csm->options;
+    return reinterpret_cast<const UCaseMapImpl *>(csm)->options;
 }
 
 U_CAPI void U_EXPORT2
@@ -96,29 +103,30 @@ ucasemap_setLocale(UCaseMap *csm, const char *locale, UErrorCode *pErrorCode) {
     if(U_FAILURE(*pErrorCode)) {
         return;
     }
+    auto *impl = reinterpret_cast<UCaseMapImpl *>(csm);
     if (locale != nullptr && *locale == 0) {
-        csm->locale[0] = 0;
-        csm->caseLocale = UCASE_LOC_ROOT;
+        impl->locale[0] = 0;
+        impl->caseLocale = UCASE_LOC_ROOT;
         return;
     }
 
     UErrorCode bufferStatus = U_ZERO_ERROR;
-    int32_t length=uloc_getName(locale, csm->locale, (int32_t)sizeof(csm->locale), &bufferStatus);
-    if(bufferStatus==U_BUFFER_OVERFLOW_ERROR || (U_SUCCESS(bufferStatus) && length==sizeof(csm->locale))) {
+    int32_t length=uloc_getName(locale, impl->locale, (int32_t)sizeof(impl->locale), &bufferStatus);
+    if(bufferStatus==U_BUFFER_OVERFLOW_ERROR || (U_SUCCESS(bufferStatus) && length==sizeof(impl->locale))) {
         bufferStatus = U_ZERO_ERROR;
         /* we only really need the language code for case mappings */
-        length=uloc_getLanguage(locale, csm->locale, (int32_t)sizeof(csm->locale), &bufferStatus);
+        length=uloc_getLanguage(locale, impl->locale, (int32_t)sizeof(impl->locale), &bufferStatus);
     }
     if(U_FAILURE(bufferStatus)) {
         *pErrorCode=bufferStatus;
-    } else if(length==sizeof(csm->locale)) {
+    } else if(length==sizeof(impl->locale)) {
         *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
     }
     if(U_SUCCESS(*pErrorCode)) {     
-        csm->caseLocale = ucase_getCaseLocale(csm->locale);
+        impl->caseLocale = ucase_getCaseLocale(impl->locale);
     } else {
-        csm->locale[0]=0;
-        csm->caseLocale = UCASE_LOC_ROOT;
+        impl->locale[0]=0;
+        impl->caseLocale = UCASE_LOC_ROOT;
     }
 }
 
@@ -127,7 +135,7 @@ ucasemap_setOptions(UCaseMap *csm, uint32_t options, UErrorCode *pErrorCode) {
     if(U_FAILURE(*pErrorCode)) {
         return;
     }
-    csm->options=options;
+    reinterpret_cast<UCaseMapImpl *>(csm)->options=options;
 }
 
 /* UTF-8 string case mappings ----------------------------------------------- */
@@ -942,8 +950,9 @@ ucasemap_utf8ToLower(const UCaseMap *csm,
                      char *dest, int32_t destCapacity,
                      const char *src, int32_t srcLength,
                      UErrorCode *pErrorCode) {
+    auto *impl = reinterpret_cast<const UCaseMapImpl *>(csm);
     return ucasemap_mapUTF8(
-        csm->caseLocale, csm->options, UCASEMAP_BREAK_ITERATOR_NULL
+        impl->caseLocale, impl->options, UCASEMAP_BREAK_ITERATOR_NULL
         dest, destCapacity,
         src, srcLength,
         ucasemap_internalUTF8ToLower, nullptr, *pErrorCode);
@@ -954,8 +963,9 @@ ucasemap_utf8ToUpper(const UCaseMap *csm,
                      char *dest, int32_t destCapacity,
                      const char *src, int32_t srcLength,
                      UErrorCode *pErrorCode) {
+    auto *impl = reinterpret_cast<const UCaseMapImpl *>(csm);
     return ucasemap_mapUTF8(
-        csm->caseLocale, csm->options, UCASEMAP_BREAK_ITERATOR_NULL
+        impl->caseLocale, impl->options, UCASEMAP_BREAK_ITERATOR_NULL
         dest, destCapacity,
         src, srcLength,
         ucasemap_internalUTF8ToUpper, nullptr, *pErrorCode);
@@ -966,8 +976,9 @@ ucasemap_utf8FoldCase(const UCaseMap *csm,
                       char *dest, int32_t destCapacity,
                       const char *src, int32_t srcLength,
                       UErrorCode *pErrorCode) {
+    auto *impl = reinterpret_cast<const UCaseMapImpl *>(csm);
     return ucasemap_mapUTF8(
-        UCASE_LOC_ROOT, csm->options, UCASEMAP_BREAK_ITERATOR_NULL
+        UCASE_LOC_ROOT, impl->options, UCASEMAP_BREAK_ITERATOR_NULL
         dest, destCapacity,
         src, srcLength,
         ucasemap_internalUTF8Fold, nullptr, *pErrorCode);

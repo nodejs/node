@@ -213,7 +213,7 @@ BreakIterator::BreakIterator(const BreakIterator &other)
       requestLocale(other.requestLocale) {
 }
 
-BreakIterator &BreakIterator::operator =(const BreakIterator &other) {
+BreakIterator& BreakIterator::operator=(const BreakIterator& other) U_LIFETIME_BOUND {
     if (this != &other) {
         actualLocale = other.actualLocale;
         validLocale = other.validLocale;
@@ -504,8 +504,8 @@ BreakIterator::getLocale(ULocDataLocaleType type, UErrorCode& status) const {
     return LocaleBased::getLocale(validLocale, actualLocale, type, status);
 }
 
-const char *
-BreakIterator::getLocaleID(ULocDataLocaleType type, UErrorCode& status) const {
+const char*
+BreakIterator::getLocaleID(ULocDataLocaleType type, UErrorCode& status) const U_LIFETIME_BOUND {
     if (U_FAILURE(status)) {
         return nullptr;
     }

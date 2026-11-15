@@ -50,22 +50,22 @@ inline bool _isIDSeparator(char a) { return a == '_' || a == '-'; }
 }  // namespace
 
 U_CFUNC const char* 
-uloc_getCurrentCountryID(const char* oldID);
+uloc_getCurrentCountryID(const char* oldID U_LIFETIME_BOUND);
 
 U_CFUNC const char* 
-uloc_getCurrentLanguageID(const char* oldID);
+uloc_getCurrentLanguageID(const char* oldID U_LIFETIME_BOUND);
 
 U_COMMON_API std::optional<std::string_view>
-ulocimp_toBcpKeyWithFallback(std::string_view keyword);
+ulocimp_toBcpKeyWithFallback(std::string_view keyword U_LIFETIME_BOUND);
 
 U_COMMON_API std::optional<std::string_view>
-ulocimp_toBcpTypeWithFallback(std::string_view keyword, std::string_view value);
+ulocimp_toBcpTypeWithFallback(std::string_view keyword, std::string_view value U_LIFETIME_BOUND);
 
 U_COMMON_API std::optional<std::string_view>
-ulocimp_toLegacyKeyWithFallback(std::string_view keyword);
+ulocimp_toLegacyKeyWithFallback(std::string_view keyword U_LIFETIME_BOUND);
 
 U_COMMON_API std::optional<std::string_view>
-ulocimp_toLegacyTypeWithFallback(std::string_view keyword, std::string_view value);
+ulocimp_toLegacyTypeWithFallback(std::string_view keyword, std::string_view value U_LIFETIME_BOUND);
 
 U_COMMON_API icu::CharString
 ulocimp_getKeywords(std::string_view localeID,
@@ -363,8 +363,8 @@ ulocimp_minimizeSubtags(const char* localeID,
                         bool favorScript,
                         UErrorCode& err);
 
-U_CAPI const char * U_EXPORT2
-locale_getKeywordsStart(std::string_view localeID);
+U_CAPI const char* U_EXPORT2
+locale_getKeywordsStart(std::string_view localeID U_LIFETIME_BOUND);
 
 bool
 ultag_isExtensionSubtags(const char* s, int32_t len);
@@ -403,7 +403,7 @@ bool
 ultag_isVariantSubtags(const char* s, int32_t len);
 
 const char*
-ultag_getTKeyStart(const char* localeID);
+ultag_getTKeyStart(const char* localeID U_LIFETIME_BOUND);
 
 U_COMMON_API std::optional<std::string_view>
 ulocimp_toBcpKey(std::string_view key);
@@ -412,10 +412,10 @@ U_COMMON_API std::optional<std::string_view>
 ulocimp_toLegacyKey(std::string_view key);
 
 U_COMMON_API std::optional<std::string_view>
-ulocimp_toBcpType(std::string_view key, std::string_view type);
+ulocimp_toBcpType(std::string_view key, std::string_view type U_LIFETIME_BOUND);
 
 U_COMMON_API std::optional<std::string_view>
-ulocimp_toLegacyType(std::string_view key, std::string_view type);
+ulocimp_toLegacyType(std::string_view key, std::string_view type U_LIFETIME_BOUND);
 
 /* Function for testing purpose */
 U_COMMON_API const char* const*

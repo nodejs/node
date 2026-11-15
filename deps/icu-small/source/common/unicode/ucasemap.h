@@ -108,8 +108,8 @@ U_NAMESPACE_END
  * @return locale ID
  * @stable ICU 3.4
  */
-U_CAPI const char * U_EXPORT2
-ucasemap_getLocale(const UCaseMap *csm);
+U_CAPI const char* U_EXPORT2
+ucasemap_getLocale(const UCaseMap* csm U_LIFETIME_BOUND);
 
 /**
  * Get the options bit set that is used for case folding and string comparisons.
@@ -157,8 +157,8 @@ ucasemap_setOptions(UCaseMap *csm, uint32_t options, UErrorCode *pErrorCode);
  * @return titlecasing break iterator
  * @stable ICU 3.8
  */
-U_CAPI const UBreakIterator * U_EXPORT2
-ucasemap_getBreakIterator(const UCaseMap *csm);
+U_CAPI const UBreakIterator* U_EXPORT2
+ucasemap_getBreakIterator(const UCaseMap* csm U_LIFETIME_BOUND);
 
 /**
  * Set the break iterator that is used for titlecasing.

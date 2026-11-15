@@ -15,10 +15,10 @@
 
 U_NAMESPACE_BEGIN
 
-StringPiece::StringPiece(const char* str)
+StringPiece::StringPiece(const char* str U_LIFETIME_BOUND)
     : ptr_(str), length_((str == nullptr) ? 0 : static_cast<int32_t>(uprv_strlen(str))) { }
 
-StringPiece::StringPiece(const StringPiece& x, int32_t pos) {
+StringPiece::StringPiece(const StringPiece& x U_LIFETIME_BOUND, int32_t pos) {
   if (pos < 0) {
     pos = 0;
   } else if (pos > x.length_) {
@@ -28,7 +28,7 @@ StringPiece::StringPiece(const StringPiece& x, int32_t pos) {
   length_ = x.length_ - pos;
 }
 
-StringPiece::StringPiece(const StringPiece& x, int32_t pos, int32_t len) {
+StringPiece::StringPiece(const StringPiece& x U_LIFETIME_BOUND, int32_t pos, int32_t len) {
   if (pos < 0) {
     pos = 0;
   } else if (pos > x.length_) {

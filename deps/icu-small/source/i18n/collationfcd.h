@@ -80,6 +80,24 @@ public:
             (tcccBits[i] & (static_cast<uint32_t>(1) << (c & 0x1f))) != 0;
     }
 
+    static inline UBool hasTcccBefore(const char16_t *start, const char16_t *pos) {
+        if (pos != start) {
+            char16_t prev = *--pos;
+            if (U16_IS_TRAIL(prev)) {
+                // hasTccc(<low-surrogate>) always returns false.
+                // To test possible trailing ccc, we need to check the high surrogate
+                // (or previous character for unpaired surrogate).
+                if (pos != start) {
+                    char16_t prev2 = *(pos - 1);
+                    return U16_IS_LEAD(prev2) && hasTccc(prev2);
+                }
+            } else {
+                return hasTccc(prev);
+            }
+        }
+        return false;
+    }
+
     static inline UBool mayHaveLccc(UChar32 c) {
         // Handles all of Unicode 0..10FFFF.
         // c can be negative, e.g., U_SENTINEL.

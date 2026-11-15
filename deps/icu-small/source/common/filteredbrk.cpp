@@ -75,7 +75,7 @@ class UStringSet : public UVector {
   /**
    * Return the ith UnicodeString alias
    */
-  inline const UnicodeString* getStringAt(int32_t i) const {
+  inline const UnicodeString* getStringAt(int32_t i) const U_LIFETIME_BOUND {
     return static_cast<const UnicodeString*>(elementAt(i));
   }
   /**
@@ -139,7 +139,7 @@ class SimpleFilteredSentenceBreakData : public UMemory {
 public:
   SimpleFilteredSentenceBreakData(UCharsTrie *forwards, UCharsTrie *backwards ) 
       : fForwardsPartialTrie(forwards), fBackwardsTrie(backwards), refcount(1) { }
-    SimpleFilteredSentenceBreakData *incr() {
+    SimpleFilteredSentenceBreakData* incr() U_LIFETIME_BOUND {
         umtx_atomic_inc(&refcount);
         return this;
     }
@@ -154,8 +154,10 @@ public:
     bool hasForwardsPartialTrie() const { return fForwardsPartialTrie.isValid(); }
     bool hasBackwardsTrie() const { return fBackwardsTrie.isValid(); }
 
-    const UCharsTrie &getForwardsPartialTrie() const { return *fForwardsPartialTrie; }
-    const UCharsTrie &getBackwardsTrie() const { return *fBackwardsTrie; }
+    const UCharsTrie& getForwardsPartialTrie() const U_LIFETIME_BOUND {
+        return *fForwardsPartialTrie;
+    }
+    const UCharsTrie& getBackwardsTrie() const U_LIFETIME_BOUND { return *fBackwardsTrie; }
 
 private:
     // These tries own their data arrays.
@@ -196,13 +198,21 @@ public:
 
   /* -- text modifying -- */
   virtual void setText(UText *text, UErrorCode &status) override { fDelegate->setText(text,status); }
-  virtual BreakIterator &refreshInputText(UText *input, UErrorCode &status) override { fDelegate->refreshInputText(input,status); return *this; }
+  virtual BreakIterator& refreshInputText(UText* input,
+                                          UErrorCode& status) U_LIFETIME_BOUND override {
+      fDelegate->refreshInputText(input, status);
+      return *this;
+  }
   virtual void adoptText(CharacterIterator* it) override { fDelegate->adoptText(it); }
   virtual void setText(const UnicodeString &text) override { fDelegate->setText(text); }
 
   /* -- other functions that are just delegated -- */
-  virtual UText *getUText(UText *fillIn, UErrorCode &status) const override { return fDelegate->getUText(fillIn,status); }
-  virtual CharacterIterator& getText() const override { return fDelegate->getText(); }
+  virtual UText* getUText(UText* fillIn U_LIFETIME_BOUND, UErrorCode& status) const override {
+      return fDelegate->getUText(fillIn, status);
+  }
+  virtual CharacterIterator& getText() const U_LIFETIME_BOUND override {
+      return fDelegate->getText();
+  }
 
   /* -- ITERATION -- */
   virtual int32_t first() override;

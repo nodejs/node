@@ -97,29 +97,30 @@ private:
 public:
     // TODO: private
 
-  SResource *fRoot;  // Normally a TableResource.
-  char *fLocale;
-  int32_t fIndexLength;
-  int32_t fMaxTableLength;
-  UBool fNoFallback; /* see URES_ATT_NO_FALLBACK */
-  int8_t fStringsForm; /* default STRINGS_UTF16_V1 */
-  UBool fIsPoolBundle;
+    SResource *fRoot;  // Normally a TableResource.
+    char *fLocale;
+    int32_t fIndexLength;
+    int32_t fMaxTableLength;
+    UBool fNoFallback; /* see URES_ATT_NO_FALLBACK */
+    int8_t fStringsForm; /* default STRINGS_UTF16_V1 */
+    UBool fIsPoolBundle;
 
-  char *fKeys;
-  KeyMapEntry *fKeyMap;
-  int32_t fKeysBottom, fKeysTop;
-  int32_t fKeysCapacity;
-  int32_t fKeysCount;
-  int32_t fLocalKeyLimit; /* key offset < limit fits into URES_TABLE */
+    char *fKeys;
+    KeyMapEntry *fKeyMap;
+    int32_t fKeysBottom, fKeysTop;
+    int32_t fKeysCapacity;
+    int32_t fKeysCount;
+    int32_t fLocalKeyLimit; /* key offset < limit fits into URES_TABLE */
 
-  icu::UnicodeString f16BitUnits;
-  int32_t f16BitStringsLength;
+    icu::UnicodeString f16BitUnits;
+    int32_t f16BitStringsLength;
 
-  const ResFile *fUsePoolBundle;
-  int32_t fPoolStringIndexLimit;
-  int32_t fPoolStringIndex16Limit;
-  int32_t fLocalStringIndexLimit;
-  SRBRoot *fWritePoolBundle;
+    const ResFile *fUsePoolBundle;
+    int32_t fPoolStringIndexLimit;
+    int32_t fPoolStringIndex16Limit;
+    int32_t fLocalStringIndexLimit;
+    SRBRoot *fWritePoolBundle;
+    const ResFile kNoPoolBundle;
 };
 
 /* write a java resource file */
@@ -139,7 +140,7 @@ void bundle_write_xml(struct SRBRoot *bundle, const char *outputDir,const char* 
  * for use in non-error cases when no resource is to be added to the bundle.
  * (nullptr is used in error cases.)
  */
-struct SResource* res_none();
+SResource* res_none();
 
 class ArrayResource;
 class TableResource;
@@ -326,7 +327,9 @@ public:
     StringBaseResource(int8_t type, const char16_t *value, int32_t len, UErrorCode &errorCode);
     virtual ~StringBaseResource();
 
-    const char16_t *getBuffer() const { return icu::toUCharPtr(fString.getBuffer()); }
+    const char16_t* getBuffer() const U_LIFETIME_BOUND {
+        return icu::toUCharPtr(fString.getBuffer());
+    }
     int32_t length() const { return fString.length(); }
 
     virtual void handlePreWrite(uint32_t *byteOffset) override;

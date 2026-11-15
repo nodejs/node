@@ -19,6 +19,7 @@
 #include "unicode/format.h"
 #include "unicode/unistr.h"
 #include "plurrule_impl.h"
+#include "ubidiimp.h"
 
 U_NAMESPACE_BEGIN
 
@@ -32,8 +33,6 @@ using namespace pluralimpl;
 #define LEFT_CURLY_BRACE ((UChar32)0x007B)
 #define RIGHT_CURLY_BRACE ((UChar32)0x007D)
 #define HTAB ((UChar32)0x0009)
-#define CR ((UChar32)0x000D)
-#define LF ((UChar32)0x000A)
 #define IDEOGRAPHIC_SPACE ((UChar32)0x3000)
 
 #define PIPE ((UChar32)0x007C)

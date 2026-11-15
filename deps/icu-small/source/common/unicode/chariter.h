@@ -186,7 +186,9 @@ protected:
      * Assignment operator to be overridden in the implementing class.
      * @stable ICU 2.0
      */
-    ForwardCharacterIterator &operator=(const ForwardCharacterIterator&) { return *this; }
+    ForwardCharacterIterator& operator=(const ForwardCharacterIterator&) U_LIFETIME_BOUND {
+        return *this;
+    }
 };
 
 /**
@@ -664,7 +666,7 @@ protected:
      * @return the newly set CharacterIterator.
      * @stable ICU 2.0
      */
-    CharacterIterator &operator=(const CharacterIterator &that);
+    CharacterIterator& operator=(const CharacterIterator& that) U_LIFETIME_BOUND;
 
     /**
      * Base class text length field.

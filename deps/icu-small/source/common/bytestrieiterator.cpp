@@ -22,8 +22,9 @@
 
 U_NAMESPACE_BEGIN
 
-BytesTrie::Iterator::Iterator(const void *trieBytes, int32_t maxStringLength,
-                              UErrorCode &errorCode)
+BytesTrie::Iterator::Iterator(const void* trieBytes U_LIFETIME_BOUND,
+                              int32_t maxStringLength,
+                              UErrorCode& errorCode)
         : bytes_(static_cast<const uint8_t *>(trieBytes)),
           pos_(bytes_), initialPos_(bytes_),
           remainingMatchLength_(-1), initialRemainingMatchLength_(-1),
@@ -80,8 +81,8 @@ BytesTrie::Iterator::~Iterator() {
     delete stack_;
 }
 
-BytesTrie::Iterator &
-BytesTrie::Iterator::reset() {
+BytesTrie::Iterator&
+BytesTrie::Iterator::reset() U_LIFETIME_BOUND {
     pos_=initialPos_;
     remainingMatchLength_=initialRemainingMatchLength_;
     int32_t length=remainingMatchLength_+1;  // Remaining match length.
@@ -169,7 +170,7 @@ BytesTrie::Iterator::next(UErrorCode &errorCode) {
 }
 
 StringPiece
-BytesTrie::Iterator::getString() const {
+BytesTrie::Iterator::getString() const U_LIFETIME_BOUND {
     return str_ == nullptr ? StringPiece() : str_->toStringPiece();
 }
 
@@ -181,8 +182,10 @@ BytesTrie::Iterator::truncateAndStop() {
 }
 
 // Branch node, needs to take the first outbound edge and push state for the rest.
-const uint8_t *
-BytesTrie::Iterator::branchNext(const uint8_t *pos, int32_t length, UErrorCode &errorCode) {
+const uint8_t*
+BytesTrie::Iterator::branchNext(const uint8_t* pos U_LIFETIME_BOUND,
+                                int32_t length,
+                                UErrorCode& errorCode) {
     while(length>kMaxBranchLinearSubNodeLength) {
         ++pos;  // ignore the comparison byte
         // Push state for the greater-or-equal edge.
