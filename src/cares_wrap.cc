@@ -402,24 +402,33 @@ Maybe<int> ParseGeneralReply(Environment* env,
   return Just<int>(ARES_SUCCESS);
 }
 
-Maybe<int> ParseMxReply(Environment* env,
-                        const unsigned char* buf,
-                        int len,
-                        Local<Array> ret,
-                        bool need_type = false) {
-  HandleScope handle_scope(env->isolate());
-
-  auto tmpl = env->mx_record_template();
+// Returns the per-isolate dictionary template for a record type, creating and
+// caching it on first use.
+template <size_t N>
+Local<DictionaryTemplate> GetRecordTemplate(
+    Environment* env,
+    Local<DictionaryTemplate> (Environment::*getter)() const,
+    void (Environment::*setter)(Local<DictionaryTemplate>),
+    const std::string_view (&names)[N]) {
+  Local<DictionaryTemplate> tmpl = (env->*getter)();
   if (tmpl.IsEmpty()) {
-    static constexpr std::string_view names[] = {
-        "exchange",
-        "priority",
-        "type",
-    };
     tmpl = DictionaryTemplate::New(env->isolate(), names);
-    env->set_mx_record_template(tmpl);
+    (env->*setter)(tmpl);
   }
+  return tmpl;
+}
 
+// Parses a DNS reply and calls `fn(rr, index)` for each answer record of the
+// given type, where `index` is the record's position in the answer section.
+// `fn` returns false if a JS exception is pending. Returns the parse status,
+// ARES_ENODATA if no answer has the requested type and `allow_empty` is false,
+// or Nothing if `fn` failed.
+template <typename Fn>
+Maybe<int> ForEachAnswer(const unsigned char* buf,
+                         int len,
+                         ares_dns_rec_type_t type,
+                         Fn&& fn,
+                         bool allow_empty = false) {
   ares_dns_record_t* dnsrec = nullptr;
   int status = ares_dns_parse(buf, len, 0, &dnsrec);
   if (status != ARES_SUCCESS) {
@@ -429,35 +438,62 @@ Maybe<int> ParseMxReply(Environment* env,
   DeleteFnPtr<ares_dns_record_t, ares_dns_record_destroy> free_me(dnsrec);
 
   const size_t rr_count = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER);
-  uint32_t offset = ret->Length();
-  uint32_t count = 0;
-
-  MaybeLocal<Value> values[] = {
-      Undefined(env->isolate()),  // exchange
-      Undefined(env->isolate()),  // priority
-      Undefined(env->isolate()),  // type
-  };
-
+  bool found = false;
   for (size_t i = 0; i < rr_count; i++) {
     const ares_dns_rr_t* rr =
         ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
-    if (ares_dns_rr_get_type(rr) != ARES_REC_TYPE_MX) continue;
-
-    const char* exchange = ares_dns_rr_get_str(rr, ARES_RR_MX_EXCHANGE);
-    unsigned short priority =  // NOLINT(runtime/int)
-        ares_dns_rr_get_u16(rr, ARES_RR_MX_PREFERENCE);
-    values[0] = OneByteString(env->isolate(), exchange);
-    values[1] = Integer::New(env->isolate(), priority);
-    values[2] = env->dns_mx_string();
-    Local<Value> record;
-    if (!NewDictionaryInstance(env->context(), tmpl, values).ToLocal(&record) ||
-        ret->Set(env->context(), offset + count++, record).IsNothing()) {
-      return Nothing<int>();
-    }
+    if (ares_dns_rr_get_type(rr) != type) continue;
+    found = true;
+    if (!fn(rr, i)) return Nothing<int>();
   }
 
-  if (count == 0) return Just<int>(ARES_ENODATA);
+  if (!found && !allow_empty) return Just<int>(ARES_ENODATA);
   return Just<int>(ARES_SUCCESS);
+}
+
+// Creates a record object from `tmpl` and `values` and appends it to `ret` at
+// `index`. Returns false if a JS exception is pending.
+template <size_t N>
+bool AppendRecord(Environment* env,
+                  Local<DictionaryTemplate> tmpl,
+                  MaybeLocal<Value> (&values)[N],
+                  Local<Array> ret,
+                  uint32_t index) {
+  Local<Object> record;
+  return NewDictionaryInstance(env->context(), tmpl, values).ToLocal(&record) &&
+         ret->Set(env->context(), index, record).IsJust();
+}
+
+Maybe<int> ParseMxReply(Environment* env,
+                        const unsigned char* buf,
+                        int len,
+                        Local<Array> ret,
+                        bool need_type = false) {
+  HandleScope handle_scope(env->isolate());
+  static constexpr std::string_view names[] = {
+      "exchange",
+      "priority",
+      "type",
+  };
+  auto tmpl = GetRecordTemplate(env,
+                                &Environment::mx_record_template,
+                                &Environment::set_mx_record_template,
+                                names);
+
+  const uint32_t offset = ret->Length();
+  uint32_t count = 0;
+  return ForEachAnswer(
+      buf, len, ARES_REC_TYPE_MX, [&](const ares_dns_rr_t* rr, size_t) {
+        const char* exchange = ares_dns_rr_get_str(rr, ARES_RR_MX_EXCHANGE);
+        unsigned short priority =  // NOLINT(runtime/int)
+            ares_dns_rr_get_u16(rr, ARES_RR_MX_PREFERENCE);
+        MaybeLocal<Value> values[] = {
+            OneByteString(env->isolate(), exchange),
+            Integer::New(env->isolate(), priority),
+            env->dns_mx_string(),
+        };
+        return AppendRecord(env, tmpl, values, ret, offset + count++);
+      });
 }
 
 Maybe<int> ParseCaaReply(Environment* env,
@@ -466,140 +502,89 @@ Maybe<int> ParseCaaReply(Environment* env,
                          Local<Array> ret,
                          bool need_type = false) {
   HandleScope handle_scope(env->isolate());
-
-  auto tmpl = env->caa_record_template();
-  if (tmpl.IsEmpty()) {
-    static constexpr std::string_view names[] = {
-        "critical",
-        "type",
-    };
-    tmpl = DictionaryTemplate::New(env->isolate(), names);
-    env->set_caa_record_template(tmpl);
-  }
-
-  ares_dns_record_t* dnsrec = nullptr;
-  int status = ares_dns_parse(buf, len, 0, &dnsrec);
-  if (status != ARES_SUCCESS) {
-    ares_dns_record_destroy(dnsrec);
-    return Just<int>(status);
-  }
-  DeleteFnPtr<ares_dns_record_t, ares_dns_record_destroy> free_me(dnsrec);
-
-  MaybeLocal<Value> values[] = {
-      Undefined(env->isolate()),  // critical
-      Undefined(env->isolate()),  // type
+  static constexpr std::string_view names[] = {
+      "critical",
+      "type",
   };
+  auto tmpl = GetRecordTemplate(env,
+                                &Environment::caa_record_template,
+                                &Environment::set_caa_record_template,
+                                names);
 
-  const size_t rr_count = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER);
-  uint32_t offset = ret->Length();
+  const uint32_t offset = ret->Length();
   uint32_t count = 0;
-  for (size_t i = 0; i < rr_count; i++) {
-    const ares_dns_rr_t* rr =
-        ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
-    if (ares_dns_rr_get_type(rr) != ARES_REC_TYPE_CAA) continue;
+  return ForEachAnswer(
+      buf, len, ARES_REC_TYPE_CAA, [&](const ares_dns_rr_t* rr, size_t) {
+        unsigned char critical = ares_dns_rr_get_u8(rr, ARES_RR_CAA_CRITICAL);
+        MaybeLocal<Value> values[] = {
+            Integer::New(env->isolate(), critical),
+            env->dns_caa_string(),
+        };
+        Local<Object> caa_record;
+        if (!NewDictionaryInstance(env->context(), tmpl, values)
+                 .ToLocal(&caa_record)) {
+          return false;
+        }
 
-    unsigned char critical = ares_dns_rr_get_u8(rr, ARES_RR_CAA_CRITICAL);
-    values[0] = Integer::New(env->isolate(), critical);
-    values[1] = env->dns_caa_string();
-    Local<Object> caa_record;
-    if (!NewDictionaryInstance(env->context(), tmpl, values)
-             .ToLocal(&caa_record)) {
-      return Nothing<int>();
-    }
+        const char* tag = ares_dns_rr_get_str(rr, ARES_RR_CAA_TAG);
+        size_t value_len = 0;
+        const unsigned char* value =
+            ares_dns_rr_get_bin(rr, ARES_RR_CAA_VALUE, &value_len);
 
-    const char* tag = ares_dns_rr_get_str(rr, ARES_RR_CAA_TAG);
-    size_t value_len = 0;
-    const unsigned char* value =
-        ares_dns_rr_get_bin(rr, ARES_RR_CAA_VALUE, &value_len);
-
-    // This additional property is not part of the template as it is
-    // variable based on the record.
-    if (caa_record
-            ->Set(env->context(),
-                  OneByteString(env->isolate(), tag),
-                  OneByteString(env->isolate(), value, value_len))
-            .IsNothing()) {
-      return Nothing<int>();
-    }
-
-    if (ret->Set(env->context(), offset + count++, caa_record).IsNothing()) {
-      return Nothing<int>();
-    }
-  }
-
-  if (count == 0) return Just<int>(ARES_ENODATA);
-  return Just<int>(ARES_SUCCESS);
+        // This additional property is not part of the template as it is
+        // variable based on the record.
+        return caa_record
+                   ->Set(env->context(),
+                         OneByteString(env->isolate(), tag),
+                         OneByteString(env->isolate(), value, value_len))
+                   .IsJust() &&
+               ret->Set(env->context(), offset + count++, caa_record).IsJust();
+      });
 }
 
 Maybe<int> ParseTlsaReply(Environment* env,
                           unsigned char* buf,
                           int len,
                           Local<Array> ret) {
-  EscapableHandleScope handle_scope(env->isolate());
-
-  auto tmpl = env->tlsa_record_template();
-  if (tmpl.IsEmpty()) {
-    static constexpr std::string_view names[] = {
-        "certUsage",
-        "selector",
-        "match",
-        "data",
-    };
-    tmpl = DictionaryTemplate::New(env->isolate(), names);
-    env->set_tlsa_record_template(tmpl);
-  }
-
-  ares_dns_record_t* dnsrec = nullptr;
-
-  int status = ares_dns_parse(buf, len, 0, &dnsrec);
-  if (status != ARES_SUCCESS) {
-    ares_dns_record_destroy(dnsrec);
-    return Just<int>(status);
-  }
-
-  DeleteFnPtr<ares_dns_record_t, ares_dns_record_destroy> free_me(dnsrec);
-
-  uint32_t offset = ret->Length();
-  size_t rr_count = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER);
-
-  MaybeLocal<Value> values[] = {
-      Undefined(env->isolate()),  // certUsage
-      Undefined(env->isolate()),  // selector
-      Undefined(env->isolate()),  // match
-      Undefined(env->isolate()),  // data
+  HandleScope handle_scope(env->isolate());
+  static constexpr std::string_view names[] = {
+      "certUsage",
+      "selector",
+      "match",
+      "data",
   };
+  auto tmpl = GetRecordTemplate(env,
+                                &Environment::tlsa_record_template,
+                                &Environment::set_tlsa_record_template,
+                                names);
 
-  for (size_t i = 0; i < rr_count; i++) {
-    const ares_dns_rr_t* rr =
-        ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
+  const uint32_t offset = ret->Length();
+  return ForEachAnswer(
+      buf,
+      len,
+      ARES_REC_TYPE_TLSA,
+      [&](const ares_dns_rr_t* rr, size_t i) {
+        unsigned char certusage =
+            ares_dns_rr_get_u8(rr, ARES_RR_TLSA_CERT_USAGE);
+        unsigned char selector = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_SELECTOR);
+        unsigned char match = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_MATCH);
+        size_t data_len;
+        const unsigned char* data =
+            ares_dns_rr_get_bin(rr, ARES_RR_TLSA_DATA, &data_len);
+        if (!data || data_len == 0) return true;
 
-    if (ares_dns_rr_get_type(rr) != ARES_REC_TYPE_TLSA) continue;
+        Local<ArrayBuffer> data_ab = ArrayBuffer::New(env->isolate(), data_len);
+        memcpy(data_ab->Data(), data, data_len);
 
-    unsigned char certusage = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_CERT_USAGE);
-    unsigned char selector = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_SELECTOR);
-    unsigned char match = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_MATCH);
-    size_t data_len;
-    const unsigned char* data =
-        ares_dns_rr_get_bin(rr, ARES_RR_TLSA_DATA, &data_len);
-    if (!data || data_len == 0) continue;
-
-    Local<ArrayBuffer> data_ab = ArrayBuffer::New(env->isolate(), data_len);
-    memcpy(data_ab->Data(), data, data_len);
-
-    values[0] = Integer::NewFromUnsigned(env->isolate(), certusage);
-    values[1] = Integer::NewFromUnsigned(env->isolate(), selector);
-    values[2] = Integer::NewFromUnsigned(env->isolate(), match);
-    values[3] = data_ab;
-
-    Local<Object> tlsa_rec;
-    if (!NewDictionaryInstance(env->context(), tmpl, values)
-             .ToLocal(&tlsa_rec) ||
-        ret->Set(env->context(), offset + i, tlsa_rec).IsNothing()) {
-      return Nothing<int>();
-    }
-  }
-
-  return Just<int>(ARES_SUCCESS);
+        MaybeLocal<Value> values[] = {
+            Integer::NewFromUnsigned(env->isolate(), certusage),
+            Integer::NewFromUnsigned(env->isolate(), selector),
+            Integer::NewFromUnsigned(env->isolate(), match),
+            data_ab,
+        };
+        return AppendRecord(env, tmpl, values, ret, offset + i);
+      },
+      /* allow_empty */ true);
 }
 
 Maybe<int> ParseTxtReply(Environment* env,
@@ -608,68 +593,39 @@ Maybe<int> ParseTxtReply(Environment* env,
                          Local<Array> ret,
                          bool need_type = false) {
   HandleScope handle_scope(env->isolate());
-
-  auto tmpl = env->txt_record_template();
-  if (tmpl.IsEmpty()) {
-    static constexpr std::string_view names[] = {
-        "entries",
-        "type",
-    };
-    tmpl = DictionaryTemplate::New(env->isolate(), names);
-    env->set_txt_record_template(tmpl);
-  }
-
-  ares_dns_record_t* dnsrec = nullptr;
-  int status = ares_dns_parse(buf, len, 0, &dnsrec);
-  if (status != ARES_SUCCESS) {
-    ares_dns_record_destroy(dnsrec);
-    return Just<int>(status);
-  }
-  DeleteFnPtr<ares_dns_record_t, ares_dns_record_destroy> free_me(dnsrec);
-
-  const size_t rr_count = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER);
-  uint32_t offset = ret->Length();
-  uint32_t count = 0;
-
-  MaybeLocal<Value> values[] = {
-      Undefined(env->isolate()),  // entries
-      Undefined(env->isolate()),  // type
+  static constexpr std::string_view names[] = {
+      "entries",
+      "type",
   };
+  auto tmpl = GetRecordTemplate(env,
+                                &Environment::txt_record_template,
+                                &Environment::set_txt_record_template,
+                                names);
 
-  for (size_t i = 0; i < rr_count; i++) {
-    const ares_dns_rr_t* rr =
-        ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
-    if (ares_dns_rr_get_type(rr) != ARES_REC_TYPE_TXT) continue;
+  const uint32_t offset = ret->Length();
+  uint32_t count = 0;
+  return ForEachAnswer(
+      buf, len, ARES_REC_TYPE_TXT, [&](const ares_dns_rr_t* rr, size_t) {
+        // Each TXT record is a chunk consisting of one or more
+        // character-strings.
+        LocalVector<Value> chunks(env->isolate());
+        size_t str_count = ares_dns_rr_get_abin_cnt(rr, ARES_RR_TXT_DATA);
+        chunks.reserve(str_count);
+        for (size_t j = 0; j < str_count; j++) {
+          size_t str_len = 0;
+          const unsigned char* str =
+              ares_dns_rr_get_abin(rr, ARES_RR_TXT_DATA, j, &str_len);
+          chunks.push_back(OneByteString(env->isolate(), str, str_len));
+        }
 
-    // Each TXT record is a chunk consisting of one or more character-strings.
-    LocalVector<Value> chunks(env->isolate());
-    size_t str_count = ares_dns_rr_get_abin_cnt(rr, ARES_RR_TXT_DATA);
-    chunks.reserve(str_count);
-    for (size_t j = 0; j < str_count; j++) {
-      size_t str_len = 0;
-      const unsigned char* str =
-          ares_dns_rr_get_abin(rr, ARES_RR_TXT_DATA, j, &str_len);
-      chunks.push_back(OneByteString(env->isolate(), str, str_len));
-    }
-
-    Local<Array> txt_chunk =
-        Array::New(env->isolate(), chunks.data(), chunks.size());
-    if (need_type) {
-      values[0] = txt_chunk;
-      values[1] = env->dns_txt_string();
-      Local<Object> elem;
-      if (!NewDictionaryInstance(env->context(), tmpl, values).ToLocal(&elem) ||
-          ret->Set(env->context(), offset + count++, elem).IsNothing()) {
-        return Nothing<int>();
-      }
-    } else if (ret->Set(env->context(), offset + count++, txt_chunk)
-                   .IsNothing()) {
-      return Nothing<int>();
-    }
-  }
-
-  if (count == 0) return Just<int>(ARES_ENODATA);
-  return Just<int>(ARES_SUCCESS);
+        Local<Array> txt_chunk =
+            Array::New(env->isolate(), chunks.data(), chunks.size());
+        if (need_type) {
+          MaybeLocal<Value> values[] = {txt_chunk, env->dns_txt_string()};
+          return AppendRecord(env, tmpl, values, ret, offset + count++);
+        }
+        return ret->Set(env->context(), offset + count++, txt_chunk).IsJust();
+      });
 }
 
 Maybe<int> ParseSrvReply(Environment* env,
@@ -678,64 +634,35 @@ Maybe<int> ParseSrvReply(Environment* env,
                          Local<Array> ret,
                          bool need_type = false) {
   HandleScope handle_scope(env->isolate());
-
-  auto tmpl = env->srv_record_template();
-  if (tmpl.IsEmpty()) {
-    static constexpr std::string_view names[] = {
-        "name",
-        "port",
-        "priority",
-        "weight",
-        "type",
-    };
-    tmpl = DictionaryTemplate::New(env->isolate(), names);
-    env->set_srv_record_template(tmpl);
-  }
-
-  ares_dns_record_t* dnsrec = nullptr;
-  int status = ares_dns_parse(buf, len, 0, &dnsrec);
-  if (status != ARES_SUCCESS) {
-    ares_dns_record_destroy(dnsrec);
-    return Just<int>(status);
-  }
-  DeleteFnPtr<ares_dns_record_t, ares_dns_record_destroy> free_me(dnsrec);
-
-  MaybeLocal<Value> values[] = {
-      Undefined(env->isolate()),  // name
-      Undefined(env->isolate()),  // port
-      Undefined(env->isolate()),  // priority
-      Undefined(env->isolate()),  // weight
-      Undefined(env->isolate()),  // type
+  static constexpr std::string_view names[] = {
+      "name",
+      "port",
+      "priority",
+      "weight",
+      "type",
   };
+  auto tmpl = GetRecordTemplate(env,
+                                &Environment::srv_record_template,
+                                &Environment::set_srv_record_template,
+                                names);
 
-  const size_t rr_count = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER);
-  uint32_t offset = ret->Length();
+  const uint32_t offset = ret->Length();
   uint32_t count = 0;
-  for (size_t i = 0; i < rr_count; i++) {
-    const ares_dns_rr_t* rr =
-        ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
-    if (ares_dns_rr_get_type(rr) != ARES_REC_TYPE_SRV) continue;
-
-    const char* target = ares_dns_rr_get_str(rr, ARES_RR_SRV_TARGET);
-    values[0] = OneByteString(env->isolate(), target);
-    values[1] =
-        Integer::New(env->isolate(), ares_dns_rr_get_u16(rr, ARES_RR_SRV_PORT));
-    values[2] = Integer::New(env->isolate(),
-                             ares_dns_rr_get_u16(rr, ARES_RR_SRV_PRIORITY));
-    values[3] = Integer::New(env->isolate(),
-                             ares_dns_rr_get_u16(rr, ARES_RR_SRV_WEIGHT));
-    values[4] = env->dns_srv_string();
-
-    Local<Object> srv_record;
-    if (!NewDictionaryInstance(env->context(), tmpl, values)
-             .ToLocal(&srv_record) ||
-        ret->Set(env->context(), offset + count++, srv_record).IsNothing()) {
-      return Nothing<int>();
-    }
-  }
-
-  if (count == 0) return Just<int>(ARES_ENODATA);
-  return Just<int>(ARES_SUCCESS);
+  return ForEachAnswer(
+      buf, len, ARES_REC_TYPE_SRV, [&](const ares_dns_rr_t* rr, size_t) {
+        const char* target = ares_dns_rr_get_str(rr, ARES_RR_SRV_TARGET);
+        MaybeLocal<Value> values[] = {
+            OneByteString(env->isolate(), target),
+            Integer::New(env->isolate(),
+                         ares_dns_rr_get_u16(rr, ARES_RR_SRV_PORT)),
+            Integer::New(env->isolate(),
+                         ares_dns_rr_get_u16(rr, ARES_RR_SRV_PRIORITY)),
+            Integer::New(env->isolate(),
+                         ares_dns_rr_get_u16(rr, ARES_RR_SRV_WEIGHT)),
+            env->dns_srv_string(),
+        };
+        return AppendRecord(env, tmpl, values, ret, offset + count++);
+      });
 }
 
 Maybe<int> ParseNaptrReply(Environment* env,
@@ -744,93 +671,59 @@ Maybe<int> ParseNaptrReply(Environment* env,
                            Local<Array> ret,
                            bool need_type = false) {
   HandleScope handle_scope(env->isolate());
-
-  auto tmpl = env->naptr_record_template();
-  if (tmpl.IsEmpty()) {
-    static constexpr std::string_view names[] = {
-        "flags",
-        "service",
-        "regexp",
-        "replacement",
-        "order",
-        "preference",
-        "type",
-    };
-    tmpl = DictionaryTemplate::New(env->isolate(), names);
-    env->set_naptr_record_template(tmpl);
-  }
-
-  ares_dns_record_t* dnsrec = nullptr;
-  int status = ares_dns_parse(buf, len, 0, &dnsrec);
-  if (status != ARES_SUCCESS) {
-    ares_dns_record_destroy(dnsrec);
-    return Just<int>(status);
-  }
-  DeleteFnPtr<ares_dns_record_t, ares_dns_record_destroy> free_me(dnsrec);
-
-  MaybeLocal<Value> values[] = {
-      Undefined(env->isolate()),  // flags
-      Undefined(env->isolate()),  // service
-      Undefined(env->isolate()),  // regexp
-      Undefined(env->isolate()),  // replacement
-      Undefined(env->isolate()),  // order
-      Undefined(env->isolate()),  // preference
-      Undefined(env->isolate()),  // type
+  static constexpr std::string_view names[] = {
+      "flags",
+      "service",
+      "regexp",
+      "replacement",
+      "order",
+      "preference",
+      "type",
   };
+  auto tmpl = GetRecordTemplate(env,
+                                &Environment::naptr_record_template,
+                                &Environment::set_naptr_record_template,
+                                names);
 
-  const size_t rr_count = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER);
-  uint32_t offset = ret->Length();
+  const uint32_t offset = ret->Length();
   uint32_t count = 0;
-  for (size_t i = 0; i < rr_count; i++) {
-    const ares_dns_rr_t* rr =
-        ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
-    if (ares_dns_rr_get_type(rr) != ARES_REC_TYPE_NAPTR) continue;
-
-    values[0] = OneByteString(env->isolate(),
-                              ares_dns_rr_get_str(rr, ARES_RR_NAPTR_FLAGS));
-    values[1] = OneByteString(env->isolate(),
-                              ares_dns_rr_get_str(rr, ARES_RR_NAPTR_SERVICES));
-    values[2] = OneByteString(env->isolate(),
-                              ares_dns_rr_get_str(rr, ARES_RR_NAPTR_REGEXP));
-    values[3] = OneByteString(
-        env->isolate(), ares_dns_rr_get_str(rr, ARES_RR_NAPTR_REPLACEMENT));
-    values[4] = Integer::New(env->isolate(),
-                             ares_dns_rr_get_u16(rr, ARES_RR_NAPTR_ORDER));
-    values[5] = Integer::New(env->isolate(),
-                             ares_dns_rr_get_u16(rr, ARES_RR_NAPTR_PREFERENCE));
-    if (need_type) {
-      values[6] = env->dns_naptr_string();
-    }
-
-    Local<Object> naptr_record;
-    if (!NewDictionaryInstance(env->context(), tmpl, values)
-             .ToLocal(&naptr_record) ||
-        ret->Set(env->context(), offset + count++, naptr_record).IsNothing()) {
-      return Nothing<int>();
-    }
-  }
-
-  if (count == 0) return Just<int>(ARES_ENODATA);
-  return Just<int>(ARES_SUCCESS);
+  return ForEachAnswer(
+      buf, len, ARES_REC_TYPE_NAPTR, [&](const ares_dns_rr_t* rr, size_t) {
+        MaybeLocal<Value> values[] = {
+            OneByteString(env->isolate(),
+                          ares_dns_rr_get_str(rr, ARES_RR_NAPTR_FLAGS)),
+            OneByteString(env->isolate(),
+                          ares_dns_rr_get_str(rr, ARES_RR_NAPTR_SERVICES)),
+            OneByteString(env->isolate(),
+                          ares_dns_rr_get_str(rr, ARES_RR_NAPTR_REGEXP)),
+            OneByteString(env->isolate(),
+                          ares_dns_rr_get_str(rr, ARES_RR_NAPTR_REPLACEMENT)),
+            Integer::New(env->isolate(),
+                         ares_dns_rr_get_u16(rr, ARES_RR_NAPTR_ORDER)),
+            Integer::New(env->isolate(),
+                         ares_dns_rr_get_u16(rr, ARES_RR_NAPTR_PREFERENCE)),
+            need_type ? MaybeLocal<Value>(env->dns_naptr_string())
+                      : MaybeLocal<Value>(Undefined(env->isolate())),
+        };
+        return AppendRecord(env, tmpl, values, ret, offset + count++);
+      });
 }
 
 Local<DictionaryTemplate> getSoaRecordTemplate(Environment* env) {
-  auto tmpl = env->soa_record_template();
-  if (tmpl.IsEmpty()) {
-    static constexpr std::string_view names[] = {
-        "nsname",
-        "hostmaster",
-        "serial",
-        "refresh",
-        "retry",
-        "expire",
-        "minttl",
-        "type",
-    };
-    tmpl = DictionaryTemplate::New(env->isolate(), names);
-    env->set_soa_record_template(tmpl);
-  }
-  return tmpl;
+  static constexpr std::string_view names[] = {
+      "nsname",
+      "hostmaster",
+      "serial",
+      "refresh",
+      "retry",
+      "expire",
+      "minttl",
+      "type",
+  };
+  return GetRecordTemplate(env,
+                           &Environment::soa_record_template,
+                           &Environment::set_soa_record_template,
+                           names);
 }
 
 Maybe<int> ParseSoaReply(Environment* env,
