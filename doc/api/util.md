@@ -2567,6 +2567,12 @@ parseEnv('HELLO=world\nHELLO=oh my\n');
 <!-- YAML
 added: v8.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Calling `promisify` on a function that returns a `Promise` no
+                 longer emits a deprecation warning. Rejections of the returned
+                 `Promise` are forwarded, and a `PROMISIFY_RETURNED_PROMISE`
+                 warning is emitted instead.
   - version: v20.8.0
     pr-url: https://github.com/nodejs/node/pull/49647
     description: Calling `promisify` on a function that returns a `Promise` is
@@ -2636,6 +2642,17 @@ callStat();
 
 If there is an `original[util.promisify.custom]` property present, `promisify`
 will return its value, see [Custom promisified functions][].
+
+`promisify()` is intended for functions that report their result through a
+callback. If `original` returns a `Promise`, a warning with the code
+`PROMISIFY_RETURNED_PROMISE` is emitted the first time the promisified function
+is called. The promisified function still settles when the callback is called,
+but if the returned `Promise` rejects first, the promisified function rejects
+with the same reason. If `original` returns a `Promise` and never calls the
+callback, the promise returned by the promisified function never settles; call
+such functions directly instead of using `promisify()`.
+The warning can be silenced with
+[`--disable-warning=PROMISIFY_RETURNED_PROMISE`][`--disable-warning`].
 
 `promisify()` assumes that `original` is a function taking a callback as its
 final argument in all cases. If `original` is not a function, `promisify()`
@@ -4166,6 +4183,7 @@ npx codemod@latest @nodejs/util-is
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`'warning'`]: process.md#event-warning
+[`--disable-warning`]: cli.md#--disable-warningcode-or-type
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
