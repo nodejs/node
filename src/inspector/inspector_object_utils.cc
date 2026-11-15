@@ -98,5 +98,61 @@ MaybeLocal<Object> ObjectGetObject(Local<Context> context,
   return handle_scope.Escape(value.As<Object>());
 }
 
+void ThrowEventError(Isolate* isolate, const std::string& message) {
+  isolate->ThrowException(v8::Exception::TypeError(
+      String::NewFromUtf8(isolate, message.c_str()).ToLocalChecked()));
+}
+
+static bool ThrowMissing(const char* prefix, const char* property) {
+  ThrowEventError(Isolate::GetCurrent(),
+                  std::string("Missing ") + prefix + property + " in event");
+  return false;
+}
+
+bool ObjectGetRequired(Local<Context> context,
+                       Local<Object> object,
+                       const char* property,
+                       protocol::String* out,
+                       const char* prefix) {
+  return ObjectGetProtocolString(context, object, property).To(out) ||
+         ThrowMissing(prefix, property);
+}
+
+bool ObjectGetRequired(Local<Context> context,
+                       Local<Object> object,
+                       const char* property,
+                       double* out,
+                       const char* prefix) {
+  return ObjectGetDouble(context, object, property).To(out) ||
+         ThrowMissing(prefix, property);
+}
+
+bool ObjectGetRequired(Local<Context> context,
+                       Local<Object> object,
+                       const char* property,
+                       int* out,
+                       const char* prefix) {
+  return ObjectGetInt(context, object, property).To(out) ||
+         ThrowMissing(prefix, property);
+}
+
+bool ObjectGetRequired(Local<Context> context,
+                       Local<Object> object,
+                       const char* property,
+                       bool* out,
+                       const char* prefix) {
+  return ObjectGetBool(context, object, property).To(out) ||
+         ThrowMissing(prefix, property);
+}
+
+bool ObjectGetRequired(Local<Context> context,
+                       Local<Object> object,
+                       const char* property,
+                       Local<Object>* out,
+                       const char* prefix) {
+  return ObjectGetObject(context, object, property).ToLocal(out) ||
+         ThrowMissing(prefix, property);
+}
+
 }  // namespace inspector
 }  // namespace node

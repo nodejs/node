@@ -24,11 +24,6 @@ using v8::Value;
 
 constexpr size_t kDefaultMaxTotalBufferSize = 100 * 1024 * 1024;  // 100MB
 
-static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
-  isolate->ThrowException(v8::Exception::TypeError(
-      v8::String::NewFromUtf8(isolate, message.c_str()).ToLocalChecked()));
-}
-
 // Create a protocol::Network::Headers from the v8 object.
 std::unique_ptr<protocol::Network::Headers>
 NetworkAgent::createHeadersFromObject(v8::Local<v8::Context> context,
@@ -70,20 +65,13 @@ std::unique_ptr<protocol::Network::Request>
 NetworkAgent::createRequestFromObject(v8::Local<v8::Context> context,
                                       Local<Object> request) {
   HandleScope handle_scope(Isolate::GetCurrent());
-  Isolate* isolate = env_->isolate();
   protocol::String url;
-  if (!ObjectGetProtocolString(context, request, "url").To(&url)) {
-    ThrowEventError(isolate, "Missing request.url in event");
-    return {};
-  }
   protocol::String method;
-  if (!ObjectGetProtocolString(context, request, "method").To(&method)) {
-    ThrowEventError(isolate, "Missing request.method in event");
-    return {};
-  }
   Local<Object> headers_obj;
-  if (!ObjectGetObject(context, request, "headers").ToLocal(&headers_obj)) {
-    ThrowEventError(isolate, "Missing request.headers in event");
+  if (!ObjectGetRequired(context, request, "url", &url, "request.") ||
+      !ObjectGetRequired(context, request, "method", &method, "request.") ||
+      !ObjectGetRequired(
+          context, request, "headers", &headers_obj, "request.")) {
     return {};
   }
   std::unique_ptr<protocol::Network::Headers> headers =
@@ -107,26 +95,16 @@ std::unique_ptr<protocol::Network::Response>
 NetworkAgent::createResponseFromObject(v8::Local<v8::Context> context,
                                        Local<Object> response) {
   HandleScope handle_scope(Isolate::GetCurrent());
-  Isolate* isolate = env_->isolate();
   protocol::String url;
-  if (!ObjectGetProtocolString(context, response, "url").To(&url)) {
-    ThrowEventError(isolate, "Missing response.url in event");
-    return {};
-  }
   int status;
-  if (!ObjectGetInt(context, response, "status").To(&status)) {
-    ThrowEventError(isolate, "Missing response.status in event");
-    return {};
-  }
   protocol::String statusText;
-  if (!ObjectGetProtocolString(context, response, "statusText")
-           .To(&statusText)) {
-    ThrowEventError(isolate, "Missing response.statusText in event");
-    return {};
-  }
   Local<Object> headers_obj;
-  if (!ObjectGetObject(context, response, "headers").ToLocal(&headers_obj)) {
-    ThrowEventError(isolate, "Missing response.headers in event");
+  if (!ObjectGetRequired(context, response, "url", &url, "response.") ||
+      !ObjectGetRequired(context, response, "status", &status, "response.") ||
+      !ObjectGetRequired(
+          context, response, "statusText", &statusText, "response.") ||
+      !ObjectGetRequired(
+          context, response, "headers", &headers_obj, "response.")) {
     return {};
   }
   std::unique_ptr<protocol::Network::Headers> headers =
@@ -154,21 +132,14 @@ std::unique_ptr<protocol::Network::WebSocketResponse>
 NetworkAgent::createWebSocketResponse(v8::Local<v8::Context> context,
                                       Local<Object> response) {
   HandleScope handle_scope(Isolate::GetCurrent());
-  Isolate* isolate = env_->isolate();
   int status;
-  if (!ObjectGetInt(context, response, "status").To(&status)) {
-    ThrowEventError(isolate, "Missing response.status in event");
-    return {};
-  }
   protocol::String statusText;
-  if (!ObjectGetProtocolString(context, response, "statusText")
-           .To(&statusText)) {
-    ThrowEventError(isolate, "Missing response.statusText in event");
-    return {};
-  }
   Local<Object> headers_obj;
-  if (!ObjectGetObject(context, response, "headers").ToLocal(&headers_obj)) {
-    ThrowEventError(isolate, "Missing response.headers in event");
+  if (!ObjectGetRequired(context, response, "status", &status, "response.") ||
+      !ObjectGetRequired(
+          context, response, "statusText", &statusText, "response.") ||
+      !ObjectGetRequired(
+          context, response, "headers", &headers_obj, "response.")) {
     return {};
   }
   std::unique_ptr<protocol::Network::Headers> headers =
@@ -208,15 +179,10 @@ NetworkAgent::NetworkAgent(
 
 void NetworkAgent::webSocketCreated(v8::Local<v8::Context> context,
                                     v8::Local<v8::Object> params) {
-  Isolate* isolate = env_->isolate();
   protocol::String request_id;
-  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
-    ThrowEventError(isolate, "Missing requestId in event");
-    return;
-  }
   protocol::String url;
-  if (!ObjectGetProtocolString(context, params, "url").To(&url)) {
-    ThrowEventError(isolate, "Missing url in event");
+  if (!ObjectGetRequired(context, params, "requestId", &request_id) ||
+      !ObjectGetRequired(context, params, "url", &url)) {
     return;
   }
   std::unique_ptr<protocol::Network::Initiator> initiator =
@@ -230,15 +196,10 @@ void NetworkAgent::webSocketCreated(v8::Local<v8::Context> context,
 
 void NetworkAgent::webSocketClosed(v8::Local<v8::Context> context,
                                    v8::Local<v8::Object> params) {
-  Isolate* isolate = env_->isolate();
   protocol::String request_id;
-  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
-    ThrowEventError(isolate, "Missing requestId in event");
-    return;
-  }
   double timestamp;
-  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
-    ThrowEventError(isolate, "Missing timestamp in event");
+  if (!ObjectGetRequired(context, params, "requestId", &request_id) ||
+      !ObjectGetRequired(context, params, "timestamp", &timestamp)) {
     return;
   }
   frontend_->webSocketClosed(request_id, timestamp);
@@ -246,20 +207,12 @@ void NetworkAgent::webSocketClosed(v8::Local<v8::Context> context,
 
 void NetworkAgent::webSocketHandshakeResponseReceived(
     v8::Local<v8::Context> context, v8::Local<v8::Object> params) {
-  Isolate* isolate = env_->isolate();
   protocol::String request_id;
-  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
-    ThrowEventError(isolate, "Missing requestId in event");
-    return;
-  }
   double timestamp;
-  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
-    ThrowEventError(isolate, "Missing timestamp in event");
-    return;
-  }
   Local<Object> response_obj;
-  if (!ObjectGetObject(context, params, "response").ToLocal(&response_obj)) {
-    ThrowEventError(isolate, "Missing response in event");
+  if (!ObjectGetRequired(context, params, "requestId", &request_id) ||
+      !ObjectGetRequired(context, params, "timestamp", &timestamp) ||
+      !ObjectGetRequired(context, params, "response", &response_obj)) {
     return;
   }
   auto response = createWebSocketResponse(context, response_obj);
@@ -431,27 +384,18 @@ protocol::DispatchResponse NetworkAgent::loadNetworkResource(
 
 void NetworkAgent::requestWillBeSent(v8::Local<v8::Context> context,
                                      v8::Local<v8::Object> params) {
-  Isolate* isolate = env_->isolate();
   protocol::String request_id;
-  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
-    ThrowEventError(isolate, "Missing requestId in event");
-    return;
-  }
   double timestamp;
-  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
-    ThrowEventError(isolate, "Missing timestamp in event");
-    return;
-  }
   double wall_time;
-  if (!ObjectGetDouble(context, params, "wallTime").To(&wall_time)) {
-    ThrowEventError(isolate, "Missing wallTime in event");
+  if (!ObjectGetRequired(context, params, "requestId", &request_id) ||
+      !ObjectGetRequired(context, params, "timestamp", &timestamp) ||
+      !ObjectGetRequired(context, params, "wallTime", &wall_time)) {
     return;
   }
   protocol::String charset =
       ObjectGetProtocolString(context, params, "charset").FromMaybe("");
   Local<v8::Object> request_obj;
-  if (!ObjectGetObject(context, params, "request").ToLocal(&request_obj)) {
-    ThrowEventError(isolate, "Missing request in event");
+  if (!ObjectGetRequired(context, params, "request", &request_obj)) {
     return;
   }
   std::unique_ptr<protocol::Network::Request> request =
@@ -487,25 +431,14 @@ void NetworkAgent::requestWillBeSent(v8::Local<v8::Context> context,
 
 void NetworkAgent::responseReceived(v8::Local<v8::Context> context,
                                     v8::Local<v8::Object> params) {
-  Isolate* isolate = env_->isolate();
   protocol::String request_id;
-  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
-    ThrowEventError(isolate, "Missing requestId in event");
-    return;
-  }
   double timestamp;
-  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
-    ThrowEventError(isolate, "Missing timestamp in event");
-    return;
-  }
   protocol::String type;
-  if (!ObjectGetProtocolString(context, params, "type").To(&type)) {
-    ThrowEventError(isolate, "Missing type in event");
-    return;
-  }
   Local<Object> response_obj;
-  if (!ObjectGetObject(context, params, "response").ToLocal(&response_obj)) {
-    ThrowEventError(isolate, "Missing response in event");
+  if (!ObjectGetRequired(context, params, "requestId", &request_id) ||
+      !ObjectGetRequired(context, params, "timestamp", &timestamp) ||
+      !ObjectGetRequired(context, params, "type", &type) ||
+      !ObjectGetRequired(context, params, "response", &response_obj)) {
     return;
   }
   auto response = createResponseFromObject(context, response_obj);
@@ -525,25 +458,14 @@ void NetworkAgent::responseReceived(v8::Local<v8::Context> context,
 
 void NetworkAgent::loadingFailed(v8::Local<v8::Context> context,
                                  v8::Local<v8::Object> params) {
-  Isolate* isolate = env_->isolate();
   protocol::String request_id;
-  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
-    ThrowEventError(isolate, "Missing requestId in event");
-    return;
-  }
   double timestamp;
-  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
-    ThrowEventError(isolate, "Missing timestamp in event");
-    return;
-  }
   protocol::String type;
-  if (!ObjectGetProtocolString(context, params, "type").To(&type)) {
-    ThrowEventError(isolate, "Missing type in event");
-    return;
-  }
   protocol::String error_text;
-  if (!ObjectGetProtocolString(context, params, "errorText").To(&error_text)) {
-    ThrowEventError(isolate, "Missing errorText in event");
+  if (!ObjectGetRequired(context, params, "requestId", &request_id) ||
+      !ObjectGetRequired(context, params, "timestamp", &timestamp) ||
+      !ObjectGetRequired(context, params, "type", &type) ||
+      !ObjectGetRequired(context, params, "errorText", &error_text)) {
     return;
   }
 
@@ -554,15 +476,10 @@ void NetworkAgent::loadingFailed(v8::Local<v8::Context> context,
 
 void NetworkAgent::loadingFinished(v8::Local<v8::Context> context,
                                    Local<v8::Object> params) {
-  Isolate* isolate = env_->isolate();
   protocol::String request_id;
-  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
-    ThrowEventError(isolate, "Missing requestId in event");
-    return;
-  }
   double timestamp;
-  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
-    ThrowEventError(isolate, "Missing timestamp in event");
+  if (!ObjectGetRequired(context, params, "requestId", &request_id) ||
+      !ObjectGetRequired(context, params, "timestamp", &timestamp)) {
     return;
   }
 
@@ -586,8 +503,7 @@ void NetworkAgent::dataSent(v8::Local<v8::Context> context,
                             v8::Local<v8::Object> params) {
   Isolate* isolate = env_->isolate();
   protocol::String request_id;
-  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
-    ThrowEventError(isolate, "Missing requestId in event");
+  if (!ObjectGetRequired(context, params, "requestId", &request_id)) {
     return;
   }
 
@@ -605,18 +521,11 @@ void NetworkAgent::dataSent(v8::Local<v8::Context> context,
   }
 
   double timestamp;
-  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
-    ThrowEventError(isolate, "Missing timestamp in event");
-    return;
-  }
   int data_length;
-  if (!ObjectGetInt(context, params, "dataLength").To(&data_length)) {
-    ThrowEventError(isolate, "Missing dataLength in event");
-    return;
-  }
   Local<Object> data_obj;
-  if (!ObjectGetObject(context, params, "data").ToLocal(&data_obj)) {
-    ThrowEventError(isolate, "Missing data in event");
+  if (!ObjectGetRequired(context, params, "timestamp", &timestamp) ||
+      !ObjectGetRequired(context, params, "dataLength", &data_length) ||
+      !ObjectGetRequired(context, params, "data", &data_obj)) {
     return;
   }
   if (!data_obj->IsUint8Array()) {
@@ -632,29 +541,16 @@ void NetworkAgent::dataReceived(v8::Local<v8::Context> context,
                                 v8::Local<v8::Object> params) {
   Isolate* isolate = env_->isolate();
   protocol::String request_id;
-  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
-    ThrowEventError(isolate, "Missing requestId in event");
-    return;
-  }
   double timestamp;
-  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
-    ThrowEventError(isolate, "Missing timestamp in event");
-    return;
-  }
   int data_length;
-  if (!ObjectGetInt(context, params, "dataLength").To(&data_length)) {
-    ThrowEventError(isolate, "Missing dataLength in event");
-    return;
-  }
   int encoded_data_length;
-  if (!ObjectGetInt(context, params, "encodedDataLength")
-           .To(&encoded_data_length)) {
-    ThrowEventError(isolate, "Missing encodedDataLength in event");
-    return;
-  }
   Local<Object> data_obj;
-  if (!ObjectGetObject(context, params, "data").ToLocal(&data_obj)) {
-    ThrowEventError(isolate, "Missing data in event");
+  if (!ObjectGetRequired(context, params, "requestId", &request_id) ||
+      !ObjectGetRequired(context, params, "timestamp", &timestamp) ||
+      !ObjectGetRequired(context, params, "dataLength", &data_length) ||
+      !ObjectGetRequired(
+          context, params, "encodedDataLength", &encoded_data_length) ||
+      !ObjectGetRequired(context, params, "data", &data_obj)) {
     return;
   }
   if (!data_obj->IsUint8Array()) {
