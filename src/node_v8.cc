@@ -166,20 +166,12 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  HandleScope scope(Isolate::GetCurrent());
-  Realm* realm = Realm::GetCurrent(context);
-  // Recreate the buffer in the constructor.
-  InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
-  BindingData* binding =
-      realm->AddBindingData<BindingData>(holder, casted_info);
-  CHECK_NOT_NULL(binding);
+  Realm::DeserializeBindingData<BindingData>(
+      context, holder, static_cast<InternalFieldInfo*>(info));
 }
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
-  DCHECK_IS_SNAPSHOT_SLOT(index);
-  InternalFieldInfo* info = internal_field_info_;
-  internal_field_info_ = nullptr;
-  return info;
+  return TakeInternalFieldInfo(index, &internal_field_info_);
 }
 
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {

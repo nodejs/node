@@ -8,6 +8,8 @@
 #include "base_object.h"
 #include "util.h"
 
+#include <utility>
+
 namespace node {
 
 class Environment;
@@ -139,6 +141,15 @@ void SerializeSnapshotableObjects(Realm* realm,
                                   RealmSerializeInfo* info);
 
 #define DCHECK_IS_SNAPSHOT_SLOT(index) DCHECK_EQ(index, BaseObject::kSlot)
+
+// Implements SnapshotableObject::Serialize() for objects that allocate their
+// InternalFieldInfo in PrepareForSerialization(): ownership of `*info` is
+// handed over to the caller and the field is reset.
+template <typename Info>
+InternalFieldInfoBase* TakeInternalFieldInfo(int index, Info** info) {
+  DCHECK_IS_SNAPSHOT_SLOT(index);
+  return std::exchange(*info, nullptr);
+}
 
 namespace mksnapshot {
 class BindingData : public SnapshotableObject {

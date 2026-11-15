@@ -178,10 +178,7 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  Realm* realm = Realm::GetCurrent(context);
-  HandleScope scope(realm->isolate());
-  BindingData* binding = realm->AddBindingData<BindingData>(holder, info);
-  CHECK_NOT_NULL(binding);
+  Realm::DeserializeBindingData<BindingData>(context, holder, info);
 }
 
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {
