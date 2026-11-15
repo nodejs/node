@@ -57,6 +57,11 @@ class Hash final : public BaseObject {
   Hash(Environment* env, v8::Local<v8::Object> wrap);
 
  private:
+  // Determines the digest length after mdctx_ has been initialized, applying
+  // and validating the requested XOF output length. Resets mdctx_ and returns
+  // false on failure.
+  bool FinishHashInit(const EVP_MD* digest, v8::Maybe<unsigned int> xof_md_len);
+
   ncrypto::EVPMDCtxPointer mdctx_{};
   unsigned int md_len_ = 0;
   ByteSource digest_;
