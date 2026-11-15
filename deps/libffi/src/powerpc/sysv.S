@@ -116,6 +116,11 @@ ENTRY(ffi_call_SYSV)
 	bf	26,L(done_return_value)
 	stw     %r5,8(%r30)
 	stw	%r6,12(%r30)
+	bf	25,L(done_return_value)
+	stw	%r7,16(%r30)
+	stw	%r8,20(%r30)
+	stw	%r9,24(%r30)
+	stw	%r10,28(%r30)
 	/* Fall through...  */
 
 L(done_return_value):

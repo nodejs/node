@@ -54,17 +54,24 @@
 /* Needed for soft-float long-double. */
 #define PPC32_LD_R3R6		10
 
+/* Needed for _Complex long double with a 128-bit long double.  */
+#define PPC32_LD_R3R10		11
+
 /* Needed for FFI_SYSV small structure returns.  */
 #ifdef __LITTLE_ENDIAN__
 #define PPC32_SYSV_LD_STRUCT_3	PPC32_LD_R3
 #define PPC32_SYSV_LD_STRUCT_5	PPC32_LD_R3R4
 #define PPC32_SYSV_LD_STRUCT_6	PPC32_LD_R3R4
 #define PPC32_SYSV_LD_STRUCT_7	PPC32_LD_R3R4
+#define PPC32_SYSV_LD_STRUCT_1	PPC_LD_U8
+#define PPC32_SYSV_LD_STRUCT_2	PPC_LD_U16
 #else
-#define PPC32_SYSV_LD_STRUCT_3	11
-#define PPC32_SYSV_LD_STRUCT_5	12
-#define PPC32_SYSV_LD_STRUCT_6	13
-#define PPC32_SYSV_LD_STRUCT_7	14
+#define PPC32_SYSV_LD_STRUCT_3	12
+#define PPC32_SYSV_LD_STRUCT_5	13
+#define PPC32_SYSV_LD_STRUCT_6	14
+#define PPC32_SYSV_LD_STRUCT_7	15
+#define PPC32_SYSV_LD_STRUCT_1	16
+#define PPC32_SYSV_LD_STRUCT_2	17
 #endif
 
 #else /* POWERPC64 */
@@ -84,11 +91,17 @@
 #define PPC64_LD_STRUCT_5	PPC_LD_I64
 #define PPC64_LD_STRUCT_6	PPC_LD_I64
 #define PPC64_LD_STRUCT_7	PPC_LD_I64
+#define PPC64_LD_STRUCT_1	PPC_LD_U8
+#define PPC64_LD_STRUCT_2	PPC_LD_U16
+#define PPC64_LD_STRUCT_4	PPC_LD_U32
 #else
 #define PPC64_LD_STRUCT_3	16
 #define PPC64_LD_STRUCT_5	17
 #define PPC64_LD_STRUCT_6	18
 #define PPC64_LD_STRUCT_7	19
+#define PPC64_LD_STRUCT_1	20
+#define PPC64_LD_STRUCT_2	21
+#define PPC64_LD_STRUCT_4	22
 #endif
 
 #endif /* POWERPC64 */
@@ -106,6 +119,7 @@ enum {
   /* These go in cr6 */
   FLAG_RETURNS_64BITS   = 1 << (31-27),
   FLAG_RETURNS_128BITS  = 1 << (31-26),
+  FLAG_RETURNS_256BITS  = 1 << (31-25), /* Used by sysv code */
 
   FLAG_COMPAT           = 1 << (31- 8), /* Not used by assembly */
 

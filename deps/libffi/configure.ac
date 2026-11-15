@@ -2,7 +2,7 @@ dnl Process this with autoconf to create configure
 
 AC_PREREQ([2.68])
 
-AC_INIT([libffi],[3.8.0],[http://github.com/libffi/libffi/issues])
+AC_INIT([libffi],[3.8.1],[http://github.com/libffi/libffi/issues])
 AC_CONFIG_HEADERS([fficonfig.h])
 
 dnl Derive the version macros from AC_INIT so they cannot drift when the
@@ -47,6 +47,11 @@ m4_rename_force([real_PRECIOUS],[_AC_ARG_VAR_PRECIOUS])
 
 AC_SUBST(CFLAGS)
 
+# Use the final compiler flags, including target flags added below, when make
+# assembles sources.  Keep explicit CCASFLAGS values, including empty ones.
+if test "${CCASFLAGS+set}" != set; then
+  CCASFLAGS='$(CFLAGS)'
+fi
 AM_PROG_AS
 AM_PROG_CC_C_O
 AC_PROG_EGREP
@@ -285,9 +290,10 @@ EOF
 	# we ensure that we can compile _and_ link an assembly file containing an @unwind section
 	# since the compiler can support it and not the linker (ie old binutils)
 	if $CC -Wa,--fatal-warnings $CFLAGS -c conftest1.s > /dev/null 2>&1 && \
-           $CC conftest2.c conftest1.o > /dev/null 2>&1 ; then
+           $CC conftest2.c conftest1.o -o conftest$ac_exeext > /dev/null 2>&1 ; then
 	    libffi_cv_as_x86_64_unwind_section_type=yes
 	fi
+	rm -f conftest1.s conftest1.o conftest2.c conftest$ac_exeext a.out
 	])
     if test "x$libffi_cv_as_x86_64_unwind_section_type" = xyes; then
 	AC_DEFINE(HAVE_AS_X86_64_UNWIND_SECTION_TYPE, 1,
@@ -338,7 +344,7 @@ fi
 
 AC_ARG_ENABLE(docs,
               AS_HELP_STRING([--disable-docs],[Disable building of docs (default: no)]),
-              [enable_docs=no],
+              [],
               [enable_docs=yes])
 AM_CONDITIONAL(BUILD_DOCS, [test x$enable_docs = xyes])
 
@@ -427,6 +433,20 @@ AC_ARG_ENABLE(multi-os-directory,
 [  --disable-multi-os-directory
                           disable use of gcc --print-multi-os-directory to change the library installation directory])
 
+# Match every libdir spelling accepted by Autoconf's option parser.
+libdir_explicit=no
+eval "set x $ac_configure_args"
+shift
+for arg
+do
+  case $arg in
+    -libdir | --libdir | --libdi | --libd | \
+    -libdir=* | --libdir=* | --libdi=* | --libd=*)
+      libdir_explicit=yes
+      break ;;
+  esac
+done
+
 # These variables are only ever used when we cross-build to X86_WIN32.
 # And we only support this with GCC, so...
 if test "x$GCC" = "xyes"; then
@@ -438,7 +458,8 @@ if test "x$GCC" = "xyes"; then
     toolexecdir='${libdir}'/gcc-lib/'$(target_alias)'
     toolexeclibdir='${libdir}'
   fi
-  if test x"$enable_multi_os_directory" != x"no"; then
+  if test x"$enable_multi_os_directory" != x"no" &&
+     test x"$libdir_explicit" != x"yes"; then
     multi_os_directory=`$CC $CFLAGS -print-multi-os-directory`
     case $multi_os_directory in
       .) ;; # Avoid trailing /.

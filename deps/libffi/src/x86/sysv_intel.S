@@ -291,7 +291,7 @@ L(UW13):
 	FFI_CLOSURE_SAVE_REGS
 	FFI_CLOSURE_COPY_TRAMP_DATA
 
-	/* Entry point from preceeding Go closures.  */
+	/* Entry point from preceding Go closures.  */
 L(do_closure_i386)::
 
 	FFI_CLOSURE_PREP_CALL
@@ -420,7 +420,7 @@ L(do_closure_REGISTER)::
 
 	FFI_CLOSURE_COPY_TRAMP_DATA
 
-	/* Entry point from preceeding Go closure.  */
+	/* Entry point from preceding Go closure.  */
 L(do_closure_STDCALL)::
 
 	FFI_CLOSURE_PREP_CALL

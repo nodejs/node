@@ -202,9 +202,16 @@ E PPC_LD_S16
 	epilogue
 
 E PPC32_LD_R3R6
+.Lr3r6:
 	lwz %r5,112+8(%r1)
 	lwz %r6,112+12(%r1)
 	b .Lr3r4
+
+E PPC32_LD_R3R10
+	lwz %r7,112+16(%r1)
+	lwz %r8,112+20(%r1)
+	lwz %r9,112+24(%r1)
+	b .Lr3r10
 
 #ifndef __LITTLE_ENDIAN__
 E PPC32_SYSV_LD_STRUCT_3
@@ -228,7 +235,15 @@ E PPC32_SYSV_LD_STRUCT_7
 	lwz %r3,112+0(%r1)
 	lwz %r4,112+4(%r1)
 	li %r5,8
-	nop
+	b .Lstruct567
+
+E PPC32_SYSV_LD_STRUCT_1
+	lbz %r3,112+0(%r1)
+	epilogue
+
+E PPC32_SYSV_LD_STRUCT_2
+	lhz %r3,112+0(%r1)
+	epilogue
 
 .Lstruct567:
 	subfic %r6,%r5,32
@@ -238,6 +253,10 @@ E PPC32_SYSV_LD_STRUCT_7
 	or %r4,%r6,%r4
 	epilogue
 #endif
+
+.Lr3r10:
+	lwz %r10,112+28(%r1)
+	b .Lr3r6
 
 	.cfi_endproc
 END(ffi_closure_SYSV)

@@ -186,7 +186,7 @@ E(SPARC_RET_F_1)
 	std	%f6, [%l2+56]
 
 	! Copy the structure into place.
-	srl	%l0, SPARC_SIZEMASK_SHIFT, %o0	! load size_mask
+	mov	%l0, %o0			! load flags and size_mask
 	mov	%i2, %o1			! load dst
 	mov	%l2, %o2			! load src_gp
 	call	C(ffi_struct_float_copy)
@@ -270,6 +270,7 @@ C(ffi_closure_v9):
 	add	%fp, STACK_BIAS+128, %o4
 	call	C(ffi_closure_sparc_inner_v9)
 	 add	%fp, STACK_BIAS-128, %o5
+	mov	%o0, %l0			! preserve full return flags
 
 0:	call	1f		! load pc in %o7
 	 and	%o0, SPARC_FLAG_RET_MASK, %o0
@@ -287,10 +288,10 @@ E(SPARC_RET_VOID)
 	return	%i7+8
 	 nop
 E(SPARC_RET_STRUCT)
-	ldx	[FP-160], %i0
-	ldd	[FP-160], %f0
-	b	8f
-	 ldx	[FP-152], %i1
+	b	.Lclosure_ret_struct
+	 nop
+	nop
+	nop
 E(SPARC_RET_UINT8)
 	ldub	[FP-160+7], %i0
 	return	%i7+8
@@ -354,6 +355,31 @@ E(SPARC_RET_F_1)
 	 nop
 
 	! Finish the SPARC_RET_STRUCT sequence.
+	! Small integer complex values are scalar-like in the v9 ABI and
+	! occupy the low end of %i0, unlike small structures.
+	.align	8
+.Lclosure_ret_struct:
+	andcc	%l0, SP_V9_FLAG_RET_COMPLEX_SMALL, %g0
+	bne,pn	%xcc, .Lclosure_ret_complex_small
+	 srl	%l0, SPARC_SIZEMASK_SHIFT, %l1
+	ldx	[FP-160], %i0
+	ldd	[FP-160], %f0
+	b	8f
+	 ldx	[FP-152], %i1
+
+.Lclosure_ret_complex_small:
+	and	%l1, 0xff, %l1
+	cmp	%l1, 2
+	be,pn	%xcc, .Lclosure_ret_complex_2
+	 nop
+	lduw	[FP-160], %i0
+	return	%i7+8
+	 nop
+.Lclosure_ret_complex_2:
+	lduh	[FP-160], %i0
+	return	%i7+8
+	 nop
+
 	.align	8
 8:	ldd	[FP-152], %f2
 	ldx	[FP-144], %i2

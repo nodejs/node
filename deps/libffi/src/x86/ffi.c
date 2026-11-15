@@ -348,7 +348,7 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *rvalue,
       size_t z = ty->size;
       int t = ty->type;
 
-      if (z <= FFI_SIZEOF_ARG && t != FFI_TYPE_STRUCT)
+      if (z <= FFI_SIZEOF_ARG && t != FFI_TYPE_STRUCT && t != FFI_TYPE_COMPLEX)
         {
 	  ffi_arg val = extend_basic_type (valp, t);
 
@@ -495,7 +495,7 @@ ffi_closure_inner (struct closure_frame *frame, char *stack)
       int t = ty->type;
       void *valp;
 
-      if (z <= FFI_SIZEOF_ARG && t != FFI_TYPE_STRUCT)
+      if (z <= FFI_SIZEOF_ARG && t != FFI_TYPE_STRUCT && t != FFI_TYPE_COMPLEX)
 	{
 	  if (t != FFI_TYPE_FLOAT && narg_reg < pabi->nregs)
 	    valp = &frame->regs[pabi->regs[narg_reg++]];
@@ -681,6 +681,10 @@ ffi_prep_go_closure (ffi_go_closure* closure, ffi_cif* cif,
 
 void FFI_HIDDEN ffi_closure_raw_SYSV(void);
 void FFI_HIDDEN ffi_closure_raw_THISCALL(void);
+#if defined(FFI_EXEC_STATIC_TRAMP)
+void FFI_HIDDEN ffi_closure_raw_SYSV_alt(void);
+void FFI_HIDDEN ffi_closure_raw_THISCALL_alt(void);
+#endif
 
 ffi_status
 ffi_prep_raw_closure_loc (ffi_raw_closure *closure,
@@ -717,6 +721,24 @@ ffi_prep_raw_closure_loc (ffi_raw_closure *closure,
       return FFI_BAD_ABI;
     }
 
+#if defined(FFI_EXEC_STATIC_TRAMP)
+  if (ffi_tramp_is_present (closure))
+    {
+      /* With a static trampoline, set its parameters instead of writing a
+	 dynamic trampoline into closure->tramp.  The _alt entry loads the
+	 closure pointer the trampoline passes into %eax, where
+	 ffi_closure_raw_* expect it.  Writing the dynamic trampoline here
+	 would instead clobber the ftramp pointer ffi_closure_alloc stored at
+	 offset 0 and leave the static trampoline with no parameters
+	 (GHSA-w6j9-w53f-2857).  ftramp is read through ffi_closure, exactly
+	 as ffi_closure_alloc/ffi_closure_free do.  */
+      dest = (dest == ffi_closure_raw_SYSV)
+	       ? ffi_closure_raw_SYSV_alt : ffi_closure_raw_THISCALL_alt;
+      ffi_tramp_set_parms (((ffi_closure *) closure)->ftramp, dest, closure);
+      goto out;
+    }
+#endif
+
   /* movl imm, %eax.  */
   tramp[0] = 0xb8;
   *(void **)(tramp + 1) = codeloc;
@@ -725,6 +747,9 @@ ffi_prep_raw_closure_loc (ffi_raw_closure *closure,
   tramp[5] = 0xe9;
   *(unsigned *)(tramp + 6) = (unsigned)dest - ((unsigned)codeloc + 10);
 
+#if defined(FFI_EXEC_STATIC_TRAMP)
+out:
+#endif
   closure->cif = cif;
   closure->fun = fun;
   closure->user_data = user_data;

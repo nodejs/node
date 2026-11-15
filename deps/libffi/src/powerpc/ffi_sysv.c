@@ -42,6 +42,10 @@
 #define NUM_GPR_ARG_REGISTERS 8
 #define NUM_FPR_ARG_REGISTERS 8
 
+/* Internal type for an eight-word complex value, i.e. _Complex long double
+   with a 128-bit long double.  */
+#define FFI_TYPE_UINT256 (FFI_TYPE_LAST + 1)
+
 
 #if HAVE_LONG_DOUBLE_VARIANT && FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
 /* Adjust size of ffi_type_longdouble.  */
@@ -58,6 +62,12 @@ ffi_prep_types_sysv (ffi_abi abi)
       ffi_type_longdouble.size = 16;
       ffi_type_longdouble.alignment = 16;
     }
+#ifdef FFI_TARGET_HAS_COMPLEX_TYPE
+  /* _Complex long double is two halves of whatever long double just
+     became, so keep its size and alignment in step.  */
+  ffi_type_complex_longdouble.size = 2 * ffi_type_longdouble.size;
+  ffi_type_complex_longdouble.alignment = ffi_type_longdouble.alignment;
+#endif
 }
 #endif
 
@@ -87,6 +97,39 @@ translate_float (int abi, int type)
 #endif
     }
   return type;
+}
+
+/* Transform a type to the type that is passed and returned the same way.
+   Complex values always go in GPRs, never in FPRs, even with hard float:
+   GCC does not split them for this ABI but passes each one as a single
+   item of as many words as it needs, just like an integer of that size.  */
+static int
+translate_type (int abi, const ffi_type *t)
+{
+  if (t->type != FFI_TYPE_COMPLEX)
+    return translate_float (abi, t->type);
+
+  switch (t->size)
+    {
+    case 2:
+      /* _Complex char.  */
+      return FFI_TYPE_UINT16;
+    case 4:
+      /* _Complex short.  */
+      return FFI_TYPE_UINT32;
+    case 8:
+      /* float and int _Complex: two words, like long long.  */
+      return FFI_TYPE_UINT64;
+    case 16:
+      /* double, long long and 64-bit long double _Complex.  */
+      return FFI_TYPE_UINT128;
+    case 32:
+      /* 128-bit long double _Complex.  */
+      return FFI_TYPE_UINT256;
+    default:
+      FFI_ASSERT (0);
+      return FFI_TYPE_STRUCT;
+    }
 }
 
 /* Perform machine dependent cif processing */
@@ -121,7 +164,7 @@ ffi_prep_cif_sysv_core (ffi_cif *cif)
      - long doubles (if not equivalent to double) are returned in
      fpr1,fpr2 for Linux and as for large structs for SysV.  */
 
-  type = translate_float (cif->abi, type);
+  type = translate_type (cif->abi, cif->rtype);
 
   switch (type)
     {
@@ -140,12 +183,22 @@ ffi_prep_cif_sysv_core (ffi_cif *cif)
 #endif
       break;
 
+    case FFI_TYPE_UINT256:
+      flags |= FLAG_RETURNS_256BITS;
+      /* Fall through.  */
     case FFI_TYPE_UINT128:
       flags |= FLAG_RETURNS_128BITS;
       /* Fall through.  */
     case FFI_TYPE_UINT64:
     case FFI_TYPE_SINT64:
       flags |= FLAG_RETURNS_64BITS;
+      break;
+
+    case FFI_TYPE_UINT16:
+      /* A _Complex char is returned right-justified in r3, like a small
+	 struct.  Use the small struct bounce buffer to extract it.  */
+      if (cif->rtype->type == FFI_TYPE_COMPLEX)
+	flags |= FLAG_RETURNS_SMST;
       break;
 
     case FFI_TYPE_STRUCT:
@@ -176,9 +229,8 @@ ffi_prep_cif_sysv_core (ffi_cif *cif)
      Stuff on the stack needs to keep proper alignment.  */
   for (ptr = cif->arg_types, i = cif->nargs; i > 0; i--, ptr++)
     {
-      unsigned short typenum = (*ptr)->type;
-
-      typenum = translate_float (cif->abi, typenum);
+      unsigned short typenum = translate_type (cif->abi, *ptr);
+      unsigned nwords;
 
       switch (typenum)
 	{
@@ -224,16 +276,19 @@ ffi_prep_cif_sysv_core (ffi_cif *cif)
 #endif
 	  break;
 
+	case FFI_TYPE_UINT256:
 	case FFI_TYPE_UINT128:
 	  /* A long double in FFI_LINUX_SOFT_FLOAT can use only a set
 	     of four consecutive gprs. If we do not have enough, we
-	     have to adjust the gpr_count value.  */
-	  if (gpr_count >= NUM_GPR_ARG_REGISTERS - 3)
+	     have to adjust the gpr_count value.  Complex values of four
+	     or eight words are passed the same way.  */
+	  nwords = typenum == FFI_TYPE_UINT256 ? 8 : 4;
+	  if (gpr_count > NUM_GPR_ARG_REGISTERS - nwords)
 	    gpr_count = NUM_GPR_ARG_REGISTERS;
 	  if (gpr_count >= NUM_GPR_ARG_REGISTERS)
-	    stack_count += 4;
+	    stack_count += nwords;
 	  else
-	    gpr_count += 4;
+	    gpr_count += nwords;
 	  break;
 
 	case FFI_TYPE_UINT64:
@@ -458,9 +513,8 @@ ffi_prep_args_SYSV (extended_cif *ecif, unsigned *const stack)
        i > 0;
        i--, ptr++, p_argv.v++)
     {
-      unsigned int typenum = (*ptr)->type;
-
-      typenum = translate_float (ecif->cif->abi, typenum);
+      unsigned int typenum = translate_type (ecif->cif->abi, *ptr);
+      unsigned int ii, nwords;
 
       /* Now test the translated value */
       switch (typenum)
@@ -518,16 +572,18 @@ ffi_prep_args_SYSV (extended_cif *ecif, unsigned *const stack)
 	  break;
 #endif /* have FPRs */
 
+	case FFI_TYPE_UINT256:
 	case FFI_TYPE_UINT128:
 	  /* The soft float ABI for long doubles works like this, a long double
 	     is passed in four consecutive GPRs if available.  A maximum of 2
 	     long doubles can be passed in gprs.  If we do not have 4 GPRs
-	     left, the long double is passed on the stack, 4-byte aligned.  */
-	  if (gpr_base.u >= gpr_end.u - 3)
+	     left, the long double is passed on the stack, 4-byte aligned.
+	     Complex values of four or eight words are passed the same way.  */
+	  nwords = typenum == FFI_TYPE_UINT256 ? 8 : 4;
+	  if (gpr_base.u > gpr_end.u - nwords)
 	    {
-	      unsigned int ii;
 	      gpr_base.u = gpr_end.u;
-	      for (ii = 0; ii < 4; ii++)
+	      for (ii = 0; ii < nwords; ii++)
 		{
 		  unsigned int int_tmp = (*p_argv.ui)[ii];
 		  *next_arg.u++ = int_tmp;
@@ -535,8 +591,7 @@ ffi_prep_args_SYSV (extended_cif *ecif, unsigned *const stack)
 	    }
 	  else
 	    {
-	      unsigned int ii;
-	      for (ii = 0; ii < 4; ii++)
+	      for (ii = 0; ii < nwords; ii++)
 		{
 		  unsigned int int_tmp = (*p_argv.ui)[ii];
 		  *gpr_base.u++ = int_tmp;
@@ -709,7 +764,7 @@ ffi_closure_helper_SYSV (ffi_cif *cif,
   avalue = alloca (cif->nargs * sizeof (void *));
 
   /* First translate for softfloat/nonlinux */
-  rtypenum = translate_float (cif->abi, rtypenum);
+  rtypenum = translate_type (cif->abi, cif->rtype);
 
   /* Copy the caller's structure return value address so that the closure
      returns the data directly to the caller.
@@ -729,10 +784,9 @@ ffi_closure_helper_SYSV (ffi_cif *cif,
 
   /* Grab the addresses of the arguments from the stack frame.  */
   while (i < avn) {
-    unsigned short typenum = arg_types[i]->type;
-
     /* We may need to handle some values depending on ABI.  */
-    typenum = translate_float (cif->abi, typenum);
+    unsigned short typenum = translate_type (cif->abi, arg_types[i]);
+    long nwords;
 
     switch (typenum)
       {
@@ -796,20 +850,23 @@ ffi_closure_helper_SYSV (ffi_cif *cif,
 # endif
 #endif
 
+      case FFI_TYPE_UINT256:
       case FFI_TYPE_UINT128:
 	/* Test if for the whole long double, 4 gprs are available.
-	   otherwise the stuff ends up on the stack.  */
-	if (ng < NUM_GPR_ARG_REGISTERS - 3)
+	   otherwise the stuff ends up on the stack.  The same holds
+	   for complex values of four or eight words.  */
+	nwords = typenum == FFI_TYPE_UINT256 ? 8 : 4;
+	if (ng <= NUM_GPR_ARG_REGISTERS - nwords)
 	  {
 	    avalue[i] = pgr;
-	    pgr += 4;
-	    ng += 4;
+	    pgr += nwords;
+	    ng += nwords;
 	  }
 	else
 	  {
 	    avalue[i] = pst;
-	    pst += 4;
-	    ng = 8+4;
+	    pst += nwords;
+	    ng = NUM_GPR_ARG_REGISTERS;
 	  }
 	break;
 
@@ -940,6 +997,18 @@ ffi_closure_helper_SYSV (ffi_cif *cif,
     case FFI_TYPE_SINT8:
       return PPC_LD_S8;
     case FFI_TYPE_UINT16:
+      if (cif->rtype->type == FFI_TYPE_COMPLEX)
+	{
+	  /* A _Complex char is returned right-justified in r3.  */
+	  unsigned int word = 0;
+#ifdef __LITTLE_ENDIAN__
+	  memcpy (&word, rvalue, 2);
+#else
+	  memcpy ((char *) &word + 2, rvalue, 2);
+#endif
+	  *(unsigned int *) rvalue = word;
+	  return PPC_LD_U32;
+	}
       return PPC_LD_U16;
     case FFI_TYPE_SINT16:
       return PPC_LD_S16;
@@ -955,14 +1024,16 @@ ffi_closure_helper_SYSV (ffi_cif *cif,
       return PPC_LD_I64;
     case FFI_TYPE_UINT128:
       return PPC32_LD_R3R6;
+    case FFI_TYPE_UINT256:
+      return PPC32_LD_R3R10;
     case FFI_TYPE_STRUCT:
       if (cif->abi & FFI_SYSV_STRUCT_RET)
 	switch (size)
 	  {
 	  case 1:
-	    return PPC_LD_U8;
+	    return PPC32_SYSV_LD_STRUCT_1;
 	  case 2:
-	    return PPC_LD_U16;
+	    return PPC32_SYSV_LD_STRUCT_2;
 	  case 3:
 	    return PPC32_SYSV_LD_STRUCT_3;
 	  case 4:

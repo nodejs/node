@@ -566,6 +566,12 @@ Note that arrays cannot be passed or returned by value in C --
 structure types created like this should only be used to refer to
 members of real @code{FFI_TYPE_STRUCT} objects.
 
+Some ABIs classify array fields differently from structurally identical
+structure fields.  Because @code{ffi_type} has no separate array tag, this
+emulation cannot express that distinction.  On those targets, passing or
+returning an enclosing structure containing an emulated array by value is
+not supported.
+
 However, a phony array type like this will not cause any errors from
 @code{libffi} if you use it as an argument or return type.  This may
 be confusing.

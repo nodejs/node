@@ -44,12 +44,14 @@
 #include <ffi_common.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <tramp.h>
 #ifdef __linux__
 #include <linux/limits.h>
@@ -209,13 +211,14 @@ static int
 ffi_tramp_get_libffi (void)
 {
   FILE *fp;
-  /* `file' is sized PATH_MAX+1 so a scanf field width of PATH_MAX
-     (which permits PATH_MAX characters plus the terminating NUL) cannot
-     overflow.  */
+  /* `line' holds one /proc/<pid>/maps line; its path field can be up to
+     PATH_MAX bytes.  `file' holds the /proc/<pid>/maps path opened first.  */
   char file[PATH_MAX+1], line[PATH_MAX+100], perm[10], dev[10];
   unsigned long start, end, offset, inode;
   uintptr_t addr = (uintptr_t) tramp_globals.text;
-  int nfields, found;
+  int nfields, found, path_off;
+  char *path = NULL, *nl;
+  struct stat st;
   int open_flags = O_RDONLY;
 
 #ifdef O_CLOEXEC
@@ -228,32 +231,63 @@ ffi_tramp_get_libffi (void)
     return 0;
 
   found = 0;
+  inode = 0;
   while (feof (fp) == 0) {
     if (fgets (line, sizeof (line), fp) == 0)
       break;
 
-    /* Bound the path field width so a long mapping name cannot overflow
-       the fixed-size `file' buffer.  */
-    nfields = sscanf (line,
-      "%lx-%lx %9s %lx %9s %ld %" FFI_TRAMP_STR(PATH_MAX) "s",
-      &start, &end, perm, &offset, dev, &inode, file);
-    if (nfields != 7)
+    /*
+     * Parse the six fixed fields and record where the path begins with %n.
+     * The path is taken as the rest of the line rather than with a "%s"
+     * field because the kernel does not escape spaces in the maps name
+     * field, so "%s" would truncate a path that contains a space and libffi
+     * could open and map the wrong file (GHSA-fq46-69xf-x5gf).
+     */
+    path_off = 0;
+    nfields = sscanf (line, "%lx-%lx %9s %lx %9s %lu %n",
+      &start, &end, perm, &offset, dev, &inode, &path_off);
+    if (nfields != 6 || path_off == 0)
       continue;
 
     if (addr >= start && addr < end) {
       tramp_globals.offset = offset + (addr - start);
+      path = line + path_off;
       found = 1;
       break;
     }
   }
   fclose (fp);
 
-  if (!found)
+  if (!found || path == NULL || *path == '\0' || *path == '\n')
     return 0;
 
-  tramp_globals.fd = open (file, open_flags);
+  /* Drop the trailing newline so the path can be opened.  */
+  nl = strchr (path, '\n');
+  if (nl != NULL)
+    *nl = '\0';
+
+  tramp_globals.fd = open (path, open_flags);
   if (tramp_globals.fd == -1)
     return 0;
+
+  /*
+   * Verify that the file just opened is the file that backs the mapping we
+   * selected, by comparing its inode with the one from the maps line.
+   * Without this the path could have been replaced, or be a symlink to
+   * another file, between reading the maps line and the open, letting an
+   * attacker substitute the bytes libffi maps as executable trampoline code
+   * (GHSA-fq46-69xf-x5gf).  Only the inode is compared: the device number in
+   * /proc/<pid>/maps does not match stat(2)'s st_dev on btrfs, overlayfs and
+   * some other filesystems, so comparing st_dev would reject the real file
+   * there.  On any mismatch, fall back to the temp-file trampoline.
+   */
+  if (fstat (tramp_globals.fd, &st) != 0
+      || (unsigned long) st.st_ino != inode)
+    {
+      close (tramp_globals.fd);
+      tramp_globals.fd = -1;
+      return 0;
+    }
 
   /*
    * Allocate a trampoline table just to make sure that the trampoline code
