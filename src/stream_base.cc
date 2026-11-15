@@ -344,6 +344,36 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   return FinishWrite(args, res, lazy_req);
 }
 
+// Prepares `send_handle_obj` to be sent over an IPC pipe. Sending a handle
+// requires a request object up front to reference it, so one is created if
+// `*req_wrap_obj` is empty. Returns 0 on success or an error code.
+static int PrepareSendHandle(Environment* env,
+                             Local<Object> send_handle_obj,
+                             Local<Object>* req_wrap_obj,
+                             uv_stream_t** send_handle) {
+  if (req_wrap_obj->IsEmpty()) {
+    if (!env->write_wrap_template()
+             ->InstanceTemplate()
+             ->NewInstance(env->context())
+             .ToLocal(req_wrap_obj)) {
+      return UV_EBUSY;
+    }
+    StreamReq::ResetObject(*req_wrap_obj);
+  }
+
+  HandleWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, send_handle_obj, UV_EINVAL);
+  *send_handle = reinterpret_cast<uv_stream_t*>(wrap->GetHandle());
+  // Reference LibuvStreamWrap instance to prevent it from being garbage
+  // collected before `AfterWrite` is called.
+  if ((*req_wrap_obj)
+          ->Set(env->context(), env->handle_string(), send_handle_obj)
+          .IsNothing()) {
+    return -1;
+  }
+  return 0;
+}
+
 int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsUint8Array());
 
@@ -359,29 +389,9 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   uv_stream_t* send_handle = nullptr;
 
   if (args[2]->IsObject() && IsIPCPipe()) {
-    Local<Object> send_handle_obj = args[2].As<Object>();
-
-    if (lazy_req) {
-      // Sending a handle requires a request object up front to reference it.
-      if (!env->write_wrap_template()
-               ->InstanceTemplate()
-               ->NewInstance(env->context())
-               .ToLocal(&req_wrap_obj)) {
-        return UV_EBUSY;
-      }
-      StreamReq::ResetObject(req_wrap_obj);
-    }
-
-    HandleWrap* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, send_handle_obj, UV_EINVAL);
-    send_handle = reinterpret_cast<uv_stream_t*>(wrap->GetHandle());
-    // Reference LibuvStreamWrap instance to prevent it from being garbage
-    // collected before `AfterWrite` is called.
-    if (req_wrap_obj->Set(env->context(),
-                          env->handle_string(),
-                          send_handle_obj).IsNothing()) {
-      return -1;
-    }
+    const int err = PrepareSendHandle(
+        env, args[2].As<Object>(), &req_wrap_obj, &send_handle);
+    if (err != 0) return err;
   }
 
   StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj);
@@ -471,27 +481,9 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   uv_stream_t* send_handle = nullptr;
 
   if (IsIPCPipe() && !send_handle_obj.IsEmpty()) {
-    if (lazy_req && req_wrap_obj.IsEmpty()) {
-      // Sending a handle requires a request object up front to reference it.
-      if (!env->write_wrap_template()
-               ->InstanceTemplate()
-               ->NewInstance(env->context())
-               .ToLocal(&req_wrap_obj)) {
-        return UV_EBUSY;
-      }
-      StreamReq::ResetObject(req_wrap_obj);
-    }
-
-    HandleWrap* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, send_handle_obj, UV_EINVAL);
-    send_handle = reinterpret_cast<uv_stream_t*>(wrap->GetHandle());
-    // Reference LibuvStreamWrap instance to prevent it from being garbage
-    // collected before `AfterWrite` is called.
-    if (req_wrap_obj->Set(env->context(),
-                          env->handle_string(),
-                          send_handle_obj).IsNothing()) {
-      return -1;
-    }
+    const int err =
+        PrepareSendHandle(env, send_handle_obj, &req_wrap_obj, &send_handle);
+    if (err != 0) return err;
   }
 
   StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj, try_write);
