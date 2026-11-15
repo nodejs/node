@@ -125,11 +125,13 @@ if (availableCurves.has('prime256v1')) {
       message: 'Invalid ECDH format: 10'
     });
 
-  // ECDH should allow .setPrivateKey()/.setPublicKey()
+  // ECDH should allow .setPrivateKey()
   const ecdh4 = crypto.createECDH('prime256v1');
 
   ecdh4.setPrivateKey(ecdh1.getPrivateKey());
-  ecdh4.setPublicKey(ecdh1.getPublicKey());
+
+  // ecdh.setPublicKey() has been removed (DEP0031).
+  assert.strictEqual(ecdh4.setPublicKey, undefined);
 
   const ecdh4Secret = ecdh4.computeSecret(ecdh2.getPublicKey());
   assert.deepStrictEqual(ecdh4.computeSecret(ecdh2.getPublicKey()), ecdh4Secret);
@@ -152,12 +154,6 @@ if (availableCurves.has('prime256v1')) {
           message: 'Public key is not valid for specified curve'
         });
 
-      assert.throws(() => {
-        ecdh4.setPublicKey(ecdh3.getPublicKey());
-      }, { message: 'Failed to convert Buffer to EC_POINT' });
-      assert.deepStrictEqual(ecdh4.computeSecret(ecdh2.getPublicKey()),
-                             ecdh4Secret);
-
       // Verify that we can use ECDH without having to use newly generated keys.
       const ecdh5 = crypto.createECDH('secp256k1');
 
@@ -172,9 +168,7 @@ if (availableCurves.has('prime256v1')) {
 
       // A valid private key for the secp256k1 curve.
       const cafebabeKey = 'cafebabe'.repeat(8);
-      // Associated compressed and uncompressed public keys (points).
-      const cafebabePubPtComp =
-    '03672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3';
+      // Associated uncompressed public key (point).
       const cafebabePubPtUnComp =
     '04672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3' +
     '2e02c7f93d13dc2732b760ca377a5897b9dd41a1c1b29dc0442fdce6d0a04d1d';
@@ -206,29 +200,6 @@ if (availableCurves.has('prime256v1')) {
       // Verify that we still have the same key pair as before the computation.
       assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
       assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
-
-      // Verify setting and getting compressed and non-compressed serializations.
-      ecdh5.setPublicKey(cafebabePubPtComp, 'hex');
-      assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
-      assert.strictEqual(
-        ecdh5.getPublicKey('hex', 'compressed'),
-        cafebabePubPtComp
-      );
-      ecdh5.setPublicKey(cafebabePubPtUnComp, 'hex');
-      assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
-      assert.strictEqual(
-        ecdh5.getPublicKey('hex', 'compressed'),
-        cafebabePubPtComp
-      );
-
-      // Show why allowing the public key to be set on this type
-      // does not make sense.
-      ecdh5.setPublicKey(peerPubPtComp, 'hex');
-      assert.strictEqual(ecdh5.getPublicKey('hex'), peerPubPtUnComp);
-      assert.throws(() => {
-      // Error because the public key does not match the private key anymore.
-        ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex');
-      }, /Invalid key pair/);
 
       // Set to a valid key to show that later attempts to set an invalid key are
       // rejected.
