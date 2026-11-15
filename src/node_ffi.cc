@@ -1339,25 +1339,27 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(BigInt::NewFromUnsigned(isolate, ret));
 }
 
-void DynamicLibrary::UnregisterCallback(
-    const FunctionCallbackInfo<Value>& args) {
+DynamicLibrary* DynamicLibrary::FindCallback(
+    const FunctionCallbackInfo<Value>& args,
+    bool require_function,
+    CallbackMap::iterator* out) {
   Environment* env = Environment::GetCurrent(args);
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
   if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
-    return;
+    return nullptr;
   }
 
   if (args.Length() < 1 || !args[0]->IsBigInt()) {
     THROW_ERR_INVALID_ARG_TYPE(env, "The first argument must be a bigint");
-    return;
+    return nullptr;
   }
 
   uintptr_t raw_ptr;
   if (!GetValidatedPointerAddress(env, args[0], "first argument")
            .To(&raw_ptr)) {
-    return;
+    return nullptr;
   }
 
   void* ptr = reinterpret_cast<void*>(raw_ptr);
@@ -1365,6 +1367,27 @@ void DynamicLibrary::UnregisterCallback(
 
   if (existing == lib->callbacks_.end()) {
     THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
+    return nullptr;
+  }
+
+  // The callback function may already have been collected after a previous
+  // unrefCallback() call. The persistent handle is empty in that case, and
+  // ClearWeak() or SetWeak() on an empty handle dereferences a null slot.
+  // There is also no function left to make strong again.
+  if (require_function && existing->second->fn.IsEmpty()) {
+    THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
+    return nullptr;
+  }
+
+  *out = existing;
+  return lib;
+}
+
+void DynamicLibrary::UnregisterCallback(
+    const FunctionCallbackInfo<Value>& args) {
+  CallbackMap::iterator existing;
+  DynamicLibrary* lib = FindCallback(args, false, &existing);
+  if (lib == nullptr) {
     return;
   }
 
@@ -1377,82 +1400,17 @@ void DynamicLibrary::UnregisterCallback(
 }
 
 void DynamicLibrary::RefCallback(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
-
-  if (lib->is_closed()) {
-    THROW_ERR_FFI_LIBRARY_CLOSED(env);
-    return;
+  CallbackMap::iterator existing;
+  if (FindCallback(args, true, &existing) != nullptr) {
+    existing->second->fn.ClearWeak();
   }
-
-  if (args.Length() < 1 || !args[0]->IsBigInt()) {
-    THROW_ERR_INVALID_ARG_TYPE(env, "The first argument must be a bigint");
-    return;
-  }
-
-  uintptr_t raw_ptr;
-  if (!GetValidatedPointerAddress(env, args[0], "first argument")
-           .To(&raw_ptr)) {
-    return;
-  }
-
-  void* ptr = reinterpret_cast<void*>(raw_ptr);
-  auto existing = lib->callbacks_.find(ptr);
-
-  if (existing == lib->callbacks_.end()) {
-    THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
-    return;
-  }
-
-  // The callback function may already have been collected after a previous
-  // unrefCallback() call. The persistent handle is empty in that case, and
-  // ClearWeak() on an empty handle dereferences a null slot. There is also no
-  // function left to make strong again.
-  if (existing->second->fn.IsEmpty()) {
-    THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
-    return;
-  }
-
-  existing->second->fn.ClearWeak();
 }
 
 void DynamicLibrary::UnrefCallback(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
-
-  if (lib->is_closed()) {
-    THROW_ERR_FFI_LIBRARY_CLOSED(env);
-    return;
+  CallbackMap::iterator existing;
+  if (FindCallback(args, true, &existing) != nullptr) {
+    existing->second->fn.SetWeak();
   }
-
-  if (args.Length() < 1 || !args[0]->IsBigInt()) {
-    THROW_ERR_INVALID_ARG_TYPE(env, "The first argument must be a bigint");
-    return;
-  }
-
-  uintptr_t raw_ptr;
-  if (!GetValidatedPointerAddress(env, args[0], "first argument")
-           .To(&raw_ptr)) {
-    return;
-  }
-
-  void* ptr = reinterpret_cast<void*>(raw_ptr);
-  auto existing = lib->callbacks_.find(ptr);
-
-  if (existing == lib->callbacks_.end()) {
-    THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
-    return;
-  }
-
-  // The callback function may already have been collected by a previous
-  // unrefCallback() call. The persistent handle is empty in that case, and
-  // SetWeak() on an empty handle dereferences a null slot.
-  if (existing->second->fn.IsEmpty()) {
-    THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
-    return;
-  }
-
-  existing->second->fn.SetWeak();
 }
 
 Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
