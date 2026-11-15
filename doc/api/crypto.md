@@ -1884,7 +1884,7 @@ console.log(aliceSecret === bobSecret);
 added: v0.1.92
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67490
     description: Calling the `Hash` constructor directly now throws an
                  `ERR_ILLEGAL_CONSTRUCTOR` error.
 -->
@@ -2103,7 +2103,7 @@ This can be called many times with new data as it is streamed.
 added: v0.1.94
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67490
     description: Calling the `Hmac` constructor directly now throws an
                  `ERR_ILLEGAL_CONSTRUCTOR` error.
 -->

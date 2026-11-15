@@ -4032,7 +4032,7 @@ npx codemod@latest @nodejs/dirent-path-to-parent-path
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67490
     description: End-of-Life.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51880
@@ -4074,7 +4074,7 @@ deprecated due to being internals, not intended for public use.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67490
     description: End-of-Life.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52071
