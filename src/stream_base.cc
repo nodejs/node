@@ -8,6 +8,7 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "simdutf.h"
 #include "string_bytes.h"
 #include "util-inl.h"
 #include "v8.h"
@@ -196,6 +197,38 @@ int StreamBase::FinishWrite(const v8::FunctionCallbackInfo<v8::Value>& args,
   return res.err;
 }
 
+namespace {
+
+// Same as StringBytes::Write(), but copies one-byte strings out with
+// String::WriteOneByte(), which does not flatten them: strings written to a
+// stream are often built by concatenation (e.g. HTTP headers) and not used
+// again.
+size_t WriteStringWithoutFlattening(Isolate* isolate,
+                                    char* buf,
+                                    size_t buflen,
+                                    Local<String> string,
+                                    enum encoding enc) {
+  const size_t length = string->Length();
+  if (length == 0) return 0;
+  if (string->IsOneByte()) {
+    if ((enc == ASCII || enc == LATIN1) && buflen >= length) {
+      string->WriteOneByte(isolate, 0, length, reinterpret_cast<uint8_t*>(buf));
+      return length;
+    }
+    if (enc == UTF8 && buflen >= 3 * length) {
+      // Latin-1 takes at most 2 UTF-8 bytes per char: convert from the last
+      // third into the first two.
+      char* latin1 = buf + 2 * length;
+      string->WriteOneByte(
+          isolate, 0, length, reinterpret_cast<uint8_t*>(latin1));
+      return simdutf::convert_latin1_to_utf8(latin1, length, buf);
+    }
+  }
+  return StringBytes::Write(isolate, buf, buflen, string, enc);
+}
+
+}  // namespace
+
 int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -297,11 +330,8 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
       if (!chunks->Get(context, i * 2 + 1).ToLocal(&next_chunk))
         return -1;
       enum encoding encoding = ParseEncoding(isolate, next_chunk);
-      str_size = StringBytes::Write(isolate,
-                                    str_storage,
-                                    str_size,
-                                    string,
-                                    encoding);
+      str_size = WriteStringWithoutFlattening(
+          isolate, str_storage, str_size, string, encoding);
       bufs[i].base = str_storage;
       bufs[i].len = str_size;
       offset += str_size;
@@ -372,7 +402,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   if (args[2]->IsObject())
     send_handle_obj = args[2].As<Object>();
 
-  // Compute the size of the storage that the string will be flattened into.
+  // Compute the size of the storage that the string will be written into.
   // For UTF8 strings that are very long, go ahead and take the hit for
   // computing their actual size, rather than tripling the storage.
   size_t storage_size;
@@ -395,11 +425,8 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   bool try_write = HasDoTryWrite() && storage_size <= sizeof(stack_storage) &&
                    (!IsIPCPipe() || send_handle_obj.IsEmpty());
   if (try_write) {
-    data_size = StringBytes::Write(isolate,
-                                   stack_storage,
-                                   storage_size,
-                                   string,
-                                   enc);
+    data_size = WriteStringWithoutFlattening(
+        isolate, stack_storage, storage_size, string, enc);
     buf = uv_buf_init(stack_storage, data_size);
 
     uv_buf_t* bufs = &buf;
@@ -433,11 +460,8 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     // Write it
     bs = ArrayBuffer::NewBackingStore(
         isolate, storage_size, BackingStoreInitializationMode::kUninitialized);
-    data_size = StringBytes::Write(isolate,
-                                   static_cast<char*>(bs->Data()),
-                                   storage_size,
-                                   string,
-                                   enc);
+    data_size = WriteStringWithoutFlattening(
+        isolate, static_cast<char*>(bs->Data()), storage_size, string, enc);
   }
 
   CHECK_LE(data_size, storage_size);

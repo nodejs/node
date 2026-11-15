@@ -468,13 +468,13 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
   Local<String> str;
   if (!val->ToString(isolate->GetCurrentContext()).ToLocal(&str))
     return Nothing<size_t>();
-  String::ValueView view(isolate, str);
+  const size_t length = str->Length();
   size_t data_size = 0;
 
   switch (encoding) {
     case ASCII:
     case LATIN1:
-      data_size = view.length();
+      data_size = length;
       break;
 
     case BUFFER:
@@ -482,24 +482,24 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
       // A single UCS2 codepoint never takes up more than 3 utf8 bytes.
       // It is an exercise for the caller to decide when a string is
       // long enough to justify calling Size() instead of StorageSize()
-      data_size = 3 * view.length();
+      data_size = 3 * length;
       break;
 
     case UCS2:
-      data_size = view.length() * sizeof(uint16_t);
+      data_size = length * sizeof(uint16_t);
       break;
 
     case BASE64URL:
-      data_size = simdutf::base64_length_from_binary(view.length(),
-                                                     simdutf::base64_url);
+      data_size =
+          simdutf::base64_length_from_binary(length, simdutf::base64_url);
       break;
 
     case BASE64:
-      data_size = simdutf::base64_length_from_binary(view.length());
+      data_size = simdutf::base64_length_from_binary(length);
       break;
 
     case HEX:
-      data_size = view.length() / 2;
+      data_size = length / 2;
       break;
 
     default:
