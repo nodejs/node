@@ -35,6 +35,15 @@ void InstallCertVerifyCallback(SSL_CTX* ctx);
 
 ncrypto::BIOPointer LoadBIO(Environment* env, v8::Local<v8::Value> v);
 
+// The HMAC context type passed to TLS session ticket key callbacks.
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+using TicketHmacCtx = EVP_MAC_CTX;
+#elif NCRYPTO_USE_BORINGSSL
+using TicketHmacCtx = HMAC_CTX;
+#else
+#error "Unsupported crypto backend"
+#endif
+
 class SecureContext final : public BaseObject {
  public:
   using GetSessionCb = SSL_SESSION* (*)(SSL*, const unsigned char*, int, int*);
@@ -161,26 +170,14 @@ class SecureContext final : public BaseObject {
                                unsigned char* name,
                                unsigned char* iv,
                                EVP_CIPHER_CTX* ectx,
-#if NCRYPTO_USE_OPENSSL_PROVIDER
-                               EVP_MAC_CTX* hctx,
-#elif NCRYPTO_USE_BORINGSSL
-                               HMAC_CTX* hctx,
-#else
-#error "Unsupported crypto backend"
-#endif
+                               TicketHmacCtx* hctx,
                                int enc);
 
   static int TicketCompatibilityCallback(SSL* ssl,
                                          unsigned char* name,
                                          unsigned char* iv,
                                          EVP_CIPHER_CTX* ectx,
-#if NCRYPTO_USE_OPENSSL_PROVIDER
-                                         EVP_MAC_CTX* hctx,
-#elif NCRYPTO_USE_BORINGSSL
-                                         HMAC_CTX* hctx,
-#else
-#error "Unsupported crypto backend"
-#endif
+                                         TicketHmacCtx* hctx,
                                          int enc);
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap);
