@@ -27,8 +27,10 @@ assert.strictEqual(process.env.UV_THREADPOOL_SIZE, '1');
 const { internalBinding } = require('internal/test/binding');
 const binding = internalBinding('fs');
 
-// Occupy the only worker thread so the stat below cannot start.
-crypto.pbkdf2('secret', 'salt', 500_000, 32, 'sha512', common.mustCall());
+// Occupy the only worker thread so the stat below cannot start. Inputs below
+// the FIPS minimums would fail at once and free the worker.
+crypto.pbkdf2('password', '0123456789abcdef', 500_000, 32, 'sha512',
+              common.mustSucceed());
 
 const req = new binding.FSReqCallback(false);
 req.oncomplete = common.mustCall((err) => {
