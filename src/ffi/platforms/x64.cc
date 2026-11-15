@@ -2,52 +2,35 @@
 
 #include "ffi/fast.h"
 
-#if defined(__x86_64__) && !defined(_WIN32)
+#if (defined(__x86_64__) && !defined(_WIN32)) || defined(_M_X64)
 
+#if defined(_WIN32)
+#include <windows.h>
+#else
 #include <sys/mman.h>
 #include <unistd.h>
+#endif
 
 #include <stdint.h>
 
 #include <limits>
 
+// Instruction emitters and register numbers shared by the System V and Win64
+// trampolines.
 namespace {
 
 using node::ffi::FastFFIType;
 
-// System V x86_64 argument registers in ABI order. V8 Fast API calls enter the
-// trampoline with the JS receiver in the first GP slot (rdi), so user GP
-// arguments arrive shifted by one register: rsi, rdx, rcx, r8, r9.
 constexpr unsigned kRax = 0;
 constexpr unsigned kRcx = 1;
 constexpr unsigned kRdx = 2;
 constexpr unsigned kRsp = 4;
-constexpr unsigned kRsi = 6;
-constexpr unsigned kRdi = 7;
 constexpr unsigned kR8 = 8;
 constexpr unsigned kR9 = 9;
 constexpr unsigned kR11 = 11;
 
-constexpr unsigned kIncomingGPRegisters[] = {kRsi, kRdx, kRcx, kR8, kR9};
-constexpr unsigned kTargetGPRegisters[] = {kRdi, kRsi, kRdx, kRcx, kR8, kR9};
-
-// Floating-point values use xmmN registers in the SysV x86_64 ABI. The receiver
-// consumes only a GP register, so FP arguments are already in the target ABI
-// locations and the trampoline only needs to shuffle GP arguments.
 bool IsFloatType(FastFFIType type) {
   return type == FastFFIType::kFloat32 || type == FastFFIType::kFloat64;
-}
-
-// The current scalar implementation only distinguishes FP from non-FP ABI
-// classes; non-FP values are carried in GP registers.
-bool IsGPType(FastFFIType type) {
-  return !IsFloatType(type);
-}
-
-// kBuffer means V8 passes the original JS value; the trampoline must call back
-// into C++ to convert it to a native pointer before invoking the target.
-bool IsPointerValueType(FastFFIType type) {
-  return type == FastFFIType::kBuffer;
 }
 
 void Emit8(uint8_t** cursor, uint8_t value) {
@@ -93,15 +76,6 @@ void EmitMovImm64(uint8_t** cursor, unsigned reg, uintptr_t value) {
   Emit64(cursor, value);
 }
 
-void EmitMovImm32(uint8_t** cursor, unsigned reg, uint32_t value) {
-  // Load the buffer helper's uint32_t argument index into edx.
-  if (reg >= 8) {
-    EmitRex(cursor, false, 0, reg);
-  }
-  Emit8(cursor, 0xb8 | (reg & 7));
-  Emit32(cursor, value);
-}
-
 void EmitCall(uint8_t** cursor, unsigned reg) {
   // call *reg. All targets are absolute addresses first loaded into r11.
   EmitRex(cursor, true, 0, reg);
@@ -115,6 +89,111 @@ void EmitJmp(uint8_t** cursor, unsigned reg) {
   EmitRex(cursor, true, 0, reg);
   Emit8(cursor, 0xff);
   EmitModRM(cursor, 4, reg);
+}
+
+void EmitRet(uint8_t** cursor) {
+  Emit8(cursor, 0xc3);
+}
+
+void EmitSubRsp(uint8_t** cursor, unsigned value) {
+  // Reserve stack spill space with `sub rsp, imm32`. The caller keeps the value
+  // 16-byte aligned so nested calls preserve the ABI stack alignment rule.
+  EmitRex(cursor, true, 5, kRsp);
+  Emit8(cursor, 0x81);
+  Emit8(cursor, 0xec);
+  Emit32(cursor, value);
+}
+
+void EmitAddRsp(uint8_t** cursor, unsigned value) {
+  // Release stack spill space with `add rsp, imm32`, matching EmitSubRsp().
+  EmitRex(cursor, true, 0, kRsp);
+  Emit8(cursor, 0x81);
+  Emit8(cursor, 0xc4);
+  Emit32(cursor, value);
+}
+
+void EmitNarrowInstruction(uint8_t** cursor, uint8_t opcode, unsigned reg) {
+  // movsx/movzx reg32, reg8/reg16. Writing the 32-bit destination also clears
+  // the upper 32 bits, which is the ABI-normal form V8 observes.
+  EmitRex(cursor, false, reg, reg);
+  Emit8(cursor, 0x0f);
+  Emit8(cursor, opcode);
+  EmitModRM(cursor, reg, reg);
+}
+
+// Native small integer returns may leave upper bits unspecified. Normalize them
+// before V8 observes the result. Arguments do not need the same treatment: the
+// C ABI passes narrow integer arguments in integer registers and the callee
+// consumes the declared low 8/16 bits.
+bool EmitNarrowReturn(uint8_t** cursor, FastFFIType type, unsigned reg) {
+  switch (type) {
+    case FastFFIType::kUint8:
+      EmitNarrowInstruction(cursor, 0xb6, reg);
+      return true;
+    case FastFFIType::kInt8:
+      EmitNarrowInstruction(cursor, 0xbe, reg);
+      return true;
+    case FastFFIType::kUint16:
+      EmitNarrowInstruction(cursor, 0xb7, reg);
+      return true;
+    case FastFFIType::kInt16:
+      EmitNarrowInstruction(cursor, 0xbf, reg);
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool NeedsNarrow(FastFFIType type) {
+  switch (type) {
+    case FastFFIType::kUint8:
+    case FastFFIType::kInt8:
+    case FastFFIType::kUint16:
+    case FastFFIType::kInt16:
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
+#if defined(__x86_64__) && !defined(_WIN32)
+
+namespace {
+
+// System V x86_64 argument registers in ABI order. V8 Fast API calls enter the
+// trampoline with the JS receiver in the first GP slot (rdi), so user GP
+// arguments arrive shifted by one register: rsi, rdx, rcx, r8, r9.
+constexpr unsigned kRsi = 6;
+constexpr unsigned kRdi = 7;
+
+constexpr unsigned kIncomingGPRegisters[] = {kRsi, kRdx, kRcx, kR8, kR9};
+constexpr unsigned kTargetGPRegisters[] = {kRdi, kRsi, kRdx, kRcx, kR8, kR9};
+
+// Floating-point values use xmmN registers in the SysV x86_64 ABI. The receiver
+// consumes only a GP register, so FP arguments are already in the target ABI
+// locations and the trampoline only needs to shuffle GP arguments.
+//
+// The current scalar implementation only distinguishes FP from non-FP ABI
+// classes; non-FP values are carried in GP registers.
+bool IsGPType(FastFFIType type) {
+  return !IsFloatType(type);
+}
+
+// kBuffer means V8 passes the original JS value; the trampoline must call back
+// into C++ to convert it to a native pointer before invoking the target.
+bool IsPointerValueType(FastFFIType type) {
+  return type == FastFFIType::kBuffer;
+}
+
+void EmitMovImm32(uint8_t** cursor, unsigned reg, uint32_t value) {
+  // Load the buffer helper's uint32_t argument index into edx.
+  if (reg >= 8) {
+    EmitRex(cursor, false, 0, reg);
+  }
+  Emit8(cursor, 0xb8 | (reg & 7));
+  Emit32(cursor, value);
 }
 
 bool EmitJmpRel32(uint8_t** cursor, uintptr_t target) {
@@ -145,27 +224,6 @@ void EmitPushRbp(uint8_t** cursor) {
 
 void EmitPopRbp(uint8_t** cursor) {
   Emit8(cursor, 0x5d);
-}
-
-void EmitRet(uint8_t** cursor) {
-  Emit8(cursor, 0xc3);
-}
-
-void EmitSubRsp(uint8_t** cursor, unsigned value) {
-  // Reserve stack spill space with `sub rsp, imm32`. The caller keeps the value
-  // 16-byte aligned so nested calls preserve the SysV stack alignment rule.
-  EmitRex(cursor, true, 5, kRsp);
-  Emit8(cursor, 0x81);
-  Emit8(cursor, 0xec);
-  Emit32(cursor, value);
-}
-
-void EmitAddRsp(uint8_t** cursor, unsigned value) {
-  // Release stack spill space with `add rsp, imm32`, matching EmitSubRsp().
-  EmitRex(cursor, true, 0, kRsp);
-  Emit8(cursor, 0x81);
-  Emit8(cursor, 0xc4);
-  Emit32(cursor, value);
 }
 
 void EmitStackMemory(uint8_t** cursor, unsigned reg, unsigned offset) {
@@ -224,50 +282,6 @@ void EmitXorEax(uint8_t** cursor) {
   // Return nullptr/zero after the helper has already scheduled the JS exception.
   Emit8(cursor, 0x31);
   Emit8(cursor, 0xc0);
-}
-
-void EmitNarrowInstruction(uint8_t** cursor, uint8_t opcode, unsigned reg) {
-  // movsx/movzx reg32, reg8/reg16. Writing the 32-bit destination also clears
-  // the upper 32 bits, which is the ABI-normal form V8 observes.
-  EmitRex(cursor, false, reg, reg);
-  Emit8(cursor, 0x0f);
-  Emit8(cursor, opcode);
-  EmitModRM(cursor, reg, reg);
-}
-
-// Native small integer returns may leave upper bits unspecified. Normalize them
-// before V8 observes the result. Arguments do not need the same treatment: the
-// C ABI passes narrow integer arguments in integer registers and the callee
-// consumes the declared low 8/16 bits.
-bool EmitNarrowReturn(uint8_t** cursor, FastFFIType type, unsigned reg) {
-  switch (type) {
-    case FastFFIType::kUint8:
-      EmitNarrowInstruction(cursor, 0xb6, reg);
-      return true;
-    case FastFFIType::kInt8:
-      EmitNarrowInstruction(cursor, 0xbe, reg);
-      return true;
-    case FastFFIType::kUint16:
-      EmitNarrowInstruction(cursor, 0xb7, reg);
-      return true;
-    case FastFFIType::kInt16:
-      EmitNarrowInstruction(cursor, 0xbf, reg);
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool NeedsNarrow(FastFFIType type) {
-  switch (type) {
-    case FastFFIType::kUint8:
-    case FastFFIType::kInt8:
-    case FastFFIType::kUint16:
-    case FastFFIType::kInt16:
-      return true;
-    default:
-      return false;
-  }
 }
 
 // Stack adjustment must preserve the platform's 16-byte SP alignment rule.
@@ -590,60 +604,12 @@ extern "C" void node_ffi_free_fast_trampoline(
 
 #elif defined(_M_X64)
 
-#include <windows.h>
-
-#include <stdint.h>
-
 namespace {
-
-using node::ffi::FastFFIType;
-
-constexpr unsigned kRax = 0;
-constexpr unsigned kRcx = 1;
-constexpr unsigned kRdx = 2;
-constexpr unsigned kRsp = 4;
-constexpr unsigned kR8 = 8;
-constexpr unsigned kR9 = 9;
-constexpr unsigned kR11 = 11;
 
 constexpr unsigned kWin64GPRegisters[] = {kRcx, kRdx, kR8, kR9};
 
-bool IsFloatType(FastFFIType type) {
-  return type == FastFFIType::kFloat32 || type == FastFFIType::kFloat64;
-}
-
 bool IsBufferType(FastFFIType type) {
   return type == FastFFIType::kBuffer;
-}
-
-void Emit8(uint8_t** cursor, uint8_t value) {
-  *(*cursor)++ = value;
-}
-
-void Emit32(uint8_t** cursor, uint32_t value) {
-  for (unsigned i = 0; i < 4; i++) {
-    Emit8(cursor, (value >> (i * 8)) & 0xff);
-  }
-}
-
-void Emit64(uint8_t** cursor, uint64_t value) {
-  for (unsigned i = 0; i < 8; i++) {
-    Emit8(cursor, (value >> (i * 8)) & 0xff);
-  }
-}
-
-void EmitRex(uint8_t** cursor, bool wide, unsigned reg, unsigned rm) {
-  Emit8(cursor, 0x40 | (wide ? 0x08 : 0) | ((reg >> 3) << 2) | (rm >> 3));
-}
-
-void EmitModRM(uint8_t** cursor, unsigned reg, unsigned rm) {
-  Emit8(cursor, 0xc0 | ((reg & 7) << 3) | (rm & 7));
-}
-
-void EmitMov(uint8_t** cursor, unsigned dst, unsigned src) {
-  EmitRex(cursor, true, src, dst);
-  Emit8(cursor, 0x89);
-  EmitModRM(cursor, src, dst);
 }
 
 void EmitMovaps(uint8_t** cursor, unsigned dst, unsigned src) {
@@ -653,80 +619,6 @@ void EmitMovaps(uint8_t** cursor, unsigned dst, unsigned src) {
   Emit8(cursor, 0x0f);
   Emit8(cursor, 0x28);
   EmitModRM(cursor, dst, src);
-}
-
-void EmitMovImm64(uint8_t** cursor, unsigned reg, uintptr_t value) {
-  EmitRex(cursor, true, 0, reg);
-  Emit8(cursor, 0xb8 | (reg & 7));
-  Emit64(cursor, value);
-}
-
-void EmitCall(uint8_t** cursor, unsigned reg) {
-  EmitRex(cursor, true, 0, reg);
-  Emit8(cursor, 0xff);
-  EmitModRM(cursor, 2, reg);
-}
-
-void EmitJmp(uint8_t** cursor, unsigned reg) {
-  EmitRex(cursor, true, 0, reg);
-  Emit8(cursor, 0xff);
-  EmitModRM(cursor, 4, reg);
-}
-
-void EmitSubRsp(uint8_t** cursor, unsigned value) {
-  EmitRex(cursor, true, 5, kRsp);
-  Emit8(cursor, 0x81);
-  Emit8(cursor, 0xec);
-  Emit32(cursor, value);
-}
-
-void EmitAddRsp(uint8_t** cursor, unsigned value) {
-  EmitRex(cursor, true, 0, kRsp);
-  Emit8(cursor, 0x81);
-  Emit8(cursor, 0xc4);
-  Emit32(cursor, value);
-}
-
-void EmitRet(uint8_t** cursor) {
-  Emit8(cursor, 0xc3);
-}
-
-void EmitNarrowInstruction(uint8_t** cursor, uint8_t opcode, unsigned reg) {
-  EmitRex(cursor, false, reg, reg);
-  Emit8(cursor, 0x0f);
-  Emit8(cursor, opcode);
-  EmitModRM(cursor, reg, reg);
-}
-
-bool EmitNarrowReturn(uint8_t** cursor, FastFFIType type, unsigned reg) {
-  switch (type) {
-    case FastFFIType::kUint8:
-      EmitNarrowInstruction(cursor, 0xb6, reg);
-      return true;
-    case FastFFIType::kInt8:
-      EmitNarrowInstruction(cursor, 0xbe, reg);
-      return true;
-    case FastFFIType::kUint16:
-      EmitNarrowInstruction(cursor, 0xb7, reg);
-      return true;
-    case FastFFIType::kInt16:
-      EmitNarrowInstruction(cursor, 0xbf, reg);
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool NeedsNarrow(FastFFIType type) {
-  switch (type) {
-    case FastFFIType::kUint8:
-    case FastFFIType::kInt8:
-    case FastFFIType::kUint16:
-    case FastFFIType::kInt16:
-      return true;
-    default:
-      return false;
-  }
 }
 
 void FreeCode(void* code, size_t code_size) {
@@ -812,5 +704,7 @@ extern "C" void node_ffi_free_fast_trampoline(
 }
 
 #endif  // defined(_M_X64)
+
+#endif  // x86_64 SysV or Win64
 
 #endif  // HAVE_FFI
