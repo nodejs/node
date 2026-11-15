@@ -3503,7 +3503,7 @@ npx codemod@latest @nodejs/crypto-rsa-pss-update
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67488
     description: End-of-Life.
   - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/40117
@@ -3763,7 +3763,7 @@ that will be removed in a future V8 release.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67488
     description: End-of-Life.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44495
