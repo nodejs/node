@@ -62,9 +62,7 @@ static void WriteNodeReport(Isolate* isolate,
                             std::string_view filename,
                             std::ostream& out,
                             Local<Value> error,
-                            bool compact,
-                            bool exclude_network = false,
-                            bool exclude_env = false);
+                            bool compact);
 static void PrintVersionInformation(JSONWriter* writer,
                                     bool exclude_network = false);
 static void PrintJavaScriptErrorStack(JSONWriter* writer,
@@ -98,9 +96,18 @@ static void WriteNodeReport(Isolate* isolate,
                             std::string_view filename,
                             std::ostream& out,
                             Local<Value> error,
-                            bool compact,
-                            bool exclude_network,
-                            bool exclude_env) {
+                            bool compact) {
+  // The report exclusion options are per-environment, so fall back to the
+  // process-wide defaults when there is no environment.
+  const bool exclude_network = env != nullptr
+                                   ? env->options()->report_exclude_network
+                                   : per_process::cli_options->per_isolate
+                                         ->per_env->report_exclude_network;
+  const bool exclude_env =
+      env != nullptr
+          ? env->report_exclude_env()
+          : per_process::cli_options->per_isolate->per_env->report_exclude_env;
+
   // Obtain the current time and the pid.
   TIME_TYPE tm_struct;
   DiagnosticFilename::LocalTime(&tm_struct);
@@ -921,24 +928,8 @@ std::string TriggerNodeReport(Isolate* isolate,
     compact = per_process::cli_options->report_compact;
   }
 
-  bool exclude_network = env != nullptr ? env->options()->report_exclude_network
-                                        : per_process::cli_options->per_isolate
-                                              ->per_env->report_exclude_network;
-  bool exclude_env =
-      env != nullptr
-          ? env->report_exclude_env()
-          : per_process::cli_options->per_isolate->per_env->report_exclude_env;
-
-  report::WriteNodeReport(isolate,
-                          env,
-                          message,
-                          trigger,
-                          filename,
-                          *outstream,
-                          error,
-                          compact,
-                          exclude_network,
-                          exclude_env);
+  report::WriteNodeReport(
+      isolate, env, message, trigger, filename, *outstream, error, compact);
 
   // Do not close stdout/stderr, only close files we opened.
   if (outfile.is_open()) {
@@ -989,23 +980,8 @@ void GetNodeReport(Isolate* isolate,
   if (isolate != nullptr) {
     env = Environment::GetCurrent(isolate);
   }
-  bool exclude_network = env != nullptr ? env->options()->report_exclude_network
-                                        : per_process::cli_options->per_isolate
-                                              ->per_env->report_exclude_network;
-  bool exclude_env =
-      env != nullptr
-          ? env->report_exclude_env()
-          : per_process::cli_options->per_isolate->per_env->report_exclude_env;
-  report::WriteNodeReport(isolate,
-                          env,
-                          message,
-                          trigger,
-                          "",
-                          out,
-                          error,
-                          false,
-                          exclude_network,
-                          exclude_env);
+  report::WriteNodeReport(
+      isolate, env, message, trigger, "", out, error, false);
 }
 
 // External function to trigger a report, writing to a supplied stream.
@@ -1018,23 +994,8 @@ void GetNodeReport(Environment* env,
   if (env != nullptr) {
     isolate = env->isolate();
   }
-  bool exclude_network = env != nullptr ? env->options()->report_exclude_network
-                                        : per_process::cli_options->per_isolate
-                                              ->per_env->report_exclude_network;
-  bool exclude_env =
-      env != nullptr
-          ? env->report_exclude_env()
-          : per_process::cli_options->per_isolate->per_env->report_exclude_env;
-  report::WriteNodeReport(isolate,
-                          env,
-                          message,
-                          trigger,
-                          "",
-                          out,
-                          error,
-                          false,
-                          exclude_network,
-                          exclude_env);
+  report::WriteNodeReport(
+      isolate, env, message, trigger, "", out, error, false);
 }
 
 }  // namespace node
