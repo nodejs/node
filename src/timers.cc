@@ -104,9 +104,7 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  InternalFieldInfo* info =
-      InternalFieldInfoBase::New<InternalFieldInfo>(type());
-  return info;
+  return InternalFieldInfoBase::New<InternalFieldInfo>(type());
 }
 
 void BindingData::Deserialize(Local<Context> context,
@@ -114,11 +112,7 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  v8::HandleScope scope(Isolate::GetCurrent());
-  Realm* realm = Realm::GetCurrent(context);
-  // Recreate the buffer in the constructor.
-  BindingData* binding = realm->AddBindingData<BindingData>(holder);
-  CHECK_NOT_NULL(binding);
+  Realm::DeserializeBindingData<BindingData>(context, holder);
 }
 
 v8::CFunction BindingData::fast_get_libuv_now_(

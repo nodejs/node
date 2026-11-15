@@ -125,10 +125,7 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
 }
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
-  DCHECK_IS_SNAPSHOT_SLOT(index);
-  InternalFieldInfo* info = internal_field_info_;
-  internal_field_info_ = nullptr;
-  return info;
+  return TakeInternalFieldInfo(index, &internal_field_info_);
 }
 
 void BindingData::Deserialize(Local<Context> context,
@@ -136,11 +133,8 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  HandleScope scope(Isolate::GetCurrent());
-  Realm* realm = Realm::GetCurrent(context);
-  BindingData* binding = realm->AddBindingData<BindingData>(
-      holder, static_cast<InternalFieldInfo*>(info));
-  CHECK_NOT_NULL(binding);
+  Realm::DeserializeBindingData<BindingData>(
+      context, holder, static_cast<InternalFieldInfo*>(info));
 }
 
 void BindingData::SetChannelStatusCallback(uint32_t index,

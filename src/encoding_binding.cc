@@ -20,7 +20,6 @@ using v8::BackingStoreInitializationMode;
 using v8::BackingStoreOnFailureMode;
 using v8::Context;
 using v8::FunctionCallbackInfo;
-using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
@@ -67,10 +66,7 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
 }
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
-  DCHECK_IS_SNAPSHOT_SLOT(index);
-  InternalFieldInfo* info = internal_field_info_;
-  internal_field_info_ = nullptr;
-  return info;
+  return TakeInternalFieldInfo(index, &internal_field_info_);
 }
 
 // The following code is adapted from Cloudflare workers.
@@ -185,13 +181,8 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  HandleScope scope(Isolate::GetCurrent());
-  Realm* realm = Realm::GetCurrent(context);
-  // Recreate the buffer in the constructor.
-  InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
-  BindingData* binding =
-      realm->AddBindingData<BindingData>(holder, casted_info);
-  CHECK_NOT_NULL(binding);
+  Realm::DeserializeBindingData<BindingData>(
+      context, holder, static_cast<InternalFieldInfo*>(info));
 }
 
 void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
