@@ -1261,6 +1261,7 @@ static void ImportMetaResolveLazyGetter(
   Realm* realm = Realm::GetCurrent(context);
   if (realm == nullptr) {
     THROW_ERR_INVALID_INVOCATION(isolate);
+    return;
   }
   Local<Function> initializer = realm->host_import_meta_resolve_initializer();
   if (initializer.IsEmpty()) {
