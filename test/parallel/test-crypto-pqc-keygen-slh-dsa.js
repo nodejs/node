@@ -4,31 +4,27 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
 
-if (!hasOpenSSL(3, 5)) {
-  for (const asymmetricKeyType of [
-    'slh-dsa-sha2-128f', 'slh-dsa-sha2-128s', 'slh-dsa-sha2-192f', 'slh-dsa-sha2-192s',
-    'slh-dsa-sha2-256f', 'slh-dsa-sha2-256s', 'slh-dsa-shake-128f', 'slh-dsa-shake-128s',
-    'slh-dsa-shake-192f', 'slh-dsa-shake-192s', 'slh-dsa-shake-256f', 'slh-dsa-shake-256s',
-  ]) {
+for (const asymmetricKeyType of [
+  'slh-dsa-sha2-128f', 'slh-dsa-sha2-128s', 'slh-dsa-sha2-192f', 'slh-dsa-sha2-192s',
+  'slh-dsa-sha2-256f', 'slh-dsa-sha2-256s', 'slh-dsa-shake-128f', 'slh-dsa-shake-128s',
+  'slh-dsa-shake-192f', 'slh-dsa-shake-192s', 'slh-dsa-shake-256f', 'slh-dsa-shake-256s',
+]) {
+  const supported = hasOpenSSL(3, 5) ||
+    (isBoringSSL && (asymmetricKeyType === 'slh-dsa-sha2-128s' ||
+                    asymmetricKeyType === 'slh-dsa-shake-256f'));
+  if (!supported) {
     assert.throws(() => generateKeyPair(asymmetricKeyType, common.mustNotCall()), {
       code: 'ERR_INVALID_ARG_VALUE',
       message: /The argument 'type' must be a supported key type/
     });
-  }
-} else {
-  for (const asymmetricKeyType of [
-    'slh-dsa-sha2-128f', 'slh-dsa-sha2-128s', 'slh-dsa-sha2-192f', 'slh-dsa-sha2-192s',
-    'slh-dsa-sha2-256f', 'slh-dsa-sha2-256s', 'slh-dsa-shake-128f', 'slh-dsa-shake-128s',
-    'slh-dsa-shake-192f', 'slh-dsa-shake-192s', 'slh-dsa-shake-256f', 'slh-dsa-shake-256s',
-  ]) {
-
+  } else {
     function assertJwk(jwk) {
       assert.strictEqual(jwk.kty, 'AKP');
       // SLH-DSA algorithm names keep the last character (f/s) lowercase.
