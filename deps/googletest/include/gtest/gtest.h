@@ -300,12 +300,12 @@ class GTEST_API_ [[nodiscard]] Test {
   // global context (before or after invocation of RUN_ALL_TESTS and from
   // SetUp/TearDown method of Environment objects registered with Google
   // Test) will be output as attributes of the <testsuites> element.
-  static void RecordProperty(const std::string& key, const std::string& value);
+  static void RecordProperty(std::string_view key, std::string_view value);
   // We do not define a custom serialization except for values that can be
   // converted to int64_t, but other values could be logged in this way.
   template <typename T, std::enable_if_t<std::is_convertible<T, int64_t>::value,
                                          bool> = true>
-  static void RecordProperty(const std::string& key, const T& value) {
+  static void RecordProperty(std::string_view key, const T& value) {
     RecordProperty(key, (Message() << value).GetString());
   }
 
@@ -376,7 +376,7 @@ class [[nodiscard]] TestProperty {
   // C'tor.  TestProperty does NOT have a default constructor.
   // Always use this constructor (with parameters) to create a
   // TestProperty object.
-  TestProperty(const std::string& a_key, const std::string& a_value)
+  TestProperty(std::string_view a_key, std::string_view a_value)
       : key_(a_key), value_(a_value) {}
 
   // Gets the user supplied key.
@@ -386,7 +386,7 @@ class [[nodiscard]] TestProperty {
   const char* value() const { return value_.c_str(); }
 
   // Sets a new value, overriding the one supplied in the constructor.
-  void SetValue(const std::string& new_value) { value_ = new_value; }
+  void SetValue(std::string_view new_value) { value_ = new_value; }
 
  private:
   // The key supplied by the user.
@@ -1261,7 +1261,7 @@ class GTEST_API_ [[nodiscard]] UnitTest {
   // from SetUpTestSuite or TearDownTestSuite, or to the global property set
   // when invoked elsewhere.  If the result already contains a property with
   // the same key, the value will be updated.
-  void RecordProperty(const std::string& key, const std::string& value);
+  void RecordProperty(std::string_view key, std::string_view value);
 
   // Gets the i-th test suite among all the test suites. i can range from 0 to
   // total_test_suite_count() - 1. If i is not in that range, returns NULL.
