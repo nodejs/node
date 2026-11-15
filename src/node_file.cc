@@ -1066,9 +1066,8 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(*path);
   ToNamespacedPath(env, &path);
 
-  if (argc > 2) {  // access(path, mode, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 2);
+  if (req_wrap_async != nullptr) {  // access(path, mode, req)
     ASYNC_THROW_IF_INSUFFICIENT_PERMISSIONS(
         env,
         req_wrap_async,
@@ -1107,9 +1106,8 @@ void Close(const FunctionCallbackInfo<Value>& args) {
   }
   env->RemoveUnmanagedFd(fd);
 
-  if (argc > 1) {  // close(fd, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 1);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 1);
+  if (req_wrap_async != nullptr) {  // close(fd, req)
     FS_ASYNC_TRACE_BEGIN0(UV_FS_CLOSE, req_wrap_async)
     AsyncCall(
         env, req_wrap_async, args, "close", UTF8, AfterNoArgs, uv_fs_close, fd);
@@ -1421,9 +1419,8 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsInt32());
   int flags = args[2].As<Int32>()->Value();
 
-  if (argc > 3) {  // symlink(target, path, flags, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 3);
+  if (req_wrap_async != nullptr) {  // symlink(target, path, flags, req)
     FS_ASYNC_TRACE_BEGIN2(UV_FS_SYMLINK,
                           req_wrap_async,
                           "target",
@@ -1529,9 +1526,8 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
 
   const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
-  if (argc > 2) {  // readlink(path, encoding, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 2);
+  if (req_wrap_async != nullptr) {  // readlink(path, encoding, req)
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_READLINK, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env,
@@ -1633,9 +1629,8 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   CHECK(IsSafeJsInt(args[1]));
   const int64_t len = args[1].As<Integer>()->Value();
 
-  if (argc > 2) {  // ftruncate(fd, len, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 2);
+  if (req_wrap_async != nullptr) {  // ftruncate(fd, len, req)
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FTRUNCATE, req_wrap_async)
     AsyncCall(env,
               req_wrap_async,
@@ -1665,9 +1660,8 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (argc > 1) {  // fdatasync(fd, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 1);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 1);
+  if (req_wrap_async != nullptr) {  // fdatasync(fd, req)
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FDATASYNC, req_wrap_async)
     AsyncCall(env,
               req_wrap_async,
@@ -1696,9 +1690,8 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (argc > 1) {
-    FSReqBase* req_wrap_async = GetReqWrap(args, 1);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 1);
+  if (req_wrap_async != nullptr) {
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FSYNC, req_wrap_async)
     AsyncCall(
         env, req_wrap_async, args, "fsync", UTF8, AfterNoArgs, uv_fs_fsync, fd);
@@ -1757,9 +1750,8 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
 
-  if (argc > 1) {
-    FSReqBase* req_wrap_async = GetReqWrap(args, 1);  // rmdir(path, req)
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 1);
+  if (req_wrap_async != nullptr) {  // rmdir(path, req)
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_RMDIR, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env,
@@ -2141,9 +2133,8 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsBoolean());
   bool mkdirp = args[2]->IsTrue();
 
-  if (argc > 3) {  // mkdir(path, mode, recursive, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 3);
+  if (req_wrap_async != nullptr) {  // mkdir(path, mode, recursive, req)
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_UNLINK, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env,
@@ -2771,9 +2762,9 @@ static void ReadDirRecursive(const FunctionCallbackInfo<Value>& args) {
   // can do those: lib walks the tree in JS when the permission model is on.
   CHECK(!env->permission()->enabled());
 
-  if (argc > 3) {  // readdirRecursive(path, encoding, withTypes, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 3);
+  if (req_wrap_async !=
+      nullptr) {  // readdirRecursive(path, encoding, withTypes, req)
     req_wrap_async->Init("scandir", nullptr, 0, encoding);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_SCANDIR, req_wrap_async, "path", TRACE_STR_COPY(*path))
@@ -2886,9 +2877,8 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsInt32());
   const int mode = args[2].As<Int32>()->Value();
 
-  if (argc > 3) {  // open(path, flags, mode, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 3);
+  if (req_wrap_async != nullptr) {  // open(path, flags, mode, req)
     if (AsyncCheckOpenPermissions(env, req_wrap_async, path, flags).IsNothing())
       return;
     req_wrap_async->set_is_plain_open(true);
@@ -3148,9 +3138,8 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
     iovs[i] = uv_buf_init(Buffer::Data(chunk), Buffer::Length(chunk));
   }
 
-  if (argc > 3) {  // writeBuffers(fd, chunks, pos, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 3);
+  if (req_wrap_async != nullptr) {  // writeBuffers(fd, chunks, pos, req)
     FS_ASYNC_TRACE_BEGIN0(UV_FS_WRITE, req_wrap_async)
     AsyncCall(env,
               req_wrap_async,
@@ -3406,9 +3395,8 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   char* buf = buffer_data + off;
   uv_buf_t uvbuf = uv_buf_init(buf, len);
 
-  if (argc > 5) {  // read(fd, buffer, offset, len, pos, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 5);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 5);
+  if (req_wrap_async != nullptr) {  // read(fd, buffer, offset, len, pos, req)
     FS_ASYNC_TRACE_BEGIN0(UV_FS_READ, req_wrap_async)
     AsyncCall(env,
               req_wrap_async,
@@ -4038,9 +4026,8 @@ static void ReadBuffers(const FunctionCallbackInfo<Value>& args) {
     iovs[i] = uv_buf_init(Buffer::Data(buffer), Buffer::Length(buffer));
   }
 
-  if (argc > 3) {  // readBuffers(fd, buffers, pos, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 3);
+  if (req_wrap_async != nullptr) {  // readBuffers(fd, buffers, pos, req)
     FS_ASYNC_TRACE_BEGIN0(UV_FS_READ, req_wrap_async)
     AsyncCall(env,
               req_wrap_async,
@@ -4084,9 +4071,8 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsInt32());
   int mode = args[1].As<Int32>()->Value();
 
-  if (argc > 2) {  // chmod(path, mode, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 2);
+  if (req_wrap_async != nullptr) {  // chmod(path, mode, req)
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_CHMOD, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env,
@@ -4123,9 +4109,8 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsInt32());
   const int mode = args[1].As<Int32>()->Value();
 
-  if (argc > 2) {  // fchmod(fd, mode, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 2);
+  if (req_wrap_async != nullptr) {  // fchmod(fd, mode, req)
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FCHMOD, req_wrap_async)
     AsyncCall(env,
               req_wrap_async,
@@ -4210,9 +4195,8 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
   CHECK(IsSafeJsInt(args[2]));
   const auto gid = FromV8Value<uv_gid_t, true>(args[2]);
 
-  if (argc > 3) {  // fchown(fd, uid, gid, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 3);
+  if (req_wrap_async != nullptr) {  // fchown(fd, uid, gid, req)
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FCHOWN, req_wrap_async)
     AsyncCall(env,
               req_wrap_async,
@@ -4293,9 +4277,8 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   const double mtime = args[2].As<Number>()->Value();
 
-  if (argc > 3) {  // utimes(path, atime, mtime, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 3);
+  if (req_wrap_async != nullptr) {  // utimes(path, atime, mtime, req)
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_UTIME, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env,
@@ -4334,9 +4317,8 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   const double mtime = args[2].As<Number>()->Value();
 
-  if (argc > 3) {  // futimes(fd, atime, mtime, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 3);
+  if (req_wrap_async != nullptr) {  // futimes(fd, atime, mtime, req)
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FUTIME, req_wrap_async)
     AsyncCall(env,
               req_wrap_async,
@@ -4375,9 +4357,8 @@ static void LUTimes(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   const double mtime = args[2].As<Number>()->Value();
 
-  if (argc > 3) {  // lutimes(path, atime, mtime, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 3);
+  if (req_wrap_async != nullptr) {  // lutimes(path, atime, mtime, req)
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_LUTIME, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env,
@@ -4474,9 +4455,8 @@ static void Mkstemp(const FunctionCallbackInfo<Value>& args) {
 
   const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
-  if (argc > 2) {  // mkstemp(tmpl, encoding, req)
-    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-    CHECK_NOT_NULL(req_wrap_async);
+  FSReqBase* req_wrap_async = GetAsyncReqWrap(args, 2);
+  if (req_wrap_async != nullptr) {  // mkstemp(tmpl, encoding, req)
     if (AsyncCheckOpenPermissions(env, req_wrap_async, tmpl, kMkstempFlags)
             .IsNothing()) {
       return;
