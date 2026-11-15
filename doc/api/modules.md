@@ -396,8 +396,7 @@ LOAD_AS_DIRECTORY(X)
    c. let M = X + (json main field)
    d. LOAD_AS_FILE(M)
    e. LOAD_INDEX(M)
-   f. LOAD_INDEX(X) DEPRECATED
-   g. THROW "not found"
+   f. THROW "not found"
 2. LOAD_INDEX(X)
 
 LOAD_NODE_MODULES(X, START)
@@ -674,13 +673,17 @@ If this was in a folder at `./some-library`, then
 `./some-library/lib/some-library.js`.
 
 If there is no [`package.json`][] file present in the directory, or if the
-[`"main"`][] entry is missing or cannot be resolved, then Node.js
-will attempt to load an `index.js` or `index.node` file out of that
-directory. For example, if there was no [`package.json`][] file in the previous
-example, then `require('./some-library')` would attempt to load:
+[`"main"`][] entry is missing, then Node.js will attempt to load an `index.js`
+or `index.node` file out of that directory. For example, if there was no
+[`package.json`][] file in the previous example, then
+`require('./some-library')` would attempt to load:
 
 * `./some-library/index.js`
 * `./some-library/index.node`
+
+If the [`"main"`][] entry is present but cannot be resolved, Node.js does not
+fall back to `index.js` or `index.node` and instead throws a
+`MODULE_NOT_FOUND` error.
 
 If these attempts fail, then Node.js will report the entire module as missing
 with the default error:
