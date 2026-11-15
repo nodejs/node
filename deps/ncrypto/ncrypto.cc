@@ -3636,6 +3636,8 @@ const BoringSSLKeyAlgorithm kBoringSSLKeyAlgorithms[] = {
     {KeyAlgorithm::ML_DSA_87.name(), EVP_PKEY_ML_DSA_87, EVP_pkey_ml_dsa_87},
     {KeyAlgorithm::ML_KEM_768.name(), EVP_PKEY_ML_KEM_768, EVP_pkey_ml_kem_768},
     {KeyAlgorithm::ML_KEM_1024.name(), EVP_PKEY_ML_KEM_1024, EVP_pkey_ml_kem_1024},
+    {KeyAlgorithm::SLH_DSA_SHA2_128S.name(), EVP_PKEY_SLH_DSA_SHA2_128S, EVP_pkey_slh_dsa_sha2_128s},
+    {KeyAlgorithm::SLH_DSA_SHAKE_256F.name(), EVP_PKEY_SLH_DSA_SHAKE_256F, EVP_pkey_slh_dsa_shake_256f},
 };
 // NOLINTEND(whitespace/line_length)
 // clang-format on
