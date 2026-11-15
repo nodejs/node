@@ -4375,7 +4375,8 @@ bool SQLTagStore::ResetAndBindStatement(
   return true;
 }
 
-void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
+void SQLTagStore::PrepareForExecution(const FunctionCallbackInfo<Value>& args,
+                                      BaseObjectPtr<Statement>* out) {
   SQLTagStore* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = Environment::GetCurrent(args);
@@ -4395,6 +4396,17 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
   if (!ResetAndBindStatement(env, stmt.get(), args)) {
     return;
   }
+
+  *out = std::move(stmt);
+}
+
+void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
+  BaseObjectPtr<Statement> stmt;
+  PrepareForExecution(args, &stmt);
+  if (!stmt) {
+    return;
+  }
+  Environment* env = Environment::GetCurrent(args);
 
   Local<Object> result;
   if (StatementExecutionHelper::Run(env, stmt.get()).ToLocal(&result)) {
@@ -4403,25 +4415,12 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SQLTagStore::Iterate(const FunctionCallbackInfo<Value>& args) {
-  SQLTagStore* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
-  Environment* env = Environment::GetCurrent(args);
-
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env, !session->database_->IsOpen(), "database is not open");
-  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
-
-  BaseObjectPtr<Statement> stmt = PrepareStatement(args);
-
+  BaseObjectPtr<Statement> stmt;
+  PrepareForExecution(args, &stmt);
   if (!stmt) {
     return;
   }
-
-  THROW_AND_RETURN_IF_STEPPING(env, stmt.get());
-
-  if (!ResetAndBindStatement(env, stmt.get(), args)) {
-    return;
-  }
+  Environment* env = Environment::GetCurrent(args);
 
   BaseObjectPtr<StatementIterator> iter =
       StatementExecutionHelper::Iterate(env, BaseObjectPtr<Statement>(stmt));
@@ -4434,25 +4433,12 @@ void SQLTagStore::Iterate(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
-  SQLTagStore* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
-  Environment* env = Environment::GetCurrent(args);
-
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env, !session->database_->IsOpen(), "database is not open");
-  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
-
-  BaseObjectPtr<Statement> stmt = PrepareStatement(args);
-
+  BaseObjectPtr<Statement> stmt;
+  PrepareForExecution(args, &stmt);
   if (!stmt) {
     return;
   }
-
-  THROW_AND_RETURN_IF_STEPPING(env, stmt.get());
-
-  if (!ResetAndBindStatement(env, stmt.get(), args)) {
-    return;
-  }
+  Environment* env = Environment::GetCurrent(args);
 
   Local<Value> result;
   if (StatementExecutionHelper::Get(env, stmt.get()).ToLocal(&result)) {
@@ -4461,25 +4447,12 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
-  SQLTagStore* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
-  Environment* env = Environment::GetCurrent(args);
-
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env, !session->database_->IsOpen(), "database is not open");
-  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
-
-  BaseObjectPtr<Statement> stmt = PrepareStatement(args);
-
+  BaseObjectPtr<Statement> stmt;
+  PrepareForExecution(args, &stmt);
   if (!stmt) {
     return;
   }
-
-  THROW_AND_RETURN_IF_STEPPING(env, stmt.get());
-
-  if (!ResetAndBindStatement(env, stmt.get(), args)) {
-    return;
-  }
+  Environment* env = Environment::GetCurrent(args);
 
   Isolate* isolate = env->isolate();
   bool needs_reset = true;
