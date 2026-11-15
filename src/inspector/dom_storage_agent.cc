@@ -20,11 +20,6 @@ using v8::Local;
 using v8::Object;
 using v8::Value;
 
-static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
-  isolate->ThrowException(v8::Exception::TypeError(
-      v8::String::NewFromUtf8(isolate, message.c_str()).ToLocalChecked()));
-}
-
 std::unique_ptr<protocol::DOMStorage::StorageId> createStorageIdFromObject(
     Local<Context> context, Local<Object> storage_id_obj) {
   protocol::String security_origin;
@@ -186,10 +181,8 @@ protocol::DispatchResponse DOMStorageAgent::clear(
 
 void DOMStorageAgent::domStorageItemAdded(Local<Context> context,
                                           Local<Object> params) {
-  Isolate* isolate = env_->isolate();
   Local<Object> storage_id_obj;
-  if (!ObjectGetObject(context, params, "storageId").ToLocal(&storage_id_obj)) {
-    ThrowEventError(isolate, "Missing storageId in event");
+  if (!ObjectGetRequired(context, params, "storageId", &storage_id_obj)) {
     return;
   }
 
@@ -200,13 +193,9 @@ void DOMStorageAgent::domStorageItemAdded(Local<Context> context,
   }
 
   protocol::String key;
-  if (!ObjectGetProtocolString(context, params, "key").To(&key)) {
-    ThrowEventError(isolate, "Missing key in event");
-    return;
-  }
   protocol::String new_value;
-  if (!ObjectGetProtocolString(context, params, "newValue").To(&new_value)) {
-    ThrowEventError(isolate, "Missing newValue in event");
+  if (!ObjectGetRequired(context, params, "key", &key) ||
+      !ObjectGetRequired(context, params, "newValue", &new_value)) {
     return;
   }
   frontend_->domStorageItemAdded(std::move(storage_id), key, new_value);
@@ -214,10 +203,8 @@ void DOMStorageAgent::domStorageItemAdded(Local<Context> context,
 
 void DOMStorageAgent::domStorageItemRemoved(Local<Context> context,
                                             Local<Object> params) {
-  Isolate* isolate = env_->isolate();
   Local<Object> storage_id_obj;
-  if (!ObjectGetObject(context, params, "storageId").ToLocal(&storage_id_obj)) {
-    ThrowEventError(isolate, "Missing storageId in event");
+  if (!ObjectGetRequired(context, params, "storageId", &storage_id_obj)) {
     return;
   }
   std::unique_ptr<protocol::DOMStorage::StorageId> storage_id =
@@ -228,8 +215,7 @@ void DOMStorageAgent::domStorageItemRemoved(Local<Context> context,
   }
 
   protocol::String key;
-  if (!ObjectGetProtocolString(context, params, "key").To(&key)) {
-    ThrowEventError(isolate, "Missing key in event");
+  if (!ObjectGetRequired(context, params, "key", &key)) {
     return;
   }
   frontend_->domStorageItemRemoved(std::move(storage_id), key);
@@ -237,10 +223,8 @@ void DOMStorageAgent::domStorageItemRemoved(Local<Context> context,
 
 void DOMStorageAgent::domStorageItemUpdated(Local<Context> context,
                                             Local<Object> params) {
-  Isolate* isolate = env_->isolate();
   Local<Object> storage_id_obj;
-  if (!ObjectGetObject(context, params, "storageId").ToLocal(&storage_id_obj)) {
-    ThrowEventError(isolate, "Missing storageId in event");
+  if (!ObjectGetRequired(context, params, "storageId", &storage_id_obj)) {
     return;
   }
 
@@ -252,18 +236,11 @@ void DOMStorageAgent::domStorageItemUpdated(Local<Context> context,
   }
 
   protocol::String key;
-  if (!ObjectGetProtocolString(context, params, "key").To(&key)) {
-    ThrowEventError(isolate, "Missing key in event");
-    return;
-  }
   protocol::String old_value;
-  if (!ObjectGetProtocolString(context, params, "oldValue").To(&old_value)) {
-    ThrowEventError(isolate, "Missing oldValue in event");
-    return;
-  }
   protocol::String new_value;
-  if (!ObjectGetProtocolString(context, params, "newValue").To(&new_value)) {
-    ThrowEventError(isolate, "Missing newValue in event");
+  if (!ObjectGetRequired(context, params, "key", &key) ||
+      !ObjectGetRequired(context, params, "oldValue", &old_value) ||
+      !ObjectGetRequired(context, params, "newValue", &new_value)) {
     return;
   }
   frontend_->domStorageItemUpdated(
@@ -272,10 +249,8 @@ void DOMStorageAgent::domStorageItemUpdated(Local<Context> context,
 
 void DOMStorageAgent::domStorageItemsCleared(Local<Context> context,
                                              Local<Object> params) {
-  Isolate* isolate = env_->isolate();
   Local<Object> storage_id_obj;
-  if (!ObjectGetObject(context, params, "storageId").ToLocal(&storage_id_obj)) {
-    ThrowEventError(isolate, "Missing storageId in event");
+  if (!ObjectGetRequired(context, params, "storageId", &storage_id_obj)) {
     return;
   }
   std::unique_ptr<protocol::DOMStorage::StorageId> storage_id =
@@ -292,14 +267,10 @@ void DOMStorageAgent::registerStorage(Local<Context> context,
   Isolate* isolate = env_->isolate();
   HandleScope handle_scope(isolate);
   bool is_local_storage;
-  if (!ObjectGetBool(context, params, "isLocalStorage").To(&is_local_storage)) {
-    ThrowEventError(isolate, "Missing isLocalStorage in event");
-    return;
-  }
   Local<Object> storage_map_obj;
-  if (!ObjectGetObject(context, params, "storageMap")
-           .ToLocal(&storage_map_obj)) {
-    ThrowEventError(isolate, "Missing storageMap in event");
+  if (!ObjectGetRequired(
+          context, params, "isLocalStorage", &is_local_storage) ||
+      !ObjectGetRequired(context, params, "storageMap", &storage_map_obj)) {
     return;
   }
   StorageMap& storage_map =
