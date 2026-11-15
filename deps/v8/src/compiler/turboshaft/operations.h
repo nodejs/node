@@ -7478,8 +7478,22 @@ struct FindOrderedHashEntryOp
   };
   Kind kind;
 
-  static constexpr OpEffects effects =
-      OpEffects().CanDependOnChecks().CanReadMemory().CanAllocate();
+  OpEffects Effects() const {
+    switch (kind) {
+      case Kind::kFindOrderedHashMapEntry:
+      case Kind::kFindOrderedHashSetEntry:
+        // Looking up a string key can internalize it in place into a
+        // ThinString, overwriting its payload (e.g., ConsString::first_).
+        return OpEffects()
+            .CanDependOnChecks()
+            .CanReadMemory()
+            .CanWriteHeapMemory()
+            .CanAllocate();
+      case Kind::kFindOrderedHashMapEntryForInt32Key:
+        return OpEffects().CanDependOnChecks().CanReadMemory();
+    }
+    UNREACHABLE();
+  }
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     switch (kind) {
       case Kind::kFindOrderedHashMapEntry:
@@ -11092,6 +11106,8 @@ inline OpEffects Operation::Effects() const {
       return Cast<StoreOp>().Effects();
     case Opcode::kCall:
       return Cast<CallOp>().Effects();
+    case Opcode::kFindOrderedHashEntry:
+      return Cast<FindOrderedHashEntryOp>().Effects();
     case Opcode::kDidntThrow:
       return Cast<DidntThrowOp>().Effects();
     case Opcode::kTaggedBitcast:

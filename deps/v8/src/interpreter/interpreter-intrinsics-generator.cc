@@ -157,19 +157,20 @@ TNode<Object> IntrinsicsGenerator::GeneratorYieldResult(
   compiler::TypedCodeAssemblerVariable<Object> result(assembler_);
   compiler::CodeAssemblerLabel allocate(assembler_), allocate_done(assembler_);
 
-  // Check if yielded_value_ is TheHole (signaling to skip allocating the result
-  // object.
-  TNode<Object> current_yielded_value = assembler_->LoadObjectField(
-      assembler_->CAST(generator), offsetof(JSGeneratorObject, yielded_value_));
-  assembler_->GotoIf(assembler_->TaggedNotEqual(current_yielded_value,
-                                                assembler_->TheHoleConstant()),
-                     &allocate);
+  // Check whether the caller asked to skip result allocation
+  // (resume_mode_ == kNextTrySkipAlloc).
+  TNode<Object> mode = assembler_->LoadObjectField(
+      assembler_->CAST(generator), offsetof(JSGeneratorObject, resume_mode_));
+  assembler_->GotoIf(
+      assembler_->TaggedNotEqual(
+          mode, assembler_->SmiConstant(JSGeneratorObject::kNextTrySkipAlloc)),
+      &allocate);
 
-  // Store value
-  assembler_->StoreObjectField(assembler_->CAST(generator),
-                               offsetof(JSGeneratorObject, yielded_value_),
-                               value);
-  result = assembler_->TheHoleConstant();
+  // Skip allocation: ack handshake and return bare value.
+  assembler_->StoreObjectField(
+      assembler_->CAST(generator), offsetof(JSGeneratorObject, resume_mode_),
+      assembler_->SmiConstant(JSGeneratorObject::kNextAllocSkipped));
+  result = value;
   assembler_->Goto(&allocate_done);
 
   assembler_->Bind(&allocate);

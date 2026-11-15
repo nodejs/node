@@ -247,6 +247,12 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
 
       case Opcode::kCatchBlockBegin:
+        // Throwing an exception can have arbitrary side effects (e.g., via
+        // debugger pause-on-exception), even when the throwing operation itself
+        // does not have `can_write` effects on its non-throwing path.
+        memory_.InvalidateMaybeAliasing();
+        break;
+
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
       case Opcode::kCheckException:

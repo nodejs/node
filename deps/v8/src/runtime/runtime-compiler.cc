@@ -857,11 +857,15 @@ static Tagged<Object> CompileGlobalEval(
   DirectHandle<JSFunction> compiled;
   DirectHandle<Context> context(isolate->context(), isolate);
   if (!Is<NativeContext>(*context)) {
-    Tagged<WeakFixedArray> array = Cast<Script>(outer_info->script())->infos();
+    Tagged<Script> script = Cast<Script>(outer_info->script());
+    Tagged<WeakFixedArray> array = script->infos();
     Tagged<ScopeInfo> stored_info;
-    CHECK(array->get(eval_scope_info_index)
-              .GetHeapObjectIfWeak(isolate, &stored_info));
-    CHECK_EQ(stored_info, context->scope_info());
+    if (array->get(eval_scope_info_index)
+            .GetHeapObjectIfWeak(isolate, &stored_info)) {
+      CHECK_EQ(stored_info, context->scope_info());
+    } else {
+      CHECK_EQ(outer_info->GetOuterScopeInfo(), context->scope_info());
+    }
   }
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,

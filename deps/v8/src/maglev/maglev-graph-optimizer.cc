@@ -389,8 +389,10 @@ void Subgraph<MaglevGraphOptimizer>::Goto(Label* label) {
 
 void Subgraph<MaglevGraphOptimizer>::Bind(Label* label) {
   DCHECK_NULL(reducer_->current_block());
-  DCHECK_NOT_NULL(label->variable_merge_state_);
+  CHECK_NOT_NULL(label->variable_merge_state_);
+  DCHECK_NULL(label->merge_state_);
   MergePointInterpreterFrameState* merge_state = label->variable_merge_state_;
+  label->variable_merge_state_ = nullptr;
   DCHECK_EQ(merge_state->predecessors_so_far(), label->predecessor_count_);
   DCHECK_GT(label->predecessor_count_, 0);
 

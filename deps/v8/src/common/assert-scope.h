@@ -75,21 +75,25 @@ class V8_NODISCARD PerThreadAssertScope
 
 // Per-isolate assert scopes.
 
-#define PER_ISOLATE_DCHECK_TYPE(V, enable)                              \
-  /* Scope to document where we do not expect javascript execution. */  \
-  /* Scope to introduce an exception to DisallowJavascriptExecution. */ \
-  V(AllowJavascriptExecution, DisallowJavascriptExecution,              \
-    javascript_execution_assert, enable)                                \
-  /* Scope to document where we do not expect deoptimization. */        \
-  /* Scope to introduce an exception to DisallowDeoptimization. */      \
-  V(AllowDeoptimization, DisallowDeoptimization, deoptimization_assert, \
-    enable)                                                             \
-  /* Scope to document where we do not expect deoptimization. */        \
-  /* Scope to introduce an exception to DisallowDeoptimization. */      \
-  V(AllowCompilation, DisallowCompilation, compilation_assert, enable)  \
-  /* Scope to document where we do not expect exceptions. */            \
-  /* Scope to introduce an exception to DisallowExceptions. */          \
-  V(AllowExceptions, DisallowExceptions, no_exception_assert, enable)
+#define PER_ISOLATE_DCHECK_TYPE(V, enable)                                \
+  /* Scope to document where we do not expect javascript execution. */    \
+  /* Scope to introduce an exception to DisallowJavascriptExecution. */   \
+  V(AllowJavascriptExecution, DisallowJavascriptExecution,                \
+    javascript_execution_assert, enable)                                  \
+  /* Scope to document where we do not expect deoptimization. */          \
+  /* Scope to introduce an exception to DisallowDeoptimization. */        \
+  V(AllowDeoptimization, DisallowDeoptimization, deoptimization_assert,   \
+    enable)                                                               \
+  /* Scope to document where we do not expect deoptimization. */          \
+  /* Scope to introduce an exception to DisallowDeoptimization. */        \
+  V(AllowCompilation, DisallowCompilation, compilation_assert, enable)    \
+  /* Scope to document where we do not expect exceptions. */              \
+  /* Scope to introduce an exception to DisallowExceptions. */            \
+  V(AllowExceptions, DisallowExceptions, no_exception_assert, enable)     \
+  /* Scope to document where we do not expect JS object modifications. */ \
+  /* Scope to introduce an exception to DisallowJSObjectModification. */  \
+  V(AllowJSObjectModification, DisallowJSObjectModification,              \
+    js_object_modification_assert, enable)
 
 #define PER_ISOLATE_CHECK_TYPE(V, enable)                                    \
   /* Scope in which javascript execution leads to exception being thrown. */ \

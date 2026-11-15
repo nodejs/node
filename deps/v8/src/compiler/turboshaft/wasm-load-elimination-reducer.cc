@@ -141,11 +141,21 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
           memory_.InvalidateMutableSharedBase();
         }
         break;
+      case Opcode::kCatchBlockBegin:
+        // Throwing an exception can have arbitrary side effects (e.g., via
+        // debugger pause-on-exception), even when the throwing operation itself
+        // does not have `can_write` effects on its non-throwing path.
+        memory_.InvalidateMaybeAliasing();
+        break;
+
+      case Opcode::kGlobalSet:
+        InvalidateIfAlias(op.Cast<GlobalSetOp>().value());
+        break;
+
       case Opcode::kMemoryCopy:
       case Opcode::kMemoryFill:
         // These should never operate on GC objects.
       case Opcode::kAssumeMap:
-      case Opcode::kCatchBlockBegin:
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
       case Opcode::kCheckException:
@@ -153,7 +163,6 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kJSStackCheck:
       case Opcode::kWasmStackCheck:
       case Opcode::kSimd128LaneMemory:
-      case Opcode::kGlobalSet:
       case Opcode::kWasmIncCoverageCounter:
       case Opcode::kParameter:
       case Opcode::kSetStackPointer:
@@ -360,6 +369,10 @@ void WasmLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     // among threads.
     memory_.InvalidateMutableSharedBase();
   }
+
+  // Updating aliases if the value stored was known as non-aliasing (e.g.,
+  // storing a struct reference into an exception values array).
+  InvalidateIfAlias(op.value());
 }
 
 void WasmLoadEliminationAnalyzer::ProcessArrayGet(OpIndex op_idx,
@@ -469,9 +482,6 @@ void WasmLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   // Some builtins do not create aliases and do not invalidate existing
   // memory, and some even return fresh objects. For such cases, we don't
   // invalidate the state, and record the non-alias if any.
-  if (!op.Effects().can_write()) {
-    return;
-  }
   // TODO(jkummerow): Add special handling to builtins that are known not to
   // have relevant side effects. Alternatively, specify their effects to not
   // include `CanWriteMemory()`.
@@ -489,8 +499,11 @@ void WasmLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
 #endif
   // Not a builtin call, or not a builtin that we know doesn't invalidate
   // memory.
-
   InvalidateAllNonAliasingInputs(op);
+
+  if (!op.Effects().can_write()) {
+    return;
+  }
 
   // The call could modify arbitrary memory, so we invalidate every
   // potentially-aliasing object.
