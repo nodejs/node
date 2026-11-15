@@ -584,10 +584,7 @@ void BlobBindingData::Deserialize(Local<Context> context,
                                   int index,
                                   InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  HandleScope scope(Isolate::GetCurrent());
-  Realm* realm = Realm::GetCurrent(context);
-  BlobBindingData* binding = realm->AddBindingData<BlobBindingData>(holder);
-  CHECK_NOT_NULL(binding);
+  Realm::DeserializeBindingData<BlobBindingData>(context, holder);
 }
 
 bool BlobBindingData::PrepareForSerialization(Local<Context> context,
@@ -600,9 +597,7 @@ bool BlobBindingData::PrepareForSerialization(Local<Context> context,
 
 InternalFieldInfoBase* BlobBindingData::Serialize(int index) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  InternalFieldInfo* info =
-      InternalFieldInfoBase::New<InternalFieldInfo>(type());
-  return info;
+  return InternalFieldInfoBase::New<InternalFieldInfo>(type());
 }
 
 void Blob::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
