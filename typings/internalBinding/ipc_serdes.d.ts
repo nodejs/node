@@ -7,7 +7,10 @@ declare namespace InternalIPCSerdesBinding {
   class IPCChannelFramer {
     constructor();
     read(chunk: Uint8Array): unknown[];
-    buffering(): boolean;
+    // Bitmask of kFramerBuffering and kFramerError.
+    status(): number;
+    // Returns and clears the error of a frame that failed to deserialize.
+    takeError(): unknown;
   }
 }
 
@@ -15,4 +18,6 @@ export interface IPCSerdesBinding {
   serialize(message: unknown): InternalIPCSerdesBinding.Buffer;
   deserialize(buffer: ArrayBufferView): unknown;
   IPCChannelFramer: typeof InternalIPCSerdesBinding.IPCChannelFramer;
+  kFramerBuffering: number;
+  kFramerError: number;
 }
