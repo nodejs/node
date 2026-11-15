@@ -324,43 +324,96 @@ Local<FunctionTemplate> NewFunctionTemplate(Isolate* isolate,
                                c_function);
 }
 
+namespace {
+
+// kInternalized strings are created in the old space.
+Local<String> NewMethodName(Isolate* isolate, const std::string_view name) {
+  return String::NewFromUtf8(
+             isolate, name.data(), NewStringType::kInternalized, name.size())
+      .ToLocalChecked();
+}
+
+// Creates the template for a non-constructible method. When `receiver` is not
+// empty, calls are restricted to instances of it via a receiver signature.
+Local<FunctionTemplate> NewMethodTemplate(
+    Isolate* isolate,
+    FunctionCallback callback,
+    SideEffectType side_effect_type,
+    const CFunction* c_function = nullptr,
+    Local<FunctionTemplate> receiver = {}) {
+  return NewFunctionTemplate(isolate,
+                             callback,
+                             receiver.IsEmpty()
+                                 ? Local<Signature>()
+                                 : Signature::New(isolate, receiver),
+                             ConstructorBehavior::kThrow,
+                             side_effect_type,
+                             c_function);
+}
+
+Local<FunctionTemplate> NewMethodTemplate(
+    Isolate* isolate,
+    FunctionCallback slow_callback,
+    SideEffectType side_effect_type,
+    const MemorySpan<const CFunction>& methods) {
+  return FunctionTemplate::NewWithCFunctionOverloads(
+      isolate,
+      slow_callback,
+      Local<Value>(),
+      Local<Signature>(),
+      0,
+      ConstructorBehavior::kThrow,
+      side_effect_type,
+      methods);
+}
+
+// Instantiates `t` in `context` and installs it on `that` as `name`.
+void SetMethodFromTemplate(Local<Context> context,
+                           Local<Object> that,
+                           const std::string_view name,
+                           Local<FunctionTemplate> t,
+                           bool set_function_name) {
+  Isolate* isolate = Isolate::GetCurrent();
+  Local<Function> function = t->GetFunction(context).ToLocalChecked();
+  Local<String> name_string = NewMethodName(isolate, name);
+  that->Set(context, name_string, function).Check();
+  if (set_function_name) {
+    function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+  }
+}
+
+// Installs `t` on the prototype or instance template of `that` as `name`.
+void SetClassMethodFromTemplate(Isolate* isolate,
+                                Local<Template> that,
+                                const std::string_view name,
+                                Local<FunctionTemplate> t) {
+  Local<String> name_string = NewMethodName(isolate, name);
+  that->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+}
+
+}  // namespace
+
 void SetMethod(Local<Context> context,
                Local<Object> that,
                const std::string_view name,
                FunctionCallback callback) {
-  Isolate* isolate = Isolate::GetCurrent();
-  Local<Function> function = NewFunctionTemplate(isolate,
-                                                 callback,
-                                                 Local<Signature>(),
-                                                 ConstructorBehavior::kThrow,
-                                                 SideEffectType::kHasSideEffect)
-                                 ->GetFunction(context)
-                                 .ToLocalChecked();
-  // kInternalized strings are created in the old space.
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->Set(context, name_string, function).Check();
-  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+  SetMethodFromTemplate(
+      context,
+      that,
+      name,
+      NewMethodTemplate(
+          Isolate::GetCurrent(), callback, SideEffectType::kHasSideEffect),
+      true);
 }
 
 void SetMethod(Isolate* isolate,
                Local<Template> that,
                const std::string_view name,
                FunctionCallback callback) {
-  Local<FunctionTemplate> t =
-      NewFunctionTemplate(isolate,
-                          callback,
-                          Local<Signature>(),
-                          ConstructorBehavior::kThrow,
-                          SideEffectType::kHasSideEffect);
-  // kInternalized strings are created in the old space.
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->Set(name_string, t);
+  that->Set(
+      NewMethodName(isolate, name),
+      NewMethodTemplate(isolate, callback, SideEffectType::kHasSideEffect));
 }
 
 void SetFastMethod(Isolate* isolate,
@@ -368,19 +421,10 @@ void SetFastMethod(Isolate* isolate,
                    const std::string_view name,
                    FunctionCallback slow_callback,
                    const CFunction* c_function) {
-  Local<FunctionTemplate> t =
-      NewFunctionTemplate(isolate,
-                          slow_callback,
-                          Local<Signature>(),
-                          ConstructorBehavior::kThrow,
-                          SideEffectType::kHasSideEffect,
-                          c_function);
-  // kInternalized strings are created in the old space.
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->Set(name_string, t);
+  that->Set(
+      NewMethodName(isolate, name),
+      NewMethodTemplate(
+          isolate, slow_callback, SideEffectType::kHasSideEffect, c_function));
 }
 
 void SetFastMethod(Local<Context> context,
@@ -388,20 +432,14 @@ void SetFastMethod(Local<Context> context,
                    const std::string_view name,
                    FunctionCallback slow_callback,
                    const CFunction* c_function) {
-  Isolate* isolate = Isolate::GetCurrent();
-  Local<Function> function = NewFunctionTemplate(isolate,
-                                                 slow_callback,
-                                                 Local<Signature>(),
-                                                 ConstructorBehavior::kThrow,
-                                                 SideEffectType::kHasSideEffect,
-                                                 c_function)
-                                 ->GetFunction(context)
-                                 .ToLocalChecked();
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->Set(context, name_string, function).Check();
+  SetMethodFromTemplate(context,
+                        that,
+                        name,
+                        NewMethodTemplate(Isolate::GetCurrent(),
+                                          slow_callback,
+                                          SideEffectType::kHasSideEffect,
+                                          c_function),
+                        false);
 }
 
 void SetFastMethodNoSideEffect(Local<Context> context,
@@ -409,21 +447,14 @@ void SetFastMethodNoSideEffect(Local<Context> context,
                                const std::string_view name,
                                FunctionCallback slow_callback,
                                const CFunction* c_function) {
-  Isolate* isolate = Isolate::GetCurrent();
-  Local<Function> function =
-      NewFunctionTemplate(isolate,
-                          slow_callback,
-                          Local<Signature>(),
-                          ConstructorBehavior::kThrow,
-                          SideEffectType::kHasNoSideEffect,
-                          c_function)
-          ->GetFunction(context)
-          .ToLocalChecked();
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->Set(context, name_string, function).Check();
+  SetMethodFromTemplate(context,
+                        that,
+                        name,
+                        NewMethodTemplate(Isolate::GetCurrent(),
+                                          slow_callback,
+                                          SideEffectType::kHasNoSideEffect,
+                                          c_function),
+                        false);
 }
 
 void SetFastMethodNoSideEffect(Isolate* isolate,
@@ -431,19 +462,11 @@ void SetFastMethodNoSideEffect(Isolate* isolate,
                                const std::string_view name,
                                FunctionCallback slow_callback,
                                const CFunction* c_function) {
-  Local<FunctionTemplate> t =
-      NewFunctionTemplate(isolate,
-                          slow_callback,
-                          Local<Signature>(),
-                          ConstructorBehavior::kThrow,
-                          SideEffectType::kHasNoSideEffect,
-                          c_function);
-  // kInternalized strings are created in the old space.
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->Set(name_string, t);
+  that->Set(NewMethodName(isolate, name),
+            NewMethodTemplate(isolate,
+                              slow_callback,
+                              SideEffectType::kHasNoSideEffect,
+                              c_function));
 }
 
 void SetFastMethod(Isolate* isolate,
@@ -451,22 +474,10 @@ void SetFastMethod(Isolate* isolate,
                    const std::string_view name,
                    FunctionCallback slow_callback,
                    const MemorySpan<const CFunction>& methods) {
-  Local<FunctionTemplate> t = FunctionTemplate::NewWithCFunctionOverloads(
-      isolate,
-      slow_callback,
-      Local<Value>(),
-      Local<Signature>(),
-      0,
-      ConstructorBehavior::kThrow,
-      SideEffectType::kHasSideEffect,
-      methods);
-
-  // kInternalized strings are created in the old space.
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->Set(name_string, t);
+  that->Set(
+      NewMethodName(isolate, name),
+      NewMethodTemplate(
+          isolate, slow_callback, SideEffectType::kHasSideEffect, methods));
 }
 
 void SetFastMethodNoSideEffect(Isolate* isolate,
@@ -474,22 +485,10 @@ void SetFastMethodNoSideEffect(Isolate* isolate,
                                const std::string_view name,
                                FunctionCallback slow_callback,
                                const MemorySpan<const CFunction>& methods) {
-  Local<FunctionTemplate> t = FunctionTemplate::NewWithCFunctionOverloads(
-      isolate,
-      slow_callback,
-      Local<Value>(),
-      Local<Signature>(),
-      0,
-      ConstructorBehavior::kThrow,
-      SideEffectType::kHasNoSideEffect,
-      methods);
-
-  // kInternalized strings are created in the old space.
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->Set(name_string, t);
+  that->Set(
+      NewMethodName(isolate, name),
+      NewMethodTemplate(
+          isolate, slow_callback, SideEffectType::kHasNoSideEffect, methods));
 }
 
 void SetFastMethodNoSideEffect(Local<Context> context,
@@ -497,149 +496,90 @@ void SetFastMethodNoSideEffect(Local<Context> context,
                                const std::string_view name,
                                FunctionCallback slow_callback,
                                const MemorySpan<const CFunction>& methods) {
-  Isolate* isolate = Isolate::GetCurrent();
-  Local<Function> function = FunctionTemplate::NewWithCFunctionOverloads(
-                                 isolate,
-                                 slow_callback,
-                                 Local<Value>(),
-                                 Local<Signature>(),
-                                 0,
-                                 ConstructorBehavior::kThrow,
-                                 SideEffectType::kHasNoSideEffect,
-                                 methods)
-                                 ->GetFunction(context)
-                                 .ToLocalChecked();
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->Set(context, name_string, function).Check();
+  SetMethodFromTemplate(context,
+                        that,
+                        name,
+                        NewMethodTemplate(Isolate::GetCurrent(),
+                                          slow_callback,
+                                          SideEffectType::kHasNoSideEffect,
+                                          methods),
+                        false);
 }
 
 void SetMethodNoSideEffect(Local<Context> context,
                            Local<Object> that,
                            const std::string_view name,
                            FunctionCallback callback) {
-  Isolate* isolate = Isolate::GetCurrent();
-  Local<Function> function =
-      NewFunctionTemplate(isolate,
-                          callback,
-                          Local<Signature>(),
-                          ConstructorBehavior::kThrow,
-                          SideEffectType::kHasNoSideEffect)
-          ->GetFunction(context)
-          .ToLocalChecked();
-  // kInternalized strings are created in the old space.
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->Set(context, name_string, function).Check();
-  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+  SetMethodFromTemplate(
+      context,
+      that,
+      name,
+      NewMethodTemplate(
+          Isolate::GetCurrent(), callback, SideEffectType::kHasNoSideEffect),
+      true);
 }
 
 void SetMethodNoSideEffect(Isolate* isolate,
                            Local<Template> that,
                            const std::string_view name,
                            FunctionCallback callback) {
-  Local<FunctionTemplate> t =
-      NewFunctionTemplate(isolate,
-                          callback,
-                          Local<Signature>(),
-                          ConstructorBehavior::kThrow,
-                          SideEffectType::kHasNoSideEffect);
-  // kInternalized strings are created in the old space.
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->Set(name_string, t);
+  that->Set(
+      NewMethodName(isolate, name),
+      NewMethodTemplate(isolate, callback, SideEffectType::kHasNoSideEffect));
 }
 
 void SetProtoDispose(Isolate* isolate,
                      Local<FunctionTemplate> that,
                      FunctionCallback callback) {
-  Local<Signature> signature = Signature::New(isolate, that);
-  Local<FunctionTemplate> t =
-      NewFunctionTemplate(isolate,
-                          callback,
-                          signature,
-                          ConstructorBehavior::kThrow,
-                          SideEffectType::kHasSideEffect);
-  that->PrototypeTemplate()->Set(Symbol::GetDispose(isolate), t);
+  that->PrototypeTemplate()->Set(
+      Symbol::GetDispose(isolate),
+      NewMethodTemplate(
+          isolate, callback, SideEffectType::kHasSideEffect, nullptr, that));
 }
 
 void SetProtoAsyncDispose(Isolate* isolate,
                           Local<FunctionTemplate> that,
                           FunctionCallback callback) {
-  Local<Signature> signature = Signature::New(isolate, that);
-  Local<FunctionTemplate> t =
-      NewFunctionTemplate(isolate,
-                          callback,
-                          signature,
-                          ConstructorBehavior::kThrow,
-                          SideEffectType::kHasSideEffect);
-  that->PrototypeTemplate()->Set(Symbol::GetAsyncDispose(isolate), t);
+  that->PrototypeTemplate()->Set(
+      Symbol::GetAsyncDispose(isolate),
+      NewMethodTemplate(
+          isolate, callback, SideEffectType::kHasSideEffect, nullptr, that));
 }
 
 void SetProtoMethod(Isolate* isolate,
                     Local<FunctionTemplate> that,
                     const std::string_view name,
                     FunctionCallback callback) {
-  Local<Signature> signature = Signature::New(isolate, that);
-  Local<FunctionTemplate> t =
-      NewFunctionTemplate(isolate,
-                          callback,
-                          signature,
-                          ConstructorBehavior::kThrow,
-                          SideEffectType::kHasSideEffect);
-  // kInternalized strings are created in the old space.
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->PrototypeTemplate()->Set(name_string, t);
-  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+  SetClassMethodFromTemplate(
+      isolate,
+      that->PrototypeTemplate(),
+      name,
+      NewMethodTemplate(
+          isolate, callback, SideEffectType::kHasSideEffect, nullptr, that));
 }
 
 void SetProtoMethodNoSideEffect(Isolate* isolate,
                                 Local<FunctionTemplate> that,
                                 const std::string_view name,
                                 FunctionCallback callback) {
-  Local<Signature> signature = Signature::New(isolate, that);
-  Local<FunctionTemplate> t =
-      NewFunctionTemplate(isolate,
-                          callback,
-                          signature,
-                          ConstructorBehavior::kThrow,
-                          SideEffectType::kHasNoSideEffect);
-  // kInternalized strings are created in the old space.
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->PrototypeTemplate()->Set(name_string, t);
-  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+  SetClassMethodFromTemplate(
+      isolate,
+      that->PrototypeTemplate(),
+      name,
+      NewMethodTemplate(
+          isolate, callback, SideEffectType::kHasNoSideEffect, nullptr, that));
 }
 
 void SetInstanceMethod(Isolate* isolate,
                        Local<FunctionTemplate> that,
                        const std::string_view name,
                        FunctionCallback callback) {
-  Local<Signature> signature = Signature::New(isolate, that);
-  Local<FunctionTemplate> t =
-      NewFunctionTemplate(isolate,
-                          callback,
-                          signature,
-                          ConstructorBehavior::kThrow,
-                          SideEffectType::kHasSideEffect);
-  // kInternalized strings are created in the old space.
-  const NewStringType type = NewStringType::kInternalized;
-  Local<String> name_string =
-      String::NewFromUtf8(isolate, name.data(), type, name.size())
-          .ToLocalChecked();
-  that->InstanceTemplate()->Set(name_string, t);
-  t->SetClassName(name_string);
+  SetClassMethodFromTemplate(
+      isolate,
+      that->InstanceTemplate(),
+      name,
+      NewMethodTemplate(
+          isolate, callback, SideEffectType::kHasSideEffect, nullptr, that));
 }
 
 void SetConstructorFunction(Local<Context> context,
