@@ -108,6 +108,15 @@ inline T* Realm::AddBindingData(v8::Local<v8::Object> target, Args&&... args) {
   return item.get();
 }
 
+template <std::derived_from<BaseObject> T, typename... Args>
+void Realm::DeserializeBindingData(v8::Local<v8::Context> context,
+                                   v8::Local<v8::Object> holder,
+                                   Args&&... args) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  Realm* realm = Realm::GetCurrent(context);
+  CHECK_NOT_NULL(realm->AddBindingData<T>(holder, std::forward<Args>(args)...));
+}
+
 inline BindingDataStore* Realm::binding_data_store() {
   return &binding_data_store_;
 }
