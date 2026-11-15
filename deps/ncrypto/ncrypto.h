@@ -309,6 +309,7 @@ class Digest final {
   NCRYPTO_DISALLOW_MOVE(Digest)
 
   size_t size() const;
+  bool isXof() const;
 
   inline const EVP_MD* get() const { return md_; }
   inline operator const EVP_MD*() const { return md_; }

@@ -80,32 +80,28 @@ if (isBoringSSL) {
   skip(
     'secure-curves/derive_bits_keys/cfrg_curves_bits_curve448.https.any.js',
     'secure-curves/derive_bits_keys/cfrg_curves_keys_curve448.https.any.js',
-    'modern-algos/digest/cshake.https.any.js',
     'secure-curves/generateKey/failures_Ed448.https.any.js',
-    'modern-algos/generateKey/failures_Hybrid-KEM.https.any.js',
     'secure-curves/generateKey/failures_X448.https.any.js',
     'secure-curves/generateKey/successes_Ed448.https.any.js',
-    'modern-algos/generateKey/successes_Hybrid-KEM.https.any.js',
     'secure-curves/generateKey/successes_X448.https.any.js',
-    'modern-algos/import_export/Hybrid-KEM_importKey.https.any.js',
     'secure-curves/import_export/okp_importKey_Ed448.https.any.js',
     'secure-curves/import_export/okp_importKey_failures_Ed448.https.any.js',
     'secure-curves/import_export/okp_importKey_failures_X448.https.any.js',
     'secure-curves/import_export/okp_importKey_X448.https.any.js',
     'secure-curves/serialization/ed448.https.any.js',
-    'modern-algos/serialization/hybridkem.https.window.js',
     'secure-curves/serialization/x448.https.any.js',
     'secure-curves/sign_verify/eddsa_curve448.https.any.js');
 
   skipSubtests(
-    ['modern-algos/encap_decap/encap_decap_bits.https.any.js', /(?:ml-kem-512|mlkem)/i],
-    ['modern-algos/encap_decap/encap_decap_keys.https.any.js', /(?:ml-kem-512|mlkem)/i],
+    ['modern-algos/digest/cshake.https.any.js', /cSHAKE128/i],
+    ['modern-algos/encap_decap/encap_decap_bits.https.any.js', /ml-kem-512/i],
+    ['modern-algos/encap_decap/encap_decap_keys.https.any.js', /ml-kem-512/i],
     ['modern-algos/generateKey/failures_ML-KEM.https.any.js', /ml-kem-512/i],
     ['modern-algos/generateKey/successes_ML-KEM.https.any.js', /ml-kem-512/i],
-    ['modern-algos/getPublicKey.https.any.js', /(?:ed448|x448|ml-kem-512|mlkem)/i],
+    ['modern-algos/getPublicKey.https.any.js', /(?:ed448|x448|ml-kem-512)/i],
     ['modern-algos/import_export/ML-KEM_importKey.https.any.js', /ml-kem-512/i],
     ['modern-algos/serialization/mlkem.https.any.js', /ml-kem-512/i],
-    ['modern-algos/supports-modern.https.any.js', /(?:ml-kem-512|mlkem)/i]);
+    ['modern-algos/supports-modern.https.any.js', /ml-kem-512/i]);
 }
 
 if (hasFIPS(3)) {

@@ -5,10 +5,10 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasFIPS, hasOpenSSL } = require('../common/crypto');
+const { hasFIPS, hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3, 5))
-  common.skip('requires OpenSSL >= 3.5');
+if (!hasOpenSSL(3, 5) && !isBoringSSL)
+  common.skip('requires OpenSSL >= 3.5 or BoringSSL');
 
 const assert = require('assert');
 const { once } = require('events');
