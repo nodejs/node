@@ -169,10 +169,12 @@ static void Has(const FunctionCallbackInfo<Value>& args) {
   return args.GetReturnValue().Set(env->permission()->is_granted(env, scope));
 }
 
-static bool FastHas(Local<Value> receiver,
-                    Local<Value> scope_arg,
-                    // NOLINTNEXTLINE(runtime/references) This is V8 api.
-                    FastApiCallbackOptions& options) {
+// Shared implementation of the fast paths below. An empty `resource_arg`
+// checks the scope only.
+static bool FastHasImpl(Local<Value> scope_arg,
+                        Local<Value> resource_arg,
+                        // NOLINTNEXTLINE(runtime/references) This is V8 api.
+                        FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("permission.has");
   auto isolate = options.isolate;
   v8::HandleScope handle_scope(isolate);
@@ -191,37 +193,10 @@ static bool FastHas(Local<Value> receiver,
     return false;
   }
 
-  return env->permission()->is_granted(env, scope);
-}
-
-static bool FastHasResource(
-    Local<Value> receiver,
-    Local<Value> scope_arg,
-    Local<Value> resource_arg,
-    // NOLINTNEXTLINE(runtime/references) This is V8 api.
-    FastApiCallbackOptions& options) {
-  TRACK_V8_FAST_API_CALL("permission.has");
-  auto isolate = options.isolate;
-  v8::HandleScope handle_scope(isolate);
-  auto context = isolate->GetCurrentContext();
-
-  Environment* env = Environment::GetCurrent(context);
-
-  Local<String> str;
-  if (!scope_arg->ToString(context).ToLocal(&str)) {
-    return false;
-  }
-  Utf8Value utf8_scope(isolate, str);
-  PermissionScope scope =
-      Permission::StringToPermission(utf8_scope.ToStringView());
-  if (scope == PermissionScope::kPermissionsRoot) {
-    return false;
-  }
-
-  // The JS wrapper always calls this with 2 arguments, passing undefined
-  // when no resource was given, so this path (unlike Has()) has to check
-  // for that explicitly and fall back to the scope-only check.
-  if (resource_arg->IsUndefined()) {
+  // The JS wrapper always calls FastHasResource() with 2 arguments, passing
+  // undefined when no resource was given, so this path (unlike Has()) has to
+  // check for that explicitly and fall back to the scope-only check.
+  if (resource_arg.IsEmpty() || resource_arg->IsUndefined()) {
     return env->permission()->is_granted(env, scope);
   }
 
@@ -234,6 +209,22 @@ static bool FastHasResource(
   }
 
   return env->permission()->is_granted(env, scope, resource.ToStringView());
+}
+
+static bool FastHas(Local<Value> receiver,
+                    Local<Value> scope_arg,
+                    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+                    FastApiCallbackOptions& options) {
+  return FastHasImpl(scope_arg, Local<Value>(), options);
+}
+
+static bool FastHasResource(
+    Local<Value> receiver,
+    Local<Value> scope_arg,
+    Local<Value> resource_arg,
+    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+    FastApiCallbackOptions& options) {
+  return FastHasImpl(scope_arg, resource_arg, options);
 }
 
 static CFunction fast_has_methods_[] = {CFunction::Make(FastHas),
