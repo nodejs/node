@@ -2942,6 +2942,9 @@ npx codemod @nodejs/timers-deprecations
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: End-of-Life.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37204
     description: Runtime deprecation.
@@ -2950,12 +2953,12 @@ changes:
     description: Documentation-only.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Modules that have an invalid `main` entry (e.g., `./does-not-exist.js`) and
-also have an `index.js` file in the top level directory will resolve the
-`index.js` file. That is deprecated and is going to throw an error in future
-Node.js versions.
+Modules that have an invalid `main` entry (e.g., `./does-not-exist.js`) no
+longer fall back to resolving an `index.js` file in the top level directory.
+Loading such a module with `require()` now throws a `MODULE_NOT_FOUND` error.
+Fix the `main` entry so that it points to an existing file.
 
 ### DEP0129: `ChildProcess._channel`
 
