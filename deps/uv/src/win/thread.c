@@ -115,9 +115,11 @@ int uv_thread_create_ex(uv_thread_t* tid,
   int err;
   HANDLE thread;
   SYSTEM_INFO sysinfo;
+  unsigned int flags;
   size_t stack_size;
   size_t pagesize;
 
+  flags = CREATE_SUSPENDED;
   stack_size =
       params->flags & UV_THREAD_HAS_STACK_SIZE ? params->stack_size : 0;
 
@@ -129,6 +131,9 @@ int uv_thread_create_ex(uv_thread_t* tid,
 
     if ((unsigned)stack_size != stack_size)
       return UV_EINVAL;
+
+    /* Let Windows commit stack pages as they are needed. */
+    flags |= STACK_SIZE_PARAM_IS_A_RESERVATION;
   }
 
   ctx = uv__malloc(sizeof(*ctx));
@@ -144,7 +149,7 @@ int uv_thread_create_ex(uv_thread_t* tid,
                                    (unsigned)stack_size,
                                    uv__thread_start,
                                    ctx,
-                                   CREATE_SUSPENDED,
+                                   flags,
                                    NULL);
   if (thread == NULL) {
     err = errno;

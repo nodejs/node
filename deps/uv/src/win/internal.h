@@ -134,6 +134,7 @@ int uv__pipe_write(uv_loop_t* loop,
                    uv_stream_t* send_handle,
                    uv_write_cb cb);
 void uv__pipe_shutdown(uv_loop_t* loop, uv_pipe_t* handle, uv_shutdown_t* req);
+int uv__pipe_write_cancel_non_overlapped(uv_pipe_t* handle, uv_write_t* req);
 
 void uv__process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
     uv_req_t* req);
@@ -201,6 +202,7 @@ void uv__once_init(void);
 /*
  * Async watcher
  */
+void uv__async_stop(uv_loop_t* loop);
 void uv__async_close(uv_loop_t* loop, uv_async_t* handle);
 void uv__async_endgame(uv_loop_t* loop, uv_async_t* handle);
 
