@@ -4052,7 +4052,7 @@ Please use the [`crypto.createHash()`][] method to create Hash instances.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67491
     description: End-of-Life.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52067
