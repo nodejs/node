@@ -780,7 +780,7 @@ int64_t hdr_total_count(const struct hdr_histogram* h)
 
 int64_t hdr_min(const struct hdr_histogram* h)
 {
-    if (0 < hdr_count_at_index(h, 0))
+    if (0 == hdr_total_count(h) || 0 < hdr_count_at_index(h, 0))
     {
         return 0;
     }
@@ -914,17 +914,36 @@ static int64_t get_value_from_idx_up_to_count(const struct hdr_histogram* h, int
 }
 
 
+/* Target cumulative count in [1, total_count]; NaN/+inf -> total_count, -inf/negative -> 1 */
+static int64_t count_at_percentile(int64_t total_count, double percentile)
+{
+    const double requested = percentile < 100.0 ? percentile : 100.0;
+    const double cc = ((requested / 100) * (double) total_count) + 0.5;
+    if (!(cc >= 1.0))                   return 1;
+    if (cc >= (double) total_count)     return total_count;
+    return (int64_t) cc;
+}
+
 int64_t hdr_value_at_percentile(const struct hdr_histogram* h, double percentile)
 {
-    double requested_percentile = percentile < 100.0 ? percentile : 100.0;
-    int64_t count_at_percentile =
-        (int64_t) (((requested_percentile / 100) * h->total_count) + 0.5);
-    int64_t value_from_idx = get_value_from_idx_up_to_count(h, count_at_percentile);
+    /* empty: the scan's not-found 0 must not be rounded up to highest_equivalent_value(0) */
+    if (HDR_UNLIKELY(h->total_count == 0))
+    {
+        return 0;
+    }
+    int64_t value_from_idx =
+        get_value_from_idx_up_to_count(h, count_at_percentile(h->total_count, percentile));
     if (percentile == 0.0)
     {
         return lowest_equivalent_value(h, value_from_idx);
     }
     return highest_equivalent_value(h, value_from_idx);
+}
+
+/* p0 is the bucket's lowest value, matching hdr_value_at_percentile */
+static int64_t percentile_bound(const struct hdr_histogram* h, double percentile, int64_t value)
+{
+    return percentile == 0.0 ? lowest_equivalent_value(h, value) : highest_equivalent_value(h, value);
 }
 
 int hdr_value_at_percentiles(const struct hdr_histogram *h, const double *percentiles, int64_t *values, size_t length)
@@ -933,6 +952,14 @@ int hdr_value_at_percentiles(const struct hdr_histogram *h, const double *percen
     {
         return EINVAL;
     }
+    if (HDR_UNLIKELY(h->total_count == 0))
+    {
+        for (size_t i = 0; i < length; i++)
+        {
+            values[i] = 0;
+        }
+        return 0;
+    }
 
     struct hdr_iter iter;
     const int64_t total_count = h->total_count;
@@ -940,10 +967,7 @@ int hdr_value_at_percentiles(const struct hdr_histogram *h, const double *percen
     // i.e. to store the expected cumulative count at each percentile
     for (size_t i = 0; i < length; i++)
     {
-        const double requested_percentile = percentiles[i] < 100.0 ? percentiles[i] : 100.0;
-        const int64_t count_at_percentile =
-        (int64_t) (((requested_percentile / 100) * total_count) + 0.5);
-        values[i] = count_at_percentile > 1 ? count_at_percentile : 1;
+        values[i] = count_at_percentile(total_count, percentiles[i]);
     }
 
     uint64_t total = 0; /* unsigned: no signed-overflow UB when a hostile block sum is added at once */
@@ -974,7 +998,7 @@ int hdr_value_at_percentiles(const struct hdr_histogram *h, const double *percen
                     total += (uint64_t)counts[j];
                     while (at_pos < length && (int64_t)total >= values[at_pos])
                     {
-                        values[at_pos] = highest_equivalent_value(h, hdr_value_at_index(h, j));
+                        values[at_pos] = percentile_bound(h, percentiles[at_pos], hdr_value_at_index(h, j));
                         at_pos++;
                     }
                 }
@@ -990,7 +1014,7 @@ int hdr_value_at_percentiles(const struct hdr_histogram *h, const double *percen
             total += (uint64_t)counts[idx];
             while (at_pos < length && (int64_t)total >= values[at_pos])
             {
-                values[at_pos] = highest_equivalent_value(h, hdr_value_at_index(h, idx));
+                values[at_pos] = percentile_bound(h, percentiles[at_pos], hdr_value_at_index(h, idx));
                 at_pos++;
             }
         }
@@ -1005,10 +1029,16 @@ int hdr_value_at_percentiles(const struct hdr_histogram *h, const double *percen
             total += (uint64_t)iter.count;
             while (at_pos < length && (int64_t)total >= values[at_pos])
             {
-                values[at_pos] = highest_equivalent_value(h, iter.value);
+                values[at_pos] = percentile_bound(h, percentiles[at_pos], iter.value);
                 at_pos++;
             }
         }
+    }
+    /* unreached targets (counts below total_count) get the singular's not-found value */
+    for (; at_pos < length; at_pos++)
+    {
+        values[at_pos] = percentiles[at_pos] == 0.0 ?
+            lowest_equivalent_value(h, 0) : highest_equivalent_value(h, 0);
     }
     return 0;
 }
@@ -1019,6 +1049,11 @@ double hdr_mean(const struct hdr_histogram* h)
     double total = 0;
     int64_t count = 0;
     int64_t total_count = h->total_count;
+
+    if (total_count == 0)
+    {
+        return 0.0;
+    }
 
     hdr_iter_init(&iter, h);
 
@@ -1037,6 +1072,11 @@ double hdr_mean(const struct hdr_histogram* h)
 
 double hdr_stddev(const struct hdr_histogram* h)
 {
+    if (h->total_count == 0)
+    {
+        return 0.0;
+    }
+
     double mean = hdr_mean(h);
     double geometric_dev_total = 0.0;
 
