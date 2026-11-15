@@ -16,6 +16,9 @@ const globs = {
     ['foo\\bar\\baz\\boo', 'foo\\[bc-r]ar\\baz\\*', true], // Matches 'bar' or 'car' in 'foo\\bar'
     ['foo\\bar\\baz', 'foo/**', true], // Matches anything in 'foo'
     ['foo\\bar\\baz', '*', false], // No match
+    ['a\\b\\c\\d\\e', '**/a/b/c/**/d/**', true], // Globstar sections of different lengths
+    ['x\\a\\b\\c\\d\\e', '**/a/b/c/**/d/**/e', true], // Globstar sections of different lengths
+    ['a\\b\\c\\d', '**/a/b/c/**/d/**', false], // Trailing globstar needs a segment
   ],
   posix: [
     ['foo/bar/baz', 'foo/[bcr]ar/baz', true], // Matches 'bar' or 'car' in 'foo/bar'
@@ -28,6 +31,9 @@ const globs = {
     ['foo/bar/baz/boo', 'foo/[bc-r]ar/baz/*', true], // Matches 'bar' or 'car' in 'foo/bar'
     ['foo/bar/baz', 'foo/**', true], // Matches anything in 'foo'
     ['foo/bar/baz', '*', false], // No match
+    ['a/b/c/d/e', '**/a/b/c/**/d/**', true], // Globstar sections of different lengths
+    ['x/a/b/c/d/e', '**/a/b/c/**/d/**/e', true], // Globstar sections of different lengths
+    ['a/b/c/d', '**/a/b/c/**/d/**', false], // Trailing globstar needs a segment
   ],
 };
 
