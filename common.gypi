@@ -699,6 +699,23 @@
             'cflags': [ '-fPIC' ],
             'ldflags': [ '-fPIC' ],
           }],
+          # Link executables as PIE so that ASLR randomizes the executable
+          # image too. Every object in a PIE must be built with `-fPIC` or
+          # `-fPIE`. PIE flags should not apply to shared library objects,
+          # like addons. `--fully-static` uses `-static-pie`, see configure.py.
+          [ 'OS=="linux" and configuring_node', {
+            'target_conditions': [
+              ['_type=="executable"', {
+                'ldflags': [ '-pie' ],
+              }],
+            ],
+            'conditions': [
+              # Use `-fPIE` unless the condition above uses `-fPIC`.
+              [ 'node_shared!="true" and node_enable_v8debughelper!="true"', {
+                'cflags': [ '-fPIE' ],
+              }],
+            ],
+          }],
         ],
       }],
       [ 'OS in "aix os400"', {
