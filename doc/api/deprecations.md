@@ -4191,7 +4191,7 @@ npx codemod@latest @nodejs/repl-classes-with-new
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67494
     description: End-of-Life.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/55753

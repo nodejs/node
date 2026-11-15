@@ -6300,7 +6300,7 @@ behavior is similar to `cp dir1/ dir2/`.
 added: v0.1.21
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67494
     description: Passing an invalid argument type now throws an
                  `ERR_INVALID_ARG_TYPE` error instead of returning `false`.
   - version: v7.6.0
