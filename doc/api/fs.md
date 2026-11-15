@@ -265,7 +265,8 @@ added: v16.11.0
   * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
   * `end` {integer} **Default:** `Infinity`
-  * `highWaterMark` {integer} **Default:** `64 * 1024`
+  * `highWaterMark` {integer} **Default:** `64 * 1024`, or the value set with
+    [`stream.setDefaultHighWaterMark()`][]
   * `signal` {AbortSignal|undefined} **Default:** `undefined`
 * Returns: {fs.ReadStream}
 
@@ -781,7 +782,8 @@ added: v18.11.0
   * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
   * `end` {integer} **Default:** `Infinity`
-  * `highWaterMark` {integer} **Default:** `64 * 1024`
+  * `highWaterMark` {integer} **Default:** `64 * 1024`, or the value set with
+    [`stream.setDefaultHighWaterMark()`][]
 * Returns: {readline.InterfaceConstructor}
 
 Convenience method to create a `readline` interface and stream over the file.
@@ -3104,7 +3106,8 @@ changes:
   * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
   * `end` {integer} **Default:** `Infinity`
-  * `highWaterMark` {integer} **Default:** `64 * 1024`
+  * `highWaterMark` {integer} **Default:** `64 * 1024`, or the value set with
+    [`stream.setDefaultHighWaterMark()`][]
   * `fs` {Object|null} **Default:** `null`
   * `signal` {AbortSignal|null} **Default:** `null`
   * `windowsHandle` {bigint} A raw Win32 `HANDLE` value to read from, in place
@@ -9787,6 +9790,7 @@ the file contents.
 [`path.matchesGlob()`]: path.md#pathmatchesglobpath-pattern
 [`statfs.bsize`]: #statfsbsize
 [`stream.getDefaultHighWaterMark()`]: stream.md#streamgetdefaulthighwatermarkobjectmode
+[`stream.setDefaultHighWaterMark()`]: stream.md#streamsetdefaulthighwatermarkobjectmode-value
 [`stream/iter pipeTo()`]: stream_iter.md#pipetosource-transforms-writer-options
 [`stream/iter pull()`]: stream_iter.md#pullsource-transforms-options
 [`stream/iter pullSync()`]: stream_iter.md#pullsyncsource-transforms
