@@ -52,11 +52,6 @@ static void read_cb(uv_stream_t* t, ssize_t nread, const uv_buf_t* buf) {
   ASSERT_PTR_EQ((uv_tcp_t*) t, &tcp);
   ASSERT_EQ(nread, UV_ECONNRESET);
 
-  int fd;
-  ASSERT_OK(uv_fileno((uv_handle_t*) t, &fd));
-  uv_handle_type type = uv_guess_handle(fd);
-  ASSERT_EQ(type, UV_TCP);
-
   uv_close((uv_handle_t *) t, close_cb);
   free(buf->base);
 }
