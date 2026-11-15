@@ -109,7 +109,7 @@ ucsdet_setDeclaredEncoding(UCharsetDetector *ucsd, const char *encoding, int32_t
         return;
     }
 
-    ((CharsetDetector *) ucsd)->setDeclaredEncoding(encoding,length);
+    ((CharsetDetector *) ucsd)->setDeclaredEncoding(encoding,length, *status);
 }
 
 U_CAPI const UCharsetMatch**

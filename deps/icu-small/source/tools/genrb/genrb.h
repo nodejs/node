@@ -36,17 +36,4 @@
 /* The version of genrb */
 #define GENRB_VERSION "56"
 
-U_CDECL_BEGIN
-
-U_CAPI void processFile(
-    const char *filename,
-    const char* cp,
-    const char *inputDir,
-    const char *outputDir,
-    const char *packageName,
-    UBool omitBinaryCollation,
-    UErrorCode *status);
-
-U_CDECL_END
-
 #endif

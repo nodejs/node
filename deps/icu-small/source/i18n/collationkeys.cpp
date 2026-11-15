@@ -55,12 +55,12 @@ SortKeyByteSink::Append(const char *bytes, int32_t n) {
     }
 }
 
-char *
+char*
 SortKeyByteSink::GetAppendBuffer(int32_t min_capacity,
                                  int32_t desired_capacity_hint,
-                                 char *scratch,
+                                 char* scratch U_LIFETIME_BOUND,
                                  int32_t scratch_capacity,
-                                 int32_t *result_capacity) {
+                                 int32_t* result_capacity) U_LIFETIME_BOUND {
     if (min_capacity < 1 || scratch_capacity < min_capacity) {
         *result_capacity = 0;
         return nullptr;

@@ -43,25 +43,25 @@ static const int32_t gOffsets[] = {
     21,
     34,
     38,
-    340,
-    351,
-    370,
-    378,
-    392,
-    396,
+    342,
+    353,
+    372,
+    380,
+    394,
     400,
-    408,
-    439,
-    443,
-    445,
-    462,
-    463,
-    469,
-    481,
-    487,
+    404,
+    412,
+    444,
+    448,
+    450,
+    467,
+    468,
+    474,
+    486,
     492,
-    494,
-    538
+    497,
+    499,
+    543
 };
 
 static const int32_t kCurrencyOffset = 5;
@@ -401,6 +401,7 @@ static const char * const gSubTypes[] = {
     "VND",
     "VUV",
     "WST",
+    "XAD",
     "XAF",
     "XAG",
     "XAU",
@@ -409,6 +410,7 @@ static const char * const gSubTypes[] = {
     "XBC",
     "XBD",
     "XCD",
+    "XCG",
     "XDR",
     "XEU",
     "XOF",
@@ -488,10 +490,12 @@ static const char * const gSubTypes[] = {
     "kilowatt-hour",
     "sievert",
     "therm-us",
+    "dyne",
     "kilogram-force",
     "kilowatt-hour-per-100-kilometer",
     "newton",
     "pound-force",
+    "poundal",
     "gigahertz",
     "hertz",
     "kilohertz",
@@ -521,6 +525,7 @@ static const char * const gSubTypes[] = {
     "micrometer",
     "mile",
     "mile-scandinavian",
+    "milliinch",
     "millimeter",
     "nanometer",
     "nautical-mile",
@@ -1376,36 +1381,52 @@ MeasureUnit MeasureUnit::getThermUs() {
     return MeasureUnit(9, 13);
 }
 
-MeasureUnit *MeasureUnit::createKilogramForce(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createDyne(UErrorCode &status) {
     return MeasureUnit::create(10, 0, status);
 }
 
-MeasureUnit MeasureUnit::getKilogramForce() {
+MeasureUnit MeasureUnit::getDyne() {
     return MeasureUnit(10, 0);
 }
 
-MeasureUnit *MeasureUnit::createKilowattHourPer100Kilometer(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createKilogramForce(UErrorCode &status) {
     return MeasureUnit::create(10, 1, status);
 }
 
-MeasureUnit MeasureUnit::getKilowattHourPer100Kilometer() {
+MeasureUnit MeasureUnit::getKilogramForce() {
     return MeasureUnit(10, 1);
 }
 
-MeasureUnit *MeasureUnit::createNewton(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createKilowattHourPer100Kilometer(UErrorCode &status) {
     return MeasureUnit::create(10, 2, status);
 }
 
-MeasureUnit MeasureUnit::getNewton() {
+MeasureUnit MeasureUnit::getKilowattHourPer100Kilometer() {
     return MeasureUnit(10, 2);
 }
 
-MeasureUnit *MeasureUnit::createPoundForce(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createNewton(UErrorCode &status) {
     return MeasureUnit::create(10, 3, status);
 }
 
-MeasureUnit MeasureUnit::getPoundForce() {
+MeasureUnit MeasureUnit::getNewton() {
     return MeasureUnit(10, 3);
+}
+
+MeasureUnit *MeasureUnit::createPoundForce(UErrorCode &status) {
+    return MeasureUnit::create(10, 4, status);
+}
+
+MeasureUnit MeasureUnit::getPoundForce() {
+    return MeasureUnit(10, 4);
+}
+
+MeasureUnit *MeasureUnit::createPoundal(UErrorCode &status) {
+    return MeasureUnit::create(10, 5, status);
+}
+
+MeasureUnit MeasureUnit::getPoundal() {
+    return MeasureUnit(10, 5);
 }
 
 MeasureUnit *MeasureUnit::createGigahertz(UErrorCode &status) {
@@ -1640,116 +1661,124 @@ MeasureUnit MeasureUnit::getMileScandinavian() {
     return MeasureUnit(13, 16);
 }
 
-MeasureUnit *MeasureUnit::createMillimeter(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createMilliinch(UErrorCode &status) {
     return MeasureUnit::create(13, 17, status);
 }
 
-MeasureUnit MeasureUnit::getMillimeter() {
+MeasureUnit MeasureUnit::getMilliinch() {
     return MeasureUnit(13, 17);
 }
 
-MeasureUnit *MeasureUnit::createNanometer(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createMillimeter(UErrorCode &status) {
     return MeasureUnit::create(13, 18, status);
 }
 
-MeasureUnit MeasureUnit::getNanometer() {
+MeasureUnit MeasureUnit::getMillimeter() {
     return MeasureUnit(13, 18);
 }
 
-MeasureUnit *MeasureUnit::createNauticalMile(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createNanometer(UErrorCode &status) {
     return MeasureUnit::create(13, 19, status);
 }
 
-MeasureUnit MeasureUnit::getNauticalMile() {
+MeasureUnit MeasureUnit::getNanometer() {
     return MeasureUnit(13, 19);
 }
 
-MeasureUnit *MeasureUnit::createParsec(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createNauticalMile(UErrorCode &status) {
     return MeasureUnit::create(13, 20, status);
 }
 
-MeasureUnit MeasureUnit::getParsec() {
+MeasureUnit MeasureUnit::getNauticalMile() {
     return MeasureUnit(13, 20);
 }
 
-MeasureUnit *MeasureUnit::createPicometer(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createParsec(UErrorCode &status) {
     return MeasureUnit::create(13, 21, status);
 }
 
-MeasureUnit MeasureUnit::getPicometer() {
+MeasureUnit MeasureUnit::getParsec() {
     return MeasureUnit(13, 21);
 }
 
-MeasureUnit *MeasureUnit::createPoint(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createPicometer(UErrorCode &status) {
     return MeasureUnit::create(13, 22, status);
 }
 
-MeasureUnit MeasureUnit::getPoint() {
+MeasureUnit MeasureUnit::getPicometer() {
     return MeasureUnit(13, 22);
 }
 
-MeasureUnit *MeasureUnit::createRiJp(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createPoint(UErrorCode &status) {
     return MeasureUnit::create(13, 23, status);
 }
 
-MeasureUnit MeasureUnit::getRiJp() {
+MeasureUnit MeasureUnit::getPoint() {
     return MeasureUnit(13, 23);
 }
 
-MeasureUnit *MeasureUnit::createRin(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createRiJp(UErrorCode &status) {
     return MeasureUnit::create(13, 24, status);
 }
 
-MeasureUnit MeasureUnit::getRin() {
+MeasureUnit MeasureUnit::getRiJp() {
     return MeasureUnit(13, 24);
 }
 
-MeasureUnit *MeasureUnit::createRod(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createRin(UErrorCode &status) {
     return MeasureUnit::create(13, 25, status);
 }
 
-MeasureUnit MeasureUnit::getRod() {
+MeasureUnit MeasureUnit::getRin() {
     return MeasureUnit(13, 25);
 }
 
-MeasureUnit *MeasureUnit::createShakuCloth(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createRod(UErrorCode &status) {
     return MeasureUnit::create(13, 26, status);
 }
 
-MeasureUnit MeasureUnit::getShakuCloth() {
+MeasureUnit MeasureUnit::getRod() {
     return MeasureUnit(13, 26);
 }
 
-MeasureUnit *MeasureUnit::createShakuLength(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createShakuCloth(UErrorCode &status) {
     return MeasureUnit::create(13, 27, status);
 }
 
-MeasureUnit MeasureUnit::getShakuLength() {
+MeasureUnit MeasureUnit::getShakuCloth() {
     return MeasureUnit(13, 27);
 }
 
-MeasureUnit *MeasureUnit::createSolarRadius(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createShakuLength(UErrorCode &status) {
     return MeasureUnit::create(13, 28, status);
 }
 
-MeasureUnit MeasureUnit::getSolarRadius() {
+MeasureUnit MeasureUnit::getShakuLength() {
     return MeasureUnit(13, 28);
 }
 
-MeasureUnit *MeasureUnit::createSun(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createSolarRadius(UErrorCode &status) {
     return MeasureUnit::create(13, 29, status);
 }
 
-MeasureUnit MeasureUnit::getSun() {
+MeasureUnit MeasureUnit::getSolarRadius() {
     return MeasureUnit(13, 29);
 }
 
-MeasureUnit *MeasureUnit::createYard(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createSun(UErrorCode &status) {
     return MeasureUnit::create(13, 30, status);
 }
 
-MeasureUnit MeasureUnit::getYard() {
+MeasureUnit MeasureUnit::getSun() {
     return MeasureUnit(13, 30);
+}
+
+MeasureUnit *MeasureUnit::createYard(UErrorCode &status) {
+    return MeasureUnit::create(13, 31, status);
+}
+
+MeasureUnit MeasureUnit::getYard() {
+    return MeasureUnit(13, 31);
 }
 
 MeasureUnit *MeasureUnit::createCandela(UErrorCode &status) {
@@ -2546,6 +2575,14 @@ MeasureUnit MeasureUnit::getToJp() {
 
 // End generated code for measunit.cpp
 
+/**
+ * Generic binary search function for string arrays.
+ * @param array the array of strings to search in
+ * @param start the starting index (inclusive)
+ * @param end the ending index (exclusive)
+ * @param key the string to search for
+ * @return the index if found, -1 if not found
+ */
 static int32_t binarySearch(
         const char * const * array, int32_t start, int32_t end, StringPiece key) {
     while (start < end) {
@@ -2561,6 +2598,33 @@ static int32_t binarySearch(
         end = mid;
     }
     return -1;
+}
+
+/**
+ * Helper function to get the subtype range for a given type index.
+ * @param typeIdx the type index (0 to UPRV_LENGTHOF(gTypes)-1)
+ * @param start will be set to the starting index in gSubTypes
+ * @param end will be set to the ending index in gSubTypes (exclusive)
+ * @return the length of the range (end - start)
+ */
+static int32_t getSubtypeRange(int32_t typeIdx, int32_t &start, int32_t &end) {
+    U_ASSERT(typeIdx >= 0 && typeIdx < UPRV_LENGTHOF(gTypes));
+    start = gOffsets[typeIdx];
+    end = gOffsets[typeIdx + 1];
+    return end - start;
+}
+
+/**
+ * Binary search function that searches for a subtype in gSubTypes within the range
+ * corresponding to the given type.
+ * @param typeIdx the type index (0 to UPRV_LENGTHOF(gTypes)-1)
+ * @param key the subtype string to search for
+ * @return the index in gSubTypes if found, -1 if not found
+ */
+static int32_t binarySearch(int32_t typeIdx, StringPiece key) {
+    int32_t start, end;
+    (void)getSubtypeRange(typeIdx, start, end);
+    return binarySearch(gSubTypes, start, end, key);
 }
 
 MeasureUnit::MeasureUnit() : MeasureUnit(kBaseTypeIdx, kBaseSubTypeIdx) {
@@ -2586,6 +2650,9 @@ MeasureUnit::MeasureUnit(MeasureUnitImpl&& impl)
         : fImpl(nullptr), fSubTypeId(-1), fTypeId(-1) {
     if (!findBySubType(impl.identifier.data(), this)) {
         fImpl = new MeasureUnitImpl(std::move(impl));
+        if (!fImpl) {
+            *this = MeasureUnit();
+        }
     }
 }
 
@@ -2677,7 +2744,8 @@ int32_t MeasureUnit::getAvailable(
     }
     int32_t idx = 0;
     for (int32_t typeIdx = 0; typeIdx < UPRV_LENGTHOF(gTypes); ++typeIdx) {
-        int32_t len = gOffsets[typeIdx + 1] - gOffsets[typeIdx];
+        int32_t start, end;
+        int32_t len = getSubtypeRange(typeIdx, start, end);
         for (int32_t subTypeIdx = 0; subTypeIdx < len; ++subTypeIdx) {
             dest[idx].setTo(typeIdx, subTypeIdx);
             ++idx;
@@ -2699,7 +2767,8 @@ int32_t MeasureUnit::getAvailable(
     if (typeIdx == -1) {
         return 0;
     }
-    int32_t len = gOffsets[typeIdx + 1] - gOffsets[typeIdx];
+    int32_t start, end;
+    int32_t len = getSubtypeRange(typeIdx, start, end);
     if (destCapacity < len) {
         errorCode = U_BUFFER_OVERFLOW_ERROR;
         return len;
@@ -2726,6 +2795,29 @@ StringEnumeration* MeasureUnit::getAvailableTypes(UErrorCode &errorCode) {
     return result;
 }
 
+bool MeasureUnit::validateAndGet(StringPiece type, StringPiece subtype, MeasureUnit &result) {
+    // Find the type and subtype indices using binary search
+    int32_t typeIdx = binarySearch(gTypes, 0, UPRV_LENGTHOF(gTypes), type);
+    int32_t subtypeIdx = typeIdx >= 0 ? binarySearch(typeIdx, subtype) : -1;
+    
+    if (typeIdx >= 0 && subtypeIdx < 0) {
+        // if we did find the type, but didn't find the subtype, that might be because the sybtype name
+        // is an alias-- try using MeasureUnit::forIdentifier(), which will resolve aliases
+        UErrorCode localStatus = U_ZERO_ERROR;
+        MeasureUnit tempUnit = MeasureUnit::forIdentifier(subtype, localStatus);
+        if (U_SUCCESS(localStatus) && uprv_strcmp(type.data(), tempUnit.getType()) == 0) {
+            subtypeIdx = tempUnit.fSubTypeId + gOffsets[tempUnit.fTypeId];
+        }
+    }
+    if (typeIdx < 0 || subtypeIdx < 0) {
+        return false;
+    }
+    
+    // Create the MeasureUnit and return it
+    result.setTo(typeIdx, subtypeIdx - gOffsets[typeIdx]);
+    return true;
+}
+
 bool MeasureUnit::findBySubType(StringPiece subType, MeasureUnit* output) {
     // Sanity checking kCurrencyOffset and final entry in gOffsets
     U_ASSERT(uprv_strcmp(gTypes[kCurrencyOffset], "currency") == 0);
@@ -2736,7 +2828,7 @@ bool MeasureUnit::findBySubType(StringPiece subType, MeasureUnit* output) {
         if (t == kCurrencyOffset) {
             continue;
         }
-        int32_t st = binarySearch(gSubTypes, gOffsets[t], gOffsets[t + 1], subType);
+        int32_t st = binarySearch(t, subType);
         if (st >= 0) {
             output->setTo(t, st - gOffsets[t]);
             return true;
@@ -2760,7 +2852,7 @@ void MeasureUnit::initTime(const char *timeId) {
     int32_t result = binarySearch(gTypes, 0, UPRV_LENGTHOF(gTypes), "duration");
     U_ASSERT(result != -1);
     fTypeId = result;
-    result = binarySearch(gSubTypes, gOffsets[fTypeId], gOffsets[fTypeId + 1], timeId);
+    result = binarySearch(fTypeId, timeId);
     U_ASSERT(result != -1);
     fSubTypeId = result - gOffsets[fTypeId];
 }
@@ -2769,8 +2861,7 @@ void MeasureUnit::initCurrency(StringPiece isoCurrency) {
     int32_t result = binarySearch(gTypes, 0, UPRV_LENGTHOF(gTypes), "currency");
     U_ASSERT(result != -1);
     fTypeId = result;
-    result = binarySearch(
-            gSubTypes, gOffsets[fTypeId], gOffsets[fTypeId + 1], isoCurrency);
+    result = binarySearch(fTypeId, isoCurrency);
     if (result == -1) {
         UErrorCode status = U_ZERO_ERROR;
         fImpl = new MeasureUnitImpl(MeasureUnitImpl::forCurrencyCode(isoCurrency, status));

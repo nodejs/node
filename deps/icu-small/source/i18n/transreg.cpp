@@ -542,6 +542,7 @@ TransliteratorRegistry::TransliteratorRegistry(UErrorCode& status) :
         variantList.adoptElement(emptyString, status);
     }
     specDAG.setValueDeleter(uhash_deleteHashtable);
+    fBogus.setToBogus();
 }
 
 TransliteratorRegistry::~TransliteratorRegistry() {
@@ -754,13 +755,14 @@ const UnicodeString& TransliteratorRegistry::getAvailableID(int32_t index) const
         return *static_cast<UnicodeString*>(e->key.pointer);
     }
 
-    // If the code reaches here, the hash table was likely modified during iteration.
-    // Return an statically initialized empty string due to reference return type.
-    static UnicodeString empty;
-    return empty;
+    // If the code reaches here, the hash table was likely modified during iteration,
+    // or the requested index is out of bounds.
+    // Return a bogus string due to reference return type,
+    // and inability to return a UErrorCode from this API.
+    return fBogus;
 }
 
-StringEnumeration* TransliteratorRegistry::getAvailableIDs() const {
+StringEnumeration* TransliteratorRegistry::getAvailableIDs() const U_LIFETIME_BOUND {
     return new Enumeration(*this);
 }
 
@@ -867,7 +869,7 @@ UnicodeString& TransliteratorRegistry::getAvailableVariant(int32_t index,
 // class TransliteratorRegistry::Enumeration
 //----------------------------------------------------------------------
 
-TransliteratorRegistry::Enumeration::Enumeration(const TransliteratorRegistry& _reg) :
+TransliteratorRegistry::Enumeration::Enumeration(const TransliteratorRegistry& _reg U_LIFETIME_BOUND) :
     pos(UHASH_FIRST), size(_reg.availableIDs.count()), reg(_reg) {
 }
 
@@ -878,7 +880,7 @@ int32_t TransliteratorRegistry::Enumeration::count(UErrorCode& /*status*/) const
     return size;
 }
 
-const UnicodeString* TransliteratorRegistry::Enumeration::snext(UErrorCode& status) {
+const UnicodeString* TransliteratorRegistry::Enumeration::snext(UErrorCode& status) U_LIFETIME_BOUND {
     // This is sloppy but safe -- if we get out of sync with the underlying
     // registry, we will still return legal strings, but they might not
     // correspond to the snapshot at construction time.  So there could be

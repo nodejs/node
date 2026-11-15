@@ -335,7 +335,7 @@ NumsysNameEnumeration::NumsysNameEnumeration(UErrorCode& status) : pos(0) {
 }
 
 const UnicodeString*
-NumsysNameEnumeration::snext(UErrorCode& status) {
+NumsysNameEnumeration::snext(UErrorCode& status) U_LIFETIME_BOUND {
     if (U_SUCCESS(status) && (gNumsysNames != nullptr) && (pos < gNumsysNames->size())) {
         return static_cast<const UnicodeString*>(gNumsysNames->elementAt(pos++));
     }

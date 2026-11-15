@@ -359,7 +359,9 @@ void AnyTransliterator::registerIDs() {
 
     UErrorCode ec = U_ZERO_ERROR;
     Hashtable seen(true, ec);
-
+    if (U_FAILURE(ec)) {
+        return;
+    }
     int32_t sourceCount = Transliterator::_countAvailableSources();
     for (int32_t s=0; s<sourceCount; ++s) {
         UnicodeString source;

@@ -113,8 +113,7 @@ public:
    * @return the newly created object.
    * @stable ICU 2.0
    */
-  StringCharacterIterator&
-  operator=(const StringCharacterIterator&    that);
+  StringCharacterIterator& operator=(const StringCharacterIterator& that) U_LIFETIME_BOUND;
 
   /**
    * Returns true if the iterators iterate over the same range of the

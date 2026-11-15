@@ -43,6 +43,8 @@ CollationFastLatin::getOptions(const CollationData *data, const CollationSetting
             return -1;  // variableTop >= digits, should not occur
         }
         miniVarTop = table[i];
+        // Turn the max long-primary for the group into a max CE.
+        miniVarTop |= TERTIARY_MASK;
     }
 
     UBool digitsAreReordered = false;
@@ -86,23 +88,28 @@ CollationFastLatin::getOptions(const CollationData *data, const CollationSetting
 
     table += (table[0] & 0xff);  // skip the header
     for(UChar32 c = 0; c < LATIN_LIMIT; ++c) {
-        uint32_t p = table[c];
-        if(p >= MIN_SHORT) {
-            p &= SHORT_PRIMARY_MASK;
-        } else if(p > miniVarTop) {
-            p &= LONG_PRIMARY_MASK;
+        uint32_t ce = table[c];
+        if(ce >= MIN_SHORT) {
+            ce &= SHORT_PRIMARY_MASK;
+        } else if(ce > miniVarTop) {
+            ce &= LONG_PRIMARY_MASK;
         } else {
-            p = 0;
+            ce = 0;
         }
-        primaries[c] = static_cast<uint16_t>(p);
+        primaries[c] = static_cast<uint16_t>(ce);
     }
     if(digitsAreReordered || (settings.options & CollationSettings::NUMERIC) != 0) {
         // Bail out for digits.
         for(UChar32 c = 0x30; c <= 0x39; ++c) { primaries[c] = 0; }
     }
 
+    // NUMERIC flag is also used for indicating digits are reordered
+    // in fast-Latin options.
+    int options = digitsAreReordered ?
+        settings.options | CollationSettings::NUMERIC : settings.options;
+
     // Shift the miniVarTop above other options.
-    return (static_cast<int32_t>(miniVarTop) << 16) | settings.options;
+    return (static_cast<int32_t>(miniVarTop) << 16) | options;
 }
 
 int32_t

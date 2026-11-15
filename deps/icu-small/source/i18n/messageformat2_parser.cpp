@@ -90,7 +90,7 @@ static void copyContext(const UChar in[U_PARSE_CONTEXT_LEN], UChar out[U_PARSE_C
     // Translate absolute to relative offset
     parseError.offset = index                               // Start with total number of characters seen
                       - parseError.lengthBeforeCurrentLine; // Subtract all characters before the current line
-    // TODO: Fill this in with actual pre and post-context
+    // TODO(ICU-23427): Fill this in with actual pre and post-context
     parseError.preContext[0] = 0;
     parseError.postContext[0] = 0;
 }
@@ -487,7 +487,7 @@ bool Parser::isDeclarationStart() {
 
 
 /*
-  TODO: Since handling the whitespace ambiguities needs to be repeated
+  TODO(ICU-23427): Since handling the whitespace ambiguities needs to be repeated
   in several different places and is hard to factor out,
   it probably would be better to replace the parser with a lexer + parser
   to separate tokenizing from parsing, which would simplify the code significantly.
@@ -1143,12 +1143,6 @@ void Parser::parseOption(OptionAdder<T>& addOption, UErrorCode& errorCode) {
       errors.setDuplicateOptionName(errorCode);
     }
 }
-
-/*
-  Note: there are multiple overloads of parseOptions() for parsing
-  options within markup, vs. within an expression, vs. parsing
-  attributes. This should be refactored. TODO
- */
 
 /*
   Consume optional whitespace followed by a sequence of options
@@ -1973,7 +1967,7 @@ void Parser::parseSelectors(UErrorCode& status) {
     // Parse selectors
     // "Backtracking" is required here. It's not clear if whitespace is
     // (`[s]` selector) or (`[s]` variant)
-    while (isWhitespace(peek()) || peek() == DOLLAR) {
+    while (isWhitespace(peek()) || isBidiControl(peek()) || peek() == DOLLAR) {
         int32_t whitespaceStart = index;
         parseRequiredWhitespace(status);
         // Restore precondition
@@ -2006,25 +2000,14 @@ void Parser::parseSelectors(UErrorCode& status) {
             break;                                 \
         }                                          \
 
-    // Parse variants
-    // matcher = match-statement s variant *(o variant)
-
-    // Parse first variant
+    // Parse required whitespace before first variant
     parseRequiredWhitespace(status);
-    if (!inBounds()) {
-        ERROR(status);
-        return;
-    }
-    parseVariant(status);
-    if (!inBounds()) {
-        // Not an error; there might be only one variant
-        return;
-    }
+
+    // Parse variants
 
     while (isWhitespace(peek()) || isBidiControl(peek()) || isKeyStart(peek())) {
-        parseOptionalWhitespace();
-        // Restore the precondition.
         // Trailing whitespace is allowed.
+        parseOptionalWhitespace();
         if (!inBounds()) {
             return;
         }
@@ -2059,12 +2042,6 @@ void Parser::errorPattern(UErrorCode& status) {
 
     // If still in bounds, then add the remaining input as a single text part
     // to the pattern
-    /*
-      TODO: this behavior isn't documented in the spec, but it comes from
-      https://github.com/messageformat/messageformat/blob/e0087bff312d759b67a9129eac135d318a1f0ce7/packages/mf2-messageformat/src/__fixtures/test-messages.json#L236
-      and a pending pull request https://github.com/unicode-org/message-format-wg/pull/462 will clarify
-      whether this is the intent behind the spec
-     */
     UnicodeString partStr(LEFT_CURLY_BRACE);
     while (inBounds()) {
         partStr += peek();

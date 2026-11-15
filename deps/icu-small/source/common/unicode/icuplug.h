@@ -266,8 +266,8 @@ uplug_setPlugName(UPlugData *plug, const char *name);
  * @return the name of this plugin
  * @internal ICU 4.4 Technology Preview
  */
-U_CAPI const char * U_EXPORT2
-uplug_getPlugName(UPlugData *plug);
+U_CAPI const char* U_EXPORT2
+uplug_getPlugName(UPlugData* plug U_LIFETIME_BOUND);
 
 /**
  * Return the symbol name for this plugin, if known.
@@ -275,8 +275,8 @@ uplug_getPlugName(UPlugData *plug);
  * @return the symbol name, or NULL
  * @internal ICU 4.4 Technology Preview
  */
-U_CAPI const char * U_EXPORT2
-uplug_getSymbolName(UPlugData *plug);
+U_CAPI const char* U_EXPORT2
+uplug_getSymbolName(UPlugData* plug U_LIFETIME_BOUND);
 
 /**
  * Return the library name for this plugin, if known.
@@ -285,8 +285,8 @@ uplug_getSymbolName(UPlugData *plug);
  * @return the library name, or NULL
  * @internal ICU 4.4 Technology Preview
  */
-U_CAPI const char * U_EXPORT2
-uplug_getLibraryName(UPlugData *plug, UErrorCode *status);
+U_CAPI const char* U_EXPORT2
+uplug_getLibraryName(UPlugData* plug U_LIFETIME_BOUND, UErrorCode* status);
 
 /**
  * Return the library used for this plugin, if known.
@@ -324,8 +324,8 @@ uplug_setContext(UPlugData *plug, void *context);
  * @return configuration string, or else null.
  * @internal ICU 4.4 Technology Preview
  */
-U_CAPI const char * U_EXPORT2
-uplug_getConfiguration(UPlugData *plug);
+U_CAPI const char* U_EXPORT2
+uplug_getConfiguration(UPlugData* plug U_LIFETIME_BOUND);
 
 /**
  * Return all currently installed plugins, from newest to oldest

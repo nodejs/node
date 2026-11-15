@@ -282,9 +282,11 @@ UCharsTrie::next(ConstChar16Ptr ptr, int32_t sLength) {
     }
 }
 
-const char16_t *
-UCharsTrie::findUniqueValueFromBranch(const char16_t *pos, int32_t length,
-                                      UBool haveUniqueValue, int32_t &uniqueValue) {
+const char16_t*
+UCharsTrie::findUniqueValueFromBranch(const char16_t* pos U_LIFETIME_BOUND,
+                                      int32_t length,
+                                      UBool haveUniqueValue,
+                                      int32_t& uniqueValue) {
     while(length>kMaxBranchLinearSubNodeLength) {
         ++pos;  // ignore the comparison unit
         if(nullptr==findUniqueValueFromBranch(jumpByDelta(pos), length>>1, haveUniqueValue, uniqueValue)) {

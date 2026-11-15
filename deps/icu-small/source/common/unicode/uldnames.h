@@ -109,8 +109,8 @@ U_NAMESPACE_END
  * @return the display locale 
  * @stable ICU 4.4
  */
-U_CAPI const char * U_EXPORT2
-uldn_getLocale(const ULocaleDisplayNames *ldn);
+U_CAPI const char* U_EXPORT2
+uldn_getLocale(const ULocaleDisplayNames* ldn U_LIFETIME_BOUND);
 
 /**
  * Returns the dialect handling used in the display names.

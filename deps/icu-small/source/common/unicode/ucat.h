@@ -150,9 +150,12 @@ u_catclose(u_nl_catd catd);
  * @stable ICU 2.6
  */
 U_CAPI const UChar* U_EXPORT2
-u_catgets(u_nl_catd catd, int32_t set_num, int32_t msg_num,
-          const UChar* s,
-          int32_t* len, UErrorCode* ec);
+u_catgets(u_nl_catd catd U_LIFETIME_BOUND,
+          int32_t set_num,
+          int32_t msg_num,
+          const UChar* s U_LIFETIME_BOUND,
+          int32_t* len,
+          UErrorCode* ec);
 
 U_CDECL_END
 

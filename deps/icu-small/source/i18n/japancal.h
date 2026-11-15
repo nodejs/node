@@ -204,7 +204,7 @@ protected:
      */
     virtual int32_t getDefaultDayInMonth(int32_t eyear, int32_t month, UErrorCode& status) override;
 
-    virtual bool isEra0CountingBackward() const override { return false; }
+    virtual bool isEra0CountingBackward() const override { return true; }
 };
 
 U_NAMESPACE_END

@@ -54,17 +54,23 @@ void InputText::setText(const char *in, int32_t len)
     fRawLength = len == -1 ? static_cast<int32_t>(uprv_strlen(in)) : len;
 }
 
-void InputText::setDeclaredEncoding(const char* encoding, int32_t len)
+void InputText::setDeclaredEncoding(const char* encoding, int32_t len, UErrorCode &status)
 {
+    if (U_FAILURE(status)) return;
     if(encoding) {
         if (len == -1) {
             len = static_cast<int32_t>(uprv_strlen(encoding));
         }
 
         len += 1;     // to make place for the \0 at the end.
+        char* newEncoding = NEW_ARRAY(char, len);
+        if (newEncoding == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
         uprv_free(fDeclaredEncoding);
-        fDeclaredEncoding = NEW_ARRAY(char, len);
-        uprv_strncpy(fDeclaredEncoding, encoding, len);
+        uprv_strncpy(newEncoding, encoding, len);
+        fDeclaredEncoding = newEncoding;
     }
 }
 

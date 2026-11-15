@@ -41,7 +41,8 @@ U_NAMESPACE_USE
 void  processFile(const char *filename, const char* cp,
                   const char *inputDir, const char *outputDir, const char *filterDir,
                   const char *packageName,
-                  SRBRoot *newPoolBundle, UBool omitBinaryCollation, UErrorCode &status);
+                  SRBRoot *newPoolBundle, UBool omitBinaryCollation,
+                  const ResFile& poolBundle, UErrorCode &status);
 static char *make_res_filename(const char *filename, const char *outputDir,
                                const char *packageName, UErrorCode &status);
 
@@ -122,8 +123,6 @@ static     UBool       write_java = false;
 static     UBool       write_xliff = false;
 static     const char* outputEnc ="";
 
-static ResFile poolBundle;
-
 /*added by Jing*/
 static     const char* language = nullptr;
 static     const char* xliffOutputFileName = nullptr;
@@ -139,6 +138,7 @@ main(int argc,
     const char *encoding  = "";
     int         i;
     UBool illegalArg = false;
+    ResFile poolBundle;
 
     U_MAIN_INIT_ARGS(argc, argv);
 
@@ -561,7 +561,7 @@ main(int argc,
         }
         processFile(arg, encoding, inputDir, outputDir, filterDir, nullptr,
                     newPoolBundle.getAlias(),
-                    options[NO_BINARY_COLLATION].doesOccur, status);
+                    options[NO_BINARY_COLLATION].doesOccur, poolBundle, status);
     }
 
     poolBundle.close();
@@ -596,7 +596,9 @@ processFile(const char *filename, const char *cp,
             const char *inputDir, const char *outputDir, const char *filterDir,
             const char *packageName,
             SRBRoot *newPoolBundle,
-            UBool omitBinaryCollation, UErrorCode &status) {
+            UBool omitBinaryCollation,
+            const ResFile& poolBundle,
+            UErrorCode &status) {
     LocalPointer<SRBRoot> data;
     LocalUCHARBUFPointer ucbuf;
     CharString openFileName;
