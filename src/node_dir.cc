@@ -61,8 +61,7 @@ static const char* get_dir_func_name_by_type(uv_fs_type req_type) {
 
 #define TRACE_NAME(name) "fs_dir.sync." #name
 #define GET_TRACE_ENABLED                                                      \
-  (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(                                \
-       TRACING_CATEGORY_NODE2(fs_dir, sync)) != 0)
+  TRACE_EVENT_CATEGORY_ENABLED(TRACING_CATEGORY_NODE2(fs_dir, sync))
 #define FS_DIR_SYNC_TRACE(syscall)                                             \
   if (GET_TRACE_ENABLED) {                                                     \
     TRACE_EVENT0(TRACING_CATEGORY_NODE2(fs_dir, sync), TRACE_NAME(syscall));   \

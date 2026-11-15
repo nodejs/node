@@ -1014,8 +1014,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
 
   ContextifyScript* contextify_script = New(env, args.This());
 
-  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-          TRACING_CATEGORY_NODE2(vm, script)) != 0) {
+  if (TRACE_EVENT_CATEGORY_ENABLED(TRACING_CATEGORY_NODE2(vm, script))) {
     Utf8Value fn(isolate, filename);
     TRACE_EVENT_BEGIN1(TRACING_CATEGORY_NODE2(vm, script),
                        "ContextifyScript::New",

@@ -165,8 +165,7 @@ static const char* get_fs_func_name_by_type(uv_fs_type req_type) {
 
 #define TRACE_NAME(name) "fs.sync." #name
 #define GET_TRACE_ENABLED                                                      \
-  (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(                                \
-       TRACING_CATEGORY_NODE2(fs, sync)) != 0)
+  TRACE_EVENT_CATEGORY_ENABLED(TRACING_CATEGORY_NODE2(fs, sync))
 // Checks a permission for an fs binding. A denial is reported through
 // `req_wrap_async` for an asynchronous call, or thrown for a synchronous call
 // (when `req_wrap_async` is nullptr).

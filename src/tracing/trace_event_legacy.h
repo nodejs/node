@@ -1012,6 +1012,14 @@
     }                                                                       \
   } while (0)
 
+// Expression form of the above, matching Perfetto's macro of the same name.
+#define TRACE_EVENT_CATEGORY_ENABLED(category_group)                        \
+  ([] {                                                                     \
+    bool enabled;                                                           \
+    TRACE_EVENT_CATEGORY_GROUP_ENABLED(category_group, &enabled);           \
+    return enabled;                                                         \
+  }())
+
 // Macro to explicitly warm up a given category group. This could be useful in
 // cases where we want to initialize a category group before any trace events
 // for that category group is reported. For example, to have a category group
