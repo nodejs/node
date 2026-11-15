@@ -4051,6 +4051,9 @@ Please use the [`crypto.createHash()`][] method to create Hash instances.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: End-of-Life.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52067
     description: Runtime deprecation.
@@ -4059,10 +4062,12 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Calling `fs.Stats` class directly with `Stats()` or `new Stats()` is
-deprecated due to being internals, not intended for public use.
+Calling `fs.Stats` class directly with `Stats()` or `new Stats()` throws an
+`ERR_ILLEGAL_CONSTRUCTOR` error. The constructor is internal and not intended
+for public use. The class remains exported, so `instanceof fs.Stats` checks
+continue to work.
 
 ### DEP0181: `Hmac` constructor
 

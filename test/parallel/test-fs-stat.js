@@ -156,28 +156,18 @@ fs.open(__filename, 'r', undefined, common.mustCall((err, fd) => {
 fs.lstat(__filename, undefined, common.mustCall());
 
 {
-  fs.Stats(
-    0,                                        // dev
-    0,                                        // mode
-    0,                                        // nlink
-    0,                                        // uid
-    0,                                        // gid
-    0,                                        // rdev
-    0,                                        // blksize
-    0,                                        // ino
-    0,                                        // size
-    0,                                        // blocks
-    Date.UTC(1970, 0, 1, 0, 0, 0),            // atime
-    Date.UTC(1970, 0, 1, 0, 0, 0),            // mtime
-    Date.UTC(1970, 0, 1, 0, 0, 0),            // ctime
-    Date.UTC(1970, 0, 1, 0, 0, 0)             // birthtime
-  );
-  common.expectWarning({
-    DeprecationWarning: [
-      ['fs.Stats constructor is deprecated.',
-       'DEP0180'],
-    ]
-  });
+  // The fs.Stats constructor is not intended for public use.
+  const illegalConstructor = {
+    code: 'ERR_ILLEGAL_CONSTRUCTOR',
+    name: 'TypeError',
+  };
+  assert.throws(() => fs.Stats(), illegalConstructor);
+  assert.throws(() => new fs.Stats(), illegalConstructor);
+  assert.throws(() => new fs.Stats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0), illegalConstructor);
+
+  // The class remains exported so that instanceof checks keep working.
+  assert(fs.statSync(__filename) instanceof fs.Stats);
 }
 
 {

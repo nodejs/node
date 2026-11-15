@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose-internals
 const common = require('../common');
 
 const assert = require('assert');
@@ -6,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 const tmpdir = require('../common/tmpdir');
+const { getStatsFromBinding } = require('internal/fs/utils');
 
 // Basic usage tests.
 assert.throws(
@@ -31,26 +33,8 @@ assert.throws(() => {
 }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
 
 const enoentFile = tmpdir.resolve('non-existent-file');
-const expectedStatObject = new fs.Stats(
-  0,                                        // dev
-  0,                                        // mode
-  0,                                        // nlink
-  0,                                        // uid
-  0,                                        // gid
-  0,                                        // rdev
-  0,                                        // blksize
-  0,                                        // ino
-  0,                                        // size
-  0,                                        // blocks
-  0,                                        // atimeS
-  0,                                        // atimeNs
-  0,                                        // mtimeS
-  0,                                        // mtimeNs
-  0,                                        // ctime
-  0,                                        // ctimeNs
-  0,                                        // birthtime
-  0,                                        // birthtimeNs
-);
+// All fields are zero and the date fields are the UNIX epoch.
+const expectedStatObject = getStatsFromBinding(new Float64Array(18));
 
 tmpdir.refresh();
 
