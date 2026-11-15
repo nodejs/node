@@ -261,8 +261,10 @@ const std::vector<std::string>& GetSupportedHashAlgorithms(Environment* env) {
 #error "Unsupported crypto backend"
 #endif
 #if NCRYPTO_USE_BORINGSSL
-      // SHA-3 descriptors are not included in BoringSSL's name registry.
-      for (const char* name : {"sha3-256", "sha3-384", "sha3-512"}) {
+      // SHA-3 and SHAKE256 descriptors are absent from BoringSSL's name
+      // registry.
+      for (const char* name :
+           {"sha3-256", "sha3-384", "sha3-512", "shake256", "shake-256"}) {
         env->supported_hash_algorithms.emplace_back(name);
       }
 #endif
@@ -417,9 +419,7 @@ bool IsShakeDigest(const EVP_MD* md) {
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   return EVP_MD_is_a(md, "SHAKE128") || EVP_MD_is_a(md, "SHAKE256");
 #elif NCRYPTO_USE_BORINGSSL
-  const char* name = OBJ_nid2sn(EVP_MD_type(md));
-  return name != nullptr &&
-         (strcmp(name, "SHAKE128") == 0 || strcmp(name, "SHAKE256") == 0);
+  return md == EVP_shake256();
 #else
 #error "Unsupported crypto backend"
 #endif
@@ -451,7 +451,7 @@ void OneShotDigestWithMD(Environment* env,
 
   enum encoding output_enc = ParseEncoding(isolate, args[4], args[5], HEX);
 
-  bool is_xof = (EVP_MD_flags(md) & EVP_MD_FLAG_XOF) != 0;
+  const bool is_xof = ncrypto::Digest(md).isXof();
   OPENSSL_SIZE_T output_length = EVP_MD_size(md);
 
   // This is to cause hash() to fail when an incorrect
@@ -806,6 +806,10 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
 
   unsigned int len = hash->md_len_;
 
+#if NCRYPTO_USE_BORINGSSL
+  const bool is_xof = hash->mdctx_.hasXofFlag();
+#endif
+
   // TODO(tniessen): SHA3_squeeze does not work for zero-length outputs on all
   // platforms and will cause a segmentation fault if called. This workaround
   // causes hash.digest() to correctly return an empty buffer / string.
@@ -825,6 +829,12 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
 
     hash->digest_ = ByteSource::Allocated(data.release());
   }
+
+#if NCRYPTO_USE_BORINGSSL
+  // BoringSSL consumes XOF contexts during finalization. Release the context
+  // so update() and copy() after a stream flush cannot reuse that state.
+  if (is_xof) hash->mdctx_.reset();
+#endif
 
   Local<Value> ret;
   if (StringBytes::Encode(
@@ -896,8 +906,7 @@ Maybe<void> HashTraits::AdditionalConfig(
         static_cast<uint32_t>(args[offset + 2].As<Uint32>()->Value()) /
         CHAR_BIT;
     if (params->length != expected) {
-      if ((EVP_MD_flags(params->digest.get()) & EVP_MD_FLAG_XOF) == 0)
-          [[unlikely]] {
+      if (!params->digest.isXof()) [[unlikely]] {
         THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Digest method not supported");
         return Nothing<void>();
       }
