@@ -41,20 +41,6 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/dir1/dir1/trailer', maybeWrapped({ default: 'main' })],
     ['pkgexports/dir2/dir2/trailer', maybeWrapped({ default: 'index' })],
     ['pkgexports/a/dir1/dir1', maybeWrapped({ default: 'main' })],
-    ['pkgexports/a/b/dir1/dir1', maybeWrapped({ default: 'main' })],
-
-    // Deprecated:
-    // Double slashes:
-    ['pkgexports/a//dir1/dir1', maybeWrapped({ default: 'main' })],
-    // double slash target
-    ['pkgexports/doubleslash', maybeWrapped({ default: 'asdf' })],
-    // Null target with several slashes
-    ['pkgexports/sub//internal/test.js', maybeWrapped({ default: 'internal only' })],
-    ['pkgexports/sub//internal//test.js', maybeWrapped({ default: 'internal only' })],
-    ['pkgexports/sub/////internal/////test.js', maybeWrapped({ default: 'internal only' })],
-    // trailing slash
-    ['pkgexports/trailing-pattern-slash/',
-     maybeWrapped({ default: 'trailing-pattern-slash' })],
   ]);
 
   if (!isRequire) {
@@ -112,6 +98,8 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/nofallback2', './nofallback2'],
     // Reaching into nested node_modules
     ['pkgexports/nodemodules', './nodemodules'],
+    // Double slash target
+    ['pkgexports/doubleslash', './doubleslash'],
     // Self resolve invalid
     ['pkgexports/resolve-self-invalid', './invalid2'],
   ]);
@@ -124,6 +112,12 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/sub/no%64e_modules', './sub/no%64e_modules'],
     // Cannot backtrack below exposed path, even with percent encoded "."
     ['pkgexports/sub/%2e./asdf', './asdf'],
+    // Pattern matches containing empty segments (double slashes)
+    ['pkgexports/a/b/dir1/dir1', './a/b/dir1/dir1'],
+    ['pkgexports/a//dir1/dir1', './a//dir1/dir1'],
+    ['pkgexports/sub//internal/test.js', './sub//internal/test.js'],
+    ['pkgexports/sub//internal//test.js', './sub//internal//test.js'],
+    ['pkgexports/sub/////internal/////test.js', './sub/////internal/////test.js'],
   ]);
 
   for (const [specifier, subpath] of undefinedExports) {
@@ -153,6 +147,13 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
       assertIncludes(err.message, subpath);
     }));
   }
+
+  // Subpaths ending in "/" are invalid, even when matching a pattern
+  loadFixture('pkgexports/trailing-pattern-slash/').catch(mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
+    assertStartsWith(err.message, 'Invalid module "./trailing-pattern-slash/"');
+    assertIncludes(err.message, 'is not a valid subpath for the "exports"');
+  }));
 
   // Conditional export, even with no match, should still be used instead
   // of falling back to main

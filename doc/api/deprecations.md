@@ -3502,6 +3502,9 @@ npx codemod@latest @nodejs/crypto-rsa-pss-update
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: End-of-Life.
   - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/40117
     description: Runtime deprecation.
@@ -3511,10 +3514,11 @@ changes:
                  with `--pending-deprecation` support.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The remapping of specifiers ending in `"/"` like `import 'pkg/x/'` is deprecated
-for package `"exports"` and `"imports"` pattern resolutions.
+The remapping of specifiers ending in `"/"` like `import 'pkg/x/'` is no longer
+supported for package `"exports"` and `"imports"` pattern resolutions. Such
+specifiers throw an [`ERR_INVALID_MODULE_SPECIFIER`][] error.
 
 ### DEP0156: `.aborted` property and `'abort'`, `'aborted'` event in `http`
 
@@ -3758,6 +3762,9 @@ that will be removed in a future V8 release.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: End-of-Life.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44495
     description: Runtime deprecation.
@@ -3767,12 +3774,12 @@ changes:
                  with `--pending-deprecation` support.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Package imports and exports targets mapping into paths including a double slash
-(of _"/"_ or _"\\"_) are deprecated and will fail with a resolution validation
-error in a future release. This same deprecation also applies to pattern matches
-starting or ending in a slash.
+(of _"/"_ or _"\\"_) throw an [`ERR_INVALID_PACKAGE_TARGET`][] error. Pattern
+matches starting or ending in a slash, or containing a double slash, throw an
+[`ERR_INVALID_MODULE_SPECIFIER`][] error.
 
 ### DEP0167: Weak `DiffieHellmanGroup` instances (`modp1`, `modp2`, `modp5`)
 
@@ -4868,6 +4875,8 @@ Type: Documentation-only
 [`CryptoKey`]: webcrypto.md#class-cryptokey
 [`Decipheriv`]: crypto.md#class-decipheriv
 [`Duplex.toWeb()`]: stream.md#streamduplextowebstreamduplex-options
+[`ERR_INVALID_MODULE_SPECIFIER`]: errors.md#err_invalid_module_specifier
+[`ERR_INVALID_PACKAGE_TARGET`]: errors.md#err_invalid_package_target
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`KeyObject.from()`]: crypto.md#static-method-keyobjectfromkey
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
