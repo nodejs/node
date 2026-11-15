@@ -1013,6 +1013,68 @@ int64_t IndexOfOffset(size_t length,
   }
 }
 
+// Resolves the range searched by IndexOfString() and IndexOfBuffer(). Returns
+// false if the result is known without searching, in which case
+// `*early_result` holds the value to return. Otherwise, sets `*offset` to the
+// position to start searching from and `*search_end` to the exclusive upper
+// bound of the search range. If `align_ucs2_offset` is true, forward UCS-2
+// searches start at an even byte offset.
+bool GetIndexOfSearchRange(size_t haystack_length,
+                           size_t needle_length,
+                           int64_t offset_i64,
+                           int64_t end_i64,
+                           bool is_forward,
+                           enum encoding enc,
+                           bool align_ucs2_offset,
+                           size_t* offset_out,
+                           size_t* search_end_out,
+                           double* early_result) {
+  *early_result = -1;
+
+  // search_end is the exclusive upper bound of the search range.
+  size_t search_end = static_cast<size_t>(std::min(
+      std::max(end_i64, int64_t{0}), static_cast<int64_t>(haystack_length)));
+  if (enc == UCS2) search_end &= ~static_cast<size_t>(1);
+
+  int64_t opt_offset = IndexOfOffset(haystack_length,
+                                     offset_i64,
+                                     needle_length,
+                                     is_forward);
+
+  if (needle_length == 0) {
+    // Match String#indexOf() and String#lastIndexOf() behavior,
+    // but clamp to search_end.
+    int64_t clamped = std::min(opt_offset, static_cast<int64_t>(search_end));
+    *early_result = static_cast<double>(clamped);
+    return false;
+  }
+
+  if (haystack_length == 0 || opt_offset <= -1) {
+    return false;
+  }
+  size_t offset = static_cast<size_t>(opt_offset);
+  // For backward search, clamp start to within the search range.
+  if (!is_forward && offset >= search_end) {
+    if (search_end == 0) return false;
+    offset = search_end - 1;
+  } else if (is_forward && offset >= search_end) {
+    return false;
+  }
+  if (align_ucs2_offset && enc == UCS2 && is_forward) {
+    offset += offset % sizeof(uint16_t);
+    if (offset >= search_end) return false;
+  }
+  CHECK_LT(offset, haystack_length);
+  if ((is_forward && needle_length + offset > search_end) ||
+      needle_length > search_end) {
+    return false;
+  }
+
+  *offset_out = offset;
+  *search_end_out = search_end;
+  return true;
+}
+
 void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -1035,53 +1097,27 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
   const char* haystack = buffer.data();
   // Round down to the nearest multiple of 2 in case of UCS2.
-  const size_t haystack_length = (enc == UCS2) ?
-      buffer.length() &~ 1 : buffer.length();  // NOLINT(whitespace/operators)
+  const size_t haystack_length =
+      (enc == UCS2) ? buffer.length() & ~1
+                    : buffer.length();  // NOLINT(whitespace/operators)
 
   size_t needle_length;
   if (!StringBytes::Size(isolate, needle, enc).To(&needle_length)) return;
 
-  // search_end is the exclusive upper bound of the search range.
-  size_t search_end = static_cast<size_t>(std::min(
-      std::max(end_i64, int64_t{0}), static_cast<int64_t>(haystack_length)));
-  if (enc == UCS2) search_end &= ~static_cast<size_t>(1);
-
-  int64_t opt_offset = IndexOfOffset(haystack_length,
-                                     offset_i64,
-                                     needle_length,
-                                     is_forward);
-
-  if (needle_length == 0) {
-    // Match String#indexOf() and String#lastIndexOf() behavior,
-    // but clamp to search_end.
-    int64_t clamped = std::min(opt_offset, static_cast<int64_t>(search_end));
-    args.GetReturnValue().Set(static_cast<double>(clamped));
-    return;
-  }
-
-  if (haystack_length == 0) {
-    return args.GetReturnValue().Set(-1);
-  }
-
-  if (opt_offset <= -1) {
-    return args.GetReturnValue().Set(-1);
-  }
-  size_t offset = static_cast<size_t>(opt_offset);
-  // For backward search, clamp start to within the search range.
-  if (!is_forward && offset >= search_end) {
-    if (search_end == 0) return args.GetReturnValue().Set(-1);
-    offset = search_end - 1;
-  } else if (is_forward && offset >= search_end) {
-    return args.GetReturnValue().Set(-1);
-  }
-  if (enc == UCS2 && is_forward) {
-    offset += offset % sizeof(uint16_t);
-    if (offset >= search_end) return args.GetReturnValue().Set(-1);
-  }
-  CHECK_LT(offset, haystack_length);
-  if ((is_forward && needle_length + offset > search_end) ||
-      needle_length > search_end) {
-    return args.GetReturnValue().Set(-1);
+  size_t offset;
+  size_t search_end;
+  double early_result;
+  if (!GetIndexOfSearchRange(haystack_length,
+                             needle_length,
+                             offset_i64,
+                             end_i64,
+                             is_forward,
+                             enc,
+                             true,
+                             &offset,
+                             &search_end,
+                             &early_result)) {
+    return args.GetReturnValue().Set(early_result);
   }
 
   size_t result = search_end;
@@ -1172,43 +1208,20 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   const char* needle = needle_contents.data();
   const size_t needle_length = needle_contents.length();
 
-  // search_end is the exclusive upper bound of the search range.
-  size_t search_end = static_cast<size_t>(std::min(
-      std::max(end_i64, int64_t{0}), static_cast<int64_t>(haystack_length)));
-  if (enc == UCS2) search_end &= ~static_cast<size_t>(1);
-
-  int64_t opt_offset = IndexOfOffset(haystack_length,
-                                     offset_i64,
-                                     needle_length,
-                                     is_forward);
-
-  if (needle_length == 0) {
-    // Match String#indexOf() and String#lastIndexOf() behavior,
-    // but clamp to search_end.
-    int64_t clamped = std::min(opt_offset, static_cast<int64_t>(search_end));
-    args.GetReturnValue().Set(static_cast<double>(clamped));
-    return;
-  }
-
-  if (haystack_length == 0) {
-    return args.GetReturnValue().Set(-1);
-  }
-
-  if (opt_offset <= -1) {
-    return args.GetReturnValue().Set(-1);
-  }
-  size_t offset = static_cast<size_t>(opt_offset);
-  // For backward search, clamp start to within the search range.
-  if (!is_forward && offset >= search_end) {
-    if (search_end == 0) return args.GetReturnValue().Set(-1);
-    offset = search_end - 1;
-  } else if (is_forward && offset >= search_end) {
-    return args.GetReturnValue().Set(-1);
-  }
-  CHECK_LT(offset, haystack_length);
-  if ((is_forward && needle_length + offset > search_end) ||
-      needle_length > search_end) {
-    return args.GetReturnValue().Set(-1);
+  size_t offset;
+  size_t search_end;
+  double early_result;
+  if (!GetIndexOfSearchRange(haystack_length,
+                             needle_length,
+                             offset_i64,
+                             end_i64,
+                             is_forward,
+                             enc,
+                             false,
+                             &offset,
+                             &search_end,
+                             &early_result)) {
+    return args.GetReturnValue().Set(early_result);
   }
 
   size_t result = search_end;
