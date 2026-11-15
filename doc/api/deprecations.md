@@ -754,6 +754,9 @@ npx codemod@latest @nodejs/slow-buffer-to-buffer-alloc-unsafe-slow
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67493
+    description: End-of-Life.
   - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58620
     description: Runtime deprecation.
@@ -765,10 +768,13 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The [`ecdh.setPublicKey()`][] method is now deprecated as its inclusion in
-the API is not useful.
+The `ecdh.setPublicKey()` method has been removed as its inclusion in the API
+was not useful. `ECDH` only requires a private key and the other party's public
+key to compute the shared secret. Use [`ecdh.generateKeys()`][] or
+[`ecdh.setPrivateKey()`][] instead; the latter also sets the associated public
+key.
 
 ### DEP0032: `node:domain` module
 
@@ -4986,7 +4992,8 @@ This affects multiple TLS APIs:
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`domain`]: domain.md
-[`ecdh.setPublicKey()`]: crypto.md#ecdhsetpublickeypublickey-encoding
+[`ecdh.generateKeys()`]: crypto.md#ecdhgeneratekeysencoding-format
+[`ecdh.setPrivateKey()`]: crypto.md#ecdhsetprivatekeyprivatekey-encoding
 [`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname-listener
 [`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitterortarget-eventname
 [`fs.Dir`]: fs.md#class-fsdir
