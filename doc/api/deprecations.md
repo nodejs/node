@@ -2943,7 +2943,7 @@ npx codemod @nodejs/timers-deprecations
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67487
     description: End-of-Life.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37204
