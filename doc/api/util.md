@@ -2568,7 +2568,7 @@ parseEnv('HELLO=world\nHELLO=oh my\n');
 added: v8.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67489
     description: Calling `promisify` on a function that returns a `Promise` no
                  longer emits a deprecation warning. Rejections of the returned
                  `Promise` are forwarded, and a `PROMISIFY_RETURNED_PROMISE`

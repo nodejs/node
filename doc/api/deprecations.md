@@ -3922,7 +3922,7 @@ The `assert.CallTracker` API has been removed.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67489
     description: Deprecation revoked.
   - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/49609
