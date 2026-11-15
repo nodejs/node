@@ -709,13 +709,8 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-bool Hash::HashInit(const EVP_MD* digest, Maybe<unsigned int> xof_md_len) {
-  mdctx_ = EVPMDCtxPointer::New();
-  if (!mdctx_.digestInit(digest)) [[unlikely]] {
-    mdctx_.reset();
-    return false;
-  }
-
+bool Hash::FinishHashInit(const EVP_MD* digest,
+                          Maybe<unsigned int> xof_md_len) {
   md_len_ = mdctx_.getDigestSize();
   if (mdctx_.hasXofFlag() && !xof_md_len.IsJust() &&
       ShouldRejectMissingXofLength(digest, md_len_)) {
@@ -738,6 +733,16 @@ bool Hash::HashInit(const EVP_MD* digest, Maybe<unsigned int> xof_md_len) {
   return true;
 }
 
+bool Hash::HashInit(const EVP_MD* digest, Maybe<unsigned int> xof_md_len) {
+  mdctx_ = EVPMDCtxPointer::New();
+  if (!mdctx_.digestInit(digest)) [[unlikely]] {
+    mdctx_.reset();
+    return false;
+  }
+
+  return FinishHashInit(digest, xof_md_len);
+}
+
 bool Hash::HashInit(const EVP_MD* digest,
                     const CShakeOptions& options,
                     Maybe<unsigned int> xof_md_len) {
@@ -747,26 +752,7 @@ bool Hash::HashInit(const EVP_MD* digest,
     return false;
   }
 
-  md_len_ = mdctx_.getDigestSize();
-  if (mdctx_.hasXofFlag() && !xof_md_len.IsJust() &&
-      ShouldRejectMissingXofLength(digest, md_len_)) {
-    MarkInvalidXofLength();
-    mdctx_.reset();
-    return false;
-  }
-
-  if (xof_md_len.IsJust() && xof_md_len.FromJust() != md_len_) {
-    // This is a little hack to cause createHash to fail when an incorrect
-    // hashSize option was passed for a non-XOF hash function.
-    if (!mdctx_.hasXofFlag()) [[unlikely]] {
-      MarkInvalidXofLength();
-      mdctx_.reset();
-      return false;
-    }
-    md_len_ = xof_md_len.FromJust();
-  }
-
-  return true;
+  return FinishHashInit(digest, xof_md_len);
 }
 
 bool Hash::HashUpdate(const char* data, size_t len) {
