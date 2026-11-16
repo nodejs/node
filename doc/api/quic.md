@@ -3294,8 +3294,10 @@ added: v23.8.0
 -->
 
 * Type: {bigint|number}
+* **Default:** `1200`
 
-Specifies the maximum UDP packet payload size.
+Specifies the maximum UDP packet payload size. The valid range is `1200` to
+`65527`.
 
 #### `sessionOptions.maxStreamWindow`
 
