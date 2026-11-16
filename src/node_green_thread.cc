@@ -749,8 +749,8 @@ constexpr uint32_t kNormalObject = static_cast<uint32_t>(-1);
 class SerializerDelegate final : public ValueSerializer::Delegate {
  public:
   // With `rpc_hooks`, RpcTargets, RPC stubs and AbortSignals are serialized
-  // as indices into descriptors(), which holds what the hooks'
-  // exportHostObject() returns for them.
+  // as indices into rpc_objects(). They are only exported once the whole
+  // message has been serialized, see Serialize().
   SerializerDelegate(Isolate* isolate,
                      Local<Context> context,
                      bool is_host,
@@ -845,24 +845,19 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
     if (!is_rpc_object.FromJust()) {
       return ValueSerializer::Delegate::WriteHostObject(isolate, object);
     }
-    Local<Value> descriptor;
-    if (!CallRpcHook(isolate, context_, rpc_hooks_, "exportHostObject", object)
-             .ToLocal(&descriptor)) {
-      return Nothing<bool>();
-    }
-    serializer_->WriteUint32(static_cast<uint32_t>(descriptors_.size()));
+    serializer_->WriteUint32(static_cast<uint32_t>(rpc_objects_.size()));
     // V8 writes each object in a HandleScope of its own.
-    descriptors_.emplace_back(isolate, descriptor);
+    rpc_objects_.emplace_back(isolate, object);
     return Just(true);
   }
 
-  // Once the value is serialized.
-  Local<Array> descriptors() {
-    if (descriptors_.empty()) return {};
+  // Once the value is serialized: the RPC objects in it, in order.
+  Local<Array> rpc_objects() {
+    if (rpc_objects_.empty()) return {};
     LocalVector<Value> values(isolate_);
-    values.reserve(descriptors_.size());
-    for (const Global<Value>& descriptor : descriptors_) {
-      values.push_back(descriptor.Get(isolate_));
+    values.reserve(rpc_objects_.size());
+    for (const Global<Object>& object : rpc_objects_) {
+      values.push_back(object.Get(isolate_));
     }
     return Array::New(isolate_, values.data(), values.size());
   }
@@ -890,7 +885,7 @@ class SerializerDelegate final : public ValueSerializer::Delegate {
   Local<Private> rpc_brand_;
   Local<Value> abort_signal_prototype_;
   ValueSerializer* serializer_ = nullptr;
-  std::vector<Global<Value>> descriptors_;
+  std::vector<Global<Object>> rpc_objects_;
   std::vector<std::shared_ptr<BackingStore>>* shared_array_buffers_ = nullptr;
   PortAdapter* ports_ = nullptr;
   const LocalVector<Object>* transfer_ports_ = nullptr;
@@ -970,7 +965,7 @@ std::optional<Bytes> SerializeBytes(
     PortAdapter* ports,
     const LocalVector<Object>& transfer_ports,
     std::vector<std::shared_ptr<BackingStore>>* shared_array_buffers,
-    Local<Array>* descriptors) {
+    Local<Array>* rpc_objects) {
   SerializerDelegate delegate(isolate, context, is_host, rpc_hooks);
   // Before V8 asks the delegate whether it has custom host objects.
   if (ports != nullptr) delegate.set_ports(ports, &transfer_ports);
@@ -982,7 +977,7 @@ std::optional<Bytes> SerializeBytes(
     serializer.TransferArrayBuffer(static_cast<uint32_t>(i), transfer[i]);
   }
   if (serializer.WriteValue(context, value).IsNothing()) return std::nullopt;
-  if (descriptors != nullptr) *descriptors = delegate.descriptors();
+  if (rpc_objects != nullptr) *rpc_objects = delegate.rpc_objects();
   std::pair<uint8_t*, size_t> buffer = serializer.Release();
   Bytes bytes(buffer.first, buffer.first + buffer.second);
   free(buffer.first);
@@ -1004,7 +999,10 @@ struct TransferOptions {
 // Throws a JS exception and returns std::nullopt if `value` is not cloneable,
 // or the transfer list is not an array of distinct, detachable ArrayBuffers
 // and ports. With `rpc_hooks`, the data starts with the length of the
-// serialized descriptors of its host objects, and those descriptors.
+// serialized descriptors of its host objects, and those descriptors. The
+// hooks' exportHostObjects() makes the descriptors, but only exports the
+// objects once nothing can fail anymore, so that a value that isn't sent
+// doesn't keep anything alive on this side.
 std::optional<SerializedValue> Serialize(Isolate* isolate,
                                          Local<Context> context,
                                          Local<Value> value,
@@ -1065,7 +1063,7 @@ std::optional<SerializedValue> Serialize(Isolate* isolate,
     }
   }
 
-  Local<Array> descriptors;
+  Local<Array> rpc_objects;
   std::optional<Bytes> bytes =
       SerializeBytes(isolate,
                      context,
@@ -1076,15 +1074,34 @@ std::optional<SerializedValue> Serialize(Isolate* isolate,
                      options.ports,
                      transfer_ports,
                      &result.shared_array_buffers,
-                     rpc_hooks.IsEmpty() ? nullptr : &descriptors);
+                     rpc_hooks.IsEmpty() ? nullptr : &rpc_objects);
   if (!bytes) return std::nullopt;
+  // Exports the RPC objects, once called.
+  Local<Function> commit_exports;
   if (!rpc_hooks.IsEmpty()) {
     Bytes descriptor_bytes;
-    if (!descriptors.IsEmpty()) {
+    if (!rpc_objects.IsEmpty()) {
+      // [descriptors, commit].
+      Local<Value> exported;
+      Local<Value> descriptors;
+      Local<Value> commit;
+      if (!CallRpcHook(
+               isolate, context, rpc_hooks, "exportHostObjects", rpc_objects)
+               .ToLocal(&exported)) {
+        return std::nullopt;
+      }
+      CHECK(exported->IsArray());
+      if (!exported.As<Array>()->Get(context, 0).ToLocal(&descriptors) ||
+          !exported.As<Array>()->Get(context, 1).ToLocal(&commit)) {
+        return std::nullopt;
+      }
+      CHECK(descriptors->IsArray());
+      CHECK(commit->IsFunction());
+      commit_exports = commit.As<Function>();
       std::optional<Bytes> serialized =
           SerializeBytes(isolate,
                          context,
-                         descriptors,
+                         descriptors.As<Array>(),
                          is_host,
                          {},
                          LocalVector<ArrayBuffer>(isolate),
@@ -1115,6 +1132,10 @@ std::optional<SerializedValue> Serialize(Isolate* isolate,
       }
     }
     result.array_buffers.push_back(std::move(store));
+  }
+  if (!commit_exports.IsEmpty() &&
+      commit_exports->Call(context, Undefined(isolate), 0, nullptr).IsEmpty()) {
+    return std::nullopt;
   }
   // Nothing can fail anymore.
   for (Local<ArrayBuffer> buffer : transfer) {
