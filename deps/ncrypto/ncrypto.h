@@ -1944,19 +1944,14 @@ class EVPMDCtxPointer final {
   bool digestFinalInto(Buffer<void>* buf);
   size_t getExpectedSize();
 
-  std::optional<EVP_PKEY_CTX*> signInit(const EVPKeyPointer& key,
-                                        const Digest& digest);
-  std::optional<EVP_PKEY_CTX*> verifyInit(const EVPKeyPointer& key,
-                                          const Digest& digest);
-
-  std::optional<EVP_PKEY_CTX*> signInitWithContext(
+  std::optional<EVP_PKEY_CTX*> signInit(
       const EVPKeyPointer& key,
       const Digest& digest,
-      const Buffer<const unsigned char>& context_string);
-  std::optional<EVP_PKEY_CTX*> verifyInitWithContext(
+      const Buffer<const unsigned char>* context_string = nullptr);
+  std::optional<EVP_PKEY_CTX*> verifyInit(
       const EVPKeyPointer& key,
       const Digest& digest,
-      const Buffer<const unsigned char>& context_string);
+      const Buffer<const unsigned char>* context_string = nullptr);
 
   DataPointer signOneShot(const Buffer<const unsigned char>& buf) const;
   DataPointer sign(const Buffer<const unsigned char>& buf) const;
