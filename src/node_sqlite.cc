@@ -3386,10 +3386,15 @@ int Database::TraceCallback(unsigned int type,
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
 
+  // With the default length of -1, V8 aborts on strings over kMaxLength.
   char* expanded = sqlite3_expanded_sql(static_cast<sqlite3_stmt*>(p));
   Local<Value> sql_string;
   if (expanded != nullptr) {
-    bool ok = String::NewFromUtf8(isolate, expanded).ToLocal(&sql_string);
+    bool ok = String::NewFromUtf8(isolate,
+                                  expanded,
+                                  NewStringType::kNormal,
+                                  static_cast<int>(strlen(expanded)))
+                  .ToLocal(&sql_string);
     sqlite3_free(expanded);
     if (!ok) {
       return 0;
@@ -3398,7 +3403,11 @@ int Database::TraceCallback(unsigned int type,
     // Fallback to source SQL if expanded is unavailable
     const char* source = sqlite3_sql(static_cast<sqlite3_stmt*>(p));
     if (source == nullptr ||
-        !String::NewFromUtf8(isolate, source).ToLocal(&sql_string)) {
+        !String::NewFromUtf8(isolate,
+                             source,
+                             NewStringType::kNormal,
+                             static_cast<int>(strlen(source)))
+             .ToLocal(&sql_string)) {
       return 0;
     }
   }
@@ -3698,9 +3707,7 @@ MaybeLocal<Name> Statement::ColumnNameToName(const int column) {
     return MaybeLocal<Name>();
   }
 
-  return String::NewFromUtf8(
-             env()->isolate(), col_name, NewStringType::kInternalized)
-      .As<Name>();
+  return NullableSQLiteStringToValue(env()->isolate(), col_name).As<Name>();
 }
 
 // Size of the stack array RowToObject passes to the template.
@@ -4140,7 +4147,8 @@ void Statement::SourceSQLGetter(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
   Local<String> sql;
-  if (!String::NewFromUtf8(env->isolate(), sqlite3_sql(stmt->statement_.get()))
+  if (!Utf8StringMaybeOneByte(env->isolate(),
+                              sqlite3_sql(stmt->statement_.get()))
            .ToLocal(&sql)) {
     return;
   }
@@ -4160,7 +4168,7 @@ void Statement::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_SQLITE_ERROR(
         env->isolate(), "Expanded SQL text would exceed configured limits");
   }
-  auto maybe_expanded = String::NewFromUtf8(env->isolate(), expanded);
+  auto maybe_expanded = Utf8StringMaybeOneByte(env->isolate(), expanded);
   sqlite3_free(expanded);
   Local<String> result;
   if (!maybe_expanded.ToLocal(&result)) {
