@@ -122,6 +122,13 @@
           # On by default in Clang and V8 requires it at least for arm64.
           '-flax-vector-conversions',
         ],
+        'cflags_cc': [
+          # TODO(joyeecheung): this may be removed after we switch to C++23
+          '-Wno-invalid-constexpr',
+          # V8 uses the clang-only nodebug attribute in
+          # src/execution/simulator.h, which GCC ignores with a warning.
+          '-Wno-attributes',
+        ],
       }],
       ['clang==1 or OS!="win"', {
         'cflags_cc': [
