@@ -2720,9 +2720,13 @@ Identical to `-e` but prints the result.
 
 <!-- YAML
 added: v26.11.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: The flag is no longer experimental.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
 Exits the process with code `124` if it is still running after `duration`,
 measured from the start of the process. `duration` is a positive integer
@@ -2900,9 +2904,13 @@ error.
 
 <!-- YAML
 added: v26.11.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: The flag is no longer experimental.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
 Enables the report to be generated when [`--process-timeout`][] expires, in
 addition to the summary printed to stderr. Useful to inspect the JavaScript
