@@ -1076,7 +1076,9 @@ session will be closed. If `error` is provided and [`session.onerror`][] is
 set, the `onerror` callback is invoked before destruction. The
 `session.closed` promise will reject with the error. If `options` is
 provided, the `CONNECTION_CLOSE` frame sent to the peer will include the
-specified error code, type, and reason.
+specified error code, type, and reason. The `CONNECTION_CLOSE` ends the
+streams that are still open along with the session, so no `RESET_STREAM` or
+`STOP_SENDING` frame is sent for them.
 
 ### `session.destroyed`
 
