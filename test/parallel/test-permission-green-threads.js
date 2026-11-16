@@ -12,7 +12,11 @@ if (!isMainThread) {
 
 const assert = require('assert');
 const { spawnSyncAndAssert } = require('../common/child_process');
-const { GreenThread, setWarmPoolSize } = require('node:green_threads');
+const {
+  GreenThread,
+  setStallPolicy,
+  setWarmPoolSize,
+} = require('node:green_threads');
 
 const denied = {
   code: 'ERR_ACCESS_DENIED',
@@ -21,12 +25,16 @@ const denied = {
     '--allow-green-threads to manage permissions.',
 };
 
-// Without --allow-green-threads, green threads can't be started, and the warm
-// pool can't be filled. Nothing keeps the process alive afterwards.
+// Without --allow-green-threads, green threads can't be started, the warm
+// pool can't be filled, and the stall policy can't be set. Nothing keeps the
+// process alive afterwards.
 {
   assert.strictEqual(process.permission.has('green-thread'), false);
   assert.throws(() => new GreenThread('1'), denied);
   assert.throws(() => setWarmPoolSize(1), denied);
+  assert.throws(() => setStallPolicy({ timeoutMs: 100, onstall() {} }),
+                denied);
+  assert.throws(() => setStallPolicy(), denied);
 }
 
 function runChild(flags, script, stdout) {
@@ -38,11 +46,17 @@ function runChild(flags, script, stdout) {
 // With --allow-green-threads, they can, until the permission is dropped.
 runChild(['--permission', '--allow-green-threads'], `
   const assert = require('assert');
-  const { GreenThread, setWarmPoolSize } = require('node:green_threads');
+  const {
+    GreenThread,
+    setStallPolicy,
+    setWarmPoolSize,
+  } = require('node:green_threads');
   (async () => {
     assert.strictEqual(process.permission.has('green-thread'), true);
     await setWarmPoolSize(1);
     await setWarmPoolSize(0);
+    setStallPolicy({ timeoutMs: 1000, onstall() {} });
+    setStallPolicy();
     const greenThread = new GreenThread('');
     assert.strictEqual(await greenThread.evaluate('1 + 1'), 2);
     await greenThread.terminate();

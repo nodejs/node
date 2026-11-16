@@ -1591,6 +1591,13 @@ the target doesn't have.
 An RPC call between a [green thread][] and its host was made to a target that
 was already released.
 
+<a id="ERR_GREEN_THREAD_STALLED"></a>
+
+### `ERR_GREEN_THREAD_STALLED`
+
+A [green thread][] was terminated because it [stalled][green thread stalls]
+other green threads.
+
 <a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
 
 ### `ERR_HTTP2_ALTSVC_INVALID_ORIGIN`
@@ -4981,6 +4988,7 @@ An error occurred trying to allocate memory. This should never happen.
 [event emitter-based]: events.md#class-eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
 [green thread]: green_threads.md
+[green thread stalls]: green_threads.md#stalls
 [package map]: packages.md#package-maps
 [relative URL]: https://url.spec.whatwg.org/#relative-url-string
 [self-reference a package using its name]: packages.md#self-referencing-a-package-using-its-name
