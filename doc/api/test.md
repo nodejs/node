@@ -135,6 +135,9 @@ create it.
 the state file is a JSON file that contains an array of run attempts.
 Each run attempt is an object mapping successful tests to the attempt they have passed in.
 The key identifying a test in this map is the test file path, with the line and column where the test is defined.
+When tests run with process isolation and a test is defined outside of the test file being run,
+for example in a helper shared by several test files,
+the key is prefixed with the path of that test file.
 in a case where a test defined in a specific location is run multiple times,
 for example within a function or a loop,
 a counter will be appended to the key, to disambiguate the test runs.
