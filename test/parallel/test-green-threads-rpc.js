@@ -267,6 +267,44 @@ class SubCounter extends Counter {
     await greenThread.terminate();
   }
 
+  // Signals are kept until they abort, even if nothing but their listeners
+  // refers to them, in both directions.
+  {
+    const result = await run(`
+      // Listens without keeping the signal alive.
+      const whenAborted = (signal) => new Promise((resolve) => {
+        signal.addEventListener('abort', function() { resolve(this.reason); });
+      });
+      const controller = new AbortController();
+      const toHost = env.whenAborted(controller.signal);
+      await env.collect();
+      controller.abort('green');
+      let fromHost;
+      await env.abortLater((signal) => { fromHost = whenAborted(signal); },
+                           async () => {
+                             for (let i = 0; i < 4; i++) {
+                               gc();
+                               await new Promise((r) => setTimeout(r, 5));
+                             }
+                           });
+      return [await toHost, await fromHost];
+    `, {
+      whenAborted(signal) {
+        return new Promise((resolve) => {
+          signal.addEventListener('abort', function() { resolve(this.reason); });
+        });
+      },
+      collect: gc,
+      async abortLater(register, collect) {
+        const controller = new AbortController();
+        await register(controller.signal);
+        await collect();
+        controller.abort('host');
+      },
+    });
+    assert.deepStrictEqual(result, ['green', 'host']);
+  }
+
   // Messages that can't be sent export nothing: what they would have passed
   // as stubs isn't kept alive, and AbortSignals get no listeners.
   {
