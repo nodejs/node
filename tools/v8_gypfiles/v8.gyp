@@ -75,6 +75,8 @@
       }, '(OS!="aix" and OS!="os400") and (OS!="win" or clang==1)', {
         'cflags': [
           '-fvisibility=hidden',
+        ],
+        'cflags_cc': [
           '-fvisibility-inlines-hidden'
         ],
       }],  # MSVC hides the non-public symbols by default so no need to configure it.
