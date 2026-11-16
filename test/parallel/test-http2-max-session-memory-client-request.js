@@ -103,15 +103,21 @@ async function stalledPeerRejectsRequestsAndSessionRecovers(stall) {
   if (stall) peerSocket.pause();
 
   let rejection;
+  const closed = [];
   for (let batch = 0; batch < 200 && rejection === undefined; batch++) {
+    const batchClosed = [];
     for (let i = 0; i < 100; i++) {
       const req = client.request({ ':path': '/' });
       req.on('error', (err) => {
         if (err.code === 'ERR_HTTP2_SESSION_MEMORY_EXCEEDED') rejection ??= err;
       });
+      batchClosed.push(new Promise((resolve) => req.once('close', resolve)));
       req.end();
     }
-    await new Promise(setImmediate);
+    closed.push(...batchClosed);
+    // With a responsive peer, wait for the batch to finish so that the number
+    // of open streams does not depend on how quickly the peer answers.
+    await (stall ? new Promise(setImmediate) : Promise.all(batchClosed));
   }
 
   if (!stall) {
@@ -133,27 +139,20 @@ async function stalledPeerRejectsRequestsAndSessionRecovers(stall) {
   // free session memory, so a request that was rejected can be retried on the
   // same session.
   peerSocket.resume();
-  let accepted = false;
-  for (let attempt = 0; attempt < 200 && !accepted; attempt++) {
+  await Promise.all(closed);
+  let retry;
+  for (;;) {
+    retry = client.request({ ':path': '/retry' });
+    retry.resume();
+    retry.end();
     // An accepted request gets its stream ID synchronously.
-    const req = client.request({ ':path': '/retry' });
-    // An accepted request gets its stream ID synchronously.
-    req.end();
-    if (!req.pending) {
-      accepted = true;
-      break;
-    }
-    const outcome = await new Promise((resolve) => {
-      req.once('ready', () => resolve('ready'));
-      req.once('error', (err) => resolve(err.code));
-    });
-    accepted = outcome === 'ready';
-    if (!accepted) {
-      assert.strictEqual(outcome, 'ERR_HTTP2_SESSION_MEMORY_EXCEEDED');
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
+    if (!retry.pending) break;
+    const [err] = await once(retry, 'error');
+    assert.strictEqual(err.code, 'ERR_HTTP2_SESSION_MEMORY_EXCEEDED');
+    await new Promise(setImmediate);
   }
-  assert.ok(accepted, 'expected a retried request to be accepted');
+  await once(retry, 'close');
+  assert.strictEqual(retry.rstCode, 0);
   assert.strictEqual(client.destroyed, false);
 
   client.destroy();
