@@ -230,6 +230,22 @@ void SetHeapProfileNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
   env->set_heap_profile_near_heap_limit(limit);
 }
 
+// Only used by tests, so that the pointer compression heap warning can be
+// exercised without allocating a large heap. Takes the "likely" and the
+// "certain" thresholds in bytes.
+void SetPointerCompressionHeapWarningThresholds(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsNumber());
+  CHECK(args[1]->IsNumber());
+  Environment* env = Environment::GetCurrent(args);
+  double likely = args[0].As<v8::Number>()->Value();
+  double certain = args[1].As<v8::Number>()->Value();
+  CHECK_GE(likely, 0);
+  CHECK_GE(certain, 0);
+  env->set_pointer_compression_heap_warning_thresholds(
+      static_cast<uint64_t>(likely), static_cast<uint64_t>(certain));
+}
+
 void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   BindingData* data = Realm::GetBindingData<BindingData>(args);
   HeapStatistics s;
@@ -752,6 +768,10 @@ void Initialize(Local<Object> target,
             SetHeapProfileNearHeapLimit);
   SetMethod(context,
             target,
+            "setPointerCompressionHeapWarningThresholds",
+            SetPointerCompressionHeapWarningThresholds);
+  SetMethod(context,
+            target,
             "updateHeapStatisticsBuffer",
             UpdateHeapStatisticsBuffer);
 
@@ -862,6 +882,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetHashSeed);
   registry->Register(SetHeapSnapshotNearHeapLimit);
   registry->Register(SetHeapProfileNearHeapLimit);
+  registry->Register(SetPointerCompressionHeapWarningThresholds);
   registry->Register(GCProfiler::New);
   registry->Register(GCProfiler::Start);
   registry->Register(GCProfiler::Stop);

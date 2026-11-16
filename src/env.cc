@@ -1268,6 +1268,7 @@ Environment::~Environment() {
   if (heap_profile_near_heap_limit_callback_added_) {
     RemoveHeapProfileNearHeapLimitCallback(0);
   }
+  RemovePointerCompressionHeapWarningCallback();
 
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
@@ -2341,6 +2342,84 @@ void Environment::TracePromises(PromiseHookType type,
   // TODO(joyeecheung): we can dump the native stack trace too if the
   // JS stack trace is empty i.e. it may be resolved on the native side.
   PrintCurrentStackTrace(isolate);
+}
+
+bool Environment::ShouldWarnAboutPointerCompressionHeap() const {
+#if defined(V8_COMPRESS_POINTERS)
+  // The cage already enforces the limit, so there is nothing to warn about.
+  return false;
+#else
+  // 32-bit address spaces cannot hold a 4 GiB heap in the first place.
+  // --no-warnings and --disable-warning are not checked here: like every
+  // other process warning, they only suppress the default stderr output, and
+  // 'warning' listeners still receive the event.
+  return sizeof(void*) == 8;
+#endif
+}
+
+void Environment::AddPointerCompressionHeapWarningCallback() {
+  if (pointer_compression_heap_warning_callback_added_) return;
+  pointer_compression_heap_warning_callback_added_ = true;
+  // Only full GCs: the heap that survives a mark-compact is the closest
+  // approximation of the live heap, and young-generation GCs are frequent.
+  isolate_->AddGCEpilogueCallback(
+      PointerCompressionHeapWarningCallback, this, v8::kGCTypeMarkSweepCompact);
+}
+
+void Environment::RemovePointerCompressionHeapWarningCallback() {
+  if (!pointer_compression_heap_warning_callback_added_) return;
+  pointer_compression_heap_warning_callback_added_ = false;
+  isolate_->RemoveGCEpilogueCallback(PointerCompressionHeapWarningCallback,
+                                     this);
+}
+
+void Environment::PointerCompressionHeapWarningCallback(
+    Isolate* isolate, v8::GCType type, v8::GCCallbackFlags flags, void* data) {
+  Environment* env = static_cast<Environment*>(data);
+  if (env->pointer_compression_heap_warning_scheduled_) return;
+
+  v8::HeapStatistics stats;
+  isolate->GetHeapStatistics(&stats);
+  const uint64_t used = stats.used_heap_size();
+  if (used < env->pointer_compression_heap_likely_threshold_ &&
+      used < env->pointer_compression_heap_certain_threshold_) {
+    return;
+  }
+  // The wording is decided once, when the warning is first triggered.
+  const bool certain = used >= env->pointer_compression_heap_certain_threshold_;
+
+  // JavaScript cannot run inside a GC callback, and V8 does not allow
+  // removing a GC callback while it is iterating over them, so do both from
+  // an immediate instead.
+  env->pointer_compression_heap_warning_scheduled_ = true;
+  env->SetImmediate(
+      [used, certain](Environment* env) {
+        env->RemovePointerCompressionHeapWarningCallback();
+        constexpr uint64_t kMiB = 1024 * 1024;
+        std::string thread =
+            env->is_main_thread()
+                ? std::string("the main thread")
+                : SPrintF("worker thread %d", env->thread_id());
+        std::string outcome =
+            certain ? "Pointer compression reduces heap usage by at most "
+                      "half, so this heap will exceed that limit, and the "
+                      "application will run out of memory"
+                    : "Pointer compression typically reduces heap usage by "
+                      "about 40%, so this heap is likely to exceed that "
+                      "limit, and the application may run out of memory";
+        std::string message = SPrintF(
+            "The V8 heap of %s is using %d MiB after garbage collection. "
+            "When pointer compression is enabled, the heap of each thread is "
+            "limited to %d MiB. %s in Node.js builds that enable pointer "
+            "compression.",
+            thread,
+            used / kMiB,
+            kPointerCompressionCageSize / kMiB,
+            outcome);
+        USE(ProcessEmitWarningGeneric(
+            env, message, "Warning", kPointerCompressionHeapWarningCode));
+      },
+      CallbackFlags::kUnrefed);
 }
 
 // V8 only invokes the most recently registered near-heap-limit callback.
