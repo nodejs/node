@@ -235,6 +235,11 @@ understanding of the implications and risks.
 
 TLSv1.3 does not support renegotiation.
 
+Renegotiation is deprecated (see [DEP0213][]). A future version of Node.js will
+disable it by default, for servers and clients. The `allowRenegotiation` option
+of [`tls.createServer()`][] and [`tls.connect()`][] can be set to `false` to
+disable it now, or to `true` to keep it enabled when that default changes.
+
 ### Session resumption
 
 Establishing a TLS session can be relatively slow. The process can be sped
@@ -901,6 +906,9 @@ connection is open.
 <!-- YAML
 added: v0.11.4
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67532
+    description: The `allowRenegotiation` option is now supported.
   - version: v12.2.0
     pr-url: https://github.com/nodejs/node/pull/27497
     description: The `enableTrace` option is now supported.
@@ -927,6 +935,7 @@ changes:
   * `ALPNProtocols`: See [`tls.createServer()`][]
   * `SNICallback`: See [`tls.createServer()`][]
   * `ALPNCallback`: See [`tls.createServer()`][]
+  * `allowRenegotiation`: See [`tls.createServer()`][]
   * `session` {Buffer} A `Buffer` instance containing a TLS session.
   * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
     extension will be added to the client hello and an `'OCSPResponse'` event
@@ -1119,10 +1128,17 @@ certificate at all.
 
 <!-- YAML
 added: v8.4.0
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated. See [DEP0213][].
 
 Disables TLS renegotiation for this `TLSSocket` instance. Once called, attempts
 to renegotiate will trigger an `'error'` event on the `TLSSocket`.
+
+Set `allowRenegotiation: false` when creating the server or connection
+instead. This method has no effect on a connection created that way, where the
+peer's attempts to renegotiate are refused without an error.
 
 ### `tlsSocket.enableTrace()`
 
@@ -1586,6 +1602,7 @@ Returns the numeric representation of the remote port. For example, `443`.
 
 <!-- YAML
 added: v0.11.8
+deprecated: REPLACEME
 changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
@@ -1593,6 +1610,8 @@ changes:
                  now throws `ERR_INVALID_ARG_TYPE` instead of
                  `ERR_INVALID_CALLBACK`.
 -->
+
+> Stability: 0 - Deprecated. See [DEP0213][].
 
 * `options` {Object}
   * `rejectUnauthorized` {boolean} If not `false`, the server certificate is
@@ -1621,6 +1640,12 @@ When running as the server, the socket will be destroyed with an error after
 
 For TLSv1.3, renegotiation cannot be initiated, it is not supported by the
 protocol.
+
+If the connection was created with `allowRenegotiation: false`, this method
+returns `false` and `callback` is called with an
+[`ERR_TLS_RENEGOTIATION_DISABLED`][] error. A future version of Node.js will
+disable renegotiation by default, and this method will then only work on
+connections created with `allowRenegotiation: true`.
 
 ### `tlsSocket.servername`
 
@@ -1740,6 +1765,9 @@ was present (see [CVE-2021-44531][]). Applications that wish to accept
 <!-- YAML
 added: v0.11.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67532
+    description: The `allowRenegotiation` option is now supported.
   - version:
       - v15.1.0
       - v14.18.0
@@ -1837,6 +1865,9 @@ changes:
     TLS connection. When a server offers a DH parameter with a size less
     than `minDHSize`, the TLS connection is destroyed and an error is thrown.
     **Default:** `1024`.
+  * `allowRenegotiation` {boolean} If `true`, the client accepts renegotiation
+    requested by the server. A future version of Node.js will change this default
+    to `false` (see [DEP0213][]). **Default:** `true`.
   * `highWaterMark` {number} Consistent with the readable stream `highWaterMark` parameter.
     **Default:** `16 * 1024`.
   * `timeout`: {number} If set and if a socket is created internally, will call
@@ -2209,6 +2240,9 @@ permissible, use 2048 bits or larger for stronger security.
 <!-- YAML
 added: v0.3.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67532
+    description: The `allowRenegotiation` option is now supported.
   - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64777
     description: Using the `clientCertEngine` option now throws
@@ -2246,6 +2280,13 @@ changes:
 -->
 
 * `options` {Object}
+  * `allowRenegotiation` {boolean} If `true`, connections to the server may be
+    renegotiated, either when requested by the client or through local calls to
+    [`tlsSocket.renegotiate()`][]. Renegotiation is deprecated (see
+    [DEP0213][]) and future versions will set this default to `false`.
+    Setting this to `true` throws [`ERR_TLS_RENEGOTIATION_UNSUPPORTED`][]
+    where the TLS library does not support renegotiation on servers.
+    **Default:** `true`.
   * `ALPNProtocols` {string\[]|Buffer|TypedArray|DataView} An array of strings,
     or a single `Buffer`, `TypedArray`, or `DataView` containing the supported
     ALPN protocols. Buffers should have the format `[len][name][len][name]...`
@@ -2585,6 +2626,7 @@ added: v0.11.3
 
 [CVE-2021-44531]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44531
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
+[DEP0213]: deprecations.md#dep0213-tls-renegotiation
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
 [IANA TLS Supported Groups registry]: https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8
@@ -2617,6 +2659,8 @@ added: v0.11.3
 [`--use-openssl-ca`]: cli.md#--use-bundled-ca---use-openssl-ca
 [`--use-system-ca`]: cli.md#--use-system-ca
 [`Duplex`]: stream.md#class-streamduplex
+[`ERR_TLS_RENEGOTIATION_DISABLED`]: errors.md#err_tls_renegotiation_disabled
+[`ERR_TLS_RENEGOTIATION_UNSUPPORTED`]: errors.md#err_tls_renegotiation_unsupported
 [`NODE_EXTRA_CA_CERTS`]: cli.md#node_extra_ca_certsfile
 [`NODE_OPTIONS`]: cli.md#node_optionsoptions
 [`SSL_export_keying_material`]: https://www.openssl.org/docs/man3.0/man3/SSL_export_keying_material.html
@@ -2652,6 +2696,7 @@ added: v0.11.3
 [`tls.getCACertificates()`]: #tlsgetcacertificatestype
 [`tls.getCiphers()`]: #tlsgetciphers
 [`tls.rootCertificates`]: #tlsrootcertificates
+[`tlsSocket.renegotiate()`]: #tlssocketrenegotiateoptions-callback
 [`x509.checkHost()`]: crypto.md#x509checkhostname-options
 [asn1.js]: https://www.npmjs.com/package/asn1.js
 [certificate object]: #certificate-object

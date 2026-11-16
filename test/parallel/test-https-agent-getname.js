@@ -14,13 +14,13 @@ const agent = new https.Agent();
 // empty argument
 assert.strictEqual(
   agent.getName(),
-  'localhost:::::::::::::::::::::::::::'
+  'localhost::::::::::::::::::::::::::::'
 );
 
 // empty options
 assert.strictEqual(
   agent.getName({}),
-  'localhost:::::::::::::::::::::::::::'
+  'localhost::::::::::::::::::::::::::::'
 );
 
 // Pass all options arguments
@@ -50,7 +50,7 @@ assert.strictEqual(
   '0.0.0.0:443:192.168.1.1:s2:ca:s4:cert:ciphers:s3:key::' +
     's3:pfx::false:localhost:::secureProtocol:' +
     'a3:7:v1:Yw==:7:v1:cg==:7:v1:bA==:false:ecdhCurve:dhparam:0:' +
-    'sessionIdContext:"sigalgs"::::::::'
+    'sessionIdContext:"sigalgs":::::::::'
 );
 
 {
@@ -103,6 +103,11 @@ assert.strictEqual(
   assert.notStrictEqual(
     agent.getName({ ...baseOptions, allowPartialTrustChain: true }),
     agent.getName({ ...baseOptions, allowPartialTrustChain: false })
+  );
+
+  assert.notStrictEqual(
+    agent.getName(baseOptions),
+    agent.getName({ ...baseOptions, allowRenegotiation: false })
   );
 
   const secureContext1 = tls.createSecureContext({ ca: agent1 });
