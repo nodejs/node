@@ -168,6 +168,14 @@ declare namespace primordials {
   export const ArrayBufferPrototypeSlice: UncurryThis<typeof ArrayBuffer.prototype.slice>
   export const ArrayBufferPrototypeTransfer: UncurryThis<typeof ArrayBuffer.prototype.transfer>
   export const ArrayBufferPrototypeGetByteLength: UncurryGetter<typeof ArrayBuffer.prototype , "byteLength">;
+  export import AsyncDisposableStack = globalThis.AsyncDisposableStack,
+  export const AsyncDisposableStackPrototype: typeof AsyncDisposableStack.prototype
+  export const AsyncDisposableStackAdopt: UncurryThis<typeof AsyncDisposableStack.prototype.adopt>
+  export const AsyncDisposableStackDefer: UncurryThis<typeof AsyncDisposableStack.prototype.defer>
+  export const AsyncDisposableStackDispose: UncurryThis<typeof AsyncDisposableStack.prototype.dispose>
+  export const AsyncDisposableStackMove: UncurryThis<typeof AsyncDisposableStack.prototype.move>
+  export const AsyncDisposableStackUse: UncurryThis<typeof AsyncDisposableStack.prototype.use>
+  export const AsyncDisposableStackSymbolAsyncDispose: UncurryMethod<typeof AsyncDisposableStack.prototype, typeof Symbol.asyncDispose>;
   export import BigInt = globalThis.BigInt;
   export const BigIntPrototype: typeof BigInt.prototype
   export const BigIntAsUintN: typeof BigInt.asUintN
@@ -259,6 +267,14 @@ declare namespace primordials {
   export const DatePrototypeToLocaleDateString: UncurryThis<typeof Date.prototype.toLocaleDateString>
   export const DatePrototypeToLocaleTimeString: UncurryThis<typeof Date.prototype.toLocaleTimeString>
   export const DatePrototypeSymbolToPrimitive: UncurryMethod<typeof Date.prototype, typeof Symbol.toPrimitive>;
+  export import DisposableStack = globalThis.DisposableStack,
+  export const DisposableStackPrototype: typeof DisposableStack.prototype
+  export const DisposableStackAdopt: UncurryThis<typeof DisposableStack.prototype.adopt>
+  export const DisposableStackDefer: UncurryThis<typeof DisposableStack.prototype.defer>
+  export const DisposableStackDispose: UncurryThis<typeof DisposableStack.prototype.dispose>
+  export const DisposableStackMove: UncurryThis<typeof DisposableStack.prototype.move>
+  export const DisposableStackUse: UncurryThis<typeof DisposableStack.prototype.use>
+  export const DisposableStackSymbolDispose: UncurryMethod<typeof DisposableStack.prototype, typeof Symbol.dispose>;
   export import Error = globalThis.Error;
   export const ErrorPrototype: typeof Error.prototype
   // @ts-ignore
@@ -444,6 +460,8 @@ declare namespace primordials {
   export const StringPrototypeToWellFormed: UncurryThis<typeof String.prototype.toWellFormed>
   export const StringPrototypeValueOf: UncurryThis<typeof String.prototype.valueOf>
   export const StringPrototypeReplaceAll: UncurryThis<typeof String.prototype.replaceAll>
+  export import SuppressedError = globalThis.SuppressedError;
+  export const SuppressedErrorPrototype: typeof SuppressedError.prototype
   export import Symbol = globalThis.Symbol;
   export const SymbolPrototype: typeof Symbol.prototype
   export const SymbolFor: typeof Symbol.for
