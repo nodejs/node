@@ -2722,7 +2722,7 @@ Identical to `-e` but prints the result.
 added: v26.11.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67506
     description: The flag is no longer experimental.
 -->
 
@@ -2906,7 +2906,7 @@ error.
 added: v26.11.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67506
     description: The flag is no longer experimental.
 -->
 
