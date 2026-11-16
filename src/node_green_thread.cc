@@ -29,6 +29,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -143,6 +144,7 @@ enum EventType : int32_t {
   kEventWarmPoolFull,
   kEventAbandoned,
   kEventRpc,
+  kEventStall,
 };
 
 // Values of the `id` field of kEventError events.
@@ -150,6 +152,7 @@ enum ErrorKind : int32_t {
   kErrorException = 0,
   kErrorOutOfMemory,
   kErrorCpuLimit,
+  kErrorStalled,
 };
 
 // Flags passed to the GreenThread constructor.
@@ -272,7 +275,54 @@ class PoolThread {
   // that the backup watchdog wants to cut off. See RunGuarded().
   sigjmp_buf* cut_off_jump() { return &cut_off_jump_; }
   GreenIsolate* running() const { return running_.load(); }
-  void set_running(GreenIsolate* green) { running_ = green; }
+  void set_running(GreenIsolate* green) {
+    if (green != nullptr) {
+      items_.store(items_.load(std::memory_order_relaxed) + 1,
+                   std::memory_order_relaxed);
+    }
+    running_ = green;
+  }
+  // How many work items this thread has started. The stall monitor tells
+  // work items apart by it, and times them itself, so that no clock is read
+  // for each of them.
+  uint64_t items() const { return items_.load(std::memory_order_relaxed); }
+
+  // Timers of `owner` that are due at `due`, in uv_hrtime() time, on this
+  // thread's loop, for the stall monitor. Only called on this thread.
+  using TimerDue = std::multimap<uint64_t, const void*>::iterator;
+  TimerDue AddTimerDue(uint64_t due, const void* owner) {
+    Mutex::ScopedLock lock(mutex_);
+    return timer_dues_.emplace(due, owner);
+  }
+  void RemoveTimerDue(TimerDue it) {
+    Mutex::ScopedLock lock(mutex_);
+    timer_dues_.erase(it);
+  }
+
+  // Work that only this thread can run, for the stall monitor: callbacks
+  // posted to it, and timers that are due.
+  struct Waiting {
+    // Whether callbacks are waiting, and how many times callbacks have been
+    // taken so far.
+    bool callbacks;
+    uint64_t callbacks_taken;
+    // When the earliest timer that is due by `now` was due, other than those
+    // of `except`, which can't run before it returns anyway, or 0.
+    uint64_t timer_due;
+  };
+  // May be called from any thread.
+  Waiting GetWaiting(uint64_t now, const void* except) {
+    Mutex::ScopedLock lock(mutex_);
+    Waiting waiting{!queue_.empty(), callbacks_taken_, 0};
+    for (const auto& [due, owner] : timer_dues_) {
+      if (due > now) break;
+      if (owner != except) {
+        waiting.timer_due = due;
+        break;
+      }
+    }
+    return waiting;
+  }
   GreenIsolate* cut_off_target() const { return cut_off_target_.load(); }
   void set_cut_off_target(GreenIsolate* green) { cut_off_target_ = green; }
 
@@ -301,7 +351,11 @@ class PoolThread {
   std::atomic<bool> busy_{false};
   sigjmp_buf cut_off_jump_;
   std::atomic<GreenIsolate*> running_{nullptr};
+  std::atomic<uint64_t> items_{0};
   std::atomic<GreenIsolate*> cut_off_target_{nullptr};
+  // Guarded by mutex_.
+  uint64_t callbacks_taken_ = 0;
+  std::multimap<uint64_t, const void*> timer_dues_;
 };
 
 // The process-wide set of pool threads, and the queue of green isolates that
@@ -314,12 +368,38 @@ class GreenThreadPool {
     return pool;
   }
 
+  // The pool, if it has been created.
+  static GreenThreadPool* GetIfCreated() { return instance_.load(); }
+
   PoolThread* Next() {
     size_t index = next_.fetch_add(1, std::memory_order_relaxed);
-    return threads_[index % threads_.size()].get();
+    return thread(index % size());
   }
 
-  size_t size() const { return threads_.size(); }
+  // Threads are only ever added.
+  size_t size() const { return size_.load(); }
+  PoolThread* thread(size_t index) const { return threads_[index].get(); }
+
+  // Adds a thread, unless the pool has kMaxPoolThreads already. May be called
+  // from any thread.
+  bool AddThread() {
+    Mutex::ScopedLock lock(add_mutex_);
+    const size_t index = size_.load();
+    if (index >= kMaxPoolThreads) return false;
+    threads_[index] = std::make_unique<PoolThread>(this, index);
+    threads_[index]->Start();
+    size_ = index + 1;
+    WakeIdleThread(nullptr);
+    return true;
+  }
+
+  // Whether isolates are waiting in the ready queue, and how many have been
+  // taken from it so far, for the stall monitor. May be called from any
+  // thread.
+  std::pair<bool, uint64_t> GetReady() {
+    Mutex::ScopedLock lock(ready_mutex_);
+    return {!ready_.empty(), ready_taken_};
+  }
 
   // May be called from any thread. Wakes `preferred` if it is idle, so that
   // isolates tend to stay on the same thread, or else any idle thread. If all
@@ -391,16 +471,20 @@ class GreenThreadPool {
             std::min<unsigned long>(value, kMaxPoolThreads));  // NOLINT
       }
     }
+    threads_ = std::make_unique<std::unique_ptr<PoolThread>[]>(kMaxPoolThreads);
     for (unsigned int i = 0; i < count; i++) {
-      threads_.push_back(std::make_unique<PoolThread>(this, i));
+      threads_[i] = std::make_unique<PoolThread>(this, i);
     }
-    for (auto& thread : threads_) thread->Start();
+    for (unsigned int i = 0; i < count; i++) threads_[i]->Start();
+    size_ = count;
+    instance_ = this;
   }
 
   void WakeIdleThread(PoolThread* except) {
     const size_t start = next_.fetch_add(1, std::memory_order_relaxed);
-    for (size_t i = 0; i < threads_.size(); i++) {
-      PoolThread* thread = threads_[(start + i) % threads_.size()].get();
+    const size_t size = this->size();
+    for (size_t i = 0; i < size; i++) {
+      PoolThread* thread = this->thread((start + i) % size);
       if (thread != except && thread->is_idle()) {
         thread->Wake();
         return;
@@ -412,14 +496,17 @@ class GreenThreadPool {
 
   // Background work can take a while, e.g. creating an isolate, and can't be
   // interrupted, so some threads are always left for other work.
-  size_t MaxBackground() const {
-    return std::max<size_t>(1, threads_.size() / 2);
-  }
+  size_t MaxBackground() const { return std::max<size_t>(1, size() / 2); }
 
-  std::vector<std::unique_ptr<PoolThread>> threads_;
+  static inline std::atomic<GreenThreadPool*> instance_{nullptr};
+  // kMaxPoolThreads slots, of which the first size_ are used.
+  std::unique_ptr<std::unique_ptr<PoolThread>[]> threads_;
+  std::atomic<size_t> size_{0};
+  Mutex add_mutex_;
   std::atomic<size_t> next_{0};
   Mutex ready_mutex_;
   std::deque<std::shared_ptr<GreenIsolate>> ready_;
+  uint64_t ready_taken_ = 0;
   std::deque<std::function<void()>> background_;
   size_t background_running_ = 0;
 };
@@ -431,6 +518,7 @@ void PoolThread::OnWakeup(uv_async_t* handle) {
   {
     Mutex::ScopedLock lock(self->mutex_);
     callbacks.swap(self->queue_);
+    self->callbacks_taken_++;
   }
   for (Callback& callback : callbacks) callback();
   self->pool_->RunReady(self, kReadyBudget);
@@ -459,11 +547,14 @@ void PoolThread::OnWakeup(uv_async_t* handle) {
 // until libuv is done with it.
 class TimerHandle final : public std::enable_shared_from_this<TimerHandle> {
  public:
+  // `owner` is the green isolate whose timer it is.
   TimerHandle(PoolThread* thread,
+              const void* owner,
               uint64_t timeout,
               uint64_t repeat,
               std::function<void()> on_fire)
       : thread_(thread),
+        owner_(owner),
         timeout_(timeout),
         repeat_(repeat),
         on_fire_(std::move(on_fire)) {}
@@ -474,6 +565,8 @@ class TimerHandle final : public std::enable_shared_from_this<TimerHandle> {
       CHECK_EQ(uv_timer_init(self->thread_->loop(), &self->handle_), 0);
       self->handle_.data = self.get();
       uv_timer_start(&self->handle_, OnTimer, self->timeout_, self->repeat_);
+      self->due_ =
+          self->thread_->AddTimerDue(DueAfter(self->timeout_), self->owner_);
       self->started_ = true;
       self->self_ = self;
     });
@@ -485,6 +578,8 @@ class TimerHandle final : public std::enable_shared_from_this<TimerHandle> {
       self->closed_ = true;
       self->on_fire_ = nullptr;
       if (!self->started_) return;
+      if (self->due_) self->thread_->RemoveTimerDue(*self->due_);
+      self->due_.reset();
       uv_close(reinterpret_cast<uv_handle_t*>(&self->handle_),
                [](uv_handle_t* handle) {
                  static_cast<TimerHandle*>(handle->data)->self_.reset();
@@ -495,12 +590,21 @@ class TimerHandle final : public std::enable_shared_from_this<TimerHandle> {
  private:
   static void OnTimer(uv_timer_t* handle) {
     TimerHandle* self = static_cast<TimerHandle*>(handle->data);
+    if (self->due_) {
+      self->thread_->RemoveTimerDue(*self->due_);
+      self->due_.reset();
+      if (self->repeat_ > 0) {
+        self->due_ =
+            self->thread_->AddTimerDue(DueAfter(self->repeat_), self->owner_);
+      }
+    }
     // Copy, since the callback may close the timer.
     std::function<void()> on_fire = self->on_fire_;
     if (on_fire) on_fire();
   }
 
   PoolThread* const thread_;
+  const void* const owner_;
   const uint64_t timeout_;
   const uint64_t repeat_;
   uv_timer_t handle_;
@@ -508,7 +612,15 @@ class TimerHandle final : public std::enable_shared_from_this<TimerHandle> {
   std::function<void()> on_fire_;
   bool started_ = false;
   bool closed_ = false;
+  std::optional<PoolThread::TimerDue> due_;
   std::shared_ptr<TimerHandle> self_;
+
+  // `milliseconds` from now, in uv_hrtime() time.
+  static uint64_t DueAfter(uint64_t milliseconds) {
+    return DeadlineAfter(milliseconds > UINT64_MAX / 1000000
+                             ? UINT64_MAX
+                             : milliseconds * 1000000);
+  }
 };
 
 // The CPU time used by the calling thread, in nanoseconds.
@@ -1819,6 +1931,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     }
     auto handle = std::make_shared<TimerHandle>(
         GreenThreadPool::Get()->Next(),
+        this,
         static_cast<uint64_t>(delay_in_seconds * 1000),
         0,
         [weak = weak_from_this(), key]() {
@@ -1843,6 +1956,39 @@ class GreenIsolate final : public IsolatePlatformDelegate,
 
   // May be called from any thread.
   PoolThread* last_thread() const { return last_thread_.load(); }
+
+  // For the stall monitor. May be called from any thread.
+  uint64_t id() const { return id_; }
+  // Odd while a work item runs.
+  uint64_t work_epoch() const { return work_epoch_.load(); }
+  // Whether the green thread is stopping already, or won't be stopped by
+  // terminating it.
+  bool is_stopping() const {
+    return terminate_requested_ || abandoned_ || stalled_ ||
+           cpu_limit_exceeded_ || out_of_memory_;
+  }
+  // Whether its GreenThread has 'stall' listeners, which stalls that it
+  // causes are reported to.
+  bool handles_stalls() const { return handles_stalls_.load(); }
+  void set_handles_stalls(bool value) { handles_stalls_ = value; }
+  // Whether it has been activated. Isolates in the warm pool haven't.
+  bool has_host() {
+    Mutex::ScopedLock lock(host_mutex_);
+    return host_ != nullptr;
+  }
+  // Reports stall `id` to the host. false if there is no host.
+  bool PushStall(uint32_t id) {
+    Mutex::ScopedLock lock(host_mutex_);
+    if (!host_) return false;
+    host_->Push({kEventStall, static_cast<int32_t>(id), true, {}});
+    return true;
+  }
+  // Terminates the green thread, which then exits with
+  // ERR_GREEN_THREAD_STALLED.
+  void TerminateForStall() {
+    stalled_ = true;
+    Terminate();
+  }
 
   // Runs a slice on `thread`. Must only be called after MaybeScheduleLocked()
   // has scheduled this isolate.
@@ -2294,6 +2440,15 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       fatal_ = true;
       PushEvent({kEventError, kErrorCpuLimit, false, {}});
     }
+    PushStalledError();
+  }
+
+  // Once the stall monitor has terminated the green thread.
+  void PushStalledError() {
+    if (stalled_ && !fatal_) {
+      fatal_ = true;
+      PushEvent({kEventError, kErrorStalled, false, {}});
+    }
   }
 
   // CPU time accounting. Each task gets the smaller of the per-task limit and
@@ -2445,6 +2600,8 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       PushEvent({kEventError, kErrorCpuLimit, false, {}});
     } else if (out_of_memory_) {
       PushEvent({kEventError, kErrorOutOfMemory, false, {}});
+    } else if (stalled_) {
+      PushEvent({kEventError, kErrorStalled, false, {}});
     }
     PushEvent({kEventAbandoned,
                static_cast<int32_t>(unresponsive_grace_period.load() / 1000000),
@@ -2612,6 +2769,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
       DropQueuedWork();
     }
 
+    PushStalledError();
     const bool clean_exit = close_requested_ && !fatal_ && !out_of_memory_;
     PushExit(clean_exit ? 0 : 1);
 
@@ -3981,6 +4139,7 @@ class GreenIsolate final : public IsolatePlatformDelegate,
     auto fire_queued = std::make_shared<std::atomic<bool>>(false);
     auto handle = std::make_shared<TimerHandle>(
         thread,
+        self,
         timeout,
         repeat ? timeout : 0,
         [weak = self->weak_from_this(), id, thread, fire_queued]() {
@@ -4140,6 +4299,11 @@ class GreenIsolate final : public IsolatePlatformDelegate,
 
   std::atomic<bool> terminate_requested_{false};
   std::atomic<PoolThread*> last_thread_{nullptr};
+  // Unique in the process, so that hosts can find their GreenThreads.
+  const uint64_t id_ = next_id_++;
+  static inline std::atomic<uint64_t> next_id_{1};
+  std::atomic<bool> handles_stalls_{false};
+  std::atomic<bool> stalled_{false};
 
   Mutex disposal_mutex_;
   ConditionVariable disposal_cv_;
@@ -4289,6 +4453,7 @@ std::shared_ptr<GreenIsolate> GreenThreadPool::TakeReady(PoolThread* thread) {
   if (it == end) it = ready_.begin();
   std::shared_ptr<GreenIsolate> green = std::move(*it);
   ready_.erase(it);
+  ready_taken_++;
   return green;
 }
 
@@ -4479,9 +4644,416 @@ class WarmPool {
   std::map<GreenIsolate::Options::IsolateKey, std::unique_ptr<Pool>> pools_;
 };
 
+// Why work waits in a stall.
+enum StallReason : int32_t {
+  // It can run on any pool thread, and they are all busy.
+  kStallPool = 0,
+  // It can only run on the pool thread that is busy: a timer, or work bound
+  // to it.
+  kStallThread,
+};
+
+// Detects and breaks stalls, as configured with setStallPolicy(). There is a
+// stall when work waits for a pool thread while the pool threads that could
+// run it each run a single work item, for at least the policy's timeout.
+// Typically, green threads spin until another one does something, which
+// waits for a pool thread that they hold.
+//
+// The monitor runs on the watchdog thread, and handles one stall at a time:
+//  - It first adds pool threads, up to the policy's extraThreads in total,
+//    one per timeout, if the waiting work can run on any thread.
+//  - Otherwise, it reports the green thread whose work item has run the
+//    longest to its GreenThread, if that has 'stall' listeners, or to the
+//    policy's onstall. Nothing else is reported until that stall has been
+//    resolved: by terminating the green thread, by giving it more time, by
+//    its work item ending, or, once the timeout has passed without any of
+//    those, by the fallback action. JS can't stop this, since the host's
+//    event loop may be what is stuck.
+//  - A green thread that has been given more time isn't reported again for
+//    its work item until that time is up, so another one may be reported
+//    next. After a green thread has been terminated, the monitor waits for
+//    the timeout before it reports the next one, to let the waiting work run.
+// A stall that has been reported is resolved with the fallback action that
+// was in effect then, even if the policy changes.
+class StallMonitor {
+ public:
+  static StallMonitor* Get() {
+    static StallMonitor* monitor = new StallMonitor();
+    return monitor;
+  }
+
+  struct Policy {
+    // In nanoseconds.
+    uint64_t timeout;
+    size_t extra_threads;
+    bool fallback_terminate;
+    // The channel of the policy's onstall, if any.
+    std::shared_ptr<HostChannel> channel;
+  };
+
+  struct Info {
+    uint64_t green_id;
+    uint64_t running_ms;
+    StallReason reason;
+  };
+
+  // Replaces the policy, or removes it. May be called from any thread.
+  void SetPolicy(std::optional<Policy> policy) {
+    Mutex::ScopedLock lock(mutex_);
+    if (shut_down_) return;
+    // Checks stop without a policy, so what they saw may be out of date.
+    if (!policy_) {
+      ready_ = {};
+      threads_.clear();
+    }
+    policy_ = std::move(policy);
+    if (policy_) {
+      ArmCheckLocked(uv_hrtime());
+    } else {
+      Watchdog::Get()->Disarm(this);
+    }
+  }
+
+  // Stops for good, before the process exits.
+  void Shutdown() {
+    Mutex::ScopedLock lock(mutex_);
+    shut_down_ = true;
+    policy_.reset();
+    Watchdog::Get()->Disarm(this);
+    Watchdog::Get()->Disarm(&pending_);
+    pending_ = 0;
+    reports_.clear();
+  }
+
+  // The stall `id`, if it still waits for a decision.
+  std::optional<Info> GetPending(uint32_t id) {
+    Mutex::ScopedLock lock(mutex_);
+    Report* report = FindLocked(id);
+    if (report == nullptr || pending_ != id) return std::nullopt;
+    return Info{report->green_id, report->running_ms, report->reason};
+  }
+
+  // Terminates the green thread of stall `id`, unless it has finished the
+  // work item that it stalled in, or is stopping already.
+  bool Terminate(uint32_t id) {
+    Mutex::ScopedLock lock(mutex_);
+    Report* report = FindLocked(id);
+    if (report == nullptr || report->terminated) return false;
+    std::shared_ptr<GreenIsolate> green = report->green.lock();
+    if (!green || green->is_stopping()) return false;
+    TerminateLocked(id, report, green.get(), uv_hrtime());
+    return true;
+  }
+
+  // Gives the green thread of stall `id` `delay` more nanoseconds before it
+  // is reported again for the work item that it stalled in, if it is still
+  // running that and hasn't been terminated.
+  bool Extend(uint32_t id, uint64_t delay) {
+    Mutex::ScopedLock lock(mutex_);
+    Report* report = FindLocked(id);
+    if (report == nullptr || report->terminated) return false;
+    report->not_before = DeadlineAfter(delay);
+    ResolvePendingLocked(id, 0);
+    return true;
+  }
+
+ private:
+  struct Report {
+    std::weak_ptr<GreenIsolate> green;
+    GreenIsolate* key;
+    // The work item that it stalled in.
+    uint64_t epoch;
+    uint64_t green_id;
+    uint64_t running_ms;
+    StallReason reason;
+    // Of the policy that was in effect when it was reported.
+    uint64_t timeout;
+    bool fallback_terminate;
+    bool terminated = false;
+    // Until when the green thread isn't reported again for the work item.
+    uint64_t not_before = UINT64_MAX;
+  };
+
+  struct Candidate {
+    std::shared_ptr<GreenIsolate> green;
+    uint64_t epoch;
+    uint64_t since;
+    StallReason reason;
+  };
+
+  // The report of stall `id`, as long as its green thread runs the work
+  // item that it stalled in.
+  Report* FindLocked(uint32_t id) {
+    auto it = reports_.find(id);
+    if (it == reports_.end()) return nullptr;
+    std::shared_ptr<GreenIsolate> green = it->second.green.lock();
+    if (!green || green->work_epoch() != it->second.epoch) {
+      ResolvePendingLocked(id, 0);
+      reports_.erase(it);
+      return nullptr;
+    }
+    return &it->second;
+  }
+
+  // If stall `id` waits for a decision, it no longer does, and the next
+  // stall isn't reported before `quiet_until`.
+  void ResolvePendingLocked(uint32_t id, uint64_t quiet_until) {
+    if (pending_ != id) return;
+    pending_ = 0;
+    Watchdog::Get()->Disarm(&pending_);
+    quiet_until_ = std::max(quiet_until_, quiet_until);
+  }
+
+  void TerminateLocked(uint32_t id,
+                       Report* report,
+                       GreenIsolate* green,
+                       uint64_t now) {
+    report->terminated = true;
+    report->not_before = UINT64_MAX;
+    green->TerminateForStall();
+    const uint64_t timeout = report->timeout;
+    ResolvePendingLocked(
+        id, timeout > UINT64_MAX - now ? UINT64_MAX : now + timeout);
+  }
+
+  void ArmCheckLocked(uint64_t now) {
+    // Often enough that stalls are found soon after the timeout, but not
+    // more often than needed.
+    constexpr uint64_t kMinInterval = 1000000;
+    constexpr uint64_t kMaxInterval = 250 * 1000000ull;
+    const uint64_t interval =
+        std::clamp(policy_->timeout / 4, kMinInterval, kMaxInterval);
+    Watchdog::Get()->Arm(
+        this, now + interval, []() { StallMonitor::Get()->Check(); });
+  }
+
+  // On the watchdog thread, once stall `id` has waited for a decision for
+  // the timeout.
+  void OnDecisionOverdue(uint32_t id) {
+    Mutex::ScopedLock lock(mutex_);
+    ApplyFallbackLocked(id);
+  }
+
+  void ApplyFallbackLocked(uint32_t id) {
+    if (pending_ != id) return;
+    Report* report = FindLocked(id);
+    if (report == nullptr) return;
+    const uint64_t now = uv_hrtime();
+    std::shared_ptr<GreenIsolate> green = report->green.lock();
+    if (report->fallback_terminate && green && !green->is_stopping()) {
+      return TerminateLocked(id, report, green.get(), now);
+    }
+    report->not_before = DeadlineAfter(report->timeout);
+    ResolvePendingLocked(id, 0);
+  }
+
+  // Forgets the stalls whose green threads have finished the work items
+  // that they stalled in.
+  void PurgeLocked() {
+    for (auto it = reports_.begin(); it != reports_.end();) {
+      std::shared_ptr<GreenIsolate> green = it->second.green.lock();
+      if (!green || green->work_epoch() != it->second.epoch) {
+        ResolvePendingLocked(it->first, 0);
+        it = reports_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+
+  // Whether `green` may be reported for the work item `epoch`.
+  bool MayReportLocked(GreenIsolate* green, uint64_t epoch, uint64_t now) {
+    for (const auto& [id, report] : reports_) {
+      if (report.key == green && report.epoch == epoch &&
+          report.not_before > now) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Something that the monitor waits to change, and since when it has seen
+  // it unchanged. The pool only counts what it does, so that it never reads
+  // the clock for that, and the monitor times it, as precisely as it checks.
+  struct Observation {
+    bool active = false;
+    uint64_t a = 0;
+    uint64_t b = 0;
+    uint64_t since = 0;
+  };
+
+  // Since when `observation` has been `active` with the same `a` and `b`, or
+  // 0 if it isn't active.
+  static uint64_t Observe(Observation* observation,
+                          bool active,
+                          uint64_t a,
+                          uint64_t b,
+                          uint64_t now) {
+    if (!active) {
+      observation->active = false;
+      return 0;
+    }
+    if (!observation->active || observation->a != a || observation->b != b) {
+      *observation = {true, a, b, now};
+    }
+    return observation->since;
+  }
+
+  struct ThreadObservations {
+    // The work item that the thread runs.
+    Observation running;
+    // The callbacks waiting for it.
+    Observation callbacks;
+  };
+
+  // The green thread that runs on `thread`, if it has run its work item for
+  // at least `timeout`, and may be terminated. `running` is since when the
+  // monitor has seen it run that work item.
+  std::optional<Candidate> GetCandidate(PoolThread* thread,
+                                        GreenIsolate* key,
+                                        uint64_t items,
+                                        uint64_t running,
+                                        uint64_t now,
+                                        uint64_t timeout) {
+    if (running == 0 || now - running < timeout) return std::nullopt;
+    std::shared_ptr<GreenIsolate> green;
+    {
+      Mutex::ScopedLock lock(live_green_isolates_mutex);
+      auto it = live_green_isolates.find(key);
+      if (it != live_green_isolates.end()) green = it->second.lock();
+    }
+    if (!green) return std::nullopt;
+    const uint64_t epoch = green->work_epoch();
+    // The thread may have moved on in the meantime, in which case the epoch
+    // may not be that of the work item that was seen.
+    if (epoch % 2 == 0 || thread->running() != key ||
+        thread->items() != items || green->is_stopping() ||
+        !green->has_host()) {
+      return std::nullopt;
+    }
+    return Candidate{std::move(green), epoch, running, kStallPool};
+  }
+
+  // On the watchdog thread.
+  void Check() {
+    Mutex::ScopedLock lock(mutex_);
+    if (!policy_) return;
+    const uint64_t now = uv_hrtime();
+    ArmCheckLocked(now);
+    PurgeLocked();
+    GreenThreadPool* pool = GreenThreadPool::GetIfCreated();
+    if (pool == nullptr) return;
+
+    // Observes the pool even if nothing can be reported now, so that how
+    // long things have taken is known when something can be.
+    const auto [ready, taken] = pool->GetReady();
+    const uint64_t ready_since = Observe(&ready_, ready, taken, 0, now);
+    const size_t size = pool->size();
+    if (threads_.size() < size) threads_.resize(size);
+    struct Seen {
+      GreenIsolate* key;
+      uint64_t items;
+      uint64_t running;
+    };
+    std::vector<Seen> seen(size);
+    for (size_t i = 0; i < size; i++) {
+      PoolThread* thread = pool->thread(i);
+      // Read before running(), so that a work item that starts in between
+      // is seen as a new one next time.
+      const uint64_t items = thread->items();
+      GreenIsolate* key = thread->running();
+      seen[i] = {key,
+                 items,
+                 Observe(&threads_[i].running,
+                         key != nullptr,
+                         reinterpret_cast<uintptr_t>(key),
+                         items,
+                         now)};
+    }
+    if (pending_ != 0 || now < quiet_until_) return;
+
+    const uint64_t timeout = policy_->timeout;
+    auto waited = [&](uint64_t since) {
+      return since != 0 && since <= now && now - since >= timeout;
+    };
+    const bool pool_stalled = waited(ready_since);
+    std::optional<Candidate> best;
+    bool can_add_thread = false;
+    for (size_t i = 0; i < size; i++) {
+      PoolThread* thread = pool->thread(i);
+      std::optional<Candidate> candidate = GetCandidate(
+          thread, seen[i].key, seen[i].items, seen[i].running, now, timeout);
+      if (!candidate) continue;
+      const PoolThread::Waiting waiting =
+          thread->GetWaiting(now, candidate->green.get());
+      const uint64_t callbacks_since = Observe(&threads_[i].callbacks,
+                                               waiting.callbacks,
+                                               waiting.callbacks_taken,
+                                               0,
+                                               now);
+      const bool thread_stalled =
+          waited(callbacks_since) || waited(waiting.timer_due);
+      if (!pool_stalled && !thread_stalled) continue;
+      if (pool_stalled) can_add_thread = true;
+      if (!MayReportLocked(candidate->green.get(), candidate->epoch, now)) {
+        continue;
+      }
+      if (thread_stalled) candidate->reason = kStallThread;
+      if (!best || candidate->since < best->since) best = std::move(candidate);
+    }
+
+    if (can_add_thread && added_threads_ < policy_->extra_threads &&
+        pool->AddThread()) {
+      added_threads_++;
+      quiet_until_ = DeadlineAfter(timeout);
+      return;
+    }
+    if (!best) return;
+
+    next_id_ = next_id_ % INT32_MAX + 1;
+    const uint32_t id = next_id_;
+    Report& report = reports_[id];
+    report.green = best->green;
+    report.key = best->green.get();
+    report.epoch = best->epoch;
+    report.green_id = best->green->id();
+    report.running_ms = (now - best->since) / 1000000;
+    report.reason = best->reason;
+    report.timeout = timeout;
+    report.fallback_terminate = policy_->fallback_terminate;
+    pending_ = id;
+
+    bool delivered = false;
+    if (best->green->handles_stalls()) delivered = best->green->PushStall(id);
+    if (!delivered && policy_->channel) {
+      // Dropped if its host has gone, in which case the fallback applies.
+      policy_->channel->Push({kEventStall, static_cast<int32_t>(id), true, {}});
+      delivered = true;
+    }
+    if (!delivered) return ApplyFallbackLocked(id);
+    Watchdog::Get()->Arm(&pending_, DeadlineAfter(timeout), [id]() {
+      StallMonitor::Get()->OnDecisionOverdue(id);
+    });
+  }
+
+  Mutex mutex_;
+  bool shut_down_ = false;
+  std::optional<Policy> policy_;
+  std::map<uint32_t, Report> reports_;
+  // The stall that waits for a decision, if any.
+  uint32_t pending_ = 0;
+  uint32_t next_id_ = 0;
+  uint64_t quiet_until_ = 0;
+  size_t added_threads_ = 0;
+  // What the last check saw. See Observe().
+  Observation ready_;
+  std::vector<ThreadObservations> threads_;
+};
+
 }  // namespace
 
 bool TerminateAll() {
+  StallMonitor::Get()->Shutdown();
   WarmPool::Get()->Shutdown();
   std::vector<std::shared_ptr<GreenIsolate>> green_isolates;
   {
@@ -4711,6 +5283,75 @@ class WarmPoolWaiter final : public HandleWrap {
   std::shared_ptr<HostChannel> channel_;
 };
 
+// Calls its `onstall` method with the ID of each stall that the stall monitor
+// reports to the policy that it was passed to.
+class StallPolicyHandle final : public HandleWrap {
+ public:
+  static Local<FunctionTemplate> GetConstructorTemplate(Environment* env) {
+    Isolate* isolate = env->isolate();
+    Local<FunctionTemplate> constructor = NewFunctionTemplate(isolate, New);
+    constructor->InstanceTemplate()->SetInternalFieldCount(
+        StallPolicyHandle::kInternalFieldCount);
+    constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
+    return constructor;
+  }
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    registry->Register(New);
+  }
+
+  const std::shared_ptr<HostChannel>& channel() const { return channel_; }
+
+  void Close(Local<Value> close_callback) override {
+    channel_->Close();
+    HandleWrap::Close(close_callback);
+  }
+
+  ~StallPolicyHandle() override { channel_->Close(); }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(StallPolicyHandle)
+  SET_SELF_SIZE(StallPolicyHandle)
+
+ private:
+  static void New(const FunctionCallbackInfo<Value>& args) {
+    CHECK(args.IsConstructCall());
+    new StallPolicyHandle(Environment::GetCurrent(args), args.This());
+  }
+
+  StallPolicyHandle(Environment* env, Local<Object> object)
+      : HandleWrap(env,
+                   object,
+                   reinterpret_cast<uv_handle_t*>(&async_),
+                   AsyncWrap::PROVIDER_GREENTHREAD) {
+    CHECK_EQ(uv_async_init(env->event_loop(), &async_, OnAsyncCallback), 0);
+    channel_ = std::make_shared<HostChannel>(&async_);
+  }
+
+  static void OnAsyncCallback(uv_async_t* handle) {
+    StallPolicyHandle* self = ContainerOf(&StallPolicyHandle::async_, handle);
+    self->OnAsync();
+  }
+
+  void OnAsync() {
+    Isolate* isolate = env()->isolate();
+    HandleScope handle_scope(isolate);
+    Context::Scope context_scope(env()->context());
+    for (const HostEvent& event : channel_->Take()) {
+      if (IsHandleClosing()) return;
+      Local<Value> id = Integer::New(isolate, event.id);
+      if (MakeCallback(
+              FIXED_ONE_BYTE_STRING(isolate, "onstall").As<Name>(), 1, &id)
+              .IsEmpty()) {
+        return;
+      }
+    }
+  }
+
+  uv_async_t async_;
+  std::shared_ptr<HostChannel> channel_;
+};
+
 // The host side of a green thread.
 // Node.js' MessagePorts, for messages between a host and its green threads.
 class HostPortAdapter final : public PortAdapter {
@@ -4772,9 +5413,15 @@ class GreenThreadWrap final : public HandleWrap {
     SetProtoMethod(isolate, constructor, "evaluate", Evaluate);
     SetProtoMethod(isolate, constructor, "terminate", Terminate);
     SetProtoMethod(isolate, constructor, "requestClose", RequestClose);
+    SetProtoMethod(isolate, constructor, "getId", GetId);
+    SetProtoMethod(isolate, constructor, "setHandlesStalls", SetHandlesStalls);
 
     SetConstructorFunction(context, target, "GreenThread", constructor);
     SetMethod(context, target, "setWarmPoolSize", SetWarmPoolSize);
+    SetMethod(context, target, "setStallPolicy", SetStallPolicy);
+    SetMethod(context, target, "getStall", GetStall);
+    SetMethod(context, target, "terminateStall", TerminateStall);
+    SetMethod(context, target, "extendStall", ExtendStall);
     SetMethod(
         context, target, "setUnresponsiveTimeouts", SetUnresponsiveTimeouts);
     SetMethod(context,
@@ -4785,6 +5432,10 @@ class GreenThreadWrap final : public HandleWrap {
                            target,
                            "WarmPoolWaiter",
                            WarmPoolWaiter::GetConstructorTemplate(env));
+    SetConstructorFunction(context,
+                           target,
+                           "StallPolicyHandle",
+                           StallPolicyHandle::GetConstructorTemplate(env));
     SetConstructorFunction(context,
                            target,
                            "IsolateGroup",
@@ -4829,6 +5480,10 @@ class GreenThreadWrap final : public HandleWrap {
     V("kEventExit", kEventExit)
     V("kEventAbandoned", kEventAbandoned)
     V("kEventRpc", kEventRpc)
+    V("kEventStall", kEventStall)
+    V("kErrorStalled", kErrorStalled)
+    V("kStallPool", kStallPool)
+    V("kStallThread", kStallThread)
     V("kErrorException", kErrorException)
     V("kErrorOutOfMemory", kErrorOutOfMemory)
     V("kErrorCpuLimit", kErrorCpuLimit)
@@ -4859,9 +5514,16 @@ class GreenThreadWrap final : public HandleWrap {
     registry->Register(Terminate);
     registry->Register(RequestClose);
     registry->Register(SetWarmPoolSize);
+    registry->Register(SetStallPolicy);
+    registry->Register(GetStall);
+    registry->Register(TerminateStall);
+    registry->Register(ExtendStall);
+    registry->Register(GetId);
+    registry->Register(SetHandlesStalls);
     registry->Register(SetUnresponsiveTimeouts);
     registry->Register(TestingBroadcastChannelSize);
     WarmPoolWaiter::RegisterExternalReferences(registry);
+    StallPolicyHandle::RegisterExternalReferences(registry);
     IsolateGroupWrap::RegisterExternalReferences(registry);
   }
 
@@ -4940,6 +5602,62 @@ class GreenThreadWrap final : public HandleWrap {
                              options,
                              env->isolate_data()->platform(),
                              waiter->channel());
+  }
+
+  // setStallPolicy(timeoutMs, extraThreads, fallbackTerminate, handle), or
+  // setStallPolicy() to remove the policy. `handle` is a StallPolicyHandle,
+  // or undefined if the policy has no onstall.
+  static void SetStallPolicy(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env, permission::PermissionScope::kGreenThreads, "");
+    if (args[0]->IsUndefined()) {
+      return StallMonitor::Get()->SetPolicy(std::nullopt);
+    }
+    CHECK(args[0]->IsUint32());
+    CHECK(args[1]->IsUint32());
+    StallMonitor::Policy policy;
+    policy.timeout = args[0].As<Uint32>()->Value() * uint64_t{1000000};
+    policy.extra_threads = args[1].As<Uint32>()->Value();
+    policy.fallback_terminate = args[2]->IsTrue();
+    if (!args[3]->IsUndefined()) {
+      StallPolicyHandle* handle;
+      ASSIGN_OR_RETURN_UNWRAP(&handle, args[3]);
+      policy.channel = handle->channel();
+    }
+    StallMonitor::Get()->SetPolicy(std::move(policy));
+  }
+
+  // getStall(id): [greenThreadId, runningMs, reason] while stall `id` waits
+  // for a decision, and otherwise undefined.
+  static void GetStall(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    CHECK(args[0]->IsUint32());
+    std::optional<StallMonitor::Info> info =
+        StallMonitor::Get()->GetPending(args[0].As<Uint32>()->Value());
+    if (!info) return;
+    Local<Value> values[] = {
+        Number::New(isolate, static_cast<double>(info->green_id)),
+        Number::New(isolate, static_cast<double>(info->running_ms)),
+        Integer::New(isolate, info->reason),
+    };
+    args.GetReturnValue().Set(Array::New(isolate, values, arraysize(values)));
+  }
+
+  // terminateStall(id): whether the green thread was terminated.
+  static void TerminateStall(const FunctionCallbackInfo<Value>& args) {
+    CHECK(args[0]->IsUint32());
+    args.GetReturnValue().Set(
+        StallMonitor::Get()->Terminate(args[0].As<Uint32>()->Value()));
+  }
+
+  // extendStall(id, ms): whether the green thread was given more time.
+  static void ExtendStall(const FunctionCallbackInfo<Value>& args) {
+    CHECK(args[0]->IsUint32());
+    CHECK(args[1]->IsUint32());
+    args.GetReturnValue().Set(StallMonitor::Get()->Extend(
+        args[0].As<Uint32>()->Value(),
+        args[1].As<Uint32>()->Value() * uint64_t{1000000}));
   }
 
   // new GreenThread(source, filename, maxOldGenerationSizeMb,
@@ -5096,6 +5814,21 @@ class GreenThreadWrap final : public HandleWrap {
     GreenThreadWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
     if (wrap->green_) wrap->green_->RequestClose();
+  }
+
+  // The ID that stalls identify the green thread by.
+  static void GetId(const FunctionCallbackInfo<Value>& args) {
+    GreenThreadWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+    if (!wrap->green_) return;
+    args.GetReturnValue().Set(static_cast<double>(wrap->green_->id()));
+  }
+
+  // setHandlesStalls(value): whether the GreenThread has 'stall' listeners.
+  static void SetHandlesStalls(const FunctionCallbackInfo<Value>& args) {
+    GreenThreadWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+    if (wrap->green_) wrap->green_->set_handles_stalls(args[0]->IsTrue());
   }
 
   static void OnAsync(uv_async_t* handle) {

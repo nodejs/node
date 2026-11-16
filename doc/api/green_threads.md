@@ -333,6 +333,31 @@ terminated. Other green threads keep running on the remaining pool threads.
 Timers belong to the message or evaluation that created them, or to the
 initial script, and their callbacks run on the same OS thread as that task.
 
+### Stalls
+
+Green threads that wait for each other without returning, for example by
+spinning on a `SharedArrayBuffer` until another green thread changes it, can
+stall: if they keep all pool threads busy, the green thread they wait for
+never runs. A green thread that keeps a pool thread busy also delays the
+timers of other green threads that run on that thread.
+
+[`greenThreads.setStallPolicy()`][] detects such stalls, and breaks them by
+adding pool threads, or by terminating the green threads that cause them,
+either automatically or as decided by the host:
+
+```cjs
+const { setStallPolicy } = require('node:green_threads');
+
+setStallPolicy({
+  timeoutMs: 2000,
+  extraThreads: 2,
+  onstall(stall) {
+    console.warn(`A green thread has been running for ${stall.runningMs} ms`);
+    stall.terminate();
+  },
+});
+```
+
 ## Resource limits
 
 Each green thread can have its own CPU time and memory limits, which are set
@@ -399,6 +424,55 @@ isn't possible, or doesn't succeed within 10 seconds by default, Node.js
 aborts the process. Stopping pool threads is only supported on Linux on x64
 and arm64. [`greenThreads.setUnresponsiveTimeouts()`][] changes both
 durations.
+
+## `greenThreads.setStallPolicy([policy])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `policy` {Object}
+  * `timeoutMs` {integer} How long work has to wait for a pool thread, and the
+    green threads that keep it waiting have to run a single task, before they
+    are considered stalled, in milliseconds. Between `1` and `2 ** 31 - 1`.
+  * `extraThreads` {integer} How many pool threads may be added, in total, to
+    run work that waits for any pool thread. Between `0` and `1024`.
+    **Default:** `0`.
+  * `fallbackAction` {string} What happens to a stalled green thread that is
+    not given more time or terminated within `timeoutMs` of being reported:
+    `'terminate'` or `'none'`. **Default:** `'terminate'`.
+  * `onstall` {Function} Called with a {Stall} for each green thread that
+    stalls, unless the stall is reported to its [`'stall'`][] listeners.
+
+Sets how [stalls][Stalls] are detected and broken, for the whole process.
+Without `policy`, they are not, which is the default.
+
+There is a stall when work waits for a pool thread, while each pool thread
+that could run it has been running a single task of a green thread for at
+least `timeoutMs`. If the work can run on any pool thread, a pool thread is
+added first, as long as fewer than `extraThreads` were added already, at most
+one per `timeoutMs`. Added pool threads are kept until the process exits.
+
+Otherwise, the green thread whose task has run the longest is reported: to
+the [`'stall'`][] listeners of its `GreenThread`, if it has any, and otherwise
+to `onstall`. Stalls are reported one at a time. The next one is reported
+only once the green thread has been terminated, has been given more time, or
+has finished its task, or its `fallbackAction` has been applied. With
+`'none'`, a green thread whose task keeps running is reported again after
+`timeoutMs`. After a green thread has been terminated, the next stall is
+reported no sooner than `timeoutMs` later, to give the work that was waiting
+a chance to run.
+
+The `fallbackAction` also applies if the host can't decide, for example
+because its event loop is blocked, or because the `Worker` that set the
+policy has exited. It is applied right away if there is no `onstall`, and the
+green thread has no `'stall'` listeners. A stall that was resolved before it
+could be reported is not reported. Changing the policy doesn't affect stalls
+that have been reported already.
+
+Since a policy applies to all green threads in the process, including those
+created by other threads, `timeoutMs` should be longer than any task is
+expected to run.
 
 ## `greenThreads.setUnresponsiveTimeouts(timeouts)`
 
@@ -538,6 +612,79 @@ added: REPLACEME
 * Type: {boolean}
 
 Whether this build of Node.js supports isolate groups.
+
+## Class: `Stall`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A green thread that [stalls][Stalls], as passed to the `onstall` function of
+[`greenThreads.setStallPolicy()`][] and to [`'stall'`][] listeners.
+
+### `stall.extend(ms)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `ms` {integer} Between `1` and `2 ** 31 - 1`.
+* Returns: {boolean} `false` if the green thread has finished the task that it
+  stalled in, or has been terminated, already.
+
+Gives the green thread more time: it isn't reported again for its task for
+`ms` milliseconds, and the `fallbackAction` doesn't apply to it. Other green
+threads that stall may be reported in the meantime. Can be called more than
+once.
+
+### `stall.greenThread`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {GreenThread|undefined}
+
+The `GreenThread`, if it was created by the same thread, and otherwise
+`undefined`.
+
+### `stall.reason`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+`'pool'` if the waiting work can run on any pool thread, and they are all
+busy, or `'thread'` if it can only run on the pool thread that the green
+thread keeps busy, such as a timer callback of another green thread.
+
+### `stall.runningMs`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+How long the task that the green thread stalled in had been running when the
+stall was detected, in milliseconds. Since Node.js checks for stalls
+periodically, every quarter of `timeoutMs` but at least every 250 ms, the task
+may have been running for up to that much longer.
+
+### `stall.terminate()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean} `false` if the green thread has finished the task that it
+  stalled in, or is stopping, already.
+
+Terminates the green thread, like [`greenThread.terminate()`][], even if it
+was created by another thread. It emits an [`'error'`][] event with an
+[`ERR_GREEN_THREAD_STALLED`][] error, and exits.
 
 ## Class: `GreenThread`
 
@@ -688,6 +835,19 @@ added: REPLACEME
 
 Emitted when the green thread calls `postMessage()`.
 
+### Event: `'stall'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `stall` {Stall}
+
+Emitted when the green thread [stalls][Stalls], according to the policy set
+with [`greenThreads.setStallPolicy()`][]. If the green thread has `'stall'`
+listeners, its stalls are reported to them instead of to the policy's
+`onstall`.
+
 ### `greenThread.evaluate(source[, options])`
 
 <!-- YAML
@@ -807,9 +967,11 @@ Calls [`greenThread.terminate()`][].
 [Permission Model]: permissions.md#permission-model
 [RPC]: #rpc
 [Resource limits]: #resource-limits
+[Stalls]: #stalls
 [`'error'`]: #event-error
 [`'exit'`]: #event-exit
 [`'message'`]: #event-message
+[`'stall'`]: #event-stall
 [`--allow-green-threads`]: cli.md#--allow-green-threads
 [`--experimental-green-threads`]: cli.md#--experimental-green-threads
 [`AbortController`]: globals.md#class-abortcontroller
@@ -822,6 +984,7 @@ Calls [`greenThread.terminate()`][].
 [`ERR_GREEN_THREAD_EXITED`]: errors.md#err_green_thread_exited
 [`ERR_GREEN_THREAD_ISOLATE_GROUPS_UNSUPPORTED`]: errors.md#err_green_thread_isolate_groups_unsupported
 [`ERR_GREEN_THREAD_OUT_OF_MEMORY`]: errors.md#err_green_thread_out_of_memory
+[`ERR_GREEN_THREAD_STALLED`]: errors.md#err_green_thread_stalled
 [`EventTarget`]: events.md#class-eventtarget
 [`Event`]: events.md#class-event
 [`GreenThread`]: #new-greenthreadsource-options
@@ -837,6 +1000,7 @@ Calls [`greenThread.terminate()`][].
 [`greenThread.exports`]: #greenthreadexports
 [`greenThread.postMessage()`]: #greenthreadpostmessagevalue-transfer
 [`greenThread.terminate()`]: #greenthreadterminate
+[`greenThreads.setStallPolicy()`]: #greenthreadssetstallpolicypolicy
 [`greenThreads.setUnresponsiveTimeouts()`]: #greenthreadssetunresponsivetimeoutstimeouts
 [`new GreenThread()`]: #new-greenthreadsource-options
 [`os.availableParallelism()`]: os.md#osavailableparallelism
