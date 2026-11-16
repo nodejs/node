@@ -6,6 +6,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { getEventListeners } = require('events');
 const { GreenThread, RpcTarget } = require('node:green_threads');
 const { kTestingFlags } = require('internal/green_threads/testing');
 const { internalBinding } = require('internal/test/binding');
@@ -264,6 +265,71 @@ class SubCounter extends Counter {
     assert.strictEqual(weak.deref(), undefined);
     assert.strictEqual(otherWeak.deref(), undefined);
     await greenThread.terminate();
+  }
+
+  // Messages that can't be sent export nothing: what they would have passed
+  // as stubs isn't kept alive, and AbortSignals get no listeners.
+  {
+    // Arguments of a call from the host.
+    let fn;
+    const greenThread = new GreenThread(`
+      env.register((...args) => args.length);
+    `, { env: { register: (value) => { fn = value; } } });
+    await new Promise((resolve) => {
+      const check = () => (fn ? resolve() : setTimeout(check, 1));
+      check();
+    });
+    let counter = new Counter();
+    const weak = new WeakRef(counter);
+    const controller = new AbortController();
+    await assert.rejects(fn(counter, controller.signal, Symbol()),
+                         { name: 'DataCloneError' });
+    counter = null;
+    await gc();
+    assert.strictEqual(weak.deref(), undefined);
+    assert.strictEqual(getEventListeners(controller.signal, 'abort').length, 0);
+    assert.strictEqual(await fn(1, 2), 2);
+    await greenThread.terminate();
+  }
+  {
+    // The result of a call to the host.
+    let weak;
+    const result = await run(`
+      return await env.get().catch((error) => error.name);
+    `, {
+      get() {
+        const counter = new Counter();
+        weak = new WeakRef(counter);
+        return { counter, symbol: Symbol() };
+      },
+    });
+    assert.strictEqual(result, 'DataCloneError');
+    await gc();
+    assert.strictEqual(weak.deref(), undefined);
+  }
+  {
+    // Arguments of a call from a green thread.
+    const result = await run(`
+      class Target extends RpcTarget { method() {} }
+      let target = new Target();
+      const weak = new WeakRef(target);
+      const controller = new AbortController();
+      let listeners = 0;
+      const { addEventListener } = controller.signal;
+      controller.signal.addEventListener = function(...args) {
+        listeners++;
+        return Reflect.apply(addEventListener, this, args);
+      };
+      const name = await env.fn(target, controller.signal, Symbol())
+        .catch((error) => error.name);
+      target = null;
+      for (let i = 0; i < 4; i++) {
+        gc();
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      return [name, weak.deref() === undefined, listeners];
+    `, { fn() {} });
+    assert.deepStrictEqual(result, ['DataCloneError', true, 0]);
   }
 
   // The result of a call continues in the invocation context of the caller,
