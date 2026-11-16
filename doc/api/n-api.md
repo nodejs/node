@@ -2139,7 +2139,7 @@ for `NAPI_MODULE` and defining an `Init` function:
 ```c
 NAPI_MODULE_INIT(/* napi_env env, napi_value exports */) {
   napi_value answer;
-  napi_status result;
+  napi_status status;
 
   status = napi_create_int64(env, 42, &answer);
   if (status != napi_ok) return NULL;
@@ -4563,7 +4563,7 @@ Object.defineProperties(obj, {
 The following is the approximate equivalent of the Node-API counterpart:
 
 ```c
-napi_status status = napi_status_generic_failure;
+napi_status status = napi_generic_failure;
 
 // const obj = {};
 napi_value obj;
@@ -4579,9 +4579,11 @@ if (status != napi_ok) return status;
 
 // Set the properties
 napi_property_descriptor descriptors[] = {
-  { "foo", NULL, NULL, NULL, NULL, fooValue, napi_writable | napi_configurable, NULL },
-  { "bar", NULL, NULL, NULL, NULL, barValue, napi_writable | napi_configurable, NULL }
-}
+  { "foo", NULL, NULL, NULL, NULL, fooValue,
+    napi_writable | napi_enumerable | napi_configurable, NULL },
+  { "bar", NULL, NULL, NULL, NULL, barValue,
+    napi_writable | napi_enumerable | napi_configurable, NULL }
+};
 status = napi_define_properties(env,
                                 obj,
                                 sizeof(descriptors) / sizeof(descriptors[0]),

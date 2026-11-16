@@ -813,7 +813,7 @@ the `wasm:js-string` `length` builtin:
   )
 
   ;; Export the getLength function.
-  (export "getLength" (func $get_length))
+  (export "getLength" (func $getLength))
 )
 ```
 

@@ -1027,7 +1027,6 @@ sock.on('connect', () => {
 sock.on('close', () => {
   process.stdin.setRawMode(false);
   process.stdin.pause();
-  sock.removeListener('close', done);
 });
 
 process.stdin.on('end', () => {
@@ -1059,7 +1058,6 @@ sock.on('connect', () => {
 sock.on('close', () => {
   process.stdin.setRawMode(false);
   process.stdin.pause();
-  sock.removeListener('close', done);
 });
 
 process.stdin.on('end', () => {

@@ -1545,6 +1545,9 @@ const customReporter = new Transform({
         callback(null, `total line count: ${totalLineCount}\n`);
         break;
       }
+      default:
+        callback();
+        break;
     }
   },
 });
@@ -1593,6 +1596,9 @@ const customReporter = new Transform({
         callback(null, `total line count: ${totalLineCount}\n`);
         break;
       }
+      default:
+        callback();
+        break;
     }
   },
 });
@@ -3390,7 +3396,7 @@ is an `AsyncGenerator` and is also supported by this API:
 import assert from 'node:assert';
 import { test } from 'node:test';
 import nodeTimersPromises from 'node:timers/promises';
-test('should tick five times testing a real use case', async (context) => {
+test('should tick three times testing a real use case', async (context) => {
   context.mock.timers.enable({ apis: ['setInterval'] });
 
   const expectedIterations = 3;
@@ -3412,9 +3418,8 @@ test('should tick five times testing a real use case', async (context) => {
 
   const timeResults = await r;
   assert.strictEqual(timeResults.length, expectedIterations);
-  for (let it = 1; it < expectedIterations; it++) {
-    assert.strictEqual(timeResults[it - 1], startedAt + (interval * it));
-  }
+  // setInterval() yields its value argument on every tick.
+  assert.deepStrictEqual(timeResults, [startedAt, startedAt, startedAt]);
 });
 ```
 
@@ -3422,7 +3427,7 @@ test('should tick five times testing a real use case', async (context) => {
 const assert = require('node:assert');
 const { test } = require('node:test');
 const nodeTimersPromises = require('node:timers/promises');
-test('should tick five times testing a real use case', async (context) => {
+test('should tick three times testing a real use case', async (context) => {
   context.mock.timers.enable({ apis: ['setInterval'] });
 
   const expectedIterations = 3;
@@ -3444,9 +3449,8 @@ test('should tick five times testing a real use case', async (context) => {
 
   const timeResults = await r;
   assert.strictEqual(timeResults.length, expectedIterations);
-  for (let it = 1; it < expectedIterations; it++) {
-    assert.strictEqual(timeResults[it - 1], startedAt + (interval * it));
-  }
+  // setInterval() yields its value argument on every tick.
+  assert.deepStrictEqual(timeResults, [startedAt, startedAt, startedAt]);
 });
 ```
 

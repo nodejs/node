@@ -867,9 +867,6 @@ in the `$schema` must be replaced with the version of Node.js you are using or
   },
   "test": {
     "test-isolation": "process"
-  },
-  "watch": {
-    "watch-preserve-output": true
   }
 }
 ```
@@ -964,7 +961,7 @@ For example, the configuration file above is equivalent to
 the following command-line arguments:
 
 ```bash
-node --import amaro/strip --watch-path=src --watch-preserve-output --test-isolation=process
+node --import amaro/strip --watch-path=src --watch-preserve-output --test --test-isolation=process
 ```
 
 The priority in configuration is as follows:

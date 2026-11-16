@@ -2446,7 +2446,7 @@ changes:
     description: Renamed `kmacParams.length` to `kmacParams.outputLength`.
 -->
 
-#### `kmacParams.algorithm`
+#### `kmacParams.name`
 
 <!-- YAML
 added: v24.8.0

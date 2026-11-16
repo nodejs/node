@@ -1155,9 +1155,8 @@ Type: End-of-Life
 The `util.isDate()` API has been removed. Please use
 `arg instanceof Date` instead.
 
-Also for stronger approaches, consider using:
-`Date.prototype.toString.call(arg) === '[object Date]' && !isNaN(arg)`.
-This can also be used in a `try/catch` block to handle invalid date objects.
+For a check that also works across realms and rejects invalid dates, use:
+`Object.prototype.toString.call(arg) === '[object Date]' && !isNaN(arg)`.
 
 An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
 

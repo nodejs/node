@@ -1942,12 +1942,9 @@ openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
   -keyout client-key.pem -out client-cert.pem
 ```
 
-Then, to generate the `server-cert.pem` certificate for this example, run:
-
-```bash
-openssl pkcs12 -certpbe AES-256-CBC -export -out server-cert.pem \
-  -inkey client-key.pem -in client-cert.pem
-```
+`server-key.pem` and `server-cert.pem` are generated as shown for the echo
+server in [`tls.createServer()`][]; the client trusts `server-cert.pem` as its
+`ca`.
 
 ## `tls.connect(path[, options][, callback])`
 
@@ -2374,12 +2371,8 @@ openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
   -keyout server-key.pem -out server-cert.pem
 ```
 
-Then, to generate the `client-cert.pem` certificate for this example, run:
-
-```bash
-openssl pkcs12 -certpbe AES-256-CBC -export -out client-cert.pem \
-  -inkey server-key.pem -in server-cert.pem
-```
+`client-key.pem` and `client-cert.pem` are generated as shown for the example
+client in [`tls.connect()`][]; the server trusts `client-cert.pem` as its `ca`.
 
 The server can be tested by connecting to it using the example client from
 [`tls.connect()`][].

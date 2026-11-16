@@ -1634,7 +1634,7 @@ readable.on('readable', () => {
 });
 
 readable.on('end', () => {
-  const content = chunks.join('');
+  const content = Buffer.concat(chunks).toString('utf8');
 });
 ```
 
@@ -2295,8 +2295,8 @@ const dnsResults = Readable.from([
   'openjsf.org',
   'www.linuxfoundation.org',
 ]).filter(async (domain) => {
-  const { address } = await resolver.resolve4(domain, { ttl: true });
-  return address.ttl > 60;
+  const records = await resolver.resolve4(domain, { ttl: true });
+  return records.some(({ ttl }) => ttl > 60);
 }, { concurrency: 2 });
 for await (const result of dnsResults) {
   // Logs domains with more than 60 seconds on the resolved dns record.
@@ -2355,8 +2355,8 @@ const dnsResults = Readable.from([
   'openjsf.org',
   'www.linuxfoundation.org',
 ]).map(async (domain) => {
-  const { address } = await resolver.resolve4(domain, { ttl: true });
-  return address;
+  const records = await resolver.resolve4(domain, { ttl: true });
+  return records.map(({ address }) => address);
 }, { concurrency: 2 });
 await dnsResults.forEach((result) => {
   // Logs result, similar to `for await (const result of dnsResults)`
@@ -2402,8 +2402,8 @@ const dnsResults = await Readable.from([
   'openjsf.org',
   'www.linuxfoundation.org',
 ]).map(async (domain) => {
-  const { address } = await resolver.resolve4(domain, { ttl: true });
-  return address;
+  const records = await resolver.resolve4(domain, { ttl: true });
+  return records.map(({ address }) => address);
 }, { concurrency: 2 }).toArray();
 ```
 
