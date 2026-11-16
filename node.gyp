@@ -500,6 +500,7 @@
         '-Wendif-labels',
         '-W',
         '-Wno-unused-parameter',
+        '-Wno-nullability-completeness',
         '-Werror=undefined-inline',
         '-Werror=extra-semi',
         '-Werror=ctad-maybe-unsupported',
