@@ -83,108 +83,107 @@ size_t MemoryRetainerTraits<crypto::ByteSource>::SelfSize(
 
 namespace crypto {
 
-CShakeOptions::CShakeOptions(CShakeOptions&& other) noexcept
-    : function_name(std::move(other.function_name)),
-      customization(std::move(other.customization)),
-      flags(other.flags) {}
-
-CShakeOptions& CShakeOptions::operator=(CShakeOptions&& other) noexcept {
-  if (&other == this) return *this;
-  this->~CShakeOptions();
-  return *new (this) CShakeOptions(std::move(other));
+void DigestOptions::MemoryInfo(MemoryTracker* tracker) const {
+  for (size_t i = 0; i < values.size(); i++) {
+    if (values[i].has_value()) {
+      tracker->TrackFieldWithSize(kParameters[i].key, values[i]->size());
+    }
+  }
 }
 
-void CShakeOptions::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackFieldWithSize("function_name", function_name.size());
-  tracker->TrackFieldWithSize("customization", customization.size());
-}
-
-bool CShakeOptions::Initialize(ncrypto::EVPMDCtxPointer* ctx,
-                               const EVP_MD* digest) const {
+bool DigestOptions::Initialize(ncrypto::EVPMDCtxPointer* ctx,
+                               const EVP_MD* digest,
+                               const char** unsupported_option) const {
   if (!ctx || !*ctx || digest == nullptr) return false;
   if (empty()) return ctx->digestInit(digest);
 
-#if NCRYPTO_USE_OPENSSL_PROVIDER
-  const bool is_cshake =
-      EVP_MD_is_a(digest, "CSHAKE-128") || EVP_MD_is_a(digest, "CSHAKE-256");
-  if (!is_cshake) return false;
+  auto unsupported = [unsupported_option](size_t i) {
+    if (unsupported_option != nullptr) {
+      *unsupported_option = kParameters[i].name;
+    }
+    return false;
+  };
 
-  OSSL_PARAM params[3];
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  const OSSL_PARAM* settable = EVP_MD_settable_ctx_params(digest);
+
+  std::array<OSSL_PARAM, kParameters.size() + 1> params;
   size_t count = 0;
-  if (has(kFunctionName)) {
-    params[count++] = OSSL_PARAM_construct_utf8_string(
-        "function-name",
-        const_cast<char*>(function_name.c_str()),
-        function_name.size());
-  }
-  if (has(kCustomization)) {
-    params[count++] = OSSL_PARAM_construct_utf8_string(
-        "customization",
-        const_cast<char*>(customization.c_str()),
-        customization.size());
+  for (size_t i = 0; i < values.size(); i++) {
+    if (!values[i].has_value()) continue;
+    const char* key = kParameters[i].key;
+    const std::string& value = *values[i];
+    const OSSL_PARAM* descriptor =
+        settable == nullptr ? nullptr : OSSL_PARAM_locate_const(settable, key);
+    if (descriptor == nullptr) return unsupported(i);
+    switch (descriptor->data_type) {
+      case OSSL_PARAM_UTF8_STRING:
+        if (value.find('\0') != std::string::npos) return false;
+        params[count++] = OSSL_PARAM_construct_utf8_string(
+            key, const_cast<char*>(value.c_str()), value.size());
+        break;
+      case OSSL_PARAM_OCTET_STRING:
+        params[count++] = OSSL_PARAM_construct_octet_string(
+            key, const_cast<char*>(value.data()), value.size());
+        break;
+      default:
+        return unsupported(i);
+    }
   }
   params[count] = OSSL_PARAM_construct_end();
-  return ctx->digestInit(digest, params);
-#elif defined(OPENSSL_IS_BORINGSSL)
-  // BoringSSL does not support these cSHAKE parameters.
-  return false;
+  return ctx->digestInit(digest, params.data());
+#elif NCRYPTO_USE_BORINGSSL
+  // BoringSSL does not support these digest parameters.
+  for (size_t i = 0; i < values.size(); i++) {
+    if (values[i].has_value()) return unsupported(i);
+  }
+  UNREACHABLE();
 #else
 #error "Unsupported crypto backend"
 #endif
 }
 
 namespace {
-bool ContainsNullByte(std::string_view value) {
-  return value.find('\0') != std::string_view::npos;
-}
-
-v8::Maybe<void> GetDigestStringOption(
-    Environment* env,
-    const v8::FunctionCallbackInfo<v8::Value>& args,
-    unsigned int offset,
-    CShakeOptions::Flag flag,
-    std::string* target,
-    CShakeOptions* options) {
-  if (args[offset]->IsUndefined()) return v8::JustVoid();
-  CHECK(IsAnyBufferSource(args[offset]));
-  ArrayBufferOrViewContents<char> value(args[offset]);
-  if (!value.CheckSizeInt32()) {
-    THROW_ERR_OUT_OF_RANGE(env, "digest option is too big");
-    return v8::Nothing<void>();
-  }
-  target->assign(value.data(), value.size());
-  if (ContainsNullByte(*target)) {
-    THROW_ERR_INVALID_ARG_VALUE(env,
-                                "Digest options must not contain null bytes");
-    return v8::Nothing<void>();
-  }
-  options->flags |= flag;
-  return v8::JustVoid();
+bool IsOctetParameter(const EVP_MD* digest, const char* name) {
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  if (digest == nullptr) return false;
+  const OSSL_PARAM* params = EVP_MD_settable_ctx_params(digest);
+  const OSSL_PARAM* descriptor =
+      params == nullptr ? nullptr : OSSL_PARAM_locate_const(params, name);
+  return descriptor != nullptr &&
+         descriptor->data_type == OSSL_PARAM_OCTET_STRING;
+#elif NCRYPTO_USE_BORINGSSL
+  static_cast<void>(digest);
+  static_cast<void>(name);
+  return false;
+#else
+#error "Unsupported crypto backend"
+#endif
 }
 }  // namespace
 
-v8::Maybe<void> GetCShakeOptions(
+v8::Maybe<void> GetDigestOptions(
     const v8::FunctionCallbackInfo<v8::Value>& args,
     unsigned int offset,
-    CShakeOptions* options) {
+    const EVP_MD* digest,
+    DigestOptions* options) {
   Environment* env = Environment::GetCurrent(args);
-  if (GetDigestStringOption(env,
-                            args,
-                            offset,
-                            CShakeOptions::kFunctionName,
-                            &options->function_name,
-                            options)
-          .IsNothing() ||
-      GetDigestStringOption(env,
-                            args,
-                            offset + 1,
-                            CShakeOptions::kCustomization,
-                            &options->customization,
-                            options)
-          .IsNothing()) {
-    return v8::Nothing<void>();
+  for (size_t i = 0; i < DigestOptions::kParameters.size(); i++) {
+    if (args[offset + i]->IsUndefined()) continue;
+    CHECK(IsAnyBufferSource(args[offset + i]));
+    ArrayBufferOrViewContents<char> value(args[offset + i]);
+    if (!value.CheckSizeInt32()) {
+      THROW_ERR_OUT_OF_RANGE(env, "digest option is too big");
+      return v8::Nothing<void>();
+    }
+    std::string& bytes = options->values[i].emplace(value.data(), value.size());
+    if (bytes.find('\0') != std::string::npos &&
+        !IsOctetParameter(digest, DigestOptions::kParameters[i].key)) {
+      THROW_ERR_INVALID_ARG_VALUE(env,
+                                  "Digest options must not contain null bytes");
+      return v8::Nothing<void>();
+    }
   }
-
   return v8::JustVoid();
 }
 

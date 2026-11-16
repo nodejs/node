@@ -15,6 +15,7 @@
 #include "ncrypto.h"
 
 #include <algorithm>
+#include <array>
 #include <climits>
 #include <cstdio>
 #include <memory>
@@ -300,34 +301,42 @@ enum CryptoJobMode { kCryptoJobAsync, kCryptoJobSync, kCryptoJobWebCrypto };
 CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args);
 bool IsCryptoJobAsync(CryptoJobMode mode);
 
-struct CShakeOptions final : public MemoryRetainer {
-  enum Flag : uint8_t {
-    kFunctionName = 1 << 0,
-    kCustomization = 1 << 1,
+struct DigestOptions final : public MemoryRetainer {
+  struct Parameter {
+    const char* name;
+    const char* key;
   };
+  static constexpr std::array kParameters = {
+      Parameter{"functionName", "function-name"},
+      Parameter{"customization", "customization"},
+  };
+  std::array<std::optional<std::string>, kParameters.size()> values;
 
-  std::string function_name;
-  std::string customization;
-  uint8_t flags = 0;
+  DigestOptions() = default;
+  DigestOptions(DigestOptions&& other) noexcept = default;
+  DigestOptions& operator=(DigestOptions&& other) noexcept = default;
 
-  CShakeOptions() = default;
-  CShakeOptions(CShakeOptions&& other) noexcept;
-  CShakeOptions& operator=(CShakeOptions&& other) noexcept;
+  bool empty() const {
+    for (const auto& value : values) {
+      if (value.has_value()) return false;
+    }
+    return true;
+  }
 
-  bool empty() const { return flags == 0; }
-  bool has(Flag flag) const { return (flags & flag) != 0; }
-
-  bool Initialize(ncrypto::EVPMDCtxPointer* ctx, const EVP_MD* digest) const;
+  bool Initialize(ncrypto::EVPMDCtxPointer* ctx,
+                  const EVP_MD* digest,
+                  const char** unsupported_option = nullptr) const;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(CShakeOptions)
-  SET_SELF_SIZE(CShakeOptions)
+  SET_MEMORY_INFO_NAME(DigestOptions)
+  SET_SELF_SIZE(DigestOptions)
 };
 
-v8::Maybe<void> GetCShakeOptions(
+v8::Maybe<void> GetDigestOptions(
     const v8::FunctionCallbackInfo<v8::Value>& args,
     unsigned int offset,
-    CShakeOptions* options);
+    const EVP_MD* digest,
+    DigestOptions* options);
 
 v8::MaybeLocal<v8::Value> CreateWebCryptoJobError(Environment* env,
                                                   v8::Local<v8::Value> cause);

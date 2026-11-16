@@ -1161,7 +1161,7 @@ class EVPKeyCtxPointer final {
   bool setRsaPssKeygenMd(const Digest& md);
   bool setRsaPssKeygenMgf1Md(const Digest& md);
   bool setRsaPssSaltlen(int salt_len);
-  bool setRsaImplicitRejection();
+  bool supportsRsaImplicitRejection() const;
   bool setRsaOaepLabel(DataPointer&& data);
 
   bool setSignatureMd(const EVPMDCtxPointer& md);

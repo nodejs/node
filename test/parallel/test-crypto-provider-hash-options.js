@@ -366,24 +366,6 @@ for (const vector of cshakeVectors) {
   }
 }
 
-if (cshakeVectors.some(({ names }) => findHash(...names) !== undefined)) {
-  for (const mismatchedOptions of [
-    { functionName: 'KMAC' },
-    { customization: 'Node.js' },
-    { functionName: Buffer.alloc(0) },
-    { customization: new Uint8Array(0) },
-  ]) {
-    assert.throws(
-      () => createHash('sha256', mismatchedOptions),
-      { message: 'Digest method not supported' },
-    );
-    assert.throws(
-      () => hash('sha256', Buffer.from('abc'), mismatchedOptions),
-      { message: 'Digest options are not supported' },
-    );
-  }
-}
-
 if (!exercised) {
   common.printSkipMessage('cSHAKE is not available');
 }

@@ -114,6 +114,21 @@ assert.throws(function() {
   crypto.createHash('xyzzy');
 }, /Digest method not supported/);
 
+for (const [option, value] of [
+  ['functionName', 'KMAC'],
+  ['customization', 'Node.js'],
+  ['functionName', Buffer.alloc(0)],
+  ['customization', new Uint8Array(0)],
+]) {
+  const options = { [option]: value };
+  const expected = {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: `The property 'options.${option}' is not supported by digest sha256`,
+  };
+  assert.throws(() => crypto.createHash('sha256', options), expected);
+  assert.throws(() => crypto.hash('sha256', 'abc', options), expected);
+}
+
 // Issue https://github.com/nodejs/node/issues/9819: throwing encoding used to
 // segfault.
 assert.throws(
