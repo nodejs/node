@@ -12,8 +12,8 @@ if (!isMainThread) {
 
 const assert = require('node:assert');
 const fs = require('node:fs');
-const { spawnSync } = require('node:child_process');
 const { DatabaseSync } = require('node:sqlite');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 
@@ -29,23 +29,32 @@ const suffixDbPath = dbPath + '-wal';
 
 fs.rmSync(suffixDbPath, { force: true });
 
-function run(code, permissions, env = {}) {
-  return spawnSync(
+const accessDenied = {
+  status: 1,
+  stderr: /Access to this API has been restricted/,
+};
+
+function readWriteGrant(path) {
+  return ['--allow-fs-read=' + path, '--allow-fs-write=' + path];
+}
+
+function run(code, permissions, expected = {}, env = {}) {
+  spawnSyncAndAssert(
     process.execPath,
     [
       '--permission',
-      '--allow-env=DB_PATH,ATTACH_PATH,BACKUP_PATH,QUERY',
+      '--allow-env=DB_PATH,ATTACH_PATH,BACKUP_PATH',
       ...permissions,
       '--eval', code.replace(/\n/g, ' '),
     ],
     {
-      encoding: 'utf8',
       env: {
         ...process.env,
         DB_PATH: dbPath,
         ...env,
       },
     },
+    expected,
   );
 }
 
@@ -57,59 +66,20 @@ const readWrite = `const { DatabaseSync } = require('node:sqlite');
   const db = new DatabaseSync(process.env.DB_PATH);
   db.close();`;
 
-{
-  const { status, stderr } = run(
-    readOnly,
-    ['--allow-fs-read=' + deniedPath],
-  );
-  assert.strictEqual(status, 1, `stderr: ${stderr}`);
-  assert.match(stderr, /Access to this API has been restricted/);
-}
+run(readOnly, ['--allow-fs-read=' + deniedPath], accessDenied);
 
-{
-  // A read-write database requires both read and write permission.
-  const { status, stderr } = run(
-    readWrite,
-    ['--allow-fs-read=' + dbPath],
-  );
-  assert.strictEqual(status, 1, `stderr: ${stderr}`);
-  assert.match(stderr, /Access to this API has been restricted/);
+// A read-write database requires both read and write permission.
+for (const flag of ['--allow-fs-read=', '--allow-fs-write=']) {
+  run(readWrite, [flag + dbPath], accessDenied);
 }
-
-{
-  const { status, stderr } = run(
-    readWrite,
-    ['--allow-fs-write=' + dbPath],
-  );
-  assert.strictEqual(status, 1, `stderr: ${stderr}`);
-  assert.match(stderr, /Access to this API has been restricted/);
-}
-
-{
-  const { status, stderr } = run(
-    readWrite,
-    [
-      '--allow-fs-read=' + dbPath,
-      '--allow-fs-write=' + dbPath,
-    ],
-  );
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
-}
+run(readWrite, readWriteGrant(dbPath));
 
 {
   // Delayed opening performs the same checks as opening in the constructor.
   const code = `const { DatabaseSync } = require('node:sqlite');
     const db = new DatabaseSync(process.env.DB_PATH, { open: false });
     db.open();`;
-  const { status, stderr } = run(
-    code,
-    [
-      '--allow-fs-read=' + deniedPath,
-      '--allow-fs-write=' + deniedPath,
-    ],
-  );
-  assert.strictEqual(status, 1, `stderr: ${stderr}`);
-  assert.match(stderr, /Access to this API has been restricted/);
+  run(code, readWriteGrant(deniedPath), accessDenied);
 }
 
 {
@@ -117,77 +87,37 @@ const readWrite = `const { DatabaseSync } = require('node:sqlite');
   const code = `const { DatabaseSync } = require('node:sqlite');
     const db = new DatabaseSync(':memory:');
     db.close();`;
-  const { status, stderr } = run(code, []);
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
+  run(code, []);
 }
 
 {
-  // SQLite URI filenames and URI access modes remain supported.
-  const code = `const { pathToFileURL } = require('node:url');
-    const { DatabaseSync } = require('node:sqlite');
-    const url = pathToFileURL(process.env.DB_PATH);
-    url.searchParams.set('mode', 'ro');
-    const db = new DatabaseSync(url);
-    db.close();`;
-  const { status, stderr } = run(
-    code,
-    ['--allow-fs-read=' + dbPath],
-  );
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
-}
-
-{
-  const code = `const { DatabaseSync } = require('node:sqlite');
-    const db = new DatabaseSync('file:shared?mode=memory&cache=shared');
-    db.exec('CREATE TABLE data(value)');
-    db.close();`;
-  const { status, stderr } = run(code, []);
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
-}
-
-{
-  // SQLite processes repeated mode parameters in order.
-  const code = `const { DatabaseSync } = require('node:sqlite');
-    const db = new DatabaseSync('file:unused?mode=ro&mode=memory');
-    db.close();`;
-  const { status, stderr } = run(code, []);
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
-}
-
-{
-  // Immutable URI databases are read-only and do not require write access.
-  const code = `const { pathToFileURL } = require('node:url');
-    const { DatabaseSync } = require('node:sqlite');
-    const url = pathToFileURL(process.env.DB_PATH);
-    url.searchParams.set('immutable', '1');
-    const db = new DatabaseSync(url);
-    db.close();`;
-  const { status, stderr } = run(
-    code,
-    ['--allow-fs-read=' + dbPath],
-  );
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
-}
-
-{
-  // A URI cannot select an unwrapped VFS while permissions are enabled.
-  const code = `const { pathToFileURL } = require('node:url');
-    const { DatabaseSync } = require('node:sqlite');
-    const url = pathToFileURL(process.env.DB_PATH);
-    url.search = '?' + process.env.QUERY;
-    new DatabaseSync(url);`;
-  for (const query of ['%76fs=unix', 'vfs%00ignored=unix']) {
-    const { status, stderr } = run(
-      code,
-      [
-        '--allow-fs-read=' + dbPath,
-        '--allow-fs-write=' + dbPath,
-      ],
-      { QUERY: query },
-    );
-    assert.strictEqual(status, 1, `stderr: ${stderr}`);
-    assert.match(stderr, /must not specify a SQLite VFS/);
+  // TODO(araujogui): Support URI filenames with the permission model.
+  for (const location of [
+    'require("node:url").pathToFileURL(process.env.DB_PATH)',
+    '"file:" + process.env.DB_PATH + "?mode=ro"',
+    'Buffer.from("file::memory:?vfs=memdb")',
+  ]) {
+    const code = `const { DatabaseSync } = require('node:sqlite');
+      new DatabaseSync(${location});`;
+    run(code, ['--allow-fs-read=*'], {
+      status: 1,
+      stderr: /must not be a URL or SQLite URI filename/,
+    });
   }
+}
+
+{
+  // Backup destinations reject URI filenames too.
+  const code = `const { backup, DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(':memory:');
+    backup(db, 'file:' + process.env.BACKUP_PATH);`;
+  run(
+    code,
+    readWriteGrant('*'),
+    { status: 1, stderr: /must not be a URL or SQLite URI filename/ },
+    { BACKUP_PATH: backupPath },
+  );
+  assert.strictEqual(fs.existsSync(backupPath), false);
 }
 
 {
@@ -198,46 +128,37 @@ const readWrite = `const { DatabaseSync } = require('node:sqlite');
     const attachPath = process.env.ATTACH_PATH.replaceAll("'", "''");
     db.exec("ATTACH DATABASE '" + attachPath + "' AS outside");`;
   for (const attachPath of [deniedPath, suffixDbPath]) {
-    const { status, stderr } = run(
+    run(
       code,
-      [
-        '--allow-fs-read=' + dbPath,
-        '--allow-fs-write=' + dbPath,
-      ],
+      readWriteGrant(dbPath),
+      { status: 1, stderr: /unable to open database/ },
       { ATTACH_PATH: attachPath },
     );
-    assert.strictEqual(status, 1, `stderr: ${stderr}`);
-    assert.match(stderr, /unable to open database/);
   }
   assert.strictEqual(fs.existsSync(suffixDbPath), false);
 }
 
 {
-  // URI VFS overrides on ATTACH cannot bypass the permission VFS, even if
-  // the public authorizer callback is cleared.
-  const code = `const { DatabaseSync } = require('node:sqlite');
-    const db = new DatabaseSync(':memory:');
-    db.setAuthorizer(null);
-    db.exec("ATTACH 'file::memory:?%76fs=memdb' AS outside");`;
-  const { status, stderr } = run(code, []);
-  assert.strictEqual(status, 1, `stderr: ${stderr}`);
-  assert.match(stderr, /not authorized/);
-}
-
-{
-  // SQLite does not expose bound or computed ATTACH filenames to the
-  // authorizer, so they cannot be checked for a URI VFS and are denied.
+  // ATTACH treats URI filenames as plain paths, so they cannot select a VFS.
   for (const attach of [
+    "db.exec(\"ATTACH 'file::memory:?vfs=memdb' AS outside\");",
     "db.prepare('ATTACH ? AS outside').run('file::memory:?vfs=memdb');",
     "db.exec(\"ATTACH 'file::memory:?vf' || 's=memdb' AS outside\");",
   ]) {
     const code = `const { DatabaseSync } = require('node:sqlite');
       const db = new DatabaseSync(':memory:');
       ${attach}`;
-    const { status, stderr } = run(code, []);
-    assert.strictEqual(status, 1, `stderr: ${stderr}`);
-    assert.match(stderr, /not authorized/);
+    run(code, [], { status: 1, stderr: /unable to open database/ });
   }
+}
+
+{
+  // Bound ATTACH filenames work when the path is granted.
+  const code = `const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(':memory:');
+    db.prepare('ATTACH ? AS other').run(process.env.DB_PATH);
+    db.close();`;
+  run(code, readWriteGrant(dbPath));
 }
 
 if (!common.isWindows) {
@@ -253,19 +174,12 @@ if (!common.isWindows) {
     const db = new DatabaseSync(process.env.DB_PATH);
     db.exec('CREATE TABLE t (x)');
     db.close();`;
-  const { status, stderr } = run(
-    code,
-    [
-      '--allow-fs-read=' + linkDir,
-      '--allow-fs-write=' + linkDir,
-    ],
-    { DB_PATH: linkedDbPath },
-  );
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
+  run(code, readWriteGrant(linkDir), {}, { DB_PATH: linkedDbPath });
 }
 
 {
-  // Backup destinations are opened through the permission VFS.
+  // Backup destinations are opened through the permission VFS. Destinations
+  // that resemble sidecars still require exact access.
   const code = `(async () => {
     const { backup, DatabaseSync } = require('node:sqlite');
     const db = new DatabaseSync(process.env.DB_PATH, { readOnly: true });
@@ -276,37 +190,13 @@ if (!common.isWindows) {
       process.exitCode = 0;
     }
   })();`;
-  const { status, stderr } = run(
-    code,
-    ['--allow-fs-read=' + dbPath],
-    { BACKUP_PATH: backupPath },
-  );
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
-  assert.strictEqual(fs.existsSync(backupPath), false);
-}
-
-{
-  // Backup destinations that resemble sidecars still require exact access.
-  const code = `(async () => {
-    const { backup, DatabaseSync } = require('node:sqlite');
-    const db = new DatabaseSync(process.env.DB_PATH, { readOnly: true });
-    try {
-      await backup(db, process.env.BACKUP_PATH);
-      process.exitCode = 1;
-    } catch {
-      process.exitCode = 0;
-    }
-  })();`;
-  const { status, stderr } = run(
-    code,
-    [
-      '--allow-fs-read=' + dbPath,
-      '--allow-fs-write=' + dbPath,
-    ],
-    { BACKUP_PATH: suffixDbPath },
-  );
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
-  assert.strictEqual(fs.existsSync(suffixDbPath), false);
+  for (const [permissions, destination] of [
+    [['--allow-fs-read=' + dbPath], backupPath],
+    [readWriteGrant(dbPath), suffixDbPath],
+  ]) {
+    run(code, permissions, {}, { BACKUP_PATH: destination });
+    assert.strictEqual(fs.existsSync(destination), false);
+  }
 }
 
 {
@@ -317,16 +207,12 @@ if (!common.isWindows) {
     await backup(db, process.env.BACKUP_PATH);
     db.close();
   })();`;
-  const { status, stderr } = run(
+  run(
     code,
-    [
-      '--allow-fs-read=' + dbPath,
-      '--allow-fs-read=' + allowedBackupPath,
-      '--allow-fs-write=' + allowedBackupPath,
-    ],
+    ['--allow-fs-read=' + dbPath, ...readWriteGrant(allowedBackupPath)],
+    {},
     { BACKUP_PATH: allowedBackupPath },
   );
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
   assert.strictEqual(fs.existsSync(allowedBackupPath), true);
 }
 
@@ -336,15 +222,7 @@ if (!common.isWindows) {
     const db = new DatabaseSync(process.env.DB_PATH);
     db.exec('PRAGMA journal_mode=WAL; CREATE TABLE data(value)');
     db.close();`;
-  const { status, stderr } = run(
-    code,
-    [
-      '--allow-fs-read=' + sidecarDbPath,
-      '--allow-fs-write=' + sidecarDbPath,
-    ],
-    { DB_PATH: sidecarDbPath },
-  );
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
+  run(code, readWriteGrant(sidecarDbPath), {}, { DB_PATH: sidecarDbPath });
 }
 
 {
@@ -361,13 +239,11 @@ if (!common.isWindows) {
     const db = new DatabaseSync(process.env.DB_PATH, { readOnly: true });
     db.prepare('SELECT * FROM data').all();
     db.close();`;
-  const { status, stderr } = run(
-    code,
-    ['--allow-fs-read=' + walDbPath],
-    { DB_PATH: walDbPath },
-  );
-  writer.close();
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
+  try {
+    run(code, ['--allow-fs-read=' + walDbPath], {}, { DB_PATH: walDbPath });
+  } finally {
+    writer.close();
+  }
 }
 
 {
@@ -384,15 +260,7 @@ if (!common.isWindows) {
       )
       INSERT INTO temp_data SELECT randomblob(10000) FROM counter;\`);
     db.close();`;
-  const { status, stderr } = run(
-    code,
-    [
-      '--allow-fs-read=' + sidecarDbPath,
-      '--allow-fs-write=' + sidecarDbPath,
-    ],
-    { DB_PATH: sidecarDbPath },
-  );
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
+  run(code, readWriteGrant(sidecarDbPath), {}, { DB_PATH: sidecarDbPath });
 }
 
 {
@@ -400,13 +268,5 @@ if (!common.isWindows) {
   // grant cannot authorize their initial database location.
   const code = `const { DatabaseSync } = require('node:sqlite');
     new DatabaseSync('');`;
-  const { status, stderr } = run(
-    code,
-    [
-      '--allow-fs-read=' + deniedPath,
-      '--allow-fs-write=' + deniedPath,
-    ],
-  );
-  assert.strictEqual(status, 1, `stderr: ${stderr}`);
-  assert.match(stderr, /Access to this API has been restricted/);
+  run(code, readWriteGrant(deniedPath), accessDenied);
 }

@@ -7,11 +7,9 @@
 #include <algorithm>
 #include <atomic>
 #include <cctype>
-#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <string_view>
-#include <vector>
 
 namespace node {
 namespace sqlite {
@@ -19,94 +17,6 @@ namespace sqlite {
 namespace {
 
 std::atomic<uint64_t> next_vfs_id{0};
-
-int HexValue(const char c) {
-  if (c >= '0' && c <= '9') return c - '0';
-  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-  return -1;
-}
-
-void DecodeUriComponent(std::string_view component, std::string* decoded) {
-  decoded->clear();
-  decoded->reserve(component.size());
-  for (size_t i = 0; i < component.size(); ++i) {
-    if (component[i] == '%' && i + 2 < component.size()) {
-      const int high = HexValue(component[i + 1]);
-      const int low = HexValue(component[i + 2]);
-      if (high >= 0 && low >= 0) {
-        const char value = static_cast<char>((high << 4) | low);
-        if (value == '\0') break;
-        decoded->push_back(value);
-        i += 2;
-        continue;
-      }
-    }
-    decoded->push_back(component[i]);
-  }
-}
-
-bool GetSQLiteUriParameter(std::string_view path,
-                           std::string_view parameter,
-                           bool use_last,
-                           std::string* value) {
-  if (!path.starts_with("file:")) return false;
-
-  const size_t query_start = path.find('?', 5);
-  const size_t fragment_start = path.find('#', 5);
-  if (query_start == std::string_view::npos ||
-      (fragment_start != std::string_view::npos &&
-       fragment_start < query_start)) {
-    return false;
-  }
-
-  const size_t query_end =
-      fragment_start == std::string_view::npos ? path.size() : fragment_start;
-  size_t parameter_start = query_start + 1;
-  std::string decoded_key;
-  std::string decoded_value;
-  bool found = false;
-  while (parameter_start <= query_end) {
-    size_t parameter_end = path.find('&', parameter_start);
-    if (parameter_end == std::string_view::npos || parameter_end > query_end) {
-      parameter_end = query_end;
-    }
-
-    const size_t equals = path.find('=', parameter_start);
-    const size_t key_end =
-        equals == std::string_view::npos || equals > parameter_end
-            ? parameter_end
-            : equals;
-    DecodeUriComponent(path.substr(parameter_start, key_end - parameter_start),
-                       &decoded_key);
-    if (decoded_key == parameter) {
-      if (equals == std::string_view::npos || equals > parameter_end) {
-        value->clear();
-      } else {
-        DecodeUriComponent(path.substr(equals + 1, parameter_end - equals - 1),
-                           &decoded_value);
-        *value = decoded_value;
-      }
-      found = true;
-      if (!use_last) return true;
-    }
-
-    if (parameter_end == query_end) break;
-    parameter_start = parameter_end + 1;
-  }
-  return found;
-}
-
-bool EqualsIgnoreCase(std::string_view left, std::string_view right) {
-  if (left.size() != right.size()) return false;
-  for (size_t i = 0; i < left.size(); ++i) {
-    if (std::tolower(static_cast<unsigned char>(left[i])) !=
-        std::tolower(static_cast<unsigned char>(right[i]))) {
-      return false;
-    }
-  }
-  return true;
-}
 
 bool IsSidecarPath(std::string_view path, std::string* database_path) {
   constexpr std::string_view suffixes[] = {"-journal", "-wal", "-shm"};
@@ -137,32 +47,21 @@ bool IsSidecarPath(std::string_view path, std::string* database_path) {
 }
 
 sqlite3_filename CreateReadOnlyShmFilename(sqlite3_filename name) {
-  std::vector<const char*> parameters = {"readonly_shm", "1"};
-  for (int index = 0;; ++index) {
-    const char* key = sqlite3_uri_key(name, index);
-    if (key == nullptr) break;
-    if (strcmp(key, "readonly_shm") == 0) continue;
-
-    const char* value = sqlite3_uri_parameter(name, key);
-    parameters.push_back(key);
-    parameters.push_back(value == nullptr ? "" : value);
-  }
-
+  const char* parameters[] = {"readonly_shm", "1"};
   return sqlite3_create_filename(sqlite3_filename_database(name),
                                  sqlite3_filename_journal(name),
                                  sqlite3_filename_wal(name),
-                                 static_cast<int>(parameters.size() / 2),
-                                 parameters.data());
+                                 1,
+                                 parameters);
 }
 
-std::string CanonicalPath(SQLitePermissionVFS* vfs, std::string_view path) {
+std::string CanonicalPath(const SQLitePermissionVFS* vfs, const char* path) {
   // SQLite normally passes a full pathname to xOpen, but xAccess and xDelete
   // may receive names produced by SQLite itself. Canonicalize those names
   // before consulting Node's path permission tree.
   std::string result(static_cast<size_t>(vfs->parent()->mxPathname) + 1, '\0');
-  if (vfs->FullPathname(std::string(path).c_str(),
-                        static_cast<int>(result.size()),
-                        result.data()) != SQLITE_OK) {
+  if (vfs->FullPathname(
+          path, static_cast<int>(result.size()), result.data()) != SQLITE_OK) {
     return {};
   }
   result.resize(strlen(result.c_str()));
@@ -172,11 +71,10 @@ std::string CanonicalPath(SQLitePermissionVFS* vfs, std::string_view path) {
 struct PermissionFile {
   sqlite3_file base;
   SQLitePermissionVFS* vfs;
+  // Read-only SHM clone of the filename, set when sidecars are not writable.
   sqlite3_filename parent_name;
-  bool can_read;
   bool can_write;
   bool can_write_sidecar;
-  bool read_only_shm;
   sqlite3_io_methods methods;
 };
 
@@ -187,6 +85,12 @@ sqlite3_file* RealFile(PermissionFile* file) {
 
 PermissionFile* PermissionFileFromBase(sqlite3_file* file) {
   return reinterpret_cast<PermissionFile*>(file);
+}
+
+void ReleaseFile(PermissionFile* file) {
+  sqlite3_free_filename(file->parent_name);
+  file->parent_name = nullptr;
+  file->base.pMethods = nullptr;
 }
 
 int PermissionClose(sqlite3_file* file);
@@ -235,9 +139,7 @@ int PermissionClose(sqlite3_file* file) {
   sqlite3_file* real = RealFile(permission_file);
   const int result =
       real->pMethods == nullptr ? SQLITE_OK : real->pMethods->xClose(real);
-  sqlite3_free_filename(permission_file->parent_name);
-  permission_file->parent_name = nullptr;
-  file->pMethods = nullptr;
+  ReleaseFile(permission_file);
   return result;
 }
 
@@ -246,7 +148,6 @@ int PermissionRead(sqlite3_file* file,
                    int amount,
                    sqlite3_int64 offset) {
   PermissionFile* permission_file = PermissionFileFromBase(file);
-  if (!permission_file->can_read) return SQLITE_PERM;
   sqlite3_file* real = RealFile(permission_file);
   return real->pMethods->xRead(real, buffer, amount, offset);
 }
@@ -321,9 +222,9 @@ int PermissionFileControl(sqlite3_file* file, int operation, void* argument) {
   }
 
   if (operation == SQLITE_FCNTL_SET_LOCKPROXYFILE && argument != nullptr) {
-    const std::string_view proxy_path = static_cast<const char*>(argument);
+    const char* proxy_path = static_cast<const char*>(argument);
     const bool allowed =
-        proxy_path == ":auto:"
+        strcmp(proxy_path, ":auto:") == 0
             ? permission_file->vfs->AllowsTemporaryFile(true, true)
             : permission_file->vfs->AllowsPath(proxy_path, true, true);
     if (!allowed) return SQLITE_PERM;
@@ -351,12 +252,12 @@ int PermissionShmMap(sqlite3_file* file,
                      int extend,
                      void volatile** result) {
   PermissionFile* permission_file = PermissionFileFromBase(file);
-  if (!permission_file->can_read) return SQLITE_PERM;
 
   // OS VFS implementations can open or create the SHM file read-write even
   // when extend is false. A read-only clone of the SQLite filename is used
   // when the caller has no permission to write sidecars.
-  if (!permission_file->can_write_sidecar && !permission_file->read_only_shm) {
+  if (!permission_file->can_write_sidecar &&
+      permission_file->parent_name == nullptr) {
     return SQLITE_PERM;
   }
 
@@ -393,7 +294,6 @@ int PermissionFetch(sqlite3_file* file,
                     int amount,
                     void** result) {
   PermissionFile* permission_file = PermissionFileFromBase(file);
-  if (!permission_file->can_read) return SQLITE_PERM;
   sqlite3_file* real = RealFile(permission_file);
   if (real->pMethods->xFetch == nullptr) {
     *result = nullptr;
@@ -409,155 +309,105 @@ int PermissionUnfetch(sqlite3_file* file, sqlite3_int64 offset, void* page) {
   return real->pMethods->xUnfetch(real, offset, page);
 }
 
+SQLitePermissionVFS* Self(sqlite3_vfs* vfs) {
+  return static_cast<SQLitePermissionVFS*>(vfs->pAppData);
+}
+
 int PermissionVfsOpen(sqlite3_vfs* vfs,
                       sqlite3_filename name,
                       sqlite3_file* file,
                       int flags,
                       int* out_flags) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)
-      ->Open(name, file, flags, out_flags);
+  return Self(vfs)->Open(name, file, flags, out_flags);
 }
 
 int PermissionVfsDelete(sqlite3_vfs* vfs, const char* name, int sync_dir) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)
-      ->Delete(name, sync_dir);
+  return Self(vfs)->Delete(name, sync_dir);
 }
 
 int PermissionVfsAccess(sqlite3_vfs* vfs,
                         const char* name,
                         int flags,
                         int* result) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)
-      ->Access(name, flags, result);
+  return Self(vfs)->Access(name, flags, result);
 }
 
 int PermissionVfsFullPathname(sqlite3_vfs* vfs,
                               const char* name,
                               int length,
                               char* output) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)
-      ->FullPathname(name, length, output);
+  return Self(vfs)->FullPathname(name, length, output);
 }
 
 void* PermissionVfsDlOpen(sqlite3_vfs* vfs, const char* name) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)->DlOpen(name);
+  return Self(vfs)->DlOpen(name);
 }
 
 void PermissionVfsDlError(sqlite3_vfs* vfs, int length, char* message) {
-  static_cast<SQLitePermissionVFS*>(vfs->pAppData)->DlError(length, message);
+  sqlite3_vfs* parent = Self(vfs)->parent();
+  if (parent->xDlError != nullptr) parent->xDlError(parent, length, message);
 }
 
-SQLiteDlSym PermissionVfsDlSym(sqlite3_vfs* vfs,
+using DlSymResult = void (*)(void);
+DlSymResult PermissionVfsDlSym(sqlite3_vfs* vfs,
                                void* handle,
                                const char* symbol) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)
-      ->DlSym(handle, symbol);
+  sqlite3_vfs* parent = Self(vfs)->parent();
+  return parent->xDlSym == nullptr ? nullptr
+                                   : parent->xDlSym(parent, handle, symbol);
 }
 
 void PermissionVfsDlClose(sqlite3_vfs* vfs, void* handle) {
-  static_cast<SQLitePermissionVFS*>(vfs->pAppData)->DlClose(handle);
+  sqlite3_vfs* parent = Self(vfs)->parent();
+  if (parent->xDlClose != nullptr) parent->xDlClose(parent, handle);
 }
 
 int PermissionVfsRandomness(sqlite3_vfs* vfs, int length, char* output) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)
-      ->Randomness(length, output);
+  sqlite3_vfs* parent = Self(vfs)->parent();
+  return parent->xRandomness(parent, length, output);
 }
 
 int PermissionVfsSleep(sqlite3_vfs* vfs, int microseconds) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)->Sleep(microseconds);
+  sqlite3_vfs* parent = Self(vfs)->parent();
+  return parent->xSleep(parent, microseconds);
 }
 
 int PermissionVfsCurrentTime(sqlite3_vfs* vfs, double* time) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)->CurrentTime(time);
+  sqlite3_vfs* parent = Self(vfs)->parent();
+  return parent->xCurrentTime(parent, time);
 }
 
 int PermissionVfsGetLastError(sqlite3_vfs* vfs, int length, char* message) {
-  auto* permission_vfs = static_cast<SQLitePermissionVFS*>(vfs->pAppData);
-  return permission_vfs->GetLastError(length, message);
+  sqlite3_vfs* parent = Self(vfs)->parent();
+  return parent->xGetLastError == nullptr
+             ? SQLITE_OK
+             : parent->xGetLastError(parent, length, message);
 }
 
 int PermissionVfsCurrentTimeInt64(sqlite3_vfs* vfs, sqlite3_int64* time) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)
-      ->CurrentTimeInt64(time);
+  sqlite3_vfs* parent = Self(vfs)->parent();
+  return parent->xCurrentTimeInt64(parent, time);
 }
 
 int PermissionVfsSetSystemCall(sqlite3_vfs* vfs,
                                const char* name,
                                sqlite3_syscall_ptr callback) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)
-      ->SetSystemCall(name, callback);
+  sqlite3_vfs* parent = Self(vfs)->parent();
+  return parent->xSetSystemCall(parent, name, callback);
 }
 
 sqlite3_syscall_ptr PermissionVfsGetSystemCall(sqlite3_vfs* vfs,
                                                const char* name) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)->GetSystemCall(name);
+  sqlite3_vfs* parent = Self(vfs)->parent();
+  return parent->xGetSystemCall(parent, name);
 }
 
 const char* PermissionVfsNextSystemCall(sqlite3_vfs* vfs, const char* name) {
-  return static_cast<SQLitePermissionVFS*>(vfs->pAppData)->NextSystemCall(name);
+  sqlite3_vfs* parent = Self(vfs)->parent();
+  return parent->xNextSystemCall(parent, name);
 }
 
 }  // namespace
-
-bool HasSQLiteVfsUriParameter(std::string_view path) {
-  std::string value;
-  return GetSQLiteUriParameter(path, "vfs", false, &value);
-}
-
-bool SQLiteUriParameterEquals(std::string_view path,
-                              std::string_view parameter,
-                              std::string_view value) {
-  std::string actual;
-  return GetSQLiteUriParameter(path, parameter, true, &actual) &&
-         actual == value;
-}
-
-bool SQLiteUriBooleanParameter(std::string_view path,
-                               std::string_view parameter) {
-  std::string value;
-  if (!GetSQLiteUriParameter(path, parameter, false, &value)) return false;
-
-  if (!value.empty() && std::isdigit(static_cast<unsigned char>(value[0]))) {
-    return std::strtoll(value.c_str(), nullptr, 10) != 0;
-  }
-  return EqualsIgnoreCase(value, "on") || EqualsIgnoreCase(value, "yes") ||
-         EqualsIgnoreCase(value, "true");
-}
-
-std::string SQLitePathForPermission(std::string_view path) {
-  if (!path.starts_with("file:")) return std::string(path);
-
-  const size_t path_end = path.find_first_of("?#", 5);
-  std::string decoded;
-  DecodeUriComponent(
-      path.substr(5,
-                  path_end == std::string_view::npos ? std::string_view::npos
-                                                     : path_end - 5),
-      &decoded);
-
-  if (decoded.starts_with("//")) {
-    const size_t pathname_start = decoded.find('/', 2);
-    const std::string_view authority =
-        pathname_start == std::string::npos
-            ? std::string_view(decoded).substr(2)
-            : std::string_view(decoded).substr(2, pathname_start - 2);
-    if (authority.empty() || authority == "localhost") {
-      decoded = pathname_start == std::string::npos
-                    ? std::string()
-                    : decoded.substr(pathname_start);
-    }
-  }
-
-#ifdef _WIN32
-  if (decoded.size() >= 3 && decoded[0] == '/' &&
-      std::isalpha(static_cast<unsigned char>(decoded[1])) &&
-      decoded[2] == ':') {
-    decoded.erase(0, 1);
-  }
-#endif
-
-  return decoded;
-}
 
 SQLitePermissionVFS::SQLitePermissionVFS(Environment* env)
     : parent_(sqlite3_vfs_find(nullptr)),
@@ -599,7 +449,7 @@ SQLitePermissionVFS::SQLitePermissionVFS(Environment* env)
 }
 
 SQLitePermissionVFS::~SQLitePermissionVFS() {
-  Unregister();
+  if (registered_) sqlite3_vfs_unregister(&vfs_);
 }
 
 bool SQLitePermissionVFS::Register() {
@@ -608,38 +458,33 @@ bool SQLitePermissionVFS::Register() {
   return registered_;
 }
 
-void SQLitePermissionVFS::Unregister() {
-  if (!registered_) return;
-  sqlite3_vfs_unregister(&vfs_);
-  registered_ = false;
-}
-
 bool SQLitePermissionVFS::AllowsCanonicalPath(std::string_view path,
                                               bool read,
                                               bool write) const {
-  return (!read || permission_->is_granted_no_side_effects(
-                       permission::PermissionScope::kFileSystemRead, path)) &&
-         (!write || permission_->is_granted_no_side_effects(
-                        permission::PermissionScope::kFileSystemWrite, path));
+  // Called on SQLite worker threads too, so denials are not published.
+  return (!read ||
+          permission_->is_granted_quiet(
+              env_, permission::PermissionScope::kFileSystemRead, path)) &&
+         (!write ||
+          permission_->is_granted_quiet(
+              env_, permission::PermissionScope::kFileSystemWrite, path));
 }
 
-bool SQLitePermissionVFS::AllowsPath(std::string_view path,
+bool SQLitePermissionVFS::AllowsPath(const char* path,
                                      bool read,
                                      bool write) const {
   if (permission_->warning_only()) return true;
 
-  const std::string canonical =
-      CanonicalPath(const_cast<SQLitePermissionVFS*>(this), path);
+  const std::string canonical = CanonicalPath(this, path);
   return !canonical.empty() && AllowsCanonicalPath(canonical, read, write);
 }
 
-bool SQLitePermissionVFS::AllowsSidecarPath(std::string_view path,
+bool SQLitePermissionVFS::AllowsSidecarPath(const char* path,
                                             bool read,
                                             bool write) const {
   if (permission_->warning_only()) return true;
 
-  const std::string canonical =
-      CanonicalPath(const_cast<SQLitePermissionVFS*>(this), path);
+  const std::string canonical = CanonicalPath(this, path);
   if (canonical.empty()) return false;
   if (AllowsCanonicalPath(canonical, read, write)) return true;
 
@@ -649,15 +494,10 @@ bool SQLitePermissionVFS::AllowsSidecarPath(std::string_view path,
 }
 
 bool SQLitePermissionVFS::AllowsTemporaryFile(bool read, bool write) const {
-  if (permission_->warning_only()) return true;
-
   // SQLite does not provide a pathname for anonymous temporary files. Disk
   // storage is allowed only with global permissions. Otherwise xOpen uses
   // SQLite's memory VFS.
-  return (!read || permission_->is_granted_no_side_effects(
-                       permission::PermissionScope::kFileSystemRead, "")) &&
-         (!write || permission_->is_granted_no_side_effects(
-                        permission::PermissionScope::kFileSystemWrite, ""));
+  return permission_->warning_only() || AllowsCanonicalPath("", read, write);
 }
 
 int SQLitePermissionVFS::Open(sqlite3_filename name,
@@ -670,24 +510,15 @@ int SQLitePermissionVFS::Open(sqlite3_filename name,
 
   const bool read =
       (flags & (SQLITE_OPEN_READONLY | SQLITE_OPEN_READWRITE)) != 0;
-  const bool immutable = name != nullptr && (flags & SQLITE_OPEN_MAIN_DB) &&
-                         sqlite3_uri_boolean(name, "immutable", 0) != 0;
-  bool write = (flags & SQLITE_OPEN_READWRITE) != 0 && !immutable;
+  bool write = (flags & SQLITE_OPEN_READWRITE) != 0;
   int parent_flags = flags;
   sqlite3_vfs* selected_vfs = parent_;
   bool can_write_sidecar = write;
-  bool read_only_shm = false;
-  bool allowed;
 
   if (flags & SQLITE_OPEN_MEMORY) {
     selected_vfs = memory_vfs_;
-    allowed = true;
   } else if (name == nullptr) {
-    allowed = AllowsTemporaryFile(read, write);
-    if (!allowed) {
-      selected_vfs = memory_vfs_;
-      allowed = true;
-    }
+    if (!AllowsTemporaryFile(read, write)) selected_vfs = memory_vfs_;
   } else {
     const char* permission_name = name;
     const bool is_journal =
@@ -703,22 +534,21 @@ int SQLitePermissionVFS::Open(sqlite3_filename name,
       }
     }
 
-    allowed = permission_name != nullptr &&
-              ((flags & SQLITE_OPEN_SUPER_JOURNAL)
-                   ? AllowsSidecarPath(permission_name, read, write)
-                   : AllowsPath(permission_name, read, write));
-    if (allowed && permission_name != nullptr &&
-        (flags & SQLITE_OPEN_MAIN_DB)) {
-      can_write_sidecar = AllowsPath(permission_name, false, true);
+    const bool allowed =
+        permission_name != nullptr &&
+        ((flags & SQLITE_OPEN_SUPER_JOURNAL)
+             ? AllowsSidecarPath(permission_name, read, write)
+             : AllowsPath(permission_name, read, write));
+    if (!allowed) return SQLITE_PERM;
+
+    if (flags & SQLITE_OPEN_MAIN_DB) {
+      can_write_sidecar = write || AllowsPath(permission_name, false, true);
       if (!can_write_sidecar) {
         permission_file->parent_name = CreateReadOnlyShmFilename(name);
         if (permission_file->parent_name == nullptr) return SQLITE_NOMEM;
-        read_only_shm = true;
       }
     }
   }
-
-  if (!allowed) return SQLITE_PERM;
 
   sqlite3_filename parent_name = permission_file->parent_name == nullptr
                                      ? name
@@ -727,18 +557,14 @@ int SQLitePermissionVFS::Open(sqlite3_filename name,
   const int result = selected_vfs->xOpen(
       selected_vfs, parent_name, real, parent_flags, out_flags);
   if (real->pMethods == nullptr) {
-    sqlite3_free_filename(permission_file->parent_name);
-    permission_file->parent_name = nullptr;
-    file->pMethods = nullptr;
+    ReleaseFile(permission_file);
     return result;
   }
 
-  permission_file->can_read = read;
   permission_file->can_write =
       write &&
       (out_flags == nullptr || (*out_flags & SQLITE_OPEN_READONLY) == 0);
   permission_file->can_write_sidecar = can_write_sidecar;
-  permission_file->read_only_shm = read_only_shm;
   permission_file->methods = kPermissionIoMethods;
   permission_file->methods.iVersion =
       std::min(permission_file->methods.iVersion, real->pMethods->iVersion);
@@ -769,9 +595,7 @@ int SQLitePermissionVFS::Access(const char* name, int flags, int* result) {
     return SQLITE_OK;
   }
 
-  const bool read = true;
-  const bool write = flags == SQLITE_ACCESS_READWRITE;
-  if (!AllowsSidecarPath(name, read, write)) {
+  if (!AllowsSidecarPath(name, true, flags == SQLITE_ACCESS_READWRITE)) {
     *result = 0;
     return SQLITE_OK;
   }
@@ -780,7 +604,7 @@ int SQLitePermissionVFS::Access(const char* name, int flags, int* result) {
 
 int SQLitePermissionVFS::FullPathname(const char* name,
                                       int length,
-                                      char* output) {
+                                      char* output) const {
 #ifdef _WIN32
   return parent_->xFullPathname(parent_, name, length, output);
 #else
@@ -798,56 +622,6 @@ void* SQLitePermissionVFS::DlOpen(const char* name) {
   if (!permission_->warning_only()) return nullptr;
   return parent_->xDlOpen == nullptr ? nullptr
                                      : parent_->xDlOpen(parent_, name);
-}
-
-void SQLitePermissionVFS::DlError(int length, char* message) {
-  if (parent_->xDlError != nullptr) {
-    parent_->xDlError(parent_, length, message);
-  }
-}
-
-SQLiteDlSym SQLitePermissionVFS::DlSym(void* handle, const char* symbol) {
-  return parent_->xDlSym == nullptr ? nullptr
-                                    : parent_->xDlSym(parent_, handle, symbol);
-}
-
-void SQLitePermissionVFS::DlClose(void* handle) {
-  if (parent_->xDlClose != nullptr) parent_->xDlClose(parent_, handle);
-}
-
-int SQLitePermissionVFS::Randomness(int length, char* output) {
-  return parent_->xRandomness(parent_, length, output);
-}
-
-int SQLitePermissionVFS::Sleep(int microseconds) {
-  return parent_->xSleep(parent_, microseconds);
-}
-
-int SQLitePermissionVFS::CurrentTime(double* time) {
-  return parent_->xCurrentTime(parent_, time);
-}
-
-int SQLitePermissionVFS::GetLastError(int length, char* message) {
-  return parent_->xGetLastError == nullptr
-             ? SQLITE_OK
-             : parent_->xGetLastError(parent_, length, message);
-}
-
-int SQLitePermissionVFS::CurrentTimeInt64(sqlite3_int64* time) {
-  return parent_->xCurrentTimeInt64(parent_, time);
-}
-
-int SQLitePermissionVFS::SetSystemCall(const char* name,
-                                       sqlite3_syscall_ptr callback) {
-  return parent_->xSetSystemCall(parent_, name, callback);
-}
-
-sqlite3_syscall_ptr SQLitePermissionVFS::GetSystemCall(const char* name) {
-  return parent_->xGetSystemCall(parent_, name);
-}
-
-const char* SQLitePermissionVFS::NextSystemCall(const char* name) {
-  return parent_->xNextSystemCall(parent_, name);
 }
 
 }  // namespace sqlite
