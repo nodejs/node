@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -191,29 +192,39 @@ EVP_MAC* GetMacImplementation(Environment* env,
   return nullptr;
 }
 
-bool IsSettableParameter(const ncrypto::EVPMacCtxPointer& context,
-                         const char* name,
-                         unsigned int type) {
-  const OSSL_PARAM* settable = context.getSettableParams();
-  const OSSL_PARAM* descriptor =
-      settable == nullptr ? nullptr : OSSL_PARAM_locate_const(settable, name);
-  return descriptor != nullptr && descriptor->data_type == type;
-}
+enum class MacOptionType { kName, kBytes, kSize };
 
-bool RequireSettableParameter(Environment* env,
-                              const ncrypto::EVPMacCtxPointer& context,
-                              Local<Value> algorithm,
-                              const char* option,
-                              const char* parameter,
-                              unsigned int type) {
-  if (IsSettableParameter(context, parameter, type)) return true;
-  Utf8Value name(env->isolate(), algorithm);
-  THROW_ERR_INVALID_ARG_VALUE(
-      env,
-      "The property 'options.%s' is not supported by MAC %s",
-      option,
-      *name);
-  return false;
+struct MacOption final {
+  const char* name;
+  const char* parameter;
+  MacOptionType type;
+};
+
+constexpr std::array<MacOption, 6> kMacOptions = {{
+    {"digest", OSSL_MAC_PARAM_DIGEST, MacOptionType::kName},
+    {"cipher", OSSL_MAC_PARAM_CIPHER, MacOptionType::kName},
+    {"iv", OSSL_MAC_PARAM_IV, MacOptionType::kBytes},
+    {"customization", OSSL_MAC_PARAM_CUSTOM, MacOptionType::kBytes},
+    {"salt", OSSL_MAC_PARAM_SALT, MacOptionType::kBytes},
+    {"outputLength", OSSL_MAC_PARAM_SIZE, MacOptionType::kSize},
+}};
+
+const OSSL_PARAM* FindMacParameter(const OSSL_PARAM* settable,
+                                   const MacOption& option,
+                                   const void* data,
+                                   size_t length) {
+  if (settable == nullptr) return nullptr;
+  for (const OSSL_PARAM* param = settable; param->key != nullptr; param++) {
+    if (std::strcmp(param->key, option.parameter) != 0) continue;
+    if (option.type == MacOptionType::kSize) {
+      if (param->data_type == OSSL_PARAM_UNSIGNED_INTEGER) return param;
+    } else if (param->data_type == OSSL_PARAM_OCTET_STRING ||
+               (param->data_type == OSSL_PARAM_UTF8_STRING &&
+                std::memchr(data, 0, length) == nullptr)) {
+      return param;
+    }
+  }
+  return nullptr;
 }
 
 bool InitializeMacContext(Environment* env,
@@ -224,36 +235,9 @@ bool InitializeMacContext(Environment* env,
   CHECK(args[1]->IsInt32());
   CHECK(args[2]->IsObject());
 
-  Isolate* isolate = env->isolate();
   ByteSource key = ByteSource::FromSecretKeyBytes(env, args[3]);
-
-  std::optional<Utf8Value> digest;
-  if (!args[4]->IsUndefined()) {
-    CHECK(args[4]->IsString());
-    digest.emplace(isolate, args[4]);
-  }
-  std::optional<Utf8Value> cipher;
-  if (!args[5]->IsUndefined()) {
-    CHECK(args[5]->IsString());
-    cipher.emplace(isolate, args[5]);
-  }
-
-  const bool has_iv = !args[6]->IsUndefined();
-  ByteSource iv;
-  if (has_iv) iv = ByteSource::FromBuffer(args[6]);
-  const bool has_customization = !args[7]->IsUndefined();
-  ByteSource customization;
-  if (has_customization) customization = ByteSource::FromBuffer(args[7]);
-  const bool has_salt = !args[8]->IsUndefined();
-  ByteSource salt;
-  if (has_salt) salt = ByteSource::FromBuffer(args[8]);
-
   const bool has_output_length = !args[9]->IsUndefined();
   size_t output_length = 0;
-  if (has_output_length) {
-    CHECK(args[9]->IsUint32());
-    output_length = args[9].As<Uint32>()->Value();
-  }
 
   ncrypto::EVPMacPointer mac_owner;
   ncrypto::MacKind kind = ncrypto::MacKind::kOther;
@@ -269,23 +253,24 @@ bool InitializeMacContext(Environment* env,
     return false;
   }
 
-  if (kind == ncrypto::MacKind::kHmac && !digest.has_value()) {
+  if (kind == ncrypto::MacKind::kHmac && args[4]->IsUndefined()) {
     THROW_ERR_INVALID_ARG_VALUE(
         env, "The property 'options.digest' is required for HMAC");
     return false;
   }
-  if (kind == ncrypto::MacKind::kCmac && !cipher.has_value()) {
+  if (kind == ncrypto::MacKind::kCmac && args[5]->IsUndefined()) {
     THROW_ERR_INVALID_ARG_VALUE(
         env, "The property 'options.cipher' is required for CMAC");
     return false;
   }
   if (kind == ncrypto::MacKind::kGmac) {
-    if (!cipher.has_value()) {
+    if (args[5]->IsUndefined()) {
       THROW_ERR_INVALID_ARG_VALUE(
           env, "The property 'options.cipher' is required for GMAC");
       return false;
     }
-    if (!has_iv || iv.empty()) {
+    if (args[6]->IsUndefined() ||
+        ArrayBufferOrViewContents<unsigned char>(args[6]).empty()) {
       THROW_ERR_INVALID_ARG_VALUE(
           env, "The property 'options.iv' must be non-empty for GMAC");
       return false;
@@ -298,78 +283,85 @@ bool InitializeMacContext(Environment* env,
     return false;
   }
 
-  std::array<OSSL_PARAM, 7> params;
+  const OSSL_PARAM* settable = context.getSettableParams();
+  constexpr size_t kNameCount = std::count_if(
+      kMacOptions.begin(), kMacOptions.end(), [](const MacOption& option) {
+        return option.type == MacOptionType::kName;
+      });
+  std::array<std::optional<Utf8Value>, kNameCount> names;
+  size_t name_count = 0;
+  constexpr size_t kByteCount = std::count_if(
+      kMacOptions.begin(), kMacOptions.end(), [](const MacOption& option) {
+        return option.type == MacOptionType::kBytes;
+      });
+  std::optional<std::array<std::string, kByteCount>> utf8_bytes;
+  size_t utf8_count = 0;
+  std::array<OSSL_PARAM, kMacOptions.size() + 1> params;
   size_t count = 0;
-  if (digest.has_value()) {
-    if (!RequireSettableParameter(env,
-                                  context,
-                                  args[0],
-                                  "digest",
-                                  OSSL_MAC_PARAM_DIGEST,
-                                  OSSL_PARAM_UTF8_STRING)) {
-      return false;
-    }
-    params[count++] = OSSL_PARAM_construct_utf8_string(
-        OSSL_MAC_PARAM_DIGEST, const_cast<char*>(digest->out()), 0);
-  }
-  if (cipher.has_value()) {
-    if (!RequireSettableParameter(env,
-                                  context,
-                                  args[0],
-                                  "cipher",
-                                  OSSL_MAC_PARAM_CIPHER,
-                                  OSSL_PARAM_UTF8_STRING)) {
-      return false;
-    }
-    params[count++] = OSSL_PARAM_construct_utf8_string(
-        OSSL_MAC_PARAM_CIPHER, const_cast<char*>(cipher->out()), 0);
-  }
-
   unsigned char empty_parameter = 0;
-  auto add_bytes = [&](bool present,
-                       const ByteSource& value,
-                       const char* option,
-                       const char* parameter) {
-    if (!present) return true;
-    if (!RequireSettableParameter(env,
-                                  context,
-                                  args[0],
-                                  option,
-                                  parameter,
-                                  OSSL_PARAM_OCTET_STRING)) {
+  for (size_t i = 0; i < kMacOptions.size(); i++) {
+    Local<Value> input = args[4 + i];
+    if (input->IsUndefined()) continue;
+    const MacOption& option = kMacOptions[i];
+    const void* data = nullptr;
+    size_t length = 0;
+    switch (option.type) {
+      case MacOptionType::kName: {
+        CHECK(input->IsString());
+        auto& name = names[name_count++].emplace(env->isolate(), input);
+        data = name.out();
+        length = name.length();
+        break;
+      }
+      case MacOptionType::kBytes: {
+        // Callback arguments keep the borrowed buffer storage alive.
+        const ArrayBufferOrViewContents<unsigned char> bytes(input);
+        data = bytes.empty() ? &empty_parameter : bytes.data();
+        length = bytes.size();
+        break;
+      }
+      case MacOptionType::kSize:
+        CHECK(input->IsUint32());
+        output_length = input.As<Uint32>()->Value();
+        if (output_length > Buffer::kMaxLength) {
+          env->isolate()->ThrowException(ERR_BUFFER_TOO_LARGE(env->isolate()));
+          return false;
+        }
+        break;
+    }
+    const OSSL_PARAM* descriptor =
+        FindMacParameter(settable, option, data, length);
+    if (descriptor == nullptr) {
+      Utf8Value name(env->isolate(), args[0]);
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
+          "The property 'options.%s' is not supported by MAC %s",
+          option.name,
+          *name);
       return false;
     }
-    void* data = value.empty() ? static_cast<void*>(&empty_parameter)
-                               : const_cast<void*>(value.data());
-    params[count++] =
-        OSSL_PARAM_construct_octet_string(parameter, data, value.size());
-    return true;
-  };
-
-  if (!add_bytes(has_iv, iv, "iv", OSSL_MAC_PARAM_IV) ||
-      !add_bytes(has_customization,
-                 customization,
-                 "customization",
-                 OSSL_MAC_PARAM_CUSTOM) ||
-      !add_bytes(has_salt, salt, "salt", OSSL_MAC_PARAM_SALT)) {
-    return false;
-  }
-
-  if (has_output_length) {
-    if (output_length > Buffer::kMaxLength) {
-      env->isolate()->ThrowException(ERR_BUFFER_TOO_LARGE(env->isolate()));
-      return false;
+    switch (descriptor->data_type) {
+      case OSSL_PARAM_UTF8_STRING:
+        if (option.type == MacOptionType::kBytes && length != 0) {
+          if (!utf8_bytes.has_value()) utf8_bytes.emplace();
+          std::string& bytes = (*utf8_bytes)[utf8_count++];
+          bytes.assign(static_cast<const char*>(data), length);
+          data = bytes.c_str();
+        }
+        params[count++] = OSSL_PARAM_construct_utf8_string(
+            option.parameter,
+            const_cast<char*>(static_cast<const char*>(data)),
+            length);
+        break;
+      case OSSL_PARAM_OCTET_STRING:
+        params[count++] = OSSL_PARAM_construct_octet_string(
+            option.parameter, const_cast<void*>(data), length);
+        break;
+      case OSSL_PARAM_UNSIGNED_INTEGER:
+        params[count++] =
+            OSSL_PARAM_construct_size_t(option.parameter, &output_length);
+        break;
     }
-    if (!RequireSettableParameter(env,
-                                  context,
-                                  args[0],
-                                  "outputLength",
-                                  OSSL_MAC_PARAM_SIZE,
-                                  OSSL_PARAM_UNSIGNED_INTEGER)) {
-      return false;
-    }
-    params[count++] =
-        OSSL_PARAM_construct_size_t(OSSL_MAC_PARAM_SIZE, &output_length);
   }
   params[count] = OSSL_PARAM_construct_end();
 

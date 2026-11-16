@@ -8290,128 +8290,74 @@ bool EVPMDCtxPointer::copyTo(const EVPMDCtxPointer& other) const {
   return true;
 }
 
-std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInit(const EVPKeyPointer& key,
-                                                       const Digest& digest) {
+namespace {
+enum class SignatureOperation { Sign, Verify };
+
+template <SignatureOperation operation>
+std::optional<EVP_PKEY_CTX*> InitializeSignature(
+    EVP_MD_CTX* mdctx,
+    const EVPKeyPointer& key,
+    const Digest& digest,
+    const Buffer<const unsigned char>* context_string) {
+  constexpr auto init = operation == SignatureOperation::Sign
+                            ? EVP_DigestSignInit
+                            : EVP_DigestVerifyInit;
   EVP_PKEY_CTX* ctx = nullptr;
-  if (!EVP_DigestSignInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
+  if (context_string == nullptr) {
+    if (!init(mdctx, &ctx, digest, nullptr, key.get())) return std::nullopt;
+    return ctx;
+  }
+
+#if NCRYPTO_USE_BORINGSSL
+  if (!init(mdctx, &ctx, digest, nullptr, key.get()) ||
+      EVP_PKEY_CTX_set1_signature_context_string(
+          ctx, context_string->data, context_string->len) <= 0) {
     return std::nullopt;
   }
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
+  std::array<OSSL_PARAM, 3> params;
+  size_t count = 0;
+  // Ed25519 requires the instance parameter to switch into Ed25519ctx mode.
+  // Without it, OpenSSL silently ignores the context string.
+  if (key.isA(KeyAlgorithm::ED25519)) {
+    params[count++] = OSSL_PARAM_construct_utf8_string(
+        kSignatureInstance, const_cast<char*>("Ed25519ctx"), 0);
+  }
+  params[count++] = OSSL_PARAM_construct_octet_string(
+      kSignatureContextString,
+      const_cast<unsigned char*>(context_string->data),
+      context_string->len);
+  params[count] = OSSL_PARAM_END;
+
+  constexpr auto init_ex = operation == SignatureOperation::Sign
+                               ? EVP_DigestSignInit_ex
+                               : EVP_DigestVerifyInit_ex;
+  // Preserve the context-taking provider path's implicit digest selection.
+  if (!init_ex(
+          mdctx, &ctx, nullptr, nullptr, nullptr, key.get(), params.data())) {
+    return std::nullopt;
+  }
+#else
+#error "Unsupported crypto backend"
+#endif
   return ctx;
+}
+}  // namespace
+
+std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInit(
+    const EVPKeyPointer& key,
+    const Digest& digest,
+    const Buffer<const unsigned char>* context_string) {
+  return InitializeSignature<SignatureOperation::Sign>(
+      ctx_.get(), key, digest, context_string);
 }
 
 std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInit(
-    const EVPKeyPointer& key, const Digest& digest) {
-  EVP_PKEY_CTX* ctx = nullptr;
-  if (!EVP_DigestVerifyInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
-    return std::nullopt;
-  }
-  return ctx;
-}
-
-std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInitWithContext(
     const EVPKeyPointer& key,
     const Digest& digest,
-    const Buffer<const unsigned char>& context_string) {
-#ifdef OPENSSL_IS_BORINGSSL
-  EVP_PKEY_CTX* ctx = nullptr;
-  if (!EVP_DigestSignInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
-    return std::nullopt;
-  }
-  if (EVP_PKEY_CTX_set1_signature_context_string(
-          ctx, context_string.data, context_string.len) <= 0) {
-    return std::nullopt;
-  }
-  return ctx;
-#elif NCRYPTO_USE_OPENSSL_PROVIDER
-  EVP_PKEY_CTX* ctx = nullptr;
-
-  // Ed25519 requires the INSTANCE param to switch into Ed25519ctx mode.
-  // Without it, OpenSSL silently ignores the context string.
-  if (key.isA(KeyAlgorithm::ED25519)) {
-    const OSSL_PARAM params[] = {
-        OSSL_PARAM_construct_utf8_string(
-            kSignatureInstance, const_cast<char*>("Ed25519ctx"), 0),
-        OSSL_PARAM_construct_octet_string(
-            kSignatureContextString,
-            const_cast<unsigned char*>(context_string.data),
-            context_string.len),
-        OSSL_PARAM_END};
-
-    if (!EVP_DigestSignInit_ex(
-            ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
-      return std::nullopt;
-    }
-    return ctx;
-  }
-
-  const OSSL_PARAM params[] = {
-      OSSL_PARAM_construct_octet_string(
-          kSignatureContextString,
-          const_cast<unsigned char*>(context_string.data),
-          context_string.len),
-      OSSL_PARAM_END};
-
-  if (!EVP_DigestSignInit_ex(
-          ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
-    return std::nullopt;
-  }
-  return ctx;
-#else
-#error "Unsupported crypto backend"
-#endif
-}
-
-std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInitWithContext(
-    const EVPKeyPointer& key,
-    const Digest& digest,
-    const Buffer<const unsigned char>& context_string) {
-#ifdef OPENSSL_IS_BORINGSSL
-  EVP_PKEY_CTX* ctx = nullptr;
-  if (!EVP_DigestVerifyInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
-    return std::nullopt;
-  }
-  if (EVP_PKEY_CTX_set1_signature_context_string(
-          ctx, context_string.data, context_string.len) <= 0) {
-    return std::nullopt;
-  }
-  return ctx;
-#elif NCRYPTO_USE_OPENSSL_PROVIDER
-  EVP_PKEY_CTX* ctx = nullptr;
-
-  // Ed25519 requires the INSTANCE param to switch into Ed25519ctx mode.
-  // Without it, OpenSSL silently ignores the context string.
-  if (key.isA(KeyAlgorithm::ED25519)) {
-    const OSSL_PARAM params[] = {
-        OSSL_PARAM_construct_utf8_string(
-            kSignatureInstance, const_cast<char*>("Ed25519ctx"), 0),
-        OSSL_PARAM_construct_octet_string(
-            kSignatureContextString,
-            const_cast<unsigned char*>(context_string.data),
-            context_string.len),
-        OSSL_PARAM_END};
-
-    if (!EVP_DigestVerifyInit_ex(
-            ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
-      return std::nullopt;
-    }
-    return ctx;
-  }
-
-  const OSSL_PARAM params[] = {
-      OSSL_PARAM_construct_octet_string(
-          kSignatureContextString,
-          const_cast<unsigned char*>(context_string.data),
-          context_string.len),
-      OSSL_PARAM_END};
-
-  if (!EVP_DigestVerifyInit_ex(
-          ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
-    return std::nullopt;
-  }
-  return ctx;
-#else
-#error "Unsupported crypto backend"
-#endif
+    const Buffer<const unsigned char>* context_string) {
+  return InitializeSignature<SignatureOperation::Verify>(
+      ctx_.get(), key, digest, context_string);
 }
 
 DataPointer EVPMDCtxPointer::signOneShot(

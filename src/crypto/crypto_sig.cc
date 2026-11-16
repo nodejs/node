@@ -613,7 +613,6 @@ SignConfiguration::SignConfiguration(SignConfiguration&& other) noexcept
       data(std::move(other.data)),
       signature(std::move(other.signature)),
       digest(other.digest),
-      flags(other.flags),
       padding(other.padding),
       salt_length(other.salt_length),
       dsa_encoding(other.dsa_encoding),
@@ -675,12 +674,9 @@ Maybe<void> SignTraits::AdditionalConfig(
   }
 
   if (args[offset + 8]->IsInt32()) {  // Salt length
-    params->flags |= SignConfiguration::kHasSaltLength;
-    params->salt_length =
-        GetSaltLenFromJS(args[offset + 8]).value_or(params->salt_length);
+    params->salt_length = GetSaltLenFromJS(args[offset + 8]);
   }
   if (args[offset + 9]->IsUint32()) {  // Padding
-    params->flags |= SignConfiguration::kHasPadding;
     params->padding =
         GetPaddingFromJS(params->key.GetAsymmetricKey(), args[offset + 9]);
   }
@@ -699,7 +695,6 @@ Maybe<void> SignTraits::AdditionalConfig(
       THROW_ERR_OUT_OF_RANGE(env, "context string must be at most 255 bytes");
       return Nothing<void>();
     }
-    params->flags |= SignConfiguration::kHasContextString;
     params->context_string = IsCryptoJobAsync(mode)
                                  ? context_string.ToCopy()
                                  : context_string.ToByteSource();
@@ -732,8 +727,7 @@ bool SignTraits::DeriveBits(Environment* env,
                             CryptoErrorStore* errors) {
   const auto& key = params.key.GetAsymmetricKey();
 
-  bool has_context = (params.flags & SignConfiguration::kHasContextString &&
-                      params.context_string.size() > 0);
+  const bool has_context = params.context_string.size() > 0;
 
   if (has_context && !key.supportsContextString()) {
     errors->Insert(NodeCryptoError::CONTEXT_UNSUPPORTED);
@@ -741,40 +735,25 @@ bool SignTraits::DeriveBits(Environment* env,
     return false;
   }
 
-  int padding = params.padding;
-  if (!(params.flags & SignConfiguration::kHasPadding)) {
-    padding = key.getDefaultSignPadding();
-  }
-
-  std::optional<int> salt_length =
-      params.flags & SignConfiguration::kHasSaltLength
-          ? std::optional<int>(params.salt_length)
-          : std::nullopt;
+  const int padding = params.padding.has_value() ? *params.padding
+                                                 : key.getDefaultSignPadding();
+  const auto& salt_length = params.salt_length;
 
   auto context = EVPMDCtxPointer::New();
   if (!context) [[unlikely]]
     return false;
 
+  const ncrypto::Buffer<const unsigned char> context_buf{
+      .data = params.context_string.data<unsigned char>(),
+      .len = params.context_string.size(),
+  };
+  const auto* context_string = has_context ? &context_buf : nullptr;
   auto ctx = ([&] {
-    if (has_context) {
-      ncrypto::Buffer<const unsigned char> context_buf{
-          .data = params.context_string.data<unsigned char>(),
-          .len = params.context_string.size(),
-      };
-
-      switch (params.mode) {
-        case SignConfiguration::Mode::Sign:
-          return context.signInitWithContext(key, params.digest, context_buf);
-        case SignConfiguration::Mode::Verify:
-          return context.verifyInitWithContext(key, params.digest, context_buf);
-      }
-    } else {
-      switch (params.mode) {
-        case SignConfiguration::Mode::Sign:
-          return context.signInit(key, params.digest);
-        case SignConfiguration::Mode::Verify:
-          return context.verifyInit(key, params.digest);
-      }
+    switch (params.mode) {
+      case SignConfiguration::Mode::Sign:
+        return context.signInit(key, params.digest, context_string);
+      case SignConfiguration::Mode::Verify:
+        return context.verifyInit(key, params.digest, context_string);
     }
     UNREACHABLE();
   })();
