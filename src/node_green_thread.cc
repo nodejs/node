@@ -9,6 +9,7 @@
 #include "node_messaging.h"
 #include "node_mutex.h"
 #include "node_snapshot_builder.h"
+#include "permission/permission.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
@@ -4925,6 +4926,8 @@ class GreenThreadWrap final : public HandleWrap {
   //                 groupHandle)
   static void SetWarmPoolSize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env, permission::PermissionScope::kGreenThreads, "");
     CHECK(args[0]->IsUint32());
     WarmPoolWaiter* waiter;
     ASSIGN_OR_RETURN_UNWRAP(&waiter, args[1]);
@@ -4945,6 +4948,8 @@ class GreenThreadWrap final : public HandleWrap {
   static void New(const FunctionCallbackInfo<Value>& args) {
     CHECK(args.IsConstructCall());
     Environment* env = Environment::GetCurrent(args);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env, permission::PermissionScope::kGreenThreads, "");
     CHECK(args[0]->IsString());
     CHECK(args[1]->IsString());
     CHECK(args[2]->IsNumber());

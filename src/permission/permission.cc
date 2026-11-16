@@ -61,6 +61,8 @@ constexpr std::string_view GetDiagnosticsChannelName(PermissionScope scope) {
       return "node:permission-model:openssl-store";
     case PermissionScope::kEnv:
       return "node:permission-model:env";
+    case PermissionScope::kGreenThreads:
+      return "node:permission-model:green-thread";
     default:
       return {};
   }
@@ -274,6 +276,7 @@ Permission::Permission() : enabled_(false), warning_only_(false) {
   ADDON_PERMISSIONS(V)
   FFI_PERMISSIONS(V)
   OPENSSL_STORE_PERMISSIONS(V)
+  GREEN_THREADS_PERMISSIONS(V)
 #undef V
 #define V(Name, _, __, ___)                                                    \
   nodes_[static_cast<size_t>(PermissionScope::k##Name)] =                      \
