@@ -242,6 +242,9 @@ void Environment::InitializeDiagnostics() {
   if (heap_snapshot_near_heap_limit_ > 0) {
     AddHeapSnapshotNearHeapLimitCallback();
   }
+  if (ShouldWarnAboutPointerCompressionHeap()) {
+    AddPointerCompressionHeapWarningCallback();
+  }
   if (options_->trace_uncaught)
     isolate_->SetCaptureStackTraceForUncaughtExceptions(true);
   if (options_->trace_promises) {
