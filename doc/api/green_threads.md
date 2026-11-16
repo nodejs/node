@@ -69,7 +69,8 @@ the following globals:
 
 Green threads have no access to `require()`, `process`, or any other Node.js
 API. They can only import the modules that the host supplies. See
-[ES modules][].
+[ES modules][]. With the [Permission Model][], starting green threads requires
+[`--allow-green-threads`][].
 
 ```cjs
 const { GreenThread } = require('node:green_threads');
@@ -803,11 +804,13 @@ Calls [`greenThread.terminate()`][].
 [Isolate groups]: #isolate-groups
 [Memory limits]: #memory-limits
 [Message ports]: #message-ports
+[Permission Model]: permissions.md#permission-model
 [RPC]: #rpc
 [Resource limits]: #resource-limits
 [`'error'`]: #event-error
 [`'exit'`]: #event-exit
 [`'message'`]: #event-message
+[`--allow-green-threads`]: cli.md#--allow-green-threads
 [`--experimental-green-threads`]: cli.md#--experimental-green-threads
 [`AbortController`]: globals.md#class-abortcontroller
 [`AbortSignal`]: globals.md#class-abortsignal

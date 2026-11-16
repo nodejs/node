@@ -1150,6 +1150,10 @@ Environment::Environment(IsolateData* isolate_data,
     if (!options_->allow_wasi) {
       permission()->Apply(this, args, permission::PermissionScope::kWASI);
     }
+    if (!options_->allow_green_threads) {
+      permission()->Apply(
+          this, args, permission::PermissionScope::kGreenThreads);
+    }
 
     {
       std::vector<std::string> allow_env =

@@ -927,6 +927,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             false,
             OptionNamespaces::kPermissionNamespace);
 #endif  // HAVE_FFI
+  AddOption("--allow-green-threads",
+            "allow green threads when any permissions are set",
+            BOOL_FIELD(allow_green_threads),
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-inspector",
             "allow use of inspector when any permissions are set",
             BOOL_FIELD(allow_inspector),

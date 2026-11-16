@@ -175,6 +175,10 @@
               ],
               "description": "allow permissions to write in the filesystem"
             },
+            "allow-green-threads": {
+              "type": "boolean",
+              "description": "allow green threads when any permissions are set"
+            },
             "allow-inspector": {
               "type": "boolean",
               "description": "allow use of inspector when any permissions are set"
@@ -1029,6 +1033,10 @@
                 }
               ],
               "description": "allow permissions to write in the filesystem"
+            },
+            "allow-green-threads": {
+              "type": "boolean",
+              "description": "allow green threads when any permissions are set"
             },
             "allow-inspector": {
               "type": "boolean",

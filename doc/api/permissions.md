@@ -78,6 +78,7 @@ Error: Access to this API has been restricted
 
 Allowing access to spawning a process and creating worker threads can be done
 using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
+Starting [green threads][] can be allowed with [`--allow-green-threads`][].
 
 To grant access to environment variables, use [`--allow-env`][].
 
@@ -165,9 +166,9 @@ Audit mode is useful for discovering what permissions your application
 requires before deploying with [`--permission`][]. It can also be combined
 with the [`--allow-fs-read`][], [`--allow-fs-write`][], [`--allow-fs-vfs`][],
 [`--allow-net`][], [`--allow-env`][], [`--allow-child-process`][],
-[`--allow-worker`][], [`--allow-addons`][], [`--allow-wasi`][],
-[`--allow-ffi`][], [`--allow-inspector`][], and [`--allow-openssl-store`][]
-flags to audit a subset of permissions while granting others.
+[`--allow-worker`][], [`--allow-green-threads`][], [`--allow-addons`][],
+[`--allow-wasi`][], [`--allow-ffi`][], [`--allow-inspector`][], and
+[`--allow-openssl-store`][] flags to audit a subset of permissions while granting others.
 
 When a permission check fails in audit mode, a message is published to the
 diagnostics channel corresponding to the denied scope. The channel names are:
@@ -176,6 +177,7 @@ diagnostics channel corresponding to the denied scope. The channel names are:
 * `node:permission-model:net` — Network
 * `node:permission-model:child` — Child Process
 * `node:permission-model:worker` — Worker Threads
+* `node:permission-model:green-thread` — Green threads
 * `node:permission-model:inspector` — Inspector
 * `node:permission-model:wasi` — WASI
 * `node:permission-model:addon` — Native Addons
@@ -555,6 +557,7 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-vfs`]: cli.md#--allow-fs-vfs
 [`--allow-fs-write`]: cli.md#--allow-fs-write
+[`--allow-green-threads`]: cli.md#--allow-green-threads
 [`--allow-inspector`]: cli.md#--allow-inspector
 [`--allow-net`]: cli.md#--allow-net
 [`--allow-openssl-store`]: cli.md#--allow-openssl-store
@@ -572,4 +575,5 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [`permission.has()`]: process.md#processpermissionhasscope-reference
 [`process.loadEnvFile()`]: process.md#processloadenvfilepath
 [`vfs.mount()`]: vfs.md#vfsmount
+[green threads]: green_threads.md
 [virtual file system]: vfs.md

@@ -232,6 +232,28 @@ Paths delimited by comma (\fB,\fR) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
 Examples can be found in the File System Permissions documentation.
 .
+.It Fl -allow-green-threads
+When using the Permission Model, the process will not be able to start
+green threads by default. Attempts to create a \fBGreenThread\fR, or to call
+\fBsetWarmPoolSize()\fR, will throw an \fBERR_ACCESS_DENIED\fR exception unless the
+user explicitly passes the \fB--allow-green-threads\fR flag when starting Node.js.
+Unlike \fB--allow-worker\fR, this doesn't grant code more than the permission
+model allows: green threads can't use any Node.js API, and only have what the
+host passes them.
+Example:
+.Bd -literal
+const { GreenThread } = require('node:green_threads');
+new GreenThread('postMessage(1);');
+.Ed
+.Bd -literal
+$ node --permission --allow-fs-read=* --experimental-green-threads index.js
+Error: Access to this API has been restricted. Use --allow-green-threads to manage permissions.
+    at new GreenThread (node:green_threads:350:20) {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'GreenThreads'
+}
+.Ed
+.
 .It Fl -allow-inspector
 When using the Permission Model, the process will not be able to connect
 through inspector protocol.
@@ -1344,6 +1366,8 @@ Child Process - manageable through \fB--allow-child-process\fR flag
 .It
 Worker Threads - manageable through \fB--allow-worker\fR flag
 .It
+Green threads - manageable through \fB--allow-green-threads\fR flag
+.It
 WASI - manageable through \fB--allow-wasi\fR flag
 .It
 Addons - manageable through \fB--allow-addons\fR flag
@@ -2221,6 +2245,8 @@ one is included in the list below.
 \fB--allow-fs-vfs\fR
 .It
 \fB--allow-fs-write\fR
+.It
+\fB--allow-green-threads\fR
 .It
 \fB--allow-inspector\fR
 .It
