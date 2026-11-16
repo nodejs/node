@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#27.0.0-alpha.0.1.1">27.0.0-alpha.0.1.1</a><br/>
 <a href="#27.0.0-alpha.0.1.0">27.0.0-alpha.0.1.0</a><br/>
 <a href="#27.0.0-alpha.0.0.0">27.0.0-alpha.0.0.0</a><br/>
 </td>
@@ -42,6 +43,40 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="27.0.0-alpha.0.1.1"></a>
+
+## 2026-11-16, Version 27.0.0-alpha.0.1.1 (Alpha), @aduh95
+
+### Notable Changes
+
+* \[[`e0c71bcd1c`](https://github.com/nodejs/node/commit/e0c71bcd1c)] - **tools**: notarize `bin/node` in the darwin tarballs (Ulises Gascón) [#67143](https://github.com/nodejs/node/pull/67143)
+
+### Commits
+
+* \[[`aa0572bada`](https://github.com/nodejs/node/commit/aa0572bada)] - **build**: do not include vendored simdutf with `--shared-simdutf` (Yao Zi) [#67410](https://github.com/nodejs/node/pull/67410)
+* \[[`a5672e8023`](https://github.com/nodejs/node/commit/a5672e8023)] - **build**: enable pie on linux (Chengzhong Wu) [#67386](https://github.com/nodejs/node/pull/67386)
+* \[[`cfb550171d`](https://github.com/nodejs/node/commit/cfb550171d)] - **deps**: V8: backport a05177279022 (René) [#67416](https://github.com/nodejs/node/pull/67416)
+* \[[`a92ee337b1`](https://github.com/nodejs/node/commit/a92ee337b1)] - **deps**: update nghttp3 to 1.19.0 (Node.js GitHub Bot) [#67333](https://github.com/nodejs/node/pull/67333)
+* \[[`f775f92e2e`](https://github.com/nodejs/node/commit/f775f92e2e)] - **deps**: V8: backport 2444c109f4f8 (Austin Burdine) [#66736](https://github.com/nodejs/node/pull/66736)
+* \[[`a4787636cb`](https://github.com/nodejs/node/commit/a4787636cb)] - **deps**: V8: cherry-pick 497c2e6a2434 (Dominik Inführ) [#66728](https://github.com/nodejs/node/pull/66728)
+* \[[`7c6dd81da3`](https://github.com/nodejs/node/commit/7c6dd81da3)] - **doc**: fix typo in releases.md (Ultron) [#67463](https://github.com/nodejs/node/pull/67463)
+* \[[`9fda0620f2`](https://github.com/nodejs/node/commit/9fda0620f2)] - **doc**: add aduh95 as last security release stewards (Antoine du Hamel) [#67434](https://github.com/nodejs/node/pull/67434)
+* \[[`a23a18b8e5`](https://github.com/nodejs/node/commit/a23a18b8e5)] - **doc**: explain how sqlite binds numbers and BigInts (Trevor Burnham) [#67424](https://github.com/nodejs/node/pull/67424)
+* \[[`136ae6f518`](https://github.com/nodejs/node/commit/136ae6f518)] - **doc**: document invalid X509Certificate validity times (Sarthak Ahuja) [#67406](https://github.com/nodejs/node/pull/67406)
+* \[[`e396cb0bb3`](https://github.com/nodejs/node/commit/e396cb0bb3)] - **doc**: explain fallback arrays in package exports targets (Manjeet Singh) [#67393](https://github.com/nodejs/node/pull/67393)
+* \[[`3c930d22ea`](https://github.com/nodejs/node/commit/3c930d22ea)] - **doc**: document `this` binding in TLS callbacks (Robert I Nilsson) [#66682](https://github.com/nodejs/node/pull/66682)
+* \[[`1a1489838c`](https://github.com/nodejs/node/commit/1a1489838c)] - **meta**: update Trevor Burnham's email in `.mailmap` (Trevor Burnham) [#67425](https://github.com/nodejs/node/pull/67425)
+* \[[`17be7f1efc`](https://github.com/nodejs/node/commit/17be7f1efc)] - **test**: use relative paths within test directory in `test-watch-mode.mjs` (Livia Medeiros) [#67343](https://github.com/nodejs/node/pull/67343)
+* \[[`5d51de3db7`](https://github.com/nodejs/node/commit/5d51de3db7)] - **test**: deflake test-tls-resume-servername (Christian Aurich Zanettini Martins) [#67450](https://github.com/nodejs/node/pull/67450)
+* \[[`e3caf971c1`](https://github.com/nodejs/node/commit/e3caf971c1)] - **test**: deflake test-fs-stat-cancel-inflight under FIPS (Christian Aurich Zanettini Martins) [#67449](https://github.com/nodejs/node/pull/67449)
+* \[[`098b4788ca`](https://github.com/nodejs/node/commit/098b4788ca)] - **test**: deflake test-watch-mode-files\_watcher (Yuya Inoue) [#67298](https://github.com/nodejs/node/pull/67298)
+* \[[`b2f17a3732`](https://github.com/nodejs/node/commit/b2f17a3732)] - **test**: deflake watch mode test for missing env file (Farid Zakaria) [#67041](https://github.com/nodejs/node/pull/67041)
+* \[[`5aac327abd`](https://github.com/nodejs/node/commit/5aac327abd)] - **test**: increase iterations on histogram test after snapshot changes (Stewart X Addison) [#67379](https://github.com/nodejs/node/pull/67379)
+* \[[`70d8236efe`](https://github.com/nodejs/node/commit/70d8236efe)] - **tools**: add support for multiple-commit PRs in `review_backport.sh` (Antoine du Hamel) [#67108](https://github.com/nodejs/node/pull/67108)
+* \[[`e0c71bcd1c`](https://github.com/nodejs/node/commit/e0c71bcd1c)] - **tools**: notarize bin/node in the darwin tarballs (Ulises Gascón) [#67143](https://github.com/nodejs/node/pull/67143)
+* \[[`67d57cfef1`](https://github.com/nodejs/node/commit/67d57cfef1)] - **tools**: update mk-ca-bundle to 1.35 (René) [#67403](https://github.com/nodejs/node/pull/67403)
+* \[[`8dfdbb540e`](https://github.com/nodejs/node/commit/8dfdbb540e)] - **tools**: enable strict mode for yamllint (Antoine du Hamel) [#67380](https://github.com/nodejs/node/pull/67380)
 
 <a id="27.0.0-alpha.0.1.0"></a>
 
