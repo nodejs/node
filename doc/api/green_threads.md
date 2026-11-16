@@ -166,7 +166,8 @@ described in [Errors][].
 
 Once a side no longer uses a stub, and it is garbage collected, or disposed
 with `stub[Symbol.dispose]()`, the other side releases the function or object
-that it refers to. When a green thread exits, calls that are pending, and
+that it refers to. `AbortSignal`s are kept until they abort, so that their
+listeners run. When a green thread exits, calls that are pending, and
 calls to its stubs on the host, are rejected with [`ERR_GREEN_THREAD_EXITED`][].
 
 The result of a call that a green thread makes continues in the invocation
