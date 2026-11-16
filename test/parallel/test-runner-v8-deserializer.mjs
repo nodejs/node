@@ -91,7 +91,7 @@ describe('v8 deserializer', common.mustCall(() => {
     reported = [];
     fileTest = new runner.FileTest({
       name: 'filetest',
-      harness: { config: {} },
+      harness: { config: { cwd: process.cwd() } },
     });
     fileTest.reporter.on('data', (data) => reported.push(data));
     assert(fileTest.isClearToSend());
