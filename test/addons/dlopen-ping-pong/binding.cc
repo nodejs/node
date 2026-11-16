@@ -33,17 +33,19 @@ void ThrowError(Isolate* isolate, const char* message) {
 void LoadLibrary(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   const String::Utf8Value filename(isolate, args[0]);
+  char* dlerrormsg;
   void* handle = dlopen(*filename, RTLD_LAZY);
   if (handle == nullptr) {
-    ThrowError(isolate, dlerror() != nullptr ? dlerror() : "dlopen failed");
+    dlerrormsg = dlerror();
+    ThrowError(isolate, dlerrormsg != nullptr ? dlerrormsg : "dlopen failed");
     return;
   }
   ping_func = reinterpret_cast<ping>(dlsym(handle, "dlopen_ping"));
   if (ping_func == nullptr) {
-    dlclose(handle);
-    ThrowError(isolate,
-               dlerror() != nullptr ? dlerror() : "dlsym dlopen_ping failed");
-    return;
+    if ( dlclose(handle) != 0 ) {
+      ThrowError(isolate, "dlclose failed");
+      return;
+    }
   }
 }
 
