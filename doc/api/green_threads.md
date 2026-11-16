@@ -335,15 +335,60 @@ initial script, and their callbacks run on the same OS thread as that task.
 
 ### Stalls
 
-Green threads that wait for each other without returning, for example by
-spinning on a `SharedArrayBuffer` until another green thread changes it, can
-stall: if they keep all pool threads busy, the green thread they wait for
-never runs. A green thread that keeps a pool thread busy also delays the
-timers of other green threads that run on that thread.
+A green thread that waits for another one without returning, for example by
+spinning on a `SharedArrayBuffer` until the other one changes it, keeps a pool
+thread busy while it waits. If such green threads keep all pool threads busy,
+the green thread they wait for never runs, and they wait forever. A green
+thread that keeps a pool thread busy also delays the timers of other green
+threads that run on that thread. Green threads stall the pool this way even
+when the same code would work with [`Worker`][]s, since each worker has an OS
+thread of its own.
 
-[`greenThreads.setStallPolicy()`][] detects such stalls, and breaks them by
-adding pool threads, or by terminating the green threads that cause them,
-either automatically or as decided by the host:
+#### Waiting without blocking
+
+Green threads that wait for each other should return while they wait, so that
+their pool threads can run other green threads, including the one they wait
+for. Messages, [RPC][], and [`Atomics.waitAsync()`][] all do this.
+`Atomics.wait()` throws in green threads, since it would block the pool thread.
+A lock built on `Atomics.waitAsync()` can't stall the pool, however many green
+threads wait for it:
+
+```cjs
+const { GreenThread } = require('node:green_threads');
+
+// A lock that green threads wait for without keeping a pool thread busy.
+const source = `
+  async function acquire(lock) {
+    while (Atomics.compareExchange(lock, 0, 0, 1) !== 0) {
+      await Atomics.waitAsync(lock, 0, 1).value;
+    }
+  }
+  function release(lock) {
+    Atomics.store(lock, 0, 0);
+    Atomics.notify(lock, 0, 1);
+  }
+  onmessage = async ({ data: lock }) => {
+    await acquire(lock);
+    // ... use what the lock protects ...
+    release(lock);
+    postMessage('done');
+  };
+`;
+
+const lock = new Int32Array(new SharedArrayBuffer(4));
+for (let i = 0; i < 100; i++) {
+  const greenThread = new GreenThread(source);
+  greenThread.on('message', () => greenThread.terminate());
+  greenThread.postMessage(lock);
+}
+```
+
+#### Breaking stalls
+
+For code that may block anyway, such as code that the host doesn't control,
+[`greenThreads.setStallPolicy()`][] detects stalls, and breaks them by adding
+pool threads, or by terminating the green threads that cause them, either
+automatically or as decided by the host:
 
 ```cjs
 const { setStallPolicy } = require('node:green_threads');
@@ -357,6 +402,17 @@ setStallPolicy({
   },
 });
 ```
+
+A stall is only detected while some work waits for a pool thread: a green
+thread that hasn't been able to run, or a timer behind a green thread that
+keeps its pool thread busy. Green threads that wait for each other in a way
+that more pool threads wouldn't help with, such as two that each hold a lock
+the other one waits for, or one that waits for a message that it can only
+handle once it stops waiting, would wait forever with workers too. The pool
+looks the same as when green threads run long computations, so this isn't
+detected. A green thread that spins while it waits uses CPU time, so
+`maxTaskCpuTimeMs` stops it, whatever it waits for. See
+[CPU time limits][].
 
 ## Resource limits
 
@@ -472,7 +528,8 @@ that have been reported already.
 
 Since a policy applies to all green threads in the process, including those
 created by other threads, `timeoutMs` should be longer than any task is
-expected to run.
+expected to run. Deadlocks that don't depend on pool threads aren't detected:
+see [Breaking stalls][].
 
 ## `greenThreads.setUnresponsiveTimeouts(timeouts)`
 
@@ -912,7 +969,7 @@ uncaught `RangeError` in it.
 
 `SharedArrayBuffer`s are shared rather than copied. `Atomics.wait()` throws in
 green threads, since it would block the pool thread, and with it other green
-threads.
+threads. See [Waiting without blocking][].
 
 ### `greenThread.ref()`
 
@@ -957,6 +1014,7 @@ added: REPLACEME
 
 Calls [`greenThread.terminate()`][].
 
+[Breaking stalls]: #breaking-stalls
 [Broadcast channels]: #broadcast-channels
 [CPU time limits]: #cpu-time-limits
 [ES modules]: #es-modules
@@ -968,6 +1026,7 @@ Calls [`greenThread.terminate()`][].
 [RPC]: #rpc
 [Resource limits]: #resource-limits
 [Stalls]: #stalls
+[Waiting without blocking]: #waiting-without-blocking
 [`'error'`]: #event-error
 [`'exit'`]: #event-exit
 [`'message'`]: #event-message
@@ -976,6 +1035,7 @@ Calls [`greenThread.terminate()`][].
 [`--experimental-green-threads`]: cli.md#--experimental-green-threads
 [`AbortController`]: globals.md#class-abortcontroller
 [`AbortSignal`]: globals.md#class-abortsignal
+[`Atomics.waitAsync()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/waitAsync
 [`BroadcastChannel`]: worker_threads.md#class-broadcastchannel-extends-eventtarget
 [`DOMException`]: globals.md#class-domexception
 [`ERR_GREEN_THREAD_BROADCAST_SCOPE`]: errors.md#err_green_thread_broadcast_scope
