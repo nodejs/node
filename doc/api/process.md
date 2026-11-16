@@ -598,6 +598,32 @@ A few of the warning types that are most common include:
   that will be ignored rather than treated as an error. One example is use of
   the HTTP response status message when using the HTTP/2 compatibility API.
 
+#### Heap size and pointer compression
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When Node.js is built with V8 pointer compression enabled, the V8 heap of each
+thread (the main thread and every [`Worker`][]) is limited to 4 GiB, regardless
+of `--max-old-space-size`. Pointer compression reduces heap usage, typically by
+about 40% and never by more than half, so a heap that is larger than 4 GiB
+without pointer compression may or may not fit under that limit.
+
+In builds without pointer compression, Node.js emits a warning with the code
+`'HEAP_EXCEEDS_POINTER_COMPRESSION_LIMIT'` when the heap of a thread that
+survives a full garbage collection reaches:
+
+* 6.5 GiB: the heap is likely to exceed the limit with pointer compression.
+* 8 GiB: the heap will exceed the limit with pointer compression.
+
+The warning is emitted at most once per thread, with the wording that matches
+the heap size at the time. Memory outside the V8 heap, such as the contents of
+{ArrayBuffer}s and {Buffer}s, does not count toward the limit.
+
+The warning can be silenced with
+`--disable-warning=HEAP_EXCEEDS_POINTER_COMPRESSION_LIMIT`.
+
 ### Event: `'worker'`
 
 <!-- YAML
