@@ -4213,34 +4213,24 @@ changes:
 
 * `algorithm` {string}
 * `options` {Object} [`stream.transform` options][]
-  * `customization` {string|ArrayBuffer|Buffer|TypedArray|DataView} For cSHAKE
-    hash functions, specifies the customization byte string. **Default:** an
-    empty byte string.
-  * `functionName` {string|ArrayBuffer|Buffer|TypedArray|DataView} For cSHAKE
-    hash functions, specifies the NIST function-name byte string. **Default:**
-    an empty byte string.
-  * `outputLength` {number} For XOF hash functions, specifies the desired
-    output length in bytes.
+  * `customization` {string|ArrayBuffer|Buffer|TypedArray|DataView} The
+    customization byte string for digests that support it, such as cSHAKE.
+  * `functionName` {string|ArrayBuffer|Buffer|TypedArray|DataView} The NIST
+    function-name byte string for digests that support it, such as cSHAKE.
+  * `outputLength` {number} For a fixed-length digest, an explicit value must
+    match the digest size in bytes.
 * Returns: {Hash}
 
 Creates and returns a `Hash` object that can be used to generate hash digests
-using the given `algorithm`. Optional `options` argument controls stream
+using the given `algorithm`. The optional `options` argument controls stream
 behavior. For XOF hash functions such as `'shake256'`, the `outputLength` option
 specifies the desired output length in bytes. It is required for XOF hash
 functions without a default output length.
 
-The `functionName` and `customization` options apply only to cSHAKE-128 and
-cSHAKE-256. They are supported only when Node.js is built with OpenSSL 4.0 or
-later and the selected provider supports the corresponding digest parameters.
-Strings are encoded as UTF-8, and neither strings nor byte values may contain
-NUL bytes. Both options default to an empty byte string. For OpenSSL's built-in
-providers, `functionName` is case-sensitive and must be `''`, `'TupleHash'`,
-`'ParallelHash'`, or `'KMAC'`. Other providers can impose different
-restrictions. With both options empty, cSHAKE produces the same output as the
-corresponding SHAKE function for the same output length. `cshake-128` and
-`cshake-256` default to output lengths of 32 and 64 bytes, respectively.
+The selected digest determines which options are supported in addition to the
+standard [`stream.transform` options][].
 
-When the data is small (< 5MB) and readily available, [`crypto.hash()`][] is usually faster.
+For readily available data up to 5 MB, [`crypto.hash()`][] can be faster.
 
 The available algorithms depend on the version and configuration of OpenSSL on
 the platform. Examples are `'sha256'` and `'sha512'`. Use
@@ -4419,15 +4409,13 @@ added:
     byte string for MACs that support it, such as KMAC.
   * `salt` {ArrayBuffer|Buffer|TypedArray|DataView} A salt byte string for MACs
     that support it, such as BLAKE2 MACs.
-  * `outputLength` {number} The requested provider output size in bytes. Must be
-    an unsigned 32-bit integer. Provider-specific restrictions also apply.
+  * `outputLength` {number} The requested MAC output size in bytes. Must be
+    an unsigned 32-bit integer. Algorithm-specific restrictions also apply.
 * Returns: {Mac}
 
-`algorithm` must be a non-empty provider MAC name. The MAC-specific properties
-listed above are extensions to the standard [`stream.transform` options][] and
-are passed only when the selected provider implementation advertises the
-corresponding parameter with the expected type. A supplied MAC-specific option
-that the selected implementation does not support causes an error.
+`algorithm` must be a non-empty MAC name. Use [`crypto.getMacs()`][] to list
+available algorithms. The selected MAC determines which options it accepts.
+Supplying an unsupported MAC-specific option causes an error.
 
 The following table summarizes the MAC-specific options accepted by MAC
 implementations in OpenSSL's built-in providers. The `key` argument is required
@@ -4444,20 +4432,13 @@ for every MAC. The table lists only MAC-specific options; standard
 | Poly1305   | None                                    | None                                    | Each key must be used for only one message.                            |
 | SipHash    | None                                    | `outputLength`                          |                                                                        |
 
-`outputLength` configures the output size of the provider MAC. It is never
-implemented by computing a longer tag and truncating it. A value of `0` is
-passed to the provider and is accepted only when that provider can initialize
-and finalize the MAC with a zero-byte output. When `outputLength` is omitted,
-the provider's default output size is used and must be nonzero.
+`outputLength` configures the size of the tag computed by the MAC. KMAC, for
+example, incorporates the requested length into the tag computation. A value
+of `0` is accepted only for MACs that support an empty tag. When omitted, the
+default output size is used and must be nonzero.
 
 The `key` must contain bytes or be a [`KeyObject`][] of type `secret`. Key
-length and other key requirements are determined by the selected provider
-implementation.
-
-Available algorithms and their accepted parameters depend on the OpenSSL
-version, loaded providers, and active default property query. Use
-[`crypto.getMacs()`][] to list fetchable MAC names. A listed name can still
-require options or a key with provider-specific properties.
+length and other key requirements depend on the selected MAC algorithm.
 
 ### `crypto.createPrivateKey(key)`
 
@@ -5735,23 +5716,14 @@ added:
 > Stability: 1.2 - Release candidate
 
 * Returns: {string\[]} A fresh array containing the sorted, lowercase names
-  and aliases of fetchable MAC implementations.
+  and aliases of available MAC algorithms.
 
-Returns MAC names exposed by loaded OpenSSL providers that match the active
-default property query. Duplicate names and numeric OID aliases are omitted.
-On builds without OpenSSL `EVP_MAC` support, this function returns an empty
-array.
-
-The returned names describe implementations that OpenSSL can fetch. They do not
-guarantee that [`crypto.createMac()`][] can initialize the MAC without
-additional options. A provider can require additional parameters or a key with
-algorithm-specific properties, and it can expose parameters that this API does
-not support.
+A listed MAC can require additional options or a key of a specific length.
+See [`crypto.createMac()`][] for the options that apply to each MAC family.
 
 After a successful FIPS mode change made with [`crypto.setFips()`][], subsequent
 calls reflect the new mode, and newly created `Mac` objects use it. Existing
-`Mac` objects continue using the provider implementation selected when they
-were created.
+`Mac` objects continue using the implementation selected when they were created.
 
 ```mjs
 const { getMacs } = await import('node:crypto');
@@ -5801,46 +5773,32 @@ changes:
     description: The `outputLength` option was added for XOF hash functions.
 -->
 
-* `algorithm` {string|undefined}
+* `algorithm` {string}
 * `data` {string|Buffer|TypedArray|DataView} When `data` is a
   string, it will be encoded as UTF-8 before being hashed. If a different
   input encoding is desired for a string input, user could encode the string
   into a `TypedArray` using either `TextEncoder` or `Buffer.from()` and passing
   the encoded `TypedArray` into this API instead.
 * `options` {Object|string}
-  * `customization` {string|ArrayBuffer|Buffer|TypedArray|DataView} For cSHAKE
-    hash functions, specifies the customization byte string. **Default:** an
-    empty byte string.
-  * `functionName` {string|ArrayBuffer|Buffer|TypedArray|DataView} For cSHAKE
-    hash functions, specifies the NIST function-name byte string. **Default:**
-    an empty byte string.
+  * `customization` {string|ArrayBuffer|Buffer|TypedArray|DataView} The
+    customization byte string for digests that support it, such as cSHAKE.
+  * `functionName` {string|ArrayBuffer|Buffer|TypedArray|DataView} The NIST
+    function-name byte string for digests that support it, such as cSHAKE.
   * `outputEncoding` {string} [Encoding][encoding] used to encode the
     returned digest. **Default:** `'hex'`.
-  * `outputLength` {number} For XOF hash functions such as 'shake256',
-    specifies the desired output length in bytes. This option is required for
-    XOF hash functions without a default output length.
+  * `outputLength` {number} The requested digest length in bytes. Required for
+    XOF hash functions without a default output length, such as SHAKE. For a
+    fixed-length digest, an explicit value must match the digest size.
 * Returns: {string|Buffer}
 
 A utility for creating one-shot hash digests of data. It can be faster than
-the object-based `crypto.createHash()` when hashing a smaller amount of data
-(<= 5MB) that's readily available. If the data can be big or if it is streamed,
-it's still recommended to use `crypto.createHash()` instead.
+[`crypto.createHash()`][] for readily available data up to 5 MB. Use
+[`crypto.createHash()`][] for large inputs or streamed data.
 
 The available algorithms depend on the version and configuration of OpenSSL on
 the platform. Examples are `'sha256'` and `'sha512'`. Use
 [`crypto.getHashes()`][] to obtain the list of hash algorithms available to the
 Node.js process.
-
-The `functionName` and `customization` options apply only to cSHAKE-128 and
-cSHAKE-256. They are supported only when Node.js is built with OpenSSL 4.0 or
-later and the selected provider supports the corresponding digest parameters.
-Strings are encoded as UTF-8, and neither strings nor byte values may contain
-NUL bytes. Both options default to an empty byte string. For OpenSSL's built-in
-providers, `functionName` is case-sensitive and must be `''`, `'TupleHash'`,
-`'ParallelHash'`, or `'KMAC'`. Other providers can impose different
-restrictions. With both options empty, cSHAKE produces the same output as the
-corresponding SHAKE function for the same output length. `cshake-128` and
-`cshake-256` default to output lengths of 32 and 64 bytes, respectively.
 
 If `options` is a string, then it specifies the `outputEncoding`.
 
@@ -7168,8 +7126,8 @@ Calculates and returns the signature for `data` using the given private key and
 algorithm. If `algorithm` is `null` or `undefined`, then the algorithm is
 dependent upon the key type.
 
-`algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, and
-ML-DSA.
+`algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, ML-DSA,
+and SLH-DSA.
 
 [`crypto.getHashes()`][] lists algorithms available to the hashing APIs, but
 the key type and signature scheme determine whether a listed digest can be
@@ -7197,10 +7155,11 @@ passed:
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
   maximum permissible value.
-* `context` {ArrayBuffer|Buffer|TypedArray|DataView} For Ed25519[^openssl32]
-  (using Ed25519ctx from [RFC 8032][]), Ed448, ML-DSA, and SLH-DSA,
-  this option specifies the optional context to differentiate signatures
-  generated for different purposes with the same key.
+* `context` {Buffer|TypedArray|DataView} An optional byte string of up to 255
+  bytes for Ed25519[^openssl32], Ed448, ML-DSA, and SLH-DSA. It separates
+  signatures generated for different purposes with the same key. An empty
+  context is equivalent to omitting the option. For Ed25519, a non-empty
+  context selects Ed25519ctx from [RFC 8032][].
 
 If the `callback` function is provided this function uses libuv's threadpool.
 
@@ -7314,8 +7273,8 @@ Verifies the given signature for `data` using the given key and algorithm. If
 `algorithm` is `null` or `undefined`, then the algorithm is dependent upon the
 key type.
 
-`algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, and
-ML-DSA.
+`algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, ML-DSA,
+and SLH-DSA.
 
 [`crypto.getHashes()`][] lists algorithms available to the hashing APIs, but
 the key type and signature scheme determine whether a listed digest can be
@@ -7343,10 +7302,11 @@ passed:
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
   maximum permissible value.
-* `context` {ArrayBuffer|Buffer|TypedArray|DataView} For Ed25519[^openssl32]
-  (using Ed25519ctx from [RFC 8032][]), Ed448, ML-DSA, and SLH-DSA,
-  this option specifies the optional context to differentiate signatures
-  generated for different purposes with the same key.
+* `context` {Buffer|TypedArray|DataView} An optional byte string of up to 255
+  bytes for Ed25519[^openssl32], Ed448, ML-DSA, and SLH-DSA. Use the same
+  context that was used to sign the data. An empty context is equivalent to
+  omitting the option. For Ed25519, a non-empty context selects Ed25519ctx
+  from [RFC 8032][].
 
 The `signature` argument is the previously calculated signature for the `data`.
 

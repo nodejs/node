@@ -996,7 +996,7 @@ Using the method identified by `algorithm`, this method attempts to
 generate a digest of `data`. If successful, the returned promise is resolved
 with an {ArrayBuffer} containing the computed digest.
 
-If `algorithm` is provided as a {string}, it must be one of:
+The supported algorithm names are:
 
 * `'cSHAKE128'`[^modern-algos]
 * `'cSHAKE256'`[^modern-algos]
@@ -1014,6 +1014,10 @@ If `algorithm` is provided as a {string}, it must be one of:
 
 If `algorithm` is provided as an {Object}, it must have a `name` property
 whose value is one of the above.
+
+For cSHAKE, TurboSHAKE, and KangarooTwelve algorithms, `algorithm` must be a
+{CShakeParams}, {TurboShakeParams}, or {KangarooTwelveParams} object,
+respectively, with the required `outputLength` property.
 
 ### `subtle.encapsulateBits(encapsulationAlgorithm, encapsulationKey)`
 
@@ -1869,8 +1873,7 @@ added:
  - v24.15.0
 -->
 
-* Type: {number} represents the requested output length in bits. Must be a
-  multiple of 8.
+* Type: {number} The required output length in bits. Must be a multiple of 8.
 
 #### `cShakeParams.functionName`
 
@@ -1886,9 +1889,9 @@ changes:
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-The `functionName` member represents the NIST function-name byte string used to
-domain-separate functions built on top of cSHAKE. Non-empty values require
-OpenSSL 4.0 or later. Accepted values are:
+The optional `functionName` member represents the NIST function-name byte string
+used to domain-separate functions built on top of cSHAKE. It defaults to an empty
+byte string. Accepted values are:
 
 * empty or `undefined`
 * the ASCII byte sequence `'KMAC'`
@@ -1909,11 +1912,8 @@ changes:
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-The `customization` member represents the customization data. Non-empty values
-require OpenSSL 4.0 or later. Accepted values are:
-
-* empty or `undefined`
-* up to 512 bytes of data without null bytes
+The optional `customization` member is a byte string of at most 512 bytes without
+null bytes. It defaults to an empty byte string.
 
 ### Class: `EcdhKeyDeriveParams`
 
@@ -2335,8 +2335,8 @@ changes:
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-The optional customization string for KangarooTwelve. It must not exceed 512
-bytes.
+The optional customization byte string for KangarooTwelve. It must not exceed
+512 bytes and defaults to an empty byte string.
 
 #### `kangarooTwelveParams.name`
 
@@ -2356,7 +2356,8 @@ added:
  - v24.18.0
 -->
 
-* Type: {number} represents the requested output length in bits.
+* Type: {number} The required output length in bits. Must be a nonzero
+  multiple of 8.
 
 ### Class: `KmacImportParams`
 
@@ -2446,7 +2447,7 @@ changes:
     description: Renamed `kmacParams.length` to `kmacParams.outputLength`.
 -->
 
-#### `kmacParams.algorithm`
+#### `kmacParams.name`
 
 <!-- YAML
 added: v24.8.0
@@ -2462,8 +2463,7 @@ added:
  - v24.15.0
 -->
 
-* Type: {number} represents the requested output length in bits. Must be a
-  multiple of 8.
+* Type: {number} The required output length in bits. Must be a multiple of 8.
 
 #### `kmacParams.customization`
 
@@ -2473,7 +2473,7 @@ added: v24.8.0
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-The `customization` member represents the optional customization string.
+The optional customization byte string. It defaults to an empty byte string.
 
 ### Class: `Pbkdf2Params`
 
@@ -2770,7 +2770,8 @@ added:
  - v24.18.0
 -->
 
-* Type: {number} represents the requested output length in bits.
+* Type: {number} The required output length in bits. Must be a nonzero
+  multiple of 8.
 
 [^secure-curves]: See [Secure Curves in the Web Cryptography API][]
 
