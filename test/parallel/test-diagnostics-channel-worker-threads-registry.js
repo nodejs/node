@@ -14,6 +14,7 @@ if (isMainThread) {
   const childRemoved = Promise.withResolvers();
 
   dc.subscribe(channelName, common.mustCall((message) => {
+    assert.strictEqual(Object.getPrototypeOf(message), null);
     assert.deepStrictEqual(Object.keys(message), ['threadIds']);
     snapshots.push(message.threadIds);
 

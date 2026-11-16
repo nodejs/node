@@ -2006,14 +2006,15 @@ Emitted when a new thread is created.
 
 * `threadIds` {number\[]} A snapshot of the registered worker thread IDs.
 
-Emitted only on the main thread whenever a worker's messaging port is registered
-or unregistered, including workers created by other workers. The main thread's
-ID (`0`) is not included.
+Emitted only on the main thread whenever the worker thread registry changes,
+including workers created by other workers. Each event contains a snapshot of
+the registered worker thread IDs. The main thread's ID (`0`) is not included.
 
-Registration can occur before a worker is online. Unregistration occurs when the
-parent thread processes the worker's exit, so it can be delayed if the parent
-thread is blocked. The snapshot represents registered messaging ports, not a
-guarantee that the listed workers are ready or still running.
+The registry tracks workers through their internal messaging ports. Registration
+can occur before a worker is online. Removal occurs when the parent thread
+processes the worker's exit and can be delayed if the parent thread is blocked.
+Consequently, a snapshot does not guarantee that every listed worker is ready or
+still running.
 
 #### SQLite
 
