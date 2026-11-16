@@ -977,7 +977,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
     }
 
     // RSA implicit rejection here is not supported by BoringSSL.
-    if (!ctx.setRsaImplicitRejection()) [[unlikely]] {
+    if (!ctx.supportsRsaImplicitRejection()) [[unlikely]] {
       return THROW_ERR_INVALID_ARG_VALUE(
           env,
           "RSA_PKCS1_PADDING is no longer supported for private decryption");

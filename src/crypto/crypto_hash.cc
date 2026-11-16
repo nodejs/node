@@ -437,10 +437,21 @@ bool ShouldRejectMissingXofLength(const EVP_MD* md, size_t default_length) {
 #endif
 }
 
+void ThrowUnsupportedDigestOption(Environment* env,
+                                  Local<Value> algorithm,
+                                  const char* option) {
+  Utf8Value name(env->isolate(), algorithm);
+  THROW_ERR_INVALID_ARG_VALUE(
+      env,
+      "The property 'options.%s' is not supported by digest %s",
+      option,
+      *name);
+}
+
 void OneShotDigestWithMD(Environment* env,
                          const FunctionCallbackInfo<Value>& args,
                          const EVP_MD* md,
-                         const CShakeOptions* options) {
+                         const DigestOptions* options) {
   Isolate* isolate = env->isolate();
   if (md == nullptr) [[unlikely]] {
     Utf8Value method(isolate, args[0]);
@@ -492,69 +503,55 @@ void OneShotDigestWithMD(Environment* env,
     return return_empty_output();
   }
 
-  if (!has_digest_options) {
-    DataPointer output = ([&]() -> DataPointer {
-      if (args[3]->IsString()) {
-        Utf8Value utf8(isolate, args[3]);
-        ncrypto::Buffer<const unsigned char> input = {
-            .data = reinterpret_cast<const unsigned char*>(utf8.out()),
-            .len = static_cast<size_t>(utf8.length()),
-        };
-        return is_xof ? ncrypto::xofHashDigest(input, md, output_length)
-                      : ncrypto::hashDigest(input, md);
+  std::optional<EVPMDCtxPointer> ctx;
+  if (has_digest_options) {
+    ctx.emplace(EVPMDCtxPointer::New());
+    const char* unsupported_option = nullptr;
+    if (!options->Initialize(&*ctx, md, &unsupported_option)) {
+      if (unsupported_option != nullptr) {
+        return ThrowUnsupportedDigestOption(env, args[0], unsupported_option);
       }
-
-      ArrayBufferViewContents<unsigned char> input(args[3]);
-      ncrypto::Buffer<const unsigned char> buffer = {
-          .data = input.data(),
-          .len = input.length(),
-      };
-      return is_xof ? ncrypto::xofHashDigest(buffer, md, output_length)
-                    : ncrypto::hashDigest(buffer, md);
-    })();
-    if (!output) [[unlikely]] {
-      return ThrowCryptoError(env, ERR_get_error());
+      return ThrowCryptoError(
+          env, ERR_get_error(), "Digest options are not supported");
     }
-
-    Local<Value> ret;
-    if (StringBytes::Encode(env->isolate(),
-                            static_cast<const char*>(output.get()),
-                            output.size(),
-                            output_enc)
-            .ToLocal(&ret)) {
-      args.GetReturnValue().Set(ret);
-    }
-    return;
   }
 
-  EVPMDCtxPointer ctx = EVPMDCtxPointer::New();
-  if (!options->Initialize(&ctx, md)) {
-    return ThrowCryptoError(
-        env, ERR_get_error(), "Digest options are not supported");
-  }
-
-  const bool updated = [&]() {
+  bool updated = true;
+  auto digest_input =
+      [&](const ncrypto::Buffer<const unsigned char>& input) -> DataPointer {
+    if (has_digest_options) {
+      if (!ctx->digestUpdate(ncrypto::Buffer<const void>{
+              .data = input.data,
+              .len = input.len,
+          })) {
+        updated = false;
+        return {};
+      }
+      if (output_length == 0) return {};
+      return ctx->digestFinal(output_length);
+    }
+    return is_xof ? ncrypto::xofHashDigest(input, md, output_length)
+                  : ncrypto::hashDigest(input, md);
+  };
+  DataPointer output = [&]() -> DataPointer {
     if (args[3]->IsString()) {
       Utf8Value input(isolate, args[3]);
-      return ctx.digestUpdate(ncrypto::Buffer<const void>{
-          .data = input.out(),
+      return digest_input(ncrypto::Buffer<const unsigned char>{
+          .data = reinterpret_cast<const unsigned char*>(input.out()),
           .len = static_cast<size_t>(input.length()),
       });
     }
 
     ArrayBufferViewContents<unsigned char> input(args[3]);
-    return ctx.digestUpdate(ncrypto::Buffer<const void>{
+    return digest_input(ncrypto::Buffer<const unsigned char>{
         .data = input.data(),
         .len = input.length(),
     });
   }();
-  if (!updated) return ThrowCryptoError(env, ERR_get_error());
-  if (output_length == 0) return return_empty_output();
-  DataPointer output = ctx.digestFinal(output_length);
-
-  if (!output) [[unlikely]] {
+  if (!updated || (output_length != 0 && !output)) [[unlikely]] {
     return ThrowCryptoError(env, ERR_get_error());
   }
+  if (output_length == 0) return return_empty_output();
 
   Local<Value> ret;
   if (StringBytes::Encode(env->isolate(),
@@ -598,22 +595,17 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
 #endif
   }
 
-  if (args.Length() == 9) {
-    CShakeOptions options;
-    if (GetCShakeOptions(args, 7, &options).IsNothing()) return;
-
-    std::optional<ncrypto::Digest> digest_owner;
-    const EVP_MD* md =
-        GetDigestImplementation(env, args[0], args[1], args[2], digest_owner);
-    if (env->isolate()->HasPendingException()) return;
-    return OneShotDigestWithMD(env, args, md, &options);
-  }
-
   std::optional<ncrypto::Digest> digest_owner;
   const EVP_MD* md =
       GetDigestImplementation(env, args[0], args[1], args[2], digest_owner);
   if (env->isolate()->HasPendingException()) return;
-  OneShotDigestWithMD(env, args, md, nullptr);
+
+  std::optional<DigestOptions> options;
+  if (args.Length() == 9) {
+    options.emplace();
+    if (GetDigestOptions(args, 7, md, &*options).IsNothing()) return;
+  }
+  OneShotDigestWithMD(env, args, md, options ? &*options : nullptr);
 }
 
 void Hash::Initialize(Environment* env, Local<Object> target) {
@@ -692,18 +684,20 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   Hash* hash = new Hash(env, args.This());
-  if (args.Length() == 4) {
-    if (md == nullptr || !hash->HashInit(md, xof_md_len)) {
-      return ThrowCryptoError(
-          env, ERR_get_error(), "Digest method not supported");
+  std::optional<DigestOptions> options;
+  if (args.Length() == 6) {
+    options.emplace();
+    if (GetDigestOptions(args, 4, md, &*options).IsNothing()) return;
+  }
+  const char* unsupported_option = nullptr;
+  if (md == nullptr ||
+      !hash->HashInit(
+          md, xof_md_len, options ? &*options : nullptr, &unsupported_option)) {
+    if (unsupported_option != nullptr) {
+      return ThrowUnsupportedDigestOption(env, args[0], unsupported_option);
     }
-  } else {
-    CShakeOptions options;
-    if (GetCShakeOptions(args, 4, &options).IsNothing()) return;
-    if (md == nullptr || !hash->HashInit(md, options, xof_md_len)) {
-      return ThrowCryptoError(
-          env, ERR_get_error(), "Digest method not supported");
-    }
+    return ThrowCryptoError(
+        env, ERR_get_error(), "Digest method not supported");
   }
 
   if (orig != nullptr && !orig->mdctx_.copyTo(hash->mdctx_)) {
@@ -711,8 +705,20 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-bool Hash::FinishHashInit(const EVP_MD* digest,
-                          Maybe<unsigned int> xof_md_len) {
+bool Hash::HashInit(const EVP_MD* digest,
+                    Maybe<unsigned int> xof_md_len,
+                    const DigestOptions* options,
+                    const char** unsupported_option) {
+  mdctx_ = EVPMDCtxPointer::New();
+  const bool initialized =
+      options != nullptr
+          ? options->Initialize(&mdctx_, digest, unsupported_option)
+          : mdctx_.digestInit(digest);
+  if (!initialized) [[unlikely]] {
+    mdctx_.reset();
+    return false;
+  }
+
   md_len_ = mdctx_.getDigestSize();
   if (mdctx_.hasXofFlag() && !xof_md_len.IsJust() &&
       ShouldRejectMissingXofLength(digest, md_len_)) {
@@ -733,28 +739,6 @@ bool Hash::FinishHashInit(const EVP_MD* digest,
   }
 
   return true;
-}
-
-bool Hash::HashInit(const EVP_MD* digest, Maybe<unsigned int> xof_md_len) {
-  mdctx_ = EVPMDCtxPointer::New();
-  if (!mdctx_.digestInit(digest)) [[unlikely]] {
-    mdctx_.reset();
-    return false;
-  }
-
-  return FinishHashInit(digest, xof_md_len);
-}
-
-bool Hash::HashInit(const EVP_MD* digest,
-                    const CShakeOptions& options,
-                    Maybe<unsigned int> xof_md_len) {
-  mdctx_ = EVPMDCtxPointer::New();
-  if (!options.Initialize(&mdctx_, digest)) [[unlikely]] {
-    mdctx_.reset();
-    return false;
-  }
-
-  return FinishHashInit(digest, xof_md_len);
 }
 
 bool Hash::HashUpdate(const char* data, size_t len) {
@@ -879,7 +863,9 @@ Maybe<void> HashTraits::AdditionalConfig(
 
   if (static_cast<unsigned int>(args.Length()) > offset + 3) {
     params->options.emplace();
-    if (GetCShakeOptions(args, offset + 3, &*params->options).IsNothing()) {
+    if (GetDigestOptions(
+            args, offset + 3, params->digest.get(), &*params->options)
+            .IsNothing()) {
       return Nothing<void>();
     }
   }

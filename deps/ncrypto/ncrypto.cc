@@ -7079,18 +7079,16 @@ bool EVPKeyCtxPointer::setRsaPssSaltlen(int salt_len) {
   return EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen(ctx_.get(), salt_len) > 0;
 }
 
-bool EVPKeyCtxPointer::setRsaImplicitRejection() {
+bool EVPKeyCtxPointer::supportsRsaImplicitRejection() const {
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   if (!ctx_) return false;
-  return EVP_PKEY_CTX_ctrl_str(
-             ctx_.get(), "rsa_pkcs1_implicit_rejection", "1") > 0;
-  // From the doc -2 means that the option is not supported.
-  // The default for the option is enabled and if it has been
-  // specifically disabled we want to respect that so we will
-  // not throw an error if the option is supported regardless
-  // of how it is set. The call to set the value
-  // will not affect what is used since a different context is
-  // used in the call if the option is supported
+  const OSSL_PARAM* settable = EVP_PKEY_CTX_settable_params(ctx_.get());
+  // OSSL_ASYM_CIPHER_PARAM_IMPLICIT_REJECTION is not defined by OpenSSL 3.0.
+  const OSSL_PARAM* param =
+      settable == nullptr
+          ? nullptr
+          : OSSL_PARAM_locate_const(settable, "implicit-rejection");
+  return param != nullptr && param->data_type == OSSL_PARAM_UNSIGNED_INTEGER;
 #elif defined(OPENSSL_IS_BORINGSSL)
   // TODO(jasnell): Boringssl appears not to support this operation.
   // Is there an alternative approach that Boringssl does support?

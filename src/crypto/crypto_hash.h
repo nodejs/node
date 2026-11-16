@@ -39,10 +39,10 @@ class Hash final : public BaseObject {
   SET_MEMORY_INFO_NAME(Hash)
   SET_SELF_SIZE(Hash)
 
-  bool HashInit(const EVP_MD* digest, v8::Maybe<unsigned int> xof_md_len);
   bool HashInit(const EVP_MD* digest,
-                const CShakeOptions& options,
-                v8::Maybe<unsigned int> xof_md_len);
+                v8::Maybe<unsigned int> xof_md_len,
+                const DigestOptions* options = nullptr,
+                const char** unsupported_option = nullptr);
   bool HashUpdate(const char* data, size_t len);
 
   static void GetHashes(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -57,11 +57,6 @@ class Hash final : public BaseObject {
   Hash(Environment* env, v8::Local<v8::Object> wrap);
 
  private:
-  // Determines the digest length after mdctx_ has been initialized, applying
-  // and validating the requested XOF output length. Resets mdctx_ and returns
-  // false on failure.
-  bool FinishHashInit(const EVP_MD* digest, v8::Maybe<unsigned int> xof_md_len);
-
   ncrypto::EVPMDCtxPointer mdctx_{};
   unsigned int md_len_ = 0;
   ByteSource digest_;
@@ -70,7 +65,7 @@ class Hash final : public BaseObject {
 struct HashConfig final : public MemoryRetainer {
   ByteSource in;
   ncrypto::Digest digest;
-  std::optional<CShakeOptions> options;
+  std::optional<DigestOptions> options;
   unsigned int length;
 
   HashConfig() = default;
