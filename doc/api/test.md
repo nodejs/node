@@ -5141,6 +5141,32 @@ The attempt number of the suite. This value is zero-based, so the first attempt 
 the second attempt is `1`, and so on. This property is useful in conjunction with the
 `--test-rerun-failures` option to determine the attempt number of the current run.
 
+### `context.tags`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* Type: {string\[]}
+
+A frozen array of the suite's flattened lowercased tags, in declaration
+order, including any tags inherited from ancestor suites. Empty when the
+suite has no tags. See [Test tags][].
+
+### `context.workerId`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number|undefined}
+
+The unique identifier of the worker running the current test file. This value
+is derived from the `NODE_TEST_WORKER_ID` environment variable, and is
+`undefined` when not running in a test context.
+
 ### `context.diagnostic(message)`
 
 <!-- YAML
