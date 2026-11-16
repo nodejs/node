@@ -232,6 +232,32 @@ test('failing test is not swallowed when siblings share its source location', as
   assertAttempt(state, 1);
 });
 
+{
+  // Both fixtures register all of their suites and tests from the same
+  // location in a shared helper. In each mode, the suite that fails must keep
+  // failing on the next attempt, and the ones that passed must be replayed.
+  const a = fixtures.path('test-runner', 'rerun-shared-helper-across-files', 'a.mjs');
+  const b = fixtures.path('test-runner', 'rerun-shared-helper-across-files', 'b.mjs');
+  const modes = [
+    { name: 'process isolation', args: ['--test', a, b], pass: 5 },
+    { name: 'no isolation', args: ['--test', '--test-isolation=none', a, b], pass: 5 },
+    { name: 'a file run without --test', args: [b], pass: 3 },
+  ];
+
+  for (const { name, args, pass } of modes) {
+    test(`failing test in a helper shared by test files is not swallowed with ${name}`, async () => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const { code, signal, stdout } = await common.spawnPromisified(
+          process.execPath, ['--test-rerun-failures', stateFile, ...args]);
+        assert.strictEqual(signal, null);
+        assert.match(stdout, new RegExp(`^ℹ pass ${pass}$`, 'm'), `attempt ${attempt}`);
+        assert.match(stdout, /^ℹ fail 1$/m, `attempt ${attempt}`);
+        assert.strictEqual(code, 1, `attempt ${attempt}`);
+      }
+    });
+  }
+}
+
 test('rerun preserves the original duration on the replayed pass', async () => {
   const durationFixture = fixtures.path('test-runner', 'rerun-duration.js');
   const args = ['--test-rerun-failures', stateFile, durationFixture];
