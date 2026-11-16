@@ -482,6 +482,7 @@
     'node_cctest_openssl_sources': [
       'test/cctest/test_node_crypto.cc',
       'test/cctest/test_node_crypto_env.cc',
+      'test/cctest/test_node_crypto_params.cc',
     ],
     'node_cctest_quic_sources': [
       'test/cctest/test_quic_arena.cc',
