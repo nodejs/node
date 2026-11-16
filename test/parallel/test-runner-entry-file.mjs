@@ -48,6 +48,19 @@ describe('entryFile attribution in reporter events', { concurrency: false }, () 
     assert.strictEqual(backupB.data.entryFile, bPath);
   });
 
+  it('resolves entryFile against the cwd option', async () => {
+    const events = await collectEvents({
+      isolation: 'process',
+      cwd: fixtures.path('test-runner', 'entry-file'),
+      files: ['a.test.mjs', 'b.test.mjs'],
+    });
+    const pass = events.filter(({ type }) => type === 'test:pass');
+    const backupA = pass.find(({ data }) => data.name === 'backup A');
+    const backupB = pass.find(({ data }) => data.name === 'backup B');
+    assert.strictEqual(backupA.data.entryFile, aPath);
+    assert.strictEqual(backupB.data.entryFile, bPath);
+  });
+
   it('does not stamp entryFile with isolation none', async () => {
     const events = await collectEvents({ isolation: 'none' });
     for (const { data } of events) {
