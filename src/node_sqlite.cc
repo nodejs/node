@@ -369,6 +369,8 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, Database* db) {
     }
   }
 
+  if (db->ThrowIfPermissionDenied()) return;
+
   Local<Object> e;
   if (CreateSQLiteError(isolate, db->Connection()).ToLocal(&e)) {
     isolate->ThrowException(e);
@@ -649,7 +651,9 @@ class BackupJob : public ThreadPoolWork {
     Local<Promise::Resolver> resolver =
         Local<Promise::Resolver>::New(env()->isolate(), resolver_);
     if (backup_status_ != SQLITE_OK) {
-      Settle(resolver, CreateSQLiteError(isolate, dest_.get()), {});
+      Settle(resolver,
+             PermissionErrorOr(CreateSQLiteError(isolate, dest_.get())),
+             {});
       return;
     }
 
@@ -680,7 +684,9 @@ class BackupJob : public ThreadPoolWork {
 
     if (!(backup_status_ == SQLITE_OK || backup_status_ == SQLITE_DONE ||
           backup_status_ == SQLITE_BUSY || backup_status_ == SQLITE_LOCKED)) {
-      Settle(resolver, CreateSQLiteError(isolate, backup_status_), {});
+      Settle(resolver,
+             PermissionErrorOr(CreateSQLiteError(isolate, backup_status_)),
+             {});
       return;
     }
 
@@ -752,6 +758,16 @@ class BackupJob : public ThreadPoolWork {
   }
 
  private:
+  MaybeLocal<Value> PermissionErrorOr(MaybeLocal<Object> sqlite_error) {
+    if (permission_vfs_ != nullptr) {
+      if (auto denied = permission_vfs_->TakeDenied(backup_status_)) {
+        return permission::CreateAccessDeniedError(
+            env(), denied->scope, denied->path);
+      }
+    }
+    return sqlite_error;
+  }
+
   // The single exit point of a backup. Rejects with `error` if it is set,
   // otherwise resolves with `value` if it is set. Neither being set means an
   // exception is already pending. Deletes the job.
@@ -1621,20 +1637,27 @@ void Database::MemoryInfo(MemoryTracker* tracker) const {
       "open_config", sizeof(open_config_), "DatabaseOpenConfiguration");
 }
 
+bool Database::ThrowIfPermissionDenied() {
+  if (permission_vfs_ == nullptr) return false;
+  auto denied = permission_vfs_->TakeDenied(sqlite3_errcode(connection_.get()));
+  if (!denied) return false;
+  permission::Permission::ThrowAccessDenied(env(), denied->scope, denied->path);
+  return true;
+}
+
 bool Database::Open() {
   if (IsOpen()) {
     THROW_ERR_INVALID_STATE(env(), "database is already open");
     return false;
   }
 
-  // Checked here, not only in the VFS, to throw Node's permission error.
-  std::string_view db_path = open_config_.location();
-  if (db_path != ":memory:") {
+  // An anonymous temporary database has no path for the VFS to check.
+  if (open_config_.location().empty()) {
     THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env(), permission::PermissionScope::kFileSystemRead, db_path, false);
+        env(), permission::PermissionScope::kFileSystemRead, "", false);
     if (!open_config_.get_read_only()) {
       THROW_IF_INSUFFICIENT_PERMISSIONS(
-          env(), permission::PermissionScope::kFileSystemWrite, db_path, false);
+          env(), permission::PermissionScope::kFileSystemWrite, "", false);
     }
   }
 

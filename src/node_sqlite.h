@@ -296,6 +296,8 @@ class Database : public BaseObject {
   std::shared_ptr<SQLitePermissionVFS> PermissionVFS() const {
     return permission_vfs_;
   }
+  // Throws the permission error if the permission VFS caused the last failure.
+  bool ThrowIfPermissionDenied();
 
   // In some situations, such as when using custom functions, it is possible
   // that SQLite reports an error while JavaScript already has a pending

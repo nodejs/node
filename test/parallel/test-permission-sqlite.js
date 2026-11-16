@@ -128,12 +128,7 @@ run(readWrite, readWriteGrant(dbPath));
     const attachPath = process.env.ATTACH_PATH.replaceAll("'", "''");
     db.exec("ATTACH DATABASE '" + attachPath + "' AS outside");`;
   for (const attachPath of [deniedPath, suffixDbPath]) {
-    run(
-      code,
-      readWriteGrant(dbPath),
-      { status: 1, stderr: /unable to open database/ },
-      { ATTACH_PATH: attachPath },
-    );
+    run(code, readWriteGrant(dbPath), accessDenied, { ATTACH_PATH: attachPath });
   }
   assert.strictEqual(fs.existsSync(suffixDbPath), false);
 }
@@ -148,7 +143,7 @@ run(readWrite, readWriteGrant(dbPath));
     const code = `const { DatabaseSync } = require('node:sqlite');
       const db = new DatabaseSync(':memory:');
       ${attach}`;
-    run(code, [], { status: 1, stderr: /unable to open database/ });
+    run(code, [], accessDenied);
   }
 }
 
@@ -186,8 +181,8 @@ if (!common.isWindows) {
     try {
       await backup(db, process.env.BACKUP_PATH);
       process.exitCode = 1;
-    } catch {
-      process.exitCode = 0;
+    } catch (err) {
+      process.exitCode = err.code === 'ERR_ACCESS_DENIED' ? 0 : 1;
     }
   })();`;
   for (const [permissions, destination] of [
@@ -197,6 +192,44 @@ if (!common.isWindows) {
     run(code, permissions, {}, { BACKUP_PATH: destination });
     assert.strictEqual(fs.existsSync(destination), false);
   }
+}
+
+{
+  // Audit mode reports denied ATTACH and backup paths without denying them.
+  const attachPath = tmpdir.resolve('audit-attach.sqlite');
+  const auditBackupPath = tmpdir.resolve('audit-backup.sqlite');
+  const code = `(async () => {
+    const messages = [];
+    require('node:diagnostics_channel').subscribe(
+      'node:permission-model:fs',
+      (m) => messages.push(m.permission + ' ' + m.resource));
+    const { backup, DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(':memory:');
+    db.prepare('ATTACH ? AS outside').run(process.env.ATTACH_PATH);
+    await backup(db, process.env.BACKUP_PATH);
+    db.close();
+    setImmediate(() => console.log(JSON.stringify(messages)));
+  })();`;
+  spawnSyncAndAssert(
+    process.execPath,
+    ['--permission-audit', '--eval', code.replace(/\n/g, ' ')],
+    {
+      env: {
+        ...process.env,
+        ATTACH_PATH: attachPath,
+        BACKUP_PATH: auditBackupPath,
+      },
+    },
+    {
+      stdout(output) {
+        assert.deepStrictEqual(JSON.parse(output), [
+          'FileSystemRead ' + attachPath,
+          'FileSystemRead ' + auditBackupPath,
+        ]);
+      },
+    },
+  );
+  assert.strictEqual(fs.existsSync(auditBackupPath), true);
 }
 
 {

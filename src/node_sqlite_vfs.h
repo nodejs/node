@@ -3,8 +3,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_mutex.h"
+#include "permission/permission_base.h"
 #include "sqlite3.h"
 
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -20,6 +23,11 @@ namespace sqlite {
 
 class SQLitePermissionVFS {
  public:
+  struct Denial {
+    permission::PermissionScope scope;
+    std::string path;
+  };
+
   explicit SQLitePermissionVFS(Environment* env);
   ~SQLitePermissionVFS();
 
@@ -40,11 +48,15 @@ class SQLitePermissionVFS {
   int FullPathname(const char* name, int length, char* output) const;
   void* DlOpen(const char* name);
 
+  // The denial behind a failed SQLite call, if errcode is SQLITE_PERM.
+  std::optional<Denial> TakeDenied(int errcode);
+
   bool AllowsPath(const char* path, bool read, bool write) const;
   bool AllowsTemporaryFile(bool read, bool write) const;
 
  private:
   bool AllowsSidecarPath(const char* path, bool read, bool write) const;
+  bool AllowsDatabase(const char* path, bool read, bool write);
   bool AllowsCanonicalPath(std::string_view path, bool read, bool write) const;
 
   sqlite3_vfs vfs_{};
@@ -54,6 +66,8 @@ class SQLitePermissionVFS {
   permission::Permission* permission_ = nullptr;
   std::string name_;
   bool registered_ = false;
+  Mutex denied_mutex_;
+  std::optional<Denial> denied_;
 };
 
 }  // namespace sqlite

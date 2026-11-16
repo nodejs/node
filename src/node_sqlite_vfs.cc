@@ -10,6 +10,7 @@
 #include <cstring>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace node {
 namespace sqlite {
@@ -60,8 +61,8 @@ std::string CanonicalPath(const SQLitePermissionVFS* vfs, const char* path) {
   // may receive names produced by SQLite itself. Canonicalize those names
   // before consulting Node's path permission tree.
   std::string result(static_cast<size_t>(vfs->parent()->mxPathname) + 1, '\0');
-  if (vfs->FullPathname(
-          path, static_cast<int>(result.size()), result.data()) != SQLITE_OK) {
+  if (vfs->FullPathname(path, static_cast<int>(result.size()), result.data()) !=
+      SQLITE_OK) {
     return {};
   }
   result.resize(strlen(result.c_str()));
@@ -493,6 +494,45 @@ bool SQLitePermissionVFS::AllowsSidecarPath(const char* path,
          AllowsCanonicalPath(database_path, read, write);
 }
 
+bool SQLitePermissionVFS::AllowsDatabase(const char* path,
+                                         bool read,
+                                         bool write) {
+  using permission::PermissionScope;
+  const std::string canonical = CanonicalPath(this, path);
+  if (!canonical.empty()) {
+    const auto denied = [&](PermissionScope scope) {
+      return !permission_->is_granted_quiet(env_, scope, canonical);
+    };
+    PermissionScope scope;
+    if (read && denied(PermissionScope::kFileSystemRead)) {
+      scope = PermissionScope::kFileSystemRead;
+    } else if (write && denied(PermissionScope::kFileSystemWrite)) {
+      scope = PermissionScope::kFileSystemWrite;
+    } else {
+      return true;
+    }
+
+    if (!permission_->warning_only()) {
+      Mutex::ScopedLock lock(denied_mutex_);
+      denied_ = Denial{scope, canonical};
+    }
+    // SQLite calls the VFS on worker threads and while it must not be
+    // reentered, so the denial is published later, from the main thread.
+    env_->SetImmediateThreadsafe([scope, canonical](Environment* env) {
+      env->permission()->PublishDenied(env, scope, canonical);
+    });
+  }
+  return permission_->warning_only();
+}
+
+std::optional<SQLitePermissionVFS::Denial> SQLitePermissionVFS::TakeDenied(
+    int errcode) {
+  Mutex::ScopedLock lock(denied_mutex_);
+  std::optional<Denial> denied = std::exchange(denied_, std::nullopt);
+  // Dropped on any other error so that it is not reported for a later one.
+  return (errcode & 0xff) == SQLITE_PERM ? denied : std::nullopt;
+}
+
 bool SQLitePermissionVFS::AllowsTemporaryFile(bool read, bool write) const {
   // SQLite does not provide a pathname for anonymous temporary files. Disk
   // storage is allowed only with global permissions. Otherwise xOpen uses
@@ -534,11 +574,14 @@ int SQLitePermissionVFS::Open(sqlite3_filename name,
       }
     }
 
+    // A denied journal implies a denied database, which was reported when
+    // the database was opened.
     const bool allowed =
         permission_name != nullptr &&
         ((flags & SQLITE_OPEN_SUPER_JOURNAL)
              ? AllowsSidecarPath(permission_name, read, write)
-             : AllowsPath(permission_name, read, write));
+         : is_journal ? AllowsPath(permission_name, read, write)
+                      : AllowsDatabase(permission_name, read, write));
     if (!allowed) return SQLITE_PERM;
 
     if (flags & SQLITE_OPEN_MAIN_DB) {
