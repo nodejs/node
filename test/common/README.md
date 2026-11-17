@@ -884,6 +884,24 @@ socket.write(frame.data);
 
 The serialized `Buffer` may be retrieved using the `frame.data` property.
 
+### Class: `DataFrame`
+
+The `http2.DataFrame` is a subclass of `http2.Frame` that serializes a `DATA`
+frame.
+
+<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
+
+```js
+// id is the 32-bit stream identifier
+// payload is a Buffer containing the DATA payload
+// padlen is an 8-bit integer giving the number of padding bytes to include
+// final is a boolean indicating whether the End-of-stream flag should be set,
+// defaults to false.
+const frame = new http2.DataFrame(id, payload, padlen, final);
+
+socket.write(frame.data);
+```
+
 ### Class: `HeadersFrame`
 
 The `http2.HeadersFrame` is a subclass of `http2.Frame` that serializes a
@@ -899,6 +917,21 @@ The `http2.HeadersFrame` is a subclass of `http2.Frame` that serializes a
 // final is a boolean indicating whether the End-of-stream flag should be set,
 // defaults to false.
 const frame = new http2.HeadersFrame(id, payload, padlen, final);
+
+socket.write(frame.data);
+```
+
+### Class: `RstStreamFrame`
+
+The `http2.RstStreamFrame` is a subclass of `http2.Frame` that serializes an
+`RST_STREAM` frame.
+
+<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
+
+```js
+// id is the 32-bit stream identifier
+// code is the 32-bit error code, defaults to 0 (NO_ERROR).
+const frame = new http2.RstStreamFrame(id, code);
 
 socket.write(frame.data);
 ```
