@@ -27,10 +27,13 @@ spawnSyncAndAssert(process.execPath, [
   stdout(output) {
     assertProbeJson(output, {
       v: 2,
+      target: { argv: ['probe.js'] },
+      // The script is parsed after the breakpoints are bound, so the locations
+      // come from the resolution reported from parsing the script.
       probes: [
-        { expr: 'index', target: { suffix: 'probe.js', line: 8 } },
-        { expr: 'total', target: { suffix: 'probe.js', line: 8 } },
-        { expr: 'finalValue', target: { suffix: 'probe.js', line: 12 } },
+        { expr: 'index', target: { suffix: 'probe.js', line: 8 }, locations: [locationAt8] },
+        { expr: 'total', target: { suffix: 'probe.js', line: 8 }, locations: [locationAt8] },
+        { expr: 'finalValue', target: { suffix: 'probe.js', line: 12 }, locations: [locationAt12] },
       ],
       results: [
         {
