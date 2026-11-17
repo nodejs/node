@@ -20,9 +20,9 @@ use crate::map::{MutableZeroVecLike, ZeroVecLike};
 /// This is an extension of [`ZeroMap`] that supports two layers of keys. For example,
 /// to map a pair of an integer and a string to a buffer, you can write:
 ///
-/// ```no_run
+/// ```
 /// # use zerovec::ZeroMap2d;
-/// let _: ZeroMap2d<u32, str, [u8]> = unimplemented!();
+/// ZeroMap2d::<u32, str, [u8]>::new();
 /// ```
 ///
 /// Internally, `ZeroMap2d` stores four zero-copy vectors, one for each type argument plus

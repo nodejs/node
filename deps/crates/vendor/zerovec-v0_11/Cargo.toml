@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.83"
 name = "zerovec"
-version = "0.11.8"
+version = "0.11.9"
 authors = ["The ICU4X Project Developers"]
 build = false
 include = [
@@ -140,7 +140,7 @@ optional = true
 default-features = false
 
 [dependencies.yoke]
-version = "0.8.3"
+version = "0.8.4"
 optional = true
 default-features = false
 
@@ -149,7 +149,7 @@ version = "0.1.6"
 default-features = false
 
 [dependencies.zerovec-derive]
-version = "0.11.5"
+version = "0.11.7"
 optional = true
 default-features = false
 
@@ -193,7 +193,7 @@ default-features = false
 version = "1.0.45"
 
 [dev-dependencies.yoke]
-version = "0.8.3"
+version = "0.8.4"
 features = ["derive"]
 default-features = false
 

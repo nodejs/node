@@ -11,7 +11,7 @@ use crate::options::DateFromFieldsOptions;
 use crate::options::{DateAddOptions, DateDifferenceOptions};
 use crate::preferences::CalendarAlgorithm;
 use crate::types::EraYear;
-use crate::{types, Calendar};
+use crate::{Calendar, types};
 use calendrical_calculations::rata_die::RataDie;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -22,7 +22,7 @@ pub(crate) trait GregorianYears: Clone + core::fmt::Debug {
     const EXTENDED_YEAR_OFFSET: i32 = 0;
 
     fn extended_from_era_year(&self, era: Option<&[u8]>, year: i32)
-        -> Result<i32, UnknownEraError>;
+    -> Result<i32, UnknownEraError>;
 
     fn era_year_from_extended(&self, extended_year: i32, month: u8, day: u8) -> EraYear;
 
