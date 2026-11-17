@@ -233,7 +233,7 @@ void InliningTree::Inline() {
     // Feedback found. Populate the `function_calls_` vector with child nodes.
     const FunctionTypeFeedback& feedback = feedback_it->second;
     base::Vector<CallSiteFeedback> type_feedback =
-        feedback.feedback_vector.as_vector();
+        feedback.feedback_vector.as_span();
     if (!type_feedback.empty()) {
       DCHECK_EQ(type_feedback.size(), feedback.call_targets.size());
       feedback_found_ = true;

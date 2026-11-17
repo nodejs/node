@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the implemenation for single-precision SIMD asinpi.
+/// This file contains the implementation for single-precision SIMD asinpi.
 ///
 //===----------------------------------------------------------------------===//
 

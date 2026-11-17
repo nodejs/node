@@ -2,6 +2,10 @@ header: net/if.h
 standards:
   - posix
 macros:
+  - macro_name: IFNAMSIZ
+    standards:
+      - bsd
+    macro_header: net-if-macros.h
   - macro_name: IF_NAMESIZE
     macro_header: net-if-macros.h
 types:

@@ -7,6 +7,7 @@
 
 #include <array>
 #include <optional>
+#include <span>
 #include <tuple>
 
 #include "src/base/hashing.h"
@@ -83,6 +84,13 @@ V8_INLINE size_t fast_hash_range(Iterator first, Iterator last) {
 template <typename T>
 struct fast_hash<base::Vector<T>> {
   V8_INLINE size_t operator()(base::Vector<T> v) const {
+    return fast_hash_range(v.begin(), v.end());
+  }
+};
+
+template <typename T, size_t N>
+struct fast_hash<std::span<T, N>> {
+  V8_INLINE size_t operator()(std::span<T, N> v) const {
     return fast_hash_range(v.begin(), v.end());
   }
 };

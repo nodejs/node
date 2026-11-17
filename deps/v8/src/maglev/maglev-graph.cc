@@ -167,7 +167,7 @@ bool Graph::MayNeedContextPhis() const {
 #endif  // DEBUG
 
 ValueNode* Graph::GetTrustedConstant(compiler::HeapObjectRef ref,
-                                     IndirectPointerTag tag) {
+                                     TrustedPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   auto it = trusted_constants_.find(ref);
   if (it == trusted_constants_.end()) {

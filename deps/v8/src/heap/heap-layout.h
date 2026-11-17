@@ -80,6 +80,13 @@ class TrustedHeapLayout final : public AllStatic {
   // Returns whether `object` is allocated on a black page (during
   // incremental/concurrent marking).
   static V8_INLINE bool InBlackAllocatedPage(Tagged<HeapObject> object);
+
+  // Returns whether `object` is in the young generation.
+  static V8_INLINE bool InYoungGeneration(Tagged<HeapObject> object);
+
+ private:
+  V8_EXPORT_PRIVATE static bool InYoungGenerationForStickyMarkbits(
+      Tagged<HeapObject> object);
 };
 
 }  // namespace v8::internal

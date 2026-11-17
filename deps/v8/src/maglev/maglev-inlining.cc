@@ -167,6 +167,32 @@ MaglevCallSiteInfo* MaglevInliner::ChooseNextCallSite() {
   return call_site;
 }
 
+namespace {
+
+bool IsMatchingTarget(compiler::JSHeapBroker* broker, ValueNode* function,
+                      compiler::FeedbackCellRef feedback_cell,
+                      compiler::SharedFunctionInfoRef shared) {
+  if (FastCreateClosure* fast_closure =
+          function->TryCast<FastCreateClosure>()) {
+    return fast_closure->feedback_cell().equals(feedback_cell) &&
+           fast_closure->shared_function_info().equals(shared);
+  }
+  if (CreateClosure* slow_closure = function->TryCast<CreateClosure>()) {
+    return slow_closure->feedback_cell().equals(feedback_cell) &&
+           slow_closure->shared_function_info().equals(shared);
+  }
+  if (IsConstantNode(function->opcode())) {
+    HeapConstant* constant = function->TryCast<HeapConstant>();
+    return constant != nullptr && constant->ref().IsJSFunction() &&
+           constant->ref().AsJSFunction().raw_feedback_cell(broker).equals(
+               feedback_cell) &&
+           constant->ref().AsJSFunction().shared(broker).equals(shared);
+  }
+  return true;
+}
+
+}  // namespace
+
 MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
     MaglevCallSiteInfo* call_site, bool is_small) {
   CallKnownJSFunction* call_node = call_site->generic_call_node;
@@ -183,6 +209,19 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
     TRACE_INLINING(TraceSkip(shared)
                    << "The block containing the call is unreachable.");
     return InliningResult::kFail;
+  }
+
+  ValueNode* function = call_node->TargetInput().node()->Unwrap();
+  if (!IsMatchingTarget(broker(), function, call_site->feedback_cell, shared)) {
+    TRACE_INLINING(TraceSkip(shared)
+                   << "Target does not match call site; truncating block.");
+    // The preceding CheckInstanceType / CheckValue in call_block will
+    // unconditionally eager-deopt before reaching call_node, so call_node and
+    // the remainder of call_block are unreachable.
+    call_block->TruncateAt(call_node);
+    call_block->OverwriteControlWithAbort(AbortReason::kUnreachable);
+    graph_->set_may_have_unreachable_blocks(true);
+    return InliningResult::kDone;
   }
 
   TRACE_INLINING(TraceInline(shared));
@@ -216,8 +255,9 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
       call_block->Split(call_node, zone());
 
   // Create a new compilation unit.
+  ValueNode* context = call_node->ContextInput().node()->Unwrap();
   MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
-      zone(), caller_unit, shared, call_site->feedback_cell);
+      zone(), caller_unit, shared, call_site->feedback_cell, context, function);
 
   const int start_node_count = graph_->total_nodes();
 
@@ -258,9 +298,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   // remove the uses from the call node_inputs when overwriting the returned
   // value.
   ReduceResult result = inner_graph_builder.BuildInlineFunction(
-      caller_deopt_frame->GetSourcePosition(),
-      call_node->ContextInput().node()->Unwrap(),
-      call_node->TargetInput().node()->Unwrap(),
+      caller_deopt_frame->GetSourcePosition(), context, function,
       call_node->NewTargetInput().node()->Unwrap());
 
   // Budget accounting. We distinguish between small and regular function

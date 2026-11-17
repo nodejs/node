@@ -244,14 +244,14 @@ TNode<Object> CodeStubAssembler::FastCloneJSObject(
   return target;
 }
 
-template <IndirectPointerTagRange tag_range>
+template <TrustedPointerTagRange tag_range>
 inline TNode<TrustedTypeFor<tag_range>>
 CodeStubAssembler::LoadTrustedPointerFromObject(TNode<HeapObject> object,
                                                 int field_offset) {
   using T = TrustedTypeFor<tag_range>;
 #ifdef V8_ENABLE_SANDBOX
   return TrustedCast<T>(
-      LoadIndirectPointerFromObject(object, field_offset, tag_range),
+      LoadTrustedPointerFromObject(object, field_offset, tag_range),
       "type tagged handle");
 #else
   return TrustedCast<T>(LoadObjectField<Object>(object, field_offset),
@@ -264,7 +264,7 @@ CodeStubAssembler::LoadTrustedPointerFromObject(TNode<HeapObject> object,
 TNode<WasmInternalFunction>
 CodeStubAssembler::LoadWasmInternalFunctionFromFuncRef(
     TNode<WasmFuncRef> func_ref) {
-  return LoadTrustedPointerFromObject<kWasmInternalFunctionIndirectPointerTag>(
+  return LoadTrustedPointerFromObject<kWasmInternalFunctionTrustedPointerTag>(
       func_ref, offsetof(WasmFuncRef, trusted_internal_));
 }
 

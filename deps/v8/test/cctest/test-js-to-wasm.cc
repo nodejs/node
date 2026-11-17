@@ -298,8 +298,7 @@ class FastJSWasmCallTester {
 
   void DeclareCallback(const char* name, FunctionSig* signature,
                        const char* module) {
-    builder_->AddImport(base::CStrVector(name), signature,
-                        base::CStrVector(module));
+    builder_->AddImport(name, signature, module);
   }
 
   void AddExportedFunction(const ExportedFunction& exported_func) {
@@ -308,8 +307,8 @@ class FastJSWasmCallTester {
     func->EmitCode(exported_func.code.data(),
                    static_cast<uint32_t>(exported_func.code.size()));
     func->Emit(kExprEnd);
-    builder_->AddExport(base::CStrVector(exported_func.name.c_str()),
-                        kExternalFunction, func->func_index());
+    builder_->AddExport(exported_func.name, kExternalFunction,
+                        func->func_index());
 
     // JS-to-Wasm inlining is disabled when targeting 32 bits if the Wasm
     // function signature contains an I64.
@@ -590,7 +589,8 @@ class FastJSWasmCallTester {
                               ModuleTypeIndex supertype = kNoSuperType,
                               bool is_final = false) {
     return builder_->AddArrayType(
-        zone_.New<ArrayType>(element_type, mutability), is_final, supertype);
+        zone_.New<ArrayType>(element_type, mutability, SharedFlag{false}),
+        is_final, supertype);
   }
 
  private:
@@ -606,11 +606,11 @@ class FastJSWasmCallTester {
     auto it = buffer.begin();
     if (it != buffer.end()) {
       string_stream << "0x" << std::setfill('0') << std::setw(2) << std::hex
-                    << static_cast<int>(*it++);
+                    << static_cast<int>(*it++) << std::dec;
     }
     while (it != buffer.end()) {
       string_stream << ", 0x" << std::setfill('0') << std::setw(2) << std::hex
-                    << static_cast<int>(*it++);
+                    << static_cast<int>(*it++) << std::dec;
     }
     string_stream << "]";
     return string_stream.str();

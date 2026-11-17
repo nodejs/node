@@ -5,9 +5,9 @@
 #include "src/objects/map-updater.h"
 
 #include <optional>
-#include <queue>
 
 #include "src/base/platform/mutex.h"
+#include "src/base/small-vector.h"
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
@@ -1279,18 +1279,21 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
     JSObject::InvalidatePrototypeChains(*map);
   }
 
-  std::queue<Tagged<Map>> backlog;
-  backlog.push(*map);
-  std::vector<Tagged<Map>> sidestep_transition;
+  // Use SmallVector with an index cursor for BFS traversal instead of
+  // std::queue (backed by std::deque) to avoid a 4 KiB heap allocation for
+  // typical transition trees.
+  base::SmallVector<Tagged<Map>, 64> backlog;
+  backlog.push_back(*map);
+  base::SmallVector<Tagged<Map>, 16> sidestep_transition;
 
   ReadOnlyRoots roots(isolate);
-  while (!backlog.empty()) {
-    Tagged<Map> current = backlog.front();
-    backlog.pop();
+  size_t i = 0;
+  while (i < backlog.size()) {
+    Tagged<Map> current = backlog[i++];
 
     TransitionsAccessor transitions(isolate, current);
     transitions.ForEachTransition(
-        &no_gc, [&](Tagged<Map> target) { backlog.push(target); },
+        &no_gc, [&](Tagged<Map> target) { backlog.push_back(target); },
         [&](Tagged<Object> target) {
           if (!target.IsSmi() && !Cast<Map>(target)->is_deprecated()) {
             sidestep_transition.push_back(Cast<Map>(target));

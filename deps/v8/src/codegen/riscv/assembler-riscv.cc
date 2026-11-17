@@ -34,6 +34,8 @@
 
 #include "src/codegen/riscv/assembler-riscv.h"
 
+#include <array>
+
 #include "src/base/bits.h"
 #include "src/base/cpu/cpu.h"
 #include "src/codegen/assembler-inl.h"
@@ -540,10 +542,10 @@ void Assembler::DisassembleInstructionHelper(uint8_t* pc) {
   CHECK(v8_flags.riscv_debug);
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  base::EmbeddedVector<char, 128> disasm_buffer;
+  std::array<char, 128> disasm_buffer;
 
   disasm.InstructionDecode(disasm_buffer, pc);
-  DEBUG_PRINTF("%s\n", disasm_buffer.begin());
+  DEBUG_PRINTF("%s\n", disasm_buffer.data());
 }
 
 void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {

@@ -87,7 +87,8 @@ add_header_library(
     cosf.h
   DEPENDS
     libc.src.__support.CPP.simd
-    libc.src.__support.math.cosf
+    libc.src.__support.FPUtil.fp_bits
+    libc.src.__support.macros.properties.cpu_features
 )
 
 add_header_library(

@@ -30,7 +30,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       ])
       .exportFunc();
   const instance1 = builder1.instantiate();
-  const mem1 = new Int32Array(instance1.exports.memory.buffer);
+  const mem1 = new DataView(instance1.exports.memory.buffer);
 
   const builder2 = new WasmModuleBuilder();
   builder2.addMemory(1, 1);
@@ -40,17 +40,17 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       .addBody([kExprLocalGet, 0, kExprCallFunction, 0])
       .exportFunc();
   const instance2 = builder2.instantiate({mod: {store: instance1.exports.store}});
-  const mem2 = new Int32Array(instance2.exports.memory.buffer);
+  const mem2 = new DataView(instance2.exports.memory.buffer);
 
-  assertEquals(0, mem1[0]);
-  assertEquals(0, mem2[0]);
+  assertEquals(0, mem1.getInt32(0, true));
+  assertEquals(0, mem2.getInt32(0, true));
   instance2.exports.call_store(3);
-  assertEquals(3, mem1[0]);
-  assertEquals(0, mem2[0]);
+  assertEquals(3, mem1.getInt32(0, true));
+  assertEquals(0, mem2.getInt32(0, true));
   %FreezeWasmLazyCompilation(instance1);
   %FreezeWasmLazyCompilation(instance2);
   instance2.exports.call_store(7);
-  assertEquals(7, mem1[0]);
+  assertEquals(7, mem1.getInt32(0, true));
 })();
 
 (function exportImportedFunction() {
@@ -83,7 +83,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       ])
       .exportFunc();
   const instance1 = builder1.instantiate();
-  const mem1 = new Int32Array(instance1.exports.memory.buffer);
+  const mem1 = new DataView(instance1.exports.memory.buffer);
 
   const builder2 = new WasmModuleBuilder();
   builder2.addMemory(1, 1);
@@ -91,13 +91,13 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   const imp_idx = builder2.addImport('A', 'store', kSig_v_i);
   builder2.addExport('exp_store', imp_idx);
   const instance2 = builder2.instantiate({A: instance1.exports});
-  const mem2 = new Int32Array(instance2.exports.memory.buffer);
+  const mem2 = new DataView(instance2.exports.memory.buffer);
 
   instance2.exports.exp_store(3);
-  assertEquals(3, mem1[0]);
-  assertEquals(0, mem2[0]);
+  assertEquals(3, mem1.getInt32(0, true));
+  assertEquals(0, mem2.getInt32(0, true));
   %FreezeWasmLazyCompilation(instance1);
   %FreezeWasmLazyCompilation(instance2);
   instance2.exports.exp_store(7);
-  assertEquals(7, mem1[0]);
+  assertEquals(7, mem1.getInt32(0, true));
 })();

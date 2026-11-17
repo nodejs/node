@@ -7,8 +7,8 @@
 
 #ifdef V8_INTL_SUPPORT
 #include "src/base/logging.h"
+#include "src/base/strings.h"
 #include "src/common/globals.h"
-
 #include "unicode/uchar.h"
 #include "unicode/uniset.h"
 
@@ -53,6 +53,12 @@ namespace regexp {
 // another character. Characters that match no other characters in
 // their equivalence class are added to IgnoreSet. The generator verifies
 // that each Unicode class has at most one non-trivial JS class.
+// Supplementary code points are ignored throughout: non-unicode matching
+// compares UTF-16 code units, so they can never match a BMP character.
+//
+// The generator additionally emits SupplementaryEquivalentsSet, the BMP
+// characters whose Unicode case closure contains supplementary code points.
+// This set is used for unicode-mode matching, see HasSupplementaryEquivalents.
 
 class V8_EXPORT_PRIVATE CaseFolding final : public AllStatic {
  public:
@@ -75,9 +81,9 @@ class V8_EXPORT_PRIVATE CaseFolding final : public AllStatic {
       set.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
       return;
     }
+    DCHECK(!set.containsSome(0x10000, 0x10ffff));
     if (IgnoreSet().containsNone(set)) {
-      set.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
-      set.removeAll(IgnoreSet());
+      CloseOverNonUnicode(set);
       return;
     }
     if (IgnoreSet().containsAll(set)) return;
@@ -86,13 +92,25 @@ class V8_EXPORT_PRIVATE CaseFolding final : public AllStatic {
     icu::UnicodeSet ignored(set);
     ignored.retainAll(IgnoreSet());
     set.removeAll(IgnoreSet());
-    set.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
-    set.removeAll(IgnoreSet());
+    CloseOverNonUnicode(set);
     set.addAll(ignored);
+  }
+
+  // Whether c has supplementary Unicode case equivalents.
+  static bool HasSupplementaryEquivalents(base::uc16 c) {
+    return SupplementaryEquivalentsSet().contains(c);
   }
 
  private:
   static const icu::UnicodeSet& IgnoreSet();
+  static const icu::UnicodeSet& SupplementaryEquivalentsSet();
+
+  // Requires a set containing no IgnoreSet characters.
+  static void CloseOverNonUnicode(icu::UnicodeSet& set) {
+    set.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
+    set.removeAll(IgnoreSet());
+    set.remove(0x10000, 0x10ffff);
+  }
 };
 
 }  // namespace regexp

@@ -1,0 +1,3 @@
+Checks that setting a breakpoint on a function with no breakable positions does not crash.
+Setting breakpoint on loop function...
+Breakpoint result: {"breakpointId":"1:2:0:loop.js","locations":[{"scriptId":"3","lineNumber":2,"columnNumber":6}]}

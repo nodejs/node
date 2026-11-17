@@ -285,6 +285,9 @@ class V8_EXPORT String : public Name {
      * Internally V8 will call this Unaccount method when the external string
      * resource should be unaccounted for. This method can be overridden in
      * subclasses to control how allocated external bytes are accounted.
+     *
+     * Implementations must not allocate on the V8 heap, trigger garbage
+     * collection, or execute JavaScript.
      */
     virtual void Unaccount(Isolate* isolate) {}
 
@@ -331,6 +334,9 @@ class V8_EXPORT String : public Name {
      * resource is no longer needed. The default implementation will use the
      * delete operator. This method can be overridden in subclasses to
      * control how allocated external string resources are disposed.
+     *
+     * Implementations must not allocate on the V8 heap, trigger garbage
+     * collection, or execute JavaScript.
      */
     virtual void Dispose() { delete this; }
 

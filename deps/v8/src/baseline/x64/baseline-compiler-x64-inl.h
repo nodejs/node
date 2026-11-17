@@ -84,14 +84,21 @@ void BaselineCompiler::PrologueFillFrame() {
     __ masm()->decl(scratch);
     __ masm()->j(greater, &loop);
   }
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL &&
+      (bytecode_->register_count() & 1) != 0) {
+    __ Push(kInterpreterAccumulatorRegister);
+  }
 }
 
 void BaselineCompiler::VerifyFrameSize() {
   ASM_CODE_COMMENT(&masm_);
   __ Move(kScratchRegister, rsp);
-  __ masm()->addq(kScratchRegister,
-                  Immediate(InterpreterFrameConstants::kFixedFrameSizeFromFp +
-                            bytecode_->frame_size()));
+  __ masm() -> addq(
+      kScratchRegister,
+      Immediate(RoundUp(
+          InterpreterFrameConstants::kFixedFrameSizeFromFp +
+              bytecode_->frame_size(),
+          V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? 2 * kSystemPointerSize : 1)));
   __ masm()->cmpq(kScratchRegister, rbp);
   __ masm()->Assert(equal, AbortReason::kUnexpectedStackPointer);
 }

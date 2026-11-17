@@ -253,31 +253,52 @@ class MoveInterpreter : public GapResolver::Assembler {
     moves->AddMove(*source, stack_slot);
     state_.ExecuteMove(zone_, source, &stack_slot);
     sp_delta_ += new_slots;
+    temp_slots_ += new_slots;
     return stack_slot;
   }
 
   void Pop(InstructionOperand* dest, MachineRepresentation rep) override {
-    int new_slots = ElementSizeInPointers(rep);
-    int temp_slot = kLastFrameSlotId + sp_delta_ + new_slots;
+    int dropped_slots = ElementSizeInPointers(rep);
+    int temp_slot = kLastFrameSlotId + sp_delta_;
     AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, temp_slot);
     state_.ExecuteMove(zone_, &stack_slot, dest);
-    sp_delta_ -= new_slots;
+    sp_delta_ -= dropped_slots;
+    temp_slots_ -= dropped_slots;
+    CHECK_GE(temp_slots_, 0);
   }
 
   void PopTempStackSlots() override {
-    sp_delta_ = 0;
+    if (temp_slots_ > 0) {
+      sp_delta_ -= temp_slots_;
+      temp_slots_ = 0;
+    }
+    CHECK_EQ(sp_delta_, 0);
     state_.ClearTemps();
   }
 
   void MoveToTempLocation(InstructionOperand* source,
                           MachineRepresentation rep) final {
-    state_.MoveToTempLocation(*source);
+    if (pending_scratch_use_) {
+      Push(source);
+    } else {
+      state_.MoveToTempLocation(*source);
+    }
   }
   void MoveTempLocationTo(InstructionOperand* dest,
                           MachineRepresentation rep) final {
-    state_.MoveFromTempLocation(*dest);
+    if (pending_scratch_use_) {
+      Pop(dest, rep);
+      pending_scratch_use_ = false;
+    } else {
+      state_.MoveFromTempLocation(*dest);
+    }
   }
-  void SetPendingMove(MoveOperands* move) final {}
+  void SetPendingMove(MoveOperands* move) final {
+    if (move->source().IsAnyStackSlot() &&
+        move->destination().IsAnyStackSlot()) {
+      pending_scratch_use_ = true;
+    }
+  }
   void AssembleMove(InstructionOperand* source,
                     InstructionOperand* destination) override {
     ParallelMove* moves = zone_->New<ParallelMove>(zone_);
@@ -286,6 +307,8 @@ class MoveInterpreter : public GapResolver::Assembler {
   }
   void AssembleSwap(InstructionOperand* source,
                     InstructionOperand* destination) override {
+    CHECK_EQ(LocationOperand::cast(source)->representation(),
+             LocationOperand::cast(destination)->representation());
     ParallelMove* moves = zone_->New<ParallelMove>(zone_);
     moves->AddMove(*source, *destination);
     moves->AddMove(*destination, *source);
@@ -301,6 +324,7 @@ class MoveInterpreter : public GapResolver::Assembler {
   Zone* const zone_;
   InterpreterState state_;
   int sp_delta_ = 0;
+  bool pending_scratch_use_ = false;
 };
 
 class ParallelMoveCreator : public HandleAndZoneScope {
@@ -655,6 +679,44 @@ TEST(ComplexParallelMoves) {
         w64_2, w64_5     // -
     };
     RunTest(pmc.Create(moves), zone);
+  }
+  if (kFPAliasing == AliasingKind::kOverlap) {
+    auto f32_reg0 = AllocatedOperand(LocationOperand::REGISTER,
+                                     MachineRepresentation::kFloat32, 0);
+    auto s128_reg1 = AllocatedOperand(LocationOperand::REGISTER,
+                                      MachineRepresentation::kSimd128, 1);
+    auto f32_reg1 = AllocatedOperand(LocationOperand::REGISTER,
+                                     MachineRepresentation::kFloat32, 1);
+    // Cycle with a stack-to-stack move and a narrower-to-wider FP move.
+    {
+      std::vector<InstructionOperand> moves = {
+          s128_reg,  s128_1,     // -
+          s128_1,    s128_5,     // -
+          s128_5,    s128_reg1,  // -
+          s128_reg1, f32_reg0    // -
+      };
+      RunTest(pmc.Create(moves), zone);
+    }
+    // Cycle with a stack-to-stack move and a wider-to-narrower FP move.
+    {
+      std::vector<InstructionOperand> moves = {
+          s128_reg, s128_1,    // -
+          s128_1,   s128_5,    // -
+          s128_5,   f32_reg1,  // -
+          f32_reg1, s128_reg   // -
+      };
+      RunTest(pmc.Create(moves), zone);
+    }
+    // A 2-move cycle between mixed-width FP operands must not use AssembleSwap.
+    {
+      auto f64_slot = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                       MachineRepresentation::kFloat64, 1);
+      std::vector<InstructionOperand> moves = {
+          s128_reg, f64_slot,  // -
+          f64_slot, s128_reg   // -
+      };
+      RunTest(pmc.Create(moves), zone);
+    }
   }
 }
 

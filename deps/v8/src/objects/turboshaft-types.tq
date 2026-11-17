@@ -12,7 +12,7 @@ extern macro Abort(constexpr AbortReason): never;
 bitfield struct TurboshaftFloatSpecialValues extends uint32 {
   nan: bool: 1 bit;
   minus_zero: bool: 1 bit;
-  _unused: uint32: 30 bit;
+  unused: uint32: 30 bit;
 }
 
 @abstract
@@ -50,8 +50,8 @@ extern class TurboshaftWord64RangeType extends TurboshaftWord64Type {
 @cppObjectLayoutDefinition
 extern class TurboshaftWord64SetType extends TurboshaftWord64Type {
   const set_size: uint32;
-  elements_high[set_size]: uint32;
-  elements_low[set_size]: uint32;
+  // The high 32 bits of all set elements, followed by the low 32 bits.
+  elements[Convert<intptr>(set_size) * 2]: uint32;
 }
 
 @abstract
@@ -124,7 +124,7 @@ macro TestTurboshaftWord64Type(
     case (set: TurboshaftWord64SetType): {
       for (let i: uint32 = 0; i < set.set_size; ++i) {
         if (CompareUint64HighLow(
-                set.elements_high[i], set.elements_low[i], valueHigh,
+                set.elements[i], set.elements[set.set_size + i], valueHigh,
                 valueLow) == 0) {
           return true;
         }

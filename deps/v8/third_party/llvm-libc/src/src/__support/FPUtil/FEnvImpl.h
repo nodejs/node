@@ -32,7 +32,7 @@
 #undef LIBC_MATH_USE_SYSTEM_FENV
 #endif // LIBC_FULL_BUILD
 
-#if defined(LIBC_MATH_USE_SYSTEM_FENV)
+#if defined(LIBC_MATH_USE_SYSTEM_FENV) && !defined(LIBC_MATH_HAS_NO_EXCEPT)
 
 // Simply call the system libc fenv.h functions, only for those that are used in
 // math function implementations.
@@ -119,6 +119,8 @@ LIBC_INLINE int set_env(const fenv_t *env) {
 #include "arm/FEnvImpl.h"
 #elif defined(LIBC_TARGET_ARCH_IS_ANY_RISCV) && defined(__riscv_flen)
 #include "riscv/FEnvImpl.h"
+#elif defined(LIBC_TARGET_ARCH_IS_HEXAGON)
+#include "hexagon/FEnvImpl.h"
 #else
 
 namespace LIBC_NAMESPACE_DECL {
@@ -165,7 +167,6 @@ clear_except_if_required([[maybe_unused]] int excepts) {
     return 0;
   } else {
 #ifndef LIBC_MATH_HAS_NO_EXCEPT
-    LIBC_FENV_ACCESS_ON
     if (math_errhandling & MATH_ERREXCEPT)
       return clear_except(excepts);
 #endif // LIBC_MATH_HAS_NO_EXCEPT
@@ -179,7 +180,6 @@ set_except_if_required([[maybe_unused]] int excepts) {
     return 0;
   } else {
 #ifndef LIBC_MATH_HAS_NO_EXCEPT
-    LIBC_FENV_ACCESS_ON
     if (math_errhandling & MATH_ERREXCEPT)
       return set_except(excepts);
 #endif // LIBC_MATH_HAS_NO_EXCEPT
@@ -193,7 +193,6 @@ raise_except_if_required([[maybe_unused]] int excepts) {
     return 0;
   } else {
 #ifndef LIBC_MATH_HAS_NO_EXCEPT
-    LIBC_FENV_ACCESS_ON
     if (math_errhandling & MATH_ERREXCEPT)
       return raise_except(excepts);
 #endif // LIBC_MATH_HAS_NO_EXCEPT
@@ -221,6 +220,7 @@ LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void raise_underflow_except_if_required() {
   raise_except_if_required(FE_UNDERFLOW | FE_INEXACT);
 }
 
+#ifndef LIBC_MATH_HAS_NO_EXCEPT
 #if defined(LIBC_TARGET_CPU_HAS_FPU_FLOAT)
 template <>
 LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void
@@ -268,6 +268,7 @@ raise_underflow_except_if_required<double>() {
   }
 }
 #endif // LIBC_TARGET_CPU_HAS_FPU_DOUBLE
+#endif // !LIBC_MATH_HAS_NO_EXCEPT
 
 } // namespace fputil
 } // namespace LIBC_NAMESPACE_DECL

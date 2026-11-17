@@ -1,0 +1,38 @@
+Tests nested Wasm stack-switching catch inside breakpoint condition.
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 79
+            lineNumber : 0
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 81
+            exception : {
+                className : RuntimeError
+                description : RuntimeError: unreachable     at target (wasm://wasm/7f608ad6:wasm-function[1]:0x51)     at <anonymous>:1:18
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : RuntimeError
+            description : RuntimeError: unreachable     at target (wasm://wasm/7f608ad6:wasm-function[1]:0x51)     at <anonymous>:1:18
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}

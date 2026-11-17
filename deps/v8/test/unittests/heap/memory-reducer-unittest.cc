@@ -2,10 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <limits>
-
-#include "src/flags/flags.h"
 #include "src/heap/memory-reducer.h"
+
+#include <limits>
+#include <memory>
+#include <utility>
+
+#include "include/v8-platform.h"
+#include "src/flags/flags.h"
+#include "src/heap/heap-controller.h"
+#include "src/heap/heap-inl.h"
+#include "src/heap/incremental-marking.h"
+#include "src/libplatform/default-platform.h"
+#include "test/unittests/heap/heap-utils.h"
+#include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -302,6 +312,286 @@ TEST(MemoryReducer, FromRunToWait) {
   EXPECT_EQ(2000 + MemoryReducer::kShortDelayMs, state1.next_gc_start_ms());
   EXPECT_EQ(state0.started_gcs(), state1.started_gcs());
   EXPECT_EQ(2000, state1.last_gc_time_ms());
+}
+
+namespace {
+
+class MockTaskRunner final : public v8::TaskRunner {
+ public:
+  void PostTaskImpl(std::unique_ptr<v8::Task> task,
+                    const v8::SourceLocation& location) override {
+    task_ = std::move(task);
+  }
+
+  void PostNonNestableTaskImpl(std::unique_ptr<v8::Task> task,
+                               const v8::SourceLocation& location) override {
+    PostTask(std::move(task));
+  }
+
+  void PostDelayedTaskImpl(std::unique_ptr<v8::Task> task,
+                           double delay_in_seconds,
+                           const v8::SourceLocation& location) override {
+    delay_ = delay_in_seconds;
+    PostTask(std::move(task));
+  }
+
+  void PostNonNestableDelayedTaskImpl(
+      std::unique_ptr<v8::Task> task, double delay_in_seconds,
+      const v8::SourceLocation& location) override {
+    PostDelayedTaskImpl(std::move(task), delay_in_seconds, location);
+  }
+
+  void PostIdleTaskImpl(std::unique_ptr<v8::IdleTask> task,
+                        const v8::SourceLocation& location) override {
+    UNREACHABLE();
+  }
+
+  bool IdleTasksEnabled() override { return false; }
+  bool NonNestableTasksEnabled() const override { return true; }
+  bool NonNestableDelayedTasksEnabled() const override { return true; }
+
+  bool PendingTask() const { return task_ != nullptr; }
+
+  void PerformTask() {
+    std::unique_ptr<v8::Task> task = std::move(task_);
+    task->Run();
+  }
+
+ private:
+  double delay_ = -1;
+  std::unique_ptr<v8::Task> task_;
+};
+
+class MemoryReducerMockPlatform final : public v8::platform::DefaultPlatform {
+ public:
+  explicit MemoryReducerMockPlatform(v8::Platform* default_platform)
+      : default_platform_(default_platform),
+        task_runner_(std::make_shared<MockTaskRunner>()) {
+    CHECK_NOT_NULL(default_platform_);
+    // The MemoryReducer is constructed alongside the Heap, which happens
+    // before the test bodies are run. So, we choose which MemoryReducer we use
+    // here.
+    v8_flags.memory_reducer_limit_based = true;
+    v8_flags.stress_incremental_marking = false;
+    EnsureBackgroundTaskRunnerInitialized();
+    V8::SetPlatformForTesting(this);
+  }
+
+  ~MemoryReducerMockPlatform() override {
+    if (V8::GetCurrentPlatform() == this) {
+      V8::SetPlatformForTesting(default_platform_);
+    }
+  }
+
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate*, v8::TaskPriority) override {
+    return task_runner_;
+  }
+
+  bool PendingTask() const { return task_runner_->PendingTask(); }
+  void PerformTask() { task_runner_->PerformTask(); }
+
+ private:
+  SaveFlags save_flags_;
+  v8::Platform* default_platform_;
+  std::shared_ptr<MockTaskRunner> task_runner_;
+};
+
+template <typename TMixin>
+class WithMemoryReducerMockPlatformMixin : public TMixin {
+ public:
+  WithMemoryReducerMockPlatformMixin() : mock_platform_(this->platform()) {}
+  WithMemoryReducerMockPlatformMixin(
+      const WithMemoryReducerMockPlatformMixin&) = delete;
+  WithMemoryReducerMockPlatformMixin& operator=(
+      const WithMemoryReducerMockPlatformMixin&) = delete;
+
+  MemoryReducerMockPlatform& mock_platform() { return mock_platform_; }
+
+ private:
+  MemoryReducerMockPlatform mock_platform_;
+};
+
+using LimitBasedMemoryReducerTest =                              //
+    WithContextMixin<                                            //
+        WithHeapInternals<                                       //
+            WithInternalIsolateMixin<                            //
+                WithIsolateScopeMixin<                           //
+                    WithIsolateMixin<                            //
+                        WithCppHeap<                             //
+                            WithMemoryReducerMockPlatformMixin<  //
+                                TestWithPlatform>>>>>>>;
+
+}  // namespace
+
+TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerTriggersGC) {
+  if (!v8_flags.incremental_marking) return;
+  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.stress_incremental_marking = false;
+  v8_flags.memory_reducer_delay_ms = 0;
+
+  Isolate* i_isolate = this->i_isolate();
+  Heap* heap = this->heap();
+  MemoryReducerMockPlatform& platform = mock_platform();
+
+  IncrementalMarking* marking = heap->incremental_marking();
+  auto* memory_reducer =
+      static_cast<LimitBasedMemoryReducer*>(heap->memory_reducer());
+
+  heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+
+  CHECK(platform.PendingTask());
+  CHECK(memory_reducer->is_scheduled());
+  CHECK(platform.PendingTask());
+
+  SimulateFullSpace(heap->old_space());
+  i_isolate->factory()->NewFixedArray(
+      V8HeapTrait::kMinimumAllocationLimitGrowingStep, AllocationType::kOld);
+
+  // Run the MemoryReducer task.
+  platform.PerformTask();
+
+  // Check that we do a GC here, and reschedule memory reducer.
+  CHECK(!marking->IsStopped());
+  CHECK(platform.PendingTask());
+  CHECK(!memory_reducer->is_scheduled());
+
+  CHECK(marking->IsMajorMarking());
+  while (marking->IsMajorMarking()) {
+    platform.PerformTask();
+  }
+  CHECK(marking->IsStopped());
+
+  // We did a GC, so memory reducer should be rescheduled.
+  CHECK(platform.PendingTask());
+  CHECK(memory_reducer->is_scheduled());
+
+  // Run the memory reducer task. Since we haven't allocated since the last
+  // GC, this should not reschedule.
+  platform.PerformTask();
+
+  CHECK(!platform.PendingTask());
+  CHECK(!memory_reducer->is_scheduled());
+  CHECK(marking->IsStopped());
+}
+
+TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerNotifyMarkCompact) {
+  if (v8_flags.single_generation || !v8_flags.memory_reducer) return;
+  v8_flags.memory_reducer_delay_ms = 0;
+
+  ManualGCScope manual_gc_scope(i_isolate());
+  Heap* heap = this->heap();
+  MemoryReducerMockPlatform& platform = mock_platform();
+
+  auto* memory_reducer =
+      static_cast<LimitBasedMemoryReducer*>(heap->memory_reducer());
+
+  heap->limits()->UpdateConsumedAfterGC();
+
+  CHECK(!platform.PendingTask());
+  CHECK(!memory_reducer->is_scheduled());
+
+  // Trigger MemoryReducer and run a GC.
+  memory_reducer->NotifyMarkCompact(0);
+
+  CHECK(memory_reducer->is_scheduled());
+  CHECK(platform.PendingTask());
+  platform.PerformTask();
+
+  // We did not do a GC, so don't reschedule.
+  CHECK(!platform.PendingTask());
+  CHECK(!memory_reducer->is_scheduled());
+}
+
+TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerBackgrounded) {
+  if (v8_flags.single_generation || !v8_flags.memory_reducer) return;
+  v8_flags.memory_reducer_delay_ms = 0;
+
+  ManualGCScope manual_gc_scope(i_isolate());
+  Isolate* isolate = i_isolate();
+  Heap* heap = this->heap();
+  MemoryReducerMockPlatform& platform = mock_platform();
+
+  auto* memory_reducer =
+      static_cast<LimitBasedMemoryReducer*>(heap->memory_reducer());
+
+  heap->limits()->UpdateConsumedAfterGC();
+
+  CHECK(!memory_reducer->is_scheduled());
+  CHECK(!platform.PendingTask());
+
+  // Send to background.
+  isolate->SetPriority(v8::Isolate::Priority::kBestEffort);
+
+  // MemoryReducer should not be running yet, but the task to start it should
+  // be scheduled by us going to background.
+  CHECK(!memory_reducer->is_scheduled());
+  CHECK(platform.PendingTask());
+
+  // Run the task to schedule MemoryReducer.
+  platform.PerformTask();
+
+  // Verify that MemoryReducer was scheduled.
+  CHECK(memory_reducer->is_scheduled());
+  CHECK(platform.PendingTask());
+
+  // Run the memory reducer task.
+  platform.PerformTask();
+
+  // Check that we don't reschedule the memory reducer here, because we didn't
+  // do a GC.
+  CHECK(!memory_reducer->is_scheduled());
+  CHECK(!platform.PendingTask());
+}
+
+TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerOvershoot) {
+  if (v8_flags.single_generation || !v8_flags.memory_reducer) return;
+  v8_flags.memory_reducer_delay_ms = 0;
+
+  ManualGCScope manual_gc_scope(i_isolate());
+  Isolate* isolate = i_isolate();
+  Heap* heap = this->heap();
+  MemoryReducerMockPlatform& platform = mock_platform();
+
+  IncrementalMarking* marking = heap->incremental_marking();
+  auto* memory_reducer =
+      static_cast<LimitBasedMemoryReducer*>(heap->memory_reducer());
+
+  heap->limits()->UpdateConsumedAfterGC();
+
+  // Allocate 20MB in old space after the simulated GC and start major
+  // incremental marking.
+  v8_flags.memory_reducer_for_small_heaps = false;
+  for (int i = 0; i < 20; i++) {
+    isolate->factory()->NewFixedArray(1024 * 1024 / kTaggedSize,
+                                      AllocationType::kOld);
+  }
+  heap->StartIncrementalMarking(GCFlag::kNoFlags,
+                                GarbageCollectionReason::kTesting);
+  CHECK(marking->IsMajorMarking());
+
+  size_t limit_before = heap->limits()->old_generation_allocation_limit();
+  size_t consumed = heap->OldGenerationConsumedBytes();
+  CHECK_GE(limit_before, consumed);
+
+  // Send to background while major marking is running, which schedules
+  // MemoryReducer.
+  isolate->SetPriority(v8::Isolate::Priority::kBestEffort);
+  CHECK(!memory_reducer->is_scheduled());
+  CHECK(platform.PendingTask());
+
+  // Run ActivateMemoryReducerTask to schedule LimitBasedMemoryReducer.
+  platform.PerformTask();
+  CHECK(memory_reducer->is_scheduled());
+  CHECK(platform.PendingTask());
+
+  // Run LimitBasedMemoryReducer::TimerTask while major marking is running.
+  platform.PerformTask();
+  CHECK(!memory_reducer->is_scheduled());
+
+  // Limits must not be shrunk while major incremental marking is running.
+  CHECK_EQ(limit_before, heap->limits()->old_generation_allocation_limit());
+  CHECK_GE(heap->limits()->old_generation_allocation_limit(), consumed);
 }
 
 }  // namespace internal

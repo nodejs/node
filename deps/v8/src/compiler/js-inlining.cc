@@ -446,18 +446,13 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
     return {};
   }
 
-  const wasm::WasmModule* module = native_module->module();
-  const wasm::FunctionSig* sig = module->functions[fct_index].sig;
   TFGraph::SubgraphScope graph_scope(graph());
-  WasmGraphBuilder builder(nullptr, zone(), jsgraph(), sig, source_positions_,
-                           WasmGraphBuilder::kJSFunctionAbiMode, isolate(),
-                           native_module->enabled_features());
   SourcePosition call_pos = source_positions_->GetSourcePosition(call_node);
   // Calculate hypothetical inlining id, so if we can't inline, we do not add
   // the wasm function to the list of inlined functions.
   int inlining_id = static_cast<int>(info_->inlined_functions().size());
-  bool can_inline_body =
-      builder.TryWasmInlining(fct_index, native_module, inlining_id);
+  bool can_inline_body = compiler::TryWasmInlining(
+      fct_index, native_module, inlining_id, jsgraph(), source_positions_);
   if (can_inline_body) {
     int actual_id =
         info_->AddInlinedFunction(wasm_call_params.shared_fct_info().object(),
@@ -506,7 +501,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
     subgraph_min_node_id = graph()->NodeCount();
 
     BuildInlinedJSToWasmWrapper(graph()->zone(), jsgraph(), sig, isolate(),
-                                source_positions_, continuation_frame_state);
+                                continuation_frame_state);
 
     // Extract the inlinee start/end nodes.
     wrapper_start_node = graph()->start();

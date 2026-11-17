@@ -70,4 +70,8 @@
 #define LIBC_TARGET_ARCH_IS_ANY_RISCV
 #endif
 
+#if defined(__hexagon__)
+#define LIBC_TARGET_ARCH_IS_HEXAGON
+#endif
+
 #endif // LLVM_LIBC_SRC___SUPPORT_MACROS_PROPERTIES_ARCHITECTURES_H

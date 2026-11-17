@@ -36,14 +36,12 @@ void ExpectMessage(const char* expected, const Message& message) {
 TEST_F(WasmCapiTest, Traps) {
   ValueType i32_type[] = {kWasmI32};
   FunctionSig sig(1, 0, i32_type);
-  uint32_t callback_index =
-      builder()->AddImport(base::CStrVector("callback"), &sig);
+  uint32_t callback_index = builder()->AddImport("callback", &sig);
   uint8_t code[] = {WASM_CALL_FUNCTION0(callback_index)};
-  AddExportedFunction(base::CStrVector("callback"), code, sizeof(code), &sig);
+  AddExportedFunction("callback", code, sizeof(code), &sig);
 
   uint8_t code2[] = {WASM_CALL_FUNCTION0(3)};
-  AddExportedFunction(base::CStrVector("unreachable"), code2, sizeof(code2),
-                      &sig);
+  AddExportedFunction("unreachable", code2, sizeof(code2), &sig);
   // The first constant is a 4-byte dummy so that the {unreachable} trap
   // has a more interesting offset. This is called by code2.
   uint8_t code3[] = {WASM_I32V_3(0), WASM_UNREACHABLE, WASM_I32V_1(1)};
@@ -52,8 +50,7 @@ TEST_F(WasmCapiTest, Traps) {
   // Check that traps returned from a C callback are uncatchable in Wasm.
   uint8_t code4[] = {WASM_TRY_CATCH_ALL_T(
       kWasmI32, WASM_CALL_FUNCTION0(callback_index), WASM_I32V(42))};
-  AddExportedFunction(base::CStrVector("uncatchable"), code4, sizeof(code4),
-                      &sig);
+  AddExportedFunction("uncatchable", code4, sizeof(code4), &sig);
 
   own<FuncType> func_type = FuncType::make(
       ownvec<ValType>::make(),

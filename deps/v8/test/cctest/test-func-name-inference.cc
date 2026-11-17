@@ -33,7 +33,6 @@
 #include "src/strings/string-search.h"
 #include "test/cctest/cctest.h"
 
-using ::v8::base::CStrVector;
 using ::v8::base::Vector;
 using ::v8::internal::DirectHandle;
 using ::v8::internal::Factory;

@@ -1,0 +1,5 @@
+Checks that custom formatter body does not crash on huge strings.
+error: Custom Formatter Failed: Uncaught JSONML is too large
+{
+    type : undefined
+}

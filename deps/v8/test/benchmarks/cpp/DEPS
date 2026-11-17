@@ -1,6 +1,6 @@
 include_rules = [
   "+src/base",
-  "+third_party/google_benchmark_chrome/src/include/benchmark/benchmark.h",
+  "+benchmark/benchmark.h",
   # TODO(chromium: 328117814) Temporarily allow internals until the API has
   # landed.
   "+src/api/api-inl.h",

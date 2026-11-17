@@ -86,6 +86,8 @@ class Command(object):
     self.executable = executable
     self.config_flags = config_flags
     self.common_flags =  DEFAULT_FLAGS[:]
+    if options.first.arch != options.second.arch:
+      self.common_flags.append('--correctness-fuzzer-cross-arch-suppressions')
     self.common_flags.extend(['--random-seed', str(options.random_seed)])
 
     self.files = _startup_files(options)

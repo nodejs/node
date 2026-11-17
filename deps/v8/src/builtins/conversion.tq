@@ -164,7 +164,7 @@ transitioning builtin ToObject(implicit context: Context)(input: JSAny):
         if (index != kNoConstructorFunctionIndex)
           goto WrapPrimitive(
               %RawDownCast<Slot<NativeContext, JSFunction>>(index));
-        ThrowTypeError(MessageTemplate::kUndefinedOrNullToObject, 'ToObject');
+        ThrowTypeError(MessageTemplate::kUndefinedOrNullToObject);
       }
     }
   } label WrapPrimitive(constructorIndex: Slot<NativeContext, JSFunction>) {

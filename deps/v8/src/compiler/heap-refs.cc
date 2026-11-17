@@ -23,6 +23,7 @@
 #endif
 
 #include "src/api/api-inl.h"
+#include "src/codegen/pending-optimization-table.h"
 #include "src/common/assert-scope.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker-inl.h"
@@ -393,7 +394,8 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
     // TODO(leszeks): We could instead sleep/yield and spin the load, since the
     // timing on this is tight enough that we wouldn't delay the compiler thread
     // by much.
-    if (IsUninitializedHole(constant.value())) {
+    if (IsUninitializedHole(constant.value()) ||
+        IsUninitializedHeapNumber(constant.value())) {
       TRACE_BROKER_MISSING(broker, "Read uninitialized property.");
       return {};
     }
@@ -656,8 +658,8 @@ class MapData : public HeapObjectData {
 
   InstanceType instance_type() const { return instance_type_; }
   int instance_size() const { return instance_size_; }
-  uint32_t bit_field2() const { return bit_field2_; }
-  uint32_t bit_field3() const { return bit_field3_; }
+  Map::Bits2 bit_field2() const { return bit_field2_; }
+  Map::Bits3 bit_field3() const { return bit_field3_; }
   int in_object_properties() const {
     CHECK(InstanceTypeChecker::IsJSObject(instance_type()));
     return in_object_properties_;
@@ -674,8 +676,8 @@ class MapData : public HeapObjectData {
 
   InstanceType instance_type_;
   int instance_size_;
-  uint32_t bit_field2_;
-  uint32_t bit_field3_;
+  Map::Bits2 bit_field2_;
+  Map::Bits3 bit_field3_;
   int unused_property_fields_;
   bool is_abandoned_prototype_map_;
   int in_object_properties_;
@@ -1230,13 +1232,13 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(IndirectHandle<Object> object,
   ObjectData* object_data;
   InstanceType instance_type = heap_object->map()->instance_type();
 
-#define CREATE_DATA(Name)                                              \
-  if (i::InstanceTypeChecker::Is##Name(instance_type)) {               \
-    entry = refs_->InsertNew(object.address());                        \
-    object_data = zone()->New<ref_traits<Name>::data_type>(            \
-        this, &entry->value, instance_type, TrustedCast<Name>(object), \
-        ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind));  \
-    /* NOLINTNEXTLINE(readability/braces) */                           \
+#define CREATE_DATA(Name)                                                \
+  if (i::InstanceTypeChecker::Is##Name(instance_type)) {                 \
+    entry = refs_->InsertNew(object.address());                          \
+    object_data = zone()->New<ref_traits<Name>::data_type>(              \
+        this, &entry->value, instance_type, UncheckedCast<Name>(object), \
+        ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind));    \
+    /* NOLINTNEXTLINE(readability/braces) */                             \
   } else
   HEAP_BROKER_OBJECT_LIST(CREATE_DATA)
 #undef CREATE_DATA
@@ -1319,7 +1321,13 @@ bool MapRef::IsUndefinedMap(JSHeapBroker* broker) const {
   return *this == broker->undefined_map();
 }
 
-
+bool MapRef::IsAnyWasmObjectMap() const {
+#if V8_ENABLE_WEBASSEMBLY
+  return IsWasmObjectMap() || IsWasmCustomMapMap();
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
 
 bool MapRef::IsStringWrapperMap() const {
   return IsJSPrimitiveWrapperMap() &&
@@ -1815,6 +1823,8 @@ HEAP_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,
                 Map::Bits3::NumberOfOwnDescriptorsBits)
 HEAP_ACCESSOR_B(Map, bit_field3, is_migration_target,
                 Map::Bits3::IsMigrationTargetBit)
+HEAP_ACCESSOR_B(Map, bit_field3, is_prototype_map,
+                Map::Bits3::IsPrototypeMapBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, construction_counter,
                    Map::Bits3::ConstructionCounterBits)
@@ -1921,6 +1931,7 @@ HEAP_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
 HEAP_ACCESSOR_C(ScopeInfo, bool, SomeContextHasExtension)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasContext)
+HEAP_ACCESSOR_C(ScopeInfo, bool, HasContextCells)
 HEAP_ACCESSOR_C(ScopeInfo, bool, ClassScopeHasPrivateBrand)
 HEAP_ACCESSOR_C(ScopeInfo, bool, SloppyEvalCanExtendVars)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasAllocatedReceiver)
@@ -1955,6 +1966,13 @@ bool SharedFunctionInfoRef::is_toplevel() const {
   HEAP_ACCESSOR_C(SharedFunctionInfo, type, name)
 BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 #undef DEF_SFI_ACCESSOR
+
+bool SharedFunctionInfoRef::is_eager_inlining_disabled(
+    JSHeapBroker* broker) const {
+  if (!v8_flags.allow_natives_syntax) return false;
+  return ManualOptimizationTable::IsMarkedForDisabledEagerInlining(
+      broker->local_isolate_or_isolate(), *object());
+}
 
 bool SharedFunctionInfoRef::HasBreakInfo(JSHeapBroker* broker) const {
   if (broker->IsMainThread()) {
@@ -2029,6 +2047,13 @@ NativeContextRef MapRef::native_context(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(broker, object()->native_context());
 }
 
+bool MapRef::BelongsToSameNativeContextAs(JSHeapBroker* broker,
+                                          ContextRef context) const {
+  MapRef this_meta_map = map(broker);
+  MapRef context_meta_map = context.map(broker).map(broker);
+  return this_meta_map.equals(context_meta_map);
+}
+
 OptionalHeapObjectRef MapRef::GetBackPointer(JSHeapBroker* broker) const {
   // Keep in sync with Map::GetBackpointer.
   OptionalObjectRef maybe_bptr =
@@ -2094,7 +2119,7 @@ int MapRef::constructor_function_index() const {
 
 bool MapRef::is_stable() const {
   IF_ACCESS_FROM_HEAP_C(is_stable);
-  return !Map::Bits3::IsUnstableBit::decode(data()->AsMap()->bit_field3());
+  return !data()->AsMap()->bit_field3().is_unstable();
 }
 
 bool MapRef::CanBeDeprecated() const { return object()->CanBeDeprecated(); }
@@ -2368,10 +2393,6 @@ std::optional<Float64> JSObjectRef::GetOwnFastConstantDoubleProperty(
   Float64 unboxed_value = Float64::FromBits(
       RacyReadHeapNumberBits(Cast<HeapNumber>(constant.value())));
 
-  // Const double fields should not contain values with the hole NaN pattern
-  // unless in-sandbox memory was corrupted.
-  DCHECK_IMPLIES(!v8_flags.expose_memory_corruption_api,
-                 !unboxed_value.is_hole_nan());
   dependencies->DependOnOwnConstantDoubleProperty(*this, map(broker), index,
                                                   unboxed_value);
   return unboxed_value;
@@ -2704,20 +2725,35 @@ int SharedFunctionInfoRef::
 }
 
 OptionalMapRef JSObjectRef::GetObjectCreateMap(JSHeapBroker* broker) const {
-  DirectHandle<Map> map_handle = Cast<Map>(map(broker).object());
+  MapRef map_ref = map(broker);
   // Note: implemented as an acquire-load.
-  if (!map_handle->is_prototype_map()) return {};
+  if (!map_ref.is_prototype_map()) return {};
+  NativeContextRef native_context = broker->target_native_context();
+  if (!map_ref.BelongsToSameNativeContextAs(broker, native_context)) return {};
 
   DirectHandle<Object> maybe_proto_info = broker->CanonicalPersistentHandle(
-      map_handle->prototype_info(kAcquireLoad));
+      map_ref.object()->prototype_info(kAcquireLoad));
   if (!IsPrototypeInfo(*maybe_proto_info)) return {};
 
   Tagged<MaybeObject> maybe_object_create_map =
       Cast<PrototypeInfo>(maybe_proto_info)->ObjectCreateMap(kAcquireLoad);
   if (!maybe_object_create_map.IsWeak()) return {};
 
-  return MapRef(broker->GetOrCreateData(
+  MapRef object_create_map(broker->GetOrCreateData(
       maybe_object_create_map.GetHeapObjectAssumeWeak(), kAssumeMemoryFence));
+  // A JSGlobalProxy might have navigated concurrently on the main thread and
+  // populated PrototypeInfo with a map from a different native context.
+  if (!object_create_map.BelongsToSameNativeContextAs(broker, native_context)) {
+    return {};
+  }
+  if (map_ref.IsJSGlobalProxyMap()) {
+    // Subscribe to map changes on the global proxy so that if it detaches or
+    // navigates to another context, the optimized code is deoptimized and stops
+    // using the pre-navigation ObjectCreateMap.
+    if (!map_ref.is_stable()) return {};
+    broker->dependencies()->DependOnStableMap(map_ref);
+  }
+  return object_create_map;
 }
 
 bool JSObjectRef::IsArrayOrObjectPrototype(JSHeapBroker* broker) const {
@@ -2805,7 +2841,7 @@ bool DataHandlerRef::IsFastProxyHandler() const {
       LoadHandler::Kind::kProxy) {
     return false;
   }
-  return data_field_count() >= LoadHandler::kProxyTrapMethodDataIndex;
+  return data_field_count() == LoadHandler::kProxyDataFieldCount;
 }
 
 #undef BIMODAL_ACCESSOR

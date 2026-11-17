@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/roots/roots-inl.h"
@@ -18,6 +19,20 @@
 
 namespace v8 {
 namespace internal {
+
+Struct::Struct(Tagged<ReadOnly<Map>> map) : HeapObject(map) {}
+
+Tuple2::Tuple2(const AllocationWitness& witness, Tagged<Object> value1,
+               Tagged<Object> value2)
+    : Struct(witness.roots().tuple2_map()),
+      value1_(witness, value1),
+      value2_(witness, value2) {}
+
+Tuple2::Tuple2(const AllocationWitness& witness, Tagged<Object> value1,
+               Tagged<Object> value2, RelaxedStoreTag tag)
+    : Struct(witness.roots().tuple2_map()),
+      value1_(witness, value1, tag),
+      value2_(witness, value2, tag) {}
 
 Tagged<Object> Tuple2::value1() const { return value1_.load(); }
 void Tuple2::set_value1(Tagged<Object> value, WriteBarrierMode mode) {
@@ -49,6 +64,11 @@ void Tuple2::set_value2(Tagged<Object> value, RelaxedStoreTag,
                         WriteBarrierMode mode) {
   value2_.Relaxed_Store(this, value, mode);
 }
+
+AccessorPair::AccessorPair(const AllocationWitness& witness)
+    : Struct(witness.roots().accessor_pair_map()),
+      getter_(witness.roots().null_value()),
+      setter_(witness.roots().null_value()) {}
 
 Tagged<Object> AccessorPair::get(AccessorComponent component) {
   return component == ACCESSOR_GETTER ? getter() : setter();
@@ -107,14 +127,41 @@ bool AccessorPair::Equals(Tagged<Object> getter_value,
   return (getter() == getter_value) && (setter() == setter_value);
 }
 
+ClassPositions::ClassPositions(const AllocationWitness& witness, int start,
+                               int end)
+    : Struct(witness.roots().class_positions_map()),
+      start_(Smi::FromInt(start)),
+      end_(Smi::FromInt(end)) {}
+
 int ClassPositions::start() const { return start_.load().value(); }
-void ClassPositions::set_start(int value) {
-  start_.store(this, Smi::FromInt(value));
-}
 
 int ClassPositions::end() const { return end_.load().value(); }
-void ClassPositions::set_end(int value) {
-  end_.store(this, Smi::FromInt(value));
+
+ForInEnumeratorHolder::ForInEnumeratorHolder(const AllocationWitness& witness,
+                                             Tagged<Map> enum_cache_map,
+                                             Tagged<FixedArray> named_keys,
+                                             Tagged<Smi> elements_length,
+                                             Tagged<Smi> cache_length)
+    : Struct(witness.roots().for_in_enumerator_holder_map()),
+      enum_cache_map_(witness, enum_cache_map),
+      named_keys_(witness, named_keys),
+      elements_length_(elements_length),
+      cache_length_(cache_length) {}
+
+Tagged<Map> ForInEnumeratorHolder::enum_cache_map() const {
+  return enum_cache_map_.load();
+}
+
+Tagged<FixedArray> ForInEnumeratorHolder::named_keys() const {
+  return named_keys_.load();
+}
+
+Tagged<Smi> ForInEnumeratorHolder::elements_length() const {
+  return elements_length_.load();
+}
+
+Tagged<Smi> ForInEnumeratorHolder::cache_length() const {
+  return cache_length_.load();
 }
 
 }  // namespace internal

@@ -17,6 +17,7 @@
 #define LLVM_LIBC_SRC___SUPPORT_BUILTINS_FPCONVERT_HELPER_H
 
 #include "hdr/fenv_macros.h"
+#include "hdr/stdint_proxy.h"
 #include "src/__support/CPP/algorithm.h"
 #include "src/__support/CPP/bit.h"
 #include "src/__support/CPP/type_traits.h"
@@ -42,39 +43,98 @@ namespace builtins {
 // Convert the floating-point value x from From to To (extend or truncate).
 // Narrowing rounds to nearest, ties to even; mirrors compiler-rt __extend* /
 // __trunc*.
-template <typename To, typename From>
-LIBC_INLINE constexpr To fpconvert(From x) {
-  using FromBits = fputil::FPBits<From>;
+namespace internal {
+
+// Shared conversion body.  The source is named by FPType, so it needs no
+// native C++ type; only the destination does.
+template <typename To, fputil::FPType FromFPType>
+LIBC_INLINE constexpr To
+fpconvert(typename fputil::FPRep<FromFPType>::StorageType bits) {
+  using FromRep = fputil::FPRep<FromFPType>;
   using ToBits = fputil::FPBits<To>;
   using ToStorageType = typename ToBits::StorageType;
 
-  FromBits x_bits(x);
-
-  if constexpr (cpp::is_same_v<To, From>)
-    return x;
+  FromRep x_bits(bits);
 
   if (x_bits.is_nan()) {
-    typename FromBits::StorageType x_frac = x_bits.get_mantissa();
-    if constexpr (ToBits::FRACTION_LEN >= FromBits::FRACTION_LEN) {
-      ToStorageType to_frac =
-          static_cast<ToStorageType>(x_frac)
-          << (ToBits::FRACTION_LEN - FromBits::FRACTION_LEN);
+    typename FromRep::StorageType x_frac = x_bits.get_mantissa();
+    if constexpr (ToBits::FRACTION_LEN >= FromRep::FRACTION_LEN) {
+      ToStorageType to_frac = static_cast<ToStorageType>(x_frac)
+                              << (ToBits::FRACTION_LEN - FromRep::FRACTION_LEN);
       return ToBits::signaling_nan(x_bits.sign(), to_frac).get_val();
     }
     ToStorageType to_frac = static_cast<ToStorageType>(
-        x_frac >> (FromBits::FRACTION_LEN - ToBits::FRACTION_LEN));
+        x_frac >> (FromRep::FRACTION_LEN - ToBits::FRACTION_LEN));
     return ToBits::quiet_nan(x_bits.sign(), to_frac).get_val();
   }
 
   if (x_bits.is_inf())
     return ToBits::inf(x_bits.sign()).get_val();
 
-  // Zero and subnormals fall through: DyadicFloat(x) gives a zero mantissa for
-  // zero, which as<To>() maps back to a correctly-signed zero.
+  // Zero and subnormals fall through: DyadicFloat gives a zero mantissa for
+  // zero, which as<To>() maps back to a correctly-signed zero.  Built from
+  // parts so no From value is materialized.
   constexpr size_t MAX_FRACTION_LEN =
-      cpp::max(ToBits::FRACTION_LEN, FromBits::FRACTION_LEN);
-  fputil::DyadicFloat<cpp::bit_ceil(MAX_FRACTION_LEN)> xd(x);
+      cpp::max(ToBits::FRACTION_LEN, FromRep::FRACTION_LEN);
+  using DyadicType = fputil::DyadicFloat<cpp::bit_ceil(MAX_FRACTION_LEN)>;
+  DyadicType xd(
+      x_bits.sign(), x_bits.get_explicit_exponent() - FromRep::FRACTION_LEN,
+      typename DyadicType::MantissaType(x_bits.get_explicit_mantissa()));
   return xd.template as<To, /*ShouldSignalExceptions=*/true>();
+}
+
+} // namespace internal
+
+// Convert a floating-point value from From to To (extend or truncate).
+template <typename To, typename From>
+LIBC_INLINE constexpr To fpconvert(From x) {
+  if constexpr (cpp::is_same_v<To, From>)
+    return x;
+  else
+    return internal::fpconvert<To, fputil::get_fp_type<From>()>(
+        cpp::bit_cast<typename fputil::FPBits<From>::StorageType>(x));
+}
+
+// Same, for a source delivered as raw bits.  Keeps _Float16 out of the
+// signature, which would otherwise lower to a circular __extendhfsf2.
+template <typename To, fputil::FPType FromFPType>
+LIBC_INLINE constexpr To
+fpconvert_from_bits(typename fputil::FPRep<FromFPType>::StorageType bits) {
+  return internal::fpconvert<To, FromFPType>(bits);
+}
+
+// Same, for a destination delivered as raw bits.  Keeps _Float16 out of the
+// signature, which would otherwise lower to a circular __trunc*hf2.
+template <fputil::FPType ToFPType, typename From>
+LIBC_INLINE constexpr typename fputil::FPRep<ToFPType>::StorageType
+fpconvert_to_bits(From x) {
+  using ToRep = fputil::FPRep<ToFPType>;
+  using ToStorageType = typename ToRep::StorageType;
+  using FromBits = fputil::FPBits<From>;
+
+  FromBits x_bits(x);
+
+  if (x_bits.is_nan()) {
+    typename FromBits::StorageType x_frac = x_bits.get_mantissa();
+    if constexpr (ToRep::FRACTION_LEN >= FromBits::FRACTION_LEN) {
+      ToStorageType to_frac = static_cast<ToStorageType>(x_frac)
+                              << (ToRep::FRACTION_LEN - FromBits::FRACTION_LEN);
+      return ToRep::signaling_nan(x_bits.sign(), to_frac).uintval();
+    } else {
+      ToStorageType to_frac = static_cast<ToStorageType>(
+          x_frac >> (FromBits::FRACTION_LEN - ToRep::FRACTION_LEN));
+      return ToRep::quiet_nan(x_bits.sign(), to_frac).uintval();
+    }
+  }
+
+  if (x_bits.is_inf())
+    return ToRep::inf(x_bits.sign()).uintval();
+
+  constexpr size_t MAX_FRACTION_LEN =
+      cpp::max(ToRep::FRACTION_LEN, FromBits::FRACTION_LEN);
+  fputil::DyadicFloat<cpp::bit_ceil(MAX_FRACTION_LEN)> xd(x);
+  return xd.template generic_as_bits<ToFPType,
+                                     /*ShouldSignalExceptions=*/true>();
 }
 
 } // namespace builtins

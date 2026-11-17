@@ -115,7 +115,7 @@ transitioning javascript builtin ArrayPrototypeToSorted(
   //
   // The actual array will be created later, but perform the range check.
   if (len > kMaxArrayLength) {
-    ThrowRangeError(MessageTemplate::kInvalidArrayLength, len);
+    ThrowRangeError(MessageTemplate::kInvalidArrayLength);
   }
 
   // 5. Let SortCompare be a new Abstract Closure with parameters (x, y) that

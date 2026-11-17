@@ -747,36 +747,6 @@ class CreateBoundFunctionParameters final {
 const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
     const Operator* op);
 
-// Defines shared information for the closure that should be created. This is
-// used as a parameter by JSCreateClosure operators.
-class CreateClosureParameters final {
- public:
-  CreateClosureParameters(SharedFunctionInfoRef shared_info, CodeRef code,
-                          AllocationType allocation)
-      : shared_info_(shared_info), code_(code), allocation_(allocation) {}
-
-  SharedFunctionInfoRef shared_info() const { return shared_info_; }
-  CodeRef code() const { return code_; }
-  AllocationType allocation() const { return allocation_; }
-
- private:
-  const SharedFunctionInfoRef shared_info_;
-  const CodeRef code_;
-  AllocationType const allocation_;
-
-  friend bool operator==(CreateClosureParameters const&,
-                         CreateClosureParameters const&);
-  friend bool operator!=(CreateClosureParameters const&,
-                         CreateClosureParameters const&);
-
-  friend size_t hash_value(CreateClosureParameters const&);
-
-  friend std::ostream& operator<<(std::ostream&,
-                                  CreateClosureParameters const&);
-};
-
-const CreateClosureParameters& CreateClosureParametersOf(const Operator* op);
-
 class GetTemplateObjectParameters final {
  public:
   GetTemplateObjectParameters(TemplateObjectDescriptionRef description,
@@ -995,6 +965,9 @@ int RegisterCountOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 int GeneratorStoreValueCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 int RestoreRegisterIndexOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
+SharedFunctionInfoRef SharedFunctionInfoOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
 ScopeInfoRef ScopeInfoOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 bool operator==(ScopeInfoRef, ScopeInfoRef);
@@ -1070,9 +1043,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateAsyncFunctionObject(int register_count);
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);
   const Operator* CreateBoundFunction(size_t arity, MapRef map);
-  const Operator* CreateClosure(
-      SharedFunctionInfoRef shared_info, CodeRef code,
-      AllocationType allocation = AllocationType::kYoung);
+  const Operator* CreateClosure(SharedFunctionInfoRef shared_info);
   const Operator* CreateIterResultObject();
   const Operator* CreateStringIterator();
   const Operator* CreateKeyValueArray();
@@ -1877,8 +1848,8 @@ class JSCreateClosureNode final : public JSNodeWrapperBase {
     DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   }
 
-  const CreateClosureParameters& Parameters() const {
-    return CreateClosureParametersOf(node()->op());
+  SharedFunctionInfoRef shared_info() const {
+    return SharedFunctionInfoOf(node()->op());
   }
 
 #define INPUTS(V) V(FeedbackCell, feedback_cell, 0, FeedbackCell)

@@ -545,12 +545,12 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
 
     case kArchStoreWithWriteBarrier:
     case kArchAtomicStoreWithWriteBarrier:
-    case kArchStoreIndirectWithWriteBarrier:
+    case kArchStoreTrustedWithWriteBarrier:
       return kHasSideEffect;
 
     case kArchStoreSkippedWriteBarrier:
     case kArchAtomicStoreSkippedWriteBarrier:
-    case kArchStoreIndirectSkippedWriteBarrier:
+    case kArchStoreTrustedSkippedWriteBarrier:
       return kHasSideEffect;
 
     case kAtomicLoadInt8:

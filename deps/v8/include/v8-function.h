@@ -48,6 +48,10 @@ class V8_EXPORT Function : public Object {
    * When side effect checks are enabled, passing kHasNoSideEffect allows the
    * constructor to be invoked without throwing. Calls made within the
    * constructor are still checked.
+   *
+   * Passing kHasNoSideEffect also allows an API constructor to be instantiated
+   * inside a DisallowJavascriptExecutionScope, provided the constructor
+   * callback itself does not execute JavaScript.
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Object> NewInstanceWithSideEffectType(
       Local<Context> context, int argc, Local<Value> argv[],

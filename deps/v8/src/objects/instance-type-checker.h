@@ -21,6 +21,7 @@ class Map;
 #define INSTANCE_TYPE_CHECKERS_SINGLE(V) \
   INSTANCE_TYPE_LIST_SINGLE(V)           \
   V(BigInt, BIGINT_TYPE)                 \
+  V(JSObjectExact, JS_OBJECT_TYPE)       \
   V(FixedArrayExact, FIXED_ARRAY_TYPE)
 
 #define INSTANCE_TYPE_CHECKERS_RANGE(V)                  \

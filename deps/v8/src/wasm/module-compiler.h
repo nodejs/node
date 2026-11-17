@@ -14,6 +14,7 @@
 
 #include "include/v8-metrics.h"
 #include "src/base/platform/time.h"
+#include "src/base/unique-array.h"
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/tasks/cancelable-task.h"
@@ -52,7 +53,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     WasmDetectedFeatures detected_features, CompileTimeImports compile_imports,
     ErrorThrower* thrower, std::shared_ptr<const WasmModule> module,
-    base::OwnedVector<const uint8_t> wire_bytes, int compilation_id,
+    base::UniqueArray<const uint8_t> wire_bytes, int compilation_id,
     v8::metrics::Recorder::ContextId context_id, ProfileInformation* pgo_info);
 
 V8_EXPORT_PRIVATE WasmError ValidateAndSetBuiltinImports(
@@ -112,7 +113,7 @@ class AsyncCompileJob {
  public:
   AsyncCompileJob(WasmEnabledFeatures enabled_features,
                   CompileTimeImports compile_imports,
-                  base::OwnedVector<const uint8_t> bytes,
+                  base::UniqueArray<const uint8_t> bytes,
                   const char* api_method_name,
                   std::shared_ptr<CompilationResultResolver> resolver,
                   int compilation_id);
@@ -251,7 +252,7 @@ class AsyncCompileJob {
   base::TimeTicks compilation_finished_time_;
   // Copy of the module wire bytes, moved into the {new_native_module_} on its
   // creation.
-  base::OwnedVector<const uint8_t> bytes_copy_;
+  base::UniqueArray<const uint8_t> bytes_copy_;
   // Reference to the wire bytes (held in {bytes_copy_} or as part of
   // {new_native_module_}).
   ModuleWireBytes wire_bytes_;

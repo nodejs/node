@@ -331,33 +331,32 @@ constexpr RegList WriteBarrierDescriptor::ComputeSavedRegisters(
 }
 
 // static
-constexpr auto IndirectPointerWriteBarrierDescriptor::registers() {
+constexpr auto TrustedPointerWriteBarrierDescriptor::registers() {
   return WriteBarrierDescriptor::registers();
 }
 // static
-constexpr Register IndirectPointerWriteBarrierDescriptor::ObjectRegister() {
+constexpr Register TrustedPointerWriteBarrierDescriptor::ObjectRegister() {
   return std::get<kObject>(registers());
 }
 // static
-constexpr Register
-IndirectPointerWriteBarrierDescriptor::SlotAddressRegister() {
+constexpr Register TrustedPointerWriteBarrierDescriptor::SlotAddressRegister() {
   return std::get<kSlotAddress>(registers());
 }
 // static
 constexpr Register
-IndirectPointerWriteBarrierDescriptor::IndirectPointerTagRegister() {
-  return std::get<kIndirectPointerTag>(registers());
+TrustedPointerWriteBarrierDescriptor::TrustedPointerTagRegister() {
+  return std::get<kTrustedPointerTag>(registers());
 }
 
 // static
-constexpr RegList IndirectPointerWriteBarrierDescriptor::ComputeSavedRegisters(
+constexpr RegList TrustedPointerWriteBarrierDescriptor::ComputeSavedRegisters(
     Register object, Register slot_address) {
   DCHECK(!AreAliased(object, slot_address));
   // This write barrier behaves identical to the generic one, except that it
   // passes one additional parameter.
   RegList saved_registers =
       WriteBarrierDescriptor::ComputeSavedRegisters(object, slot_address);
-  saved_registers.set(IndirectPointerTagRegister());
+  saved_registers.set(TrustedPointerTagRegister());
   return saved_registers;
 }
 
@@ -630,6 +629,12 @@ constexpr auto GetIteratorStackParameterDescriptor::registers() {
 }
 
 // static
+constexpr auto
+ProxyGetPropertyTrapResultLazyDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
 constexpr auto ForOfNextResultDeoptContinuationDescriptor::registers() {
   return RegisterArray();
 }
@@ -820,6 +825,11 @@ WasmHandleStackOverflowDescriptor::FrameBaseRegister() {
 
 constexpr inline Register WasmHandleStackOverflowDescriptor::GapRegister() {
   return std::get<kGap>(registers());
+}
+
+constexpr inline Register
+WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister() {
+  return std::get<kParameterSlotsSize>(registers());
 }
 
 constexpr auto WasmToJSWrapperDescriptor::registers() {

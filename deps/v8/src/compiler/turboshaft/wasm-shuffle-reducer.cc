@@ -540,6 +540,7 @@ void WasmShuffleAnalyzer::ProcessUnary(const Simd128UnaryOp& unop) {
 
 void WasmShuffleAnalyzer::ProcessBinary(const Simd128BinopOp& binop) {
   demanded_byte_analysis_.AddOp(binop, DemandedBytes::All());
+  ProcessNarrowShuffle(binop);
 }
 
 void WasmShuffleAnalyzer::ProcessReplaceLane(
@@ -970,6 +971,115 @@ void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
   if (!reduced_right && right.saturated_use_count.Is(max_uses)) {
     TryReduceFromMSB(shuffle.right(), shuffle, ShuffleSide::kRight);
   }
+}
+
+namespace {
+
+template <int kNarrowedLaneBytes>
+  requires(kNarrowedLaneBytes == kInt8Size || kNarrowedLaneBytes == kInt16Size)
+std::array<uint8_t, kSimd128Size> GetNarrowShuffleMask(
+    const std::array<uint8_t, kSimd128HalfSize>& lower_lanes,
+    const std::array<uint8_t, kSimd128HalfSize>& upper_lanes) {
+  std::array<uint8_t, kSimd128Size> replacement_mask{};
+
+  auto write_mask_half = [&](const std::array<uint8_t, kSimd128HalfSize>& lanes,
+                             const int output_byte_offset) {
+    // Number of lanes after both inputs' lowest eight bytes were widened.
+    constexpr int lanes_per_input = kSimd128HalfSize / kNarrowedLaneBytes;
+
+    for (int output_lane = 0; output_lane < lanes_per_input; ++output_lane) {
+      const uint8_t source_lane = lanes[output_lane];
+
+      // Second widened vector's indices start after the first's indices.
+      const uint8_t source_offset =
+          source_lane < lanes_per_input
+              ? source_lane * kNarrowedLaneBytes
+              : kSimd128Size +
+                    (source_lane - lanes_per_input) * kNarrowedLaneBytes;
+
+      const int replacement_byte_offset =
+          output_byte_offset + (output_lane * kNarrowedLaneBytes);
+
+      // Select each byte of the original lane.
+      for (int byte = 0; byte < kNarrowedLaneBytes; ++byte) {
+        replacement_mask[replacement_byte_offset + byte] = source_offset + byte;
+      }
+    }
+  };
+
+  write_mask_half(lower_lanes, 0);
+  write_mask_half(upper_lanes, kSimd128HalfSize);
+
+  return replacement_mask;
+}
+
+}  // namespace
+
+// Reduce low-half widens, lower/upper-half shuffles and narrowing with the
+// same signedness into one shuffle of the byte or half-word inputs.
+void WasmShuffleAnalyzer::ProcessNarrowShuffle(const Simd128BinopOp& binop) {
+  Simd128UnaryOp::Kind low_widen_kind;
+  switch (binop.kind) {
+    case Simd128BinopOp::Kind::kI8x16SConvertI16x8:
+      low_widen_kind = Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low;
+      break;
+    case Simd128BinopOp::Kind::kI8x16UConvertI16x8:
+      low_widen_kind = Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low;
+      break;
+    case Simd128BinopOp::Kind::kI16x8SConvertI32x4:
+      low_widen_kind = Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low;
+      break;
+    case Simd128BinopOp::Kind::kI16x8UConvertI32x4:
+      low_widen_kind = Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low;
+      break;
+    default:
+      return;
+  }
+
+  const Graph& graph = input_graph();
+  const auto* lower = graph.Get(binop.left()).TryCast<Simd128ShuffleOp>();
+  const auto* upper = graph.Get(binop.right()).TryCast<Simd128ShuffleOp>();
+  if (!lower || !upper || lower->kind != Simd128ShuffleOp::Kind::kI8x16 ||
+      upper->kind != Simd128ShuffleOp::Kind::kI8x16 ||
+      lower->left() != upper->left() || lower->right() != upper->right()) {
+    return;
+  }
+
+  const auto* ext1 = graph.Get(lower->left()).TryCast<Simd128UnaryOp>();
+  const auto* ext2 = graph.Get(lower->right()).TryCast<Simd128UnaryOp>();
+  // Check the low-half widens' width and signedness matches the narrowing op.
+  if (!ext1 || !ext2 || ext1->kind != low_widen_kind ||
+      ext2->kind != low_widen_kind) {
+    return;
+  }
+
+  const uint8_t* lower_indices = lower->shuffle.data();
+  const uint8_t* upper_indices = upper->shuffle.data();
+
+  std::array<uint8_t, kSimd128HalfSize> lower_mask{};
+  std::array<uint8_t, kSimd128HalfSize> upper_mask{};
+  std::array<uint8_t, kSimd128Size> replacement_mask{};
+
+  if (low_widen_kind == Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low ||
+      low_widen_kind == Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low) {
+    if (!SimdShuffle::TryMatch16x8Shuffle(lower_indices, lower_mask.data()) ||
+        !SimdShuffle::TryMatch16x8Shuffle(upper_indices, upper_mask.data())) {
+      return;
+    }
+
+    replacement_mask = GetNarrowShuffleMask<kInt8Size>(lower_mask, upper_mask);
+  } else {
+    if (!SimdShuffle::TryMatch32x4Shuffle(lower_indices, lower_mask.data()) ||
+        !SimdShuffle::TryMatch32x4Shuffle(upper_indices, upper_mask.data())) {
+      return;
+    }
+
+    replacement_mask = GetNarrowShuffleMask<kInt16Size>(lower_mask, upper_mask);
+  }
+
+  narrow_shuffle_candidates_.push_back({input_graph().Index(binop),
+                                        ext1->input(), ext2->input(),
+                                        replacement_mask});
 }
 
 #undef TRACE

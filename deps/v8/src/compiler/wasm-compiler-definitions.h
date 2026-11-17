@@ -10,10 +10,10 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include <ostream>
+#include <string_view>
 
 #include "src/base/hashing.h"
 #include "src/base/strong-alias.h"
-#include "src/base/vector.h"
 #include "src/codegen/linkage-location.h"
 #include "src/codegen/signature.h"
 #include "src/wasm/signature-hashing.h"
@@ -112,10 +112,9 @@ std::ostream& operator<<(std::ostream& os, CheckForNull null_check);
 
 V8_EXPORT_PRIVATE TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 
-base::Vector<const char> GetDebugName(Zone* zone,
-                                      const wasm::WasmModule* module,
-                                      const wasm::WireBytesStorage* wire_bytes,
-                                      int index);
+std::string_view GetDebugName(Zone* zone, const wasm::WasmModule* module,
+                              const wasm::WireBytesStorage* wire_bytes,
+                              int index);
 enum WasmCallKind {
   kWasmFunction,
   kWasmIndirectFunction,

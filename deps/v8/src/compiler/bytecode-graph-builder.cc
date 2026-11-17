@@ -2430,15 +2430,7 @@ void BytecodeGraphBuilder::VisitPopContext() {
 void BytecodeGraphBuilder::VisitCreateClosure() {
   SharedFunctionInfoRef shared_info =
       MakeRefForConstantPoolOperand<SharedFunctionInfo>(0);
-  AllocationType allocation =
-      interpreter::CreateClosureFlags::PretenuredBit::decode(
-          bytecode_iterator().GetFlag8Operand(2))
-          ? AllocationType::kOld
-          : AllocationType::kYoung;
-  CodeRef compile_lazy =
-      MakeRef(broker(), *BUILTIN_CODE(jsgraph()->isolate(), CompileLazy));
-  const Operator* op =
-      javascript()->CreateClosure(shared_info, compile_lazy, allocation);
+  const Operator* op = javascript()->CreateClosure(shared_info);
   Node* closure = NewNode(
       op, BuildLoadFeedbackCell(bytecode_iterator().GetFeedbackSlotOperand(1)));
   environment()->BindAccumulator(closure);

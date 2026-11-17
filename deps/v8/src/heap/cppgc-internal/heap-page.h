@@ -253,7 +253,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     allocated_bytes_at_last_gc_ = bytes;
   }
 
-  PlatformAwareObjectStartBitmap& object_start_bitmap() const {
+  ObjectStartBitmap& object_start_bitmap() const {
     return object_start_bitmap_;
   }
 
@@ -262,7 +262,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   ~NormalPage() = default;
 
   size_t allocated_bytes_at_last_gc_ = 0;
-  mutable PlatformAwareObjectStartBitmap object_start_bitmap_;
+  mutable ObjectStartBitmap object_start_bitmap_;
 };
 
 class V8_EXPORT_PRIVATE LargePage final : public BasePage {
@@ -354,8 +354,7 @@ const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
   // We may find other headers (before this object) because not all object start
   // bits are initially set. The fixup then makes sure that we indeed find the
   // right one.
-  PlatformAwareObjectStartBitmap& bitmap =
-      NormalPage::From(this)->object_start_bitmap();
+  ObjectStartBitmap& bitmap = NormalPage::From(this)->object_start_bitmap();
   const HeapObjectHeader* header =
       bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
   ConstAddress object_end =
@@ -404,8 +403,7 @@ const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddressConcurrent(
   if (is_large()) {
     return *LargePage::From(this)->ObjectHeader();
   }
-  PlatformAwareObjectStartBitmap& bitmap =
-      NormalPage::From(this)->object_start_bitmap();
+  ObjectStartBitmap& bitmap = NormalPage::From(this)->object_start_bitmap();
   const HeapObjectHeader* header =
       bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
   // Make sure that the pointer is within the object bounds.

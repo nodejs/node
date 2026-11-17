@@ -63,6 +63,7 @@ void SharedHeapSerializer::FinalizeSerialization() {
   // internalizable-in-place strings are in the shared heap.
   SerializeStringTable(isolate()->string_table());
   SerializeDeferredObjects();
+  OptimizeBackReferences();
   Pad();
 
 #ifdef DEBUG
@@ -167,7 +168,6 @@ void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   {
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> raw = *obj;
-    if (SerializeHotObject(raw)) return;
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
   }
   if (SerializeReadOnlyObjectReference(*obj, &sink_)) return;

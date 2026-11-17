@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/objects-inl.h"
+#include "src/objects/struct-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,26 +17,44 @@
 namespace v8 {
 namespace internal {
 
+PropertyDescriptorObject::PropertyDescriptorObject(
+    const AllocationWitness& witness)
+    : Struct(witness.roots().property_descriptor_object_map()),
+      flags_(Smi::zero()),
+      value_(witness.roots().the_hole_value()),
+      get_(witness.roots().the_hole_value()),
+      set_(witness.roots().the_hole_value()) {}
+
 int PropertyDescriptorObject::flags() const { return flags_.load().value(); }
 void PropertyDescriptorObject::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));
 }
 
-Tagged<Object> PropertyDescriptorObject::value() const { return value_.load(); }
-void PropertyDescriptorObject::set_value(Tagged<Object> value,
+Tagged<UnionOf<JSAny, TheHole>> PropertyDescriptorObject::value() const {
+  return value_.load();
+}
+void PropertyDescriptorObject::set_value(Tagged<UnionOf<JSAny, TheHole>> value,
                                          WriteBarrierMode mode) {
   value_.store(this, value, mode);
 }
 
-Tagged<Object> PropertyDescriptorObject::get() const { return get_.load(); }
-void PropertyDescriptorObject::set_get(Tagged<Object> value,
-                                       WriteBarrierMode mode) {
+Tagged<UnionOf<FunctionTemplateInfo, JSAny, TheHole>>
+PropertyDescriptorObject::get() const {
+  return get_.load();
+}
+void PropertyDescriptorObject::set_get(
+    Tagged<UnionOf<FunctionTemplateInfo, JSAny, TheHole>> value,
+    WriteBarrierMode mode) {
   get_.store(this, value, mode);
 }
 
-Tagged<Object> PropertyDescriptorObject::set() const { return set_.load(); }
-void PropertyDescriptorObject::set_set(Tagged<Object> value,
-                                       WriteBarrierMode mode) {
+Tagged<UnionOf<FunctionTemplateInfo, JSAny, TheHole>>
+PropertyDescriptorObject::set() const {
+  return set_.load();
+}
+void PropertyDescriptorObject::set_set(
+    Tagged<UnionOf<FunctionTemplateInfo, JSAny, TheHole>> value,
+    WriteBarrierMode mode) {
   set_.store(this, value, mode);
 }
 

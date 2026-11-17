@@ -26,16 +26,27 @@ namespace printf_core {
 
 namespace details {
 
-using HexFmt = IntegerToString<uintmax_t, radix::Hex>;
-using HexFmtUppercase = IntegerToString<uintmax_t, radix::Hex::Uppercase>;
-using OctFmt = IntegerToString<uintmax_t, radix::Oct>;
-using DecFmt = IntegerToString<uintmax_t>;
-using BinFmt = IntegerToString<uintmax_t, radix::Bin>;
+template <typename CharT>
+using HexFmt = IntegerToString<uintmax_t, radix::Hex, CharT>;
 
-LIBC_INLINE constexpr size_t num_buf_size() {
+template <typename CharT>
+using HexFmtUppercase =
+    IntegerToString<uintmax_t, radix::Hex::Uppercase, CharT>;
+
+template <typename CharT>
+using OctFmt = IntegerToString<uintmax_t, radix::Oct, CharT>;
+
+template <typename CharT>
+using DecFmt = IntegerToString<uintmax_t, radix::Dec, CharT>;
+
+template <typename CharT>
+using BinFmt = IntegerToString<uintmax_t, radix::Bin, CharT>;
+
+template <typename CharT> LIBC_INLINE constexpr size_t num_buf_size() {
   cpp::array<size_t, 5> sizes{
-      HexFmt::buffer_size(), HexFmtUppercase::buffer_size(),
-      OctFmt::buffer_size(), DecFmt::buffer_size(), BinFmt::buffer_size()};
+      HexFmt<CharT>::buffer_size(), HexFmtUppercase<CharT>::buffer_size(),
+      OctFmt<CharT>::buffer_size(), DecFmt<CharT>::buffer_size(),
+      BinFmt<CharT>::buffer_size()};
 
   auto result = sizes[0];
   for (size_t i = 1; i < sizes.size(); i++)
@@ -43,27 +54,29 @@ LIBC_INLINE constexpr size_t num_buf_size() {
   return result;
 }
 
-LIBC_INLINE cpp::optional<cpp::string_view>
-num_to_strview(uintmax_t num, cpp::span<char> bufref, char conv_name) {
-  if (internal::tolower(conv_name) == 'x') {
-    if (internal::islower(conv_name))
-      return HexFmt::format_to(bufref, num);
-    else
-      return HexFmtUppercase::format_to(bufref, num);
-  } else if (conv_name == 'o') {
-    return OctFmt::format_to(bufref, num);
-  } else if (internal::tolower(conv_name) == 'b') {
-    return BinFmt::format_to(bufref, num);
-  } else {
-    return DecFmt::format_to(bufref, num);
+template <typename CharT>
+LIBC_INLINE cpp::optional<cpp::basic_string_view<CharT>>
+num_to_strview(uintmax_t num, cpp::span<CharT> bufref, CharT conv_name) {
+  switch (conv_name) {
+  case CharT{'x'}:
+    return HexFmt<CharT>::format_to(bufref, num);
+  case CharT{'X'}:
+    return HexFmtUppercase<CharT>::format_to(bufref, num);
+  case CharT{'o'}:
+    return OctFmt<CharT>::format_to(bufref, num);
+  case CharT('b'):
+  case CharT('B'):
+    return BinFmt<CharT>::format_to(bufref, num);
+  default:
+    return DecFmt<CharT>::format_to(bufref, num);
   }
 }
 
 } // namespace details
 
-template <OverflowMode mode>
-LIBC_INLINE int convert_int(Writer<mode> *writer,
-                            const FormatSection &to_conv) {
+template <OverflowMode mode, typename CharT>
+LIBC_INLINE int convert_int(Writer<mode, CharT> *writer,
+                            const FormatSection<CharT> &to_conv) {
   static constexpr size_t BITS_IN_BYTE = 8;
   static constexpr size_t BITS_IN_NUM = sizeof(uintmax_t) * BITS_IN_BYTE;
 
@@ -72,7 +85,7 @@ LIBC_INLINE int convert_int(Writer<mode> *writer,
   FormatFlags flags = to_conv.flags;
 
   // If the conversion is signed, then handle negative values.
-  if (to_conv.conv_name == 'd' || to_conv.conv_name == 'i') {
+  if (to_conv.conv_name == CharT{'d'} || to_conv.conv_name == CharT{'i'}) {
     // Check if the number is negative by checking the high bit. This works even
     // for smaller numbers because they're sign extended by default.
     if ((num & (uintmax_t(1) << (BITS_IN_NUM - 1))) > 0) {
@@ -88,41 +101,38 @@ LIBC_INLINE int convert_int(Writer<mode> *writer,
 
   num =
       apply_length_modifier(num, {to_conv.length_modifier, to_conv.bit_width});
-  cpp::array<char, details::num_buf_size()> buf;
-  auto str = details::num_to_strview(num, buf, to_conv.conv_name);
+  cpp::array<CharT, details::num_buf_size<CharT>()> buf;
+  auto str = details::num_to_strview<CharT>(num, buf, to_conv.conv_name);
   if (!str)
     return INT_CONVERSION_ERROR;
 
   size_t digits_written = str->size();
 
-  char sign_char = 0;
+  CharT sign_char = 0;
 
   if (is_negative)
-    sign_char = '-';
+    sign_char = CharT{'-'};
   else if ((flags & FormatFlags::FORCE_SIGN) == FormatFlags::FORCE_SIGN)
-    sign_char = '+'; // FORCE_SIGN has precedence over SPACE_PREFIX
+    sign_char = CharT{'+'}; // FORCE_SIGN has precedence over SPACE_PREFIX
   else if ((flags & FormatFlags::SPACE_PREFIX) == FormatFlags::SPACE_PREFIX)
-    sign_char = ' ';
+    sign_char = CharT{' '};
 
   // These are signed to prevent underflow due to negative values. The eventual
   // values will always be non-negative.
   int zeroes;
   int spaces;
 
-  // prefix is "0x" for hexadecimal, or the sign character for signed
-  // conversions. Since hexadecimal is unsigned these will never conflict.
+  // Prefix is "0x" or "OX" for hexadecimal, "0b" or "0B" for binary, or the
+  // sign character for signed conversions. Since hexadecimal and binary are
+  // unsigned these will never conflict.
   size_t prefix_len;
-  char prefix[2];
-  if ((internal::tolower(to_conv.conv_name) == 'x') &&
-      ((flags & FormatFlags::ALTERNATE_FORM) != 0) && num != 0) {
+  CharT prefix[2];
+  if ((to_conv.conv_name == CharT{'x'} || to_conv.conv_name == CharT{'X'} ||
+       to_conv.conv_name == CharT{'b'} || to_conv.conv_name == CharT{'B'}) &&
+      (flags & FormatFlags::ALTERNATE_FORM) != 0 && num != 0) {
     prefix_len = 2;
-    prefix[0] = '0';
-    prefix[1] = internal::islower(to_conv.conv_name) ? 'x' : 'X';
-  } else if ((internal::tolower(to_conv.conv_name) == 'b') &&
-             ((flags & FormatFlags::ALTERNATE_FORM) != 0) && num != 0) {
-    prefix_len = 2;
-    prefix[0] = '0';
-    prefix[1] = internal::islower(to_conv.conv_name) ? 'b' : 'B';
+    prefix[0] = CharT{'0'};
+    prefix[1] = to_conv.conv_name;
   } else {
     prefix_len = (sign_char == 0 ? 0 : 1);
     prefix[0] = sign_char;
@@ -175,7 +185,7 @@ LIBC_INLINE int convert_int(Writer<mode> *writer,
   //    2b) ... because it is just "0", unless it will not write any digits.
   const bool has_leading_zero =
       (zeroes > 0) || ((num == 0) && (digits_written != 0));
-  if ((to_conv.conv_name == 'o') &&
+  if ((to_conv.conv_name == CharT{'o'}) &&
       ((to_conv.flags & FormatFlags::ALTERNATE_FORM) != 0) &&
       !has_leading_zero) {
     zeroes = 1;
@@ -187,19 +197,19 @@ LIBC_INLINE int convert_int(Writer<mode> *writer,
     if (prefix_len != 0)
       RET_IF_RESULT_NEGATIVE(writer->write({prefix, prefix_len}));
     if (zeroes > 0)
-      RET_IF_RESULT_NEGATIVE(writer->write('0', zeroes));
+      RET_IF_RESULT_NEGATIVE(writer->write(CharT{'0'}, zeroes));
     if (digits_written > 0)
       RET_IF_RESULT_NEGATIVE(writer->write(*str));
     if (spaces > 0)
-      RET_IF_RESULT_NEGATIVE(writer->write(' ', spaces));
+      RET_IF_RESULT_NEGATIVE(writer->write(CharT{' '}, spaces));
   } else {
     // Else it goes spaces prefix zeroes digits
     if (spaces > 0)
-      RET_IF_RESULT_NEGATIVE(writer->write(' ', spaces));
+      RET_IF_RESULT_NEGATIVE(writer->write(CharT{' '}, spaces));
     if (prefix_len != 0)
       RET_IF_RESULT_NEGATIVE(writer->write({prefix, prefix_len}));
     if (zeroes > 0)
-      RET_IF_RESULT_NEGATIVE(writer->write('0', zeroes));
+      RET_IF_RESULT_NEGATIVE(writer->write(CharT{'0'}, zeroes));
     if (digits_written > 0)
       RET_IF_RESULT_NEGATIVE(writer->write(*str));
   }

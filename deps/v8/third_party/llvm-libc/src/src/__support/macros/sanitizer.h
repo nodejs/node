@@ -32,7 +32,11 @@
       __msan_unpoison(addr, size);                                             \
   } while (0)
 #else
-#define LIBC_MSAN_UNPOISON(ptr, size)
+#define LIBC_MSAN_UNPOISON(ptr, size)                                          \
+  do {                                                                         \
+    (void)(ptr);                                                               \
+    (void)(size);                                                              \
+  } while (0)
 #endif
 
 #ifdef LIBC_HAS_ADDRESS_SANITIZER

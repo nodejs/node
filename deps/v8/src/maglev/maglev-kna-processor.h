@@ -435,7 +435,7 @@ class RecomputeKnownNodeAspectsProcessor {
     }
     if (!node->property_key().is_none()) {
       auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
-          zone(), node->is_const(), node->property_key());
+          zone(), node->constness(), node->property_key());
       props_for_key[node->ValueInput().node()] = node;
     }
     return ProcessResult::kContinue;
@@ -448,18 +448,22 @@ class RecomputeKnownNodeAspectsProcessor {
   }
 
   ProcessResult ProcessNode(LoadDataViewByteLength* node) {
-    bool is_const = !v8_flags.track_array_buffer_views;
+    PropertyConstness constness = v8_flags.track_array_buffer_views
+                                      ? PropertyConstness::kMutable
+                                      : PropertyConstness::kConst;
     auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
-        zone(), is_const, PropertyKey::ArrayBufferViewByteLength());
+        zone(), constness, PropertyKey::ArrayBufferViewByteLength());
     props_for_key[node->ValueInput().node()] = node;
     return ProcessResult::kContinue;
   }
 
   ProcessResult ProcessNode(LoadTypedArrayLength* node) {
     if (!IsRabGsabTypedArrayElementsKind(node->elements_kind())) {
-      bool is_const = !v8_flags.track_array_buffer_views;
+      PropertyConstness constness = v8_flags.track_array_buffer_views
+                                        ? PropertyConstness::kMutable
+                                        : PropertyConstness::kConst;
       auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
-          zone(), is_const, PropertyKey::TypedArrayLength());
+          zone(), constness, PropertyKey::TypedArrayLength());
       props_for_key[node->ValueInput().node()] = node;
     }
     return ProcessResult::kContinue;
@@ -482,7 +486,7 @@ class RecomputeKnownNodeAspectsProcessor {
     // ... otherwise we try the properties cache.
     if (node->property_key().is_none()) return;
     auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
-        zone(), false, node->property_key());
+        zone(), PropertyConstness::kMutable, node->property_key());
     // We don't do any aliasing analysis, so stores clobber all other cached
     // loads of a property with that key. We only need to do this for
     // non-constant properties, since constant properties are known not to

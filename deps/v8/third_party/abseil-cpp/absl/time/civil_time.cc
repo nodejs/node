@@ -16,6 +16,7 @@
 
 #include <cerrno>
 #include <cstdlib>
+#include <limits>
 #include <ostream>
 #include <string>
 
@@ -68,7 +69,15 @@ bool ParseYearAnd(string_view fmt, string_view s, CivilT* c) {
     // end-of-year rollover) can carry into the year. The other fields are taken
     // from `cs`, so the same carry must be applied to the original year;
     // otherwise the reconstructed value would use the wrong (un-carried) year.
-    const civil_year_t year = y + (cs.year() - normalized_year);
+    // `cs.year()` and `normalized_year` both lie in the normalized range, so
+    // the carry is small, but applying it to `y` can overflow civil_year_t when
+    // `y` is at the extreme representable year; reject that rather than wrap.
+    const civil_year_t carry = cs.year() - normalized_year;
+    if ((carry > 0 && y > (std::numeric_limits<civil_year_t>::max)() - carry) ||
+        (carry < 0 && y < (std::numeric_limits<civil_year_t>::min)() - carry)) {
+      return false;
+    }
+    const civil_year_t year = y + carry;
     *c =
         CivilT(year, cs.month(), cs.day(), cs.hour(), cs.minute(), cs.second());
     return true;

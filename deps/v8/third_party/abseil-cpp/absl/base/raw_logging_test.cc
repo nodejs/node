@@ -18,10 +18,17 @@
 
 #include "absl/base/internal/raw_logging.h"
 
+#include <cstddef>
 #include <string>
-#include <tuple>
+
+#if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))) && \
+    !defined(__EMSCRIPTEN__)
+#include <unistd.h>
+
+#endif
 
 #include "gtest/gtest.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 
 namespace {
@@ -74,6 +81,47 @@ TEST(RawLoggingDeathTest, LogFatal) {
   EXPECT_DEATH_IF_SUPPORTED(ABSL_RAW_LOG(FATAL, "my dog has fleas"),
                             kExpectedDeathOutput);
 }
+
+// Raw logging writes to STDERR_FILENO via write()/syscall on POSIX platforms,
+// so the truncation path can be exercised directly by capturing stderr, without
+// relying on death tests.
+#if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))) && \
+    !defined(__EMSCRIPTEN__)
+TEST(RawLoggingTest, TruncationMarkerAtExactBufferBoundary) {
+  if (!absl::raw_log_internal::RawLoggingFullySupported()) {
+    GTEST_SKIP() << "Raw logging output is not supported on this platform.";
+  }
+  // kLogBufSize in raw_logging.cc.
+  constexpr int kLogBufSize = 3000;
+
+  // The space left for the message depends on the log prefix, which a prefix
+  // hook can change, so try every length up to the buffer size.  Each message
+  // must come out either whole or ending in the truncation marker.
+  for (int len = 1; len <= kLogBufSize; ++len) {
+    int fds[2];
+    ASSERT_EQ(pipe(fds), 0);
+    int saved_stderr = dup(STDERR_FILENO);
+    ASSERT_NE(saved_stderr, -1);
+    ASSERT_NE(dup2(fds[1], STDERR_FILENO), -1);
+
+    const std::string msg(static_cast<size_t>(len), 'x');
+    ABSL_RAW_LOG(ERROR, "%s", msg.c_str());
+
+    ASSERT_NE(dup2(saved_stderr, STDERR_FILENO), -1);
+    close(saved_stderr);
+    close(fds[1]);
+    char buf[kLogBufSize + 64];
+    ssize_t n = read(fds[0], buf, sizeof(buf));
+    close(fds[0]);
+    ASSERT_GT(n, 0);
+    const std::string output(buf, static_cast<size_t>(n));
+
+    ASSERT_TRUE(absl::StrContains(output, msg) ||
+                absl::EndsWith(output, " ... (message truncated)\n"))
+        << "message length " << len;
+  }
+}
+#endif
 
 TEST(InternalLog, CompilationTest) {
   ABSL_INTERNAL_LOG(INFO, "Internal Log");

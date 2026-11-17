@@ -365,6 +365,7 @@ absl_cc_library(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::config
+    absl::core_headers
     absl::memory
     absl::meta
     absl::pretty_function
@@ -531,6 +532,8 @@ absl_cc_test(
     absl::core_headers
     absl::synchronization
     GTest::gtest_main
+  SHARD_COUNT
+    4
 )
 
 # Internal-only target, do not depend on directly.

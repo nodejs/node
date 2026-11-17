@@ -79,8 +79,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
   Address Generate() override {
     if (code_.is_null()) {
       Schedule* schedule = ExportForTest();
-      OptimizedCompilationInfo info(base::ArrayVector("testing"), main_zone(),
-                                    kind_);
+      OptimizedCompilationInfo info("testing", main_zone(), kind_);
       code_ = Pipeline::GenerateCodeForTesting(
           &info, main_isolate(), call_descriptor(), graph(),
           AssemblerOptions::Default(main_isolate()), schedule);

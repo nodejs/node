@@ -134,6 +134,18 @@ enum FunctionMode {
       kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
+inline bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
+  return (function_mode & kWithPrototypeBits) != 0;
+}
+
+inline bool IsFunctionModeWithWritablePrototype(FunctionMode function_mode) {
+  return (function_mode & kWithWritablePrototypeBit) != 0;
+}
+
+inline bool IsFunctionModeWithName(FunctionMode function_mode) {
+  return (function_mode & kWithNameBit) != 0;
+}
+
 enum class ArrayStorageAllocationMode {
   DONT_INITIALIZE_ARRAY_ELEMENTS,
   INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
@@ -142,6 +154,8 @@ enum class ArrayStorageAllocationMode {
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
+  using FactoryBase<Factory>::New;
+
   inline ReadOnlyRoots read_only_roots() const;
 
   DirectHandle<Hole> NewHole();
@@ -251,29 +265,20 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                  RelaxedStoreTag tag,
                                  AllocationType allocation);
 
+  DirectHandle<ForInEnumeratorHolder> NewForInEnumeratorHolder(
+      DirectHandle<Map> enum_cache_map, DirectHandle<FixedArray> named_keys,
+      Tagged<Smi> elements_length, Tagged<Smi> cache_length,
+      AllocationType allocation = AllocationType::kYoung);
+
   // Create a new PropertyDescriptorObject struct.
   DirectHandle<PropertyDescriptorObject> NewPropertyDescriptorObject();
 
   // Finds the internalized copy for string in the string table.
   // If not found, a new string is added to the table and returned.
-  Handle<String> InternalizeUtf8String(base::Vector<const char> str);
-  Handle<String> InternalizeUtf8String(const char* str) {
-    return InternalizeUtf8String(base::CStrVector(str));
-  }
+  Handle<String> InternalizeUtf8String(std::string_view str);
 
   // Import InternalizeString overloads from base class.
   using FactoryBase::InternalizeString;
-
-  Handle<InternalizedString> InternalizeString(base::Vector<const char> str,
-                                               bool convert_encoding = false) {
-    return InternalizeString(base::Vector<const uint8_t>::cast(str),
-                             convert_encoding);
-  }
-
-  Handle<InternalizedString> InternalizeString(const char* str,
-                                               bool convert_encoding = false) {
-    return InternalizeString(base::OneByteVector(str), convert_encoding);
-  }
 
   template <typename SeqString, template <typename> typename HandleType>
     requires(
@@ -334,14 +339,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
-      base::Vector<const char> str,
-      AllocationType allocation = AllocationType::kYoung);
-
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
-      std::string_view str,
-      AllocationType allocation = AllocationType::kYoung) {
-    return NewStringFromUtf8(base::StrVector(str), allocation);
-  }
+      std::string_view str, AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       base::Vector<const uint8_t> str, UnicodeConfig config,
@@ -528,6 +526,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int aliased_context_slot);
 
   DirectHandle<AccessorInfo> NewAccessorInfo();
+  DirectHandle<AccessCheckInfo> NewAccessCheckInfo();
 
   DirectHandle<InterceptorInfo> NewInterceptorInfo(
       InterceptorKind kind, AllocationType allocation = AllocationType::kOld);
@@ -761,15 +760,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // runtime.
   Handle<JSObject> NewJSObjectFromMap(
       DirectHandle<Map> map, AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   // Like NewJSObjectFromMap, but includes allocating a properties dictionary.);
   Handle<JSObject> NewSlowJSObjectFromMap(
       DirectHandle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   Handle<JSObject> NewSlowJSObjectFromMap(DirectHandle<Map> map);
   // Calls NewJSObjectFromMap or NewSlowJSObjectFromMap depending on whether the
@@ -777,8 +774,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(
       DirectHandle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(DirectHandle<Map> map);
   // Allocates and initializes a new JavaScript object with the given
@@ -1126,24 +1122,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<InterpreterData> NewInterpreterData(
       DirectHandle<BytecodeArray> bytecode_array, DirectHandle<Code> code);
 
-  static bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
-    return (function_mode & kWithPrototypeBits) != 0;
-  }
-
-  static bool IsFunctionModeWithWritablePrototype(FunctionMode function_mode) {
-    return (function_mode & kWithWritablePrototypeBit) != 0;
-  }
-
-  static bool IsFunctionModeWithName(FunctionMode function_mode) {
-    return (function_mode & kWithNameBit) != 0;
-  }
-
-  DirectHandle<Map> CreateSloppyFunctionMap(
+  DirectHandle<Map> CreateFunctionMap(
       FunctionMode function_mode,
-      MaybeDirectHandle<JSFunction> maybe_empty_function);
-
-  DirectHandle<Map> CreateStrictFunctionMap(
-      FunctionMode function_mode, DirectHandle<JSFunction> empty_function);
+      MaybeDirectHandle<JSFunction> maybe_empty_function = {});
 
   DirectHandle<Map> CreateClassFunctionMap(
       DirectHandle<JSFunction> empty_function);
@@ -1241,10 +1222,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<JSSharedArray> NewJSSharedArray(
       DirectHandle<JSFunction> constructor, int length);
-
-  Handle<JSAtomicsMutex> NewJSAtomicsMutex();
-
-  Handle<JSAtomicsCondition> NewJSAtomicsCondition();
 
   DirectHandle<FunctionTemplateInfo> NewFunctionTemplateInfo(int length,
                                                              bool do_not_cache);
@@ -1465,7 +1442,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Tagged<HeapObject> AllocateRawWithAllocationSite(
       DirectHandle<Map> map, AllocationType allocation,
-      DirectHandle<AllocationSite> allocation_site);
+      MaybeDirectHandle<AllocationSite> allocation_site);
 
   Handle<JSArrayBufferView> NewJSArrayBufferView(
       DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements,
@@ -1498,7 +1475,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<T> CopyArrayAndGrow(DirectHandle<T> src, uint32_t grow_by,
                              AllocationType allocation);
 
-  MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,
+  MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string,
+                                           uint32_t length,
                                            AllocationType allocation);
 
   // Creates a new JSArray with the given backing storage. Performs no

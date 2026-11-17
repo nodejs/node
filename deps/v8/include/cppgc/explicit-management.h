@@ -6,6 +6,7 @@
 #define INCLUDE_CPPGC_EXPLICIT_MANAGEMENT_H_
 
 #include <cstddef>
+#include <limits>
 
 #include "cppgc/allocation.h"
 #include "cppgc/internal/logging.h"
@@ -90,10 +91,16 @@ template <typename T>
 bool Resize(T& object, AdditionalBytes additional_bytes) {
   static_assert(IsGarbageCollectedTypeV<T>,
                 "Object must be of type GarbageCollected.");
+  static_assert(sizeof(T) <= std::numeric_limits<uint32_t>::max());
   const size_t new_object_size = sizeof(T) + additional_bytes.value;
+  // On 64-bit systems, since sizeof(T) and additional_bytes.value are both at
+  // most 32 bits, we know that their sum can't overflow. On 32-bit systems, we
+  // need to check it.
+#if !defined(V8_HOST_ARCH_64_BIT)
   if (new_object_size < sizeof(T)) {
     return false;
   }
+#endif
   return internal::ExplicitManagementImpl::Resize(&object, new_object_size);
 }
 

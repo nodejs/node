@@ -1,0 +1,6 @@
+Checks that nested custom formatters do not bypass JSONML budget and cause OOM.
+
+Running test: setUp
+
+Running test: testOOM
+no custom preview

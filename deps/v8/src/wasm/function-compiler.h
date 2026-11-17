@@ -11,6 +11,7 @@
 
 #include <memory>
 
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/code-desc.h"
 #include "src/codegen/compiler.h"
@@ -79,11 +80,11 @@ struct WasmCompilationResult {
   uint32_t frame_slot_count = 0;
   uint32_t ool_spill_count = 0;
   uint32_t tagged_parameter_slots = 0;
-  base::OwnedVector<uint8_t> source_positions;
-  base::OwnedVector<uint8_t> inlining_positions;
-  base::OwnedVector<uint8_t> trapping_instructions_data;
-  base::OwnedVector<uint8_t> deopt_data;
-  base::OwnedVector<uint8_t> effect_handlers;
+  base::UniqueArray<uint8_t> source_positions;
+  base::UniqueArray<uint8_t> inlining_positions;
+  base::UniqueArray<uint8_t> trapping_instructions_data;
+  base::UniqueArray<uint8_t> deopt_data;
+  base::UniqueArray<uint8_t> effect_handlers;
   std::unique_ptr<AssumptionsJournal> assumptions;
   std::unique_ptr<LiftoffFrameDescriptionForDeopt> liftoff_frame_descriptions;
   int func_index = kAnonymousFuncIndex;

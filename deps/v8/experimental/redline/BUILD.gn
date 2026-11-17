@@ -1,0 +1,172 @@
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+# Redline is a coverage-guided JavaScript fuzzer for d8, written in C++ and
+# living in the V8 tree. The fuzzer itself does not need coverage
+# instrumentation: it drives a separately built, instrumented d8 (built with
+# v8_fuzzilli=true and sanitizer_coverage_flags set) over the REPRL protocol
+# that d8 already implements for Fuzzilli. See README.md.
+
+# Stricter diagnostics for this directory only. The V8 headers that redline
+# includes (include/, src/base/, ...) are treated as system headers so that
+# only Redline's own code is held to these flags.
+config("redline_warnings") {
+  cflags = [
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-Wconversion",
+    "-Wshadow",
+    "-Wunused",
+    "-Werror",
+  ]
+  if (is_clang) {
+    cflags += [
+      "--system-header-prefix=include/",
+      "--system-header-prefix=src/",
+      "--system-header-prefix=third_party/",
+      "--system-header-prefix=absl/",
+    ]
+  }
+  cflags_cc = [
+    "-Wnon-virtual-dtor",
+    "-Wold-style-cast",
+    "-Woverloaded-virtual",
+  ]
+}
+
+v8_executable("redline") {
+  sources = [
+    "base/file_util.cc",
+    "base/file_util.h",
+    "base/flags.cc",
+    "base/flags.h",
+    "base/json.cc",
+    "base/json.h",
+    "base/json_parser.cc",
+    "base/json_parser.h",
+    "base/log.cc",
+    "base/log.h",
+    "base/subprocess.cc",
+    "base/subprocess.h",
+    "base/time_util.h",
+    "base/v8_runtime.cc",
+    "base/v8_runtime.h",
+    "commands/amplify_command.cc",
+    "commands/command.h",
+    "commands/exec_command.cc",
+    "commands/fuzz_command.cc",
+    "commands/minimize_command.cc",
+    "commands/mutate_command.cc",
+    "commands/parse_command.cc",
+    "commands/replay_command.cc",
+    "commands/roundtrip_command.cc",
+    "commands/selftest_checker.h",
+    "commands/selftest_command.cc",
+    "commands/selftest_selection.cc",
+    "commands/selftest_selection.h",
+    "commands/shell_command.cc",
+    "core/adaptive_selector.h",
+    "core/ast_builder.cc",
+    "core/ast_builder.h",
+    "core/builder.cc",
+    "core/builder.h",
+    "core/component.cc",
+    "core/component.h",
+    "core/environment.cc",
+    "core/environment.h",
+    "core/program.cc",
+    "core/program.h",
+    "core/random.h",
+    "core/selection.cc",
+    "core/selection.h",
+    "core/tunable.cc",
+    "core/tunable.h",
+    "core/weighted_selector.h",
+    "corpus/corpus.cc",
+    "corpus/corpus.h",
+    "engine/amplifier.cc",
+    "engine/amplifier.h",
+    "engine/config.cc",
+    "engine/config.h",
+    "engine/crash.cc",
+    "engine/crash.h",
+    "engine/fuzzer.cc",
+    "engine/fuzzer.h",
+    "engine/importer.cc",
+    "engine/importer.h",
+    "engine/prelude.cc",
+    "engine/prelude.h",
+    "engine/shared_coverage.cc",
+    "engine/shared_coverage.h",
+    "engine/stages.cc",
+    "engine/stages.h",
+    "exec/coverage.cc",
+    "exec/coverage.h",
+    "exec/execution.cc",
+    "exec/execution.h",
+    "exec/process_run.cc",
+    "exec/process_run.h",
+    "exec/reprl.cc",
+    "exec/reprl.h",
+    "exec/runner.cc",
+    "exec/runner.h",
+    "exec/target_options.cc",
+    "exec/target_options.h",
+    "fast/arena.cc",
+    "fast/arena.h",
+    "fast/ast.cc",
+    "fast/ast.h",
+    "fast/ast_visit.h",
+    "fast/lexer.cc",
+    "fast/lexer.h",
+    "fast/parser.cc",
+    "fast/parser.h",
+    "fast/printer.cc",
+    "fast/printer.h",
+    "fast/scope.cc",
+    "fast/scope.h",
+    "fast/tree.cc",
+    "fast/tree.h",
+    "generators/codegen.cc",
+    "generators/codegen.h",
+    "generators/generator.h",
+    "generators/generators.cc",
+    "generators/wasm_module.cc",
+    "generators/wasm_module.h",
+    "main.cc",
+    "minimizer/minimizer.cc",
+    "minimizer/minimizer.h",
+    "mutators/explore.cc",
+    "mutators/explore.h",
+    "mutators/mutator.h",
+    "mutators/mutators.cc",
+    "mutators/probing.cc",
+    "mutators/probing.h",
+  ]
+
+  configs = [
+    # Note: don't use :internal_config here because this target will get
+    # the :external_config applied to it by virtue of depending on :v8, and
+    # you can't have both applied to the same target.
+    "../..:internal_config_base",
+    ":redline_warnings",
+
+    # Chromium builds with -Wexit-time-destructors. This config gives the
+    # same warning in a standalone V8 build.
+    "//build/config/compiler:wexit_time_destructors",
+  ]
+
+  deps = [
+    "../..:v8",
+    "../..:v8_abseil",
+    "../..:v8_internal_headers",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "../..:v8_version",
+    "//build/win:default_exe_manifest",
+  ]
+}

@@ -5,6 +5,7 @@
 #include "src/heap/cppgc-internal/free-list.h"
 
 #include <algorithm>
+#include <bit>
 
 #include "include/cppgc/internal/logging.h"
 #include "src/base/bits.h"
@@ -17,8 +18,7 @@ namespace internal {
 
 namespace {
 uint32_t BucketIndexForSize(uint32_t size) {
-  return v8::base::bits::WhichPowerOfTwo(
-      v8::base::bits::RoundDownToPowerOfTwo32(size));
+  return v8::base::bits::WhichPowerOfTwo(std::bit_floor(size));
 }
 }  // namespace
 

@@ -1,0 +1,7 @@
+Regression test for crbug.com/534275413.
+1
+1
+[
+    [0] : 42
+    [1] : 42
+]

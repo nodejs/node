@@ -1,0 +1,4 @@
+Tests stepping out of function called from OSR function
+Paused in: foo
+Paused in: osr_caller
+Paused in: bar

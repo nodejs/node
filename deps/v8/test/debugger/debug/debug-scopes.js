@@ -691,10 +691,12 @@ function closure_8() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Closure,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x: 2}, 0, exec_state);
-  CheckScopeChainNames(["inner", undefined, undefined], exec_state);
+  CheckScopeContent({}, 1, exec_state);
+  CheckScopeChainNames(["inner", undefined, undefined, undefined], exec_state);
 };
 closure_8();
 EndTest();
@@ -896,10 +898,12 @@ function closure_in_with_1() {
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
                    debug.ScopeType.With,
+                   debug.ScopeType.Closure,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x: 2}, 0, exec_state);
   CheckScopeContent({x: 1}, 1, exec_state);
+  CheckScopeContent({}, 2, exec_state);
 };
 closure_in_with_1();
 EndTest();
@@ -920,13 +924,15 @@ listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.With,
                    debug.ScopeType.Local,
                    debug.ScopeType.With,
+                   debug.ScopeType.Closure,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x: 3}, 0, exec_state);
   CheckScopeContent({x: 2}, 1, exec_state);
   CheckScopeContent({x: 1}, 2, exec_state);
+  CheckScopeContent({}, 3, exec_state);
   CheckScopeChainNames(["inner", "inner", "closure_in_with_2",
-                        undefined, undefined], exec_state);
+                        undefined, undefined, undefined], exec_state);
 };
 closure_in_with_2();
 EndTest();
@@ -1175,10 +1181,13 @@ BeginTest("Classes and methods 1");
 listener_delegate = function(exec_state) {
   "use strict"
   CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Block,
+                   debug.ScopeType.Closure,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeContent({}, 1, exec_state);
-  CheckScopeChainNames(["m", undefined, undefined], exec_state);
+  CheckScopeContent({}, 3, exec_state);
+  CheckScopeChainNames(["m", undefined, undefined, undefined, undefined],
+                       exec_state);
 };
 
 (function() {
@@ -1365,6 +1374,29 @@ listener_delegate = function(exec_state) {
       [{start: 89, end: 183}, {start: 27, end: 217}, {}, {}], exec_state);
 }
 eval(code8);
+EndTest();
+
+BeginTest("Switch discriminant is outside switch block scope");
+function switch_discriminant_test() {
+  function tag() {
+    debugger;
+    return 0;
+  }
+  switch (tag()) {
+    case 0:
+      let x = 1;
+      break;
+  }
+}
+
+listener_delegate = function(exec_state) {
+  var outer_frame = exec_state.frame(1);
+  assertEquals(3, outer_frame.scopeCount());
+  assertEquals(debug.ScopeType.Local, outer_frame.scope(0).scopeType());
+  assertEquals(debug.ScopeType.Script, outer_frame.scope(1).scopeType());
+  assertEquals(debug.ScopeType.Global, outer_frame.scope(2).scopeType());
+};
+switch_discriminant_test();
 EndTest();
 
 assertEquals(begin_test_count, break_count,

@@ -1,0 +1,5 @@
+Tests step on throw across blackboxed OSR caller
+Paused in: thrower
+Paused in: thrower
+Paused in: target
+Target was paused: true

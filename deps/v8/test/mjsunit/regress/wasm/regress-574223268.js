@@ -6,19 +6,19 @@
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
-function buildModule(numTargets, tableSize = numTargets) {
+function buildModule(numTargets, tableSize = numTargets, hasMemory = true) {
   const builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1);
+  if (hasMemory) builder.addMemory(1, 1);
   const sig_v_v = builder.addType(kSig_v_v);
   const sig_v_i = builder.addType(kSig_v_i);
   const funcs = [];
   for (let i = 0; i < numTargets; i++) {
     const f = builder.addFunction('f' + i, sig_v_v)
-        .addBody([
+        .addBody(hasMemory ? [
           kExprI32Const, 0,
           kExprI32Const, 42 + i,
           kExprI32StoreMem, 0, 0,
-        ])
+        ] : [])
         .exportFunc();
     funcs.push(f.index);
   }
@@ -36,7 +36,7 @@ function buildModule(numTargets, tableSize = numTargets) {
 // Fill the bootstrap trusted page(s) (which are marked never_evacuate) so that
 // subsequent trusted objects land on movable pages.
 const filler = [];
-const fillerModule = buildModule(1, 2000);
+const fillerModule = buildModule(1, 2000, false);
 for (let i = 0; i < 64; i++) {
   filler.push(new WebAssembly.Instance(fillerModule));
 }

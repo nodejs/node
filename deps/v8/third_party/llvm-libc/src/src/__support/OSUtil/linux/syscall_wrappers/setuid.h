@@ -25,7 +25,13 @@ namespace LIBC_NAMESPACE_DECL {
 namespace linux_syscalls {
 
 LIBC_INLINE ErrorOr<int> setuid(uid_t uid) {
+#if defined(SYS_setuid32)
+  return syscall_checked<int>(SYS_setuid32, uid);
+#elif defined(SYS_setuid)
   return syscall_checked<int>(SYS_setuid, uid);
+#else
+#error "SYS_setuid and SYS_setuid32 syscalls not available."
+#endif
 }
 
 } // namespace linux_syscalls

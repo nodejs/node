@@ -26,6 +26,14 @@ macros:
     macro_header: stdio-macros.h
   - macro_name: _IOFBF
     macro_header: stdio-macros.h
+  - macro_name: L_tmpnam
+    macro_header: stdio-macros.h
+  - macro_name: TMP_MAX
+    macro_header: stdio-macros.h
+  - macro_name: FILENAME_MAX
+    macro_header: stdio-macros.h
+  - macro_name: FOPEN_MAX
+    macro_header: stdio-macros.h
 types:
   - type_name: rsize_t
   - type_name: size_t
@@ -33,6 +41,7 @@ types:
   - type_name: cookie_io_functions_t
   - type_name: FILE
   - type_name: errno_t
+  - type_name: fpos_t
 enums: []
 objects:
   - object_name: stdin
@@ -226,6 +235,20 @@ functions:
       - type: FILE *__restrict
       - type: const char *__restrict
       - type: va_list
+  - name: fgetpos
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *__restrict
+      - type: fpos_t *__restrict
+  - name: fsetpos
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *
+      - type: const fpos_t *
   - name: fseek
     standards:
       - stdc
@@ -306,11 +329,24 @@ functions:
       - posix
     return_type: int
     arguments: []
+  - name: pclose
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: FILE *
   - name: perror
     standards:
       - stdc
     return_type: void
     arguments:
+      - type: const char *
+  - name: popen
+    standards:
+      - posix
+    return_type: FILE *
+    arguments:
+      - type: const char *
       - type: const char *
   - name: printf
     standards:
@@ -352,6 +388,15 @@ functions:
     return_type: int
     arguments:
       - type: const char *
+      - type: const char *
+  - name: renameat
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: int
       - type: const char *
   - name: scanf
     standards:
@@ -418,6 +463,12 @@ functions:
     return_type: FILE *
     arguments:
       - type: void
+  - name: tmpnam
+    standards:
+      - stdc
+    return_type: char *
+    arguments:
+      - type: char *
   - name: ungetc
     standards:
       - stdc

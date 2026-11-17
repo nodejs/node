@@ -95,7 +95,7 @@ inline int ByteWidthForStackSlot(MachineRepresentation rep) {
       return kSimd256Size;
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }

@@ -180,7 +180,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(LoadImmutable)
       DECLARE_IMPOSSIBLE_CASE(StorePair)
       DECLARE_IMPOSSIBLE_CASE(Store)
-      DECLARE_IMPOSSIBLE_CASE(StoreIndirectPointer)
+      DECLARE_IMPOSSIBLE_CASE(StoreTrustedPointer)
       DECLARE_IMPOSSIBLE_CASE(StackSlot)
       DECLARE_IMPOSSIBLE_CASE(Word32Popcnt)
       DECLARE_IMPOSSIBLE_CASE(Word64Popcnt)
@@ -1529,8 +1529,7 @@ Type Typer::Visitor::TypeJSCreateGeneratorObject(Node* node) {
 }
 
 Type Typer::Visitor::TypeJSCreateClosure(Node* node) {
-  SharedFunctionInfoRef shared =
-      JSCreateClosureNode{node}.Parameters().shared_info();
+  SharedFunctionInfoRef shared = JSCreateClosureNode{node}.shared_info();
   if (IsClassConstructor(shared.kind())) {
     return Type::ClassConstructor();
   } else {

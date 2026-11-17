@@ -427,7 +427,7 @@ transitioning javascript builtin ArrayPrototypeSplice(
   //    Bailout exception.
   const newLength: Number = len + insertCount - actualDeleteCount;
   if (newLength > kMaxSafeInteger) {
-    ThrowTypeError(MessageTemplate::kInvalidArrayLength, newLength);
+    ThrowTypeError(MessageTemplate::kInvalidArrayLength);
   }
 
   try {

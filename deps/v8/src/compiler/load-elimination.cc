@@ -1158,7 +1158,7 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kSandboxedPointer:
       // TODO(turbofan): Add support for doing the truncations.
       break;
@@ -1221,7 +1221,7 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kSandboxedPointer:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
       // TODO(turbofan): Add support for doing the truncations.
       break;
     case MachineRepresentation::kFloat64:
@@ -1565,7 +1565,7 @@ LoadElimination::IndexRange LoadElimination::FieldIndexOf(
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kSandboxedPointer:
       break;
   }
@@ -1574,7 +1574,7 @@ LoadElimination::IndexRange LoadElimination::FieldIndexOf(
   // We assume that indirect pointers are tagged pointer sized if we see them
   // here since they should only ever be used in pointer compression
   // configurations.
-  DCHECK(rep != MachineRepresentation::kIndirectPointer ||
+  DCHECK(rep != MachineRepresentation::kTrustedPointer ||
          representation_size == kTaggedSize);
   if (representation_size < kTaggedSize) return IndexRange::Invalid();
   DCHECK_EQ(0, representation_size % kTaggedSize);

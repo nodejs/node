@@ -105,14 +105,30 @@ _ADD_CONTENT = {
     '}',  # Closes extra '{' opened by prefix.
     'cleanup:cleanup_internal':
     'visibility = [ "//third_party/abseil-cpp/absl/*" ]',
+    'container:btree':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
+    'container:chunked_queue':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
     'container:hashtablez_sampler_test':
     'if (is_win) { sources = [] }',
     'container:test_allocator':
     'deps += [ "//third_party/googletest:gtest" ]',
+    'crc:crc32c':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
     'flags:config':
     'public_configs = [ ":absl_flags_config" ]',
     'flags:parse_test':
     'if (is_ios) { sources = [] }',
+    'functional:any_invocable':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
+    'functional:bind_back':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
+    'functional:bind_front':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
+    'functional:function_ref':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
+    'hash:hash':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
     'log:absl_check_test':
     'if (is_ios) { sources = [] }',
     'log:log_sink_test':
@@ -127,6 +143,12 @@ _ADD_CONTENT = {
     'if (is_ios) { sources = [] }',
     'random/internal:seed_material':
     'if (is_win) {  libs = [ "bcrypt.lib" ]}',
+    'status:status':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
+    'status:statusor':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
+    'status:status_matchers':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
     'strings:strings':
     '''public_deps = [
     # string_view.h was once part of :strings, so string_view.h is
@@ -134,9 +156,14 @@ _ADD_CONTENT = {
     # New code should directly depend on :string_view.
     # TODO(crbug.com/40276308): Remove once all targets are migrated to
     # :string_view.
-    ":string_view" ]''',
+    ":string_view" ]
+    check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE''',
     'strings:str_format_convert_test':
     'if (is_fuchsia) { sources = [] }',
+    'strings:cord':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
+    'strings:generic_printer':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
     # Instead of parsing 'select', add platform-specific rules manually while there are few of those.
     'time/internal/cctz:time_zone':
     '''
@@ -159,6 +186,10 @@ if (is_fuchsia) {
 }''',
     'time/internal/cctz:time_zone_name_win_test':
     'if (is_win) { sources = [ "src/time_zone_name_win_test.cc" ] }',
+    'types:span':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
+    'types:any_span':
+    'check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE',
 }
 
 

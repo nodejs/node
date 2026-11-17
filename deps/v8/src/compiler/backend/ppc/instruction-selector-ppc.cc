@@ -247,10 +247,7 @@ ArchOpcode SelectLoadOpcode(MemoryRepresentation loaded_rep,
       *mode = kNoImmediate;
       return kPPC_LoadSimd128;
     case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
-      UNREACHABLE();
     case MemoryRepresentation::ProtectedPointer():
-    case MemoryRepresentation::IndirectPointer():
     case MemoryRepresentation::SandboxedPointer():
     case MemoryRepresentation::Simd256():
       UNREACHABLE();
@@ -305,7 +302,7 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep, ImmediateMode* mode) {
       case MachineRepresentation::kFloat16:
         UNIMPLEMENTED();
       case MachineRepresentation::kProtectedPointer:  // Fall through.
-      case MachineRepresentation::kIndirectPointer:   // Fall through.
+      case MachineRepresentation::kTrustedPointer:    // Fall through.
       case MachineRepresentation::kSandboxedPointer:  // Fall through.
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
@@ -492,9 +489,6 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
         mode = kNoImmediate;
         break;
       case MemoryRepresentation::TrustedPointer():
-        // Only LoadTrustedPointer uses this representation.
-        UNREACHABLE();
-      case MemoryRepresentation::IndirectPointer():
       case MemoryRepresentation::SandboxedPointer():
       case MemoryRepresentation::Simd256():
         UNREACHABLE();

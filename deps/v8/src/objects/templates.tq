@@ -37,7 +37,7 @@ extern class FunctionTemplateRareData extends Struct {
   c_function_overloads: FixedArray;
 }
 
-@cppScope('FunctionTemplateInfo')
+@cppScope('FunctionTemplateInfo::Flags')
 bitfield struct FunctionTemplateInfoFlags extends uint32 {
   // True in case this FunctionTemplateInfo object is used as a call handler
   // for callable ObjectTemplateInfo.

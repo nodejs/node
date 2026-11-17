@@ -4,6 +4,7 @@
 
 #include "src/wasm/module-decoder.h"
 
+#include "src/base/unique-array.h"
 #include "src/execution/isolate-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/metrics.h"
@@ -359,8 +360,8 @@ void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
 // - all name payloads are copied out of the wire bytes.
 void DecodeCanonicalTypeNames(
     base::Vector<const uint8_t> wire_bytes, const WasmModule* module,
-    std::vector<base::OwnedVector<char>>& typenames,
-    std::map<uint32_t, std::vector<base::OwnedVector<char>>>& fieldnames,
+    std::vector<base::UniqueArray<char>>& typenames,
+    std::map<uint32_t, std::vector<base::UniqueArray<char>>>& fieldnames,
     size_t* total_allocated_size) {
   bool types_done = false;
   bool fields_done = false;
@@ -399,7 +400,7 @@ void DecodeCanonicalTypeNames(
         if (!validate_utf8(&decoder, name)) continue;
         uint32_t length = name.length();
         typenames[index] =
-            base::OwnedVector<char>::NewByCopying(base + name.offset(), length);
+            base::UniqueArray<char>::CopiedFrom(base + name.offset(), length);
         *total_allocated_size += length;
       }
     } else if (name_type == NameSectionKindCode::kFieldCode) {
@@ -422,7 +423,7 @@ void DecodeCanonicalTypeNames(
             GetTypeCanonicalizer()->LookupStruct(canonical_index);
         auto const& entry = fieldnames.try_emplace(
             struct_index, size_t{struct_type->field_count()});
-        std::vector<base::OwnedVector<char>>& field_names = entry.first->second;
+        std::vector<base::UniqueArray<char>>& field_names = entry.first->second;
         uint32_t fields_count = decoder.consume_u32v("fields count");
         for (uint32_t j = 0; j < fields_count; j++) {
           uint32_t field_index = decoder.consume_u32v("field index");
@@ -433,8 +434,8 @@ void DecodeCanonicalTypeNames(
           if (!field_names[field_index].empty()) continue;
           if (!validate_utf8(&decoder, name)) continue;
           uint32_t length = name.length();
-          field_names[field_index] = base::OwnedVector<char>::NewByCopying(
-              base + name.offset(), length);
+          field_names[field_index] =
+              base::UniqueArray<char>::CopiedFrom(base + name.offset(), length);
           *total_allocated_size += length;
         }
         if (!decoder.ok()) break;

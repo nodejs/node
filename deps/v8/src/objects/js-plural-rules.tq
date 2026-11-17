@@ -14,7 +14,5 @@ bitfield struct JSPluralRulesFlags extends uint31 {
 extern class JSPluralRules extends JSObject {
   locale: String;
   flags: SmiTagged<JSPluralRulesFlags>;
-  icu_plural_rules: Foreign;  // Managed<icu::PluralRules>
-  icu_number_formatter:
-      Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
+  internal: CppGCManagedBase;  // CppGCManaged<PluralRulesInternal>
 }

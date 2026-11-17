@@ -126,14 +126,15 @@ Once the fix is approved by the user:
 - **Issue Association in Commits**:
 
   - The commit message must follow the V8 convention.
-  - It MUST include a `Bug: <issue_id>` line at the bottom.
+  - When a CL fixes a bug, it MUST include a `Fixed: <issue_id>` line at the
+    bottom (rather than `Bug: <issue_id>`).
   - Example Commit Message:
     ```
     [compiler] Fix crash in Turboshaft during loop unrolling
 
     The loop unroller failed to handle cases where...
 
-    Bug: 12345
+    Fixed: 12345
     ```
 
 - **Test Naming and Placement**:

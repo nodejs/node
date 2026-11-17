@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/utils/utils.h"
+
 #include <limits>
 
 #include "src/base/bounds.h"
-#include "src/utils/utils.h"
+#include "src/base/unique-array.h"
 #include "testing/gtest-support.h"
 
 namespace v8 {
@@ -111,46 +113,36 @@ TYPED_TEST(UtilsTest, SaturateAdd) {
 }
 
 TEST(UtilsTest, PassesFilterTest) {
-  EXPECT_TRUE(
-      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("abcdefg")));
-  EXPECT_TRUE(
-      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("abcdefg*")));
-  EXPECT_TRUE(
-      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("abc*")));
-  EXPECT_TRUE(PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("*")));
-  EXPECT_TRUE(
-      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("-~")));
-  EXPECT_TRUE(
-      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("-abcdefgh")));
-  EXPECT_TRUE(PassesFilter(base::CStrVector("abdefg"), base::CStrVector("-")));
-  EXPECT_FALSE(
-      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("-abcdefg")));
-  EXPECT_FALSE(
-      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("-abcdefg*")));
-  EXPECT_FALSE(
-      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("-abc*")));
-  EXPECT_FALSE(
-      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("-*")));
-  EXPECT_FALSE(
-      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("~")));
-  EXPECT_FALSE(PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("")));
-  EXPECT_FALSE(
-      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("abcdefgh")));
+  EXPECT_TRUE(PassesFilter("abcdefg", "abcdefg"));
+  EXPECT_TRUE(PassesFilter("abcdefg", "abcdefg*"));
+  EXPECT_TRUE(PassesFilter("abcdefg", "abc*"));
+  EXPECT_TRUE(PassesFilter("abcdefg", "*"));
+  EXPECT_TRUE(PassesFilter("abcdefg", "-~"));
+  EXPECT_TRUE(PassesFilter("abcdefg", "-abcdefgh"));
+  EXPECT_TRUE(PassesFilter("abdefg", "-"));
+  EXPECT_FALSE(PassesFilter("abcdefg", "-abcdefg"));
+  EXPECT_FALSE(PassesFilter("abcdefg", "-abcdefg*"));
+  EXPECT_FALSE(PassesFilter("abcdefg", "-abc*"));
+  EXPECT_FALSE(PassesFilter("abcdefg", "-*"));
+  EXPECT_FALSE(PassesFilter("abcdefg", "~"));
+  EXPECT_FALSE(PassesFilter("abcdefg", ""));
+  EXPECT_FALSE(PassesFilter("abcdefg", "abcdefgh"));
 
-  EXPECT_TRUE(PassesFilter(base::CStrVector(""), base::CStrVector("")));
-  EXPECT_TRUE(PassesFilter(base::CStrVector(""), base::CStrVector("*")));
-  EXPECT_FALSE(PassesFilter(base::CStrVector(""), base::CStrVector("-")));
-  EXPECT_FALSE(PassesFilter(base::CStrVector(""), base::CStrVector("-*")));
-  EXPECT_FALSE(PassesFilter(base::CStrVector(""), base::CStrVector("a")));
+  EXPECT_TRUE(PassesFilter("", ""));
+  EXPECT_TRUE(PassesFilter("", "*"));
+  EXPECT_FALSE(PassesFilter("", "-"));
+  EXPECT_FALSE(PassesFilter("", "-*"));
+  EXPECT_FALSE(PassesFilter("", "a"));
 
   // Copy the vectors to give ASan a chance to catch off-by-one OOB reads,
   // which are hidden when the string literal is embedded into the binary
   // and hence always null-terminated.
-  base::OwnedVector<const char> name =
-      base::OwnedCopyOf(base::CStrVector("abcdefgh"));
-  base::OwnedVector<const char> filter =
-      base::OwnedCopyOf(base::CStrVector("abcdefgh*"));
-  EXPECT_TRUE(PassesFilter(name.as_vector(), filter.as_vector()));
+  base::UniqueArray<const char> name =
+      base::UniqueCopyOf(std::string_view("abcdefgh"));
+  base::UniqueArray<const char> filter =
+      base::UniqueCopyOf(std::string_view("abcdefgh*"));
+  EXPECT_TRUE(PassesFilter({name.begin(), name.size()},
+                           {filter.begin(), filter.size()}));
 }
 
 TEST(UtilsTest, IsInBounds) {

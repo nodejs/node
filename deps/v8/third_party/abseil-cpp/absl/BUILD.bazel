@@ -45,6 +45,17 @@ config_setting(
 )
 
 config_setting(
+    name = "mingw-clang_compiler",
+    constraint_values = [
+        "@platforms//os:windows",
+    ],
+    flag_values = {
+        "@bazel_tools//tools/cpp:compiler": "clang",
+    },
+    visibility = [":__subpackages__"],
+)
+
+config_setting(
     name = "fuchsia",
     constraint_values = [
         "@platforms//os:fuchsia",
@@ -57,6 +68,7 @@ selects.config_setting_group(
     match_any = [
         ":mingw_unspecified_compiler",
         ":mingw-gcc_compiler",
+        ":mingw-clang_compiler",
     ],
     visibility = [":__subpackages__"],
 )

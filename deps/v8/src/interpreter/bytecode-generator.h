@@ -420,6 +420,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildPrivateDebugDynamicGet(Property* property, Register obj);
   void BuildPrivateDebugDynamicSet(Property* property, Register obj,
                                    Register value);
+  void BuildPrivateDebugDynamicIn(Variable* private_name,
+                                  Expression* object_expression);
   void BuildPrivateMethods(ClassLiteral* expr, bool is_static,
                            Register home_object);
   void BuildClassProperty(ClassLiteral::Property* property);

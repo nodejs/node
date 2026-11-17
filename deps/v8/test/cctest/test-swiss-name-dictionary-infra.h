@@ -24,10 +24,10 @@ using IndexOpt = std::optional<InternalIndex>;
 
 static const ValueOpt kNoValue;
 static const PropertyDetailsOpt kNoDetails;
-static const std::optional<int> kNoInt;
+static const std::optional<uint32_t> kNoUint32;
 static const IndexOpt kIndexUnknown;
 
-static const std::vector<int> interesting_initial_capacities = {
+static const std::vector<uint32_t> interesting_initial_capacities = {
     4,
     8,
     16,
@@ -40,10 +40,10 @@ static const std::vector<int> interesting_initial_capacities = {
 // TODO(v8:11330) Revisit this once the actual CSA/Torque versions are run by
 // the test suite, which will speed things up.
 #if defined(THREAD_SANITIZER) || defined(V8_ENABLE_CONTROL_FLOW_INTEGRITY)
-static const std::vector<int> capacities_for_slow_sanitizer_tests = {4, 8, 16,
-                                                                     128, 1024};
+static const std::vector<uint32_t> capacities_for_slow_sanitizer_tests = {
+    4, 8, 16, 128, 1024};
 #else
-static const std::vector<int> capacities_for_slow_sanitizer_tests =
+static const std::vector<uint32_t> capacities_for_slow_sanitizer_tests =
     interesting_initial_capacities;
 #endif
 
@@ -52,10 +52,10 @@ static const std::vector<int> capacities_for_slow_sanitizer_tests =
 // TODO(v8:11330) Revisit this once the actual CSA/Torque versions are run by
 // the test suite, which will speed things up.
 #if DEBUG
-static const std::vector<int> capacities_for_slow_debug_tests = {4, 8, 16, 128,
-                                                                 1024};
+static const std::vector<uint32_t> capacities_for_slow_debug_tests = {
+    4, 8, 16, 128, 1024};
 #else
-static const std::vector<int> capacities_for_slow_debug_tests =
+static const std::vector<uint32_t> capacities_for_slow_debug_tests =
     interesting_initial_capacities;
 #endif
 
@@ -65,7 +65,7 @@ extern const std::vector<PropertyDetails> distinct_property_details;
 struct FakeH1 {
   uint32_t value;
 
-  explicit FakeH1(int value) : value{static_cast<uint32_t>(value)} {}
+  explicit FakeH1(uint32_t value) : value{value} {}
 
   bool operator==(const FakeH1& other) const { return value == other.value; }
 };
@@ -115,7 +115,7 @@ class CSATestRunner;
 template <typename TestRunner>
 class TestSequence {
  public:
-  explicit TestSequence(Isolate* isolate, int initial_capacity)
+  explicit TestSequence(Isolate* isolate, uint32_t initial_capacity)
       : isolate{isolate},
         initial_capacity{initial_capacity},
         keys_{},
@@ -246,9 +246,10 @@ class TestSequence {
     CHECK(runner_.FindEntry(key_handle).is_found());
   }
 
-  void CheckCounts(std::optional<int> capacity,
-                   std::optional<int> elements = std::optional<int>(),
-                   std::optional<int> deleted = std::optional<int>()) {
+  void CheckCounts(
+      std::optional<uint32_t> capacity,
+      std::optional<uint32_t> elements = std::optional<uint32_t>(),
+      std::optional<uint32_t> deleted = std::optional<uint32_t>()) {
     runner_.CheckCounts(capacity, elements, deleted);
   }
 
@@ -271,7 +272,7 @@ class TestSequence {
   // Just for debugging
   void Print() { runner_.PrintTable(); }
 
-  static std::vector<int> boundary_indices(int capacity) {
+  static std::vector<uint32_t> boundary_indices(uint32_t capacity) {
     if (capacity == 4 && SwissNameDictionary::MaxUsableCapacity(4) < 4) {
       // If we cannot put 4 entries in a capacity 4 table without resizing, just
       // work with 3 boundary indices.
@@ -292,16 +293,17 @@ class TestSequence {
   }
 
   static void WithInitialCapacity(
-      int capacity, std::function<void(TestSequence&)> manipulate_sequence) {
+      uint32_t capacity,
+      std::function<void(TestSequence&)> manipulate_sequence) {
     WithInitialCapacities({capacity}, manipulate_sequence);
   }
 
   // For each capacity in |capacities|, create a TestSequence and run the given
   // function on it.
   static void WithInitialCapacities(
-      const std::vector<int>& capacities,
+      const std::vector<uint32_t>& capacities,
       std::function<void(TestSequence&)> manipulate_sequence) {
-    for (int capacity : capacities) {
+    for (uint32_t capacity : capacities) {
       Isolate* isolate = CcTest::InitIsolateOnce();
       HandleScope scope{isolate};
       TestSequence<TestRunner> s(isolate, capacity);
@@ -310,7 +312,7 @@ class TestSequence {
   }
 
   Isolate* const isolate;
-  const int initial_capacity;
+  const uint32_t initial_capacity;
 
  private:
   // Caches keys used in this TestSequence. See |create_key_with_hash| for

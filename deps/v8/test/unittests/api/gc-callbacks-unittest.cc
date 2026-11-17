@@ -169,7 +169,7 @@ TEST_F(GCCallbacksTest, DisallowJSObjectModification) {
   // `EXPECT_DEATH_IF_SUPPORTED` check. Ensure `i::v8_flags.hard_abort = true`
   // so each expected `CHECK` failure terminates immediately without `abort()` /
   // core-dump overhead.
-  i::v8_flags.hard_abort = true;
+  i::v8_flags.hard_abort.Set(true);
 
   v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);

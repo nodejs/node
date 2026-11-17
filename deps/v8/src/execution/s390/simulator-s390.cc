@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include <array>
 #include <cmath>
 
 #include "src/base/bits.h"
@@ -202,10 +203,10 @@ void S390Debugger::Debug() {
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       // use a reasonably large buffer
-      v8::base::EmbeddedVector<char, 256> buffer;
+      std::array<char, 256> buffer;
       dasm.InstructionDecode(buffer,
                              reinterpret_cast<uint8_t*>(sim_->get_pc()));
-      PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(), buffer.begin());
+      PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(), buffer.data());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -242,7 +243,7 @@ void S390Debugger::Debug() {
           disasm::NameConverter converter;
           disasm::Disassembler dasm(converter);
           // use a reasonably large buffer
-          v8::base::EmbeddedVector<char, 256> buffer;
+          std::array<char, 256> buffer;
 
           if (GetValue(arg1, &value)) {
             // Interpret a numeric argument as the number of instructions to
@@ -251,7 +252,7 @@ void S390Debugger::Debug() {
               dasm.InstructionDecode(
                   buffer, reinterpret_cast<uint8_t*>(sim_->get_pc()));
               PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
-                     buffer.begin());
+                     buffer.data());
               sim_->ExecuteInstruction(
                   reinterpret_cast<Instruction*>(sim_->get_pc()));
             }
@@ -261,14 +262,14 @@ void S390Debugger::Debug() {
             while (!sim_->has_bad_pc()) {
               dasm.InstructionDecode(
                   buffer, reinterpret_cast<uint8_t*>(sim_->get_pc()));
-              char* mnemonicStart = buffer.begin();
+              char* mnemonicStart = buffer.data();
               while (*mnemonicStart != 0 && *mnemonicStart != ' ')
                 mnemonicStart++;
               SScanF(mnemonicStart, "%s", mnemonic);
               if (!strcmp(arg1, mnemonic)) break;
 
               PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
-                     buffer.begin());
+                     buffer.data());
               sim_->ExecuteInstruction(
                   reinterpret_cast<Instruction*>(sim_->get_pc()));
             }
@@ -443,7 +444,7 @@ void S390Debugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // use a reasonably large buffer
-        v8::base::EmbeddedVector<char, 256> buffer;
+        std::array<char, 256> buffer;
 
         uint8_t* prev = nullptr;
         uint8_t* cur = nullptr;
@@ -483,7 +484,7 @@ void S390Debugger::Debug() {
           prev = cur;
           cur += dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(prev),
-                 buffer.begin());
+                 buffer.data());
           numInstructions--;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -2501,10 +2502,10 @@ void Simulator::ExecuteInstruction(Instruction* instr, bool auto_incr_pc) {
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // use a reasonably large buffer
-    v8::base::EmbeddedVector<char, 256> buffer;
+    std::array<char, 256> buffer;
     dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
     PrintF("%05" PRId64 "  %08" V8PRIxPTR "  %s\n", icount_,
-           reinterpret_cast<intptr_t>(instr), buffer.begin());
+           reinterpret_cast<intptr_t>(instr), buffer.data());
 
     // Flush stdout to prevent incomplete file output during abnormal exits
     // This is caused by the output being buffered before being written to file

@@ -18,6 +18,7 @@ TEST_DIR ?= ./test
 FIXTURES_DIR ?= $(TEST_DIR)/fixtures
 BACKTRACE_SCRIPT ?= $(FIXTURES_DIR)/throw.js
 INSPECT_SCRIPT ?= $(FIXTURES_DIR)/inspect-fixture.js
+ARGS_MISMATCH_SCRIPT ?= $(FIXTURES_DIR)/args-mismatch.js
 CORRUPTION_SCRIPT ?= $(FIXTURES_DIR)/invalid-script-source.js
 # d8 enables --sandbox-prohibit-insecure-mode on macOS/Linux, which makes
 # sandbox initialization abort with a fatal OOM when launched under a debugger
@@ -30,6 +31,7 @@ TEST_PACKAGE ?= test
 CORE_DIR ?= $(OUT_DIR)/debug_helper.cores
 BACKTRACE_CORE ?= $(CORE_DIR)/throw.core
 INSPECT_CORE ?= $(CORE_DIR)/inspect-fixture.core
+ARGS_MISMATCH_CORE ?= $(CORE_DIR)/args-mismatch.core
 CORRUPTION_CORE ?= $(CORE_DIR)/$(basename $(notdir $(CORRUPTION_SCRIPT))).core
 CORRUPTION_CORE_CASES := invalid-script-source invalid-shared-function-info corrupted-map
 CORRUPTION_CORES := $(foreach case,$(CORRUPTION_CORE_CASES),$(CORE_DIR)/$(case).core)
@@ -144,6 +146,9 @@ $(BACKTRACE_CORE): $(BACKTRACE_SCRIPT) $(D8)
 $(INSPECT_CORE): $(INSPECT_SCRIPT) $(D8)
 	$(call generate_core,$(abspath $(D8)),$(D8_ARGS) --abort-on-uncaught-exception "$(abspath $(INSPECT_SCRIPT))",$(abspath $@))
 
+$(ARGS_MISMATCH_CORE): $(ARGS_MISMATCH_SCRIPT) $(D8)
+	$(call generate_core,$(abspath $(D8)),$(D8_ARGS) --abort-on-uncaught-exception "$(abspath $(ARGS_MISMATCH_SCRIPT))",$(abspath $@))
+
 # The corruption cores depend on the harness binary too, so they get
 # regenerated whenever the harness changes.
 $(CORE_DIR)/%.core: $(FIXTURES_DIR)/%.js $(CORRUPTION_BIN)
@@ -183,7 +188,7 @@ run-core-corruption-lldb: $(CORRUPTION_CORE)
 
 run-core: run-core-gdb run-core-lldb
 
-prepare-cores: $(BACKTRACE_CORE) $(INSPECT_CORE) $(CORRUPTION_CORES)
+prepare-cores: $(BACKTRACE_CORE) $(INSPECT_CORE) $(ARGS_MISMATCH_CORE) $(CORRUPTION_CORES)
 
 clean-cores:
 	rm -rf "$(CORE_DIR)"

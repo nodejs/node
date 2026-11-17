@@ -201,6 +201,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   // Register holding pointer to the current code object.
   static constexpr Register code_pointer() { return s1; }
 
+  // Register holding the address of the regexp stack's thread-local block,
+  // from which the stack limit, memory top and saved stack pointer are
+  // loaded at Stack::k*Offset.
+  static constexpr Register regexp_stack() { return s0; }
+
   // The real backtrack dispatch (pop a code offset and jump to it), emitted
   // once in GetCode at backtrack_label_ when the backtrack stack is used.
   // Backtrack() itself only jumps there, so emitting it does not by itself
@@ -232,7 +237,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   inline void Pop(Register target);
 
   void LoadRegExpStackPointerFromMemory(Register dst);
-  void StoreRegExpStackPointerToMemory(Register src, Register scratch);
+  void StoreRegExpStackPointerToMemory(Register src);
   void PushRegExpBasePointer(Register stack_pointer, Register scratch);
   void PopRegExpBasePointer(Register stack_pointer_out, Register scratch);
 

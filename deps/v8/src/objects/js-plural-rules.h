@@ -22,16 +22,10 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace U_ICU_NAMESPACE {
-class PluralRules;
-namespace number {
-class LocalizedNumberFormatter;
-class LocalizedNumberRangeFormatter;
-}  // namespace number
-}  // namespace U_ICU_NAMESPACE
-
 namespace v8 {
 namespace internal {
+
+class PluralRulesInternal;
 
 V8_OBJECT class JSPluralRules : public JSObject {
  public:
@@ -74,16 +68,9 @@ V8_OBJECT class JSPluralRules : public JSObject {
   inline int flags() const;
   inline void set_flags(int value);
 
-  inline Tagged<Managed<icu::PluralRules>> icu_plural_rules() const;
-  inline void set_icu_plural_rules(
-      Tagged<Managed<icu::PluralRules>> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  inline Tagged<Managed<icu::number::LocalizedNumberFormatter>>
-  icu_number_formatter() const;
-  inline void set_icu_number_formatter(
-      Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<CppGCManaged<PluralRulesInternal>> internal() const;
+  inline void set_internal(Tagged<CppGCManaged<PluralRulesInternal>> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_VERIFIER(JSPluralRules)
 
@@ -91,9 +78,8 @@ V8_OBJECT class JSPluralRules : public JSObject {
 
  public:
   TaggedMember<String> locale_;
-  TaggedMember<Smi> flags_;
-  TaggedMember<Foreign> icu_plural_rules_;
-  TaggedMember<Foreign> icu_number_formatter_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSPluralRulesFlags>);
+  TaggedMember<CppGCManaged<PluralRulesInternal>> internal_;
 } V8_OBJECT_END;
 
 inline constexpr int JSPluralRules::kHeaderSize = sizeof(JSPluralRules);

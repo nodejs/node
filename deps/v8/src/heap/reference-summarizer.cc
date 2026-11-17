@@ -122,8 +122,8 @@ class ReferenceSummarizerMarkingVisitor
     return marking_state_;
   }
 
-  void MarkPointerTableEntry(Tagged<HeapObject> host,
-                             IndirectPointerSlot slot) {}
+  void MarkPointerTableEntry(Tagged<HeapObject> host, TrustedPointerSlot slot) {
+  }
 
   void VisitExternalPointer(Tagged<HeapObject> host,
                             ExternalPointerSlot slot) override {}

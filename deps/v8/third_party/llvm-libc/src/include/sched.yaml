@@ -1,6 +1,7 @@
 header: sched.h
 standards:
   - posix
+  - linux
 macros:
   - macro_name: SCHED_OTHER
     macro_header: sched-macros.h
@@ -18,6 +19,16 @@ types:
 enums: []
 objects: []
 functions:
+  - name: clone
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: int (*)(void *)
+      - type: void *
+      - type: int
+      - type: void *
+      - type: '...'
   - name: __sched_andcpuset
     standards:
       - llvm_libc_ext

@@ -35,11 +35,11 @@ builder.addFunction("load_shift3", makeSig([kWasmI64], [kWasmI32])).exportFunc()
 
 const instance = builder.instantiate({});
 const {memory, load, load_shift3} = instance.exports;
-const view = new Int32Array(memory.buffer);
+const view = new DataView(memory.buffer);
 
 // Initialize memory with ascending values.
-for (let i = 0; i < view.length; i++) {
-  view[i] = i;
+for (let i = 0; i < memory.buffer.byteLength / 4; i++) {
+  view.setInt32(i * 4, i, true);
 }
 
 function test(fct, index, shift) {
@@ -53,8 +53,7 @@ function test(fct, index, shift) {
     return;
   }
 
-  const viewIndex = byteOffset >> 2;
-  const expected = view[viewIndex];
+  const expected = view.getInt32(byteOffset, true);
   assertEquals(expected, fct(index), `At index ${index} with shift ${shift}`);
 }
 

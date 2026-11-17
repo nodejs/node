@@ -53,10 +53,14 @@ _LICENSE_FILE = (
     r"LICENSE"
 )
 
+# Checked-in generated files. The build compares them against the generator
+# output, so editing them to satisfy a source check does not work; the
+# generator would have to change. See src/gen/README.md.
+_GENERATED_CHECKED_IN_PATHS = (r'src[\\\/]gen[\\\/].+',)
+
 # Regular expression that matches code which should not be run through cpplint.
 _NO_LINT_PATHS = (
-    r'src[\\\/]base[\\\/]export-template\.h',
-)
+    r'src[\\\/]base[\\\/]export-template\.h',) + _GENERATED_CHECKED_IN_PATHS
 
 
 # Regular expression that matches code only used for test binaries
@@ -109,6 +113,10 @@ def _V8PresubmitChecks(input_api, output_api):
       affected_file,
       files_to_check=(r'.+\.m?js'))
 
+  def FilterGeneratedFile(affected_file):
+    return input_api.FilterSourceFile(
+        affected_file, files_to_skip=_GENERATED_CHECKED_IN_PATHS)
+
   results = []
   if not CppLintProcessor().RunOnFiles(
       input_api.AffectedFiles(file_filter=FilterFile, include_deletes=False)):
@@ -122,7 +130,8 @@ def _V8PresubmitChecks(input_api, output_api):
                               include_deletes=False)):
     results.append(output_api.PresubmitError("JS format check failed"))
   if not SourceProcessor().RunOnFiles(
-      input_api.AffectedFiles(include_deletes=False)):
+      input_api.AffectedFiles(
+          file_filter=FilterGeneratedFile, include_deletes=False)):
     results.append(output_api.PresubmitError(
         "Copyright header, trailing whitespaces and two empty lines " \
         "between declarations check failed"))
@@ -291,7 +300,9 @@ def _CheckHeadersHaveIncludeGuards(input_api, output_api):
   file_inclusion_pattern = r'src/.+\.h'
 
   def FilterFile(affected_file):
-    files_to_skip = _EXCLUDED_PATHS + input_api.DEFAULT_FILES_TO_SKIP
+    files_to_skip = (
+        _EXCLUDED_PATHS + input_api.DEFAULT_FILES_TO_SKIP +
+        _GENERATED_CHECKED_IN_PATHS)
     return input_api.FilterSourceFile(
       affected_file,
       files_to_check=(file_inclusion_pattern, ),

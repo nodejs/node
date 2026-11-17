@@ -7,7 +7,5 @@
 // Private names as used by V8-specific APIs like Error.captureStackTrace should
 // not bypass shared objects' extensibility check.
 
-assertThrows(() => Error.captureStackTrace(new Atomics.Condition()));
-assertThrows(() => Error.captureStackTrace(new Atomics.Mutex()));
 assertThrows(() => Error.captureStackTrace(new (new SharedStructType(['p']))));
 assertThrows(() => Error.captureStackTrace(new SharedArray(1)));

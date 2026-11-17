@@ -326,7 +326,7 @@ using Hash = absl::hash_internal::Hash<T>;
 //       return H::combine(std::move(h), n.first, n.last);
 //     }
 //     friend bool operator==(const Name& a, const Name& b);
-//     friend bool operator==(const Name& a, const NameView& b);
+//     operator NameView() const;
 //
 //     using absl_container_hash = absl::TransparentHash<Name, NameView>;
 //   };

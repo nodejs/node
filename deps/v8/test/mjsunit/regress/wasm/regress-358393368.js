@@ -4,14 +4,89 @@
 
 function f() {
   const arr = new Uint8Array([
-    0, 97, 115, 109, 1, 0, 0, 0, 1, 11, 2, 96, 2, 126, 124, 1, 126, 96, 0, 1,
-    124, 3, 2, 1, 0, 4, 5, 1, 112, 1, 6, 6, 10, 114, 1, 112, 4, 244, 2, 127,
-    118, 126, 31, 125, 1, 124, 2, 126, 2, 64, 2, 127, 3, 64, 2, 124, 3, 127,
-    65, 0, 65, 0, 13, 3, 33, 142, 1, 65, 0, 13, 0, 65, 0, 11, 65, 0, 13, 2, 34,
-    143, 1, 34, 241, 2, 34, 191, 2, 34, 242, 2, 34, 208, 2, 33, 144, 1, 2, 127,
-    65, 0, 4, 64, 65, 0, 13, 5, 11, 65, 0, 11, 33, 145, 1, 65, 0, 17, 1, 0, 11,
-    33, 139, 4, 65, 0, 13, 0, 11, 12, 1, 11, 13, 0, 11, 66, 128, 127, 34, 189,
-    3, 65, 0, 13, 0, 34, 199, 3, 11, 11
+    0x00, 0x61, 0x73, 0x6d,  // wasm magic
+    0x01, 0x00, 0x00, 0x00,  // wasm version
+
+    0x01,                    // section kind: Type
+    0x0b,                    // section length 11
+    0x02,                    // types count 2
+    0x60,                    //  kind: func
+    0x02,                    // param count 2
+    0x7e, 0x7c,              // i64 f64
+    0x01, 0x7e,              // return count 1:  i64
+    0x60,                    //  kind: func
+    0x00,                    // param count 0
+    0x01, 0x7c,              // return count 1:  f64
+
+    0x03,                    // section kind: Function
+    0x02,                    // section length 2
+    0x01, 0x00,              // functions count 1: 0 $func0 (param i64 f64) (result i64)
+
+    0x04,                    // section kind: Table
+    0x05,                    // section length 5
+    0x01, 0x70, 0x01,        // table count 1:  funcref with maximum
+    0x06,                    // initial size 6
+    0x06,                    // maximum size 6
+
+    0x0a,                    // section kind: Code
+    0x72,                    // section length 114
+    0x01,                    // functions count 1
+                             // function #0 $func0
+    0x70,                    // body size 112
+    0x04,                    // 4 entries in locals list
+    0xf4, 0x02, 0x7f,        // 372 locals of type i32
+    0x76, 0x7e,              // 118 locals of type i64
+    0x1f, 0x7d,              // 31 locals of type f32
+    0x01, 0x7c,              // 1 local of type f64
+    0x02, 0x7e,              // block (result i64) $label4
+    0x02, 0x40,              // block $label2
+    0x02, 0x7f,              // block (result i32) $label0
+    0x03, 0x40,              // loop $label3
+    0x02, 0x7c,              // block (result f64)
+    0x03, 0x7f,              // loop (result i32) $label1
+    0x41, 0x00,              // i32.const 0
+    0x41, 0x00,              // i32.const 0
+    0x0d, 0x03,              // br_if $label0
+    0x21, 0x8e, 0x01,        // local.set $var142
+    0x41, 0x00,              // i32.const 0
+    0x0d, 0x00,              // br_if $label1
+    0x41, 0x00,              // i32.const 0
+    0x0b,                    // end $label1
+    0x41, 0x00,              // i32.const 0
+    0x0d, 0x02,              // br_if $label0
+    0x22, 0x8f, 0x01,        // local.tee $var143
+    0x22, 0xf1, 0x02,        // local.tee $var369
+    0x22, 0xbf, 0x02,        // local.tee $var319
+    0x22, 0xf2, 0x02,        // local.tee $var370
+    0x22, 0xd0, 0x02,        // local.tee $var336
+    0x21, 0x90, 0x01,        // local.set $var144
+    0x02, 0x7f,              // block (result i32)
+    0x41, 0x00,              // i32.const 0
+    0x04, 0x40,              // if
+    0x41, 0x00,              // i32.const 0
+    0x0d, 0x05,              // br_if $label2
+    0x0b,                    // end
+    0x41, 0x00,              // i32.const 0
+    0x0b,                    // end
+    0x21, 0x91, 0x01,        // local.set $var145
+    0x41, 0x00,              // i32.const 0
+    0x11, 0x01, 0x00,        // call_indirect (result f64)
+    0x0b,                    // end
+    0x21, 0x8b, 0x04,        // local.set $var523
+    0x41, 0x00,              // i32.const 0
+    0x0d, 0x00,              // br_if $label3
+    0x0b,                    // end $label3
+    0x0c, 0x01,              // br $label2
+    0x0b,                    // end $label0
+    0x0d, 0x00,              // br_if $label2
+    0x0b,                    // end $label2
+    0x42, 0x80, 0x7f,        // i64.const -128
+    0x22, 0xbd, 0x03,        // local.tee $var445
+    0x41, 0x00,              // i32.const 0
+    0x0d, 0x00,              // br_if $label4
+    0x22, 0xc7, 0x03,        // local.tee $var455
+    0x0b,                    // end $label4
+    0x0b,                    // end
   ]);
   WebAssembly.instantiate(arr);
 

@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/export-template.h"
 #include "src/common/globals.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -50,8 +51,13 @@ class FlagValue {
   // use it for computing other constants.
   constexpr T value() const { return value_; }
 
-  // Assign a new value (defined below).
+  // Assign a new value (defined below). This does not update the Flag metadata
+  // or check for contradictions.
   inline FlagValue<T>& operator=(T new_value);
+
+  // Set a new value (updates Flag metadata and checks for flag contradictions).
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  void Set(T new_value);
 
  private:
   T value_;

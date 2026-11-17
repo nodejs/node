@@ -15,11 +15,15 @@ build output directory and the tests you want to run.
 
 ## Key Test Suites
 
-- **unittests**: C++ unit tests for V8's internal components.
+- **unittests**: C++ unit tests (`v8_unittests`, GoogleTest) for V8's internal
+  components. `tools/run-tests.py` executes each test (`TEST`, `TEST_F`,
+  `TEST_P`) in its own isolated process (via `--fork-server` on POSIX or a fresh
+  subprocess with `--gtest_filter=<Suite.Test>`).
 - **cctest**: Another, older format for C++ unit tests (deprecated, in the
-  process of being moved to unittests).
+  process of being moved to unittests). Each `TEST` / `UNINITIALIZED_TEST` runs
+  in its own `cctest` process (`cctest` rejects multiple test arguments).
 - **mjsunit**: JavaScript-based tests for JavaScript language features and
-  builtins.
+  builtins. Each `.js` file runs in a fresh `d8` process.
 
 ## Running Tests
 
@@ -32,6 +36,15 @@ tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.op
 
 # Run a specific test file
 tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug cctest/test-heap
+
+# Run unittests matching a glob via the test runner (preserves per-test process isolation)
+tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug 'unittests/Torque*'
+
+# Direct binary execution (for debugging a single test, e.g. under gdb)
+# Always pass a single test to preserve process isolation; use tools/run-tests.py
+# when running multiple tests or wildcards.
+out/x64.optdebug/cctest test-heap/HeapObjects
+out/x64.optdebug/v8_unittests --gtest_filter=TorqueTest.Scanner
 
 # Manual execution with d8
 # Note: mjsunit tests always require test/mjsunit/mjsunit.js.

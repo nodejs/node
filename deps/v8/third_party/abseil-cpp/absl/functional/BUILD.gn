@@ -73,6 +73,7 @@ absl_test("bind_front_test") {
   sources = [ "bind_front_test.cc" ]
   deps = [
     ":bind_front",
+    "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/memory",
   ]
 }

@@ -28,12 +28,12 @@ void CppHeapPointerTableEntry::MakePointerEntry(Address value,
   if (V8_UNLIKELY(mark_as_alive)) {
     new_payload.SetMarkBit();
   }
-  payload_.store(new_payload, std::memory_order_relaxed);
+  payload_.store(new_payload, std::memory_order_release);
 }
 
 Address CppHeapPointerTableEntry::GetPointer(
     CppHeapPointerTagRange tag_range) const {
-  auto payload = payload_.load(std::memory_order_relaxed);
+  auto payload = payload_.load(std::memory_order_acquire);
   DCHECK(payload.ContainsPointer());
   return payload.Untag(tag_range);
 }
@@ -52,6 +52,7 @@ void CppHeapPointerTableEntry::SetPointer(Address value,
       new_payload.SetMarkBit();
     }
     if (payload_.compare_exchange_weak(old_payload, new_payload,
+                                       std::memory_order_release,
                                        std::memory_order_relaxed)) {
       break;
     }

@@ -80,6 +80,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-objects-inl.h"
+#include "src/objects/js-struct.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots-inl.h"
@@ -87,8 +88,8 @@
 #include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/trusted-pointer-table.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -682,7 +683,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
 
   DCHECK(!sweeper_->sweeping_in_progress());
   for (NormalPage* p : *space) {
-    MemoryChunk* chunk = p->Chunk();
     if (p->never_evacuate() || !p->CanAllocateOnChunk()) {
       continue;
     }
@@ -695,7 +695,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     // started. This means that sweeping has finished. Furthermore, at the end
     // of a GC all evacuation candidates are cleared and their slot buffers are
     // released.
-    CHECK(!chunk->IsEvacuationCandidate());
+    CHECK(!p->is_evacuation_candidate());
     CHECK_NULL(p->slot_set<OLD_TO_OLD>());
     CHECK_NULL(p->typed_slot_set<OLD_TO_OLD>());
     CHECK(p->SweepingDone());
@@ -1384,12 +1384,12 @@ class RecordMigratedSlotVisitor
   inline void VisitExternalPointer(Tagged<HeapObject> host,
                                    ExternalPointerSlot slot) final {}
 
-  inline void VisitIndirectPointer(Tagged<HeapObject> host,
-                                   IndirectPointerSlot slot,
-                                   IndirectPointerMode mode) final {}
+  inline void VisitTrustedPointer(Tagged<HeapObject> host,
+                                  TrustedPointerSlot slot,
+                                  TrustedPointerMode mode) final {}
 
   inline void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                            IndirectPointerSlot slot) final {}
+                                            TrustedPointerSlot slot) final {}
 
   inline void VisitProtectedPointer(Tagged<TrustedObject> host,
                                     ProtectedPointerSlot slot) final {
@@ -1611,7 +1611,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     if (V8_LIKELY(dest != CODE_SPACE)) {
       DCHECK_VALID_REGULAR_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
-      base->heap_->CopyBlock(dst_addr, src_addr, size);
+      Heap::CopyBlock(dst_addr, src_addr, object_size);
       if (mode != MigrationMode::kFast) {
         base->ExecuteMigrationObservers(dest, src, dst, size);
       }
@@ -2539,17 +2539,7 @@ void MarkCompactCollector::RetainMaps() {
                 MarkingHelper::WorklistTarget::kRegular, map);
           }
         }
-        Tagged<Object> prototype = map->prototype();
-        if (age > 0 && IsHeapObject(prototype) &&
-            MarkingHelper::IsUnmarkedAndNotAlwaysLive(
-                heap_, marking_state_, Cast<HeapObject>(prototype))) {
-          // The prototype is not marked, age the map.
-          new_age = age - 1;
-        } else {
-          // The prototype and the constructor are marked, this map keeps only
-          // transition tree alive, not JSObjects. Do not age the map.
-          new_age = age;
-        }
+        new_age = age > 0 ? age - 1 : 0;
       } else {
         new_age = v8_flags.retain_maps_for_n_gc;
       }
@@ -3720,7 +3710,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // Mark the new entry in the trusted pointer table as alive.
   TrustedPointerTable& table = heap_->isolate()->trusted_pointer_table();
   TrustedPointerTable::Space* space = heap_->trusted_pointer_space();
-  table.Mark(space, uncompiled_data->self_indirect_pointer_handle());
+  table.Mark(space, uncompiled_data->self_trusted_pointer_handle());
 #endif
 
   shared_info->set_uncompiled_data(uncompiled_data);
@@ -3762,13 +3752,13 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
     bool is_unpublished =
         flushing_candidate->HasUnpublishedTrustedData(isolate);
     if (is_unpublished) {
-      IndirectPointerHandle handle =
-          flushing_candidate->Relaxed_ReadField<IndirectPointerHandle>(
+      TrustedPointerHandle handle =
+          flushing_candidate->Relaxed_ReadField<TrustedPointerHandle>(
               offsetof(SharedFunctionInfo, trusted_function_data_));
 
       // Read the object from the table. It is now an UncompiledData.
       Address obj_addr = isolate->trusted_pointer_table().GetMaybeUnpublished(
-          handle, kBytecodeArrayIndirectPointerTag);
+          handle, kBytecodeArrayTrustedPointerTag);
       Tagged<TrustedObject> trusted_obj =
           UncheckedCast<TrustedObject>(Tagged<Object>(obj_addr));
       Tagged<UncompiledData> uncompiled_data =
@@ -4074,13 +4064,13 @@ void RightTrimDescriptorArray(Heap* heap, Tagged<DescriptorArray> array,
       array->GetDescriptorSlot(old_nof_all_descriptors).address();
   MutablePage* chunk = MutablePage::FromHeapObject(heap->isolate(), array);
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, end,
-                                         SlotSet::FREE_EMPTY_BUCKETS);
+                                         SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
-      chunk, start, end, SlotSet::FREE_EMPTY_BUCKETS);
+      chunk, start, end, SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_SHARED>::RemoveRange(chunk, start, end,
-                                            SlotSet::FREE_EMPTY_BUCKETS);
+                                            SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_OLD>::RemoveRange(chunk, start, end,
-                                         SlotSet::FREE_EMPTY_BUCKETS);
+                                         SlotSet::KEEP_EMPTY_BUCKETS);
   const Address aligned_start = ALIGN_TO_ALLOCATION_ALIGNMENT(start);
   const Address aligned_end = ALIGN_TO_ALLOCATION_ALIGNMENT(end);
   if (aligned_start < aligned_end) {
@@ -4133,6 +4123,10 @@ void MarkCompactCollector::TrimDescriptorArray(
     descriptors->set_number_of_descriptors(number_of_own_descriptors);
     if (can_trim) {
       RightTrimDescriptorArray(heap_, descriptors, to_trim);
+    } else {
+      MemsetTagged(descriptors->GetDescriptorSlot(number_of_own_descriptors),
+                   ReadOnlyRoots(heap_).undefined_value(),
+                   to_trim * DescriptorArray::kEntrySize);
     }
     TrimEnumCache(heap_, map, descriptors);
     descriptors->Sort();
@@ -4721,9 +4715,10 @@ class Evacuator final : public Malloced {
     if (metadata->will_be_promoted()) {
       return kPageNewToOld;
     }
-    if (metadata->Chunk()->InYoungGeneration()) {
+    if (metadata->owner_identity() == NEW_SPACE) {
       return kObjectsNewToOld;
     }
+    DCHECK(metadata->is_evacuation_candidate());
     return kObjectsOldToOld;
   }
 
@@ -5110,10 +5105,10 @@ class PrecisePagePinningVisitor final : public RootVisitor {
       // need to be pinned.
       return;
     }
-    if (!should_pin_in_shared_space_ && chunk->InWritableSharedSpace()) {
+    if (!should_pin_in_shared_space_ && page->is_writable_shared()) {
       return;
     }
-    if (chunk->InYoungGeneration()) {
+    if (page->owner_identity() == NEW_SPACE) {
       // Young gen pages are not considered evacuation candidates. Pinning is
       // done by marking them as quarantined and promoting the page as is.
       DCHECK(v8_flags.minor_ms ? chunk->IsToPage() : chunk->IsFromPage());
@@ -5430,7 +5425,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         marking_state_(heap_->non_atomic_marking_state()),
         page_(page),
         record_old_to_shared_slots_(heap->isolate()->has_shared_space() &&
-                                    !page->Chunk()->InWritableSharedSpace()) {}
+                                    !page->is_writable_shared()) {}
   ~RememberedSetUpdatingItem() override = default;
 
   void Process() override {
@@ -5765,8 +5760,7 @@ void CollectRememberedSetUpdatingItems(
   for (MutablePage* page : *space) {
     // No need to update pointers on evacuation candidates. Evacuated pages will
     // be released after this phase.
-    if (page->Chunk()->IsEvacuationCandidate() &&
-        !page->evacuation_was_aborted()) {
+    if (page->is_evacuation_candidate() && !page->evacuation_was_aborted()) {
       continue;
     }
     if (page->ContainsAnySlots()) {
@@ -5890,7 +5884,6 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
 
   while (chunk_iterator.HasNext()) {
     MutablePage* page = chunk_iterator.Next();
-    MemoryChunk* chunk = page->Chunk();
 
     const auto slot_count = RememberedSet<OLD_TO_SHARED>::Iterate(
         page,
@@ -5899,7 +5892,8 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
         },
         SlotSet::FREE_EMPTY_BUCKETS);
 
-    if (slot_count == 0 || chunk->InYoungGeneration()) {
+    const AllocationSpace owner = page->owner_identity();
+    if (slot_count == 0 || owner == NEW_SPACE || owner == NEW_LO_SPACE) {
       page->ReleaseSlotSet(OLD_TO_SHARED);
     }
 
@@ -5937,7 +5931,9 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
                 return UpdateStrongOldToSharedSlot(cage_base, slot);
               });
         });
-    if (typed_slot_count == 0 || chunk->InYoungGeneration()) {
+    DCHECK_NE(owner, NEW_SPACE);
+    DCHECK_NE(owner, NEW_LO_SPACE);
+    if (typed_slot_count == 0) {
       page->ReleaseTypedSlotSet(OLD_TO_SHARED);
     }
   }
@@ -5964,7 +5960,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
                                             Address content) {
       Tagged<ExposedTrustedObject> relocated_object = process_entry(content);
       if (relocated_object.is_null()) return;
-      DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
+      DCHECK_EQ(handle, relocated_object->self_trusted_pointer_handle());
       table.Update(handle, relocated_object.ptr());
     });
   };
@@ -6185,7 +6181,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     NormalPage* p = *(it++);
     DCHECK(p->SweepingDone());
 
-    if (p->Chunk()->IsEvacuationCandidate()) {
+    if (p->is_evacuation_candidate()) {
       DCHECK(!p->is_black_allocated());
       DCHECK_NE(NEW_SPACE, space->identity());
       // Will be processed in Evacuate.
@@ -6356,10 +6352,11 @@ void RootMarkingVisitor::VisitRunningCode(
   if (istream_or_smi_zero != Smi::zero()) {
     Tagged<InstructionStream> istream =
         TrustedCast<InstructionStream>(istream_or_smi_zero);
-    MemoryChunk* chunk = MemoryChunk::FromHeapObject(istream);
-    if (chunk->IsEvacuationCandidate()) {
-      NormalPage* page = SbxCast<NormalPage>(chunk->Metadata());
-      collector_->ReportAbortedEvacuationCandidateDueToRunningCode(page);
+    BasePage* page =
+        BasePage::FromHeapObject(collector_->heap()->isolate(), istream);
+    if (page->is_evacuation_candidate()) {
+      collector_->ReportAbortedEvacuationCandidateDueToRunningCode(
+          SbxCast<NormalPage>(page));
     }
 
     VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);

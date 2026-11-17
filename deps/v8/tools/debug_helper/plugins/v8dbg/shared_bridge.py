@@ -15,10 +15,11 @@ from typing import Optional
 
 from .format import format_frame_location, format_frame_trailer
 from .inspect import (
+    PROPERTY_KIND_ARRAY_OF_KNOWN_SIZE,
     decode_c_str,
     decode_tagged_smi,
     extract_brief_address,
-    read_frame_trailer,
+    preview_tagged_slot,
     summarize_property,
 )
 from .models import HeapHints, InspectResult
@@ -30,6 +31,11 @@ _STRING_LITERAL_RE = re.compile(r'"(?:[^"\\]|\\.)*"')
 
 # Default per-field string length cap for frame annotations. Use None if unlimited.
 _MAX_PROP_STRING_CHARS = 256
+
+# Cap on per-argument previews in backtrace annotations, to limit the
+# annotation length and the per-frame debug-helper calls on deep stacks.
+# `v8 args` shows the full list.
+_MAX_BT_ARG_PREVIEWS = 4
 
 
 class StructProperty(ctypes.Structure):
@@ -353,6 +359,18 @@ class DebuggerBridge:
       end_position = self._position_from_offset(script_source, end_offset - 1)
     return (position, end_position)
 
+  def _read_slot_value(self, prop, read_memory):
+    """Read the raw value stored in a single-slot frame property, or None."""
+    if prop is None or not prop.address or not prop.size:
+      return None
+    try:
+      data = read_memory(prop.address, prop.size)
+    except Exception:
+      return None
+    if len(data) != prop.size:
+      return None
+    return int.from_bytes(data, "little", signed=False)
+
   def describe_js_frame(self, frame_pointer, read_memory):
     """Return high-level JS frame metadata, or None if the frame is unusable."""
     if not frame_pointer:
@@ -395,35 +413,68 @@ class DebuggerBridge:
         return None
       if function_name == "":
         function_name = "<anonymous>"
+
+      # argc is None when the argument count cannot be recovered. In that case,
+      # the arguments property uses the array-of-unknown-size kind.
+      arguments = props.get("arguments")
+      argc = None
+      if (arguments is not None and
+          arguments.kind == PROPERTY_KIND_ARRAY_OF_KNOWN_SIZE):
+        argc = arguments.num_values
       return {
           "function_name": function_name,
           "script_name": script_name,
           "position": position,
           "end_position": end_position,
           "script_source": script_source,
+          "receiver": self._read_slot_value(props.get("receiver"), read_memory),
+          "argc": argc,
+          "arguments": arguments,
       }
     finally:
       library._v8_debug_helper_Free_StackFrameResult(result_ptr)
 
+  def argument_previews(self, annotation, read_memory, cap=None, hints=None):
+    """Render compact per-argument previews for a describe_js_frame result.
+
+    Returns a list of at most `cap` briefs, or None when the argument slots
+    cannot be read.
+    """
+    arguments = annotation.get("arguments")
+    argc = annotation.get("argc")
+    if arguments is None or argc is None:
+      return None
+    count = argc if cap is None else min(argc, cap)
+    return [
+        preview_tagged_slot(self, read_memory,
+                            arguments.address + i * arguments.size,
+                            arguments.size, hints) for i in range(count)
+    ]
+
   def frame_suffix(self, frame_pointer, read_memory):
     """Format the JS annotation suffix for a debugger frame:
 
-    [<function_name> @ <script_name>:<line>:<column>] (this=0x..., argc=N)
+    [<function_name> @ <script_name>:<line>:<column>] (this=..., [0]=..., ...)
 
     If source text cannot be recovered but the script name still can, the
     annotation degrades to:
 
     [<function_name> @ <script_name>]
 
-    Drops the trailing `(this=..., argc=...)` if the frame slots are unreadable.
+    Argument previews are capped, so a longer frame gets a "... (argc=N)"
+    tail. When the argument count cannot be recovered, the trailer is
+    `(this=..., argc=?)`. It is dropped when the receiver slot is unreadable
+    too.
     """
     annotation = self.describe_js_frame(frame_pointer, read_memory)
     if not annotation:
       return ""
-    receiver, argc = read_frame_trailer(frame_pointer, self._ptr_size,
-                                        read_memory)
+    previews = self.argument_previews(
+        annotation, read_memory, cap=_MAX_BT_ARG_PREVIEWS)
     location = format_frame_location(annotation)
-    return f" [{location}]{format_frame_trailer(receiver, argc)}"
+    trailer = format_frame_trailer(annotation["receiver"], annotation["argc"],
+                                   previews)
+    return f" [{location}]{trailer}"
 
 
 _bridges = {}

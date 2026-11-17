@@ -9,9 +9,8 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_GPU_FIXEDBUFFER_H
 #define LLVM_LIBC_SRC___SUPPORT_GPU_FIXEDBUFFER_H
 
+#include "hdr/stdint_proxy.h"
 #include "src/__support/CPP/atomic.h"
-
-#include <stdint.h>
 
 namespace LIBC_NAMESPACE_DECL {
 

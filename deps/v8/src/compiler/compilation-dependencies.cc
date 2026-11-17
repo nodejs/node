@@ -936,9 +936,7 @@ class GlobalPropertyDependency final : public CompilationDependency {
 class ContextCellDependency final : public CompilationDependency {
  public:
   ContextCellDependency(ContextCellRef slot, ContextCell::State state)
-      : CompilationDependency(kContextCell), slot_(slot), state_(state) {
-    DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
-  }
+      : CompilationDependency(kContextCell), slot_(slot), state_(state) {}
 
   bool IsValid(JSHeapBroker* broker) const override {
     return slot_.state() == state_;
@@ -1338,7 +1336,6 @@ bool CompilationDependencies::DependOnContextCell(ContextRef script_context,
 
 bool CompilationDependencies::DependOnContextCell(ContextCellRef slot,
                                                   ContextCell::State state) {
-  DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
   RecordDependency(zone_->New<ContextCellDependency>(slot, state));
   return true;
 }

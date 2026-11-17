@@ -180,10 +180,10 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator,
   CageBaseGlobalUpdater::UpdateCageBase(CagedHeapBase::g_heap_base_);
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
-  const size_t total_heap_size = std::clamp<size_t>(
-      v8::base::bits::RoundUpToPowerOfTwo64(desired_heap_size),
-      api_constants::kCagedHeapDefaultReservationSize,
-      api_constants::kCagedHeapMaxReservationSize);
+  const size_t total_heap_size =
+      std::clamp<size_t>(std::bit_ceil(desired_heap_size),
+                         api_constants::kCagedHeapDefaultReservationSize,
+                         api_constants::kCagedHeapMaxReservationSize);
 
   const size_t commit_page_size = platform_allocator.CommitPageSize();
 

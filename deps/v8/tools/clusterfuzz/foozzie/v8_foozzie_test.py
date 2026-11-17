@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import json
 import os
 import random
 import re
@@ -38,34 +39,46 @@ def output(stdout, is_crash):
       exit_code=exit_code, stdout_bytes=stdout.encode('utf-8'), pid=0)
 
 
+def load_json(filename):
+  with (BASE_DIR / filename).open() as f:
+    return json.load(f)
+
+
+# Tables read by other fuzzers from the build directory, e.g. by
+# tools/regexp/correctness_fuzzer/run.py. Checked for integrity like ours.
+FUZZER_EXPERIMENTS = [load_json('v8_fuzz_experiments_regexp.json')]
+FUZZER_ADDITIONAL_FLAGS = [load_json('v8_fuzz_flags_regexp.json')]
+
+
 class ConfigTest(unittest.TestCase):
   def testExperiments(self):
-    """Test integrity of probabilities and configs."""
+    """Test integrity of probabilities and configs, for every table."""
     CONFIGS = v8_foozzie.CONFIGS
-    EXPERIMENTS = v8_fuzz_config.FOOZZIE_EXPERIMENTS
-    FLAGS = v8_fuzz_config.ADDITIONAL_FLAGS
-    # Probabilities add up to 100%.
-    first_is_int = lambda x: type(x[0]) == int
-    assert all(map(first_is_int, EXPERIMENTS))
-    assert sum(x[0] for x in EXPERIMENTS) == 100
-    # Configs used in experiments are defined.
-    assert all(map(lambda x: x[1] in CONFIGS, EXPERIMENTS))
-    assert all(map(lambda x: x[2] in CONFIGS, EXPERIMENTS))
-    # The last config item points to a known build configuration.
-    assert all(map(lambda x: x[3] in KNOWN_BUILDS, EXPERIMENTS))
-    # All flags have a probability.
-    first_is_float = lambda x: type(x[0]) == float
-    assert all(map(first_is_float, FLAGS))
-    first_between_0_and_1 = lambda x: x[0] > 0 and x[0] < 1
-    assert all(map(first_between_0_and_1, FLAGS))
-    # Test consistent flags.
-    second_is_string = lambda x: isinstance(x[1], str)
-    assert all(map(second_is_string, FLAGS))
-    # We allow spaces to separate more flags. We don't allow spaces in the flag
-    # value.
-    is_flag = lambda x: x.startswith('--')
-    all_parts_are_flags = lambda x: all(map(is_flag, x[1].split()))
-    assert all(map(all_parts_are_flags, FLAGS))
+    for EXPERIMENTS in ([v8_fuzz_config.FOOZZIE_EXPERIMENTS] +
+                        FUZZER_EXPERIMENTS):
+      # Probabilities add up to 100%.
+      first_is_int = lambda x: type(x[0]) == int
+      assert all(map(first_is_int, EXPERIMENTS))
+      assert sum(x[0] for x in EXPERIMENTS) == 100
+      # Configs used in experiments are defined.
+      assert all(map(lambda x: x[1] in CONFIGS, EXPERIMENTS))
+      assert all(map(lambda x: x[2] in CONFIGS, EXPERIMENTS))
+      # The last config item points to a known build configuration.
+      assert all(map(lambda x: x[3] in KNOWN_BUILDS, EXPERIMENTS))
+    for FLAGS in ([v8_fuzz_config.ADDITIONAL_FLAGS] + FUZZER_ADDITIONAL_FLAGS):
+      # All flags have a probability.
+      first_is_float = lambda x: type(x[0]) == float
+      assert all(map(first_is_float, FLAGS))
+      first_between_0_and_1 = lambda x: x[0] > 0 and x[0] < 1
+      assert all(map(first_between_0_and_1, FLAGS))
+      # Test consistent flags.
+      second_is_string = lambda x: isinstance(x[1], str)
+      assert all(map(second_is_string, FLAGS))
+      # We allow spaces to separate more flags. We don't allow spaces in the
+      # flag value.
+      is_flag = lambda x: x.startswith('--')
+      all_parts_are_flags = lambda x: all(map(is_flag, x[1].split()))
+      assert all(map(all_parts_are_flags, FLAGS))
 
   def testConfig(self):
     """Smoke test how to choose experiments."""
@@ -117,6 +130,8 @@ class UnitTest(unittest.TestCase):
     self.assertEqual(
         '98',
         v8_foozzie.cluster_failures('v8/test/mjsunit/apply.js'))
+    self.assertEqual('regexp-42',
+                     v8_foozzie.cluster_failures('regexp-fuzzer:gi/()+|\\d'))
 
   def testDiff(self):
     def diff_fun(one, two, skip=False):

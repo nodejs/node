@@ -21,6 +21,16 @@ TEST(Mutex, LockGuardMutex) {
   Mutex mutex;
   { MutexGuard lock_guard(&mutex); }
   { MutexGuard lock_guard(&mutex); }
+  {
+    std::optional<MutexGuard> lock_guard1 = MutexGuard::TryLock(&mutex);
+    EXPECT_TRUE(lock_guard1.has_value());
+    std::optional<MutexGuard> lock_guard2 = MutexGuard::TryLock(&mutex);
+    EXPECT_FALSE(lock_guard2.has_value());
+  }
+  {
+    std::optional<MutexGuard> lock_guard = MutexGuard::TryLock(mutex);
+    EXPECT_TRUE(lock_guard.has_value());
+  }
 }
 
 

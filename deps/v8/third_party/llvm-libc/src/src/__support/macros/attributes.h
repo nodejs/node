@@ -24,10 +24,20 @@
 #define __has_attribute(x) 0
 #endif
 
+#ifndef __has_cpp_attribute
+#define __has_cpp_attribute(x) 0
+#endif
+
 #define LIBC_INLINE inline
 #define LIBC_INLINE_VAR inline
 #define LIBC_INLINE_ASM __asm__ __volatile__
-#define LIBC_UNUSED __attribute__((unused))
+#define LIBC_UNUSED [[maybe_unused]]
+
+#if defined(LIBC_TARGET_ARCH_IS_AARCH64) && defined(__linux__)
+#define LIBC_VECTOR_PCS __attribute__((aarch64_vector_pcs))
+#else
+#define LIBC_VECTOR_PCS
+#endif
 
 #if __has_attribute(always_inline)
 #define LIBC_ALWAYS_INLINE LIBC_INLINE __attribute__((always_inline))
@@ -36,6 +46,32 @@
 #else
 #define LIBC_ALWAYS_INLINE LIBC_INLINE
 #endif // __has_attribute(always_inline)
+
+#if __has_attribute(noinline)
+#define LIBC_NOINLINE __attribute__((noinline))
+#elif defined(LIBC_COMPILER_IS_MSVC) || defined(_MSC_VER)
+#define LIBC_NOINLINE __declspec(noinline)
+#else
+#define LIBC_NOINLINE
+#endif // __has_attribute(noinline)
+
+#if __has_attribute(cold)
+#define LIBC_COLD __attribute__((cold))
+#else
+#define LIBC_COLD
+#endif // __has_attribute(cold)
+
+#if __has_attribute(flatten)
+#define LIBC_FLATTEN __attribute__((flatten))
+#else
+#define LIBC_FLATTEN
+#endif // __has_attribute(flatten)
+
+#if __has_attribute(may_alias)
+#define LIBC_MAY_ALIAS __attribute__((may_alias))
+#else
+#define LIBC_MAY_ALIAS
+#endif // __has_attribute(may_alias)
 
 #ifndef LIBC_HAS_BUILTIN_IS_CONSTANT_EVALUATED
 #if (defined(LIBC_COMPILER_IS_GCC) && (LIBC_COMPILER_GCC_VER >= 900)) ||       \
@@ -154,6 +190,18 @@ LIBC_THREAD_MODE_EXTERNAL.
 #define LIBC_PREFERED_TYPE(TYPE) [[clang::preferred_type(TYPE)]]
 #else
 #define LIBC_PREFERED_TYPE(TYPE)
+#endif
+
+#if __has_cpp_attribute(no_unique_address)
+#define LIBC_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#else
+#define LIBC_NO_UNIQUE_ADDRESS
+#endif
+
+#if __has_attribute(trivial_abi)
+#define LIBC_TRIVIAL_ABI [[clang::trivial_abi]]
+#else
+#define LIBC_TRIVIAL_ABI
 #endif
 
 #if __has_attribute(ext_vector_type) &&                                        \
