@@ -85,6 +85,7 @@ struct inflate_state {
     int last;                   /* true if processing last block */
     int wrap;                   /* bit 0 true for zlib, bit 1 true for gzip,
                                    bit 2 true to validate check value */
+    int reqwrap;                /* requested wrap */
     int havedict;               /* true if dictionary provided */
     int flags;                  /* gzip header method and flags, 0 if zlib, or
                                    -1 if raw or no header yet */
@@ -93,7 +94,8 @@ struct inflate_state {
     unsigned long total;        /* protected copy of output count */
     gz_headerp head;            /* where to save gzip header information */
         /* sliding window */
-    unsigned wbits;             /* log base 2 of requested window size */
+    unsigned reqbits;           /* requested log base 2 of window size */
+    unsigned wbits;             /* current log base 2 of window size */
     unsigned wsize;             /* window size or zero if not using window */
     unsigned whave;             /* valid bytes in the window */
     unsigned wnext;             /* window write index */

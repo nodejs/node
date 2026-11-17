@@ -92,8 +92,10 @@
 #        define vsnprintf _vsnprintf
 #      endif
 #    endif
-#  elif !defined(__STDC_VERSION__) || __STDC_VERSION__-0 < 199901L
-/* Otherwise if C89/90, assume no C99 snprintf() or vsnprintf() */
+#  elif (!defined(__STDC_VERSION__) || __STDC_VERSION__-0 < 199901L) && \
+        (!defined(__cplusplus) || __cplusplus < 201103L)
+/* Otherwise if C89/90 (and not C++11 or later), assume no C99 snprintf() or
+   vsnprintf() */
 #    ifndef NO_snprintf
 #      define NO_snprintf
 #    endif
@@ -128,17 +130,26 @@
 #  include <windows.h>
 #  define zstrerror() gz_strwinerror((DWORD)GetLastError())
 #else
+#  include <errno.h>
 #  ifndef NO_STRERROR
-#    include <errno.h>
 #    define zstrerror() strerror(errno)
 #  else
 #    define zstrerror() "stdio error (consult errno)"
 #  endif
 #endif
 
-/* some environments don't define EWOULDBLOCK */
-#ifndef EWOULDBLOCK
-#  define EWOULDBLOCK EAGAIN
+#ifdef EAGAIN
+#  ifdef EWOULDBLOCK
+#    define BLOCKED(e) ((e) == EAGAIN || (e) == EWOULDBLOCK)
+#  else
+#    define BLOCKED(e) ((e) == EAGAIN)
+#  endif
+#else
+#  ifdef EWOULDBLOCK
+#    define BLOCKED(e) ((e) == EWOULDBLOCK)
+#  else
+#    define BLOCKED(e) (0)
+#  endif
 #endif
 
 /* provide prototypes for these when building zlib without LFS */
@@ -219,3 +230,10 @@ char ZLIB_INTERNAL *gz_strwinerror(DWORD error);
    (possible z_off64_t types off_t, off64_t, and long are all signed) */
 unsigned ZLIB_INTERNAL gz_intmax(void);
 #define GT_OFF(x) (sizeof(int) == sizeof(z_off64_t) && (x) > gz_intmax())
+
+/* largest value representable in z_off64_t */
+#ifndef CHAR_BIT
+#  define CHAR_BIT 8
+#endif
+#define GZ_OFF_MAX \
+    ((((z_off64_t)1 << (sizeof(z_off64_t) * CHAR_BIT - 2)) - 1) * 2 + 1)
