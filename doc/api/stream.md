@@ -2331,10 +2331,17 @@ This method allows iterating a stream. For each chunk in the stream the
 promise will be `await`ed.
 
 This method is different from `for await...of` loops in that it can optionally
-process chunks concurrently. In addition, a `forEach` iteration can only be
+process chunks concurrently when the `concurrency` option is greater than `1`.
+In addition, a `forEach` iteration can only be
 stopped by having passed a `signal` option and aborting the related
 `AbortController` while `for await...of` can be stopped with `break` or
 `return`. In either case the stream will be destroyed.
+
+`forEach` is implemented on top of [`readable.map`][]: with the default
+`concurrency` of `1`, chunks are processed strictly one at a time, and the
+next chunk is not read from the stream until the promise returned by `fn` for
+the previous chunk has settled. Set `concurrency` to a value greater than `1`
+to allow up to that many invocations of `fn` to run at the same time.
 
 This method is different from listening to the [`'data'`][] event in that it
 uses the [`readable`][] event in the underlying machinery and can limit the
