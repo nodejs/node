@@ -1021,7 +1021,7 @@ the byte length as reported by `.byteLength` is returned.
 added: v26.11.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67179
     description: DataView is now supported.
 -->
 
@@ -5403,7 +5403,7 @@ added:
   - v18.15.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67179
     description: DataView is now supported.
   - version:
      - v26.8.0
@@ -5476,7 +5476,7 @@ added:
   - v18.14.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67179
     description: DataView is now supported.
   - version:
      - v26.8.0
