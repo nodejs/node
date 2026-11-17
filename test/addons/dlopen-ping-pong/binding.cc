@@ -42,7 +42,7 @@ void LoadLibrary(const FunctionCallbackInfo<Value>& args) {
   }
   ping_func = reinterpret_cast<ping>(dlsym(handle, "dlopen_ping"));
   if (ping_func == nullptr) {
-    if ( dlclose(handle) != 0 ) {
+    if (dlclose(handle) != 0) {
       ThrowError(isolate, "dlclose failed");
       return;
     }
