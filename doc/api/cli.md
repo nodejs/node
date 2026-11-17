@@ -4351,6 +4351,7 @@ one is included in the list below.
 * `--localstorage-file`
 * `--max-http-header-size`
 * `--max-old-space-size-percentage`
+* `--max-old-space-size`
 * `--network-family-autoselection-attempt-timeout`
 * `--no-addons`
 * `--no-deprecation`
@@ -4463,7 +4464,6 @@ V8 options that are allowed are:
 * `--interpreted-frames-native-stack`
 * `--jitless`
 * `--max-heap-size`
-* `--max-old-space-size`
 * `--max-semi-space-size`
 * `--perf-basic-prof-only-functions`
 * `--perf-basic-prof`

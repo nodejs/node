@@ -124,6 +124,9 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
   // it will be owned by the snapshot creator and needs to be cleaned up
   // before serialization.
   if (flags & Flags::kIsForSnapshotting) {
+    SetIsolateMaxOldGenerationSize(
+        &params.constraints,
+        per_process::cli_options->per_isolate->max_old_space_size_mb);
     // The isolate must be registered before the SnapshotCreator initializes the
     // isolate, so that the memory reducer can be initialized.
     isolate = impl_->isolate = Isolate::Allocate(GetOrCreateIsolateGroup());

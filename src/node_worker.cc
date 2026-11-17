@@ -142,6 +142,8 @@ void Worker::UpdateResourceConstraints(ResourceConstraints* constraints) {
     constraints->set_max_old_generation_size_in_bytes(
         static_cast<size_t>(resource_limits_[kMaxOldGenerationSizeMb] * kMB));
   } else {
+    SetIsolateMaxOldGenerationSize(constraints,
+                                   per_isolate_opts_->max_old_space_size_mb);
     resource_limits_[kMaxOldGenerationSizeMb] =
         constraints->max_old_generation_size_in_bytes() / kMB;
   }
@@ -575,6 +577,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
 
   if (args[1]->IsObject() || args[2]->IsArray()) {
     per_isolate_opts.reset(new PerIsolateOptions());
+    per_isolate_opts->max_old_space_size_mb =
+        env->isolate_data()->options()->max_old_space_size_mb;
 
     HandleEnvOptions(per_isolate_opts->per_env, [&env_vars](const char* name) {
       return env_vars->Get(name).value_or("");
@@ -614,6 +618,11 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
                               per_process_opts.get(),
                               kAllowedInEnvvar,
                               &errors);
+        // Inherit the parent's effective limit; execArgv may still override it.
+        per_isolate_opts->max_old_space_size_mb =
+            env->isolate_data()->options()->max_old_space_size_mb;
+        per_isolate_opts->max_old_space_size.clear();
+        per_isolate_opts->max_old_space_size_percentage.clear();
       } else {
         options_parser::Parse(&env_argv,
                               nullptr,

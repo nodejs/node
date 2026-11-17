@@ -518,6 +518,10 @@
               "type": "number",
               "description": "set the maximum size of HTTP headers (default: 16384 (16KB))"
             },
+            "max-old-space-size": {
+              "type": "string",
+              "description": "set V8's max old space size (in MiB)"
+            },
             "max-old-space-size-percentage": {
               "type": "string",
               "description": "set V8's max old space size as a percentage of available memory (e.g., '50%'). Takes precedence over --max-old-space-size."
