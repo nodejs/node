@@ -3835,9 +3835,10 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
   // Declared before the reset below so that it outlives it: sqlite3_reset()
   // can run JavaScript through an aggregate's xFinal.
   SteppingStatementGuard stepping(db, stmt);
+  // Throwing can run JS that closes the database and frees `stmt`.
   bool needs_reset = true;
   auto reset = OnScopeLeave([&]() {
-    if (needs_reset) sqlite3_reset(stmt);
+    if (needs_reset) sqlite3_reset(statement->statement_.get());
   });
 
   int step_r = sqlite3_step(stmt);
@@ -3923,9 +3924,10 @@ MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
   // Declared before the reset below so that it outlives it: sqlite3_reset()
   // can run JavaScript through an aggregate's xFinal.
   SteppingStatementGuard stepping(db, stmt);
+  // Throwing can run JS that closes the database and frees `stmt`.
   bool needs_reset = true;
   auto reset = OnScopeLeave([&]() {
-    if (needs_reset) sqlite3_reset(stmt);
+    if (needs_reset) sqlite3_reset(statement->statement_.get());
   });
 
   int r = sqlite3_step(stmt);
