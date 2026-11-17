@@ -29,10 +29,6 @@ const { requireImport, importImport } = importer;
     ['#external/subpath/asdf.js', maybeWrapped({ default: 'asdf' })],
     // Trailing pattern imports
     ['#subpath/asdf.asdf', maybeWrapped({ default: 'test' })],
-    // Leading slash
-    ['#subpath//asdf.asdf', maybeWrapped({ default: 'test' })],
-    // Double slash
-    ['#subpath/as//df.asdf', maybeWrapped({ default: 'test' })],
   ]);
 
   for (const [validSpecifier, expected] of internalImports) {
@@ -63,6 +59,14 @@ const { requireImport, importImport } = importer;
   const invalidImportSpecifiers = new Map([
     // Backtracking below the package base
     ['#subpath/sub/../../../belowbase', 'request is not a valid match in pattern'],
+    // Pattern matches containing empty segments (leading or double slashes)
+    ['#subpath//asdf.asdf', 'request is not a valid match in pattern'],
+    ['#subpath/as//df.asdf', 'request is not a valid match in pattern'],
+    ['#subpath//null', 'request is not a valid match in pattern'],
+    ['#subpath/////null', 'request is not a valid match in pattern'],
+    ['#subpath//internal/test', 'request is not a valid match in pattern'],
+    ['#subpath//internal//test', 'request is not a valid match in pattern'],
+    ['#subpath/////internal/////test', 'request is not a valid match in pattern'],
     // Percent-encoded slash errors
     ['#external/subpath/x%2Fy', 'must not include encoded "/" or "\\"'],
     ['#external/subpath/x%5Cy', 'must not include encoded "/" or "\\"'],
@@ -109,11 +113,6 @@ const { requireImport, importImport } = importer;
   // Handle not found for the defined imports target not existing
   const nonDefinedImports = new Set([
     '#notfound',
-    '#subpath//null',
-    '#subpath/////null',
-    '#subpath//internal/test',
-    '#subpath//internal//test',
-    '#subpath/////internal/////test',
   ]);
   for (const specifier of nonDefinedImports) {
     loadFixture(specifier).catch(mustCall((err) => {
