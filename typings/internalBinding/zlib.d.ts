@@ -50,4 +50,6 @@ export interface ZlibBinding {
   ZstdDecompress: typeof InternalZlibBinding.ZstdDecompress;
   crc32(data: string | ArrayBufferView, value: number): number;
   crc32c(data: string | ArrayBufferView, value: number): number;
+  crc32Buffer(data: ArrayBufferView, value: number): number;
+  crc32cBuffer(data: ArrayBufferView, value: number): number;
 }
