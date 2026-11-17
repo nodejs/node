@@ -22,7 +22,8 @@ enum_keyword!(
         Civil,
         /// Hijri calendar, Saudi Arabia sighting
         Rgsa
-});
+    }
+);
 
 /// Handles aliases present in `v`. If found, returns a [`CalendarAlgorithm`], else returns None
 fn handle_aliases(v: &Value) -> Option<CalendarAlgorithm> {

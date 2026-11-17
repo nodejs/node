@@ -73,9 +73,9 @@ pub struct DateFields<'a> {
     /// Either `extended_year` or `era` + `era_year` can be used in `DateFields`:
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::cal::Japanese;
     /// use icu::calendar::types::DateFields;
-    /// use icu::calendar::Date;
     ///
     /// let mut fields1 = DateFields::default();
     /// fields1.era = Some(b"reiwa");
@@ -151,9 +151,9 @@ pub struct DateFields<'a> {
     /// might not resolve to the same month number:
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::cal::ChineseTraditional;
     /// use icu::calendar::types::{DateFields, Month};
-    /// use icu::calendar::Date;
     ///
     /// // The 2023 Year of the Rabbit had a leap month after the 2nd month.
     /// let mut fields1 = DateFields::default();
@@ -215,7 +215,7 @@ impl fmt::Debug for DateFields<'_> {
             day,
         } = *self;
         let mut builder = f.debug_struct("DateFields");
-        if let Some(s) = era.and_then(|s| core::str::from_utf8(s).ok()) {
+        if let Some(s) = era.and_then(|s| str::from_utf8(s).ok()) {
             builder.field("era", &Some(s));
         } else {
             builder.field("era", &era);
@@ -223,7 +223,7 @@ impl fmt::Debug for DateFields<'_> {
         builder.field("era_year", &era_year);
         builder.field("extended_year", &extended_year);
         builder.field("month", &month);
-        if let Some(s) = month_code.and_then(|s| core::str::from_utf8(s).ok()) {
+        if let Some(s) = month_code.and_then(|s| str::from_utf8(s).ok()) {
             builder.field("month_code", &Some(s));
         } else {
             builder.field("month_code", &month_code);

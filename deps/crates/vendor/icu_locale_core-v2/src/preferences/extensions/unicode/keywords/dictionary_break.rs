@@ -29,7 +29,5 @@ struct_keyword!(
             .collect::<Result<_, _>>()
             .map(Self)
     },
-    |input: &DictionaryBreakScriptExclusions| {
-        input.0.iter().copied().map(Into::into).collect()
-    }
+    |input: &DictionaryBreakScriptExclusions| { input.0.iter().copied().map(Into::into).collect() }
 );

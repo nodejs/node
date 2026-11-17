@@ -2,11 +2,11 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+use crate::Date;
+use crate::Gregorian;
 use crate::cal::abstract_gregorian::AbstractGregorianYear;
 use crate::cal::gregorian::GregorianDateInner;
 use crate::calendar_arithmetic::ArithmeticDate;
-use crate::Date;
-use crate::Gregorian;
 
 impl From<chrono::NaiveDate> for Date<Gregorian> {
     fn from(chrono: chrono::NaiveDate) -> Self {
@@ -35,10 +35,14 @@ fn assert_range() {
     use crate::types::RataDie;
     use chrono::Datelike;
 
-    assert!(VALID_RD_RANGE
-        .contains(&(RataDie::new(0) + chrono::NaiveDate::MIN.num_days_from_ce() as i64)));
-    assert!(VALID_RD_RANGE
-        .contains(&(RataDie::new(0) + chrono::NaiveDate::MAX.num_days_from_ce() as i64)));
+    assert!(
+        VALID_RD_RANGE
+            .contains(&(RataDie::new(0) + chrono::NaiveDate::MIN.num_days_from_ce() as i64))
+    );
+    assert!(
+        VALID_RD_RANGE
+            .contains(&(RataDie::new(0) + chrono::NaiveDate::MAX.num_days_from_ce() as i64))
+    );
 }
 
 impl From<chrono::Weekday> for crate::types::Weekday {

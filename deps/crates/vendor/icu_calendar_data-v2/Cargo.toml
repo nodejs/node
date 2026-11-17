@@ -10,10 +10,10 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2021"
-rust-version = "1.86"
+edition = "2024"
+rust-version = "1.88"
 name = "icu_calendar_data"
-version = "2.2.0"
+version = "2.4.0"
 authors = ["The ICU4X Project Developers"]
 build = "build.rs"
 include = [
@@ -47,12 +47,13 @@ categories = [
 ]
 license = "Unicode-3.0"
 repository = "https://github.com/unicode-org/icu4x"
+resolver = "2"
 
 [package.metadata.sources.cldr]
-tagged = "48.2.0"
+tagged = "49.0.0"
 
-[package.metadata.sources.icuexport]
-tagged = "release-78.1rc"
+[package.metadata.sources.unicode]
+tagged = "18.0.0"
 
 [package.metadata.sources.segmenter_lstm]
 tagged = "v0.1.0"

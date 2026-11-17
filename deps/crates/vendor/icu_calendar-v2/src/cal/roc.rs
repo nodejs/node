@@ -3,12 +3,12 @@
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
 use crate::cal::abstract_gregorian::{
-    impl_with_abstract_gregorian, AbstractGregorian, GregorianYears,
+    AbstractGregorian, GregorianYears, impl_with_abstract_gregorian,
 };
 use crate::calendar_arithmetic::ArithmeticDate;
 use crate::error::UnknownEraError;
 use crate::preferences::CalendarAlgorithm;
-use crate::{types, Date, RangeError};
+use crate::{Date, RangeError, types};
 use tinystr::tinystr;
 
 /// The [Republic of China Calendar](https://en.wikipedia.org/wiki/Republic_of_China_calendar)
@@ -171,8 +171,10 @@ mod test {
             roc_from_rd.day_of_month().0,
         )
         .unwrap();
-        assert_eq!(roc_from_rd, roc_from_case,
-            "ROC date from RD not equal to ROC generated from manually-input ymd\nCase: {case:?}\nRD: {roc_from_rd:?}\nManual: {roc_from_case:?}");
+        assert_eq!(
+            roc_from_rd, roc_from_case,
+            "ROC date from RD not equal to ROC generated from manually-input ymd\nCase: {case:?}\nRD: {roc_from_rd:?}\nManual: {roc_from_case:?}"
+        );
     }
 
     #[test]
@@ -324,6 +326,26 @@ mod test {
                     "ROC directionality inconsistent with directionality for i: {i}, j: {j}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn test_constructor_roundtrip() {
+        let rds = crate::tests::get_interesting_rds();
+        for rd in rds {
+            let date = Date::from_rata_die(rd, Roc);
+            let reconstructed = Date::try_new_roc(
+                date.year().extended_year(),
+                date.month().ordinal,
+                date.day_of_month().0,
+            )
+            .unwrap();
+            assert_eq!(
+                reconstructed.to_rata_die(),
+                rd,
+                "Roc failed for RD {:?}",
+                rd
+            );
         }
     }
 }

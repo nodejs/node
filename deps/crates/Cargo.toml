@@ -3,23 +3,18 @@
 [package]
 edition = "2021"
 name = "node_crates"
-version = "15.6.75"
+version = "15.8.62"
 rust-version = "1.88"
 
 [lib]
 crate-type = [ "staticlib" ]
 
-[dependencies.icu_locale]
-version = "2.2.0"
-default-features = false
-features = [ "compiled_data" ]
-
 [dependencies.icu_locale_core]
-version = "2.2.0"
+version = "2.4.0"
 default-features = false
 
 [dependencies.icu_provider]
-version = "2.2.0"
+version = "2.4.0"
 default-features = false
 
 [dependencies.syn]
