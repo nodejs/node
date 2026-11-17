@@ -685,6 +685,9 @@ struct NodeVTabCursor {
   std::vector<sqlite3_value*> hidden_values;
   sqlite3_int64 rowid;
   bool done;
+  // Set while xClose is running. A nested sqlite3_reset() can otherwise call
+  // xClose on this same cursor again and free it twice.
+  bool closing = false;
 };
 
 class VirtualTableModule {
