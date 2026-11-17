@@ -33,8 +33,8 @@ int ZEXPORT uncompress2_z(Bytef *dest, z_size_t *destLen, const Bytef *source,
     const uInt max = (uInt)-1;
     z_size_t len, left;
 
-    if (sourceLen == NULL || (*sourceLen > 0 && source == NULL) ||
-        destLen == NULL || (*destLen > 0 && dest == NULL))
+    if (sourceLen == Z_NULL || (*sourceLen > 0 && source == Z_NULL) ||
+        destLen == Z_NULL || (*destLen > 0 && dest == Z_NULL))
         return Z_STREAM_ERROR;
 
     len = *sourceLen;
