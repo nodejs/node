@@ -91,7 +91,7 @@ notarize_binary() {
   # There is nothing to staple to a bare binary, so the only way to confirm
   # the ticket is live is to have codesign look it up. spctl cannot be used
   # here: it rejects command line tools with "does not seem to be an app".
-  if ! retry codesign --verify --verbose=2 -R=notarized "$1"; then
+  if ! retry codesign --verify --verbose=2 --check-notarization -R=notarized "$1"; then
     echo "error: $1 will not be accepted by Gatekeeper!" 1>&2
     exit 1
   fi
