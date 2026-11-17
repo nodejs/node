@@ -463,27 +463,20 @@ void OneShotDigestWithMD(Environment* env,
   enum encoding output_enc = ParseEncoding(isolate, args[4], args[5], HEX);
 
   const bool is_xof = ncrypto::Digest(md).isXof();
-  OPENSSL_SIZE_T output_length = EVP_MD_size(md);
+  size_t output_length = EVP_MD_size(md);
 
-  // This is to cause hash() to fail when an incorrect
-  // outputLength option was passed for a non-XOF hash function.
-  if (!is_xof && !args[6]->IsUndefined()) {
-    output_length = args[6].As<Uint32>()->Value();
-    if (output_length != EVP_MD_size(md)) {
-      Utf8Value method(isolate, args[0]);
-      std::string message =
-          "Output length " + std::to_string(output_length) + " is invalid for ";
-      message += method.ToString() + ", which does not support XOF";
-      return ThrowCryptoError(env, ERR_get_error(), message.c_str());
-    }
-  } else if (is_xof) {
-    if (!args[6]->IsUndefined()) {
-      output_length = args[6].As<Uint32>()->Value();
-    } else if (ShouldRejectMissingXofLength(md, output_length)) {
+  if (!args[6]->IsUndefined()) {
+    const auto length = args[6].As<Uint32>()->Value();
+    if (!is_xof && length != output_length) [[unlikely]] {
       MarkInvalidXofLength();
       return ThrowCryptoError(
           env, ERR_get_error(), "Digest method not supported");
     }
+    output_length = length;
+  } else if (is_xof && ShouldRejectMissingXofLength(md, output_length)) {
+    MarkInvalidXofLength();
+    return ThrowCryptoError(
+        env, ERR_get_error(), "Digest method not supported");
   }
 
   auto return_empty_output = [&]() {
