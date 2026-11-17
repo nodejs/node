@@ -2710,7 +2710,7 @@ been transmitted are equal or not.
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
-### `response.writeInformation(statusCode[, headers][, callback])`
+### `response.writeInformation(statusCode[, headers[, callback]])`
 
 <!-- YAML
 added:
