@@ -2565,7 +2565,7 @@ void Test::SetUp() {}
 void Test::TearDown() {}
 
 // Allows user supplied key value pairs to be recorded for later output.
-void Test::RecordProperty(const std::string& key, const std::string& value) {
+void Test::RecordProperty(std::string_view key, std::string_view value) {
   UnitTest::GetInstance()->RecordProperty(key, value);
 }
 
@@ -5528,8 +5528,7 @@ void UnitTest::AddTestPartResult(TestPartResult::Type result_type,
 // from SetUpTestSuite or TearDownTestSuite, or to the global property set
 // when invoked elsewhere.  If the result already contains a property with
 // the same key, the value will be updated.
-void UnitTest::RecordProperty(const std::string& key,
-                              const std::string& value) {
+void UnitTest::RecordProperty(std::string_view key, std::string_view value) {
   impl_->RecordProperty(TestProperty(key, value));
 }
 
