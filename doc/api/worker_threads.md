@@ -2230,8 +2230,8 @@ thread spawned will spawn another until the application crashes.
 [`'exit'` event]: #event-exit
 [`'online'` event]: #event-online
 [`--max-heap-size`]: cli.md#--max-heap-size
-[`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-mib
 [`--max-old-space-size-percentage`]: cli.md#--max-old-space-size-percentagepercentage
+[`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-mib
 [`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-mib
 [`AsyncResource`]: async_hooks.md#class-asyncresource
 [`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize-alignment

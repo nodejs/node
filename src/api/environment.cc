@@ -212,8 +212,9 @@ void SetIsolateMaxOldGenerationSize(v8::ResourceConstraints* constraints,
   if (max_old_space_size_mb == 0) return;
   constexpr size_t kMB = 1024 * 1024;
   constraints->set_max_old_generation_size_in_bytes(
-      static_cast<size_t>(std::min<uint64_t>(max_old_space_size_mb,
-                                             SIZE_MAX / kMB)) * kMB);
+      static_cast<size_t>(
+          std::min<uint64_t>(max_old_space_size_mb, SIZE_MAX / kMB)) *
+      kMB);
 }
 
 void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
