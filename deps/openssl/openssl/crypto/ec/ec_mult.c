@@ -72,8 +72,8 @@ static EC_PRE_COMP *ec_pre_comp_new(const EC_GROUP *group)
 EC_PRE_COMP *EC_ec_pre_comp_dup(EC_PRE_COMP *pre)
 {
     int i;
-    if (pre != NULL)
-        CRYPTO_UP_REF(&pre->references, &i);
+    if (pre == NULL || !CRYPTO_UP_REF(&pre->references, &i))
+        return NULL;
     return pre;
 }
 
@@ -224,7 +224,7 @@ int ossl_ec_scalar_mul_ladder(const EC_GROUP *group, EC_POINT *r,
      * the subsequent arithmetic constant time regardless, but cannot
      * retroactively fix the copy length here.
      */
-    if (!BN_copy(k, scalar)) {
+    if (BN_copy(k, scalar) == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
         goto err;
     }
@@ -539,11 +539,11 @@ int ossl_ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 
     totalnum = num + numblocks;
 
-    wsize = OPENSSL_malloc(totalnum * sizeof(wsize[0]));
-    wNAF_len = OPENSSL_malloc(totalnum * sizeof(wNAF_len[0]));
+    wsize = OPENSSL_malloc_array(totalnum, sizeof(wsize[0]));
+    wNAF_len = OPENSSL_malloc_array(totalnum, sizeof(wNAF_len[0]));
     /* include space for pivot */
-    wNAF = OPENSSL_malloc((totalnum + 1) * sizeof(wNAF[0]));
-    val_sub = OPENSSL_malloc(totalnum * sizeof(val_sub[0]));
+    wNAF = OPENSSL_malloc_array(totalnum + 1, sizeof(wNAF[0]));
+    val_sub = OPENSSL_malloc_array(totalnum, sizeof(val_sub[0]));
 
     /* Ensure wNAF is initialised in case we end up going to err */
     if (wNAF != NULL)
@@ -564,7 +564,7 @@ int ossl_ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
         wsize[i] = EC_window_bits_for_scalar_size(bits);
         num_val += (size_t)1 << (wsize[i] - 1);
         wNAF[i + 1] = NULL; /* make sure we always have a pivot */
-        wNAF[i] = bn_compute_wNAF((i < num ? scalars[i] : scalar), wsize[i],
+        wNAF[i] = bn_compute_wNAF((i < num ? scalars[i] : scalar), (int)wsize[i],
             &wNAF_len[i]);
         if (wNAF[i] == NULL)
             goto err;
@@ -594,7 +594,7 @@ int ossl_ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
              * use the window size for which we have precomputation
              */
             wsize[num] = pre_comp->w;
-            tmp_wNAF = bn_compute_wNAF(scalar, wsize[num], &tmp_len);
+            tmp_wNAF = bn_compute_wNAF(scalar, (int)wsize[num], &tmp_len);
             if (!tmp_wNAF)
                 goto err;
 
@@ -685,7 +685,7 @@ int ossl_ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
      * 'val_sub[i]' is a pointer to the subarray for the i-th point, or to a
      * subarray of 'pre_comp->points' if we already have precomputation.
      */
-    val = OPENSSL_malloc((num_val + 1) * sizeof(val[0]));
+    val = OPENSSL_malloc_array(num_val + 1, sizeof(val[0]));
     if (val == NULL)
         goto err;
     val[num_val] = NULL; /* pivot element */
@@ -741,7 +741,9 @@ int ossl_ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 
     r_is_at_infinity = 1;
 
-    for (k = max_len - 1; k >= 0; k--) {
+    if (max_len > INT_MAX)
+        goto err;
+    for (k = (int)(max_len - 1); k >= 0; k--) {
         if (!r_is_at_infinity) {
             if (!EC_POINT_dbl(group, r, r, ctx))
                 goto err;
@@ -913,7 +915,7 @@ int ossl_ec_wNAF_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
     num = pre_points_per_block * numblocks; /* number of points to compute
                                              * and store */
 
-    points = OPENSSL_malloc(sizeof(*points) * (num + 1));
+    points = OPENSSL_malloc_array(num + 1, sizeof(*points));
     if (points == NULL)
         goto err;
 

@@ -65,6 +65,7 @@ ffi_closure_alloc (size_t size, void **code)
   static size_t page_size;
   size_t rounded_size;
   void *codeseg, *dataseg;
+  long ps;
   int prot;
 
   /* Expect that PAX mprotect is active and a separate code mapping is necessary. */
@@ -73,7 +74,12 @@ ffi_closure_alloc (size_t size, void **code)
 
   /* Obtain system page size. */
   if (!page_size)
-    page_size = sysconf(_SC_PAGESIZE);
+    {
+      ps = sysconf(_SC_PAGESIZE);
+      if (ps <= 0)
+        return NULL;
+      page_size = (size_t) ps;
+    }
 
   /* Round allocation size up to the next page, keeping in mind the size field and pointer to code map. */
   rounded_size = (size + overhead + page_size - 1) & ~(page_size - 1);
@@ -256,12 +262,23 @@ ffi_trampoline_table_alloc (void)
 
   /* We have valid trampoline and config pages */
   table = calloc (1, sizeof (ffi_trampoline_table));
+  if (table == NULL)
+    {
+      vm_deallocate (mach_task_self (), config_page, PAGE_MAX_SIZE * 2);
+      return NULL;
+    }
   table->free_count = FFI_TRAMPOLINE_COUNT;
   table->config_page = config_page;
 
   /* Create and initialize the free list */
   table->free_list_pool =
     calloc (FFI_TRAMPOLINE_COUNT, sizeof (ffi_trampoline_table_entry));
+  if (table->free_list_pool == NULL)
+    {
+      vm_deallocate (mach_task_self (), config_page, PAGE_MAX_SIZE * 2);
+      free (table);
+      return NULL;
+    }
 
   for (i = 0; i < table->free_count; i++)
     {
@@ -370,7 +387,13 @@ ffi_closure_free (void *ptr)
     }
   else if (ffi_trampoline_tables != table)
     {
-      /* Otherwise, bump this table to the top of the list */
+      /* Otherwise, bump this table to the top of the list.  Unlink it
+         from its current position first, so the old neighbours do not
+         keep pointing at it and corrupt the list (CWE-416). */
+      if (table->prev != NULL)
+	table->prev->next = table->next;
+      if (table->next != NULL)
+	table->next->prev = table->prev;
       table->prev = NULL;
       table->next = ffi_trampoline_tables;
       if (ffi_trampoline_tables != NULL)
@@ -546,13 +569,18 @@ static void *dlmalloc(size_t);
 static void dlfree(void*);
 static void *dlcalloc(size_t, size_t) MAYBE_UNUSED;
 static void *dlrealloc(void *, size_t) MAYBE_UNUSED;
+static void *dlrealloc_in_place(void *, size_t) MAYBE_UNUSED;
 static void *dlmemalign(size_t, size_t) MAYBE_UNUSED;
+static int dlposix_memalign(void **, size_t, size_t) MAYBE_UNUSED;
 static void *dlvalloc(size_t) MAYBE_UNUSED;
 static int dlmallopt(int, int) MAYBE_UNUSED;
 static size_t dlmalloc_footprint(void) MAYBE_UNUSED;
 static size_t dlmalloc_max_footprint(void) MAYBE_UNUSED;
+static size_t dlmalloc_footprint_limit(void) MAYBE_UNUSED;
+static size_t dlmalloc_set_footprint_limit(size_t) MAYBE_UNUSED;
 static void** dlindependent_calloc(size_t, size_t, void**) MAYBE_UNUSED;
 static void** dlindependent_comalloc(size_t, size_t*, void**) MAYBE_UNUSED;
+static size_t dlbulk_free(void**, size_t) MAYBE_UNUSED;
 static void *dlpvalloc(size_t) MAYBE_UNUSED;
 static int dlmalloc_trim(size_t) MAYBE_UNUSED;
 static size_t dlmalloc_usable_size(void*) MAYBE_UNUSED;
@@ -737,12 +765,14 @@ static struct
 #endif /* HAVE_MNTENT */
 };
 
+#define OPEN_TEMP_EXEC_FILE_OPTS_COUNT \
+  (sizeof (open_temp_exec_file_opts) / sizeof (*open_temp_exec_file_opts))
+
 /* Current index into open_temp_exec_file_opts.  */
-static int open_temp_exec_file_opts_idx = 0;
+static size_t open_temp_exec_file_opts_idx = 0;
 
 /* Reset a current multi-call func, then advances to the next entry.
-   If we're at the last, go back to the first and return nonzero,
-   otherwise return zero.  */
+   Return nonzero after advancing past the last entry.  */
 static int
 open_temp_exec_file_opts_next (void)
 {
@@ -750,15 +780,7 @@ open_temp_exec_file_opts_next (void)
     open_temp_exec_file_opts[open_temp_exec_file_opts_idx].func (NULL);
 
   open_temp_exec_file_opts_idx++;
-  if (open_temp_exec_file_opts_idx
-      == (sizeof (open_temp_exec_file_opts)
-	  / sizeof (*open_temp_exec_file_opts)))
-    {
-      open_temp_exec_file_opts_idx = 0;
-      return 1;
-    }
-
-  return 0;
+  return open_temp_exec_file_opts_idx == OPEN_TEMP_EXEC_FILE_OPTS_COUNT;
 }
 
 /* Return a file descriptor of a temporary zero-sized file in a
@@ -767,6 +789,9 @@ int
 open_temp_exec_file (void)
 {
   int fd;
+
+  if (open_temp_exec_file_opts_idx == OPEN_TEMP_EXEC_FILE_OPTS_COUNT)
+    return -1;
 
   do
     {
@@ -800,6 +825,8 @@ allocate_space (int fd, off_t len)
   /* Obtain system page size. */
   if (!page_size)
     page_size = sysconf(_SC_PAGESIZE);
+  if (page_size <= 0)
+    return -1;
 
   unsigned char buf[page_size];
   memset (buf, 0, page_size);
@@ -849,6 +876,7 @@ dlmmap_locked (void *start, size_t length, int prot, int flags, off_t offset)
       if (!offset)
 	{
 	  close (execfd);
+	  execfd = -1;
 	  goto retry_open;
 	}
       if (ftruncate (execfd, offset) != 0)
@@ -861,6 +889,7 @@ dlmmap_locked (void *start, size_t length, int prot, int flags, off_t offset)
       return MFAIL;
     }
   else if (!offset
+	   && open_temp_exec_file_opts_idx < OPEN_TEMP_EXEC_FILE_OPTS_COUNT
 	   && open_temp_exec_file_opts[open_temp_exec_file_opts_idx].repeat)
     open_temp_exec_file_opts_next ();
 

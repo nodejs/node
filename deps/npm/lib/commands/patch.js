@@ -408,7 +408,7 @@ class Patch extends BaseCommand {
         pkgJson, patched, entry, name: entry.name, newVersion, newKey, diff, installedVersions,
       })
     } finally {
-      await rm(rebase.work, { recursive: true, force: true })
+      await this.#removeWork(rebase.work)
     }
   }
 
@@ -561,13 +561,24 @@ class Patch extends BaseCommand {
       }
       return { work, repo, newDir, conflicted }
     } catch (er) {
-      await rm(work, { recursive: true, force: true })
+      await this.#removeWork(work)
       throw er
     }
   }
 
+  // Remove the throwaway rebase workdir.
+  // Retries because git can briefly hold files there, and never throws so a cleanup failure cannot mask the real error.
+  async #removeWork (work) {
+    try {
+      await rm(work, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+    } catch (er) {
+      log.verbose('patch', `could not remove ${work}: ${er.message}`)
+    }
+  }
+
   #git (args, cwd) {
-    return git.spawn(args, {
+    // The throwaway repo never needs maintenance and a detached auto-gc would race the workdir cleanup.
+    return git.spawn(['-c', 'gc.auto=0', '-c', 'maintenance.auto=false', ...args], {
       cwd,
       env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' },
     })

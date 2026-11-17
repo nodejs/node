@@ -13,15 +13,22 @@
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <openssl/proverr.h>
+#include "internal/cryptlib.h"
 #include "internal/thread_once.h"
 #include "prov/providercommon.h"
 #include "prov/implementations.h"
 #include "prov/provider_ctx.h"
 #include "prov/hmac_drbg.h"
-#include "drbg_local.h"
+#include "prov/drbg.h"
 #include "crypto/evp.h"
 #include "crypto/evp/evp_local.h"
+#include "internal/fips.h"
 #include "internal/provider.h"
+
+#define drbg_hmac_get_ctx_params_st drbg_get_ctx_params_st
+#define drbg_hmac_set_ctx_params_st drbg_set_ctx_params_st
+
+#include "providers/implementations/rands/drbg_hmac.inc"
 
 static OSSL_FUNC_rand_newctx_fn drbg_hmac_new_wrapper;
 static OSSL_FUNC_rand_freectx_fn drbg_hmac_free;
@@ -35,7 +42,8 @@ static OSSL_FUNC_rand_gettable_ctx_params_fn drbg_hmac_gettable_ctx_params;
 static OSSL_FUNC_rand_get_ctx_params_fn drbg_hmac_get_ctx_params;
 static OSSL_FUNC_rand_verify_zeroization_fn drbg_hmac_verify_zeroization;
 
-static int drbg_hmac_set_ctx_params_locked(void *vctx, const OSSL_PARAM params[]);
+static int drbg_hmac_set_ctx_params_locked(PROV_DRBG *drbg,
+    const struct drbg_set_ctx_params_st *p);
 
 /*
  * Called twice by SP800-90Ar1 10.1.2.2 HMAC_DRBG_Update_Process.
@@ -148,13 +156,17 @@ static int drbg_hmac_instantiate_wrapper(void *vdrbg, unsigned int strength,
     const OSSL_PARAM params[])
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
+    struct drbg_set_ctx_params_st p;
     int ret = 0;
+
+    if (drbg == NULL || !drbg_hmac_set_ctx_params_decoder(params, &p))
+        return 0;
 
     if (drbg->lock != NULL && !CRYPTO_THREAD_write_lock(drbg->lock))
         return 0;
 
     if (!ossl_prov_is_running()
-        || !drbg_hmac_set_ctx_params_locked(drbg, params))
+        || !drbg_hmac_set_ctx_params_locked(drbg, &p))
         goto err;
     ret = ossl_prov_drbg_instantiate(drbg, strength, prediction_resistance,
         pstr, pstr_len);
@@ -335,6 +347,12 @@ static int drbg_hmac_new(PROV_DRBG *drbg)
 static void *drbg_hmac_new_wrapper(void *provctx, void *parent,
     const OSSL_DISPATCH *parent_dispatch)
 {
+#ifdef FIPS_MODULE
+    if (!ossl_deferred_self_test(PROV_LIBCTX_OF(provctx),
+            ST_ID_DRBG_HMAC))
+        return NULL;
+#endif
+
     return ossl_rand_drbg_new(provctx, parent, parent_dispatch,
         &drbg_hmac_new, &drbg_hmac_free,
         &drbg_hmac_instantiate, &drbg_hmac_uninstantiate,
@@ -357,38 +375,33 @@ static void drbg_hmac_free(void *vdrbg)
 static int drbg_hmac_get_ctx_params(void *vdrbg, OSSL_PARAM params[])
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
-    PROV_DRBG_HMAC *hmac = (PROV_DRBG_HMAC *)drbg->data;
-    const char *name;
+    PROV_DRBG_HMAC *hmac;
     const EVP_MD *md;
-    OSSL_PARAM *p;
+    struct drbg_get_ctx_params_st p;
     int ret = 0, complete = 0;
 
-    if (!ossl_drbg_get_ctx_params_no_lock(drbg, params, &complete))
+    if (drbg == NULL || !drbg_hmac_get_ctx_params_decoder(params, &p))
+        return 0;
+
+    if (!ossl_drbg_get_ctx_params_no_lock(drbg, &p, params, &complete))
         return 0;
 
     if (complete)
         return 1;
 
+    hmac = (PROV_DRBG_HMAC *)drbg->data;
+
     if (drbg->lock != NULL && !CRYPTO_THREAD_read_lock(drbg->lock))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_MAC);
-    if (p != NULL) {
-        if (hmac->ctx == NULL)
-            goto err;
-        name = EVP_MAC_get0_name(EVP_MAC_CTX_get0_mac(hmac->ctx));
-        if (!OSSL_PARAM_set_utf8_string(p, name))
-            goto err;
-    }
-
-    p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_DIGEST);
-    if (p != NULL) {
+    if (p.digest != NULL) {
         md = ossl_prov_digest_md(&hmac->digest);
-        if (md == NULL || !OSSL_PARAM_set_utf8_string(p, EVP_MD_get0_name(md)))
+        if (md == NULL
+            || !OSSL_PARAM_set_utf8_string(p.digest, EVP_MD_get0_name(md)))
             goto err;
     }
 
-    ret = ossl_drbg_get_ctx_params(drbg, params);
+    ret = ossl_drbg_get_ctx_params(drbg, &p);
 err:
     if (drbg->lock != NULL)
         CRYPTO_THREAD_unlock(drbg->lock);
@@ -399,27 +412,15 @@ err:
 static const OSSL_PARAM *drbg_hmac_gettable_ctx_params(ossl_unused void *vctx,
     ossl_unused void *p_ctx)
 {
-    static const OSSL_PARAM known_gettable_ctx_params[] = {
-        OSSL_PARAM_utf8_string(OSSL_DRBG_PARAM_MAC, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_DRBG_PARAM_DIGEST, NULL, 0),
-        OSSL_PARAM_DRBG_GETTABLE_CTX_COMMON,
-        OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
-            OSSL_PARAM_END
-    };
-    return known_gettable_ctx_params;
+    return drbg_hmac_get_ctx_params_list;
 }
 
-static int drbg_fetch_algs_from_prov(const OSSL_PARAM params[],
+static int drbg_fetch_algs_from_prov(const struct drbg_set_ctx_params_st *p,
     OSSL_LIB_CTX *libctx,
     EVP_MAC_CTX **macctx,
     EVP_MD **digest, const char *propq)
 {
-    const OSSL_PARAM *p;
-    const char *digest_name = NULL;
-    const char *hmac_name = NULL;
     EVP_MD *md = NULL;
-    EVP_MAC *mac = NULL;
-    OSSL_PARAM mac_params[3], *mp = mac_params;
     int ret = 0;
     const char *propquery = NULL;
 
@@ -433,92 +434,53 @@ static int drbg_fetch_algs_from_prov(const OSSL_PARAM params[],
     if (macctx == NULL || digest == NULL)
         return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_DIGEST);
-    if (p) {
-        if (!OSSL_PARAM_get_utf8_string_ptr(p, &digest_name)) {
-            ERR_raise(ERR_LIB_PROV, PROV_R_VALUE_ERROR);
+    if (p->digest != NULL) {
+        if (p->digest->data_type != OSSL_PARAM_UTF8_STRING)
             goto done;
-        }
-        md = EVP_MD_fetch(libctx, p->data, propquery);
+        md = EVP_MD_fetch(libctx, p->digest->data, propquery);
         if (md) {
             EVP_MD_free(*digest);
             *digest = md;
         } else {
-            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_DIGEST);
             goto done;
         }
-    } else {
-        /* we need a digest */
-        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_DIGEST);
-        goto done;
-    }
-    p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_MAC);
-    if (p == NULL) {
-        hmac_name = "HMAC";
-    } else {
-        if (!OSSL_PARAM_get_utf8_string_ptr(p, &hmac_name)) {
-            ERR_raise(ERR_LIB_PROV, PROV_R_VALUE_ERROR);
+        if (!ossl_prov_macctx_load(macctx, NULL, NULL, p->digest,
+                p->propq, "HMAC", NULL, NULL, libctx))
             goto done;
-        }
     }
 
-    EVP_MAC_CTX_free(*macctx);
-    *macctx = NULL;
-
-    mac = EVP_MAC_fetch(libctx, hmac_name, propquery);
-    if (mac) {
-        *macctx = EVP_MAC_CTX_new(mac);
-        /* The context holds on to the MAC */
-        EVP_MAC_free(mac);
-        *mp++ = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST, (char *)digest_name, 0);
-        if (propquery)
-            *mp++ = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_PROPERTIES, (char *)propquery, 0);
-        *mp = OSSL_PARAM_construct_end();
-        if (!EVP_MAC_CTX_set_params(*macctx, mac_params)) {
-            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_MAC);
-            EVP_MAC_CTX_free(*macctx);
-            *macctx = NULL;
-            goto done;
-        }
-        ret = 1;
-    }
+    ret = 1;
 
 done:
     return ret;
 }
 
-static int drbg_hmac_set_ctx_params_locked(void *vctx, const OSSL_PARAM params[])
+static int drbg_hmac_set_ctx_params_locked(PROV_DRBG *ctx, const struct drbg_set_ctx_params_st *p)
 {
-    PROV_DRBG *ctx = (PROV_DRBG *)vctx;
     PROV_DRBG_HMAC *hmac = (PROV_DRBG_HMAC *)ctx->data;
     OSSL_LIB_CTX *libctx = PROV_LIBCTX_OF(ctx->provctx);
     EVP_MD *prov_md = NULL;
     const EVP_MD *md;
     int md_size;
-    const OSSL_PARAM *p;
 
-    if (!OSSL_FIPS_IND_SET_CTX_PARAM(ctx, OSSL_FIPS_IND_SETTABLE0, params,
-            OSSL_DRBG_PARAM_FIPS_DIGEST_CHECK))
+    if (!OSSL_FIPS_IND_SET_CTX_FROM_PARAM(ctx, OSSL_FIPS_IND_SETTABLE0, p->ind_d))
         return 0;
 
     /* try to fetch mac and digest from provider */
-    p = OSSL_PARAM_locate_const(params, OSSL_DRBG_PARAM_PROPERTIES);
     (void)ERR_set_mark();
-    if (!drbg_fetch_algs_from_prov(params, libctx, &hmac->ctx, &prov_md,
-            (p != NULL && p->data_type == OSSL_PARAM_UTF8_STRING) ? p->data : NULL)) {
+    if (!drbg_fetch_algs_from_prov(p, libctx, &hmac->ctx, &prov_md,
+            (p->propq != NULL && p->propq->data_type == OSSL_PARAM_UTF8_STRING) ? p->propq->data : NULL)) {
         (void)ERR_pop_to_mark();
-        /*
-         * Its possible for drbg_fetch_algs_from_prov to return 0 and set prov_md here
-         * so we need to free prov_md to be leak free
-         */
-        EVP_MD_free(prov_md);
-        /* fall back to full implementation search */
-        if (!ossl_prov_digest_load_from_params(&hmac->digest, params, libctx))
-            return 0;
+        if (p->digest != NULL) {
+            /* fall back to full implementation search */
+            if (!ossl_prov_digest_load(&hmac->digest, p->digest, p->propq,
+                    libctx))
+                return 0;
 
-        if (!ossl_prov_macctx_load_from_params(&hmac->ctx, params,
-                NULL, NULL, NULL, libctx))
-            return 0;
+            if (!ossl_prov_macctx_load(&hmac->ctx, NULL, NULL, p->digest,
+                    p->propq, "HMAC", NULL, NULL, libctx))
+                return 0;
+        }
     } else {
         (void)ERR_clear_last_mark();
         if (prov_md)
@@ -544,18 +506,22 @@ static int drbg_hmac_set_ctx_params_locked(void *vctx, const OSSL_PARAM params[]
         ctx->min_noncelen = ctx->min_entropylen / 2;
     }
 
-    return ossl_drbg_set_ctx_params(ctx, params);
+    return ossl_drbg_set_ctx_params(ctx, p);
 }
 
 static int drbg_hmac_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vctx;
+    struct drbg_set_ctx_params_st p;
     int ret;
+
+    if (drbg == NULL || !drbg_hmac_set_ctx_params_decoder(params, &p))
+        return 0;
 
     if (drbg->lock != NULL && !CRYPTO_THREAD_write_lock(drbg->lock))
         return 0;
 
-    ret = drbg_hmac_set_ctx_params_locked(vctx, params);
+    ret = drbg_hmac_set_ctx_params_locked(drbg, &p);
 
     if (drbg->lock != NULL)
         CRYPTO_THREAD_unlock(drbg->lock);
@@ -566,15 +532,7 @@ static int drbg_hmac_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 static const OSSL_PARAM *drbg_hmac_settable_ctx_params(ossl_unused void *vctx,
     ossl_unused void *p_ctx)
 {
-    static const OSSL_PARAM known_settable_ctx_params[] = {
-        OSSL_PARAM_utf8_string(OSSL_DRBG_PARAM_PROPERTIES, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_DRBG_PARAM_DIGEST, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_DRBG_PARAM_MAC, NULL, 0),
-        OSSL_PARAM_DRBG_SETTABLE_CTX_COMMON,
-        OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_DRBG_PARAM_FIPS_DIGEST_CHECK)
-            OSSL_PARAM_END
-    };
-    return known_settable_ctx_params;
+    return drbg_hmac_set_ctx_params_list;
 }
 
 const OSSL_DISPATCH ossl_drbg_ossl_hmac_functions[] = {

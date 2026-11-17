@@ -1,11 +1,13 @@
 /*
- * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#include <stdio.h>
 
 #include "internal/e_os.h"
 
@@ -16,6 +18,7 @@
 #include "internal/cryptlib.h"
 #include "internal/sizes.h"
 #include "internal/time.h"
+#include "crypto/asn1.h"
 #include "crypto/ess.h"
 #include "ts_local.h"
 
@@ -298,7 +301,7 @@ int TS_RESP_CTX_set_status_info(TS_RESP_CTX *ctx,
     }
     if (text) {
         if ((utf8_text = ASN1_UTF8STRING_new()) == NULL
-            || !ASN1_STRING_set(utf8_text, text, strlen(text))) {
+            || !ossl_asn1_string_set1_string(utf8_text, text)) {
             ERR_raise(ERR_LIB_TS, ERR_R_ASN1_LIB);
             goto err;
         }
@@ -487,7 +490,7 @@ static int ts_RESP_check_request(TS_RESP_CTX *ctx)
         return 0;
     }
     digest = msg_imprint->hashed_msg;
-    if (digest->length != md_size) {
+    if (ASN1_STRING_get_length(digest) != (size_t)md_size) {
         TS_RESP_CTX_set_status_info(ctx, TS_STATUS_REJECTION,
             "Bad message digest.");
         TS_RESP_CTX_add_failure_info(ctx, TS_INFO_BAD_DATA_FORMAT);
@@ -633,15 +636,19 @@ static int ossl_ess_add1_signing_cert(PKCS7_SIGNER_INFO *si,
     const ESS_SIGNING_CERT *sc)
 {
     ASN1_STRING *seq = NULL;
-    int len = i2d_ESS_SIGNING_CERT(sc, NULL);
-    unsigned char *p, *pp = OPENSSL_malloc(len);
+    int len;
+    unsigned char *p, *pp;
 
+    len = i2d_ESS_SIGNING_CERT(sc, NULL);
+    if (len <= 0)
+        return 0;
+    pp = OPENSSL_malloc(len);
     if (pp == NULL)
         return 0;
 
     p = pp;
     i2d_ESS_SIGNING_CERT(sc, &p);
-    if ((seq = ASN1_STRING_new()) == NULL || !ASN1_STRING_set(seq, pp, len)) {
+    if ((seq = ASN1_STRING_new()) == NULL || !ossl_asn1_string_set1_data(seq, pp, len)) {
         ASN1_STRING_free(seq);
         OPENSSL_free(pp);
         return 0;
@@ -660,15 +667,19 @@ static int ossl_ess_add1_signing_cert_v2(PKCS7_SIGNER_INFO *si,
     const ESS_SIGNING_CERT_V2 *sc)
 {
     ASN1_STRING *seq = NULL;
-    int len = i2d_ESS_SIGNING_CERT_V2(sc, NULL);
-    unsigned char *p, *pp = OPENSSL_malloc(len);
+    int len;
+    unsigned char *p, *pp;
 
+    len = i2d_ESS_SIGNING_CERT_V2(sc, NULL);
+    if (len <= 0)
+        return 0;
+    pp = OPENSSL_malloc(len);
     if (pp == NULL)
         return 0;
 
     p = pp;
     i2d_ESS_SIGNING_CERT_V2(sc, &p);
-    if ((seq = ASN1_STRING_new()) == NULL || !ASN1_STRING_set(seq, pp, len)) {
+    if ((seq = ASN1_STRING_new()) == NULL || !ossl_asn1_string_set1_data(seq, pp, len)) {
         ASN1_STRING_free(seq);
         OPENSSL_free(pp);
         return 0;
@@ -836,6 +847,7 @@ static ASN1_GENERALIZEDTIME *TS_RESP_set_genTime_with_precision(
     char genTime_str[17 + TS_MAX_CLOCK_PRECISION_DIGITS];
     char *p = genTime_str;
     char *p_end = genTime_str + sizeof(genTime_str);
+    int n;
 
     if (precision > TS_MAX_CLOCK_PRECISION_DIGITS)
         goto err;
@@ -850,12 +862,15 @@ static ASN1_GENERALIZEDTIME *TS_RESP_set_genTime_with_precision(
      * meet the rfc3161 requirement: "GeneralizedTime syntax can include
      * fraction-of-second details".
      */
-    p += BIO_snprintf(p, p_end - p,
+    n = snprintf(p, p_end - p,
         "%04d%02d%02d%02d%02d%02d",
         tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
         tm->tm_hour, tm->tm_min, tm->tm_sec);
+    if (n < 0 || n >= p_end - p)
+        goto err;
+    p += n;
     if (precision > 0) {
-        BIO_snprintf(p, 2 + precision, ".%06ld", usec);
+        snprintf(p, 2 + precision, ".%06ld", usec);
         p += strlen(p);
 
         /*

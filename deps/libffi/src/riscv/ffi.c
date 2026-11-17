@@ -84,6 +84,8 @@ typedef struct {
     char as_elements, type1, offset2, type2;
 } float_struct_info;
 
+#define IS_AGGREGATE(type) ((type) == FFI_TYPE_STRUCT || (type) == FFI_TYPE_COMPLEX)
+
 #if ABI_FLEN >= 64
 #define IS_FLOAT(type) ((type) >= FFI_TYPE_FLOAT && (type) <= FFI_TYPE_DOUBLE)
 #else
@@ -93,7 +95,12 @@ typedef struct {
 static ffi_type **flatten_struct(ffi_type *in, ffi_type **out, ffi_type **out_end) {
     int i;
     if (out == out_end) return out;
-    if (in->type != FFI_TYPE_STRUCT) {
+    if (in->type == FFI_TYPE_COMPLEX) {
+        /* the psABI passes a complex number like a struct of two reals */
+        *(out++) = in->elements[0];
+        if (out == out_end) return out;
+        *(out++) = in->elements[0];
+    } else if (in->type != FFI_TYPE_STRUCT) {
         *(out++) = in;
     } else {
         for (i = 0; in->elements[i]; i++)
@@ -102,9 +109,9 @@ static ffi_type **flatten_struct(ffi_type *in, ffi_type **out, ffi_type **out_en
     return out;
 }
 
-/* Structs with at most two fields after flattening, one of which is of
-   floating point type, are passed in multiple registers if sufficient
-   registers are available. */
+/* Structs and complex numbers with at most two fields after flattening,
+   one of which is of floating point type, are passed in multiple registers
+   if sufficient registers are available. */
 static float_struct_info struct_passed_as_elements(call_builder *cb, ffi_type *top) {
     float_struct_info ret = {0, 0, 0, 0};
     ffi_type *fields[3];
@@ -247,7 +254,7 @@ static void marshal(call_builder *cb, ffi_type *type, int var, void *data) {
     size_t realign[2];
 
 #if ABI_FLEN
-    if (!var && type->type == FFI_TYPE_STRUCT) {
+    if (!var && IS_AGGREGATE(type->type)) {
         float_struct_info fsi = struct_passed_as_elements(cb, type);
         if (fsi.as_elements) {
             marshal_atom(cb, fsi.type1, data);
@@ -295,7 +302,7 @@ static void *unmarshal(call_builder *cb, ffi_type *type, int var, void *data) {
     void *pointer;
 
 #if ABI_FLEN
-    if (!var && type->type == FFI_TYPE_STRUCT) {
+    if (!var && IS_AGGREGATE(type->type)) {
         float_struct_info fsi = struct_passed_as_elements(cb, type);
         if (fsi.as_elements) {
             unmarshal_atom(cb, fsi.type1, data);
@@ -340,7 +347,7 @@ static void *unmarshal(call_builder *cb, ffi_type *type, int var, void *data) {
 
 static int passed_by_ref(call_builder *cb, ffi_type *type, int var) {
 #if ABI_FLEN
-    if (!var && type->type == FFI_TYPE_STRUCT) {
+    if (!var && IS_AGGREGATE(type->type)) {
         float_struct_info fsi = struct_passed_as_elements(cb, type);
         if (fsi.as_elements) return 0;
     }
@@ -414,7 +421,7 @@ ffi_call_int (ffi_cif *cif, void (*fn) (void), void *rvalue, void **avalue,
     ffi_call_asm ((void *) alloc_base, cb.aregs, fn, closure);
 
     cb.used_float = cb.used_integer = 0;
-    if (!return_by_ref && rvalue)
+    if (!return_by_ref && rvalue && cif->rtype->type != FFI_TYPE_VOID)
       {
 	if (IS_INT(cif->rtype->type)
 	    && cif->rtype->size < sizeof (ffi_arg))

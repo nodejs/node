@@ -1,7 +1,6 @@
 import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import assert from 'node:assert';
-import os from 'node:os';
 import path from 'node:path';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
@@ -305,11 +304,13 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
   });
 
   it('should not crash when --env-file-if-exists points to a missing file', async () => {
+    const dir = tmpdir.resolve('subdir-missing-env-file');
+    mkdirSync(dir);
     const envKey = `TEST_ENV_${Date.now()}`;
-    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey});`);
-    const missingEnvFile = path.join(tmpdir.path, `missing-${Date.now()}.env`);
+    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey});`, '.js', dir);
+    const missingEnvFile = path.join(dir, `missing-${Date.now()}.env`);
     const { done, restart } = runInBackground({
-      args: ['--watch-path', tmpdir.path, `--env-file-if-exists=${missingEnvFile}`, jsFile],
+      args: ['--watch-path', dir, `--env-file-if-exists=${missingEnvFile}`, jsFile],
     });
 
     try {
@@ -1091,19 +1092,18 @@ process.on('message', (message) => {
     // Honoring --require from NODE_OPTIONS is required for this test.
     skip: !!process.config.variables.node_without_node_options,
   }, async () => {
-    // Use /tmp to avoid CI directories with special characters (e.g. ")
+    // Use relative path to avoid CI directories with special characters (e.g. ")
     // that would break NODE_OPTIONS parsing.
-    const watchDir = path.join(os.tmpdir(), 'test for --watch parsing');
-    mkdirSync(watchDir, { recursive: true });
-    const reqFile = path.join(watchDir, 'req.cjs');
+    const reqFile = tmpdir.resolve('req.cjs');
     writeFileSync(reqFile, 'globalThis.requiredOk = true;');
 
     const file = createTmpFile('console.log("required:" + !!globalThis.requiredOk);');
     // Backslashes inside quoted NODE_OPTIONS values are escape characters.
-    const nodeOptions = `--watch --require "${reqFile.replaceAll(path.sep, '/')}"`;
+    const nodeOptions = '--watch --require ./req.cjs';
     const { done, restart } = runInBackground({
       args: ['--watch', file],
       options: {
+        cwd: tmpdir.path,
         env: { ...process.env, NODE_OPTIONS: nodeOptions },
       },
     });
@@ -1168,16 +1168,17 @@ process.on('message', (message) => {
 
   it('should strip multiple --watch-path entries from NODE_OPTIONS', async () => {
     const file = createTmpFile('console.log(process.env.NODE_OPTIONS);');
-    // Use /tmp to avoid CI directories with special characters (e.g. ")
+    // Use relative path to avoid CI directories with special characters (e.g. ")
     // that would break NODE_OPTIONS parsing.
-    const dirA = path.join(os.tmpdir(), 'node-watch-path-a');
-    const dirB = path.join(os.tmpdir(), 'node-watch-path-b');
+    const dirA = tmpdir.resolve('node-watch-path-a');
+    const dirB = tmpdir.resolve('node-watch-path-b');
     mkdirSync(dirA, { recursive: true });
     mkdirSync(dirB, { recursive: true });
-    const nodeOptions = `--watch --watch-path=${dirA} --watch-path ${dirB} --no-warnings`;
+    const nodeOptions = '--watch --watch-path=./node-watch-path-a --watch-path ./node-watch-path-b --no-warnings';
     const { done, restart } = runInBackground({
       args: ['--watch', file],
       options: {
+        cwd: tmpdir.path,
         env: { ...process.env, NODE_OPTIONS: nodeOptions },
       },
     });

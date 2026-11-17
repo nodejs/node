@@ -598,6 +598,32 @@ A few of the warning types that are most common include:
   that will be ignored rather than treated as an error. One example is use of
   the HTTP response status message when using the HTTP/2 compatibility API.
 
+#### Heap size and pointer compression
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When Node.js is built with V8 pointer compression enabled, the V8 heap of each
+thread (the main thread and every [`Worker`][]) is limited to 4 GiB, regardless
+of `--max-old-space-size`. Pointer compression reduces heap usage, typically by
+about 40% and never by more than half, so a heap that is larger than 4 GiB
+without pointer compression may or may not fit under that limit.
+
+In builds without pointer compression, Node.js emits a warning with the code
+`'HEAP_EXCEEDS_POINTER_COMPRESSION_LIMIT'` when the heap of a thread that
+survives a full garbage collection reaches:
+
+* 6.5 GiB: the heap is likely to exceed the limit with pointer compression.
+* 8 GiB: the heap will exceed the limit with pointer compression.
+
+The warning is emitted at most once per thread, with the wording that matches
+the heap size at the time. Memory outside the V8 heap, such as the contents of
+{ArrayBuffer}s and {Buffer}s, does not count toward the limit.
+
+The warning can be silenced with
+`--disable-warning=HEAP_EXCEEDS_POINTER_COMPRESSION_LIMIT`.
+
 ### Event: `'worker'`
 
 <!-- YAML
@@ -2063,6 +2089,9 @@ Since it's not possible to build Node.js without libuv, this value is always `tr
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: v27.0.0-alpha.0.0.0
+    pr-url: https://github.com/nodejs/node/pull/66482
+    description: Returns a function that removes the registration.
   - version: v26.12.0
     pr-url: https://github.com/nodejs/node/pull/66436
     description: Marked as release candidate.
@@ -2075,6 +2104,7 @@ changes:
   is finalized.
   * `ref` {Object | Function} The reference to the resource that is being tracked.
   * `event` {string} The event that triggered the finalization. Defaults to 'exit'.
+* Returns: {Function} A function that removes this registration when called.
 
 This function registers a callback to be called when the process emits the `exit`
 event if the `ref` object was not garbage collected. If the object `ref` was garbage collected
@@ -2171,11 +2201,25 @@ but if it is not, `dispose` will be called when `process.exit` is called.
 Be careful and avoid relying on this feature for the disposal of critical resources,
 as it is not guaranteed that the callback will be called under all circumstances.
 
+The returned function removes only this registration, leaving other
+registrations for the same `ref` in place. Calling it more than once has no
+effect. It does not hold a strong reference to `ref`.
+
+```js
+const unregister = finalization.register(myDisposableObject, onFinalize);
+
+// Later, once the resource has been released manually:
+unregister();
+```
+
 ## `process.finalization.registerBeforeExit(ref, callback)`
 
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: v27.0.0-alpha.0.0.0
+    pr-url: https://github.com/nodejs/node/pull/66482
+    description: Returns a function that removes the registration.
   - version: v26.12.0
     pr-url: https://github.com/nodejs/node/pull/66436
     description: Marked as release candidate.
@@ -2189,6 +2233,7 @@ changes:
   is finalized.
   * `ref` {Object | Function} The reference to the resource that is being tracked.
   * `event` {string} The event that triggered the finalization. Defaults to 'beforeExit'.
+* Returns: {Function} A function that removes this registration when called.
 
 This function behaves exactly like the `register`, except that the callback will be called
 when the process emits the `beforeExit` event if `ref` object was not garbage collected.
@@ -2737,6 +2782,8 @@ changes:
 
 Loads the `.env` file into `process.env`. Usage of `NODE_OPTIONS`
 in the `.env` file will not have any effect on Node.js.
+If a variable is already set in `process.env`, its existing value takes
+precedence and is not overwritten by the value from the `.env` file.
 
 ```cjs
 const { loadEnvFile } = require('node:process');
@@ -3250,7 +3297,7 @@ The available scopes are the same as [`process.permission.has()`][]:
 * `fs.write` - File System write operations
 * `child` - Child process spawning operations
 * `env` - Environment variables. Dropping a variable removes it from the
-  environment
+  environment. A reference ending with `*` is not accepted
 * `openssl.store` - Loading keys through OpenSSL STORE loaders
 * `worker` - Worker thread spawning operation
 * `net` - Network operations

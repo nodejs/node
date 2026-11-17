@@ -30,6 +30,7 @@ namespace node {
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::EVPKeyPointer;
 using ncrypto::KeyAlgorithm;
+using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::SSLSessionPointer;
 using ncrypto::StackOfX509;
@@ -49,6 +50,7 @@ using v8::Value;
 namespace crypto {
 
 SSLSessionPointer GetTLSSession(const unsigned char* buf, size_t length) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   return SSLSessionPointer(d2i_SSL_SESSION(nullptr, &buf, length));
 }
 
@@ -59,6 +61,9 @@ MaybeLocal<Value> GetValidationErrorReason(Environment* env, int err) {
   // Suggest --use-system-ca if the error indicates a certificate issue
   bool suggest_system_ca =
       (err == X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE) ||
+#ifdef OPENSSL_IS_BORINGSSL
+      (err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY) ||
+#endif
       (err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) ||
       ((err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT) &&
        !env->options()->use_system_ca);

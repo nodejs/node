@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -230,6 +230,17 @@ extern "C" {
 #define BIO_FLAGS_UPLINK 0
 #endif
 
+/* the BIO FLAGS values 0x10 to 0x80 are reserved for internal use */
+
+/*
+ * BIO FLAGS in the range 0x0100..0x8000 are BIO-type specific.
+ * Their meaning is defined by the particular BIO implementation and
+ * is not shared across different BIO types. The same bit value may
+ * have a different meaning or no meaning at all in other BIOs.
+ * Such flags may be part of the public API or internal to the BIO.
+ */
+
+/* This is used with base64 BIO */
 #define BIO_FLAGS_BASE64_NO_NL 0x100
 
 /*
@@ -240,8 +251,6 @@ extern "C" {
 #define BIO_FLAGS_MEM_RDONLY 0x200
 #define BIO_FLAGS_NONCLEAR_RST 0x400
 #define BIO_FLAGS_IN_EOF 0x800
-
-/* the BIO FLAGS values 0x1000 to 0x8000 are reserved for internal KTLS flags */
 
 typedef union bio_addr_st BIO_ADDR;
 typedef struct bio_addrinfo_st BIO_ADDRINFO;
@@ -475,6 +484,7 @@ typedef struct bio_poll_descriptor_st {
 #define BIO_C_SET_SOCK_TYPE 157
 #define BIO_C_GET_SOCK_TYPE 158
 #define BIO_C_GET_DGRAM_BIO 159
+#define BIO_C_SET_SEND_FLAGS 160
 
 #define BIO_set_app_data(s, arg) BIO_set_ex_data(s, 0, arg)
 #define BIO_get_app_data(s) BIO_get_ex_data(s, 0)
@@ -607,7 +617,6 @@ int BIO_read_filename(BIO *b, const char *name);
 #define BIO_dup_state(b, ret) BIO_ctrl(b, BIO_CTRL_DUP, 0, (char *)(ret))
 
 #define BIO_reset(b) (int)BIO_ctrl(b, BIO_CTRL_RESET, 0, NULL)
-#define BIO_eof(b) (int)BIO_ctrl(b, BIO_CTRL_EOF, 0, NULL)
 #define BIO_set_close(b, c) (int)BIO_ctrl(b, BIO_CTRL_SET_CLOSE, (c), NULL)
 #define BIO_get_close(b) (int)BIO_ctrl(b, BIO_CTRL_GET_CLOSE, 0, NULL)
 #define BIO_pending(b) (int)BIO_ctrl(b, BIO_CTRL_PENDING, 0, NULL)
@@ -733,6 +742,7 @@ __owur int BIO_get_wpoll_descriptor(BIO *b, BIO_POLL_DESCRIPTOR *desc);
 int BIO_puts(BIO *bp, const char *buf);
 int BIO_indent(BIO *b, int indent, int max);
 long BIO_ctrl(BIO *bp, int cmd, long larg, void *parg);
+int BIO_eof(BIO *b);
 long BIO_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp);
 void *BIO_ptr_ctrl(BIO *bp, int cmd, long larg);
 long BIO_int_ctrl(BIO *bp, int cmd, long larg, int iarg);
@@ -796,7 +806,9 @@ int BIO_sock_should_retry(int i);
 int BIO_sock_non_fatal_error(int error);
 int BIO_err_is_non_fatal(unsigned int errcode);
 int BIO_socket_wait(int fd, int for_read, time_t max_time);
+int BIO_socket_ready(int fd, int for_read);
 #endif
+long BIO_set_send_flags(BIO *b, int flags);
 int BIO_wait(BIO *bio, time_t max_time, unsigned int nap_milliseconds);
 int BIO_do_connect_retry(BIO *bio, int timeout, int nap_milliseconds);
 
@@ -921,33 +933,24 @@ void BIO_copy_next_retry(BIO *b);
  */
 
 #define ossl_bio__attr__(x)
-#if defined(__GNUC__) && defined(__STDC_VERSION__)    \
-    && !defined(__MINGW32__) && !defined(__MINGW64__) \
+#if defined(__GNUC__) && !defined(__MINGW32__) && !defined(__MINGW64__) \
     && !defined(__APPLE__)
-/*
- * Because we support the 'z' modifier, which made its appearance in C99,
- * we can't use __attribute__ with pre C99 dialects.
- */
-#if __STDC_VERSION__ >= 199901L
 #undef ossl_bio__attr__
 #define ossl_bio__attr__ __attribute__
-#if __GNUC__ * 10 + __GNUC_MINOR__ >= 44
-#define ossl_bio__printf__ __gnu_printf__
-#else
-#define ossl_bio__printf__ __printf__
-#endif
-#endif
 #endif
 int BIO_printf(BIO *bio, const char *format, ...)
-    ossl_bio__attr__((__format__(ossl_bio__printf__, 2, 3)));
+    ossl_bio__attr__((__format__(__printf__, 2, 3)));
 int BIO_vprintf(BIO *bio, const char *format, va_list args)
-    ossl_bio__attr__((__format__(ossl_bio__printf__, 2, 0)));
+    ossl_bio__attr__((__format__(__printf__, 2, 0)));
+#ifndef OPENSSL_NO_DEPRECATED_4_1
+OSSL_DEPRECATEDIN_4_1_FOR("use snprintf()")
 int BIO_snprintf(char *buf, size_t n, const char *format, ...)
-    ossl_bio__attr__((__format__(ossl_bio__printf__, 3, 4)));
+    ossl_bio__attr__((__format__(__printf__, 3, 4)));
+OSSL_DEPRECATEDIN_4_1_FOR("use vsnprintf()")
 int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args)
-    ossl_bio__attr__((__format__(ossl_bio__printf__, 3, 0)));
+    ossl_bio__attr__((__format__(__printf__, 3, 0)));
+#endif
 #undef ossl_bio__attr__
-#undef ossl_bio__printf__
 
 BIO_METHOD *BIO_meth_new(int type, const char *name);
 void BIO_meth_free(BIO_METHOD *biom);

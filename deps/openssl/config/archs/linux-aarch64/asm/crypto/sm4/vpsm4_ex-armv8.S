@@ -13,7 +13,7 @@
 
 // $output is the last argument if it looks like a file (it has an extension)
 // $flavour is the first argument if it doesn't look like a file
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 .arch	armv8-a+crypto
 .text
 

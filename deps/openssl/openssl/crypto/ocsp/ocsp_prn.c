@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -98,7 +98,7 @@ int OCSP_REQUEST_print(BIO *bp, OCSP_REQUEST *o, unsigned long flags)
     if (BIO_write(bp, "OCSP Request Data:\n", 19) <= 0)
         goto err;
     l = ASN1_INTEGER_get(inf->version);
-    if (BIO_printf(bp, "    Version: %lu (0x%lx)", l + 1, l) <= 0)
+    if (BIO_printf(bp, "    Version: %ld (0x%lx)", l + 1, l) <= 0)
         goto err;
     if (inf->requestorName != NULL) {
         if (BIO_write(bp, "\n    Requestor Name: ", 21) <= 0)
@@ -166,7 +166,7 @@ int OCSP_RESPONSE_print(BIO *bp, OCSP_RESPONSE *o, unsigned long flags)
         goto err;
     rd = &br->tbsResponseData;
     l = ASN1_INTEGER_get(rd->version);
-    if (BIO_printf(bp, "\n    Version: %lu (0x%lx)\n", l + 1, l) <= 0)
+    if (BIO_printf(bp, "\n    Version: %ld (0x%lx)\n", l + 1, l) <= 0)
         goto err;
     if (BIO_puts(bp, "    Responder Id: ") <= 0)
         goto err;

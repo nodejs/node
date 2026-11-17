@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -37,6 +37,12 @@ extern "C" {
  * Type: OSSL_PARAM_UTF8_STRING
  */
 #define OSSL_PROV_FIPS_PARAM_CONDITIONAL_ERRORS "conditional-errors"
+
+/*
+ * A boolean that determines if all the FIPS conditional self-test are executed
+ * at module startup or deferred and run only when an algorithm is invoked
+ */
+#define OSSL_PROV_FIPS_PARAM_DEFER_TESTS "defer-tests"
 
 /* The following are provided for backwards compatibility */
 #define OSSL_PROV_FIPS_PARAM_SECURITY_CHECKS OSSL_PROV_PARAM_SECURITY_CHECKS

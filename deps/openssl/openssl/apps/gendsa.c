@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,7 +26,6 @@ typedef enum OPTION_choice {
     OPT_COMMON,
     OPT_OUT,
     OPT_PASSOUT,
-    OPT_ENGINE,
     OPT_CIPHER,
     OPT_VERBOSE,
     OPT_QUIET,
@@ -39,9 +38,6 @@ const OPTIONS gendsa_options[] = {
 
     OPT_SECTION("General"),
     { "help", OPT_HELP, '-', "Display this summary" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
-#endif
 
     OPT_SECTION("Output"),
     { "out", OPT_OUT, '>', "Output the key to the specified file" },
@@ -59,7 +55,6 @@ const OPTIONS gendsa_options[] = {
 
 int gendsa_main(int argc, char **argv)
 {
-    ENGINE *e = NULL;
     BIO *out = NULL, *in = NULL;
     EVP_PKEY *pkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
@@ -87,9 +82,6 @@ int gendsa_main(int argc, char **argv)
             break;
         case OPT_PASSOUT:
             passoutarg = opt_arg();
-            break;
-        case OPT_ENGINE:
-            e = setup_engine(opt_arg(), 0);
             break;
         case OPT_R_CASES:
             if (!opt_rand(o))
@@ -125,7 +117,7 @@ int gendsa_main(int argc, char **argv)
     private = 1;
 
     if (!app_passwd(NULL, passoutarg, NULL, &passout)) {
-        BIO_printf(bio_err, "Error getting password\n");
+        BIO_puts(bio_err, "Error getting password\n");
         goto end;
     }
 
@@ -144,13 +136,13 @@ int gendsa_main(int argc, char **argv)
 
     ctx = EVP_PKEY_CTX_new_from_pkey(app_get0_libctx(), pkey, app_get0_propq());
     if (ctx == NULL) {
-        BIO_printf(bio_err, "unable to create PKEY context\n");
+        BIO_puts(bio_err, "unable to create PKEY context\n");
         goto end;
     }
     EVP_PKEY_free(pkey);
     pkey = NULL;
     if (EVP_PKEY_keygen_init(ctx) <= 0) {
-        BIO_printf(bio_err, "unable to set up for key generation\n");
+        BIO_puts(bio_err, "unable to set up for key generation\n");
         goto end;
     }
     pkey = app_keygen(ctx, "DSA", nbits, verbose);
@@ -159,7 +151,7 @@ int gendsa_main(int argc, char **argv)
 
     assert(private);
     if (!PEM_write_bio_PrivateKey(out, pkey, enc, NULL, 0, NULL, passout)) {
-        BIO_printf(bio_err, "unable to output generated key\n");
+        BIO_puts(bio_err, "unable to output generated key\n");
         goto end;
     }
     ret = 0;
@@ -172,7 +164,6 @@ end2:
     EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(ctx);
     EVP_CIPHER_free(enc);
-    release_engine(e);
     OPENSSL_free(passout);
     return ret;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -41,16 +41,13 @@
 #error "Your compiler doesn't appear to support 128-bit integer types"
 #endif
 
-typedef uint8_t u8;
-typedef uint64_t u64;
-
 /*
  * The underlying field. P384 operates over GF(2^384-2^128-2^96+2^32-1). We
  * can serialize an element of this field into 48 bytes. We call this an
  * felem_bytearray.
  */
 
-typedef u8 felem_bytearray[48];
+typedef uint8_t felem_bytearray[48];
 
 /*
  * These are the parameters of P384, taken from FIPS 186-3, section D.1.2.4.
@@ -113,7 +110,7 @@ typedef widelimb widefelem[2 * NLIMBS - 1];
 static const limb bottom56bits = 0xffffffffffffff;
 
 /* Helper functions (de)serialising reduced field elements in little endian */
-static void bin48_to_felem(felem out, const u8 in[48])
+static void bin48_to_felem(felem out, const uint8_t in[48])
 {
     memset(out, 0, 56);
     out[0] = (*((limb *)&in[0])) & bottom56bits;
@@ -125,7 +122,7 @@ static void bin48_to_felem(felem out, const u8 in[48])
     memmove(&out[6], &in[42], 6);
 }
 
-static void felem_to_bin48(u8 out[48], const felem in)
+static void felem_to_bin48(uint8_t out[48], const felem in)
 {
     memset(out, 0, 48);
     (*((limb *)&out[0])) |= (in[0] & bottom56bits);
@@ -720,7 +717,7 @@ void p384_felem_square_reduce(felem out, const felem in);
 void p384_felem_mul_reduce(felem out, const felem in1, const felem in2);
 
 #if defined(_ARCH_PPC64)
-#include "crypto/ppc_arch.h"
+#include "arch/ppc_arch.h"
 #endif
 
 static void felem_select(void)
@@ -1404,7 +1401,7 @@ static char get_bit(const felem_bytearray in, int i)
  */
 static void batch_mul(felem x_out, felem y_out, felem z_out,
     const felem_bytearray scalars[],
-    const unsigned int num_points, const u8 *g_scalar,
+    const unsigned int num_points, const uint8_t *g_scalar,
     const int mixed, const felem pre_comp[][17][3],
     const felem g_pre_comp[16][3])
 {
@@ -1412,7 +1409,7 @@ static void batch_mul(felem x_out, felem y_out, felem z_out,
     unsigned int num, gen_mul = (g_scalar != NULL);
     felem nq[3], tmp[4];
     limb bits;
-    u8 sign, digit;
+    uint8_t sign, digit;
 
     /* set nq to the point at infinity */
     memset(nq, 0, sizeof(nq));
@@ -1579,8 +1576,8 @@ NISTP384_PRE_COMP *ossl_ec_nistp384_pre_comp_dup(NISTP384_PRE_COMP *p)
 {
     int i;
 
-    if (p != NULL)
-        CRYPTO_UP_REF(&p->references, &i);
+    if (p == NULL || !CRYPTO_UP_REF(&p->references, &i))
+        return NULL;
     return p;
 }
 
@@ -1798,10 +1795,10 @@ int ossl_ec_GFp_nistp384_points_mul(const EC_GROUP *group, EC_POINT *r,
              */
             mixed = 1;
         }
-        secrets = OPENSSL_zalloc(sizeof(*secrets) * num_points);
-        pre_comp = OPENSSL_zalloc(sizeof(*pre_comp) * num_points);
+        secrets = OPENSSL_calloc(num_points, sizeof(*secrets));
+        pre_comp = OPENSSL_calloc(num_points, sizeof(*pre_comp));
         if (mixed)
-            tmp_felems = OPENSSL_malloc(sizeof(*tmp_felems) * (num_points * 17 + 1));
+            tmp_felems = OPENSSL_malloc_array(num_points * 17 + 1, sizeof(*tmp_felems));
         if ((secrets == NULL) || (pre_comp == NULL)
             || (mixed && (tmp_felems == NULL)))
             goto err;

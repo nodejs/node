@@ -10,7 +10,7 @@
 
 namespace node::crypto {
 
-#if OPENSSL_WITH_EVP_MAC
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 
 enum class KmacVariant { KMAC128, KMAC256 };
 
@@ -64,13 +64,15 @@ void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Kmac
 
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
 // If there is no KMAC support, provide empty namespace functions.
 namespace Kmac {
 void Initialize(Environment* env, v8::Local<v8::Object> target) {}
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {}
 }  // namespace Kmac
-#endif  // OPENSSL_WITH_EVP_MAC
+#else
+#error "Unsupported crypto backend"
+#endif  // NCRYPTO_USE_OPENSSL_PROVIDER
 
 }  // namespace node::crypto
 

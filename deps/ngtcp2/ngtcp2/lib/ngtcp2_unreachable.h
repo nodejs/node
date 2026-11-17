@@ -43,10 +43,10 @@
 #ifdef _MSC_VER
 __declspec(noreturn)
 #endif /* defined(_MSC_VER) */
-    void ngtcp2_unreachable_fail(const char *file, int line, const char *func)
+void ngtcp2_unreachable_fail(const char *file, int line, const char *func)
 #ifndef _MSC_VER
-        __attribute__((noreturn))
+  __attribute__((noreturn))
 #endif /* !defined(_MSC_VER) */
-        ;
+  ;
 
 #endif /* !defined(NGTCP2_UNREACHABLE_H) */

@@ -1,4 +1,4 @@
-#include "mips_arch.h"
+#include "arch/mips_arch.h"
 
 .text
 .set	noat
@@ -3200,6 +3200,6 @@ K512:
 	.dword	0x3c9ebe0a15c9bebc, 0x431d67c49c100d4c
 	.dword	0x4cc5d4becb3e42b6, 0x597f299cfc657e2a
 	.dword	0x5fcb6fab3ad6faec, 0x6c44198c4a475817
-.asciiz	"SHA512 for MIPS, CRYPTOGAMS by <appro@openssl.org>"
+.asciiz	"SHA512 for MIPS, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	5
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -56,12 +56,14 @@
  * QUIC_REACTOR_WAIT_CTX before commencing a blocking operation, and then calls
  * ossl_quic_reactor_wait_ctx_enter() whenever encountering a reactor involved
  * in the imminent blocking operation. Later it must ensure it calls
- * ossl_quic_reactor_wait_ctx_leave() the same number of times for each reactor.
- * enter() and leave() may be called multiple times for the same reactor and
- * wait context so long as the number of calls is balanced. The last leave()
- * call for a given thread's wait context *and a given reactor* causes that
- * reactor to do the inter-thread notification housekeeping needed for
- * multithreaded blocking to work correctly.
+ * ossl_quic_reactor_wait_ctx_deregister() the same number of times for
+ * each reactor. enter() and deregister() may be called multiple times for
+ * the same reactor and wait context so long as the number of calls is balanced.
+ * The last deregister() call for a given thread's wait context *and a given
+ * reactor* begins the reactor's inter-thread notification housekeeping
+ * (deregistration, which never blocks); ossl_quic_reactor_wait_ctx_drain()
+ * completes it. Both phases are needed for multithreaded blocking to work
+ * correctly.
  *
  * The gist is that a simple reactor-level counter of active concurrent blocking
  * calls across all threads is not accurate and we need an accurate count of how
@@ -75,7 +77,8 @@
  *   (QUIC_REACTOR *) -> (outstanding call count)
  *
  * When the count for a reactor transitions from 0 to a nonzero value, or vice
- * versa, ossl_quic_reactor_(enter/leave)_blocking_section() is called once.
+ * versa, ossl_quic_reactor_enter_blocking_section() /
+ * ossl_quic_reactor_deregister_blocking_section() is called once.
  *
  * The internal implementation is based on linked lists as we expect the actual
  * number of reactors involved in a given blocking operation to be very small,
@@ -97,18 +100,30 @@ void ossl_quic_reactor_wait_ctx_init(QUIC_REACTOR_WAIT_CTX *ctx);
 int ossl_quic_reactor_wait_ctx_enter(QUIC_REACTOR_WAIT_CTX *ctx,
     QUIC_REACTOR *rtor);
 
-/* Downrefs a given reactor. */
-void ossl_quic_reactor_wait_ctx_leave(QUIC_REACTOR_WAIT_CTX *ctx,
-    QUIC_REACTOR *rtor);
-
 /*
  * Destroys a wait context. Must be called after calling init().
  *
  * Precondition: All prior calls to ossl_quic_reactor_wait_ctx_enter() must have
- * been balanced with corresponding leave() calls before calling this
- * (unchecked).
+ * been balanced with corresponding deregister() calls, and
+ * ossl_quic_reactor_wait_ctx_drain() must have run for any reactor left
+ * signalled, before calling this (unchecked).
  */
 void ossl_quic_reactor_wait_ctx_cleanup(QUIC_REACTOR_WAIT_CTX *ctx);
+
+/*
+ * Two-phase leave support (see quic_reactor.h for the rationale and the
+ * deadlock it avoids). wait_ctx_deregister() is phase 1: it decrements
+ * the per-thread refcount and, on the 1->0 transition, deregisters from the
+ * reactor without blocking, recording whether phase 2 must wait and the
+ * generation to wait for. Caller must hold the reactor mutex.
+ * wait_ctx_drain() is phase 2: for every reactor phase 1 left signalled, it
+ * waits for that signal cycle to clear, acquiring each reactor's mutex
+ * internally.
+ */
+void ossl_quic_reactor_wait_ctx_deregister(QUIC_REACTOR_WAIT_CTX *ctx,
+    QUIC_REACTOR *rtor);
+
+void ossl_quic_reactor_wait_ctx_drain(QUIC_REACTOR_WAIT_CTX *ctx);
 
 #endif
 

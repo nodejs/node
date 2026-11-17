@@ -19,6 +19,7 @@
 #include "prov/providercommon.h"
 #include "prov/ciphercommon_aead.h"
 #include "prov/implementations.h"
+#include "providers/implementations/ciphers/cipher_aes_ocb.inc"
 
 #define AES_OCB_FLAGS AEAD_FLAGS
 
@@ -67,7 +68,14 @@ static ossl_inline int aes_generic_ocb_gettag(PROV_AES_OCB_CTX *ctx,
 
 static ossl_inline int aes_generic_ocb_final(PROV_AES_OCB_CTX *ctx)
 {
-    return (CRYPTO_ocb128_finish(&ctx->ocb, ctx->tag, ctx->taglen) == 0);
+    int ret = CRYPTO_ocb128_finish(&ctx->ocb, ctx->tag, ctx->taglen);
+
+    /* ret: -1 = bad tag length, 0 = tag verified, otherwise = tag mismatch */
+    if (ret == -1)
+        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_TAG_LENGTH);
+    else if (ret != 0)
+        ERR_raise(ERR_LIB_PROV, PROV_R_BAD_DECRYPT);
+    return ret == 0;
 }
 
 static ossl_inline void aes_generic_ocb_cleanup(PROV_AES_OCB_CTX *ctx)
@@ -306,9 +314,7 @@ static void *aes_ocb_newctx(void *provctx, size_t kbits, size_t blkbits,
 {
     PROV_AES_OCB_CTX *ctx;
 
-    if (!ossl_prov_is_running())
-        return NULL;
-
+    CIPHER_PROV_CHECK(provctx, AES_128_OCB);
     ctx = OPENSSL_zalloc(sizeof(*ctx));
     if (ctx != NULL) {
         ossl_cipher_generic_initkey(ctx, kbits, blkbits, ivbits, mode, flags,
@@ -348,43 +354,48 @@ static void *aes_ocb_dupctx(void *vctx)
     return ret;
 }
 
+static const OSSL_PARAM *cipher_ocb_settable_ctx_params(ossl_unused void *cctx,
+    ossl_unused void *p_ctx)
+{
+    return aes_ocb_set_ctx_params_list;
+}
+
 static int aes_ocb_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     PROV_AES_OCB_CTX *ctx = (PROV_AES_OCB_CTX *)vctx;
-    const OSSL_PARAM *p;
+    struct aes_ocb_set_ctx_params_st p;
     size_t sz;
 
-    if (ossl_param_is_empty(params))
-        return 1;
+    if (ctx == NULL || !aes_ocb_set_ctx_params_decoder(params, &p))
+        return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_AEAD_TAG);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_OCTET_STRING) {
+    if (p.tag != NULL) {
+        if (p.tag->data_type != OSSL_PARAM_OCTET_STRING) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }
-        if (p->data == NULL) {
+        if (p.tag->data == NULL) {
             /* Tag len must be 0 to 16 */
-            if (p->data_size > OCB_MAX_TAG_LEN) {
+            if (p.tag->data_size > OCB_MAX_TAG_LEN) {
                 ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_TAG_LENGTH);
                 return 0;
             }
-            ctx->taglen = p->data_size;
+            ctx->taglen = p.tag->data_size;
         } else {
             if (ctx->base.enc) {
-                ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);
+                ERR_raise(ERR_LIB_PROV, PROV_R_TAG_NOT_NEEDED);
                 return 0;
             }
-            if (p->data_size != ctx->taglen) {
+            if (p.tag->data_size != ctx->taglen) {
                 ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_TAG_LENGTH);
                 return 0;
             }
-            memcpy(ctx->tag, p->data, p->data_size);
+            memcpy(ctx->tag, p.tag->data, p.tag->data_size);
         }
     }
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_AEAD_IVLEN);
-    if (p != NULL) {
-        if (!OSSL_PARAM_get_size_t(p, &sz)) {
+
+    if (p.ivlen != NULL) {
+        if (!OSSL_PARAM_get_size_t(p.ivlen, &sz)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }
@@ -396,11 +407,11 @@ static int aes_ocb_set_ctx_params(void *vctx, const OSSL_PARAM params[])
             ctx->iv_state = IV_STATE_UNINITIALISED;
         }
     }
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_KEYLEN);
-    if (p != NULL) {
+
+    if (p.keylen != NULL) {
         size_t keylen;
 
-        if (!OSSL_PARAM_get_size_t(p, &keylen)) {
+        if (!OSSL_PARAM_get_size_t(p.keylen, &keylen)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }
@@ -412,93 +423,77 @@ static int aes_ocb_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     return 1;
 }
 
-static int aes_ocb_get_ctx_params(void *vctx, OSSL_PARAM params[])
-{
-    PROV_AES_OCB_CTX *ctx = (PROV_AES_OCB_CTX *)vctx;
-    OSSL_PARAM *p;
-
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_IVLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, ctx->base.ivlen)) {
-        ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
-        return 0;
-    }
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_KEYLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, ctx->base.keylen)) {
-        ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
-        return 0;
-    }
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_AEAD_TAGLEN);
-    if (p != NULL) {
-        if (!OSSL_PARAM_set_size_t(p, ctx->taglen)) {
-            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
-            return 0;
-        }
-    }
-
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_IV);
-    if (p != NULL) {
-        if (ctx->base.ivlen > p->data_size) {
-            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_IV_LENGTH);
-            return 0;
-        }
-        if (!OSSL_PARAM_set_octet_string(p, ctx->base.oiv, ctx->base.ivlen)
-            && !OSSL_PARAM_set_octet_ptr(p, &ctx->base.oiv, ctx->base.ivlen)) {
-            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
-            return 0;
-        }
-    }
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_UPDATED_IV);
-    if (p != NULL) {
-        if (ctx->base.ivlen > p->data_size) {
-            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_IV_LENGTH);
-            return 0;
-        }
-        if (!OSSL_PARAM_set_octet_string(p, ctx->base.iv, ctx->base.ivlen)
-            && !OSSL_PARAM_set_octet_ptr(p, &ctx->base.iv, ctx->base.ivlen)) {
-            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
-            return 0;
-        }
-    }
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_AEAD_TAG);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_OCTET_STRING) {
-            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
-            return 0;
-        }
-        if (!ctx->base.enc || p->data_size != ctx->taglen) {
-            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_TAG_LENGTH);
-            return 0;
-        }
-        memcpy(p->data, ctx->tag, ctx->taglen);
-    }
-    return 1;
-}
-
-static const OSSL_PARAM cipher_ocb_known_gettable_ctx_params[] = {
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_KEYLEN, NULL),
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_IVLEN, NULL),
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_AEAD_TAGLEN, NULL),
-    OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_IV, NULL, 0),
-    OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_UPDATED_IV, NULL, 0),
-    OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG, NULL, 0),
-    OSSL_PARAM_END
-};
 static const OSSL_PARAM *cipher_ocb_gettable_ctx_params(ossl_unused void *cctx,
     ossl_unused void *p_ctx)
 {
-    return cipher_ocb_known_gettable_ctx_params;
+    return aes_ocb_get_ctx_params_list;
 }
 
-static const OSSL_PARAM cipher_ocb_known_settable_ctx_params[] = {
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_KEYLEN, NULL),
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_AEAD_IVLEN, NULL),
-    OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG, NULL, 0),
-    OSSL_PARAM_END
-};
-static const OSSL_PARAM *cipher_ocb_settable_ctx_params(ossl_unused void *cctx,
-    ossl_unused void *p_ctx)
+static int aes_ocb_get_ctx_params(void *vctx, OSSL_PARAM params[])
 {
-    return cipher_ocb_known_settable_ctx_params;
+    PROV_AES_OCB_CTX *ctx = (PROV_AES_OCB_CTX *)vctx;
+    struct aes_ocb_get_ctx_params_st p;
+
+    if (ctx == NULL || !aes_ocb_get_ctx_params_decoder(params, &p))
+        return 0;
+
+    if (p.ivlen != NULL && !OSSL_PARAM_set_size_t(p.ivlen, ctx->base.ivlen)) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+        return 0;
+    }
+
+    if (p.keylen != NULL && !OSSL_PARAM_set_size_t(p.keylen, ctx->base.keylen)) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+        return 0;
+    }
+
+    if (p.taglen != NULL) {
+        if (!OSSL_PARAM_set_size_t(p.taglen, ctx->taglen)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+            return 0;
+        }
+    }
+
+    if (p.iv != NULL) {
+        if (ctx->base.ivlen > p.iv->data_size) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_IV_LENGTH);
+            return 0;
+        }
+        if (!OSSL_PARAM_set_octet_string_or_ptr(p.iv, ctx->base.oiv,
+                ctx->base.ivlen)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+            return 0;
+        }
+    }
+
+    if (p.upd_iv != NULL) {
+        if (ctx->base.ivlen > p.upd_iv->data_size) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_IV_LENGTH);
+            return 0;
+        }
+        if (!OSSL_PARAM_set_octet_string_or_ptr(p.upd_iv, ctx->base.iv,
+                ctx->base.ivlen)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+            return 0;
+        }
+    }
+
+    if (p.tag != NULL) {
+        if (p.tag->data_type != OSSL_PARAM_OCTET_STRING) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
+            return 0;
+        }
+        if (!ctx->base.enc) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_TAG_NOT_SET);
+            return 0;
+        }
+        if (p.tag->data_size != ctx->taglen) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_TAG_LENGTH);
+            return 0;
+        }
+        memcpy(p.tag->data, ctx->tag, ctx->taglen);
+    }
+    return 1;
 }
 
 static int aes_ocb_cipher(void *vctx, unsigned char *out, size_t *outl,
@@ -509,7 +504,11 @@ static int aes_ocb_cipher(void *vctx, unsigned char *out, size_t *outl,
     if (!ossl_prov_is_running())
         return 0;
 
-    /* NULL input indicates Final, which must generate or check the tag. */
+    /*
+     * EVP_Cipher() MUST CHECK THE TAG
+     * in == NULL indicates finalize, so hand it to the finalize path
+     * (which checks the tag on decrypt / produces it on encrypt)
+     */
     if (in == NULL)
         return aes_ocb_block_final(vctx, out, outl, outsize);
 

@@ -800,12 +800,15 @@ void FSReqAfterScope::Clear() {
 // in JS for more flexibility.
 void FSReqAfterScope::Reject(uv_fs_t* req) {
   BaseObjectPtr<FSReqBase> wrap{wrap_};
+  // libuv clears req->path when mkstemp() fails, so the template that was
+  // saved in the request is reported instead.
+  const bool is_mkstemp = req->fs_type == UV_FS_MKSTEMP;
   Local<Value> exception = UVException(wrap_->env()->isolate(),
                                        static_cast<int>(req->result),
                                        wrap_->syscall(),
                                        nullptr,
-                                       req->path,
-                                       wrap_->data());
+                                       is_mkstemp ? wrap_->data() : req->path,
+                                       is_mkstemp ? nullptr : wrap_->data());
   Clear();
   wrap->Reject(exception);
 }
@@ -892,6 +895,41 @@ void AfterOpenFileHandle(uv_fs_t* req) {
   }
 }
 
+// Delivers the result of mkstemp(): [path, fd], or [path, FileHandle].
+static void AfterMkstempImpl(uv_fs_t* req, bool as_file_handle) {
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
+  FSReqAfterScope after(req_wrap, req);
+  FS_ASYNC_TRACE_END1(
+      req->fs_type, req_wrap, "result", static_cast<int>(req->result))
+  const int fd = static_cast<int>(req->result);
+  if (after.Proceed()) {
+    Environment* env = req_wrap->env();
+    return ResolveMkstemp(
+        req_wrap,
+        fd,
+        [&]() {
+          return StringBytes::Encode(
+              env->isolate(), req->path, req_wrap->encoding());
+        },
+        [&]() {
+          if (!as_file_handle) return MkstempFd(env, fd);
+          return MkstempFileHandle([&]() {
+            return FileHandle::New(req_wrap->binding_data(), fd, {}, req->path);
+          });
+        });
+  }
+  // The environment is shutting down: nothing will receive the descriptor.
+  if (fd >= 0) CloseMkstempFd(fd);
+}
+
+static void AfterMkstemp(uv_fs_t* req) {
+  AfterMkstempImpl(req, false);
+}
+
+static void AfterMkstempFileHandle(uv_fs_t* req) {
+  AfterMkstempImpl(req, true);
+}
+
 void AfterMkdirp(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
@@ -901,16 +939,10 @@ void AfterMkdirp(uv_fs_t* req) {
     std::string first_path(req_wrap->continuation_data()->first_path());
     if (first_path.empty())
       return req_wrap->Resolve(Undefined(req_wrap->env()->isolate()));
-    Local<Value> path;
-    TryCatch try_catch(req_wrap->env()->isolate());
-    if (!StringBytes::Encode(req_wrap->env()->isolate(),
-                             first_path.c_str(),
-                             req_wrap->encoding())
-             .ToLocal(&path)) {
-      CHECK(try_catch.CanContinue());
-      return req_wrap->Reject(try_catch.Exception());
-    }
-    return req_wrap->Resolve(path);
+    ResolveOrReject(req_wrap, [&]() {
+      return StringBytes::Encode(
+          req_wrap->env()->isolate(), first_path.c_str(), req_wrap->encoding());
+    });
   }
 }
 
@@ -919,19 +951,11 @@ void AfterStringPath(uv_fs_t* req) {
   FSReqAfterScope after(req_wrap, req);
   FS_ASYNC_TRACE_END1(
       req->fs_type, req_wrap, "result", static_cast<int>(req->result))
-  MaybeLocal<Value> link;
-
   if (after.Proceed()) {
-    TryCatch try_catch(req_wrap->env()->isolate());
-    link = StringBytes::Encode(
-        req_wrap->env()->isolate(), req->path, req_wrap->encoding());
-    if (link.IsEmpty()) {
-      CHECK(try_catch.CanContinue());
-      req_wrap->Reject(try_catch.Exception());
-    } else {
-      Local<Value> val;
-      if (link.ToLocal(&val)) req_wrap->Resolve(val);
-    }
+    ResolveOrReject(req_wrap, [&]() {
+      return StringBytes::Encode(
+          req_wrap->env()->isolate(), req->path, req_wrap->encoding());
+    });
   }
 }
 
@@ -940,20 +964,12 @@ void AfterStringPtr(uv_fs_t* req) {
   FSReqAfterScope after(req_wrap, req);
   FS_ASYNC_TRACE_END1(
       req->fs_type, req_wrap, "result", static_cast<int>(req->result))
-  MaybeLocal<Value> link;
-
   if (after.Proceed()) {
-    TryCatch try_catch(req_wrap->env()->isolate());
-    link = StringBytes::Encode(req_wrap->env()->isolate(),
-                               static_cast<const char*>(req->ptr),
-                               req_wrap->encoding());
-    if (link.IsEmpty()) {
-      CHECK(try_catch.CanContinue());
-      req_wrap->Reject(try_catch.Exception());
-    } else {
-      Local<Value> val;
-      if (link.ToLocal(&val)) req_wrap->Resolve(val);
-    }
+    ResolveOrReject(req_wrap, [&]() {
+      return StringBytes::Encode(req_wrap->env()->isolate(),
+                                 static_cast<const char*>(req->ptr),
+                                 req_wrap->encoding());
+    });
   }
 }
 
@@ -2708,14 +2724,9 @@ class ReadDirRecursiveRequest {
                                           walk_.error_path().c_str()));
     }
 
-    Local<Value> value;
-    TryCatch try_catch(isolate);
-    if (!MarshalRecursiveReadDir(isolate, walk_, encoding_, with_types_)
-             .ToLocal(&value)) {
-      CHECK(try_catch.CanContinue());
-      return req_wrap->Reject(try_catch.Exception());
-    }
-    req_wrap->Resolve(value);
+    ResolveOrReject(req_wrap.get(), [&]() {
+      return MarshalRecursiveReadDir(isolate, walk_, encoding_, with_types_);
+    });
   }
 
  private:
@@ -3514,9 +3525,10 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
       if (static_cast<size_t>(r) < sizeof(buffer)) {
         continue;
       }
-      // Switch to the heap buffer.
+      // Switch to the heap buffer. A pipe can deliver more than kMinChunk in
+      // short reads before the first full one.
       uv_fs_req_cleanup(&req);
-      big_cap = kMinChunk;
+      big_cap = std::max(kMinChunk, result.size());
       big = UncheckedMalloc<char>(big_cap);
       if (big == nullptr) {
         FS_SYNC_TRACE_END(read);
@@ -3575,18 +3587,19 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
 // read + close -- instead of one round trip per step, which is what dominates
 // fs.readFile() for the typical small file and multiplies thread pool
 // contention when many files are read at once. Files whose size exceeds
-// `limit` are not read here: the job hands the open fd and the size back so
-// that the caller continues with the chunked reader (which stays fair and
-// abortable for large files); it then only saved the fstat() round trip.
+// `limit`, and files that are not regular files (a FIFO or a device may never
+// reach EOF), are not read here: the job hands the open fd and the size back
+// so that the caller continues with the chunked reader (which stays fair and
+// abortable between chunks); it then only saved the fstat() round trip.
 //
 // JS: const job = new ReadFileJob(path, flags, limit, trackFd);
 //     job.ondone = (err, buffer, fd, size, closeErr) => {...}; job.run(path);
 // Exactly one of these outcomes is reported:
 //   err            -- open/fstat/read failed (any fd opened here was closed);
-//   fd >= 0, size  -- file is larger than `limit`: caller owns fd now (it is
-//                     registered as an unmanaged fd iff trackFd, i.e. when the
-//                     caller will close it through fs.close() rather than a
-//                     FileHandle);
+//   fd >= 0, size  -- file is larger than `limit`, or not a regular file and
+//                     size is 0: caller owns fd now (it is registered as an
+//                     unmanaged fd iff trackFd, i.e. when the caller will
+//                     close it through fs.close() rather than a FileHandle);
 //   buffer         -- the whole content; closeErr set if only close() failed.
 class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
  public:
@@ -3651,8 +3664,9 @@ class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
     const uint64_t size = regular ? static_cast<uint64_t>(st->st_size) : 0;
     uv_fs_req_cleanup(&req);
 
-    if (size > limit_) {
-      // Too large to read in one go here: hand the fd back.
+    if (size > limit_ || !regular) {
+      // Too large to read in one go here, or possibly endless: hand the fd
+      // back.
       fd_ = fd;
       size_ = size;
       return;
@@ -4410,6 +4424,15 @@ static void LUTimes(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+// Appends the placeholder that mkdtemp() and mkstemp() replace.
+static void AppendTemplateSuffix(BufferValue* tmpl) {
+  static constexpr std::string_view suffix = "XXXXXX";
+  const auto prefix_length = tmpl->length();
+  tmpl->AllocateSufficientStorage(prefix_length + suffix.size() + 1);
+  memcpy(tmpl->out() + prefix_length, suffix.data(), suffix.size());
+  tmpl->SetLengthAndZeroTerminate(prefix_length + suffix.size());
+}
+
 static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -4418,11 +4441,7 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue tmpl(isolate, args[0]);
-  const auto prefix_length = tmpl.length();
-  static constexpr std::string_view suffix = "XXXXXX";
-  tmpl.AllocateSufficientStorage(prefix_length + suffix.size() + 1);
-  memcpy(tmpl.out() + prefix_length, suffix.data(), suffix.size());
-  tmpl.SetLengthAndZeroTerminate(prefix_length + suffix.size());
+  AppendTemplateSuffix(&tmpl);
 
   CHECK_NOT_NULL(*tmpl);
 
@@ -4464,6 +4483,67 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
             .ToLocal(&ret)) {
       args.GetReturnValue().Set(ret);
     }
+  }
+}
+
+// mkstemp() creates the file and opens it for reading and writing, so it
+// needs the same permissions as the equivalent open().
+static constexpr int kMkstempFlags =
+    UV_FS_O_RDWR | UV_FS_O_CREAT | UV_FS_O_EXCL;
+
+static void Mkstemp(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
+
+  BufferValue tmpl(isolate, args[0]);
+  AppendTemplateSuffix(&tmpl);
+  CHECK_NOT_NULL(*tmpl);
+
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
+
+  if (argc > 2) {  // mkstemp(tmpl, encoding, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
+    CHECK_NOT_NULL(req_wrap_async);
+    if (AsyncCheckOpenPermissions(env, req_wrap_async, tmpl, kMkstempFlags)
+            .IsNothing()) {
+      return;
+    }
+    // The callback API gets a file descriptor, the promise API a FileHandle.
+    uv_fs_cb after =
+        args[2]->IsObject() ? AfterMkstemp : AfterMkstempFileHandle;
+    FS_ASYNC_TRACE_BEGIN1(
+        UV_FS_MKSTEMP, req_wrap_async, "path", TRACE_STR_COPY(*tmpl))
+    // The template is saved in the request to report it if mkstemp() fails.
+    AsyncDestCall(env,
+                  req_wrap_async,
+                  args,
+                  "mkstemp",
+                  *tmpl,
+                  tmpl.length(),
+                  encoding,
+                  after,
+                  uv_fs_mkstemp,
+                  *tmpl);
+  } else {  // mkstemp(tmpl, encoding)
+    if (CheckOpenPermissions(env, tmpl, kMkstempFlags).IsNothing()) return;
+    FSReqWrapSync req_wrap_sync("mkstemp", *tmpl);
+    FS_SYNC_TRACE_BEGIN(mkstemp);
+    int fd = SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_mkstemp, *tmpl);
+    FS_SYNC_TRACE_END(mkstemp);
+    if (is_uv_error(fd)) {
+      return;
+    }
+    MaybeLocal<Value> result = MkstempResult(
+        isolate,
+        fd,
+        [&]() {
+          return StringBytes::Encode(isolate, req_wrap_sync.req.path, encoding);
+        },
+        [&]() { return MkstempFd(env, fd); });
+    args.GetReturnValue().Set(result.FromMaybe(Local<Value>()));
   }
 }
 
@@ -4565,8 +4645,10 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   auto dest_path_str = ConvertPathToUTF8(dest_path);
 
   if (!error_code) {
-    // Check if src and dest are identical.
-    if (std::filesystem::equivalent(src_path, dest_path)) {
+    // Check if src and dest are identical. A dangling dest symlink makes
+    // equivalent() fail, which means they are not the same file.
+    std::error_code equivalent_error;
+    if (std::filesystem::equivalent(src_path, dest_path, equivalent_error)) {
       static constexpr const char* message =
           "src and dest cannot be the same %s";
       return THROW_ERR_FS_CP_EINVAL(env, message, dest_path_str);
@@ -5676,6 +5758,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "lutimes", LUTimes);
 
   SetMethod(isolate, target, "mkdtemp", Mkdtemp);
+  SetMethod(isolate, target, "mkstemp", Mkstemp);
 
 #ifdef _WIN32
   SetMethod(isolate, target, "handleToFd", HandleToFd);
@@ -5837,6 +5920,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(LUTimes);
 
   registry->Register(Mkdtemp);
+  registry->Register(Mkstemp);
 #ifdef _WIN32
   registry->Register(HandleToFd);
 #endif

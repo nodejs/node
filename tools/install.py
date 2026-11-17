@@ -361,6 +361,12 @@ def headers(options, action):
     subdir_files(options, 'deps/openssl/openssl/include/openssl', 'include/node/openssl/', action)
     subdir_files(options, 'deps/openssl/config/archs', 'include/node/openssl/archs', action)
     subdir_files(options, 'deps/openssl/config', 'include/node/openssl', action)
+    # Public selectors replace source-tree wrappers in the installed headers.
+    for name in os.listdir(os.path.join(options.root_dir, 'deps/openssl/config')):
+      if name.startswith('openssl_') and name.endswith('.h') and \
+         not name.endswith(('_asm.h', '_no-asm.h')):
+        action(options, [os.path.join('deps/openssl/config', name)],
+               'include/node/openssl/' + name[len('openssl_'):])
 
   if 'false' == options.variables.get('node_shared_zlib'):
     action(options, [

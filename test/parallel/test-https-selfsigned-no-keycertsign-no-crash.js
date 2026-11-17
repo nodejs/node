@@ -12,18 +12,9 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const crypto = require('crypto');
-const { hasOpenSSL } = require('../common/crypto');
-
-// See #37990 for details on why this is problematic with FIPS.
-if (crypto.getFips() === 1 && !hasOpenSSL(3))
-  common.skip('Skipping as test uses non-fips compliant EC curve');
-
-// This test will fail for OpenSSL < 1.1.1h
-const minOpenSSL = 269488271;
-
-if (crypto.constants.OPENSSL_VERSION_NUMBER < minOpenSSL)
-  common.skip('OpenSSL < 1.1.1h');
+const { isBoringSSL } = require('../common/crypto');
+if (isBoringSSL)
+  common.skip('not supported by BoringSSL');
 
 const https = require('https');
 const path = require('path');

@@ -4,7 +4,7 @@ set -ex
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 
-OPTIONAL_FLAGS=$(nix-instantiate -I "nixpkgs=$BASE_DIR/tools/nix/pkgs.nix" --eval --strict --raw -E "
+OPTIONAL_FLAGS=$(nix-instantiate -I "$BASE_DIR" -I "nixpkgs=$BASE_DIR/tools/nix/pkgs.nix" --eval --strict --raw -E "
   (import <nixpkgs> {}).lib.concatMapStrings
     (n: ''--arg \${n} true '')
     (builtins.filter
@@ -16,7 +16,7 @@ OPTIONAL_FLAGS=$(nix-instantiate -I "nixpkgs=$BASE_DIR/tools/nix/pkgs.nix" --eva
 DRV=$(
   cd "$BASE_DIR"
   # shellcheck disable=SC2086
-  nix-instantiate -I "nixpkgs=./tools/nix/pkgs.nix" shell.nix \
+  nix-instantiate -I. -I "nixpkgs=./tools/nix/pkgs.nix" shell.nix \
     $OPTIONAL_FLAGS \
     --arg sharedLibDeps '{
       # Using an empty set as some build dependencies are required only in the absence of shared deps (e.g. Cargo).

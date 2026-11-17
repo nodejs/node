@@ -1420,6 +1420,123 @@ t.test('oidc token exchange - no provenance', t => {
     },
   }))
 
+  for (const fallback of [true, false]) {
+    t.test(`workspace exchange failure ${fallback ? 'restores fallback' : 'requires auth'}`, async t => {
+      const fallbackToken = 'existing-fallback-token'
+      const { npm, registry } = await mockOidc(t, {
+        oidcOptions: { github: true },
+        publish: false,
+        config: { workspaces: true },
+        mockGithubOidcOptions: {
+          audience: 'npm:registry.npmjs.org',
+          idToken: githubPrivateIdToken,
+          times: 2,
+        },
+        load: {
+          homeDir: fallback ? {
+            '.npmrc': `//registry.npmjs.org/:_authToken=${fallbackToken}`,
+          } : {},
+          prefixDir: {
+            'package.json': JSON.stringify({
+              name: 'workspace-root',
+              version: '1.0.0',
+              workspaces: ['workspace-a', 'workspace-b'],
+            }),
+            'workspace-a': {
+              'package.json': JSON.stringify({ name: 'workspace-a', version: '1.0.0' }),
+            },
+            'workspace-b': {
+              'package.json': JSON.stringify({ name: 'workspace-b', version: '1.0.0' }),
+            },
+          },
+        },
+      })
+      registry.mockOidcTokenExchange({
+        packageName: 'workspace-a',
+        idToken: githubPrivateIdToken,
+        body: { token: 'workspace-a-exchange-token' },
+      })
+      registry.publish('workspace-a', { token: 'workspace-a-exchange-token' })
+      registry.mockOidcTokenExchange({
+        packageName: 'workspace-b',
+        idToken: githubPrivateIdToken,
+        statusCode: 404,
+        body: { message: 'No trusted publisher configured' },
+      })
+      if (fallback) {
+        registry.publish('workspace-b', { token: fallbackToken })
+        await npm.exec('publish', [])
+      } else {
+        await t.rejects(npm.exec('publish', []), { code: 'ENEEDAUTH' })
+      }
+      t.equal(
+        npm.config.getCredentialsByURI('https://registry.npmjs.org/').token,
+        fallback ? fallbackToken : undefined
+      )
+    })
+  }
+
+  t.test('sequential operations clear OIDC tokens after exchange failure', async t => {
+    // These calls share one npm instance, unlike separate CLI invocations.
+    // The workspace tests above cover one real --workspaces command; this also checks recovery.
+    const packages = ['workflow-one', 'workflow-two', 'workflow-three']
+    const registryUrl = 'https://registry.npmjs.org/'
+    const authTokenKey = '//registry.npmjs.org/:_authToken'
+    const { npm, registry, joinedOutput } = await mockOidc(t, {
+      oidcOptions: { github: true },
+      publish: false,
+      mockGithubOidcOptions: {
+        audience: 'npm:registry.npmjs.org',
+        idToken: githubPrivateIdToken,
+        times: 3,
+      },
+      load: {
+        prefixDir: {
+          'package.json': JSON.stringify({ name: 'workflow-root', version: '1.0.0' }),
+          ...Object.fromEntries(packages.map(name => [name, {
+            'package.json': JSON.stringify({ name, version: '1.0.0' }),
+          }])),
+        },
+      },
+    })
+    t.equal(npm.config.getCredentialsByURI(registryUrl).token, undefined, 'no fallback token')
+
+    registry.mockOidcTokenExchange({
+      packageName: packages[0],
+      idToken: githubPrivateIdToken,
+      body: { token: 'first-exchange-token' },
+    })
+    registry.publish(packages[0], { token: 'first-exchange-token' })
+    await npm.exec('publish', [`./${packages[0]}`])
+    t.equal(npm.flatOptions[authTokenKey], 'first-exchange-token')
+    t.match(joinedOutput(), '+ workflow-one@1.0.0')
+
+    registry.mockOidcTokenExchange({
+      packageName: packages[1],
+      idToken: githubPrivateIdToken,
+      statusCode: 404,
+      body: { message: 'No trusted publisher configured' },
+    })
+    await t.rejects(
+      npm.exec('publish', [`./${packages[1]}`]),
+      { code: 'ENEEDAUTH' },
+      'failed exchange cannot reuse the previous operation token'
+    )
+    t.equal(npm.config.getCredentialsByURI(registryUrl).token, undefined, 'token is cleared')
+    t.notOk(Object.hasOwn(npm.flatOptions, authTokenKey), 'flat options contain no stale token')
+    t.notMatch(joinedOutput(), '+ workflow-two@1.0.0')
+
+    registry.mockOidcTokenExchange({
+      packageName: packages[2],
+      idToken: githubPrivateIdToken,
+      body: { token: 'third-exchange-token' },
+    })
+    registry.publish(packages[2], { token: 'third-exchange-token' })
+    await npm.exec('publish', [`./${packages[2]}`])
+    t.equal(npm.flatOptions[authTokenKey], 'third-exchange-token')
+    t.match(joinedOutput(), '+ workflow-three@1.0.0')
+  })
+
   t.test('dry-run can be used to check oidc config but not publish', oidcPublishTest({
     oidcOptions: { github: true },
     config: {

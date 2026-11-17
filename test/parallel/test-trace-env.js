@@ -19,8 +19,8 @@ spawnSyncAndAssert(process.execPath, ['--trace-env', fixtures.path('empty.js')],
     if (common.hasCrypto) {
       assert.match(output, /get "NODE_EXTRA_CA_CERTS"/);
 
-      const { hasOpenSSL } = require('../common/crypto');
-      if (hasOpenSSL(3)) {
+      const { isBoringSSL } = require('../common/crypto');
+      if (!isBoringSSL) {
         assert.match(output, /get "OPENSSL_CONF"/);
       }
     }

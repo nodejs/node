@@ -125,7 +125,12 @@ ares_status_t ares_query_dnsrec(ares_channel_t *channel, const char *name,
   }
 
   ares_channel_lock(channel);
+  /* Notifications raised along the way are delivered once this whole call
+   * has unwound, not from inside the internals it runs.  See
+   * ares_deferred_cb_enter(). */
+  ares_deferred_cb_enter(channel);
   status = ares_query_nolock(channel, name, dnsclass, type, callback, arg, qid);
+  ares_deferred_cb_leave(channel);
   ares_channel_unlock(channel);
   return status;
 }

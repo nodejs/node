@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2013-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2013-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -160,6 +160,7 @@ Lk_deskew:	# deskew tables: inverts the sbox's "skew"
 	.long	0x0069ea83, 0xdcb5365f, 0x771e9df4, 0xabc24128	?rev
 .align	5
 Lconsts:
+vpaes_const_fn:
 	mflr	r0
 	bcl	20,31,\$+4
 	mflr	r12	#vvvvv "distance between . and _vpaes_consts
@@ -190,7 +191,7 @@ $code.=<<___;
 .align	4
 _vpaes_encrypt_preheat:
 	mflr	r8
-	bl	Lconsts
+	bl      vpaes_const_fn
 	mtlr	r8
 	li	r11, 0xc0		# Lk_inv
 	li	r10, 0xd0
@@ -407,7 +408,7 @@ Lenc_done:
 .align	4
 _vpaes_decrypt_preheat:
 	mflr	r8
-	bl	Lconsts
+	bl      vpaes_const_fn
 	mtlr	r8
 	li	r11, 0xc0		# Lk_inv
 	li	r10, 0xd0
@@ -878,7 +879,7 @@ $code.=<<___;
 .align	4
 _vpaes_key_preheat:
 	mflr	r8
-	bl	Lconsts
+	bl      vpaes_const_fn
 	mtlr	r8
 	li	r11, 0xc0		# Lk_inv
 	li	r10, 0xd0

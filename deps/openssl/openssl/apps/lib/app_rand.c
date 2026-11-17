@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -84,7 +84,7 @@ int app_RAND_write(void)
     if (save_rand_file == NULL)
         return 1;
     if (RAND_write_file(save_rand_file) == -1) {
-        BIO_printf(bio_err, "Cannot write random bytes:\n");
+        BIO_puts(bio_err, "Cannot write random bytes:\n");
         ERR_print_errors(bio_err);
         ret = 0;
     }

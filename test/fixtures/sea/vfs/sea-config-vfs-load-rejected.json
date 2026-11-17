@@ -1,0 +1,9 @@
+{
+  "main": "sea.js",
+  "output": "sea-vfs-load-rejected",
+  "useVfs": true,
+  "assets": {
+    "config.json": "config.json"
+  },
+  "execArgvExtension": "cli"
+}

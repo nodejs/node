@@ -18,13 +18,14 @@ let
       "libbrotlienc"
     ];
     cares = [ "libcares" ];
-    gtest = [ "gtest" ];
+    gtest = [
+      "gtest"
+      "gtest_main"
+    ];
     hdr-histogram = [ "hdr_histogram" ];
     merve = [ "merve" ];
     nbytes = [ "nbytes" ];
     nghttp2 = [ "libnghttp2" ];
-    nghttp3 = [ "libnghttp3" ];
-    ngtcp2 = [ "libngtcp2" ];
     uvwasi = [ "uvwasi" ];
     zstd = [ "libzstd" ];
   };
@@ -59,10 +60,7 @@ symlinkJoin (finalAttrs: {
       "--without-ffi"
       "--without-ssl"
     ]
-    ++ (lib.concatMap (sharedLibName: [
-      "--shared-${sharedLibName}"
-      "--shared-${sharedLibName}-libname="
-    ]) (builtins.attrNames sharedLibsToMock));
+    ++ map (sharedLibName: "--shared-${sharedLibName}") (builtins.attrNames sharedLibsToMock);
 
     tests.pkg-config = testers.hasPkgConfigModules {
       package = finalAttrs.finalPackage;

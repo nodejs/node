@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,11 +20,13 @@ int ossl_quic_obj_init(QUIC_OBJ *obj,
     QUIC_ENGINE *engine,
     QUIC_PORT *port)
 {
+    QUIC_OBJ *parent = (QUIC_OBJ *)parent_obj;
     int is_event_leader = (engine != NULL);
     int is_port_leader = (port != NULL);
 
     if (!ossl_assert(obj != NULL && !obj->init_done && SSL_TYPE_IS_QUIC(type)
-            && (parent_obj == NULL || IS_QUIC(parent_obj))))
+            && (parent_obj == NULL
+                || (IS_QUIC(parent_obj) && parent->init_done))))
         return 0;
 
     /* Event leader is always the root object. */
@@ -34,8 +36,9 @@ int ossl_quic_obj_init(QUIC_OBJ *obj,
     if (!ossl_ssl_init(&obj->ssl, ctx, ctx->method, type))
         goto err;
 
-    obj->domain_flags = ctx->domain_flags;
-    obj->parent_obj = (QUIC_OBJ *)parent_obj;
+    obj->domain_flags
+        = parent != NULL ? parent->domain_flags : ctx->domain_flags;
+    obj->parent_obj = parent;
     obj->is_event_leader = is_event_leader;
     obj->is_port_leader = is_port_leader;
     obj->engine = engine;
@@ -51,6 +54,21 @@ err:
     obj->is_event_leader = 0;
     obj->is_port_leader = 0;
     return 0;
+}
+
+void ossl_quic_obj_reparent(QUIC_OBJ *obj, QUIC_OBJ *parent)
+{
+    if (!ossl_assert(obj != NULL && obj->init_done
+            && parent != NULL && parent->init_done
+            && obj->is_event_leader && obj->is_port_leader
+            && obj->parent_obj == NULL))
+        return;
+
+    obj->parent_obj = parent;
+    obj->is_event_leader = 0;
+    obj->is_port_leader = 0;
+    obj->domain_flags = parent->domain_flags;
+    (void)obj_update_cache(obj);
 }
 
 static int obj_update_cache(QUIC_OBJ *obj)

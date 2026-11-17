@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,6 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include <stdio.h>
 #include <string.h>
 
 #include "apps.h"
@@ -39,7 +40,7 @@ const OPTIONS kdf_options[] = {
     { "digest", OPT_DIGEST, 's', "Digest" },
     { "mac", OPT_MAC, 's', "MAC" },
     { OPT_MORE_STR, 1, '-', "See 'Supported Controls' in the EVP_KDF_ docs\n" },
-    { "keylen", OPT_KEYLEN, 's', "The size of the output derived key" },
+    { "keylen", OPT_KEYLEN, 'p', "The size of the output derived key" },
 
     OPT_SECTION("Output"),
     { "out", OPT_OUT, '>', "Output to filename rather than stdout" },
@@ -65,7 +66,7 @@ static char *alloc_kdf_algorithm_name(STACK_OF(OPENSSL_STRING) **optp,
         return NULL;
 
     res = app_malloc(len, "algorithm name");
-    BIO_snprintf(res, len, "%s:%s", name, arg);
+    snprintf(res, len, "%s:%s", name, arg);
     if (sk_OPENSSL_STRING_push(*optp, res))
         return res;
     OPENSSL_free(res);
@@ -80,7 +81,7 @@ int kdf_main(int argc, char **argv)
     char *prog, *hexout = NULL;
     const char *outfile = NULL;
     unsigned char *dkm_bytes = NULL;
-    size_t dkm_len = 0;
+    int dkm_len = 0;
     BIO *out = NULL;
     EVP_KDF *kdf = NULL;
     EVP_KDF_CTX *ctx = NULL;
@@ -101,7 +102,7 @@ int kdf_main(int argc, char **argv)
             out_bin = 1;
             break;
         case OPT_KEYLEN:
-            dkm_len = (size_t)atoi(opt_arg());
+            dkm_len = opt_int_arg();
             break;
         case OPT_OUT:
             outfile = opt_arg();
@@ -162,7 +163,7 @@ int kdf_main(int argc, char **argv)
             goto err;
 
         if (!EVP_KDF_CTX_set_params(ctx, params)) {
-            BIO_printf(bio_err, "KDF parameter error\n");
+            BIO_puts(bio_err, "KDF parameter error\n");
             ERR_print_errors(bio_err);
             ok = 0;
         }
@@ -176,7 +177,7 @@ int kdf_main(int argc, char **argv)
         goto err;
 
     if (dkm_len <= 0) {
-        BIO_printf(bio_err, "Invalid derived key length.\n");
+        BIO_puts(bio_err, "Derived key length is mandatory!\n");
         goto err;
     }
     dkm_bytes = app_malloc(dkm_len, "out buffer");
@@ -184,7 +185,7 @@ int kdf_main(int argc, char **argv)
         goto err;
 
     if (!EVP_KDF_derive(ctx, dkm_bytes, dkm_len, NULL)) {
-        BIO_printf(bio_err, "EVP_KDF_derive failed\n");
+        BIO_puts(bio_err, "EVP_KDF_derive failed\n");
         goto err;
     }
 
@@ -193,7 +194,7 @@ int kdf_main(int argc, char **argv)
     } else {
         hexout = OPENSSL_buf2hexstr(dkm_bytes, dkm_len);
         if (hexout == NULL) {
-            BIO_printf(bio_err, "Memory allocation failure\n");
+            BIO_puts(bio_err, "Memory allocation failure\n");
             goto err;
         }
         BIO_printf(out, "%s\n\n", hexout);

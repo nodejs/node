@@ -376,6 +376,7 @@ const char *OSSL_CMP_CTX_get0_propq(const OSSL_CMP_CTX *ctx);
 #define OSSL_CMP_OPT_IGNORE_KEYUSAGE 35
 #define OSSL_CMP_OPT_PERMIT_TA_IN_EXTRACERTS_FOR_IR 36
 #define OSSL_CMP_OPT_NO_CACHE_EXTRACERTS 37
+#define OSSL_CMP_OPT_NONMATCHED_ERROR_NONCES 38
 int OSSL_CMP_CTX_set_option(OSSL_CMP_CTX *ctx, int opt, int val);
 int OSSL_CMP_CTX_get_option(const OSSL_CMP_CTX *ctx, int opt);
 /* CMP-specific callback for logging and outputting the error queue: */
@@ -509,8 +510,9 @@ OSSL_CMP_MSG *OSSL_CMP_CTX_server_perform(OSSL_CMP_CTX *client_ctx,
     const OSSL_CMP_MSG *req);
 OSSL_CMP_SRV_CTX *OSSL_CMP_SRV_CTX_new(OSSL_LIB_CTX *libctx, const char *propq);
 void OSSL_CMP_SRV_CTX_free(OSSL_CMP_SRV_CTX *srv_ctx);
-typedef OSSL_CMP_PKISI *(*OSSL_CMP_SRV_cert_request_cb_t)(OSSL_CMP_SRV_CTX *srv_ctx, const OSSL_CMP_MSG *req, int certReqId,
-    const OSSL_CRMF_MSG *crm, const X509_REQ *p10cr,
+typedef OSSL_CMP_PKISI *(*OSSL_CMP_SRV_cert_request_cb_t)(OSSL_CMP_SRV_CTX *srv_ctx,
+    const OSSL_CMP_MSG *req, int certReqId,
+    const OSSL_CRMF_MSG *crm, const X509_REQ *p10,
     X509 **certOut, STACK_OF(X509) **chainOut, STACK_OF(X509) **caPubs);
 typedef OSSL_CMP_PKISI *(*OSSL_CMP_SRV_rr_cb_t)(OSSL_CMP_SRV_CTX *srv_ctx,
     const OSSL_CMP_MSG *req,

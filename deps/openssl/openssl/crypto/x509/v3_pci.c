@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -48,6 +48,8 @@
 #include <openssl/conf.h>
 #include <openssl/x509v3.h>
 #include "ext_dat.h"
+
+#include <crypto/asn1.h>
 
 static int i2r_pci(X509V3_EXT_METHOD *method, PROXY_CERT_INFO_EXTENSION *ext,
     BIO *out, int indent);
@@ -164,6 +166,13 @@ static int process_pci_value(CONF_VALUE *val,
         } else if (CHECK_AND_SKIP_PREFIX(valp, "file:")) {
             unsigned char buf[2048];
             int n;
+
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+            /*
+             * Prevent fuzzer from mutating input to reading random files.
+             */
+            valp = NULL;
+#endif
             BIO *b = BIO_new_file(valp, "r");
             if (!b) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_BIO_LIB);
@@ -200,7 +209,7 @@ static int process_pci_value(CONF_VALUE *val,
                 goto err;
             }
         } else if (CHECK_AND_SKIP_PREFIX(valp, "text:")) {
-            val_len = strlen(valp);
+            val_len = (int)strlen(valp);
             tmp_data = OPENSSL_realloc((*policy)->data,
                 (*policy)->length + val_len + 1);
             if (tmp_data) {

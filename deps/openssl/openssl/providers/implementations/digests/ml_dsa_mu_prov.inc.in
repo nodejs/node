@@ -1,0 +1,25 @@
+/*
+ * Copyright 2025-2026 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+{- produce_param_decoder('ml_dsa_mu_get_ctx_params',
+    (['OSSL_DIGEST_PARAM_SIZE', 'size', 'uint'],
+    ['OSSL_DIGEST_PARAM_XOFLEN', 'xoflen', 'size_t'],
+    ['OSSL_DIGEST_PARAM_FIPS_APPROVED_INDICATOR', 'fips indicator', 'int'],
+    )); -}
+
+{- produce_param_decoder('ml_dsa_mu_set_ctx_params',
+    (['OSSL_DIGEST_PARAM_MU_CONTEXT_STRING', 'ctx', 'octet_string'],
+    ['OSSL_DIGEST_PARAM_MU_PROPERTIES', 'propq', 'utf8_string'],
+    ['OSSL_DIGEST_PARAM_MU_PUB_KEY', 'pubkey', 'octet_string'],
+    ['OSSL_DIGEST_PARAM_MU_DIGEST', 'digestname', 'utf8_string']
+    )); -}

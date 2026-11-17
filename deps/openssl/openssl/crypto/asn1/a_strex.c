@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,10 +11,14 @@
 #include <string.h>
 #include "internal/cryptlib.h"
 #include "internal/sizes.h"
+#include "internal/unicode.h"
+#include "internal/safe_math.h"
 #include "crypto/asn1.h"
+#include <openssl/byteorder.h>
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/asn1.h>
+#include <inttypes.h>
 
 #include "charmap.h"
 
@@ -27,6 +31,8 @@
 #define CHARTYPE_BS_ESC (ASN1_STRFLGS_ESC_2253 | CHARTYPE_FIRST_ESC_2253 | CHARTYPE_LAST_ESC_2253)
 
 #define ESC_FLAGS (ASN1_STRFLGS_ESC_2253 | ASN1_STRFLGS_ESC_2254 | ASN1_STRFLGS_ESC_QUOTE | ASN1_STRFLGS_ESC_CTRL | ASN1_STRFLGS_ESC_MSB)
+
+OSSL_SAFE_MATH_SIGNED(int, int)
 
 /*
  * Three IO functions for sending data to memory, a BIO and a FILE
@@ -56,27 +62,27 @@ typedef int char_io(void *arg, const void *buf, int len);
 
 /*
  * This function handles display of strings, one character at a time. It is
- * passed an unsigned long for each character because it could come from 2 or
+ * passed a uint32_t for each character because it could come from 2 or
  * even 4 byte forms.
  */
 
-static int do_esc_char(unsigned long c, unsigned short flags, char *do_quotes,
+static int do_esc_char(uint32_t c, unsigned short flags, char *do_quotes,
     char_io *io_ch, void *arg)
 {
     unsigned short chflgs;
     unsigned char chtmp;
     char tmphex[HEX_SIZE(long) + 3];
 
-    if (c > 0xffffffffL)
+    if (c > UNICODE_MAX)
         return -1;
     if (c > 0xffff) {
-        BIO_snprintf(tmphex, sizeof(tmphex), "\\W%08lX", c);
+        snprintf(tmphex, sizeof(tmphex), "\\W%08" PRIX32, c);
         if (!io_ch(arg, tmphex, 10))
             return -1;
         return 10;
     }
     if (c > 0xff) {
-        BIO_snprintf(tmphex, sizeof(tmphex), "\\U%04lX", c);
+        snprintf(tmphex, sizeof(tmphex), "\\U%04" PRIX32, c);
         if (!io_ch(arg, tmphex, 6))
             return -1;
         return 6;
@@ -102,7 +108,7 @@ static int do_esc_char(unsigned long c, unsigned short flags, char *do_quotes,
         return 2;
     }
     if (chflgs & (ASN1_STRFLGS_ESC_CTRL | ASN1_STRFLGS_ESC_MSB | ASN1_STRFLGS_ESC_2254)) {
-        BIO_snprintf(tmphex, 11, "\\%02X", chtmp);
+        snprintf(tmphex, 11, "\\%02X", chtmp);
         if (!io_ch(arg, tmphex, 3))
             return -1;
         return 3;
@@ -130,15 +136,19 @@ static int do_esc_char(unsigned long c, unsigned short flags, char *do_quotes,
  * appropriate.
  */
 
-static int do_buf(unsigned char *buf, int buflen,
+static int do_buf(const unsigned char *buf, int buflen,
     int type, unsigned short flags, char *quotes, char_io *io_ch,
     void *arg)
 {
     int i, outlen, len, charwidth;
     unsigned short orflags;
-    unsigned char *p, *q;
-    unsigned long c;
+    const unsigned char *p, *q;
+    uint32_t c;
 
+    if (buflen < 0)
+        return -1;
+    if (buflen == 0)
+        return 0;
     p = buf;
     q = buf + buflen;
     outlen = 0;
@@ -162,6 +172,8 @@ static int do_buf(unsigned char *buf, int buflen,
     }
 
     while (p != q) {
+        uint16_t tmp;
+
         if (p == buf && flags & ASN1_STRFLGS_ESC_2253)
             orflags = CHARTYPE_FIRST_ESC_2253;
         else
@@ -169,15 +181,12 @@ static int do_buf(unsigned char *buf, int buflen,
 
         switch (charwidth) {
         case 4:
-            c = ((unsigned long)*p++) << 24;
-            c |= ((unsigned long)*p++) << 16;
-            c |= ((unsigned long)*p++) << 8;
-            c |= *p++;
+            p = OPENSSL_load_u32_be(&c, p);
             break;
 
         case 2:
-            c = ((unsigned long)*p++) << 8;
-            c |= *p++;
+            p = OPENSSL_load_u16_be(&tmp, p);
+            c = tmp;
             break;
 
         case 1:
@@ -185,7 +194,7 @@ static int do_buf(unsigned char *buf, int buflen,
             break;
 
         case 0:
-            i = UTF8_getc(p, buflen, &c);
+            i = ossl_utf8_getc_internal(p, buflen, &c);
             if (i < 0)
                 return -1; /* Invalid UTF8String */
             buflen -= i;
@@ -198,7 +207,7 @@ static int do_buf(unsigned char *buf, int buflen,
             orflags = CHARTYPE_LAST_ESC_2253;
         if (type & BUF_TYPE_CONVUTF8) {
             unsigned char utfbuf[6];
-            int utflen = UTF8_putc(utfbuf, sizeof(utfbuf), c);
+            int utflen = ossl_utf8_putc_internal(utfbuf, sizeof(utfbuf), c);
 
             if (utflen < 0)
                 return -1; /* error happened with UTF8 */
@@ -234,6 +243,10 @@ static int do_hex_dump(char_io *io_ch, void *arg, unsigned char *buf,
     unsigned char *p, *q;
     char hextmp[2];
 
+    if (buflen < 0)
+        return -1;
+    if (buflen == 0)
+        return 0;
     if (arg) {
         p = buf;
         q = buf + buflen;
@@ -422,12 +435,13 @@ static int do_name_ex(char_io *io_ch, void *arg, const X509_NAME *n,
 {
     int i, prev = -1, orflags, cnt;
     int fn_opt, fn_nid;
-    ASN1_OBJECT *fn;
+    const ASN1_OBJECT *fn;
     const ASN1_STRING *val;
     const X509_NAME_ENTRY *ent;
     char objtmp[80];
     const char *objbuf;
     int outlen, len;
+    int err = 0;
     char *sep_dn, *sep_mv, *sep_eq;
     int sep_dn_len, sep_mv_len, sep_eq_len;
     if (indent < 0)
@@ -491,14 +505,20 @@ static int do_name_ex(char_io *io_ch, void *arg, const X509_NAME *n,
             if (prev == X509_NAME_ENTRY_set(ent)) {
                 if (!io_ch(arg, sep_mv, sep_mv_len))
                     return -1;
-                outlen += sep_mv_len;
+                outlen = safe_add_int(outlen, sep_mv_len, &err);
+                if (err != 0)
+                    return -1;
             } else {
                 if (!io_ch(arg, sep_dn, sep_dn_len))
                     return -1;
-                outlen += sep_dn_len;
+                outlen = safe_add_int(outlen, sep_dn_len, &err);
+                if (err != 0)
+                    return -1;
                 if (!do_indent(io_ch, arg, indent))
                     return -1;
-                outlen += indent;
+                outlen = safe_add_int(outlen, indent, &err);
+                if (err != 0)
+                    return -1;
             }
         }
         prev = X509_NAME_ENTRY_set(ent);
@@ -523,17 +543,24 @@ static int do_name_ex(char_io *io_ch, void *arg, const X509_NAME *n,
                     objbuf = "";
                 }
             }
-            objlen = strlen(objbuf);
+            objlen = (int)strlen(objbuf);
             if (!io_ch(arg, objbuf, objlen))
                 return -1;
             if ((objlen < fld_len) && (flags & XN_FLAG_FN_ALIGN)) {
                 if (!do_indent(io_ch, arg, fld_len - objlen))
                     return -1;
-                outlen += fld_len - objlen;
+                outlen = safe_add_int(outlen, fld_len - objlen, &err);
+                if (err != 0)
+                    return -1;
             }
             if (!io_ch(arg, sep_eq, sep_eq_len))
                 return -1;
-            outlen += objlen + sep_eq_len;
+            outlen = safe_add_int(outlen, objlen, &err);
+            if (err != 0)
+                return -1;
+            outlen = safe_add_int(outlen, sep_eq_len, &err);
+            if (err != 0)
+                return -1;
         }
         /*
          * If the field name is unknown then fix up the DER dump flag. We
@@ -548,7 +575,9 @@ static int do_name_ex(char_io *io_ch, void *arg, const X509_NAME *n,
         len = do_print_ex(io_ch, arg, flags | orflags, val);
         if (len < 0)
             return -1;
-        outlen += len;
+        outlen = safe_add_int(outlen, len, &err);
+        if (err != 0)
+            return -1;
     }
     return outlen;
 }
@@ -618,6 +647,7 @@ int ASN1_STRING_to_UTF8(unsigned char **out, const ASN1_STRING *in)
         B_ASN1_UTF8STRING);
     if (ret < 0)
         return ret;
+    /* ASN1_mbstring_copy() guarantees the data it produced is NUL terminated */
     *out = stmp.data;
     return stmp.length;
 }

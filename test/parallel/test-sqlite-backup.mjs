@@ -1,6 +1,7 @@
 // Flags: --expose-gc
 import {
   isWindows,
+  platformTimeout,
   skipIfSQLiteMissing,
   spawnPromisified,
 } from '../common/index.mjs';
@@ -48,8 +49,24 @@ describe('backup()', () => {
       backup();
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "sourceDb" argument must be an object.'
+      message: 'The "sourceDb" argument must be an instance of Database.'
     });
+  });
+
+  test('throws if the source is not an instance of Database', (t) => {
+    const database = makeSourceDb();
+    for (const source of [
+      {},
+      database.prepare('SELECT 1'),
+      database.createSession(),
+    ]) {
+      t.assert.throws(() => {
+        backup(source, 'out.db');
+      }, {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: 'The "sourceDb" argument must be an instance of Database.'
+      });
+    }
   });
 
   test('throws if path is not a string, URL, or Buffer', (t) => {
@@ -176,6 +193,20 @@ test('database backup', async (t) => {
     database.close();
     backupDb.close();
   });
+});
+
+test('backup treats undefined source and target as main', async (t) => {
+  const database = makeSourceDb();
+  const destDb = nextDb();
+
+  await backup(database, destDb, { source: undefined, target: undefined });
+
+  const backupDb = new Database(destDb);
+  t.after(() => {
+    database.close();
+    backupDb.close();
+  });
+  t.assert.strictEqual(backupDb.prepare('SELECT count(*) AS n FROM main.data').get().n, 2);
 });
 
 test('backup database using location as URL', async (t) => {
@@ -333,6 +364,32 @@ test('backup fails when path cannot be opened', async (t) => {
   }, {
     message: 'unable to open database file'
   });
+});
+
+test('backup waits for a write transaction on the source to end', async (t) => {
+  const database = makeSourceDb();
+  const destDb = nextDb();
+
+  t.after(() => { database.close(); });
+
+  database.exec('BEGIN IMMEDIATE');
+  database.exec("INSERT INTO data (key, value) VALUES (3, 'value-3')");
+  const p = backup(database, destDb);
+  setTimeout(() => database.exec('COMMIT'), platformTimeout(100));
+
+  await p;
+
+  const backupDb = new Database(destDb);
+
+  t.after(() => { backupDb.close(); });
+
+  const rows = backupDb.prepare('SELECT * FROM data').all();
+
+  t.assert.deepStrictEqual(rows, [
+    { __proto__: null, key: 1, value: 'value-1' },
+    { __proto__: null, key: 2, value: 'value-2' },
+    { __proto__: null, key: 3, value: 'value-3' },
+  ]);
 });
 
 test('backup has correct name and length', (t) => {

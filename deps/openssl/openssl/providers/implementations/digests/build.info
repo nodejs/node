@@ -14,6 +14,7 @@ $BLAKE2_GOAL=../../libdefault.a
 $SM3_GOAL=../../libdefault.a
 $MD5_GOAL=../../libdefault.a
 $NULL_GOAL=../../libdefault.a
+$ML_DSA_MU_GOAL=../../libdefault.a ../../libfips.a
 
 $MD2_GOAL=../../liblegacy.a
 $MD4_GOAL=../../liblegacy.a
@@ -25,11 +26,12 @@ ELSE
   $RIPEMD_GOAL=../../libdefault.a
 ENDIF
 
-# This source contains FIPS-provider-specific parameter handling.
+# This source contains a parameter decoder conditioned on FIPS_MODULE and
+# must be built separately for each provider.
 SOURCE[$DIGEST_COMMON_GOAL]=digestcommon.c
 
 SOURCE[$SHA2_GOAL]=sha2_prov.c
-SOURCE[$SHA3_GOAL]=sha3_prov.c
+SOURCE[$SHA3_GOAL]=sha3_prov.c cshake_prov.c
 
 SOURCE[$NULL_GOAL]=null_prov.c
 
@@ -63,4 +65,8 @@ ENDIF
 
 IF[{- !$disabled{rmd160} -}]
   SOURCE[$RIPEMD_GOAL]=ripemd_prov.c
+ENDIF
+
+IF[{- !$disabled{'ml-dsa'} -}]
+  SOURCE[$ML_DSA_MU_GOAL]=ml_dsa_mu_prov.c
 ENDIF

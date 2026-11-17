@@ -26,6 +26,7 @@ static int cipher_hw_rv64i_zvksed_sm4_initkey(PROV_CIPHER_CTX *ctx,
     SM4_KEY *ks = &sctx->ks.ks;
 
     ctx->ks = ks;
+
     if (ctx->enc
             || (ctx->mode != EVP_CIPH_ECB_MODE
                 && ctx->mode != EVP_CIPH_CBC_MODE)) {
@@ -36,6 +37,14 @@ static int cipher_hw_rv64i_zvksed_sm4_initkey(PROV_CIPHER_CTX *ctx,
         rv64i_zvksed_sm4_set_decrypt_key(key, ks);
         ctx->block = (block128_f) rv64i_zvksed_sm4_decrypt;
         ctx->stream.cbc = NULL;
+    }
+
+    if (ctx->mode == EVP_CIPH_CBC_MODE) {
+        if (ctx->enc) {
+            ctx->stream.cbc = (cbc128_f) rv64i_zvksed_sm4_cbc_encrypt;
+        } else {
+            ctx->stream.cbc = (cbc128_f) rv64i_zvksed_sm4_cbc_decrypt;
+        }
     }
 
     return 1;

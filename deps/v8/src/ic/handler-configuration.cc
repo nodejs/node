@@ -509,11 +509,6 @@ Handle<StoreHandler> StoreHandler::StoreInterceptorHolderIsReceiver(
 }
 
 // static
-MaybeObjectHandle StoreHandler::StoreGlobal(Handle<PropertyCell> cell) {
-  return MaybeObjectHandle::Weak(cell);
-}
-
-// static
 Handle<Object> StoreHandler::StoreProxy(Isolate* isolate,
                                         DirectHandle<Map> receiver_map,
                                         Handle<JSProxy> proxy,

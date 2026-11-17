@@ -959,6 +959,7 @@ void Map::clear_padding() {
 }
 
 void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
+  DCHECK(AllowJSObjectModification::IsAllowed(isolate));
   Tagged<DescriptorArray> descriptors = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
@@ -1258,9 +1259,12 @@ void Map::InobjectSlackTrackingStep(Isolate* isolate) {
   DCHECK(IsUndefined(GetBackPointer()));
   if (!this->IsInobjectSlackTrackingInProgress()) return;
   int counter = construction_counter();
-  set_construction_counter(counter - 1);
   if (counter == kSlackTrackingCounterEnd) {
+    // The last decrement must happen under the map_updater_access mutex,
+    // together with the instance size changes.
     MapUpdater::CompleteInobjectSlackTracking(isolate, this);
+  } else {
+    set_construction_counter(counter - 1);
   }
 }
 

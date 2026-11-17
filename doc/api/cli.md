@@ -194,7 +194,7 @@ directly through the process arguments.
 ### `--allow-env`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 1.1 - Active development
@@ -297,8 +297,10 @@ The valid arguments for the `--allow-fs-read` flag are:
 
 Examples can be found in the [File System Permissions][] documentation.
 
-The initializer module and custom `--require` modules has a implicit
-read permission.
+The initializer module and custom `--require` modules have an implicit
+read permission. The entrypoint is granted as passed on the command line,
+without the module loader's resolution; see the [File System Permissions][]
+documentation for details.
 
 ```console
 $ node --permission -r custom-require.js -r custom-require-2.js index.js
@@ -552,6 +554,25 @@ details.
 This flag cannot be combined with `--test`, `--watch`, `--watch-path`,
 `--check`, `--eval`, or `--interactive`.
 
+### `--bench-gc=mode`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Overrides the garbage collection mode for every selected benchmark. When `mode`
+is `'once'`, a full garbage collection runs before the first measured sample.
+When `mode` is `'sample'`, a full garbage collection runs before every measured
+sample. When `mode` is `'none'`, no garbage collection is forced. Without this
+option, each benchmark uses its own `gc` value, which defaults to `'none'`.
+
+Forcing garbage collection requires the `--expose-gc` flag. With process
+isolation, `--expose-gc` is added to benchmark child processes automatically
+when `mode` is `'once'` or `'sample'`. With `--bench-isolation=none`,
+`--expose-gc` must be passed explicitly.
+
 ### `--bench-isolation=mode`
 
 <!-- YAML
@@ -718,6 +739,10 @@ runtime, using either [`v8.startupSnapshot.setDeserializeMainFunction()`][] or
 an additional module during the snapshot building process is needed,
 please file a request in the [Node.js issue tracker][] and link to it in the
 [tracking issue for user-land snapshots][].
+
+During snapshot building, a debugger cannot be attached to the process.
+`--build-snapshot` cannot be used together with `--inspect`, `--inspect-brk` or
+`--inspect-wait`.
 
 ### `--build-snapshot-config`
 
@@ -1226,9 +1251,9 @@ priority than `--dns-result-order`.
 added: v6.0.0
 -->
 
-Enable [FIPS mode][] at startup. With OpenSSL 3, a configured provider named
-`fips` must be available and initialize successfully. With OpenSSL 1.1.1,
-Node.js must be built against a FIPS-capable OpenSSL.
+Enable [FIPS mode][] at startup by adding `fips=yes` to OpenSSL's default
+property query. This does not load or validate a FIPS provider or run its
+self-tests. Configure OpenSSL to load the provider separately.
 
 ### `--enable-fips-indicator-events`
 
@@ -1510,33 +1535,6 @@ added:
 
 Enable experimental support for inspector network resources.
 
-### `--experimental-loader=module`
-
-<!-- YAML
-added: v8.8.0
-changes:
-  - version:
-    - v23.6.1
-    - v22.13.1
-    - v20.18.2
-    pr-url: https://github.com/nodejs-private/node-private/pull/629
-    description: Using this feature with the permission model enabled requires
-                 passing `--allow-worker`.
-  - version: v12.11.1
-    pr-url: https://github.com/nodejs/node/pull/29752
-    description: This flag was renamed from `--loader` to
-                 `--experimental-loader`.
--->
-
-> This flag is discouraged and may be removed in a future version of Node.js.
-> Please use
-> [`--import` with `register()`][preloading asynchronous module customization hooks] instead.
-
-Specify the `module` containing exported [asynchronous module customization hooks][].
-`module` may be any string accepted as an [`import` specifier][].
-
-This feature requires `--allow-worker` if used with the [Permission Model][].
-
 ### `--experimental-network-inspection`
 
 <!-- YAML
@@ -1647,6 +1645,25 @@ added:
 
 Enable the experimental [`node:stream/iter`][] module.
 
+### `--experimental-strip-private-modules`
+
+<!-- YAML
+added: v27.0.0-alpha.0.0.0
+-->
+
+> Stability: 1 - Experimental
+
+By default, Node.js refuses to strip types from TypeScript files inside
+folders under a `node_modules` path. This flag enables type stripping for
+such files when they belong to a package whose `package.json` contains
+`"private": true`. Files belonging to non-private packages still throw
+[`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`][].
+The limitation to private packages should never be lifted,
+as publishing packages with TypeScript sources
+is highly discouraged.
+Stripping types inside `node_modules` is intended only
+for local development.
+
 ### `--experimental-test-coverage`
 
 <!-- YAML
@@ -1742,14 +1759,6 @@ changes:
 
 Enable experimental WebAssembly System Interface (WASI) support.
 
-### `--experimental-web-worker`
-
-<!-- YAML
-added: v26.9.0
--->
-
-Enable experimental support for the Web Worker API.
-
 ### `--experimental-worker-inspection`
 
 <!-- YAML
@@ -1783,7 +1792,8 @@ changes:
 -->
 
 Enable [FIPS mode][] at startup and prevent it from being disabled from script
-code. The same OpenSSL requirements as [`--enable-fips`][] apply.
+code. This changes the default property query as described for
+[`--enable-fips`][].
 
 An optional mode can be specified using `--force-fips=mode`:
 
@@ -2361,12 +2371,26 @@ Disable the experimental [`node:sqlite`][] module.
 <!-- YAML
 added: v26.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/66318
     description: VFS is unflagged but still experimental.
 -->
 
 Disable the experimental [`node:vfs`][] module and `--vfs-load`.
+
+### `--no-experimental-web-worker`
+
+<!-- YAML
+added: v26.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65323
+    description: This feature is now enabled by default.
+-->
+
+> Stability: 1.1 - Active Development
+
+Disable support for the Web Worker API.
 
 ### `--no-experimental-webstorage`
 
@@ -2513,8 +2537,7 @@ added: v6.9.0
 -->
 
 Load an OpenSSL configuration file on startup. The file can activate an
-OpenSSL 3 FIPS provider or configure a FIPS-capable OpenSSL 1.1.1 build. See
-[FIPS mode][].
+OpenSSL FIPS provider. See [FIPS mode][].
 
 This option takes precedence over the `OPENSSL_CONF` environment variable.
 
@@ -2526,7 +2549,7 @@ added:
   - v16.17.0
 -->
 
-Enable OpenSSL 3.0 legacy provider. For more information please see
+Enable OpenSSL's legacy provider. For more information please see
 [OSSL\_PROVIDER-legacy][OSSL_PROVIDER-legacy].
 
 ### `--openssl-shared-config`
@@ -3241,6 +3264,22 @@ added: v22.8.0
 
 Require a minimum percent of covered lines. If code coverage does not reach
 the threshold specified, the process will exit with code `1`.
+
+### `--test-forbid-only`
+
+<!-- YAML
+added: v27.0.0-alpha.0.0.0
+-->
+
+Fails the test run if a test or suite is declared with `only: true`, including
+the `test.only()`, `it.only()`, `suite.only()`, and `describe.only()` shorthands,
+or if `testContext.runOnly(true)` is called. This is useful in CI to prevent
+accidentally committing exclusive tests that exclude the rest of a test suite.
+
+This option applies with either test isolation mode and takes precedence over
+`--test-only`. Name filtering, TODO markers, and expected failures do not suppress
+detected violations. Only declarations evaluated during the run are checked;
+code inside a skipped test callback is not evaluated.
 
 ### `--test-force-exit`
 
@@ -3957,9 +3996,9 @@ comes from anywhere else, such as the real file system, needs nothing added.
 the command line's decision, and the environment must not be able to redirect
 it.
 
-A [single executable application][] built with `"vfsArchive"` mounts that
-archive at the mount point reserved for `--vfs-load`, so `--vfs-load` cannot be
-used in it.
+`--vfs-load` cannot be used in a [single executable application][]: its entry
+point is the `"main"` it was built with, and with `"useVfs"` its own virtual
+file system is mounted at the mount point reserved for `--vfs-load`.
 
 ```console
 $ node --vfs-load=app.zip
@@ -4047,10 +4086,6 @@ and is incompatible with `--run`, as `--run` takes precedence and ignores watch 
 ```bash
 node --watch-path=./src --watch-path=./tests index.js
 ```
-
-This option is only supported on macOS and Windows.
-An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` exception will be thrown
-when the option is used on a platform that does not support it.
 
 ### `--watch-preserve-output`
 
@@ -4246,6 +4281,7 @@ one is included in the list below.
 * `--allow-openssl-store`
 * `--allow-wasi`
 * `--allow-worker`
+* `--bench-gc`
 * `--bench-isolation`
 * `--bench-name-pattern`
 * `--bench-reporter-destination`
@@ -4277,7 +4313,6 @@ one is included in the list below.
 * `--experimental-import-meta-resolve`
 * `--experimental-import-text`
 * `--experimental-json-modules`
-* `--experimental-loader`
 * `--experimental-modules`
 * `--experimental-package-map`
 * `--experimental-print-required-tla`
@@ -4287,11 +4322,11 @@ one is included in the list below.
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-stream-iter`
+* `--experimental-strip-private-modules`
 * `--experimental-test-isolation`
 * `--experimental-top-level-await`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
-* `--experimental-web-worker`
 * `--experimental-websocket`
 * `--force-context-aware`
 * `--force-fips`
@@ -4324,6 +4359,7 @@ one is included in the list below.
 * `--no-experimental-sqlite`
 * `--no-experimental-strip-types`
 * `--no-experimental-vfs`
+* `--no-experimental-web-worker`
 * `--no-experimental-webstorage`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
@@ -4364,6 +4400,7 @@ one is included in the list below.
 * `--test-coverage-include-all`
 * `--test-coverage-include`
 * `--test-coverage-lines`
+* `--test-forbid-only`
 * `--test-global-setup`
 * `--test-isolation`
 * `--test-name-pattern`
@@ -4941,6 +4978,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
 [`ERR_RX_MEMORY_NOT_SUPPORTED`]: errors.md#err_rx_memory_not_supported
+[`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`]: errors.md#err_unsupported_node_modules_type_stripping
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`ERR_WEBASSEMBLY_NOT_SUPPORTED`]: errors.md#err_webassembly_not_supported
 [`NODE_OPTIONS`]: #node_optionsoptions
@@ -4958,7 +4996,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`import.meta.url`]: esm.md#importmetaurl
-[`import` specifier]: esm.md#import-specifiers
 [`inspector.open()`]: inspector.md#inspectoropenport-host-wait
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
@@ -4975,7 +5012,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
 [`vfs.mount()`]: vfs.md#vfsmount
-[asynchronous module customization hooks]: module.md#asynchronous-customization-hooks
 [benchmark runner]: bench.md#command-line-runner
 [captured by the built-in snapshot of Node.js]: https://github.com/nodejs/node/blob/b19525a33cc84033af4addd0f80acd4dc33ce0cf/test/parallel/test-bootstrap-modules.js#L24
 [collecting code coverage from tests]: test.md#collecting-code-coverage
@@ -4993,7 +5029,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [module compile cache]: module.md#module-compile-cache
-[preloading asynchronous module customization hooks]: module.md#registration-of-asynchronous-customization-hooks
 [randomizing tests execution order]: test.md#randomizing-tests-execution-order
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [running tests from the command line]: test.md#running-tests-from-the-command-line

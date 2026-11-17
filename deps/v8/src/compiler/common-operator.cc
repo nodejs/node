@@ -515,6 +515,32 @@ const ExitMachineGraphParameters& ExitMachineGraphParametersOf(
   return OpParameter<ExitMachineGraphParameters>(op);
 }
 
+#if V8_ENABLE_SANDBOX
+size_t hash_value(const LoadTrustedPointerParameters& params) {
+  return base::hash_combine(params.offset, params.tag);
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, LoadTrustedPointerParameters params) {
+  return os << "offset=" << params.offset << ", tag.first=" << params.tag.first
+            << ", tag.last=" << params.tag.last;
+}
+
+class LoadTrustedPointerOperator final
+    : public Operator1<LoadTrustedPointerParameters> {
+ public:
+  LoadTrustedPointerOperator(int offset, IndirectPointerTagRange tag)
+      : Operator1<LoadTrustedPointerParameters>(
+            IrOpcode::kLoadTrustedPointer, Operator::kEliminatable,
+            "LoadTrustedPointer", 1, 1, 1, 1, 1, 0, {offset, tag}) {}
+};
+
+const Operator* CommonOperatorBuilder::LoadTrustedPointer(
+    int offset, IndirectPointerTagRange tag) {
+  return zone_->New<LoadTrustedPointerOperator>(offset, tag);
+}
+#endif  // V8_ENABLE_SANDBOX
+
 #define COMMON_CACHED_OP_LIST(V)                          \
   V(Plug, Operator::kNoProperties, 0, 0, 0, 1, 0, 0)      \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)          \

@@ -233,7 +233,8 @@ If a `callback` function is provided, it is called with the arguments
 `error` will be an instance of [`Error`][]. The `error.code` property will be
 the exit code of the process. By convention, any exit code other than `0`
 indicates an error. `error.signal` will be the signal that terminated the
-process.
+process. `error.timedOut` will be `true` if the process was killed because
+the `timeout` option expired.
 
 The `stdout` and `stderr` arguments passed to the callback will contain the
 stdout and stderr output of the child process. By default, Node.js will decode
@@ -378,7 +379,7 @@ changes:
     normally be created on Windows systems. **Default:** `false`.
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
-  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
+  * `shell` {boolean|string} If `true`, runs `file` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell requirements][] and
     [Default Windows shell][]. **Default:** `false` (no shell).
@@ -400,7 +401,7 @@ efficient than [`child_process.exec()`][].
 > cancellation, externally propagated aborts, and timeouts. See
 > [DEP0209](deprecations.md#dep0209-using-abortsignal-to-dispose-of-resources).
 
-The same options as [`child_process.exec()`][] are supported. Since a shell is
+The same options as [`child_process.exec()`][] are supported. If a shell is
 not spawned, behaviors such as I/O redirection and file globbing are not
 supported.
 
@@ -1202,7 +1203,7 @@ changes:
     **Default:** `'buffer'`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
-  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
+  * `shell` {boolean|string} If `true`, runs `file` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell requirements][] and
     [Default Windows shell][]. **Default:** `false` (no shell).
@@ -2316,6 +2317,32 @@ subprocess.stdout.on('data', (data) => {
 The `subprocess.stdout` property can be `null` or `undefined`
 if the child process could not be successfully spawned.
 
+### `subprocess.timedOut`
+
+<!-- YAML
+added: v27.0.0-alpha.0.1.0
+-->
+
+* Type: {boolean} Set to `true` when the child process is killed because the
+  `timeout` option expired.
+
+The `subprocess.timedOut` property indicates whether the `timeout` option of
+[`child_process.spawn()`][], [`child_process.exec()`][],
+[`child_process.execFile()`][] or [`child_process.fork()`][] expired and the
+child process was sent the `killSignal` as a result. Like
+[`subprocess.killed`][], it does not indicate that the child process has
+terminated yet.
+
+```js
+const { spawn } = require('node:child_process');
+
+const subprocess = spawn('sleep', ['10'], { timeout: 100 });
+
+subprocess.on('exit', (code, signal) => {
+  console.log(subprocess.timedOut); // true
+});
+```
+
 ### `subprocess.unref()`
 
 <!-- YAML
@@ -2431,6 +2458,7 @@ or [`child_process.fork()`][].
 [`subprocess.disconnect()`]: #subprocessdisconnect
 [`subprocess.exitCode`]: #subprocessexitcode
 [`subprocess.kill()`]: #subprocesskillsignal
+[`subprocess.killed`]: #subprocesskilled
 [`subprocess.send()`]: #subprocesssendmessage-sendhandle-options-callback
 [`subprocess.signalCode`]: #subprocesssignalcode
 [`subprocess.stderr`]: #subprocessstderr

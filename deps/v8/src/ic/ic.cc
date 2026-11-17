@@ -1098,6 +1098,18 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
         TraceIC("LoadGlobalIC", lookup->name());
         return;
       }
+      // Own DATA properties above are accessed directly via PropertyCell on the
+      // JSGlobalObject and don't involve the JSGlobalProxy. For anything else
+      // (e.g. prototype accessors), the handler would substitute global_proxy
+      // as the receiver without performing an access check on it, and
+      // LookupIterator didn't fail an access check because JSGlobalObject
+      // belongs to the current (detached) native context while its global_proxy
+      // may have been rebound to a new cross-origin context.
+      if (Cast<JSGlobalObject>(*lookup->GetReceiver())->IsDetached()) {
+        SetCache(lookup->GetName(), LoadHandler::LoadSlow(isolate()));
+        TraceIC("LoadGlobalIC", lookup->GetName());
+        return;
+      }
     }
     handler = ComputeHandler(lookup);
     CHECK(lookup->state() == LookupIterator::STRING_LOOKUP_START_OBJECT ||
@@ -1760,17 +1772,6 @@ KeyedAccessLoadMode GetUpdatedLoadModeForMap(Isolate* isolate,
 Handle<Object> KeyedLoadIC::LoadElementHandler(
     DirectHandle<Map> receiver_map, KeyedAccessLoadMode new_load_mode,
     MaybeDirectHandle<Map> maybe_transition_target) {
-  // Has a getter interceptor, or is any has and has a query interceptor.
-  if (receiver_map->has_indexed_interceptor() &&
-      (receiver_map->GetIndexedInterceptor()->has_getter() ||
-       (IsAnyHas() && receiver_map->GetIndexedInterceptor()->has_query())) &&
-      !receiver_map->GetIndexedInterceptor()->non_masking()) {
-    // TODO(jgruber): Update counter name.
-    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedInterceptorStub);
-    return IsAnyHas() ? BUILTIN_CODE(isolate(), HasIndexedInterceptorIC)
-                      : BUILTIN_CODE(isolate(), LoadIndexedInterceptorIC);
-  }
-
   InstanceType instance_type = receiver_map->instance_type();
   if (instance_type < FIRST_NONSTRING_TYPE) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedStringDH);
@@ -1784,6 +1785,23 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(
   if (instance_type == JS_PROXY_TYPE) {
     return LoadHandler::LoadProxy(isolate());
   }
+  if (receiver_map->is_access_check_needed()) {
+    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_SlowStub);
+    return LoadHandler::LoadSlow(isolate());
+  }
+
+  // Has a getter interceptor, or is any has and has a query interceptor.
+  if (receiver_map->has_indexed_interceptor() &&
+      (receiver_map->GetIndexedInterceptor()->has_getter() ||
+       (IsAnyHas() && receiver_map->GetIndexedInterceptor()->has_query())) &&
+      !receiver_map->GetIndexedInterceptor()->non_masking()) {
+    DCHECK(!receiver_map->is_access_check_needed());
+    // TODO(jgruber): Update counter name.
+    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedInterceptorStub);
+    return IsAnyHas() ? BUILTIN_CODE(isolate(), HasIndexedInterceptorIC)
+                      : BUILTIN_CODE(isolate(), LoadIndexedInterceptorIC);
+  }
+
 #if V8_ENABLE_WEBASSEMBLY
   if (InstanceTypeChecker::IsWasmObject(instance_type)) {
     // TODO(jgruber): Update counter name.
@@ -2410,6 +2428,16 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, DirectHandle<Object> value,
         TraceIC("StoreGlobalIC", lookup->GetName());
         return;
       }
+      // See comment in LoadIC::UpdateCaches: own DATA properties above use
+      // PropertyCell on the JSGlobalObject directly, whereas other handlers
+      // (e.g. prototype accessors) substitute global_proxy as the receiver,
+      // which may have been rebound to a cross-origin context upon detachment.
+      if (Cast<JSGlobalObject>(*lookup->GetReceiver())->IsDetached()) {
+        set_slow_stub_reason("detached global object");
+        SetCache(lookup->GetName(), StoreHandler::StoreSlow(isolate()));
+        TraceIC("StoreGlobalIC", lookup->GetName());
+        return;
+      }
     }
     handler = ComputeHandler(lookup);
   } else {
@@ -2430,16 +2458,6 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       if (IsJSGlobalObject(*store_target)) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransitionDH);
 
-        if (IsJSGlobalObject(*lookup_start_object_map())) {
-          DCHECK(IsStoreGlobalIC());
-#ifdef DEBUG
-          DirectHandle<JSObject> holder = lookup->GetHolder<JSObject>();
-          DCHECK_EQ(*lookup->GetReceiver(), *holder);
-          DCHECK_EQ(*store_target, *holder);
-#endif
-          return StoreHandler::StoreGlobal(
-              indirect_handle(lookup->transition_cell(), isolate()));
-        }
         if (IsDefineKeyedOwnIC()) {
           // Private field can't be deleted from this global object and can't
           // be overwritten, so install slow handler in order to make store IC
@@ -2656,9 +2674,19 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       }
       if (lookup->is_dictionary_holder()) {
         if (IsJSGlobalObject(*holder)) {
+          DCHECK(!IsStoreGlobalIC());
+          DCHECK(IsJSGlobalProxy(*receiver));
+          if (IsAnyDefineOwn()) {
+            TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+            return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+          }
           TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalDH);
-          return MaybeObjectHandle(StoreHandler::StoreGlobal(
-              indirect_handle(lookup->GetPropertyCell(), isolate())));
+          DirectHandle<Smi> smi_handler =
+              StoreHandler::StoreGlobalProxy(isolate());
+          Handle<Object> handler = StoreHandler::StoreThroughPrototype(
+              isolate(), lookup_start_object_map(), holder, *smi_handler,
+              MaybeObjectDirectHandle::Weak(lookup->GetPropertyCell()));
+          return MaybeObjectHandle(handler);
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormalDH);
         DCHECK(holder.is_identical_to(receiver));
@@ -2870,7 +2898,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 Handle<Object> KeyedStoreIC::StoreElementHandler(
     DirectHandle<Map> receiver_map, KeyedAccessStoreMode store_mode,
     MaybeDirectHandle<UnionOf<Smi, Cell>> prev_validity_cell) {
-  if (!IsJSObjectMap(*receiver_map)) {
+  if (!IsJSObjectMap(*receiver_map) || receiver_map->is_access_check_needed() ||
+      receiver_map->IsMapInArrayPrototypeChain(isolate())) {
     // DefineKeyedOwnIC, which is used to define computed fields in instances,
     // should handled by the slow stub below instead of the proxy stub.
     if (IsJSProxyMap(*receiver_map) && !IsDefineKeyedOwnIC()) {

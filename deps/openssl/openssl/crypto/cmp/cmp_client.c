@@ -9,16 +9,10 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "cmp_local.h"
-#include "internal/cryptlib.h"
+#include <stdio.h>
 
-/* explicit #includes not strictly needed since implied by the above: */
-#include <openssl/bio.h>
-#include <openssl/cmp.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/x509v3.h>
-#include <openssl/cmp_util.h>
+#include "cmp_local.h"
+#include <inttypes.h>
 
 #define IS_CREP(t) ((t) == OSSL_CMP_PKIBODY_IP || (t) == OSSL_CMP_PKIBODY_CP \
     || (t) == OSSL_CMP_PKIBODY_KUP)
@@ -239,7 +233,7 @@ static int send_receive_check(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *req,
                 != NULL)
             ERR_add_error_data(1, buf);
         if (emc->errorCode != NULL
-            && BIO_snprintf(buf, sizeof(buf), "; errorCode: %08lX",
+            && snprintf(buf, sizeof(buf), "; errorCode: %08lX",
                    ASN1_INTEGER_get(emc->errorCode))
                 > 0)
             ERR_add_error_data(1, buf);
@@ -318,7 +312,7 @@ static int poll_for_response(OSSL_CMP_CTX *ctx, int sleep, int rid,
             }
             if (check_after < 0 || (uint64_t)check_after > (sleep ? ULONG_MAX / 1000 : INT_MAX)) {
                 ERR_raise(ERR_LIB_CMP, CMP_R_CHECKAFTER_OUT_OF_RANGE);
-                if (BIO_snprintf(str, OSSL_CMP_PKISI_BUFLEN, "value = %jd",
+                if (snprintf(str, OSSL_CMP_PKISI_BUFLEN, "value = %" PRId64,
                         check_after)
                     >= 0)
                     ERR_add_error_data(1, str);
@@ -326,18 +320,21 @@ static int poll_for_response(OSSL_CMP_CTX *ctx, int sleep, int rid,
             }
 
             if (pollRep->reason == NULL
-                || (len = BIO_snprintf(str, OSSL_CMP_PKISI_BUFLEN,
+                || (len = snprintf(str, OSSL_CMP_PKISI_BUFLEN,
                         " with reason = '"))
-                    < 0) {
+                    < 0
+                || (size_t)len >= OSSL_CMP_PKISI_BUFLEN) {
                 *str = '\0';
             } else {
                 char *text = ossl_sk_ASN1_UTF8STRING2text(pollRep->reason, ", ",
                     sizeof(str) - len - 2);
+                int n;
 
                 if (text == NULL
-                    || BIO_snprintf(str + len, sizeof(str) - len,
-                           "%s'", text)
-                        < 0)
+                    || (n = snprintf(str + len, sizeof(str) - len,
+                            "%s'", text))
+                        < 0
+                    || (size_t)n >= sizeof(str) - len)
                     *str = '\0';
                 OPENSSL_free(text);
             }

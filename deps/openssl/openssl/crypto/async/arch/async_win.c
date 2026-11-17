@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,7 +12,7 @@
 
 #ifdef ASYNC_WIN
 
-#include <windows.h>
+#include "internal/e_os.h"
 #include "internal/cryptlib.h"
 
 int ASYNC_is_capable(void)

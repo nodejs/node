@@ -1,11 +1,14 @@
 /*
- * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_CRYPTO_CONTEXT_H)
+#define OSSL_CRYPTO_CONTEXT_H
 
 #include <openssl/core.h>
 
@@ -23,7 +26,7 @@ void *ossl_self_test_set_callback_new(OSSL_LIB_CTX *);
 void *ossl_indicator_set_callback_new(OSSL_LIB_CTX *);
 void *ossl_rand_crng_ctx_new(OSSL_LIB_CTX *);
 int ossl_thread_register_fips(OSSL_LIB_CTX *);
-void *ossl_thread_event_ctx_new(OSSL_LIB_CTX *);
+int ossl_thread_event_ctx_new(OSSL_LIB_CTX *);
 void *ossl_fips_prov_ossl_ctx_new(OSSL_LIB_CTX *);
 #if defined(OPENSSL_THREADS)
 void *ossl_threads_ctx_new(OSSL_LIB_CTX *);
@@ -42,9 +45,11 @@ void ossl_prov_drbg_nonce_ctx_free(void *);
 void ossl_indicator_set_callback_free(void *cb);
 void ossl_self_test_set_callback_free(void *);
 void ossl_rand_crng_ctx_free(void *);
-void ossl_thread_event_ctx_free(void *);
+void ossl_thread_event_ctx_free(OSSL_LIB_CTX *);
 void ossl_fips_prov_ossl_ctx_free(void *);
 void ossl_release_default_drbg_ctx(void);
 #if defined(OPENSSL_THREADS)
 void ossl_threads_ctx_free(void *);
 #endif
+
+#endif /* !defined(OSSL_CRYPTO_CONTEXT_H) */

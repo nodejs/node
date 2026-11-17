@@ -1,11 +1,14 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_SHA_SHA_LOCAL_H)
+#define OSSL_LIBCRYPTO_SHA_SHA_LOCAL_H
 
 #include <stdlib.h>
 #include <string.h>
@@ -34,7 +37,8 @@
         (void)HOST_l2c(ll, (s)); \
     } while (0)
 
-#define HASH_UPDATE SHA1_Update
+#define HASH_UPDATE_THUNK
+#define HASH_UPDATE SHA1_Update_thunk
 #define HASH_TRANSFORM SHA1_Transform
 #define HASH_FINAL SHA1_Final
 #define HASH_INIT SHA1_Init
@@ -48,7 +52,15 @@ static void sha1_block_data_order(SHA_CTX *c, const void *p, size_t num);
 void sha1_block_data_order(SHA_CTX *c, const void *p, size_t num);
 #endif
 
-#include "crypto/md32_common.h"
+/* clang-format off */
+#include "crypto/md32_common.inc"
+/* clang-format on */
+#undef HASH_UPDATE_THUNK
+
+int SHA1_Update(SHA_CTX *c, const void *data, size_t len)
+{
+    return SHA1_Update_thunk((void *)c, (const unsigned char *)data, len);
+}
 
 #define INIT_DATA_h0 0x67452301UL
 #define INIT_DATA_h1 0xefcdab89UL
@@ -431,3 +443,5 @@ static void HASH_BLOCK_DATA_ORDER(SHA_CTX *c, const void *p, size_t num)
 #endif
 
 #endif
+
+#endif /* !defined(OSSL_LIBCRYPTO_SHA_SHA_LOCAL_H) */

@@ -634,19 +634,22 @@ Maybe<FFIArgumentCategory> ToFFIArgument(Environment* env,
 
     *static_cast<uint16_t*>(ret) = static_cast<uint16_t>(value);
   } else if (type == &ffi_type_sint32) {
-    if (!arg->IsInt32()) {
+    int64_t value;
+    if (!GetValidatedSignedInt(env, arg, INT32_MIN, INT32_MAX, "int32")
+             .To(&value)) {
       THROW_ERR_INVALID_ARG_VALUE(env, "Argument %u must be an int32", index);
       return {};
     }
 
-    *static_cast<int32_t*>(ret) = arg->Int32Value(context).FromJust();
+    *static_cast<int32_t*>(ret) = static_cast<int32_t>(value);
   } else if (type == &ffi_type_uint32) {
-    if (!arg->IsUint32()) {
+    uint64_t value;
+    if (!GetValidatedUnsignedInt(env, arg, UINT32_MAX, "uint32").To(&value)) {
       THROW_ERR_INVALID_ARG_VALUE(env, "Argument %u must be a uint32", index);
       return {};
     }
 
-    *static_cast<uint32_t*>(ret) = arg->Uint32Value(context).FromJust();
+    *static_cast<uint32_t*>(ret) = static_cast<uint32_t>(value);
   } else if (type == &ffi_type_sint64) {
     if (arg->IsBigInt()) {
       bool lossless;

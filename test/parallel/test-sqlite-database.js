@@ -279,6 +279,24 @@ suite('Database() constructor', () => {
     );
   });
 
+  for (const option of [
+    'readBigInts',
+    'returnArrays',
+    'allowBareNamedParameters',
+    'allowUnknownNamedParameters',
+  ]) {
+    test(`propagates an error thrown by the options.${option} getter`, (t) => {
+      const dbPath = nextDb();
+      const error = new Error('boom');
+      t.assert.throws(() => {
+        new Database(dbPath, {
+          get [option]() { throw error; },
+        });
+      }, error);
+      t.assert.strictEqual(existsSync(dbPath), false);
+    });
+  }
+
   test('has sqlite-type symbol property', (t) => {
     const dbPath = nextDb();
     using db = new Database(dbPath);

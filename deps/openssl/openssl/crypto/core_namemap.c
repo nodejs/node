@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,11 +12,13 @@
 #include "internal/hashtable.h"
 #include "internal/sizes.h"
 #include "crypto/context.h"
+#include "crypto/evp.h"
 
 #define NAMEMAP_HT_BUCKETS 512
 
+#define NAMEMAP_NAME_LEN 64
 HT_START_KEY_DEFN(namenum_key)
-HT_DEF_KEY_FIELD_CHAR_ARRAY(name, 64)
+HT_DEF_KEY_FIELD_CHAR_ARRAY(name, NAMEMAP_NAME_LEN)
 HT_END_KEY_DEFN(NAMENUM_KEY)
 
 /*-
@@ -139,28 +141,9 @@ int ossl_namemap_doall_names(const OSSL_NAMEMAP *namemap, int number,
 
 int ossl_namemap_name2num(const OSSL_NAMEMAP *namemap, const char *name)
 {
-    int number = 0;
-    HT_VALUE *val;
-    NAMENUM_KEY key;
-
-#ifndef FIPS_MODULE
-    if (namemap == NULL)
-        namemap = ossl_namemap_stored(NULL);
-#endif
-
-    if (namemap == NULL)
+    if (name == NULL)
         return 0;
-
-    HT_INIT_KEY(&key);
-    HT_SET_KEY_STRING_CASE(&key, name, name);
-
-    val = ossl_ht_get(namemap->namenum_ht, TO_HT_KEY(&key));
-
-    if (val != NULL)
-        /* We store a (small) int directly instead of a pointer to it. */
-        number = (int)(intptr_t)val->value;
-
-    return number;
+    return ossl_namemap_name2num_n(namemap, name, strlen(name));
 }
 
 int ossl_namemap_name2num_n(const OSSL_NAMEMAP *namemap,
@@ -178,8 +161,11 @@ int ossl_namemap_name2num_n(const OSSL_NAMEMAP *namemap,
     if (namemap == NULL)
         return 0;
 
-    HT_INIT_KEY(&key);
-    HT_SET_KEY_STRING_CASE_N(&key, name, name, name_len);
+    if (name_len > NAMEMAP_NAME_LEN)
+        name_len = NAMEMAP_NAME_LEN;
+
+    HT_INIT_RAW_KEY(&key);
+    HT_COPY_RAW_KEY_CASE(TO_HT_KEY(&key), name, name_len);
 
     val = ossl_ht_get(namemap->namenum_ht, TO_HT_KEY(&key));
 
@@ -191,7 +177,7 @@ int ossl_namemap_name2num_n(const OSSL_NAMEMAP *namemap,
 }
 
 const char *ossl_namemap_num2name(const OSSL_NAMEMAP *namemap, int number,
-    size_t idx)
+    int idx)
 {
     NAMES *names;
     const char *ret = NULL;
@@ -270,15 +256,17 @@ static int namemap_add_name(OSSL_NAMEMAP *namemap, int number,
     /* Using tsan_store alone here is safe since we're under lock */
     tsan_store(&namemap->max_number, number);
 
-    HT_INIT_KEY(&key);
-    HT_SET_KEY_STRING_CASE(&key, name, name);
+    HT_INIT_RAW_KEY(&key);
+    HT_COPY_RAW_KEY_CASE(TO_HT_KEY(&key), name, strlen(name));
+
     val.value = (void *)(intptr_t)number;
     ret = ossl_ht_insert(namemap->namenum_ht, TO_HT_KEY(&key), &val, NULL);
-    if (!ossl_assert(ret != 0)) /* cannot happen as we are under write lock */
-        return 0;
-    if (ret < 1) {
-        /* unable to insert due to too many collisions */
-        ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_TOO_MANY_NAMES);
+    if (ret <= 0) {
+        /*
+         * We either got an allocation failure (INTERNAL_ERROR), or
+         * hit too many conflicts in the table (TOO_MANY_NAMES)
+         */
+        ERR_raise(ERR_LIB_CRYPTO, (ret < 0) ? CRYPTO_R_TOO_MANY_NAMES : ERR_R_INTERNAL_ERROR);
         return 0;
     }
     return number;
@@ -429,16 +417,17 @@ static void get_legacy_md_names(const OBJ_NAME *on, void *arg)
     const EVP_MD *md = (void *)OBJ_NAME_get(on->name, on->type);
 
     if (md != NULL)
-        get_legacy_evp_names(0, EVP_MD_get_type(md), NULL, arg);
+        get_legacy_evp_names(NID_undef, EVP_MD_get_type(md), NULL, arg);
 }
 
+#ifndef OPENSSL_NO_DEPRECATED_3_6
 static void get_legacy_pkey_meth_names(const EVP_PKEY_ASN1_METHOD *ameth,
     void *arg)
 {
     int nid = 0, base_nid = 0, flags = 0;
     const char *pem_name = NULL;
 
-    EVP_PKEY_asn1_get0_info(&nid, &base_nid, &flags, NULL, &pem_name, ameth);
+    evp_pkey_asn1_get0_info(&nid, &base_nid, &flags, NULL, &pem_name, ameth);
     if (nid != NID_undef) {
         if ((flags & ASN1_PKEY_ALIAS) == 0) {
             switch (nid) {
@@ -470,6 +459,7 @@ static void get_legacy_pkey_meth_names(const EVP_PKEY_ASN1_METHOD *ameth,
         }
     }
 }
+#endif /* OPENSSL_NO_DEPRECATED_3_6 */
 #endif
 
 /*-
@@ -497,7 +487,7 @@ OSSL_NAMEMAP *ossl_namemap_stored(OSSL_LIB_CTX *libctx)
         return NULL;
     }
     if (nms == 1) {
-        int i, end;
+        int num;
 
         /* Before pilfering, we make sure the legacy database is populated */
         OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
@@ -509,9 +499,26 @@ OSSL_NAMEMAP *ossl_namemap_stored(OSSL_LIB_CTX *libctx)
         OBJ_NAME_do_all(OBJ_NAME_TYPE_MD_METH,
             get_legacy_md_names, namemap);
 
-        /* We also pilfer data from the legacy EVP_PKEY_ASN1_METHODs */
-        for (i = 0, end = EVP_PKEY_asn1_get_count(); i < end; i++)
-            get_legacy_pkey_meth_names(EVP_PKEY_asn1_get0(i), namemap);
+        /*
+         * Some old providers (<= 3.5) may not have the rsassaPSS alias which
+         * may cause problems in some cases. We add it manually here
+         */
+        num = ossl_namemap_add_name(namemap, 0, "RSA-PSS");
+        if (num != 0) {
+            ossl_namemap_add_name(namemap, num, "rsassaPss");
+            /* Add other RSA-PSS aliases as well */
+            ossl_namemap_add_name(namemap, num, "RSASSA-PSS");
+            ossl_namemap_add_name(namemap, num, "1.2.840.113549.1.1.10");
+        }
+#ifndef OPENSSL_NO_DEPRECATED_3_6
+        {
+            int i, end;
+
+            /* We also pilfer data from the legacy EVP_PKEY_ASN1_METHODs */
+            for (i = 0, end = evp_pkey_asn1_get_count(); i < end; i++)
+                get_legacy_pkey_meth_names(evp_pkey_asn1_get0(i), namemap);
+        }
+#endif
     }
 #endif
 
@@ -521,7 +528,7 @@ OSSL_NAMEMAP *ossl_namemap_stored(OSSL_LIB_CTX *libctx)
 OSSL_NAMEMAP *ossl_namemap_new(OSSL_LIB_CTX *libctx)
 {
     OSSL_NAMEMAP *namemap;
-    HT_CONFIG htconf = { NULL, NULL, NULL, NAMEMAP_HT_BUCKETS, 1, 1 };
+    HT_CONFIG htconf = { NULL, NULL, NULL, NAMEMAP_HT_BUCKETS, 1, 1, 0 };
 
     htconf.ctx = libctx;
 

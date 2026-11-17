@@ -15,8 +15,11 @@
 #include <openssl/asn1.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+#include <openssl/x509_vfy.h>
 #include <openssl/conf.h>
 #include "crypto/types.h"
+
+#include <crypto/asn1.h>
 
 /* Internal X509 structures and functions: not for application use */
 
@@ -217,11 +220,12 @@ struct x509_store_ctx_st { /* X509_STORE_CTX */
     X509_STORE *store;
     /* The following are set by the caller */
     /* The cert to check */
-    X509 *cert;
+    X509 *cert; /* XXX should really be made const */
     /* chain of X509s - untrusted - passed in */
     STACK_OF(X509) *untrusted;
     /* set of CRLs passed in */
     STACK_OF(X509_CRL) *crls;
+    STACK_OF(OCSP_RESPONSE) *ocsp_resp;
     X509_VERIFY_PARAM *param;
     /* Other info for use with get_issuer() */
     void *other_ctx;
@@ -231,9 +235,9 @@ struct x509_store_ctx_st { /* X509_STORE_CTX */
     /* error callback */
     int (*verify_cb)(int ok, X509_STORE_CTX *ctx);
     /* get issuers cert from ctx */
-    int (*get_issuer)(X509 **issuer, X509_STORE_CTX *ctx, X509 *x);
+    X509_STORE_CTX_get_issuer_fn get_issuer;
     /* check issued */
-    int (*check_issued)(X509_STORE_CTX *ctx, X509 *x, X509 *issuer);
+    X509_STORE_CTX_check_issued_fn check_issued;
     /* Check revocation status of chain */
     int (*check_revocation)(X509_STORE_CTX *ctx);
     /* retrieve CRL */
@@ -244,7 +248,7 @@ struct x509_store_ctx_st { /* X509_STORE_CTX */
     int (*cert_crl)(X509_STORE_CTX *ctx, X509_CRL *crl, X509 *x);
     /* Check policy status of the chain */
     int (*check_policy)(X509_STORE_CTX *ctx);
-    STACK_OF(X509) *(*lookup_certs)(X509_STORE_CTX *ctx,
+    STACK_OF(X509) *(*lookup_certs)(const X509_STORE_CTX *ctx,
         const X509_NAME *nm);
     /* cannot constify 'ctx' param due to lookup_certs_sk() in x509_vfy.c */
     STACK_OF(X509_CRL) *(*lookup_crls)(const X509_STORE_CTX *ctx,
@@ -264,7 +268,7 @@ struct x509_store_ctx_st { /* X509_STORE_CTX */
     /* When something goes wrong, this is why */
     int error_depth;
     int error;
-    X509 *current_cert;
+    X509 *current_cert; /* XXX should really be made const */
     /* cert currently being tested as valid issuer */
     X509 *current_issuer;
     /* current CRL */
@@ -312,11 +316,12 @@ struct x509_object_st {
 
 int ossl_a2i_ipadd(unsigned char *ipout, const char *ipasc);
 int ossl_x509_set1_time(int *modified, ASN1_TIME **ptm, const ASN1_TIME *tm);
-int ossl_x509_print_ex_brief(BIO *bio, X509 *cert, unsigned long neg_cflags);
-int ossl_x509v3_cache_extensions(X509 *x);
+int ossl_x509_print_ex_brief(BIO *bio, const X509 *cert, unsigned long neg_cflags);
+int ossl_x509v3_cache_extensions(const X509 *x);
+int ossl_x509_init_sig_info(const X509 *x, X509_SIG_INFO *info);
+
 X509_NAME *ossl_dist_point_name_full(const struct DIST_POINT_NAME_st *dpn,
     const X509_NAME *iname);
-int ossl_x509_init_sig_info(X509 *x);
 
 int ossl_x509_set0_libctx(X509 *x, OSSL_LIB_CTX *libctx, const char *propq);
 int ossl_x509_crl_set0_libctx(X509_CRL *x, OSSL_LIB_CTX *libctx,
@@ -326,11 +331,12 @@ int ossl_x509_req_set0_libctx(X509_REQ *x, OSSL_LIB_CTX *libctx,
 int ossl_asn1_item_digest_ex(const ASN1_ITEM *it, const EVP_MD *type,
     void *data, unsigned char *md, unsigned int *len,
     OSSL_LIB_CTX *libctx, const char *propq);
-int ossl_x509_add_cert_new(STACK_OF(X509) **sk, X509 *cert, int flags);
-int ossl_x509_add_certs_new(STACK_OF(X509) **p_sk, STACK_OF(X509) *certs,
-    int flags);
+int ossl_x509_add_cert_new(STACK_OF(X509) **sk, const X509 *cert, int flags);
+int ossl_x509_add_certs_new(STACK_OF(X509) **p_sk, const STACK_OF(X509) *certs, int flags);
 
 STACK_OF(X509_ATTRIBUTE) *ossl_x509at_dup(const STACK_OF(X509_ATTRIBUTE) *x);
+STACK_OF(X509_EXTENSION) *
+ossl_x509_req_get1_extensions_by_nid(const X509_REQ *req, int nid);
 
 int ossl_x509_PUBKEY_get0_libctx(OSSL_LIB_CTX **plibctx, const char **ppropq,
     const X509_PUBKEY *key);
@@ -399,5 +405,16 @@ int ossl_print_attribute_value(BIO *out,
 
 int ossl_serial_number_print(BIO *out, const ASN1_INTEGER *bs, int indent);
 int ossl_bio_print_hex(BIO *out, unsigned char *buf, int len);
+int ossl_x509_compare_asn1_time(const X509_VERIFY_PARAM *vpm,
+    const ASN1_TIME *time, int *comparison);
+/* No error callback if depth < 0 */
+int ossl_x509_check_cert_time(X509_STORE_CTX *ctx, X509 *x, int depth);
+int ossl_x509_check_crl_time(X509_STORE_CTX *ctx, X509_CRL *crl, int notify);
+int ossl_posix_to_asn1_time(int64_t posix_time, ASN1_TIME **out_time);
+void ossl_x509_verify_param_set_time_posix(X509_VERIFY_PARAM *param, int64_t t);
+int ossl_x509_check_host(const X509 *x, const char *chk, size_t chklen,
+    unsigned int flags, char **peername);
+int ossl_x509_check_ip(const X509 *x, const unsigned char *chk, size_t chklen,
+    unsigned int flags);
 
 #endif /* OSSL_CRYPTO_X509_H */

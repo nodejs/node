@@ -1,5 +1,6 @@
 'use strict'
 
+const { AsyncResource } = require('node:async_hooks')
 const { PoolStats } = require('../util/stats.js')
 const DispatcherBase = require('./dispatcher-base')
 const FixedQueue = require('./fixed-queue')
@@ -26,6 +27,22 @@ const kRetiring = Symbol('retiring clients')
 // Closes every live client, including clients that have been
 // taken out of rotation but are still finishing their own
 // requests.
+// Requests that wait in the Pool queue are dispatched later from whichever
+// callback drains the queue (another request's connect, drain, ...). Capture
+// the caller's async context so Client#dispatch, and the diagnostics channel
+// events it publishes, still run in it.
+class QueuedRequest extends AsyncResource {
+  constructor (opts, handler) {
+    super('UNDICI_POOL_QUEUED_REQUEST')
+    this.opts = opts
+    this.handler = handler
+  }
+
+  dispatch (dispatcher) {
+    return this.runInAsyncScope(dispatcher.dispatch, dispatcher, this.opts, this.handler)
+  }
+}
+
 function closeClients (pool) {
   const closeAll = []
   for (let i = 0; i < pool[kClients].length; i++) {
@@ -69,7 +86,7 @@ class PoolBase extends DispatcherBase {
         break
       }
       this[kQueued]--
-      needDrain = !client.dispatch(item.opts, item.handler)
+      needDrain = !item.dispatch(client)
     }
 
     client[kNeedDrain] = needDrain
@@ -114,7 +131,7 @@ class PoolBase extends DispatcherBase {
       const item = queue.shift()
       this[kQueued]--
 
-      if (!dispatcher.dispatch(item.opts, item.handler)) {
+      if (!item.dispatch(dispatcher)) {
         dispatcher[kNeedDrain] = true
         this[kOnClientBusy](dispatcher)
         hasDispatcher = this[kHasDispatcher]()
@@ -228,7 +245,7 @@ class PoolBase extends DispatcherBase {
 
     if (!dispatcher) {
       this[kNeedDrain] = true
-      this[kQueue].push({ opts, handler })
+      this[kQueue].push(new QueuedRequest(opts, handler))
       this[kQueued]++
     } else if (!dispatcher.dispatch(opts, handler)) {
       dispatcher[kNeedDrain] = true

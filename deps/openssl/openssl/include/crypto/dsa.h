@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,6 +25,7 @@
 #define DSA_PARAMGEN_TYPE_FIPS_DEFAULT 2
 
 DSA *ossl_dsa_new(OSSL_LIB_CTX *libctx);
+OSSL_LIB_CTX *ossl_dsa_get0_libctx(const DSA *d);
 void ossl_dsa_set0_libctx(DSA *d, OSSL_LIB_CTX *libctx);
 
 int ossl_dsa_generate_ffc_parameters(DSA *dsa, int type, int pbits, int qbits,

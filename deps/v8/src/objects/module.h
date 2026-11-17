@@ -110,6 +110,11 @@ V8_OBJECT class Module : public HeapObject {
   inline void set_exception(Tagged<Object> value,
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  // Once a module namespace (normal or deferred) has been created in
+  // GetModuleNamespace, all star exports have been fetched and {exports} is
+  // finalized (must not be mutated or rehashed as ICs index into it).
+  inline bool ExportsFinalized() const;
+
   inline Tagged<UnionOf<JSPromise, Undefined>> top_level_capability() const;
   inline void set_top_level_capability(
       Tagged<UnionOf<JSPromise, Undefined>> value,

@@ -102,7 +102,9 @@ function run_test() {
                 var operation = subtle.encrypt({
                     ...vector.algorithm,
                     get name() {
-                        plaintext.buffer.transfer();
+                        if (!plaintext.buffer.detached) {
+                            plaintext.buffer.transfer();
+                        }
                         return vector.algorithm.name;
                     }
                 }, vector.key, plaintext)
@@ -244,7 +246,9 @@ function run_test() {
                 var operation = subtle.decrypt({
                     ...vector.algorithm,
                     get name() {
-                        ciphertext.buffer.transfer();
+                        if (!ciphertext.buffer.detached) {
+                            ciphertext.buffer.transfer();
+                        }
                         return vector.algorithm.name;
                     }
                 }, vector.key, ciphertext)

@@ -1074,7 +1074,7 @@ ValueNode* MaglevPhiRepresentationSelector::GetReplacementForPhiInputConversion(
 }
 
 ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
-    Phi* phi, ValueNode* old_untagging) {
+    Phi* phi, ValueNode* old_untagging, const ProcessingState* state) {
   DCHECK_EQ(old_untagging->input_count(), 1);
   DCHECK(old_untagging->input(0).node()->Is<Phi>());
 
@@ -1192,24 +1192,27 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
   if (old_untagging->Is<TruncateUnsafeNumberOrOddballToInt32>()) {
     conversion_is_truncating_float64 = true;
   } else if (old_untagging->Is<TruncateCheckedNumberOrOddballToInt32>()) {
-    if (from_repr == ValueRepresentation::kFloat64) {
-      // If {from_repr} is Float64, then the "CheckedNumber" part is
-      // guaranteed to pass and this operation just truncates its value to
-      // Int32.
-      conversion_is_truncating_float64 = true;
-    } else {
-      DCHECK_EQ(from_repr, ValueRepresentation::kHoleyFloat64);
+    if (from_repr == ValueRepresentation::kHoleyFloat64) {
       const auto* truncate =
           old_untagging->Cast<TruncateCheckedNumberOrOddballToInt32>();
       // A HoleyFloat64 hole really means Undefined rather than the_hole:
       // whenever it gets rematerialized, it will always be rematerialized as
-      // Undefined. So, we can use a truncating conversion as long as the
-      // original assumed input type was allowing truncating Undefined.
-      // Assumptions without Undefined need to deopt for Hole/Undefined
-      // ==> not truncating.
-      conversion_is_truncating_float64 = !NodeTypeIs(
-          truncate->assumed_input_type(), NodeType::kNumberOrBoolean);
+      // Undefined. Assumptions without Undefined need to deopt on
+      // Hole/Undefined before truncating the Float64 value to Int32.
+      if (!NodeTypeCanBe(truncate->assumed_input_type(),
+                         NodeType::kUndefined)) {
+        eager_deopt_frame_ = &old_untagging->eager_deopt_info()->top_frame();
+        AddNewNodeNoInputConversion<CheckHoleyFloat64NotHoleOrUndefined>(
+            reducer_.current_block(),
+            BasicBlockPosition::At(state->node_index()), {phi});
+#ifdef DEBUG
+        eager_deopt_frame_ = nullptr;
+#endif  // DEBUG
+      }
+    } else {
+      DCHECK_EQ(from_repr, ValueRepresentation::kFloat64);
     }
+    conversion_is_truncating_float64 = true;
   }
 
   Opcode needed_conversion = GetOpcodeForConversion(

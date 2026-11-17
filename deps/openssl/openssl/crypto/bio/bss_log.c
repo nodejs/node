@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,8 +22,7 @@
 #include "bio_local.h"
 #include "internal/cryptlib.h"
 
-#if defined(OPENSSL_SYS_WINCE)
-#elif defined(OPENSSL_SYS_WIN32)
+#if defined(OPENSSL_SYS_WIN32)
 #elif defined(__wasi__)
 #define NO_SYSLOG
 #elif defined(OPENSSL_SYS_VMS)
@@ -91,10 +90,10 @@ static const BIO_METHOD methods_slg = {
     "syslog",
     bwrite_conv,
     slg_write,
-    NULL, /* slg_write_old,    */
-    NULL, /* slg_read,         */
+    NULL, /* slg_read          */
+    NULL, /* slg_read_old      */
     slg_puts,
-    NULL,
+    NULL, /* slg_gets          */
     slg_ctrl,
     slg_new,
     slg_free,
@@ -241,7 +240,7 @@ static void xsyslog(BIO *bp, int priority, const char *string)
         break;
     }
 
-    BIO_snprintf(pidbuf, sizeof(pidbuf), "[%lu] ", GetCurrentProcessId());
+    snprintf(pidbuf, sizeof(pidbuf), "[%lu] ", GetCurrentProcessId());
     lpszStrings[0] = pidbuf;
     lpszStrings[1] = string;
 

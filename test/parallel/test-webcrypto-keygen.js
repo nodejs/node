@@ -177,7 +177,7 @@ if (!isBoringSSL) {
   common.printSkipMessage('Skipping unsupported test cases');
 }
 
-if (hasOpenSSL(3)) {
+if (!isBoringSSL) {
   vectors['AES-OCB'] = {
     algorithm: { length: 256 },
     result: 'CryptoKey',
@@ -527,7 +527,7 @@ if (hasOpenSSL(3, 5) || isBoringSSL) {
       );
     }
   } else {
-    common.printSkipMessage('Skipping unsupported SHA-3 test case');
+    common.printSkipMessage('SHA-3 is only supported for digest operations');
   }
 
   const tests = kTests.map((args) => test(...args));
@@ -733,7 +733,7 @@ if (hasOpenSSL(3, 5) || isBoringSSL) {
       // [undefined, 'SHA3-512', ['sign', 'verify']],
     );
   } else {
-    common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+    common.printSkipMessage('SHA-3 is only supported for digest operations');
   }
 
   const tests = Promise.all(kTests.map((args) => test(...args)));

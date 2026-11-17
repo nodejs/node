@@ -1,0 +1,3 @@
+rules:
+- filelist_multiple_selected_files-manual.html: [input-file-multiple]
+- "*": [file]

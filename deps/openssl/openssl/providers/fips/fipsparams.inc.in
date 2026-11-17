@@ -1,0 +1,63 @@
+/*
+ * Copyright 2026 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+/*
+ * Handles the loading of FIPS algorithm conditional options from a config file
+ * passed from the core using OSSL_PARAM.
+ *
+ * The perl function produce_fips_params() generates code that:
+ * - Defines the FIPS_PARAMS structure with fields for each item.
+ * - Creates a function init_fips_params() to initialize the structure with default values.
+ * - Creates a function fips_get_params_from_core() to retrieve values from the core.
+ * - Defines a macro OSSL_FIPS_PARAMS_DEFN_TYPES listing the parameters.
+ * - Creates a function return_fips_params() to return values to the core.
+ * - Creates accessor functions for parameters marked as 'indicator'.
+ *
+ * The fields of the table below are:
+ * 1. field:       The name of the field in the FIPS_PARAMS structure.
+ * 2. name:        The OSSL_PARAM name used to identify the parameter.
+ * 3. type:        The C type of the field (e.g., "unsigned char" or "const char *").
+ * 4. default:     The default value for the field.
+ * 5. description: A tag indicating usage. If set to 'indicator', an accessor function
+ *                 ossl_fips_config_<field>() is generated.
+ */
+{- use OpenSSL::fipsparams qw(produce_fips_params); -}
+{- produce_fips_params(
+        [ 'security_checks', 'SECURITY_CHECKS', 'unsigned char', '1', 'indicator' ],
+        [ 'tls1_prf_ems_check', 'TLS1_PRF_EMS_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'no_short_mac', 'NO_SHORT_MAC', 'unsigned char', '1', 'indicator' ],
+        [ 'hmac_key_check', 'HMAC_KEY_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'kmac_key_check', 'KMAC_KEY_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'restricted_drbg_digests', 'DRBG_TRUNC_DIGEST', 'unsigned char', '0', 'indicator' ],
+        [ 'signature_digest_check', 'SIGNATURE_DIGEST_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'hkdf_digest_check', 'HKDF_DIGEST_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'tls13_kdf_digest_check', 'TLS13_KDF_DIGEST_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'tls1_prf_digest_check', 'TLS1_PRF_DIGEST_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'sshkdf_digest_check', 'SSHKDF_DIGEST_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'sskdf_digest_check', 'SSKDF_DIGEST_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'x963kdf_digest_check', 'X963KDF_DIGEST_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'dsa_sign_disallowed', 'DSA_SIGN_DISABLED', 'unsigned char', '0', 'indicator' ],
+        [ 'tdes_encrypt_disallowed', 'TDES_ENCRYPT_DISABLED', 'unsigned char', '0', 'indicator' ],
+        [ 'rsa_pkcs15_padding_disabled', 'RSA_PKCS15_PAD_DISABLED', 'unsigned char', '0', 'indicator' ],
+        [ 'rsa_pss_saltlen_check', 'RSA_PSS_SALTLEN_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'rsa_sign_x931_disallowed', 'RSA_SIGN_X931_PAD_DISABLED', 'unsigned char', '0', 'indicator' ],
+        [ 'hkdf_key_check', 'HKDF_KEY_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'kbkdf_key_check', 'KBKDF_KEY_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'tls13_kdf_key_check', 'TLS13_KDF_KEY_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'tls1_prf_key_check', 'TLS1_PRF_KEY_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'sshkdf_key_check', 'SSHKDF_KEY_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'sskdf_key_check', 'SSKDF_KEY_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'x963kdf_key_check', 'X963KDF_KEY_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'x942kdf_key_check', 'X942KDF_KEY_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'pbkdf2_lower_bound_check', 'PBKDF2_LOWER_BOUND_CHECK', 'unsigned char', '1', 'indicator' ],
+        [ 'ecdh_cofactor_check', 'ECDH_COFACTOR_CHECK', 'unsigned char', '0', 'indicator' ],
+        [ 'module_filename', 'OSSL_PROV_PARAM_CORE_MODULE_FILENAME', 'const char *', 'NULL', 'selftest' ],
+        [ 'module_checksum_data', 'OSSL_PROV_FIPS_PARAM_MODULE_MAC', 'const char *', 'NULL', 'selftest' ],
+        [ 'conditional_error_check', 'OSSL_PROV_FIPS_PARAM_CONDITIONAL_ERRORS', 'unsigned char', '1', 'selftest' ],
+        [ 'defer_tests', 'OSSL_PROV_FIPS_PARAM_DEFER_TESTS', 'unsigned char', '0', 'selftest' ]) -}

@@ -1706,6 +1706,9 @@ struct Session::Impl final : public MemoryRetainer {
 #ifdef NGTCP2_CALLBACKS_V5
       nullptr,  // stream_close2
 #endif
+#ifdef NGTCP2_CALLBACKS_V6
+      nullptr,  // extend_max_data
+#endif
   };
 
   static constexpr ngtcp2_callbacks SERVER = {
@@ -1757,6 +1760,9 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_stream_stop_sending,
 #ifdef NGTCP2_CALLBACKS_V5
       nullptr,  // stream_close2
+#endif
+#ifdef NGTCP2_CALLBACKS_V6
+      nullptr,  // extend_max_data
 #endif
   };
 };
@@ -2077,27 +2083,26 @@ void Session::SendPendingData() {
         closed = true;
         return;
       }
-    } else if (stream_data.id >= 0) {
+    } else if (ndatalen < 0 && nwrite >= 0 && stream_data.id >= 0) {
       Debug(this,
             "Session did not accept any bytes from stream %" PRIi64
             " into packet",
             stream_data.id);
+      // ndatalen < 0 means this stream's frame (data or FIN) was left out of
+      // the packet, due to congestion/pacing (nwrite == 0) or because other
+      // frames filled it. Reschedule the stream so it is retried later.
+      // This calls Application::ResumeStream directly (not
+      // Session::ResumeStream) to avoid creating a SendPendingDataScope -
+      // we're already inside SendPendingData.
+      if (stream_data.count > 0 || stream_data.fin) {
+        application().ResumeStream(stream_data.id);
+      }
     }
 
     // When nwrite is zero, it means we are congestion limited or it is
-    // just not our turn to send something. Re-schedule the stream if it
-    // had unsent data (payload or FIN) so the next timer-triggered
-    // SendPendingData retries it. Without this, a FIN-only send that
-    // hits nwrite=0 is lost forever — the stream already returned EOS
-    // from Pull and won't be re-scheduled by anyone else.
-    // We call Application::ResumeStream directly (not Session::ResumeStream)
-    // to avoid creating a SendPendingDataScope — we're already inside
-    // SendPendingData and re-entering would just hit nwrite=0 again.
+    // just not our turn to send something.
     if (nwrite == 0 && (stream_data.id >= 0 || !HasPendingDatagrams())) {
       Debug(this, "Congestion or not our turn to send");
-      if (stream_data.id >= 0 && (stream_data.count > 0 || stream_data.fin)) {
-        application().ResumeStream(stream_data.id);
-      }
       return;
     }
 
@@ -3649,7 +3654,7 @@ void Session::SendConnectionClose() {
 
   auto ErrorAndSilentClose = [&] {
     Debug(this, "Failed to create connection close packet");
-    SetLastError(QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR));
+    SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
     Close(CloseMethod::SILENT);
   };
 
@@ -3680,13 +3685,9 @@ void Session::SendConnectionClose() {
 
   ngtcp2_vec vec = *packet;
   Path path(impl_->local_address_, impl_->remote_address_);
-  ssize_t nwrite = ngtcp2_conn_write_connection_close(*this,
-                                                      &path,
-                                                      nullptr,
-                                                      vec.base,
-                                                      vec.len,
-                                                      impl_->last_error_,
-                                                      uv_hrtime());
+  ngtcp2_ccerr wire_error = impl_->last_error_.ToNgtcp2ConnectionCloseError();
+  ssize_t nwrite = ngtcp2_conn_write_connection_close(
+      *this, &path, nullptr, vec.base, vec.len, &wire_error, uv_hrtime());
 
   if (nwrite < 0) [[unlikely]] {
     return ErrorAndSilentClose();
@@ -3711,8 +3712,9 @@ void Session::OnTimeout() {
   // on a freed object.
   BaseObjectPtr<Session> ref(this);
   HandleScope scope(env()->isolate());
-  int ret;
-  {
+  int ret = 0;
+  // Once we're draining, we don't want ngtcp to handle expired timeouts
+  if (!is_in_draining_period()) {
     NgTcp2CallbackScope callback_scope(this);
     ret = ngtcp2_conn_handle_expiry(*this, uv_hrtime());
   }

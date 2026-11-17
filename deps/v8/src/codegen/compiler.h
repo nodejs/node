@@ -166,7 +166,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       ParseRestriction restriction, int parameters_end_pos,
                       int eval_position,
                       ParsingWhileDebugging parsing_while_debugging =
-                          ParsingWhileDebugging::kNo);
+                          ParsingWhileDebugging::kNo,
+                      bool private_name_lookup_skips_outer_class = false);
 
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.
@@ -719,7 +720,7 @@ class V8_EXPORT_PRIVATE BackgroundDeserializeTask {
  private:
   Isolate* isolate_for_local_isolate_;
   AlignedCachedData cached_data_;
-  CodeSerializer::OffThreadDeserializeData off_thread_data_;
+  OffThreadDeserializeData off_thread_data_;
   BackgroundMergeTask background_merge_task_;
   TimedHistogram* timer_;
   int64_t background_time_in_microseconds_ = 0;

@@ -65,6 +65,7 @@ if (v8_enable_google_benchmark) {
       "//:v8",
       "//:v8_internal_headers",
       "//:v8_libbase",
+      "//:v8_tracing",
       "//third_party/google_benchmark_chrome:google_benchmark",
     ]
   }

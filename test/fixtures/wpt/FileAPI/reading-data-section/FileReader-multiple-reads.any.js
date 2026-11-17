@@ -79,3 +79,66 @@ async_test(function() {
   });
   reader.readAsText(blob_1);
 }, 'test abort and restart in onloadstart event for readAsText');
+
+promise_test(async t => {
+  const reader = new FileReader();
+  const events = [];
+
+  for (const type of ['abort', 'load', 'loadend']) {
+    reader.addEventListener(type, () => events.push(type));
+  }
+
+  reader.addEventListener('error', t.unreached_func('Unexpected error event'));
+  reader.addEventListener('abort', t.step_func(() => {
+    reader.readAsText(new Blob(['second']));
+  }),
+                          {once: true});
+
+  const firstLoadstart = new Promise(resolve => {
+    reader.addEventListener('loadstart', resolve, {once: true});
+  });
+  const secondLoadend = new Promise(resolve => {
+    reader.addEventListener('loadend', t.step_func(() => {
+      if (reader.result === 'second') {
+        resolve();
+      }
+    }));
+  });
+
+  reader.readAsText(new Blob([new Uint8Array(1024 * 1024)]));
+  await firstLoadstart;
+  reader.abort();
+  await secondLoadend;
+
+  assert_array_equals(events, ['abort', 'load', 'loadend']);
+}, 'A new read in an abort handler suppresses the old read loadend');
+
+promise_test(async t => {
+  const reader = new FileReader();
+  const events = [];
+  let load_count = 0;
+
+  for (const type of ['load', 'loadend']) {
+    reader.addEventListener(type, () => events.push(type));
+  }
+
+  reader.addEventListener('error', t.unreached_func('Unexpected error event'));
+  reader.addEventListener('load', t.step_func(() => {
+    if (++load_count === 1) {
+      reader.readAsText(new Blob(['second']));
+    }
+  }));
+
+  const secondLoadend = new Promise(resolve => {
+    reader.addEventListener('loadend', t.step_func(() => {
+      if (reader.result === 'second') {
+        resolve();
+      }
+    }));
+  });
+
+  reader.readAsText(new Blob(['first']));
+  await secondLoadend;
+
+  assert_array_equals(events, ['load', 'load', 'loadend']);
+}, 'A new read in a load handler suppresses the old read loadend');

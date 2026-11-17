@@ -21,6 +21,8 @@
 #include <openssl/asn1t.h>
 #include "crypto/dh.h"
 
+#include <crypto/asn1.h>
+
 /* Override the default free and new methods */
 static int dh_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
     void *exarg)
@@ -116,7 +118,7 @@ DH *d2i_DHxparams(DH **a, const unsigned char **pp, long length)
 
     if (dhx->vparams != NULL) {
         /* The counter has a maximum value of 4 * numbits(p) - 1 */
-        size_t counter = (size_t)BN_get_word(dhx->vparams->counter);
+        int counter = (int)BN_get_word(dhx->vparams->counter);
         ossl_ffc_params_set_validate_params(params, dhx->vparams->seed->data,
             dhx->vparams->seed->length,
             counter);

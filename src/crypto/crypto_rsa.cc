@@ -20,7 +20,7 @@ using ncrypto::Digest;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::KeyAlgorithm;
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
 using ncrypto::RSAPointer;
 #endif
 using v8::Array;
@@ -44,15 +44,17 @@ namespace {
 constexpr uint32_t kMaxRsaOtherPrimeInfos = 8;
 
 bool IsRsaPssDigestEncodable(const Digest& digest) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const int nid = EVP_MD_type(digest.get());
   if (nid == NID_undef) return false;
 
   const ASN1_OBJECT* object = OBJ_nid2obj(nid);
   return object != nullptr && OBJ_length(object) > 0;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   static_cast<void>(digest);
   return true;
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 }  // namespace
@@ -82,10 +84,8 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
       return {};
     }
 
-    // TODO(tniessen): This appears to only be necessary in OpenSSL 3, while
-    // OpenSSL 1.1.1 behaves as recommended by RFC 8017 and defaults the MGF1
-    // hash algorithm to the RSA-PSS hashAlgorithm. Remove this code if the
-    // behavior of OpenSSL 3 changes.
+    // OpenSSL does not default the MGF1 hash algorithm to the RSA-PSS
+    // hashAlgorithm as recommended by RFC 8017, so set it explicitly.
     auto& mgf1_md = params->params.mgf1_md;
     if (!mgf1_md && params->params.md) {
       mgf1_md = params->params.md;
@@ -395,9 +395,9 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
     return {};
   }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   ncrypto::Rsa rsa_view;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   RSAPointer rsa(RSA_new());
   if (!rsa) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Unable to create RSA pointer");
@@ -405,6 +405,8 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
   }
 
   ncrypto::Rsa rsa_view(rsa.get());
+#else
+#error "Unsupported crypto backend"
 #endif
 
   ByteSource n = ByteSource::FromEncodedString(env, n_value.As<String>());
@@ -509,10 +511,12 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
     }
   }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   auto pkey = EVPKeyPointer::NewRSA(rsa_view);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   auto pkey = EVPKeyPointer::NewRSA(std::move(rsa));
+#else
+#error "Unsupported crypto backend"
 #endif
   if (!pkey) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Unable to create key pointer");

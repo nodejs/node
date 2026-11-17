@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,9 +12,11 @@
 #include <openssl/pkcs12.h>
 #include "p12_local.h"
 
+#include <crypto/asn1.h>
+
 /* Add a local keyid to a safebag */
 
-int PKCS12_add_localkeyid(PKCS12_SAFEBAG *bag, unsigned char *name,
+int PKCS12_add_localkeyid(PKCS12_SAFEBAG *bag, const unsigned char *name,
     int namelen)
 {
     if (X509at_add1_attr_by_NID(&bag->attrib, NID_localKeyID,
@@ -97,7 +99,7 @@ int PKCS12_add1_attr_by_txt(PKCS12_SAFEBAG *bag, const char *attrname, int type,
         return 0;
 }
 
-ASN1_TYPE *PKCS12_get_attr_gen(const STACK_OF(X509_ATTRIBUTE) *attrs,
+const ASN1_TYPE *PKCS12_get_attr_gen(const STACK_OF(X509_ATTRIBUTE) *attrs,
     int attr_nid)
 {
     int i = X509at_get_attr_by_NID(attrs, attr_nid, -1);

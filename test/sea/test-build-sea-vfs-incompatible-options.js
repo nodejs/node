@@ -54,28 +54,6 @@ skipIfBuildSEAIsNotSupported();
     });
 }
 
-// Test: "useVfs" with "useCodeCache"
-{
-  tmpdir.refresh();
-  const config = tmpdir.resolve('vfs-code-cache.json');
-  writeFileSync(config, `
-{
-  "main": "bundle.js",
-  "output": "sea",
-  "useVfs": true,
-  "useCodeCache": true
-}
-  `, 'utf8');
-  spawnSyncAndAssert(
-    process.execPath,
-    ['--build-sea', config], {
-      cwd: tmpdir.path,
-    }, {
-      status: 1,
-      stderr: /"useVfs" is not supported when "useCodeCache" is true/,
-    });
-}
-
 // Test: "vfsArchive" without "useVfs"
 {
   tmpdir.refresh();
@@ -142,23 +120,29 @@ skipIfBuildSEAIsNotSupported();
     });
 }
 
-// Test: "vfsArchive" combined with --vfs-load in "execArgv"
-for (const arg of ['--vfs-load=assets.zip', '--vfs-load']) {
-  tmpdir.refresh();
-  const config = tmpdir.resolve('vfs-archive-vfs-load.json');
-  writeFileSync(config, JSON.stringify({
-    main: 'bundle.js',
-    output: 'sea',
-    useVfs: true,
-    vfsArchive: 'assets.zip',
-    execArgv: ['--experimental-vfs', arg],
-  }), 'utf8');
-  spawnSyncAndAssert(
-    process.execPath,
-    ['--build-sea', config], {
-      cwd: tmpdir.path,
-    }, {
-      status: 1,
-      stderr: /"vfsArchive" cannot be used together with --vfs-load in "execArgv"/,
-    });
+// Test: --vfs-load in "execArgv", which a SEA rejects at startup whether or
+// not it uses a VFS, and whatever serves the VFS.
+for (const vfsConfig of [
+  {},
+  { useVfs: true },
+  { useVfs: true, vfsArchive: 'assets.zip' },
+]) {
+  for (const arg of ['--vfs-load=assets.zip', '--vfs-load']) {
+    tmpdir.refresh();
+    const config = tmpdir.resolve('vfs-load.json');
+    writeFileSync(config, JSON.stringify({
+      main: 'bundle.js',
+      output: 'sea',
+      ...vfsConfig,
+      execArgv: ['--experimental-vfs', arg],
+    }), 'utf8');
+    spawnSyncAndAssert(
+      process.execPath,
+      ['--build-sea', config], {
+        cwd: tmpdir.path,
+      }, {
+        status: 1,
+        stderr: /--vfs-load cannot be used in "execArgv" of a single executable application/,
+      });
+  }
 }

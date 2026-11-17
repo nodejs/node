@@ -1,3 +1,104 @@
+## c-ares version 1.34.9 - October 19 2026
+
+This is a security release.
+
+Security:
+* Memory corruption when an application cancels its lookups after a
+  connection failure. Please see
+  https://github.com/c-ares/c-ares/security/advisories/GHSA-wpr3-8q3r-4q8c
+* A DNS reply that arrived from a different server than the one queried could
+  be accepted. Please see
+  https://github.com/c-ares/c-ares/security/advisories/GHSA-fqh5-3x7m-wp44
+* Use-after-free of a lookup after shutting down a failed connection. Please
+  see https://github.com/c-ares/c-ares/security/advisories/GHSA-97vq-4mxv-7vhm
+* Use-after-free when an application cancels lookups from a callback, or shuts
+  a channel down. Please see
+  https://github.com/c-ares/c-ares/security/advisories/GHSA-rf6g-ww74-97qh
+* Use-after-free of a connection after the socket-state callback returns.
+  Please see
+  https://github.com/c-ares/c-ares/security/advisories/GHSA-mw23-pfg6-2x9r
+* Use-after-free when an application cancels lookups from a server-state
+  callback. Please see
+  https://github.com/c-ares/c-ares/security/advisories/GHSA-v33j-65h4-4ch8
+* Use-after-free of a server record when an application changes its DNS
+  servers from a callback. Please see
+  https://github.com/c-ares/c-ares/security/advisories/GHSA-pj7p-v3cw-hq66
+* Use-after-free of a cached DNS answer while the application is still reading
+  it. Please see
+  https://github.com/c-ares/c-ares/security/advisories/GHSA-grv7-fq5q-9vfc
+* Buffer overflow when `ares_dup()` or `ares_save_options()` runs while
+  another thread changes the servers. Please see
+  https://github.com/c-ares/c-ares/security/advisories/GHSA-ph6c-3cvx-mq6v
+* Uninitialized memory returned for a numeric IPv6 name with a prefix length.
+  Please see
+  https://github.com/c-ares/c-ares/security/advisories/GHSA-cfcv-8v2j-qj6r
+* The query cache could return an answer obtained using different EDNS
+  options. Please see
+  https://github.com/c-ares/c-ares/security/advisories/GHSA-wrgc-prmw-27xh
+
+Changes:
+* Answers served from the query cache now report their remaining TTL rather
+  than the TTL originally received.
+* `ares_inet_pton()` rejects a "/bits" prefix length and returns 0, rather
+  than -1, for any input it cannot parse.
+* UDP replies must now come from the server's port as well as its address.
+  Custom `arecvfrom` socket functions (`ares_set_socket_functions_ex()` or
+  `ares_set_socket_functions()`) must fill in the full source address,
+  including the port. For compatibility, a reported port of 0 checks only the
+  address, but such implementations are insecure and should be fixed.
+  [PR #1370](https://github.com/c-ares/c-ares/pull/1370)
+* Document that socket functions and socket, configure and pending-write
+  callbacks must not call c-ares functions on the same channel.
+  [PR #1360](https://github.com/c-ares/c-ares/pull/1360)
+
+Bugfixes:
+* `ares_dup()`: don't leave the new channel bound to the source channel.
+  [PR #1333](https://github.com/c-ares/c-ares/pull/1333)
+* `ares_init_options()`: don't report the default query cache as a caller-set
+  option. [PR #1354](https://github.com/c-ares/c-ares/pull/1354)
+* Clamp DNS record TTLs to the signed int range used by public APIs.
+  [PR #1313](https://github.com/c-ares/c-ares/pull/1313)
+* `ares_dns_write()`: reject messages larger than 64KB.
+  [PR #1314](https://github.com/c-ares/c-ares/pull/1314)
+* `ares_dns_parse()`: accept legacy compressed RDATA names.
+  [PR #1326](https://github.com/c-ares/c-ares/pull/1326)
+* `ares_parse_a_reply()`/`ares_parse_aaaa_reply()`: ignore a negative
+  `*naddrttls`. [PR #1302](https://github.com/c-ares/c-ares/pull/1302)
+* select event backend: refuse descriptors >= `FD_SETSIZE` instead of
+  overflowing `fd_set`. [PR #1312](https://github.com/c-ares/c-ares/pull/1312)
+* Strip inline comments from resolv.conf values.
+  [PR #1276](https://github.com/c-ares/c-ares/pull/1276)
+* Ignore absurd resolv.conf retry/attempts values.
+  [PR #1315](https://github.com/c-ares/c-ares/pull/1315)
+* Zero-initialize the server config when parsing nameserver URIs.
+  [PR #1325](https://github.com/c-ares/c-ares/pull/1325)
+* URI parsing: roll back the ':' probe when it lands past the '@'.
+  [PR #1265](https://github.com/c-ares/c-ares/pull/1265)
+* Do not assume `gethostname()` NUL-terminates its buffer.
+  [PR #1269](https://github.com/c-ares/c-ares/pull/1269)
+* Combine the hash table seed with XOR instead of OR.
+  [PR #1330](https://github.com/c-ares/c-ares/pull/1330)
+* Turn off stdio buffering when loading a file.
+  [PR #939](https://github.com/c-ares/c-ares/pull/939)
+* Guard `pipe2()` on Apple platforms to prevent unguarded availability
+  warnings. [PR #1328](https://github.com/c-ares/c-ares/pull/1328)
+
+Thanks go to these friendly people for their efforts and contributions for this
+release:
+
+* (@ahillspace)
+* (@anon5376)
+* Brad House (@bradh352)
+* Nikolaos Chatzikonstantinou (@createyourpersonalaccount)
+* Dev (@devdgna)
+* (@evilgensec)
+* Ilias (@iliasabk)
+* (@jdymitarai)
+* (@jmestwa-coder)
+* Manohar Paturi (@ManoharPaturi)
+* (@mardgez13)
+
+
 ## c-ares version 1.34.8 - July 7 2026
 
 This is a bugfix release.

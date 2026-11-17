@@ -1,0 +1,7 @@
+Regression test for crbug.com/577352626.
+paused in: $f
+go(1) returned: 11
+paused in: jsCaller
+jsCaller() returned: 11
+paused in: jsCallerViaWasm
+jsCallerViaWasm() returned: 11

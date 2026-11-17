@@ -142,9 +142,30 @@ typedef struct OSSL_IETF_ATTR_SYNTAX_st OSSL_IETF_ATTR_SYNTAX;
 SKM_DEFINE_STACK_OF_INTERNAL(OSSL_IETF_ATTR_SYNTAX_VALUE, OSSL_IETF_ATTR_SYNTAX_VALUE, OSSL_IETF_ATTR_SYNTAX_VALUE)
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_num(sk) OPENSSL_sk_num(ossl_check_const_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk))
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_value(sk, idx) ((OSSL_IETF_ATTR_SYNTAX_VALUE *)OPENSSL_sk_value(ossl_check_const_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk), (idx)))
-#define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_new(cmp) ((STACK_OF(OSSL_IETF_ATTR_SYNTAX_VALUE) *)OPENSSL_sk_new(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_compfunc_type(cmp)))
-#define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_new_null() ((STACK_OF(OSSL_IETF_ATTR_SYNTAX_VALUE) *)OPENSSL_sk_new_null())
-#define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_new_reserve(cmp, n) ((STACK_OF(OSSL_IETF_ATTR_SYNTAX_VALUE) *)OPENSSL_sk_new_reserve(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_compfunc_type(cmp), (n)))
+#define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_new(cmp) \
+    ((STACK_OF(OSSL_IETF_ATTR_SYNTAX_VALUE) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_compfunc_type(cmp)), \
+                sk_OSSL_IETF_ATTR_SYNTAX_VALUE_cmpfunc_thunk), \
+            sk_OSSL_IETF_ATTR_SYNTAX_VALUE_copyfunc_thunk), \
+        sk_OSSL_IETF_ATTR_SYNTAX_VALUE_freefunc_thunk))
+#define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_new_null() \
+    ((STACK_OF(OSSL_IETF_ATTR_SYNTAX_VALUE) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_null(), \
+                sk_OSSL_IETF_ATTR_SYNTAX_VALUE_cmpfunc_thunk), \
+            sk_OSSL_IETF_ATTR_SYNTAX_VALUE_copyfunc_thunk), \
+        sk_OSSL_IETF_ATTR_SYNTAX_VALUE_freefunc_thunk))
+#define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_new_reserve(cmp, n) \
+    ((STACK_OF(OSSL_IETF_ATTR_SYNTAX_VALUE) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_reserve(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_compfunc_type(cmp), (n)), \
+                sk_OSSL_IETF_ATTR_SYNTAX_VALUE_cmpfunc_thunk), \
+            sk_OSSL_IETF_ATTR_SYNTAX_VALUE_copyfunc_thunk), \
+        sk_OSSL_IETF_ATTR_SYNTAX_VALUE_freefunc_thunk))
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_reserve(sk, n) OPENSSL_sk_reserve(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk), (n))
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_free(sk) OPENSSL_sk_free(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk))
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_zero(sk) OPENSSL_sk_zero(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk))
@@ -154,7 +175,7 @@ SKM_DEFINE_STACK_OF_INTERNAL(OSSL_IETF_ATTR_SYNTAX_VALUE, OSSL_IETF_ATTR_SYNTAX_
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_unshift(sk, ptr) OPENSSL_sk_unshift(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk), ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_type(ptr))
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_pop(sk) ((OSSL_IETF_ATTR_SYNTAX_VALUE *)OPENSSL_sk_pop(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk)))
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_shift(sk) ((OSSL_IETF_ATTR_SYNTAX_VALUE *)OPENSSL_sk_shift(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk)))
-#define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk),ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_freefunc_type(freefunc))
+#define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk), ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_freefunc_type(freefunc))
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_insert(sk, ptr, idx) OPENSSL_sk_insert(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk), ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_type(ptr), (idx))
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_set(sk, idx, ptr) ((OSSL_IETF_ATTR_SYNTAX_VALUE *)OPENSSL_sk_set(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk), (idx), ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_type(ptr)))
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_find(sk, ptr) OPENSSL_sk_find(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk), ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_type(ptr))
@@ -162,8 +183,25 @@ SKM_DEFINE_STACK_OF_INTERNAL(OSSL_IETF_ATTR_SYNTAX_VALUE, OSSL_IETF_ATTR_SYNTAX_
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_find_all(sk, ptr, pnum) OPENSSL_sk_find_all(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk), ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_type(ptr), pnum)
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_sort(sk) OPENSSL_sk_sort(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk))
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_is_sorted(sk) OPENSSL_sk_is_sorted(ossl_check_const_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk))
-#define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_dup(sk) ((STACK_OF(OSSL_IETF_ATTR_SYNTAX_VALUE) *)OPENSSL_sk_dup(ossl_check_const_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk)))
-#define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(OSSL_IETF_ATTR_SYNTAX_VALUE) *)OPENSSL_sk_deep_copy(ossl_check_const_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk), ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_copyfunc_type(copyfunc), ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_freefunc_type(freefunc)))
+#define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_dup(sk) \
+    ((STACK_OF(OSSL_IETF_ATTR_SYNTAX_VALUE) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_dup(ossl_check_const_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk)), \
+                sk_OSSL_IETF_ATTR_SYNTAX_VALUE_cmpfunc_thunk), \
+            sk_OSSL_IETF_ATTR_SYNTAX_VALUE_copyfunc_thunk), \
+        sk_OSSL_IETF_ATTR_SYNTAX_VALUE_freefunc_thunk))
+#define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_deep_copy(sk, copyfunc, freefunc) \
+    ((STACK_OF(OSSL_IETF_ATTR_SYNTAX_VALUE) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_deep_copy( \
+                    ossl_check_const_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk), \
+                    ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_copyfunc_type(copyfunc), \
+                    ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_freefunc_type(freefunc)), \
+                sk_OSSL_IETF_ATTR_SYNTAX_VALUE_cmpfunc_thunk), \
+            sk_OSSL_IETF_ATTR_SYNTAX_VALUE_copyfunc_thunk), \
+        sk_OSSL_IETF_ATTR_SYNTAX_VALUE_freefunc_thunk))
 #define sk_OSSL_IETF_ATTR_SYNTAX_VALUE_set_cmp_func(sk, cmp) ((sk_OSSL_IETF_ATTR_SYNTAX_VALUE_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_sk_type(sk), ossl_check_OSSL_IETF_ATTR_SYNTAX_VALUE_compfunc_type(cmp)))
 
 /* clang-format on */
@@ -212,9 +250,30 @@ typedef STACK_OF(OSSL_TARGETS) OSSL_TARGETING_INFORMATION;
 SKM_DEFINE_STACK_OF_INTERNAL(OSSL_TARGET, OSSL_TARGET, OSSL_TARGET)
 #define sk_OSSL_TARGET_num(sk) OPENSSL_sk_num(ossl_check_const_OSSL_TARGET_sk_type(sk))
 #define sk_OSSL_TARGET_value(sk, idx) ((OSSL_TARGET *)OPENSSL_sk_value(ossl_check_const_OSSL_TARGET_sk_type(sk), (idx)))
-#define sk_OSSL_TARGET_new(cmp) ((STACK_OF(OSSL_TARGET) *)OPENSSL_sk_new(ossl_check_OSSL_TARGET_compfunc_type(cmp)))
-#define sk_OSSL_TARGET_new_null() ((STACK_OF(OSSL_TARGET) *)OPENSSL_sk_new_null())
-#define sk_OSSL_TARGET_new_reserve(cmp, n) ((STACK_OF(OSSL_TARGET) *)OPENSSL_sk_new_reserve(ossl_check_OSSL_TARGET_compfunc_type(cmp), (n)))
+#define sk_OSSL_TARGET_new(cmp) \
+    ((STACK_OF(OSSL_TARGET) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new(ossl_check_OSSL_TARGET_compfunc_type(cmp)), \
+                sk_OSSL_TARGET_cmpfunc_thunk), \
+            sk_OSSL_TARGET_copyfunc_thunk), \
+        sk_OSSL_TARGET_freefunc_thunk))
+#define sk_OSSL_TARGET_new_null() \
+    ((STACK_OF(OSSL_TARGET) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_null(), \
+                sk_OSSL_TARGET_cmpfunc_thunk), \
+            sk_OSSL_TARGET_copyfunc_thunk), \
+        sk_OSSL_TARGET_freefunc_thunk))
+#define sk_OSSL_TARGET_new_reserve(cmp, n) \
+    ((STACK_OF(OSSL_TARGET) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_reserve(ossl_check_OSSL_TARGET_compfunc_type(cmp), (n)), \
+                sk_OSSL_TARGET_cmpfunc_thunk), \
+            sk_OSSL_TARGET_copyfunc_thunk), \
+        sk_OSSL_TARGET_freefunc_thunk))
 #define sk_OSSL_TARGET_reserve(sk, n) OPENSSL_sk_reserve(ossl_check_OSSL_TARGET_sk_type(sk), (n))
 #define sk_OSSL_TARGET_free(sk) OPENSSL_sk_free(ossl_check_OSSL_TARGET_sk_type(sk))
 #define sk_OSSL_TARGET_zero(sk) OPENSSL_sk_zero(ossl_check_OSSL_TARGET_sk_type(sk))
@@ -224,7 +283,7 @@ SKM_DEFINE_STACK_OF_INTERNAL(OSSL_TARGET, OSSL_TARGET, OSSL_TARGET)
 #define sk_OSSL_TARGET_unshift(sk, ptr) OPENSSL_sk_unshift(ossl_check_OSSL_TARGET_sk_type(sk), ossl_check_OSSL_TARGET_type(ptr))
 #define sk_OSSL_TARGET_pop(sk) ((OSSL_TARGET *)OPENSSL_sk_pop(ossl_check_OSSL_TARGET_sk_type(sk)))
 #define sk_OSSL_TARGET_shift(sk) ((OSSL_TARGET *)OPENSSL_sk_shift(ossl_check_OSSL_TARGET_sk_type(sk)))
-#define sk_OSSL_TARGET_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_OSSL_TARGET_sk_type(sk),ossl_check_OSSL_TARGET_freefunc_type(freefunc))
+#define sk_OSSL_TARGET_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_OSSL_TARGET_sk_type(sk), ossl_check_OSSL_TARGET_freefunc_type(freefunc))
 #define sk_OSSL_TARGET_insert(sk, ptr, idx) OPENSSL_sk_insert(ossl_check_OSSL_TARGET_sk_type(sk), ossl_check_OSSL_TARGET_type(ptr), (idx))
 #define sk_OSSL_TARGET_set(sk, idx, ptr) ((OSSL_TARGET *)OPENSSL_sk_set(ossl_check_OSSL_TARGET_sk_type(sk), (idx), ossl_check_OSSL_TARGET_type(ptr)))
 #define sk_OSSL_TARGET_find(sk, ptr) OPENSSL_sk_find(ossl_check_OSSL_TARGET_sk_type(sk), ossl_check_OSSL_TARGET_type(ptr))
@@ -232,8 +291,25 @@ SKM_DEFINE_STACK_OF_INTERNAL(OSSL_TARGET, OSSL_TARGET, OSSL_TARGET)
 #define sk_OSSL_TARGET_find_all(sk, ptr, pnum) OPENSSL_sk_find_all(ossl_check_OSSL_TARGET_sk_type(sk), ossl_check_OSSL_TARGET_type(ptr), pnum)
 #define sk_OSSL_TARGET_sort(sk) OPENSSL_sk_sort(ossl_check_OSSL_TARGET_sk_type(sk))
 #define sk_OSSL_TARGET_is_sorted(sk) OPENSSL_sk_is_sorted(ossl_check_const_OSSL_TARGET_sk_type(sk))
-#define sk_OSSL_TARGET_dup(sk) ((STACK_OF(OSSL_TARGET) *)OPENSSL_sk_dup(ossl_check_const_OSSL_TARGET_sk_type(sk)))
-#define sk_OSSL_TARGET_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(OSSL_TARGET) *)OPENSSL_sk_deep_copy(ossl_check_const_OSSL_TARGET_sk_type(sk), ossl_check_OSSL_TARGET_copyfunc_type(copyfunc), ossl_check_OSSL_TARGET_freefunc_type(freefunc)))
+#define sk_OSSL_TARGET_dup(sk) \
+    ((STACK_OF(OSSL_TARGET) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_dup(ossl_check_const_OSSL_TARGET_sk_type(sk)), \
+                sk_OSSL_TARGET_cmpfunc_thunk), \
+            sk_OSSL_TARGET_copyfunc_thunk), \
+        sk_OSSL_TARGET_freefunc_thunk))
+#define sk_OSSL_TARGET_deep_copy(sk, copyfunc, freefunc) \
+    ((STACK_OF(OSSL_TARGET) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_deep_copy( \
+                    ossl_check_const_OSSL_TARGET_sk_type(sk), \
+                    ossl_check_OSSL_TARGET_copyfunc_type(copyfunc), \
+                    ossl_check_OSSL_TARGET_freefunc_type(freefunc)), \
+                sk_OSSL_TARGET_cmpfunc_thunk), \
+            sk_OSSL_TARGET_copyfunc_thunk), \
+        sk_OSSL_TARGET_freefunc_thunk))
 #define sk_OSSL_TARGET_set_cmp_func(sk, cmp) ((sk_OSSL_TARGET_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_OSSL_TARGET_sk_type(sk), ossl_check_OSSL_TARGET_compfunc_type(cmp)))
 
 /* clang-format on */
@@ -242,9 +318,30 @@ SKM_DEFINE_STACK_OF_INTERNAL(OSSL_TARGET, OSSL_TARGET, OSSL_TARGET)
 SKM_DEFINE_STACK_OF_INTERNAL(OSSL_TARGETS, OSSL_TARGETS, OSSL_TARGETS)
 #define sk_OSSL_TARGETS_num(sk) OPENSSL_sk_num(ossl_check_const_OSSL_TARGETS_sk_type(sk))
 #define sk_OSSL_TARGETS_value(sk, idx) ((OSSL_TARGETS *)OPENSSL_sk_value(ossl_check_const_OSSL_TARGETS_sk_type(sk), (idx)))
-#define sk_OSSL_TARGETS_new(cmp) ((STACK_OF(OSSL_TARGETS) *)OPENSSL_sk_new(ossl_check_OSSL_TARGETS_compfunc_type(cmp)))
-#define sk_OSSL_TARGETS_new_null() ((STACK_OF(OSSL_TARGETS) *)OPENSSL_sk_new_null())
-#define sk_OSSL_TARGETS_new_reserve(cmp, n) ((STACK_OF(OSSL_TARGETS) *)OPENSSL_sk_new_reserve(ossl_check_OSSL_TARGETS_compfunc_type(cmp), (n)))
+#define sk_OSSL_TARGETS_new(cmp) \
+    ((STACK_OF(OSSL_TARGETS) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new(ossl_check_OSSL_TARGETS_compfunc_type(cmp)), \
+                sk_OSSL_TARGETS_cmpfunc_thunk), \
+            sk_OSSL_TARGETS_copyfunc_thunk), \
+        sk_OSSL_TARGETS_freefunc_thunk))
+#define sk_OSSL_TARGETS_new_null() \
+    ((STACK_OF(OSSL_TARGETS) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_null(), \
+                sk_OSSL_TARGETS_cmpfunc_thunk), \
+            sk_OSSL_TARGETS_copyfunc_thunk), \
+        sk_OSSL_TARGETS_freefunc_thunk))
+#define sk_OSSL_TARGETS_new_reserve(cmp, n) \
+    ((STACK_OF(OSSL_TARGETS) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_reserve(ossl_check_OSSL_TARGETS_compfunc_type(cmp), (n)), \
+                sk_OSSL_TARGETS_cmpfunc_thunk), \
+            sk_OSSL_TARGETS_copyfunc_thunk), \
+        sk_OSSL_TARGETS_freefunc_thunk))
 #define sk_OSSL_TARGETS_reserve(sk, n) OPENSSL_sk_reserve(ossl_check_OSSL_TARGETS_sk_type(sk), (n))
 #define sk_OSSL_TARGETS_free(sk) OPENSSL_sk_free(ossl_check_OSSL_TARGETS_sk_type(sk))
 #define sk_OSSL_TARGETS_zero(sk) OPENSSL_sk_zero(ossl_check_OSSL_TARGETS_sk_type(sk))
@@ -254,7 +351,7 @@ SKM_DEFINE_STACK_OF_INTERNAL(OSSL_TARGETS, OSSL_TARGETS, OSSL_TARGETS)
 #define sk_OSSL_TARGETS_unshift(sk, ptr) OPENSSL_sk_unshift(ossl_check_OSSL_TARGETS_sk_type(sk), ossl_check_OSSL_TARGETS_type(ptr))
 #define sk_OSSL_TARGETS_pop(sk) ((OSSL_TARGETS *)OPENSSL_sk_pop(ossl_check_OSSL_TARGETS_sk_type(sk)))
 #define sk_OSSL_TARGETS_shift(sk) ((OSSL_TARGETS *)OPENSSL_sk_shift(ossl_check_OSSL_TARGETS_sk_type(sk)))
-#define sk_OSSL_TARGETS_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_OSSL_TARGETS_sk_type(sk),ossl_check_OSSL_TARGETS_freefunc_type(freefunc))
+#define sk_OSSL_TARGETS_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_OSSL_TARGETS_sk_type(sk), ossl_check_OSSL_TARGETS_freefunc_type(freefunc))
 #define sk_OSSL_TARGETS_insert(sk, ptr, idx) OPENSSL_sk_insert(ossl_check_OSSL_TARGETS_sk_type(sk), ossl_check_OSSL_TARGETS_type(ptr), (idx))
 #define sk_OSSL_TARGETS_set(sk, idx, ptr) ((OSSL_TARGETS *)OPENSSL_sk_set(ossl_check_OSSL_TARGETS_sk_type(sk), (idx), ossl_check_OSSL_TARGETS_type(ptr)))
 #define sk_OSSL_TARGETS_find(sk, ptr) OPENSSL_sk_find(ossl_check_OSSL_TARGETS_sk_type(sk), ossl_check_OSSL_TARGETS_type(ptr))
@@ -262,8 +359,25 @@ SKM_DEFINE_STACK_OF_INTERNAL(OSSL_TARGETS, OSSL_TARGETS, OSSL_TARGETS)
 #define sk_OSSL_TARGETS_find_all(sk, ptr, pnum) OPENSSL_sk_find_all(ossl_check_OSSL_TARGETS_sk_type(sk), ossl_check_OSSL_TARGETS_type(ptr), pnum)
 #define sk_OSSL_TARGETS_sort(sk) OPENSSL_sk_sort(ossl_check_OSSL_TARGETS_sk_type(sk))
 #define sk_OSSL_TARGETS_is_sorted(sk) OPENSSL_sk_is_sorted(ossl_check_const_OSSL_TARGETS_sk_type(sk))
-#define sk_OSSL_TARGETS_dup(sk) ((STACK_OF(OSSL_TARGETS) *)OPENSSL_sk_dup(ossl_check_const_OSSL_TARGETS_sk_type(sk)))
-#define sk_OSSL_TARGETS_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(OSSL_TARGETS) *)OPENSSL_sk_deep_copy(ossl_check_const_OSSL_TARGETS_sk_type(sk), ossl_check_OSSL_TARGETS_copyfunc_type(copyfunc), ossl_check_OSSL_TARGETS_freefunc_type(freefunc)))
+#define sk_OSSL_TARGETS_dup(sk) \
+    ((STACK_OF(OSSL_TARGETS) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_dup(ossl_check_const_OSSL_TARGETS_sk_type(sk)), \
+                sk_OSSL_TARGETS_cmpfunc_thunk), \
+            sk_OSSL_TARGETS_copyfunc_thunk), \
+        sk_OSSL_TARGETS_freefunc_thunk))
+#define sk_OSSL_TARGETS_deep_copy(sk, copyfunc, freefunc) \
+    ((STACK_OF(OSSL_TARGETS) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_deep_copy( \
+                    ossl_check_const_OSSL_TARGETS_sk_type(sk), \
+                    ossl_check_OSSL_TARGETS_copyfunc_type(copyfunc), \
+                    ossl_check_OSSL_TARGETS_freefunc_type(freefunc)), \
+                sk_OSSL_TARGETS_cmpfunc_thunk), \
+            sk_OSSL_TARGETS_copyfunc_thunk), \
+        sk_OSSL_TARGETS_freefunc_thunk))
 #define sk_OSSL_TARGETS_set_cmp_func(sk, cmp) ((sk_OSSL_TARGETS_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_OSSL_TARGETS_sk_type(sk), ossl_check_OSSL_TARGETS_compfunc_type(cmp)))
 
 /* clang-format on */
@@ -279,9 +393,30 @@ DECLARE_ASN1_FUNCTIONS(OSSL_AUTHORITY_ATTRIBUTE_ID_SYNTAX)
 SKM_DEFINE_STACK_OF_INTERNAL(OSSL_ISSUER_SERIAL, OSSL_ISSUER_SERIAL, OSSL_ISSUER_SERIAL)
 #define sk_OSSL_ISSUER_SERIAL_num(sk) OPENSSL_sk_num(ossl_check_const_OSSL_ISSUER_SERIAL_sk_type(sk))
 #define sk_OSSL_ISSUER_SERIAL_value(sk, idx) ((OSSL_ISSUER_SERIAL *)OPENSSL_sk_value(ossl_check_const_OSSL_ISSUER_SERIAL_sk_type(sk), (idx)))
-#define sk_OSSL_ISSUER_SERIAL_new(cmp) ((STACK_OF(OSSL_ISSUER_SERIAL) *)OPENSSL_sk_new(ossl_check_OSSL_ISSUER_SERIAL_compfunc_type(cmp)))
-#define sk_OSSL_ISSUER_SERIAL_new_null() ((STACK_OF(OSSL_ISSUER_SERIAL) *)OPENSSL_sk_new_null())
-#define sk_OSSL_ISSUER_SERIAL_new_reserve(cmp, n) ((STACK_OF(OSSL_ISSUER_SERIAL) *)OPENSSL_sk_new_reserve(ossl_check_OSSL_ISSUER_SERIAL_compfunc_type(cmp), (n)))
+#define sk_OSSL_ISSUER_SERIAL_new(cmp) \
+    ((STACK_OF(OSSL_ISSUER_SERIAL) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new(ossl_check_OSSL_ISSUER_SERIAL_compfunc_type(cmp)), \
+                sk_OSSL_ISSUER_SERIAL_cmpfunc_thunk), \
+            sk_OSSL_ISSUER_SERIAL_copyfunc_thunk), \
+        sk_OSSL_ISSUER_SERIAL_freefunc_thunk))
+#define sk_OSSL_ISSUER_SERIAL_new_null() \
+    ((STACK_OF(OSSL_ISSUER_SERIAL) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_null(), \
+                sk_OSSL_ISSUER_SERIAL_cmpfunc_thunk), \
+            sk_OSSL_ISSUER_SERIAL_copyfunc_thunk), \
+        sk_OSSL_ISSUER_SERIAL_freefunc_thunk))
+#define sk_OSSL_ISSUER_SERIAL_new_reserve(cmp, n) \
+    ((STACK_OF(OSSL_ISSUER_SERIAL) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_new_reserve(ossl_check_OSSL_ISSUER_SERIAL_compfunc_type(cmp), (n)), \
+                sk_OSSL_ISSUER_SERIAL_cmpfunc_thunk), \
+            sk_OSSL_ISSUER_SERIAL_copyfunc_thunk), \
+        sk_OSSL_ISSUER_SERIAL_freefunc_thunk))
 #define sk_OSSL_ISSUER_SERIAL_reserve(sk, n) OPENSSL_sk_reserve(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk), (n))
 #define sk_OSSL_ISSUER_SERIAL_free(sk) OPENSSL_sk_free(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk))
 #define sk_OSSL_ISSUER_SERIAL_zero(sk) OPENSSL_sk_zero(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk))
@@ -291,7 +426,7 @@ SKM_DEFINE_STACK_OF_INTERNAL(OSSL_ISSUER_SERIAL, OSSL_ISSUER_SERIAL, OSSL_ISSUER
 #define sk_OSSL_ISSUER_SERIAL_unshift(sk, ptr) OPENSSL_sk_unshift(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk), ossl_check_OSSL_ISSUER_SERIAL_type(ptr))
 #define sk_OSSL_ISSUER_SERIAL_pop(sk) ((OSSL_ISSUER_SERIAL *)OPENSSL_sk_pop(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk)))
 #define sk_OSSL_ISSUER_SERIAL_shift(sk) ((OSSL_ISSUER_SERIAL *)OPENSSL_sk_shift(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk)))
-#define sk_OSSL_ISSUER_SERIAL_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk),ossl_check_OSSL_ISSUER_SERIAL_freefunc_type(freefunc))
+#define sk_OSSL_ISSUER_SERIAL_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk), ossl_check_OSSL_ISSUER_SERIAL_freefunc_type(freefunc))
 #define sk_OSSL_ISSUER_SERIAL_insert(sk, ptr, idx) OPENSSL_sk_insert(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk), ossl_check_OSSL_ISSUER_SERIAL_type(ptr), (idx))
 #define sk_OSSL_ISSUER_SERIAL_set(sk, idx, ptr) ((OSSL_ISSUER_SERIAL *)OPENSSL_sk_set(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk), (idx), ossl_check_OSSL_ISSUER_SERIAL_type(ptr)))
 #define sk_OSSL_ISSUER_SERIAL_find(sk, ptr) OPENSSL_sk_find(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk), ossl_check_OSSL_ISSUER_SERIAL_type(ptr))
@@ -299,8 +434,25 @@ SKM_DEFINE_STACK_OF_INTERNAL(OSSL_ISSUER_SERIAL, OSSL_ISSUER_SERIAL, OSSL_ISSUER
 #define sk_OSSL_ISSUER_SERIAL_find_all(sk, ptr, pnum) OPENSSL_sk_find_all(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk), ossl_check_OSSL_ISSUER_SERIAL_type(ptr), pnum)
 #define sk_OSSL_ISSUER_SERIAL_sort(sk) OPENSSL_sk_sort(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk))
 #define sk_OSSL_ISSUER_SERIAL_is_sorted(sk) OPENSSL_sk_is_sorted(ossl_check_const_OSSL_ISSUER_SERIAL_sk_type(sk))
-#define sk_OSSL_ISSUER_SERIAL_dup(sk) ((STACK_OF(OSSL_ISSUER_SERIAL) *)OPENSSL_sk_dup(ossl_check_const_OSSL_ISSUER_SERIAL_sk_type(sk)))
-#define sk_OSSL_ISSUER_SERIAL_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(OSSL_ISSUER_SERIAL) *)OPENSSL_sk_deep_copy(ossl_check_const_OSSL_ISSUER_SERIAL_sk_type(sk), ossl_check_OSSL_ISSUER_SERIAL_copyfunc_type(copyfunc), ossl_check_OSSL_ISSUER_SERIAL_freefunc_type(freefunc)))
+#define sk_OSSL_ISSUER_SERIAL_dup(sk) \
+    ((STACK_OF(OSSL_ISSUER_SERIAL) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_dup(ossl_check_const_OSSL_ISSUER_SERIAL_sk_type(sk)), \
+                sk_OSSL_ISSUER_SERIAL_cmpfunc_thunk), \
+            sk_OSSL_ISSUER_SERIAL_copyfunc_thunk), \
+        sk_OSSL_ISSUER_SERIAL_freefunc_thunk))
+#define sk_OSSL_ISSUER_SERIAL_deep_copy(sk, copyfunc, freefunc) \
+    ((STACK_OF(OSSL_ISSUER_SERIAL) *)OPENSSL_sk_set_thunks( \
+        OPENSSL_sk_set_copy_thunks( \
+            OPENSSL_sk_set_cmp_thunks( \
+                OPENSSL_sk_deep_copy( \
+                    ossl_check_const_OSSL_ISSUER_SERIAL_sk_type(sk), \
+                    ossl_check_OSSL_ISSUER_SERIAL_copyfunc_type(copyfunc), \
+                    ossl_check_OSSL_ISSUER_SERIAL_freefunc_type(freefunc)), \
+                sk_OSSL_ISSUER_SERIAL_cmpfunc_thunk), \
+            sk_OSSL_ISSUER_SERIAL_copyfunc_thunk), \
+        sk_OSSL_ISSUER_SERIAL_freefunc_thunk))
 #define sk_OSSL_ISSUER_SERIAL_set_cmp_func(sk, cmp) ((sk_OSSL_ISSUER_SERIAL_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_OSSL_ISSUER_SERIAL_sk_type(sk), ossl_check_OSSL_ISSUER_SERIAL_compfunc_type(cmp)))
 
 /* clang-format on */

@@ -32,7 +32,6 @@
 #define FORMAT_PEM (5 | B_FORMAT_TEXT)
 #define FORMAT_PKCS12 6
 #define FORMAT_SMIME (7 | B_FORMAT_TEXT)
-#define FORMAT_ENGINE 8 /* Not really a file format */
 #define FORMAT_PEMRSA (9 | B_FORMAT_TEXT) /* PEM RSAPublicKey format */
 #define FORMAT_ASN1RSA 10 /* DER RSAPublicKey format */
 #define FORMAT_MSBLOB 11 /* MS Key blob format */

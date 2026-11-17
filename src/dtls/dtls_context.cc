@@ -6,6 +6,7 @@
 #include <base_object-inl.h>
 #include <crypto/crypto_bio.h>
 #include <crypto/crypto_client_hello.h>
+#include <crypto/crypto_context.h>
 #include <crypto/crypto_tls_certificates.h>
 #include <crypto/crypto_util.h>
 #include <env-inl.h>
@@ -214,6 +215,10 @@ void DTLSContext::New(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
                                              "Failed to create DTLS SSL_CTX");
   }
+
+  // DTLS builds its SSL_CTX here instead of through SecureContext, so the
+  // chain verification hook shared with TLS has to be installed explicitly.
+  crypto::InstallCertVerifyCallback(ctx.get());
 
   // Default to DTLS 1.2 only. DTLS 1.0 (based on TLS 1.1) is deprecated
   // by RFC 8996 and lacks AEAD cipher suites.

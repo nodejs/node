@@ -1281,7 +1281,7 @@ destroyed.
 
 <!-- YAML
 added: v8.4.0
-deprecated: REPLACEME
+deprecated: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 0 - Deprecated. Use `'close'` and `'error'` plus
@@ -1308,7 +1308,7 @@ the `http2stream.rstCode` property.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63249
     description: >-
       Also emitted on peer-initiated resets that arrive before
@@ -1402,7 +1402,7 @@ option must be set for this event to be emitted.
 
 <!-- YAML
 added: v8.4.0
-deprecated: REPLACEME
+deprecated: v27.0.0-alpha.0.0.0
 -->
 
 * Type: {boolean}
@@ -1759,7 +1759,7 @@ stream.on('push', (headers, flags) => {
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/63249
     description: >-
       If no `'response'` listener is attached when the response headers
@@ -2928,9 +2928,12 @@ changes:
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
     the current memory use of the header compression tables, header blocks
-    retained by open streams, current data queued to be sent, and
-    unacknowledged `PING` and `SETTINGS` frames are all counted towards the
-    current limit. **Default:** `10`.
+    retained by open streams, current data queued to be sent, inbound DATA
+    frames retained by undrained streams, and unacknowledged `PING` and
+    `SETTINGS` frames are all counted towards the current limit. When the limit
+    is exceeded the session stops reading from the socket (applying
+    backpressure) until the application consumes the queued data. **Default:**
+    `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
@@ -3160,9 +3163,12 @@ changes:
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
     the current memory use of the header compression tables, header blocks
-    retained by open streams, current data queued to be sent, and
-    unacknowledged `PING` and `SETTINGS` frames are all counted towards the
-    current limit. **Default:** `10`.
+    retained by open streams, current data queued to be sent, inbound DATA
+    frames retained by undrained streams, and unacknowledged `PING`
+    and `SETTINGS` frames are all counted towards the current limit. When the
+    limit is exceeded the session stops reading from the socket (applying
+    backpressure) until the application consumes the queued data. **Default:**
+    `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
@@ -3352,9 +3358,16 @@ changes:
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
     the current memory use of the header compression tables, header blocks
-    retained by open streams, current data queued to be sent, and
+    retained by open streams, current data queued to be sent, inbound DATA
+    frames retained by undrained streams, and
     unacknowledged `PING` and `SETTINGS` frames are all counted towards the
-    current limit. **Default:** `10`.
+    current limit. When the limit is exceeded the session stops reading from the
+    socket (applying backpressure) until the application consumes the queued data.
+    For received headers on locally initiated streams, including
+    informational responses and trailers, queued outbound data across the session
+    is excluded from the memory check. Retained headers still count towards the
+    limit. This exception does not apply to server push streams.
+    **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
@@ -3718,7 +3731,7 @@ For incoming headers:
 * The `:status` header is converted to `number`.
 * Duplicates of `:status`, `:method`, `:authority`, `:scheme`, `:path`,
   `:protocol`, `age`, `authorization`, `access-control-allow-credentials`,
-  `access-control-max-age`, `access-control-request-method`, `content-encoding`,
+  `access-control-max-age`, `access-control-request-method`,
   `content-language`, `content-length`, `content-location`, `content-md5`,
   `content-range`, `content-type`, `date`, `dnt`, `etag`, `expires`, `from`,
   `host`, `if-match`, `if-modified-since`, `if-none-match`, `if-range`,
@@ -4261,7 +4274,7 @@ data.
 
 <!-- YAML
 added: v8.4.0
-deprecated: REPLACEME
+deprecated: v27.0.0-alpha.0.0.0
 -->
 
 > Stability: 0 - Deprecated
@@ -4282,7 +4295,7 @@ Just like `'end'`, this event occurs only once per response.
 
 <!-- YAML
 added: v10.1.0
-deprecated: REPLACEME
+deprecated: v27.0.0-alpha.0.0.0
 -->
 
 * Type: {boolean}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -123,7 +123,7 @@ int ossl_cipher_unpadblock(unsigned char *buf, size_t *buflen, size_t blocksize)
  * time.
  *
  * libctx: Our library context
- * tlsversion: The TLS version in use, e.g. SSL3_VERSION, TLS1_VERSION, etc
+ * tlsversion: The TLS version in use, e.g. TLS1_VERSION, etc
  * buf: The decrypted TLS record data
  * buflen: The length of the decrypted TLS record data. Updated with the new
  *         length after the padding is removed
@@ -147,11 +147,6 @@ int ossl_cipher_tlsunpadblock(OSSL_LIB_CTX *libctx, unsigned int tlsversion,
     int ret;
 
     switch (tlsversion) {
-    case SSL3_VERSION:
-        return ssl3_cbc_remove_padding_and_mac(buflen, *buflen, buf, mac,
-            alloced, blocksize, macsize,
-            libctx);
-
     case TLS1_2_VERSION:
     case DTLS1_2_VERSION:
     case TLS1_1_VERSION:

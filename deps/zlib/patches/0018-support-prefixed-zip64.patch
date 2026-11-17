@@ -30,10 +30,10 @@ Date:   Fri May 16 15:35:36 2025 +0200
     Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/6554217
 
 diff --git a/third_party/zlib/contrib/minizip/unzip.c b/third_party/zlib/contrib/minizip/unzip.c
-index a39e1752f6d2e..2c8a73e87e011 100644
+index c15f4484f75f7..2ec74e0ff2af8 100644
 --- a/third_party/zlib/contrib/minizip/unzip.c
 +++ b/third_party/zlib/contrib/minizip/unzip.c
-@@ -482,6 +482,44 @@ local ZPOS64_T unz64local_SearchCentralDir64(const zlib_filefunc64_32_def* pzlib
+@@ -485,6 +485,46 @@ local ZPOS64_T unz64local_SearchCentralDir64(const zlib_filefunc64_32_def* pzlib
      if (uL != 1)
          return CENTRALDIRINVALID;
  

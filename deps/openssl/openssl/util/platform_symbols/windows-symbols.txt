@@ -1,5 +1,6 @@
 AcquireSRWLockExclusive
 AcquireSRWLockShared
+BCryptGenRandom
 CertCloseStore
 CertFindCertificateInStore
 CertFreeCertificateContext
@@ -124,7 +125,6 @@ _stat64i32
 _strdup
 _time64
 _wfopen
-atoi
 calloc
 clearerr
 fclose

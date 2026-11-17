@@ -32,8 +32,8 @@
 
 #define ARES_VERSION_MAJOR 1
 #define ARES_VERSION_MINOR 34
-#define ARES_VERSION_PATCH 8
-#define ARES_VERSION_STR   "1.34.8"
+#define ARES_VERSION_PATCH 9
+#define ARES_VERSION_STR   "1.34.9"
 
 /* NOTE: We cannot make the version string a C preprocessor stringify operation
  *       due to assumptions made by integrators that aren't properly using

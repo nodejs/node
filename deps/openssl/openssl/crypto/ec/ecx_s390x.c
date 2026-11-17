@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,7 +15,7 @@
 #include "ec_local.h"
 #include "curve448/curve448_local.h"
 #include "ecx_backend.h"
-#include "s390x_arch.h"
+#include "arch/s390x_arch.h"
 #include "internal/constant_time.h"
 
 static void s390x_x25519_mod_p(unsigned char u[32])

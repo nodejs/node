@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -79,33 +79,20 @@ int ossl_asn1_time_to_tm(struct tm *tm, const ASN1_TIME *d)
     static const int max[9] = { 99, 99, 12, 31, 23, 59, 59, 12, 59 };
     static const int mdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
     char *a;
-    int n, i, i2, l, o, min_l, strict = 0, end = 6, btz = 5, md;
+    int n, i, i2, l, o, min_l, end = 6, btz = 5, md;
     struct tm tmp;
 #if defined(CHARSET_EBCDIC)
     const char upper_z = 0x5A, num_zero = 0x30, period = 0x2E, minus = 0x2D, plus = 0x2B;
 #else
     const char upper_z = 'Z', num_zero = '0', period = '.', minus = '-', plus = '+';
 #endif
-    /*
-     * ASN1_STRING_FLAG_X509_TIME is used to enforce RFC 5280
-     * time string format, in which:
-     *
-     * 1. "seconds" is a 'MUST'
-     * 2. "Zulu" timezone is a 'MUST'
-     * 3. "+|-" is not allowed to indicate a timezone
-     */
+
     if (d->type == V_ASN1_UTCTIME) {
         min_l = 13;
-        if (d->flags & ASN1_STRING_FLAG_X509_TIME) {
-            strict = 1;
-        }
     } else if (d->type == V_ASN1_GENERALIZEDTIME) {
         end = 7;
         btz = 6;
         min_l = 15;
-        if (d->flags & ASN1_STRING_FLAG_X509_TIME) {
-            strict = 1;
-        }
     } else {
         return 0;
     }
@@ -124,7 +111,7 @@ int ossl_asn1_time_to_tm(struct tm *tm, const ASN1_TIME *d)
     if (l < min_l)
         goto err;
     for (i = 0; i < end; i++) {
-        if (!strict && (i == btz) && ((a[o] == upper_z) || (a[o] == plus) || (a[o] == minus))) {
+        if ((i == btz) && ((a[o] == upper_z) || (a[o] == plus) || (a[o] == minus))) {
             i++;
             break;
         }
@@ -190,9 +177,6 @@ int ossl_asn1_time_to_tm(struct tm *tm, const ASN1_TIME *d)
      * digits.
      */
     if (d->type == V_ASN1_GENERALIZEDTIME && a[o] == period) {
-        if (strict)
-            /* RFC 5280 forbids fractional seconds */
-            goto err;
         if (++o == l)
             goto err;
         i = o;
@@ -213,7 +197,7 @@ int ossl_asn1_time_to_tm(struct tm *tm, const ASN1_TIME *d)
      */
     if (a[o] == upper_z) {
         o++;
-    } else if (!strict && ((a[o] == plus) || (a[o] == minus))) {
+    } else if (((a[o] == plus) || (a[o] == minus))) {
         int offsign = a[o] == minus ? 1 : -1;
         int offset = 0;
 
@@ -249,7 +233,7 @@ int ossl_asn1_time_to_tm(struct tm *tm, const ASN1_TIME *d)
         if (offset && !OPENSSL_gmtime_adj(&tmp, 0, offset * offsign))
             goto err;
     } else {
-        /* not Z, or not +/- in non-strict mode */
+        /* not Z, or not +/- */
         goto err;
     }
     if (o == l) {
@@ -266,7 +250,8 @@ ASN1_TIME *ossl_asn1_time_from_tm(ASN1_TIME *s, struct tm *ts, int type)
 {
     char *p;
     ASN1_TIME *tmps = NULL;
-    const size_t len = 20;
+    const int len = 20;
+    int ret;
 
     if (type == V_ASN1_UNDEF) {
         if (is_utc(ts->tm_year))
@@ -287,7 +272,7 @@ ASN1_TIME *ossl_asn1_time_from_tm(ASN1_TIME *s, struct tm *ts, int type)
     if (tmps == NULL)
         return NULL;
 
-    if (!ASN1_STRING_set(tmps, NULL, len))
+    if (!ossl_asn1_string_set1_data(tmps, NULL, len))
         goto err;
 
     tmps->type = type;
@@ -299,16 +284,19 @@ ASN1_TIME *ossl_asn1_time_from_tm(ASN1_TIME *s, struct tm *ts, int type)
     if (type == V_ASN1_GENERALIZEDTIME) {
         if (ts->tm_year > INT_MAX - 1900)
             goto err;
-        tmps->length = BIO_snprintf(p, len, "%04d%02d%02d%02d%02d%02dZ",
+        ret = snprintf(p, len, "%04d%02d%02d%02d%02d%02dZ",
             ts->tm_year + 1900, ts->tm_mon + 1,
             ts->tm_mday, ts->tm_hour, ts->tm_min,
             ts->tm_sec);
     } else {
-        tmps->length = BIO_snprintf(p, len, "%02d%02d%02d%02d%02d%02dZ",
+        ret = snprintf(p, len, "%02d%02d%02d%02d%02d%02dZ",
             ts->tm_year % 100, ts->tm_mon + 1,
             ts->tm_mday, ts->tm_hour, ts->tm_min,
             ts->tm_sec);
     }
+    if (ret < 0 || ret >= len)
+        goto err;
+    tmps->length = ret;
 
 #ifdef CHARSET_EBCDIC
     ebcdic2ascii(tmps->data, tmps->data, tmps->length);
@@ -385,59 +373,53 @@ int ASN1_TIME_set_string_X509(ASN1_TIME *s, const char *str)
 {
     ASN1_TIME t;
     struct tm tm;
-    int rv = 0;
+    size_t len;
 
-    t.length = strlen(str);
-    t.data = (unsigned char *)str;
-    t.flags = ASN1_STRING_FLAG_X509_TIME;
-
-    t.type = V_ASN1_UTCTIME;
-
-    if (!ASN1_TIME_check(&t)) {
+    /* RFC 5280 4.1.2.5: Valid RFC5280 times must be either length 13 or 15. */
+    len = strlen(str);
+    switch (len) {
+    case 13:
+        t.type = V_ASN1_UTCTIME;
+        break;
+    case 15:
         t.type = V_ASN1_GENERALIZEDTIME;
-        if (!ASN1_TIME_check(&t))
-            goto out;
+        break;
+    default:
+        return 0;
     }
+
+    /* RFC 5280 4.1.2.5 Valid RFC5280 times must end in 'Z'. */
+    if (str[len - 1] != 0x5A)
+        return 0;
+
+    t.length = (int)len;
+    t.data = (unsigned char *)str;
 
     /*
-     * Per RFC 5280 (section 4.1.2.5.), the valid input time
-     * strings should be encoded with the following rules:
-     *
-     * 1. UTC: YYMMDDHHMMSSZ, if YY < 50 (20YY) --> UTC: YYMMDDHHMMSSZ
-     * 2. UTC: YYMMDDHHMMSSZ, if YY >= 50 (19YY) --> UTC: YYMMDDHHMMSSZ
-     * 3. G'd: YYYYMMDDHHMMSSZ, if YYYY >= 2050 --> G'd: YYYYMMDDHHMMSSZ
-     * 4. G'd: YYYYMMDDHHMMSSZ, if YYYY < 2050 --> UTC: YYMMDDHHMMSSZ
-     *
-     * Only strings of the 4th rule should be reformatted, but since a
-     * UTC can only present [1950, 2050), so if the given time string
-     * is less than 1950 (e.g. 19230419000000Z), we do nothing...
+     * RFC 5280 Section 4.1.2.5 The following function is permissive
+     * and allows time zone offsets and time zones not Z, etc. As we
+     * have already failed and excluded anything not the correct length
+     * for the type, and anything not ending in a 'Z', Our time may
+     * not be any of these other cases, and still parse as a time.
      */
+    if (!ossl_asn1_time_to_tm(&tm, &t))
+        return 0;
 
-    if (s != NULL && t.type == V_ASN1_GENERALIZEDTIME) {
-        if (!ossl_asn1_time_to_tm(&tm, &t))
-            goto out;
-        if (is_utc(tm.tm_year)) {
-            t.length -= 2;
-            /*
-             * it's OK to let original t.data go since that's assigned
-             * to a piece of memory allocated outside of this function.
-             * new t.data would be freed after ASN1_STRING_copy is done.
-             */
-            t.data = OPENSSL_zalloc(t.length + 1);
-            if (t.data == NULL)
-                goto out;
-            memcpy(t.data, str + 2, t.length);
-            t.type = V_ASN1_UTCTIME;
-        }
+    if (s != NULL) {
+        /*
+         * Unlike every other type of nonconforming to RFC5280 time
+         * string, which causes this function to fail, a 15 character
+         * input string that ends up being in the UTC time range is not
+         * rejected. Instead, two digits of the year is removed from
+         * start of the input string so the result is a UTC time.
+         */
+        if (is_utc(tm.tm_year) && len == 15)
+            return ASN1_TIME_set_string(s, str + 2);
+
+        return ASN1_TIME_set_string(s, str);
     }
 
-    if (s == NULL || ASN1_STRING_copy((ASN1_STRING *)s, (ASN1_STRING *)&t))
-        rv = 1;
-
-    if (t.data != (unsigned char *)str)
-        OPENSSL_free(t.data);
-out:
-    return rv;
+    return 1;
 }
 
 int ASN1_TIME_to_tm(const ASN1_TIME *s, struct tm *tm)

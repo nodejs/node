@@ -12,8 +12,9 @@ ares_inet_pton \- convert an IPv4 or IPv6 address from text to binary form
 int ares_inet_pton(int \fIaf\fP, const char *\fIsrc\fP, void *\fIdst\fP);
 .fi
 .SH DESCRIPTION
-This is a portable version with the identical functionality of the commonly
-available \fIinet_pton\fP.
+This is a portable version of the commonly available \fIinet_pton\fP.  It
+behaves the same for AF_INET6, and for AF_INET it additionally accepts the
+legacy forms described below.
 
 The ares_inet_pton() function converts the address in its standard text
 presentation form into its numeric binary form. The \fBaf\fP argument shall
@@ -23,9 +24,20 @@ in. The \fBdst\fP argument points to a buffer into which the function stores
 the numeric address; this shall be large enough to hold the numeric address
 (32 bits for AF_INET, 128 bits for AF_INET6).
 
+The \fBsrc\fP argument must be an address, not a network: a "/bits" prefix
+length suffix (CIDR notation) is not accepted and the function returns 0 for
+such input.  On success, the whole address (4 bytes for AF_INET, 16 bytes for
+AF_INET6) is always written to \fBdst\fP.  Versions of c-ares before 1.34.9
+accepted a prefix length here.
+
+Unlike POSIX \fIinet_pton\fP, AF_INET also accepts shortened forms such as
+"10.1" and hexadecimal forms such as "0x0a000001".  Octets that are not given
+are set to zero, so "10.1" is 10.1.0.0.
+
 It returns 1 if the address was valid for the specified address family, or 0
 if the address was not parseable in the specified address family, or -1 if
-some system error occurred (in which case errno will have been set).
+the address family is not supported (in which case errno will have been set
+to EAFNOSUPPORT).
 
 .SH SEE ALSO
 .BR ares_init (3),

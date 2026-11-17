@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,7 +20,7 @@ static PKCS12_SAFEBAG *pkcs12_add_cert_bag(STACK_OF(PKCS12_SAFEBAG) **pbags,
     X509 *cert,
     const char *name,
     int namelen,
-    unsigned char *keyid,
+    const unsigned char *keyid,
     int keyidlen);
 
 static int copy_bag_attr(PKCS12_SAFEBAG *bag, EVP_PKEY *pkey, int nid)
@@ -46,7 +46,7 @@ PKCS12 *PKCS12_create_ex2(const char *pass, const char *name, EVP_PKEY *pkey,
     unsigned char keyid[EVP_MAX_MD_SIZE];
     unsigned int keyidlen = 0;
     int namelen = -1;
-    unsigned char *pkeyid = NULL;
+    const unsigned char *pkeyid = NULL;
     int pkeyidlen = -1;
 
     /* Set defaults */
@@ -190,7 +190,7 @@ static PKCS12_SAFEBAG *pkcs12_add_cert_bag(STACK_OF(PKCS12_SAFEBAG) **pbags,
     X509 *cert,
     const char *name,
     int namelen,
-    unsigned char *keyid,
+    const unsigned char *keyid,
     int keyidlen)
 {
     PKCS12_SAFEBAG *bag = NULL;
@@ -219,7 +219,7 @@ PKCS12_SAFEBAG *PKCS12_add_cert(STACK_OF(PKCS12_SAFEBAG) **pbags, X509 *cert)
 {
     char *name = NULL;
     int namelen = -1;
-    unsigned char *keyid = NULL;
+    const unsigned char *keyid = NULL;
     int keyidlen = -1;
 
     /*

@@ -438,6 +438,9 @@ is returned on success,
 is returned on out of memory,
 .B ARES_EFORMERR
 is returned on misuse.
+\fIares_dns_write(3)\fP also returns
+.B ARES_EBADQUERY
+if the message is too large to encode.
 
 \fIares_dns_record_get_id(3)\fP, \fIares_dns_record_set_id(3)\fP,
 \fIares_dns_record_get_flags(3)\fP, \fIares_dns_record_get_opcode(3)\fP,

@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -270,7 +270,7 @@ static int BN_STACK_push(BN_STACK *st, unsigned int idx)
         unsigned int newsize = st->size ? (st->size * 3 / 2) : BN_CTX_START_FRAMES;
         unsigned int *newitems;
 
-        if ((newitems = OPENSSL_malloc(sizeof(*newitems) * newsize)) == NULL)
+        if ((newitems = OPENSSL_malloc_array(newsize, sizeof(*newitems))) == NULL)
             return 0;
         if (st->depth)
             memcpy(newitems, st->indexes, sizeof(*newitems) * st->depth);

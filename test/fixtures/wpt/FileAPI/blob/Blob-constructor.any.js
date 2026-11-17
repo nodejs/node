@@ -335,6 +335,8 @@ test_blob(function() {
   desc: "ArrayBuffer elements of the blobParts array should be supported."
 });
 
+var isLittleEndian = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
+
 test_blob(function() {
   return new Blob([
     new Uint8Array([0x50, 0x41, 0x53, 0x53]),
@@ -346,7 +348,7 @@ test_blob(function() {
     new Float32Array([0xD341500000])
   ]);
 }, {
-  expected: "PASSPASSPASSPASSPASSPASSPASS",
+  expected: isLittleEndian ? "PASSPASSPASSPASSPASSPASSPASS" : "PASSPASSAPSSAPSSSSAPSSAPSSAP",
   type: "",
   desc: "Passing typed arrays as elements of the blobParts array should work."
 });
@@ -355,20 +357,20 @@ test_blob(function() {
     new Float16Array([2.65625, 58.59375])
   ]);
 }, {
-  expected: "PASS",
+  expected: isLittleEndian ? "PASS" : "APSS",
   type: "",
   desc: "Passing a Float16Array as element of the blobParts array should work."
 });
 test_blob(function() {
+  // 0x535 3415053534150
+  // 0x535 = 0b010100110101 -> Sign = +, Exponent = 1333 - 1023 = 310
+  // 0x13415053534150 * 2**(-52)
+  // ==> 0x13415053534150 * 2**258 = 2510297372767036725005267563121821874921913208671273727396467555337665343087229079989707079680
   return new Blob([
-    // 0x535 3415053534150
-    // 0x535 = 0b010100110101 -> Sign = +, Exponent = 1333 - 1023 = 310
-    // 0x13415053534150 * 2**(-52)
-    // ==> 0x13415053534150 * 2**258 = 2510297372767036725005267563121821874921913208671273727396467555337665343087229079989707079680
     new Float64Array([2510297372767036725005267563121821874921913208671273727396467555337665343087229079989707079680])
   ]);
 }, {
-  expected: "PASSPASS",
+  expected: isLittleEndian ? "PASSPASS" : "SSAPSSAP",
   type: "",
   desc: "Passing a Float64Array as element of the blobParts array should work."
 });
@@ -379,7 +381,7 @@ test_blob(function() {
     new BigUint64Array([BigInt("0x5353415053534150")])
   ]);
 }, {
-  expected: "PASSPASSPASSPASS",
+  expected: isLittleEndian ? "PASSPASSPASSPASS" : "SSAPSSAPSSAPSSAP",
   type: "",
   desc: "Passing BigInt typed arrays as elements of the blobParts array should work."
 });
@@ -528,3 +530,4 @@ type_tests.forEach(function(t) {
     assert_equals(b.type, t[2]);
   }, "Blob with type " + format_value(t[1]));
 });
+

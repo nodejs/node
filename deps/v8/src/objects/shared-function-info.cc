@@ -600,6 +600,10 @@ void SharedFunctionInfo::InitFromFunctionLiteral(IsolateT* isolate,
         lit->has_static_private_methods_or_accessors());
 
     raw_sfi->set_is_hoisted_in_context(lit->scope()->is_hoisted_in_context());
+    DCHECK_IMPLIES(lit->scope()->class_initializer_allows_await(),
+                   IsClassInitializerFunction(lit->kind()));
+    raw_sfi->set_class_initializer_allows_await(
+        lit->scope()->class_initializer_allows_await());
 
     raw_sfi->set_is_toplevel(is_toplevel);
     DCHECK(IsTheHole(raw_sfi->outer_scope_info()));

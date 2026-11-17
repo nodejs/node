@@ -1,4 +1,4 @@
-#include "s390x_arch.h"
+#include "arch/s390x_arch.h"
 .text
 .globl	ChaCha20_ctr32
 .type	ChaCha20_ctr32,@function
@@ -950,5 +950,5 @@ ChaCha20_ctr32_vx:
 .long	857760878,857760878,857760878,857760878
 .long	2036477234,2036477234,2036477234,2036477234
 .long	1797285236,1797285236,1797285236,1797285236
-.asciz	"ChaCha20 for s390x, CRYPTOGAMS by <appro@openssl.org>"
+.asciz	"ChaCha20 for s390x, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	4

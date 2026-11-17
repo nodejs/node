@@ -22,7 +22,7 @@ static int dsa_paramgen_check(EVP_PKEY_CTX *ctx)
         return -2;
     }
     /* If key type not DSA return error */
-    if (ctx->pmeth != NULL && ctx->pmeth->pkey_id != EVP_PKEY_DSA)
+    if (ctx->legacy_keytype != EVP_PKEY_DSA)
         return -1;
     return 1;
 }

@@ -355,6 +355,14 @@ it.todo('should do the thing', { expectFailure: true }, () => {
 
 ## `only` tests
 
+To prevent exclusive tests from accidentally excluding tests in CI, use
+[`--test-forbid-only`][] or the `forbidOnly` option of [`run()`][]. When enabled,
+declaring a test or suite with `only: true` or calling `testContext.runOnly(true)`
+fails the run. This includes the `.only()` shorthands and applies with either
+isolation mode, even when `--test-only` is also enabled. Name filtering, TODO
+markers, and expected failures cannot suppress detected violations. Declarations
+inside callbacks that are never executed are not checked.
+
 If Node.js is started with the [`--test-only`][] command-line option, or test
 isolation is disabled, it is possible to skip all tests except for a selected
 subset by passing the `only` option to the tests that should run. When a test
@@ -652,9 +660,13 @@ test('a test that creates asynchronous activity', (t) => {
 added:
   - v19.2.0
   - v18.13.0
+changes:
+  - version: v27.0.0-alpha.0.0.0
+    pr-url: https://github.com/nodejs/node/pull/66708
+    description: Watch mode is now stable.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 The Node.js test runner supports running in watch mode by passing the `--watch` flag:
 
@@ -1706,6 +1718,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: v27.0.0-alpha.0.0.0
+    pr-url: https://github.com/nodejs/node/pull/66578
+    description: Added the `forbidOnly` option.
   - version:
      - v26.2.0
      - v24.19.0
@@ -1762,6 +1777,9 @@ changes:
   * `forceExit` {boolean} Configures the test runner to exit the process once
     all known tests have finished executing even if the event loop would
     otherwise remain active. **Default:** `false`.
+  * `forbidOnly` {boolean} Fail the run when a test or suite is declared with
+    `only: true` or `testContext.runOnly(true)` is called. See [`only` tests](#only-tests).
+    **Default:** the value of [`--test-forbid-only`][].
   * `globPatterns` {Array} An array containing the list of glob patterns to
     match test files. This option cannot be used together with `files`.
     **Default:** Same as [running tests from the command line][].
@@ -2469,7 +2487,7 @@ test('changes a mock behavior once', (t) => {
 ### `ctx.mockRejectedValue(reason)`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 * `reason` {any} The value the returned promise rejects with.
@@ -2490,7 +2508,7 @@ test('mocks a rejected value', async (t) => {
 ### `ctx.mockResolvedValue(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 * `value` {any} The value the returned promise resolves with.
@@ -2511,7 +2529,7 @@ test('mocks a resolved value', async (t) => {
 ### `ctx.mockReturnValue(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 * `value` {any} The value returned by the mock.
@@ -2532,7 +2550,7 @@ test('mocks a return value', (t) => {
 ### `ctx.mockThrownValue(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.0.0
 -->
 
 * `value` {any} The value thrown by the mock.
@@ -2865,10 +2883,8 @@ Node.js builtin modules. Any references to the original module prior to mocking 
 order to enable module mocking, Node.js must be started with the
 [`--experimental-test-module-mocks`][] command-line flag.
 
-**Note**: [module customization hooks][] registered via the **synchronous** API effect resolution of
-the `specifier` provided to `mock.module`. Customization hooks registered via the **asynchronous**
-API are currently ignored (because the test runner's loader is synchronous, and node does not
-support multi-chain / cross-chain loading).
+**Note**: [module customization hooks][] registered with `module.registerHooks()` affect resolution of
+the `specifier` provided to `mock.module`.
 
 The following example demonstrates how a mock is created for a module.
 
@@ -4756,7 +4772,7 @@ server ports) across concurrent test files:
 
 ```mjs
 import { test } from 'node:test';
-import { process } from 'node:process';
+import process from 'node:process';
 
 test('database operations', async (t) => {
   // Worker ID is available via context
@@ -5123,6 +5139,32 @@ The attempt number of the suite. This value is zero-based, so the first attempt 
 the second attempt is `1`, and so on. This property is useful in conjunction with the
 `--test-rerun-failures` option to determine the attempt number of the current run.
 
+### `context.tags`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* Type: {string\[]}
+
+A frozen array of the suite's flattened lowercased tags, in declaration
+order, including any tags inherited from ancestor suites. Empty when the
+suite has no tags. See [Test tags][].
+
+### `context.workerId`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number|undefined}
+
+The unique identifier of the worker running the current test file. This value
+is derived from the `NODE_TEST_WORKER_ID` environment variable, and is
+`undefined` when not running in a test context.
+
 ### `context.diagnostic(message)`
 
 <!-- YAML
@@ -5190,6 +5232,7 @@ test.describe('my suite', (suite) => {
 [`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-coverage-exclude`]: cli.md#--test-coverage-exclude
 [`--test-coverage-include`]: cli.md#--test-coverage-include
+[`--test-forbid-only`]: cli.md#--test-forbid-only
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination

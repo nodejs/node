@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -30,7 +30,7 @@ ossl_property_find_property(const OSSL_PROPERTY_LIST *list,
         return NULL;
 
     return ossl_bsearch(&name_idx, list->properties, list->num_properties,
-        sizeof(*list->properties), &property_idx_cmp, 0);
+        sizeof(*list->properties), &property_idx_cmp, NULL, 0);
 }
 
 OSSL_PROPERTY_TYPE ossl_property_get_type(const OSSL_PROPERTY_DEFINITION *prop)

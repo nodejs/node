@@ -7,16 +7,12 @@
  * https://www.openssl.org/source/license.html
  */
 
-/* We need to use some engine deprecated APIs */
-#define OPENSSL_SUPPRESS_DEPRECATED
-
 #include <stdio.h>
 #include "internal/cryptlib.h"
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/decoder.h>
-#include <openssl/engine.h>
 #include <openssl/x509.h>
 #include <openssl/asn1.h>
 #include "crypto/asn1.h"
@@ -49,7 +45,7 @@ d2i_PrivateKey_decoder(int keytype, EVP_PKEY **a, const unsigned char **pp,
 
     /* This is just a probe. It might fail, so we ignore errors */
     ERR_set_mark();
-    p8info = d2i_PKCS8_PRIV_KEY_INFO(NULL, pp, len);
+    p8info = d2i_PKCS8_PRIV_KEY_INFO(NULL, pp, length);
     ERR_pop_to_mark();
     if (p8info != NULL) {
         int64_t v;
@@ -112,10 +108,6 @@ ossl_d2i_PrivateKey_legacy(int keytype, EVP_PKEY **a, const unsigned char **pp,
         }
     } else {
         ret = *a;
-#ifndef OPENSSL_NO_ENGINE
-        ENGINE_finish(ret->engine);
-        ret->engine = NULL;
-#endif
     }
 
     if (!EVP_PKEY_set_type(ret, keytype)) {

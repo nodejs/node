@@ -36,8 +36,8 @@
       'dependencies': [
         'gen_heap_constants',
 
-        'v8.gyp:generate_bytecode_builtins_list',
-        'v8.gyp:run_torque',
+        'v8.gyp:generate_bytecode_builtins_list#target',
+        'v8.gyp:run_torque#target',
         'v8.gyp:v8_maybe_icu',
         'v8.gyp:fp16',
         'v8.gyp:v8_libbase',
@@ -161,8 +161,8 @@
         'v8.gyp:v8_libplatform',
         'v8.gyp:v8_maybe_icu',
         'v8.gyp:fp16',
-        'v8.gyp:generate_bytecode_builtins_list',
-        'v8.gyp:run_torque',
+        'v8.gyp:generate_bytecode_builtins_list#target',
+        'v8.gyp:run_torque#target',
       ],
       'conditions': [
         ['node_shared_abseil=="false"', {

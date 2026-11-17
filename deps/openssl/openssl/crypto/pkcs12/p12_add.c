@@ -98,8 +98,7 @@ PKCS7 *PKCS12_pack_p7encdata_ex(int pbe_nid, const char *pass, int passlen,
 {
     PKCS7 *p7;
     X509_ALGOR *pbe;
-    const EVP_CIPHER *pbe_ciph = NULL;
-    EVP_CIPHER *pbe_ciph_fetch = NULL;
+    EVP_CIPHER *pbe_ciph = NULL;
 
     if ((p7 = PKCS7_new_ex(ctx, propq)) == NULL) {
         ERR_raise(ERR_LIB_PKCS12, ERR_R_ASN1_LIB);
@@ -111,9 +110,7 @@ PKCS7 *PKCS12_pack_p7encdata_ex(int pbe_nid, const char *pass, int passlen,
     }
 
     ERR_set_mark();
-    pbe_ciph = pbe_ciph_fetch = EVP_CIPHER_fetch(ctx, OBJ_nid2sn(pbe_nid), propq);
-    if (pbe_ciph == NULL)
-        pbe_ciph = EVP_get_cipherbynid(pbe_nid);
+    pbe_ciph = EVP_CIPHER_fetch(ctx, OBJ_nid2sn(pbe_nid), propq);
     ERR_pop_to_mark();
 
     if (pbe_ciph != NULL) {
@@ -135,12 +132,12 @@ PKCS7 *PKCS12_pack_p7encdata_ex(int pbe_nid, const char *pass, int passlen,
         goto err;
     }
 
-    EVP_CIPHER_free(pbe_ciph_fetch);
+    EVP_CIPHER_free(pbe_ciph);
     return p7;
 
 err:
     PKCS7_free(p7);
-    EVP_CIPHER_free(pbe_ciph_fetch);
+    EVP_CIPHER_free(pbe_ciph);
     return NULL;
 }
 

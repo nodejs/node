@@ -968,6 +968,7 @@ void JSReceiver::DeleteNormalizedProperty(DirectHandle<JSReceiver> object,
                                           InternalIndex entry) {
   DCHECK(!object->HasFastProperties());
   Isolate* isolate = Isolate::Current();
+  CHECK(AllowJSObjectModification::IsAllowed(isolate));
   DCHECK(entry.is_found());
 
   if (IsJSGlobalObject(*object)) {
@@ -2866,6 +2867,7 @@ Maybe<bool> JSObject::SetNormalizedProperty(DirectHandle<JSObject> object,
   DCHECK(!object->HasFastProperties());
   DCHECK(IsUniqueName(*name));
   Isolate* isolate = Isolate::Current();
+  CHECK(AllowJSObjectModification::IsAllowed(isolate));
 
   uint32_t hash = name->hash();
 
@@ -3557,6 +3559,7 @@ void MigrateFastToSlow(Isolate* isolate, DirectHandle<JSObject> object,
 void JSObject::MigrateToMap(Isolate* isolate, DirectHandle<JSObject> object,
                             DirectHandle<Map> new_map,
                             int expected_additional_properties) {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate));
   if (object->map() == *new_map) return;
   DirectHandle<Map> old_map(object->map(), isolate);
   NotifyMapChange(old_map, new_map, isolate);
@@ -3995,9 +3998,10 @@ void JSObject::NormalizeProperties(Isolate* isolate,
 void JSObject::MigrateSlowToFast(DirectHandle<JSObject> object,
                                  int unused_property_fields,
                                  const char* reason) {
+  Isolate* isolate = Isolate::Current();
+  CHECK(AllowJSObjectModification::IsAllowed(isolate));
   if (object->HasFastProperties()) return;
   DCHECK(!IsJSGlobalObject(*object));
-  Isolate* isolate = Isolate::Current();
   Factory* factory = isolate->factory();
 
   DirectHandle<NameDictionary> dictionary;
@@ -5515,6 +5519,7 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate,
 // static
 void JSObject::SetImmutableProto(Isolate* isolate,
                                  DirectHandle<JSObject> object) {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate));
   DirectHandle<Map> map(object->map(), isolate);
 
   // Nothing to do if prototype is already set.
@@ -5611,6 +5616,7 @@ Maybe<bool> JSObject::AddDataElement(Isolate* isolate,
                                      DirectHandle<JSObject> object,
                                      uint32_t index, DirectHandle<Object> value,
                                      PropertyAttributes attributes) {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate));
   DCHECK(object->map()->is_extensible());
 
   uint32_t old_length = 0;

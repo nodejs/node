@@ -37,7 +37,7 @@ declare namespace RetryHandler {
   export interface RetryOptions {
     /**
      * If true, the retry handler will throw an error if the request fails,
-     * this will prevent the folling handlers from being called, and will destroy the socket.
+     * this will prevent the following handlers from being called, and will destroy the socket.
      *
      * @type {boolean}
      * @memberof RetryOptions
@@ -98,14 +98,14 @@ declare namespace RetryHandler {
      *
      * @type {Dispatcher.HttpMethod[]}
      * @memberof RetryOptions
-     * @default ['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE', 'TRACE'],
+     * @default ['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE', 'TRACE', 'QUERY'],
      */
     methods?: Dispatcher.HttpMethod[];
     /**
      * Error codes to be retried. e.g. `ECONNRESET`, `ENOTFOUND`, `ETIMEDOUT`, `ECONNREFUSED`, etc.
      *
      * @type {string[]}
-     * @default ['ECONNRESET','ECONNREFUSED','ENOTFOUND','ENETDOWN','ENETUNREACH','EHOSTDOWN','EHOSTUNREACH','EPIPE']
+     * @default ['ECONNRESET','ECONNREFUSED','ENOTFOUND','ENETDOWN','ENETUNREACH','EHOSTDOWN','EHOSTUNREACH','EPIPE','UND_ERR_SOCKET']
      */
     errorCodes?: string[];
     /**

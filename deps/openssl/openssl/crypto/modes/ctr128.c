@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,12 +26,12 @@ typedef size_t size_t_aX;
 /* increment counter (128-bit int) by 1 */
 static void ctr128_inc(unsigned char *counter)
 {
-    u32 n = 16, c = 1;
+    uint32_t n = 16, c = 1;
 
     do {
         --n;
         c += counter[n];
-        counter[n] = (u8)c;
+        counter[n] = (uint8_t)c;
         c >>= 8;
     } while (n);
 }
@@ -137,12 +137,12 @@ void CRYPTO_ctr128_encrypt(const unsigned char *in, unsigned char *out,
 /* increment upper 96 bits of 128-bit counter by 1 */
 static void ctr96_inc(unsigned char *counter)
 {
-    u32 n = 12, c = 1;
+    uint32_t n = 12, c = 1;
 
     do {
         --n;
         c += counter[n];
-        counter[n] = (u8)c;
+        counter[n] = (uint8_t)c;
         c >>= 8;
     } while (n);
 }
@@ -179,7 +179,7 @@ void CRYPTO_ctr128_encrypt_ctr32(const unsigned char *in, unsigned char *out,
          * overflow, which is then handled by limiting the
          * amount of blocks to the exact overflow point...
          */
-        ctr32 += (u32)blocks;
+        ctr32 += (uint32_t)blocks;
         if (ctr32 < blocks) {
             blocks -= ctr32;
             ctr32 = 0;

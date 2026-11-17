@@ -85,7 +85,7 @@ changes:
 * `retryAfter` {boolean} When `true`, the delay before the next retry is inferred
   from the `Retry-After` response header when present. **Default:** `true`.
 * `methods` {string[]} HTTP methods that are eligible for retrying. **Default:**
-  `['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE', 'TRACE']`.
+  `['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE', 'TRACE', 'QUERY']`.
 * `statusCodes` {number[]} HTTP status codes that trigger a retry. **Default:**
   `[500, 502, 503, 504, 429]`.
 * `errorCodes` {string[]} Network error codes that trigger a retry. **Default:**

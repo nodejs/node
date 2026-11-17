@@ -236,6 +236,35 @@ int ngtcp2_crypto_update_traffic_secret(uint8_t *dest, uint32_t version,
   return 0;
 }
 
+/*
+ * crypto_set_remote_transport_params retrieves remote QUIC transport
+ * parameters from |tls| and sets it to |conn|.  Some TLS backends set
+ * them to |conn| from their own TLS extension callback instead, which
+ * is never called if a remote endpoint omits the extension.  This
+ * function fails if they have not been set to |conn| after all.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+static int crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls) {
+  const ngtcp2_transport_params *params;
+
+  if (ngtcp2_crypto_set_remote_transport_params(conn, tls) != 0) {
+    return -1;
+  }
+
+  params = ngtcp2_conn_get_remote_transport_params2(conn);
+
+  /* Client might have the remembered 0-RTT transport parameters, but
+     they never include initial_scid which is mandatory in the ones
+     received from a remote endpoint. */
+  if (!params || !params->initial_scid_present) {
+    ngtcp2_conn_set_tls_error(conn, NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM);
+    return -1;
+  }
+
+  return 0;
+}
+
 int ngtcp2_crypto_derive_and_install_rx_key(ngtcp2_conn *conn, uint8_t *key,
                                             uint8_t *iv, uint8_t *hp_key,
                                             ngtcp2_encryption_level level,
@@ -282,7 +311,7 @@ int ngtcp2_crypto_derive_and_install_rx_key(ngtcp2_conn *conn, uint8_t *key,
   case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
     if (ngtcp2_conn_is_server2(conn) &&
         !ngtcp2_conn_get_negotiated_version2(conn)) {
-      rv = ngtcp2_crypto_set_remote_transport_params(conn, tls);
+      rv = crypto_set_remote_transport_params(conn, tls);
       if (rv != 0) {
         return -1;
       }
@@ -340,7 +369,7 @@ int ngtcp2_crypto_derive_and_install_rx_key(ngtcp2_conn *conn, uint8_t *key,
     break;
   case NGTCP2_ENCRYPTION_LEVEL_1RTT:
     if (!ngtcp2_conn_is_server2(conn)) {
-      rv = ngtcp2_crypto_set_remote_transport_params(conn, tls);
+      rv = crypto_set_remote_transport_params(conn, tls);
       if (rv != 0) {
         goto fail;
       }
@@ -443,7 +472,7 @@ int ngtcp2_crypto_derive_and_install_tx_key(ngtcp2_conn *conn, uint8_t *key,
   case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
     if (ngtcp2_conn_is_server2(conn) &&
         !ngtcp2_conn_get_negotiated_version2(conn)) {
-      rv = ngtcp2_crypto_set_remote_transport_params(conn, tls);
+      rv = crypto_set_remote_transport_params(conn, tls);
       if (rv != 0) {
         return -1;
       }

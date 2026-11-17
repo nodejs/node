@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <openssl/objects.h>
+#include "internal/e_os.h"
 #include "internal/comp.h"
 #include <openssl/err.h>
 #include "crypto/cryptlib.h"
@@ -40,7 +41,7 @@ static void *zlib_zalloc(void *opaque, unsigned int no, unsigned int size)
 {
     void *p;
 
-    p = OPENSSL_zalloc(no * size);
+    p = OPENSSL_calloc(no, size);
     return p;
 }
 
@@ -64,10 +65,6 @@ static COMP_METHOD zlib_stateful_method = {
  * work.  Therefore, all ZLIB routines are loaded at run time
  * and we do not link to a .LIB file when ZLIB_SHARED is set.
  */
-#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_WIN32)
-#include <windows.h>
-#endif /* !(OPENSSL_SYS_WINDOWS || \
-        * OPENSSL_SYS_WIN32) */
 
 #ifdef ZLIB_SHARED
 #include "internal/dso.h"

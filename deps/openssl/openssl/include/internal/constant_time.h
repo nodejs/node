@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -146,7 +146,7 @@ static ossl_inline uint64_t constant_time_lt_64(uint64_t a, uint64_t b)
     return constant_time_msb_64(a ^ ((a ^ b) | ((a - b) ^ b)));
 }
 
-#ifdef BN_ULONG
+#ifdef BN_BYTES
 static ossl_inline BN_ULONG value_barrier_bn(BN_ULONG a)
 {
 #if !defined(OPENSSL_NO_ASM) && defined(__GNUC__)
@@ -476,5 +476,74 @@ static ossl_inline void constant_time_lookup(void *out,
  * wipe it if there was no actual error. |clear| is 1 or 0.
  */
 void err_clear_last_constant_time(int clear);
+
+/*
+ * Return whether a value that can only be 0 or 1 is non-zero, in constant time
+ * in practice!  The return value is a mask that is all ones if true, and all
+ * zeros otherwise (twos-complement arithmetic assumed for unsigned values).
+ *
+ * Although this is used in constant-time selects, we omit a value barrier
+ * here.  Value barriers impede auto-vectorization (likely because it forces
+ * the value to transit through a general-purpose register). On AArch64, this
+ * is a difference of 2x.
+ *
+ * We usually add value barriers to selects because Clang turns consecutive
+ * selects with the same condition into a branch instead of CMOV/CSEL.
+ * Omitting it seems to be safe so far (David Benjamin, Chromium).  This is
+ * used in the |reduce_once| functions in ML-KEM and ML-DSA in BoringSSL, and
+ * is now also used in OpenSSL.  Any use in new contexts requires careful prior
+ * evaluation and should otherwise be avoided.
+ */
+#if 0
+#define constish_time_true(b) (~constant_time_is_zero(b));
+#else
+#define constish_time_true(b) (0u - (b))
+#endif
+
+/*
+ * Valgrind-based constant-time validation helpers.
+ *
+ * CONSTTIME_SECRET marks a region of memory as secret.  Valgrind's memcheck
+ * tool will then flag any control-flow branch or memory index that depends on
+ * those bytes as an error, because the branch/index would vary with the secret
+ * and could therefore leak it via a timing side-channel.
+ *
+ * CONSTTIME_DECLASSIFY marks a region as no longer secret.  Call this:
+ *   - on values that are derived from, but do not expose, secret data (e.g.
+ *     the rejection decision in ML-DSA, or the public outputs of a KEM), and
+ *   - on all secret regions before returning from a function, so that callers
+ *     do not inherit spurious "uninitialised" state from Valgrind's perspective.
+ *
+ * Both macros are no-ops unless the library is built with
+ * enable-ct-validation (which defines OPENSSL_CONSTANT_TIME_VALIDATION and
+ * requires valgrind headers at build time).
+ */
+#if defined(OPENSSL_CONSTANT_TIME_VALIDATION)
+#include <valgrind/memcheck.h>
+#define CONSTTIME_SECRET(ptr, len) VALGRIND_MAKE_MEM_UNDEFINED((ptr), (len))
+#define CONSTTIME_DECLASSIFY(ptr, len) VALGRIND_MAKE_MEM_DEFINED((ptr), (len))
+#else
+#define CONSTTIME_SECRET(ptr, len)
+#define CONSTTIME_DECLASSIFY(ptr, len)
+#endif
+
+static ossl_inline uint32_t constant_time_declassify_u32(uint32_t v)
+{
+    /*
+     * Return |v| through a value barrier to be safe. Valgrind-based
+     * constant-time validation is partly to check the compiler has not undone
+     * any constant-time work. Any place |OPENSSL_CONSTANT_TIME_VALIDATION|
+     * influences optimizations, this validation is inaccurate.
+     *
+     * However, by sending pointers through valgrind, we likely inhibit escape
+     * analysis. On local variables, particularly booleans, we likely
+     * significantly impact optimizations.
+     *
+     * Thus, to be safe, stick a value barrier, in hopes of comparably
+     * inhibiting compiler analysis.
+     */
+    CONSTTIME_DECLASSIFY(&v, sizeof(v));
+    return value_barrier_32(v);
+}
 
 #endif /* OSSL_INTERNAL_CONSTANT_TIME_H */

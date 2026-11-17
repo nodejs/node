@@ -603,7 +603,7 @@ cmd_objcxx = $(CXX.$(TOOLSET)) $(GYP_OBJCXXFLAGS) $(DEPFLAGS) -c -o $@ $<
 
 # Commands for precompiled header files.
 quiet_cmd_pch_c = CXX($(TOOLSET)) $@
-cmd_pch_c = $(CC.$(TOOLSET)) $(GYP_PCH_CFLAGS) $(DEPFLAGS) $(CXXFLAGS.$(TOOLSET)) -c -o $@ $<
+cmd_pch_c = $(CC.$(TOOLSET)) $(GYP_PCH_CFLAGS) $(DEPFLAGS) $(CFLAGS.$(TOOLSET)) -c -o $@ $<
 quiet_cmd_pch_cc = CXX($(TOOLSET)) $@
 cmd_pch_cc = $(CC.$(TOOLSET)) $(GYP_PCH_CXXFLAGS) $(DEPFLAGS) $(CXXFLAGS.$(TOOLSET)) -c -o $@ $<
 quiet_cmd_pch_m = CXX($(TOOLSET)) $@
@@ -1485,13 +1485,29 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 # See "Target-specific Variable Values" in the GNU Make manual."""
             )
             self.WriteLn("$(OBJS): TOOLSET := $(TOOLSET)")
-            self.WriteLn(
-                "$(OBJS): GYP_CFLAGS := "
+            gyp_cflags = (
                 "$(DEFS_$(BUILDTYPE)) "
                 "$(INCS_$(BUILDTYPE)) "
-                "%s " % precompiled_header.GetInclude("c") + "$(CFLAGS_$(BUILDTYPE)) "
+                "%s "
+                "$(CFLAGS_$(BUILDTYPE)) "
                 "$(CFLAGS_C_$(BUILDTYPE))"
             )
+            self.WriteLn(
+                "$(OBJS): GYP_CFLAGS := "
+                + gyp_cflags % precompiled_header.GetInclude("c")
+            )
+            asm_objs = [
+                obj
+                for source, obj in zip(compilable, objs)
+                if source.endswith((".s", ".S"))
+            ]
+            if asm_objs and precompiled_header.compile_headers:
+                # Assembly is compiled with GYP_CFLAGS too, but without a gch
+                # for it, the -include of the C one fails.
+                self.WriteLn(
+                    "%s: GYP_CFLAGS := " % " ".join(asm_objs)
+                    + gyp_cflags % precompiled_header.GetInclude("asm")
+                )
             self.WriteLn(
                 "$(OBJS): GYP_CXXFLAGS := "
                 "$(DEFS_$(BUILDTYPE)) "
@@ -1521,7 +1537,9 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                     "$(CFLAGS_OBJCC_$(BUILDTYPE))"
                 )
 
-        self.WritePchTargets(precompiled_header.GetPchBuildCommands())
+        self.WritePchTargets(
+            precompiled_header.GetPchBuildCommands(), deps + extra_outputs
+        )
 
         # If there are any object files in our input file list, link them into our
         # output.
@@ -1529,8 +1547,13 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
         self.WriteLn()
 
-    def WritePchTargets(self, pch_commands):
-        """Writes make rules to compile prefix headers."""
+    def WritePchTargets(self, pch_commands, order_only_deps):
+        """Writes make rules to compile prefix headers.
+
+        A prefix header may include generated headers, so like the object files,
+        the gch files are built after |order_only_deps|: the target's dependencies
+        and the outputs of its actions and rules.
+        """
         if not pch_commands:
             return
 
@@ -1547,6 +1570,9 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 "m": "GYP_PCH_OBJCFLAGS",
                 "mm": "GYP_PCH_OBJCXXFLAGS",
             }[lang]
+            if order_only_deps:
+                self.WriteMakeRule([gch], order_only_deps, order_only=True)
+            self.WriteLn(f"{gch}: TOOLSET := $(TOOLSET)")
             self.WriteLn(
                 f"{gch}: {var_name} := {lang_flag} " + "$(DEFS_$(BUILDTYPE)) "
                 "$(INCS_$(BUILDTYPE)) "

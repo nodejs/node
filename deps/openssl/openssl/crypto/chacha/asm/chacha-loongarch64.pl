@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # Author: Min Zhou <zhoumin@loongson.cn>
-# Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -12,10 +12,10 @@ use strict;
 my $code;
 
 # Here is the scalar register layout for LoongArch.
-my ($zero,$ra,$tp,$sp,$fp)=map("\$r$_",(0..3,22));
-my ($a0,$a1,$a2,$a3,$a4,$a5,$a6,$a7)=map("\$r$_",(4..11));
-my ($t0,$t1,$t2,$t3,$t4,$t5,$t6,$t7,$t8,$x)=map("\$r$_",(12..21));
-my ($s0,$s1,$s2,$s3,$s4,$s5,$s6,$s7,$s8)=map("\$r$_",(23..31));
+my ($zero,$ra,$tp,$sp,$fp)=("\$zero", "\$ra", "\$tp", "\$sp", "\$fp");
+my ($a0,$a1,$a2,$a3,$a4,$a5,$a6,$a7)=map("\$a$_",(0..7));
+my ($t0,$t1,$t2,$t3,$t4,$t5,$t6,$t7,$t8)=map("\$t$_",(0..8));
+my ($s0,$s1,$s2,$s3,$s4,$s5,$s6,$s7,$s8)=map("\$s$_",(0..8));
 
 # The saved floating-point registers in the LP64D ABI.  In LoongArch
 # with vector extension, the low 64 bits of a vector register alias with
@@ -46,7 +46,7 @@ open STDOUT,">$output";
 my ($out, $inp, $len, $key, $counter) = ($a0, $a1, $a2, $a3, $a4);
 
 $code .= <<EOF;
-#include "loongarch_arch.h"
+#include "arch/loongarch_arch.h"
 
 .text
 

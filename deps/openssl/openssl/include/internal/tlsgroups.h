@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,10 @@
 #ifndef OSSL_INTERNAL_TLSGROUPS_H
 #define OSSL_INTERNAL_TLSGROUPS_H
 #pragma once
+
+#include <stdint.h>
+
+#include <openssl/e_os2.h> /* For 'ossl_inline' */
 
 #define OSSL_TLS_GROUP_ID_sect163k1 0x0001
 #define OSSL_TLS_GROUP_ID_sect163r1 0x0002
@@ -51,6 +55,7 @@
 #define OSSL_TLS_GROUP_ID_gc512A 0x0026
 #define OSSL_TLS_GROUP_ID_gc512B 0x0027
 #define OSSL_TLS_GROUP_ID_gc512C 0x0028
+#define OSSL_TLS_GROUP_ID_curveSM2 0x0029
 #define OSSL_TLS_GROUP_ID_ffdhe2048 0x0100
 #define OSSL_TLS_GROUP_ID_ffdhe3072 0x0101
 #define OSSL_TLS_GROUP_ID_ffdhe4096 0x0102
@@ -62,5 +67,25 @@
 #define OSSL_TLS_GROUP_ID_SecP256r1MLKEM768 0x11EB
 #define OSSL_TLS_GROUP_ID_X25519MLKEM768 0x11EC
 #define OSSL_TLS_GROUP_ID_SecP384r1MLKEM1024 0x11ED
+#define OSSL_TLS_GROUP_ID_curveSM2MLKEM768 0x11EE
+
+/*
+ * RFC 7919: "Codepoints ... between 256 and 511, inclusive ... are set aside
+ * for FFDHE groups"
+ */
+#define OSSL_TLS_GROUP_ID_FFDHE_START 0x0100 /* inclusive */
+#define OSSL_TLS_GROUP_ID_FFDHE_END 0x01FF /* inclusive */
+
+static ossl_inline int is_ecdhe_group(const uint16_t group_id)
+{
+    /* This includes the usual EC groups, and also ECX, GOST ... */
+    return group_id < OSSL_TLS_GROUP_ID_FFDHE_START;
+}
+
+static ossl_inline int is_ffdhe_group(const uint16_t group_id)
+{
+    return group_id >= OSSL_TLS_GROUP_ID_FFDHE_START
+        && group_id <= OSSL_TLS_GROUP_ID_FFDHE_END;
+}
 
 #endif

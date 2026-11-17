@@ -63,15 +63,16 @@ CMS_RecipientInfo *CMS_add0_recipient_password(CMS_ContentInfo *cms,
     if (wrap_nid <= 0)
         wrap_nid = NID_id_alg_PWRI_KEK;
 
-    if (pbe_nid <= 0)
-        pbe_nid = NID_id_pbkdf2;
-
     /* Get from enveloped data */
     if (kekciph == NULL)
         kekciph = ec->cipher;
 
     if (kekciph == NULL) {
         ERR_raise(ERR_LIB_CMS, CMS_R_NO_CIPHER);
+        return NULL;
+    }
+    if ((EVP_CIPHER_get_flags(kekciph) & EVP_CIPH_FLAG_AEAD_CIPHER) != 0) {
+        ERR_raise(ERR_LIB_CMS, CMS_R_UNSUPPORTED_KEK_ALGORITHM);
         return NULL;
     }
     if (wrap_nid != NID_id_alg_PWRI_KEK) {
@@ -137,7 +138,7 @@ CMS_RecipientInfo *CMS_add0_recipient_password(CMS_ContentInfo *cms,
         ERR_raise(ERR_LIB_CMS, ERR_R_ASN1_LIB);
         goto err;
     }
-    ri->type = CMS_RECIPINFO_PASS;
+    ri->encoded_type = ri->type = CMS_RECIPINFO_PASS;
 
     pwri = ri->d.pwri;
     pwri->cms_ctx = cms_ctx;
@@ -228,12 +229,12 @@ static int kek_unwrap_key(unsigned char *out, size_t *outlen,
         || !EVP_DecryptUpdate(ctx, tmp, &outl,
             tmp + inlen - blocklen, blocklen)
         /* Can now decrypt first n - 1 blocks */
-        || !EVP_DecryptUpdate(ctx, tmp, &outl, in, inlen - blocklen)
+        || !EVP_DecryptUpdate(ctx, tmp, &outl, in, (int)(inlen - blocklen))
 
         /* Reset IV to original value */
         || !EVP_DecryptInit_ex(ctx, NULL, NULL, NULL, NULL)
         /* Decrypt again */
-        || !EVP_DecryptUpdate(ctx, tmp, &outl, tmp, inlen))
+        || !EVP_DecryptUpdate(ctx, tmp, &outl, tmp, (int)inlen))
         goto err;
     /* Check check bytes */
     if (((tmp[1] ^ tmp[4]) & (tmp[2] ^ tmp[5]) & (tmp[3] ^ tmp[6])) != 0xff) {
@@ -291,8 +292,8 @@ static int kek_wrap_key(unsigned char *out, size_t *outlen,
                 <= 0)
             return 0;
         /* Encrypt twice */
-        if (!EVP_EncryptUpdate(ctx, out, &dummy, out, olen)
-            || !EVP_EncryptUpdate(ctx, out, &dummy, out, olen))
+        if (!EVP_EncryptUpdate(ctx, out, &dummy, out, (int)olen)
+            || !EVP_EncryptUpdate(ctx, out, &dummy, out, (int)olen))
             return 0;
     }
 
@@ -397,7 +398,7 @@ int ossl_cms_RecipientInfo_pwri_crypt(const CMS_ContentInfo *cms,
         if (!kek_wrap_key(key, &keylen, ec->key, ec->keylen, kekctx, cms_ctx))
             goto err;
         pwri->encryptedKey->data = key;
-        pwri->encryptedKey->length = keylen;
+        pwri->encryptedKey->length = (int)keylen;
     } else {
         key = OPENSSL_malloc(pwri->encryptedKey->length);
         if (key == NULL)

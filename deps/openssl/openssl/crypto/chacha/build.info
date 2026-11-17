@@ -25,6 +25,10 @@ IF[{- !$disabled{asm} -}]
   $CHACHAASM_riscv64=chacha_riscv.c chacha_enc.c chacha-riscv64-v-zbb.s chacha-riscv64-v-zbb-zvkb.s
   $CHACHADEF_riscv64=INCLUDE_C_CHACHA20
 
+  $CHACHAASM_e2k=chacha_e2k.c
+  $CHACHAASM_e2kv6=chacha_e2k.c
+  $CHACHAASM_e2kv7=chacha_e2k.c
+
   # Now that we have defined all the arch specific variables, use the
   # appropriate one
   IF[$CHACHAASM_{- $target{asm_arch} -}]

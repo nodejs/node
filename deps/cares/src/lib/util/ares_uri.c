@@ -1137,6 +1137,11 @@ static ares_status_t ares_uri_parse_userinfo(ares_uri_t *uri, ares_buf_t *buf)
 
     /* Consume : */
     ares_buf_consume(buf, 1);
+  } else {
+    /* The ':' is absent or belongs to the host:port that follows the '@', but
+     * the search above has already consumed up to it, so rewind to the start
+     * of the userinfo */
+    ares_buf_tag_rollback(buf);
   }
 
   ares_buf_tag(buf);

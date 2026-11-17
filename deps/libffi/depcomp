@@ -1,9 +1,9 @@
 #! /bin/sh
 # depcomp - compile a program generating dependencies as side-effects
 
-scriptversion=2018-03-07.03; # UTC
+scriptversion=2025-06-18.21; # UTC
 
-# Copyright (C) 1999-2021 Free Software Foundation, Inc.
+# Copyright (C) 1999-2025 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -47,11 +47,13 @@ Environment variables:
   libtool     Whether libtool is used (yes/no).
 
 Report bugs to <bug-automake@gnu.org>.
+GNU Automake home page: <https://www.gnu.org/software/automake/>.
+General help using GNU software: <https://www.gnu.org/gethelp/>.
 EOF
     exit $?
     ;;
   -v | --v*)
-    echo "depcomp $scriptversion"
+    echo "depcomp (GNU Automake) $scriptversion"
     exit $?
     ;;
 esac
@@ -113,7 +115,6 @@ nl='
 # These definitions help.
 upper=ABCDEFGHIJKLMNOPQRSTUVWXYZ
 lower=abcdefghijklmnopqrstuvwxyz
-digits=0123456789
 alpha=${upper}${lower}
 
 if test -z "$depmode" || test -z "$source" || test -z "$object"; then
@@ -128,7 +129,7 @@ tmpdepfile=${tmpdepfile-`echo "$depfile" | sed 's/\.\([^.]*\)$/.T\1/'`}
 
 rm -f "$tmpdepfile"
 
-# Avoid interferences from the environment.
+# Avoid interference from the environment.
 gccflag= dashmflag=
 
 # Some modes work just like other modes, but use different flags.  We
@@ -198,8 +199,8 @@ gcc3)
   ;;
 
 gcc)
-## Note that this doesn't just cater to obsosete pre-3.x GCC compilers.
-## but also to in-use compilers like IMB xlc/xlC and the HP C compiler.
+## Note that this doesn't just cater to obsolete pre-3.x GCC compilers.
+## but also to in-use compilers like IBM xlc/xlC and the HP C compiler.
 ## (see the conditional assignment to $gccflag above).
 ## There are various ways to get dependency output from gcc.  Here's
 ## why we pick this rather obscure method:
@@ -783,9 +784,9 @@ exit 0
 # Local Variables:
 # mode: shell-script
 # sh-indentation: 2
-# eval: (add-hook 'before-save-hook 'time-stamp)
+# eval: (add-hook 'before-save-hook 'time-stamp nil t)
 # time-stamp-start: "scriptversion="
-# time-stamp-format: "%:y-%02m-%02d.%02H"
+# time-stamp-format: "%Y-%02m-%02d.%02H"
 # time-stamp-time-zone: "UTC0"
 # time-stamp-end: "; # UTC"
 # End:

@@ -14,7 +14,7 @@
 #include "crypto/bn.h"
 
 /* Number of octets per line */
-#define ASN1_BUF_PRINT_WIDTH 15
+#define ASN1_BUF_PRINT_WIDTH 16
 /* Maximum indent */
 #define ASN1_PRINT_MAX_INDENT 128
 
@@ -48,7 +48,7 @@ int ASN1_bn_print(BIO *bp, const char *number, const BIGNUM *num,
 {
     int n, rv = 0;
     const char *neg;
-    unsigned char *buf = NULL, *tmp = NULL;
+    unsigned char *buf = NULL;
     int buflen;
 
     if (num == NULL)
@@ -71,23 +71,17 @@ int ASN1_bn_print(BIO *bp, const char *number, const BIGNUM *num,
         return 1;
     }
 
-    buflen = BN_num_bytes(num) + 1;
-    buf = tmp = OPENSSL_malloc(buflen);
+    buflen = BN_num_bytes(num);
+    buf = OPENSSL_malloc(buflen);
     if (buf == NULL)
         goto err;
-    buf[0] = 0;
     if (BIO_printf(bp, "%s%s\n", number,
             (neg[0] == '-') ? " (Negative)" : "")
         <= 0)
         goto err;
-    n = BN_bn2bin(num, buf + 1);
+    n = BN_bn2bin(num, buf);
 
-    if (buf[1] & 0x80)
-        n++;
-    else
-        tmp++;
-
-    if (ASN1_buf_print(bp, tmp, n, indent + 4) == 0)
+    if (ASN1_buf_print(bp, buf, n, indent + 4) == 0)
         goto err;
     rv = 1;
 err:

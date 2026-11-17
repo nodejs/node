@@ -1,4 +1,4 @@
-# Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -12,13 +12,21 @@ package TLSProxy::Certificate;
 use vars '@ISA';
 push @ISA, 'TLSProxy::Message';
 
+use constant {
+    TLSEXT_cert_type_x509 => 0,
+    TLSEXT_cert_type_rpk  => 2,
+};
+
+my $client_cert_type = TLSEXT_cert_type_x509;
+my $server_cert_type = TLSEXT_cert_type_x509;
+
 sub new
 {
     my $class = shift;
     my ($isdtls,
         $server,
         $msgseq,
-        $msgfrag,
+        $msgfraglen,
         $msgfragoffs,
         $data,
         $records,
@@ -28,9 +36,9 @@ sub new
     my $self = $class->SUPER::new(
         $isdtls,
         $server,
-        TLSProxy::Message::MT_CERTIFICATE,
+        TLSProxy::Message::MT_CERTIFICATE(),
         $msgseq,
-        $msgfrag,
+        $msgfraglen,
         $msgfragoffs,
         $data,
         $records,
@@ -40,6 +48,7 @@ sub new
     $self->{first_certificate} = "";
     $self->{extension_data} = "";
     $self->{remaining_certdata} = "";
+    $self->{rpk} = "";
 
     return $self;
 }
@@ -47,6 +56,9 @@ sub new
 sub parse
 {
     my $self = shift;
+
+    my $type = $self->server() ?
+        $self->server_type() : $self->client_type();
 
     if (TLSProxy::Proxy->is_tls13()) {
         my $context_len = unpack('C', $self->data);
@@ -97,13 +109,26 @@ sub parse
         $remdata = substr($remdata, $extensions_len);
 
         $self->context($context);
-        $self->first_certificate($certdata);
         $self->extension_data(\%extensions);
-        $self->remaining_certdata($remdata);
+        if ($type == TLSEXT_cert_type_x509) {
+            $self->first_certificate($certdata);
+            $self->remaining_certdata($remdata);
+        } elsif ($type == TLSEXT_cert_type_rpk) {
+            die "Post %s RPK content\n", $self->server() ? "server" : "client"
+                if ($remdata ne "");
+            $self->rpk($certdata);
+        } else {
+            die "Unsupported %s certificate type: %d\n",
+                $self->server() ? "server" : "client", $type;
+        }
 
         print "    Context:".$context."\n";
         print "    Certificate List Len:".$certlistlen."\n";
-        print "    Certificate Len:".$certlen."\n";
+        if ($type == TLSEXT_cert_type_x509) {
+            print "    Certificate Len:".$certlen."\n";
+        } else {
+            print "    RPK Len:".$certlen."\n";
+        }
         print "    Extensions Len:".$extensions_len."\n";
     } else {
         my ($hicertlistlen, $certlistlen) = unpack('Cn', $self->data);
@@ -114,22 +139,33 @@ sub parse
         die "Invalid Certificate List length"
             if length($remdata) != $certlistlen;
 
-        my ($hicertlen, $certlen) = unpack('Cn', $remdata);
-        $certlen += ($hicertlen << 16);
+        if ($type == TLSEXT_cert_type_x509) {
+            # X.509 Chain
+            my ($hicertlen, $certlen) = unpack('Cn', $remdata);
+            $certlen += ($hicertlen << 16);
 
-        die "Certificate too long" if ($certlen + 3) > $certlistlen;
+            die "Certificate too long" if ($certlen + 3) > $certlistlen;
 
-        $remdata = substr($remdata, 3);
+            $remdata = substr($remdata, 3);
 
-        my $certdata = substr($remdata, 0, $certlen);
+            my $certdata = substr($remdata, 0, $certlen);
 
-        $remdata = substr($remdata, $certlen);
+            $remdata = substr($remdata, $certlen);
 
-        $self->first_certificate($certdata);
-        $self->remaining_certdata($remdata);
+            $self->first_certificate($certdata);
+            $self->remaining_certdata($remdata);
 
-        print "    Certificate List Len:".$certlistlen."\n";
-        print "    Certificate Len:".$certlen."\n";
+            print "    Certificate List Len:".$certlistlen."\n";
+            print "    Certificate Len:".$certlen."\n";
+        } elsif ($type == TLSEXT_cert_type_rpk) {
+            # RFC7250 RPK
+            $self->rpk($remdata);
+
+            print "    RPK LEN:".$certlistlen."\n";
+        } else {
+            die "Unsupported %s certificate type: %d\n",
+                $self->server() ? "server" : "client", $type;
+        }
     }
 }
 
@@ -163,16 +199,28 @@ sub set_message_contents
         $data .= $self->remaining_certdata();
         $self->data($data);
     } else {
-        my $certlen = length($self->first_certificate);
-        my $certlistlen = $certlen + length($self->remaining_certdata);
-        my $hi = $certlistlen >> 16;
-        $certlistlen = $certlistlen & 0xffff;
-        $data .= pack('Cn', $hi, $certlistlen);
-        $hi = $certlen >> 16;
-        $certlen = $certlen & 0xffff;
-        $data .= pack('Cn', $hi, $certlen);
-        $data .= $self->remaining_certdata();
-        $self->data($data);
+        my $type = $self->server() ? $self->server_type() : $self->client_type();
+        if ($type == TLSEXT_cert_type_x509) {
+            # X.509 chain
+            my $certlen = length($self->first_certificate);
+            my $certlistlen = $certlen + length($self->remaining_certdata);
+            my $hi = $certlistlen >> 16;
+            $certlistlen = $certlistlen & 0xffff;
+            $data .= pack('Cn', $hi, $certlistlen);
+            $hi = $certlen >> 16;
+            $certlen = $certlen & 0xffff;
+            $data .= pack('Cn', $hi, $certlen);
+            $data .= $self->remaining_certdata();
+            $self->data($data);
+        } elsif ($type == TLSEXT_cert_type_rpk) {
+            # RFC7250 RPK
+            my $len = length($self->rpk);
+            my $hi = $len >> 16;
+            $len = $len & 0xffff;
+            $data .= pack('Cn', $hi, $len);
+            $data .= $self->rpk();
+            $self->data($data);
+        }
     }
 }
 
@@ -219,4 +267,23 @@ sub delete_extension
     my ($self, $ext_type) = @_;
     delete $self->{extension_data}{$ext_type};
 }
+
+sub client_type {
+    shift;
+    $client_cert_type = shift if (@_);
+    return $client_cert_type;
+}
+
+sub server_type {
+    shift;
+    $server_cert_type = shift if (@_);
+    return $server_cert_type;
+}
+
+sub rpk {
+    my $self = shift;
+    $self->{rpk} = shift if (@_);
+    return $self->{rpk};
+}
+
 1;

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -37,17 +37,10 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
-#elif defined(_WIN32_WCE) && _WIN32_WCE < 410
-#define getservbyname _masked_declaration_getservbyname
 #endif
 #if !defined(IPPROTO_IP)
 /* winsock[2].h was included already? */
 #include "internal/e_winsock.h"
-#endif
-#ifdef getservbyname
-/* this is used to be wcecompat/include/winsock_extras.h */
-#undef getservbyname
-struct servent *PASCAL getservbyname(const char *, const char *);
 #endif
 
 #ifdef _WIN64
@@ -71,6 +64,15 @@ struct servent *PASCAL getservbyname(const char *, const char *);
 #endif
 #ifndef SHUT_RDWR
 #define SHUT_RDWR SD_BOTH
+#endif
+
+/*
+ * Recent MINGW versions use Windows-style unsigned INVALID_SOCKET.
+ * Since OpenSSL uses int, this only silences an already-ignored warning.
+ */
+#if defined(__MINGW32__) && defined(INVALID_SOCKET)
+#undef INVALID_SOCKET
+#define INVALID_SOCKET (INT_PTR)(~0)
 #endif
 
 #else
@@ -176,23 +178,40 @@ typedef size_t socklen_t; /* Currently appears to be missing on VMS */
 #define get_last_socket_error_is_eintr() (get_last_socket_error() == WSAEINTR)
 #define readsocket(s, b, n) recv((s), (b), (n), 0)
 #define writesocket(s, b, n) send((s), (b), (n), 0)
+#define writesocket_ex(s, b, n, f) send((s), (b), (n), (f))
 #elif defined(__DJGPP__)
 #define closesocket(s) close_s(s)
 #define readsocket(s, b, n) read_s(s, b, n)
 #define writesocket(s, b, n) send(s, b, n, 0)
+#define writesocket_ex(s, b, n, f) send(s, b, n, f)
 #elif defined(OPENSSL_SYS_VMS)
 #define ioctlsocket(a, b, c) ioctl(a, b, c)
 #define closesocket(s) close(s)
 #define readsocket(s, b, n) recv((s), (b), (n), 0)
 #define writesocket(s, b, n) send((s), (b), (n), 0)
+#define writesocket_ex(s, b, n, f) send((s), (b), (n), (f))
 #elif defined(OPENSSL_SYS_VXWORKS)
 #define ioctlsocket(a, b, c) ioctl((a), (b), (int)(c))
 #define closesocket(s) close(s)
 #define readsocket(s, b, n) read((s), (b), (n))
 #define writesocket(s, b, n) write((s), (char *)(b), (n))
+static ossl_inline int writesocket_ex(int s, char *b, int n, int f)
+{
+    if (f == 0)
+        return writesocket(s, b, n);
+    errno = EINVAL;
+    return -1;
+}
 #elif defined(OPENSSL_SYS_TANDEM)
 #define readsocket(s, b, n) read((s), (b), (n))
 #define writesocket(s, b, n) write((s), (b), (n))
+static ossl_inline int writesocket_ex(int s, const void *b, int n, int f)
+{
+    if (f == 0)
+        return writesocket(s, b, n);
+    errno = EINVAL;
+    return -1;
+}
 #define ioctlsocket(a, b, c) ioctl(a, b, c)
 #define closesocket(s) close(s)
 #else
@@ -200,10 +219,11 @@ typedef size_t socklen_t; /* Currently appears to be missing on VMS */
 #define closesocket(s) close(s)
 #define readsocket(s, b, n) read((s), (b), (n))
 #define writesocket(s, b, n) write((s), (b), (n))
+#define writesocket_ex(s, b, n, f) ((f) == 0) ? write((s), (b), (n)) : send((s), (b), (n), (f))
 #endif
 
 /* also in apps/include/apps.h */
-#if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WINCE)
+#if defined(OPENSSL_SYS_WIN32)
 #define openssl_fdset(a, b) FD_SET((unsigned int)(a), b)
 #else
 #define openssl_fdset(a, b) FD_SET(a, b)

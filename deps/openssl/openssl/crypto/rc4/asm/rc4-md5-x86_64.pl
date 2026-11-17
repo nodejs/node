@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2011-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 
 # June 2011
@@ -26,7 +26,7 @@
 # and Jim Guilford of Intel. MD5 is fresh implementation aiming to
 # minimize register usage, which was used as "main thread" with RC4
 # weaved into it, one RC4 round per one MD5 round. In addition to the
-# stiched subroutine the script can generate standalone replacement
+# stitched subroutine the script can generate standalone replacement
 # ossl_md5_block_asm_data_order and RC4. Below are performance numbers in
 # cycles per processed byte, less is better, for these the standalone
 # subroutines, sum of them, and stitched one:

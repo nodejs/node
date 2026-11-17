@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -429,7 +429,7 @@ BN_ULONG bn_sub_words(BN_ULONG *r, const BN_ULONG *a, const BN_ULONG *b,
     return c;
 }
 
-#if defined(BN_MUL_COMBA) && !defined(OPENSSL_SMALL_FOOTPRINT)
+#ifndef OPENSSL_SMALL_FOOTPRINT
 
 /* mul_add_c(a,b,c0,c1,c2)  -- c+=a*b for three word number c=(c2,c1,c0) */
 /* mul_add_c2(a,b,c0,c1,c2) -- c+=2*a*b for three word number c=(c2,c1,c0) */
@@ -991,7 +991,7 @@ int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
 #endif /* OPENSSL_BN_ASM_MONT */
 #endif
 
-#else /* !BN_MUL_COMBA */
+#else /* OPENSSL_SMALL_FOOTPRINT */
 
 /* hmm... is it faster just to do a multiply? */
 void bn_sqr_comba4(BN_ULONG *r, const BN_ULONG *a)
@@ -1078,4 +1078,4 @@ int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
 #endif /* OPENSSL_BN_ASM_MONT */
 #endif
 
-#endif /* !BN_MUL_COMBA */
+#endif /* !OPENSSL_SMALL_FOOTPRINT */

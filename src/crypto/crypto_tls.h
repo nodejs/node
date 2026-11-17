@@ -33,6 +33,7 @@
 #include <openssl/ssl.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace node {
@@ -94,6 +95,11 @@ class TLSWrap : public AsyncWrap,
     flags_.awaiting_new_session = on;
   }
   inline void enable_session_callbacks() { flags_.session_callbacks = true; }
+  inline bool is_resumption_disabled() const {
+    return flags_.resumption_disabled;
+  }
+  bool BindSessionsToServerName(std::string_view servername);
+  bool PinServerName(std::string_view servername);
   inline bool is_server() const { return kind_ == Kind::kServer; }
   inline bool is_client() const { return kind_ == Kind::kClient; }
   inline bool is_awaiting_new_session() const {
@@ -155,7 +161,7 @@ class TLSWrap : public AsyncWrap,
   }
 
  private:
-  // OpenSSL structures are opaque. Estimate SSL memory size for OpenSSL 1.1.1b:
+  // OpenSSL structures are opaque. Estimate SSL memory usage:
   //   SSL: 6224
   //   SSL->SSL3_STATE: 1040
   //   ...some buffers: 42 * 1024
@@ -228,8 +234,6 @@ class TLSWrap : public AsyncWrap,
   void OnStreamAfterWrite(WriteWrap* w, int status) override;
 
   int SetCACerts(SecureContext* sc);
-
-  static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 
   static void CertCbDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ClientHelloDone(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -314,6 +318,7 @@ class TLSWrap : public AsyncWrap,
   v8::Global<v8::ArrayBufferView> ocsp_response_;
   BaseObjectPtr<SecureContext> sni_context_;
   BaseObjectPtr<SecureContext> sc_;
+  std::string servername_;
 
   // BIO buffers hold encrypted data.
   BIO* enc_in_ = nullptr;   // StreamListener fills this for SSL_read().
@@ -337,6 +342,7 @@ class TLSWrap : public AsyncWrap,
   struct Flags {
     bool session_callbacks : 1;
     bool awaiting_new_session : 1;
+    bool resumption_disabled : 1;
     // 'onclienthello' has been emitted for this connection.
     bool hello_emitted : 1;
     // JS has answered it by calling clientHelloDone().
@@ -351,6 +357,7 @@ class TLSWrap : public AsyncWrap,
     bool write_callback_scheduled : 1;
     bool has_active_write_issued_by_prev_listener : 1;
     bool alpn_callback_enabled : 1;
+    bool servername_pinned : 1;
   };
   Flags flags_{};
 

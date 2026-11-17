@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -37,7 +37,7 @@ int BN_lshift1(BIGNUM *r, const BIGNUM *a)
         c = t >> (BN_BITS2 - 1);
     }
     *rp = c;
-    r->top += c;
+    r->top += (int)c;
     bn_check_top(r);
     return 1;
 }

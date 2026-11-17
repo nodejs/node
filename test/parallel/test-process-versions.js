@@ -29,7 +29,7 @@ const expected_keys = [
 
 
 const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
-const hasAmaro = process.config.variables.node_builtin_shareable_builtins.includes('deps/amaro/dist/index.js');
+const hasAmaro = process.config.variables.node_builtin_shareable_builtins.includes('deps/amaro/dist/internal.js');
 const hasLief = process.config.variables.node_use_lief;
 
 if (process.config.variables.node_use_amaro) {
@@ -104,18 +104,14 @@ assert.match(
 assert.match(process.versions.modules, /^\d+$/);
 
 if (common.hasCrypto) {
-  const { hasOpenSSL } = require('../common/crypto');
   assert.match(process.versions.ncrypto, commonTemplate);
   if (process.config.variables.node_shared_openssl) {
     assert.ok(process.versions.openssl);
   } else {
-    const versionRegex = hasOpenSSL(3) ?
-      // The following also matches a development version of OpenSSL 3.x which
-      // can be in the format '3.0.0-alpha4-dev'. This can be handy when
-      // building and linking against the main development branch of OpenSSL.
-      /^\d+\.\d+\.\d+(?:[-+][a-z0-9]+)*$/ :
-      /^\d+\.\d+\.\d+[a-z]?(\+quic)?(-fips)?$/;
-    assert.match(process.versions.openssl, versionRegex);
+    // The following also matches a development version of OpenSSL, such as
+    // '3.0.0-alpha4-dev'. This can be handy when
+    // building and linking against the main development branch of OpenSSL.
+    assert.match(process.versions.openssl, /^\d+\.\d+\.\d+(?:[-+][a-z0-9]+)*$/);
   }
 }
 

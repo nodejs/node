@@ -476,11 +476,11 @@ TEST_F(WriteBarrierTest, SteeleWriteBarrierTriggersWhenMarkingIsOn) {
   }
 }
 
-TEST_F(WriteBarrierTest, SteeleWriteBarrierBailoutIfNotMarked) {
+TEST_F(WriteBarrierTest, SteeleWriteBarrierTriggersEvenIfNotMarked) {
   auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
   auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle(), object1);
   {
-    ExpectNoWriteBarrierFires scope(marker(), {object1});
+    ExpectWriteBarrierFires scope(marker(), {object1});
     WriteBarrierParams params;
     EXPECT_EQ(WriteBarrierType::kMarking,
               HeapConsistency::GetWriteBarrierType(

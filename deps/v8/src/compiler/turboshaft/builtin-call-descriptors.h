@@ -300,15 +300,19 @@ struct builtin : CallDescriptorBuilder {
     static constexpr auto kFunction = B;
     struct Arguments : ArgumentsBase {
       ARG(V<Object>, table)
-      ARG(V<Smi>, key)
+      ARG(V<Object>, key)
     };
     using returns_t = std::tuple<V<Smi>>;
 
     static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr bool kNeedsContext = true;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.AssumesConsistentHeap().CanReadMemory().CanAllocate();
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoThrow | Operator::kNoDeopt;
+    // Looking up a string key can internalize it in place into a ThinString.
+    static constexpr OpEffects kEffects = base_effects.AssumesConsistentHeap()
+                                              .CanReadMemory()
+                                              .CanWriteHeapMemory()
+                                              .CanAllocate();
   };
   using FindOrderedHashMapEntry =
       FindOrderedHashEntry<Builtin::kFindOrderedHashMapEntry>;

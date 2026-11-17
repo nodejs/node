@@ -429,6 +429,7 @@
       'src/crypto/crypto_scrypt.cc',
       'src/crypto/crypto_tls.cc',
       'src/crypto/crypto_x509.cc',
+      'src/crypto/crypto_x509_gen.cc',
       'src/crypto/crypto_argon2.h',
       'src/crypto/crypto_bio.h',
       'src/crypto/crypto_dh.h',
@@ -458,6 +459,7 @@
       'src/crypto/crypto_random.h',
       'src/crypto/crypto_timing.h',
       'src/crypto/crypto_x509.h',
+      'src/crypto/crypto_x509_gen.h',
       'src/node_crypto.cc',
       'src/node_crypto.h',
     ],
@@ -490,6 +492,7 @@
       'test/cctest/test_quic_tokens.cc',
     ],
     'node_cctest_inspector_sources': [
+      'test/cctest/inspector/test_main_thread_interface.cc',
       'test/cctest/inspector/test_network_requests_buffer.cc',
       'test/cctest/inspector/test_node_protocol.cc',
       'test/cctest/test_inspector_socket.cc',
@@ -558,6 +561,9 @@
     'conditions': [
       ['clang==0 and OS!="win"', {
         'cflags': [ '-Wno-restrict', ],
+        'cflags_cc': [
+          '-Wno-invalid-constexpr',
+        ],
       }],
       # TODO(joyeecheung): investigate if it breaks addons.
       # ['OS=="mac"', {
@@ -770,87 +776,22 @@
             },
           },
         }],
-        ['node_fipsinstall=="true"', {
-          'variables': {
-            'openssl-cli': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)openssl-cli<(EXECUTABLE_SUFFIX)',
-            'provider_name': 'libopenssl-fipsmodule',
-            'opensslconfig': './deps/openssl/nodejs-openssl.cnf',
-            'conditions': [
-              ['GENERATOR == "ninja"', {
-	        'fipsmodule_internal': '<(PRODUCT_DIR)/lib/<(provider_name).so',
-                'fipsmodule': '<(PRODUCT_DIR)/obj/lib/openssl-modules/fips.so',
-                'fipsconfig': '<(PRODUCT_DIR)/obj/lib/fipsmodule.cnf',
-                'opensslconfig_internal': '<(PRODUCT_DIR)/obj/lib/openssl.cnf',
-             }, {
-	        'fipsmodule_internal': '<(PRODUCT_DIR)/obj.target/deps/openssl/<(provider_name).so',
-                'fipsmodule': '<(PRODUCT_DIR)/obj.target/deps/openssl/lib/openssl-modules/fips.so',
-                'fipsconfig': '<(PRODUCT_DIR)/obj.target/deps/openssl/fipsmodule.cnf',
-                'opensslconfig_internal': '<(PRODUCT_DIR)/obj.target/deps/openssl/openssl.cnf',
-             }],
-            ],
-          },
-          'actions': [
-            {
-              'action_name': 'fipsinstall',
-              'process_outputs_as_sources': 1,
-              'inputs': [
-                '<(fipsmodule_internal)',
-              ],
-              'outputs': [
-                '<(fipsconfig)',
-              ],
-              'action': [
-                '<(openssl-cli)', 'fipsinstall',
-                '-provider_name', '<(provider_name)',
-                '-module', '<(fipsmodule_internal)',
-                '-out', '<(fipsconfig)',
-                #'-quiet',
-              ],
-            },
-            {
-              'action_name': 'copy_fips_module',
-              'inputs': [
-                '<(fipsmodule_internal)',
-              ],
-              'outputs': [
-                '<(fipsmodule)',
-              ],
-              'action': [
-                '<(python)', 'tools/copyfile.py',
-                '<(fipsmodule_internal)',
-                '<(fipsmodule)',
-              ],
-            },
-            {
-              'action_name': 'copy_openssl_cnf_and_include_fips_cnf',
-              'inputs': [ '<(opensslconfig)', ],
-              'outputs': [ '<(opensslconfig_internal)', ],
-              'action': [
-                '<(python)', 'tools/enable_fips_include.py',
-                '<(opensslconfig)',
-                '<(opensslconfig_internal)',
-                '<(fipsconfig)',
-              ],
-            },
+      ],
+      'variables': {
+        'opensslconfig_internal': '<(obj_dir)/deps/openssl/openssl.cnf',
+        'opensslconfig': './deps/openssl/nodejs-openssl.cnf',
+      },
+      'actions': [
+        {
+          'action_name': 'reset_openssl_cnf',
+          'inputs': [ '<(opensslconfig)', ],
+          'outputs': [ '<(opensslconfig_internal)', ],
+          'action': [
+            '<(python)', 'tools/copyfile.py',
+            '<(opensslconfig)',
+            '<(opensslconfig_internal)',
           ],
-         }, {
-           'variables': {
-              'opensslconfig_internal': '<(obj_dir)/deps/openssl/openssl.cnf',
-              'opensslconfig': './deps/openssl/nodejs-openssl.cnf',
-           },
-           'actions': [
-             {
-               'action_name': 'reset_openssl_cnf',
-               'inputs': [ '<(opensslconfig)', ],
-               'outputs': [ '<(opensslconfig_internal)', ],
-               'action': [
-                 '<(python)', 'tools/copyfile.py',
-                 '<(opensslconfig)',
-                 '<(opensslconfig_internal)',
-               ],
-             },
-           ],
-         }],
+        },
       ],
     }, # node_core_target_name
     {
@@ -1031,11 +972,6 @@
               '-Bdeps/zlib/win32/zlib.def'
             ],
           },
-          'conditions': [
-            ['openssl_is_fips=="true"', {
-              'variables': { 'mkssldef_flags': ['-DOPENSSL_FIPS'] },
-            }],
-          ],
           'actions': [
             {
               'action_name': 'mkssldef',
@@ -1388,7 +1324,7 @@
           ],
         }],
         [ 'node_shared_gtest=="true"', {
-          'libraries': [ '-lgtest_main', '<@(node_shared_gtest_libraries)' ],
+          'libraries': [ '<@(node_shared_gtest_libraries)' ],
         }],
         [ 'node_use_bundled_v8!="false" and node_shared_abseil=="false"', {
           'dependencies': [ 'tools/v8_gypfiles/abseil.gyp:abseil' ],

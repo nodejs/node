@@ -40,4 +40,5 @@ const buf = Buffer.alloc(8);
 crypto.randomFillSync(buf);
 crypto.pseudoRandomBytes(8);
 crypto.pseudoRandomBytes(8, common.mustSucceed());
-crypto.pbkdf2('password', 'salt', 8, 8, 'sha1', common.mustSucceed());
+crypto.pbkdf2('password', '0123456789abcdef', 1000, 16, 'sha1',
+              common.mustSucceed());

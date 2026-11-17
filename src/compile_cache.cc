@@ -23,6 +23,7 @@ using v8::Local;
 using v8::Module;
 using v8::ScriptCompiler;
 using v8::String;
+using v8::WasmModuleObject;
 
 namespace {
 std::string Uint32ToHex(uint32_t crc) {
@@ -103,6 +104,8 @@ const char* CompileCacheEntry::type_name() const {
       return "ESM";
     case CachedCodeType::kStrippedTypeScript:
       return "StrippedTypeScript";
+    case CachedCodeType::kWasm:
+      return "Wasm";
     default:
       UNREACHABLE();
   }
@@ -249,6 +252,20 @@ static std::string GetRelativePath(std::string_view path,
 CompileCacheEntry* CompileCacheHandler::GetOrInsert(Local<String> code,
                                                     Local<String> filename,
                                                     CachedCodeType type) {
+  // TODO(joyeecheung): don't encode this again into UTF8. If we read the
+  // UTF8 content on disk as raw buffer (from the JS layer, while watching out
+  // for monkey patching), we can just hash it directly.
+  Utf8Value code_utf8(isolate_, code);
+  return GetOrInsert(reinterpret_cast<const uint8_t*>(code_utf8.out()),
+                     code_utf8.length(),
+                     filename,
+                     type);
+}
+
+CompileCacheEntry* CompileCacheHandler::GetOrInsert(const uint8_t* code,
+                                                    size_t code_size,
+                                                    Local<String> filename,
+                                                    CachedCodeType type) {
   DCHECK(!compile_cache_dir_.empty());
 
   Environment* env = Environment::GetCurrent(isolate_->GetCurrentContext());
@@ -265,21 +282,17 @@ CompileCacheEntry* CompileCacheHandler::GetOrInsert(Local<String> code,
       return nullptr;
     }
     std::string relative_path =
-        GetRelativePath(normalized_file_path, normalized_compile_cache_dir_);
+        GetRelativePath(normalized_file_path, normalized_key_root_);
     if (!relative_path.empty()) {
       file_path = relative_path;
       Debug("[compile cache] using relative path %s from %s\n",
             file_path,
-            compile_cache_dir_);
+            normalized_key_root_);
     }
   }
   uint32_t key = GetCacheKey(file_path, type);
 
-  // TODO(joyeecheung): don't encode this again into UTF8. If we read the
-  // UTF8 content on disk as raw buffer (from the JS layer, while watching out
-  // for monkey patching), we can just hash it directly.
-  Utf8Value code_utf8(isolate_, code);
-  uint32_t code_hash = GetHash(code_utf8.out(), code_utf8.length());
+  uint32_t code_hash = GetHash(reinterpret_cast<const char*>(code), code_size);
   auto loaded = compiler_cache_store_.find(key);
 
   // TODO(joyeecheung): let V8's in-isolate compilation cache take precedence.
@@ -295,7 +308,7 @@ CompileCacheEntry* CompileCacheHandler::GetOrInsert(Local<String> code,
   auto* result = emplaced.first->second.get();
 
   result->code_hash = code_hash;
-  result->code_size = code_utf8.length();
+  result->code_size = code_size;
   result->cache_key = key;
   result->cache_filename =
       compile_cache_dir_ + kPathSeparator + Uint32ToHex(key);
@@ -316,6 +329,18 @@ ScriptCompiler::CachedData* SerializeCodeCache(Local<Function> func) {
 
 ScriptCompiler::CachedData* SerializeCodeCache(Local<Module> mod) {
   return ScriptCompiler::CreateCodeCache(mod->GetUnboundModuleScript());
+}
+
+// V8 only serializes code compiled by the optimizing tier, and produces
+// nothing if there is none, e.g. for a module that has only been compiled
+// with the baseline tier so far.
+ScriptCompiler::CachedData* SerializeCodeCache(Local<WasmModuleObject> mod) {
+  v8::OwnedBuffer code = mod->GetCompiledModule().Serialize();
+  if (code.size == 0) return nullptr;
+  return new ScriptCompiler::CachedData(
+      code.buffer.release(),
+      static_cast<int>(code.size),
+      ScriptCompiler::CachedData::BufferOwned);
 }
 
 template <typename T>
@@ -341,6 +366,12 @@ void CompileCacheHandler::MaybeSaveImpl(CompileCacheEntry* entry,
         entry->cache == nullptr ? "initializing" : "refreshing");
 
   ScriptCompiler::CachedData* data = SerializeCodeCache(func_or_mod);
+  if (data == nullptr) {
+    Debug("[compile cache] nothing to serialize for %s %s\n",
+          entry->type_name(),
+          entry->source_filename);
+    return;
+  }
   DCHECK_EQ(data->buffer_policy, ScriptCompiler::CachedData::BufferOwned);
   entry->refreshed = true;
   entry->cache.reset(data);
@@ -357,6 +388,13 @@ void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
                                     Local<Function> func,
                                     bool rejected) {
   MaybeSaveImpl(entry, func, rejected);
+}
+
+void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
+                                    Local<WasmModuleObject> mod,
+                                    bool rejected) {
+  DCHECK(entry->type == CachedCodeType::kWasm);
+  MaybeSaveImpl(entry, mod, rejected);
 }
 
 void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
@@ -435,20 +473,8 @@ void CompileCacheHandler::Persist() {
       continue;
     }
 
-    DCHECK_EQ(entry->cache->buffer_policy,
-              ScriptCompiler::CachedData::BufferOwned);
-    char* cache_ptr =
-        reinterpret_cast<char*>(const_cast<uint8_t*>(entry->cache->data));
-    uint32_t cache_size = static_cast<uint32_t>(entry->cache->length);
-    uint32_t cache_hash = GetHash(cache_ptr, cache_size);
-
-    // Generating headers.
-    std::vector<uint32_t> headers(kHeaderCount);
-    headers[kMagicNumberOffset] = kCacheMagicNumber;
-    headers[kCodeSizeOffset] = entry->code_size;
-    headers[kCacheSizeOffset] = cache_size;
-    headers[kCodeHashOffset] = entry->code_hash;
-    headers[kCacheHashOffset] = cache_hash;
+    std::vector<char> data = SerializeEntry(entry);
+    const uint32_t* headers = reinterpret_cast<const uint32_t*>(data.data());
 
     // Generate the temporary filename.
     // The temporary file should be placed in a location like:
@@ -489,16 +515,13 @@ void CompileCacheHandler::Persist() {
           headers[kCacheHashOffset]);
 
     // Write to the temporary file.
-    uv_buf_t headers_buf = uv_buf_init(reinterpret_cast<char*>(headers.data()),
-                                       headers.size() * sizeof(uint32_t));
-    uv_buf_t data_buf = uv_buf_init(cache_ptr, entry->cache->length);
-    uv_buf_t bufs[] = {headers_buf, data_buf};
+    uv_buf_t buf = uv_buf_init(data.data(), data.size());
 
     uv_fs_t write_req;
     auto cleanup_write =
         OnScopeLeave([&write_req]() { uv_fs_req_cleanup(&write_req); });
     err = uv_fs_write(
-        nullptr, &write_req, mkstemp_req.result, bufs, 2, 0, nullptr);
+        nullptr, &write_req, mkstemp_req.result, &buf, 1, 0, nullptr);
     if (err < 0) {
       Debug("failed: %s\n", uv_strerror(err));
       continue;
@@ -543,6 +566,47 @@ void CompileCacheHandler::Persist() {
   compiler_cache_store_.clear();
 }
 
+// Serializes an entry in the layout of a cache file, see Persist().
+std::vector<char> CompileCacheHandler::SerializeEntry(
+    const CompileCacheEntry* entry) {
+  DCHECK_NOT_NULL(entry->cache);
+  DCHECK_EQ(entry->cache->buffer_policy,
+            ScriptCompiler::CachedData::BufferOwned);
+  const char* cache_ptr = reinterpret_cast<const char*>(entry->cache->data);
+  uint32_t cache_size = static_cast<uint32_t>(entry->cache->length);
+
+  uint32_t headers[kHeaderCount];
+  headers[kMagicNumberOffset] = kCacheMagicNumber;
+  headers[kCodeSizeOffset] = entry->code_size;
+  headers[kCacheSizeOffset] = cache_size;
+  headers[kCodeHashOffset] = entry->code_hash;
+  headers[kCacheHashOffset] = GetHash(cache_ptr, cache_size);
+
+  const char* headers_ptr = reinterpret_cast<const char*>(headers);
+  std::vector<char> data;
+  data.reserve(sizeof(headers) + cache_size);
+  data.insert(data.end(), headers_ptr, headers_ptr + sizeof(headers));
+  data.insert(data.end(), cache_ptr, cache_ptr + cache_size);
+  return data;
+}
+
+std::vector<std::pair<std::string, std::vector<char>>>
+CompileCacheHandler::SerializeEntries() const {
+  std::vector<std::pair<std::string, std::vector<char>>> result;
+  for (const auto& pair : compiler_cache_store_) {
+    const CompileCacheEntry* entry = pair.second.get();
+    if (entry->cache == nullptr) {
+      Debug("[compile cache] skip serializing %s %s because the cache was "
+            "not initialized\n",
+            entry->type_name(),
+            entry->source_filename);
+      continue;
+    }
+    result.emplace_back(Uint32ToHex(entry->cache_key), SerializeEntry(entry));
+  }
+  return result;
+}
+
 CompileCacheHandler::CompileCacheHandler(Environment* env)
     : isolate_(env->isolate()),
       is_debug_(
@@ -553,9 +617,11 @@ CompileCacheHandler::CompileCacheHandler(Environment* env)
 //   - $NODE_VERSION-$ARCH-$CACHE_DATA_VERSION_TAG-$UID
 //     ($UID is omitted for a portable cache)
 //     - $FILENAME_AND_MODULE_TYPE_HASH.cache: a hash of filename + module type
-CompileCacheEnableResult CompileCacheHandler::Enable(Environment* env,
-                                                     const std::string& dir,
-                                                     EnableOption option) {
+CompileCacheEnableResult CompileCacheHandler::Enable(
+    Environment* env,
+    const std::string& dir,
+    EnableOption option,
+    const std::string& key_root) {
   std::string cache_tag = GetCacheVersionTag(option);
   std::string absolute_cache_dir_base = PathResolve(env, {dir});
   std::string cache_dir_with_tag =
@@ -627,8 +693,8 @@ CompileCacheEnableResult CompileCacheHandler::Enable(Environment* env,
   portable_ = option;
   read_only_ = read_only;
   if (HasOption(option, EnableOption::PORTABLE)) {
-    normalized_compile_cache_dir_ =
-        NormalizeFileURLOrPath(env, compile_cache_dir_);
+    normalized_key_root_ = NormalizeFileURLOrPath(
+        env, key_root.empty() ? compile_cache_dir_ : key_root);
   }
   result.status = CompileCacheEnableStatus::ENABLED;
   return result;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -90,6 +90,9 @@ ENCODER_TEXT("SLH-DSA-SHAKE-192s", slh_dsa_shake_192s, yes),
 ENCODER_TEXT("SLH-DSA-SHAKE-192f", slh_dsa_shake_192f, yes),
 ENCODER_TEXT("SLH-DSA-SHAKE-256s", slh_dsa_shake_256s, yes),
 ENCODER_TEXT("SLH-DSA-SHAKE-256f", slh_dsa_shake_256f, yes),
+#endif
+#ifndef OPENSSL_NO_LMS
+ENCODER_TEXT("LMS", lms, yes),
 #endif
 
 /*
@@ -422,3 +425,8 @@ ENCODER_w_structure("DHX", dhx, yes, pem, X9_42),
 ENCODER_w_structure("EC", ec, yes, der, X9_62),
 ENCODER_w_structure("EC", ec, yes, pem, X9_62),
 #endif
+
+#ifndef OPENSSL_NO_LMS
+ENCODER_w_structure("LMS", lms, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("LMS", lms, yes, pem, SubjectPublicKeyInfo),
+#endif /* OPENSSL_NO_LMS */

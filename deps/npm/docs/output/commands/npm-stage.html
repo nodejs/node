@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-stage----1210">
+<h1 id="----npm-stage----1222">
     <span>npm-stage</span>
-    <span class="version">@12.1.0</span>
+    <span class="version">@12.2.2</span>
 </h1>
 <span class="description">Stage packages for publishing</span>
 </header>
@@ -226,6 +226,7 @@ packages — you cannot publish a version that already exists as a staged
 version for that package.</li>
 <li>You can still publish packages normally while you have staged packages
 pending.</li>
+<li>Staged publishing will allow you to create a new package if it does not exist.</li>
 <li>You can stage multiple versions of the same package.</li>
 <li><code>npm stage publish</code> has parity with <code>npm publish</code> and will respect
 <code>"private": true</code> in <code>package.json</code>, refusing to stage the package.</li>
@@ -235,8 +236,6 @@ pending.</li>
 <ul>
 <li><strong>Write permissions on the package:</strong> You must have write access to the
 package you're configuring.</li>
-<li><strong>Package must exist:</strong> The package you're configuring must already exist
-on the npm registry.</li>
 <li><strong>2FA enabled on your account:</strong> Commands that require 2FA will prompt you
 to authenticate. If you don't already have 2FA enabled on your account,
 you must enable it before using these commands.</li>

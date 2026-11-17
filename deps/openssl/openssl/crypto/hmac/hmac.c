@@ -35,6 +35,9 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
     if (md != NULL && md != ctx->md && (key == NULL || len < 0))
         return 0;
 
+    if (impl != NULL)
+        return 0;
+
     if (md != NULL)
         ctx->md = md;
     else if (ctx->md != NULL)
@@ -51,7 +54,7 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
 
 #ifdef OPENSSL_HMAC_S390X
     {
-        int ret = s390x_HMAC_init(ctx, key, len, impl);
+        int ret = s390x_HMAC_init(ctx, key, len);
         if (ret != -1) /* -1 means SW fallback */
             return ret;
     }
@@ -66,7 +69,7 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
         if (j < 0)
             return 0;
         if (j < len) {
-            if (!EVP_DigestInit_ex(ctx->md_ctx, md, impl)
+            if (!EVP_DigestInit_ex(ctx->md_ctx, md, NULL)
                 || !EVP_DigestUpdate(ctx->md_ctx, key, len)
                 || !EVP_DigestFinal_ex(ctx->md_ctx, keytmp,
                     &keytmp_length))
@@ -83,14 +86,14 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
 
         for (i = 0; i < HMAC_MAX_MD_CBLOCK_SIZE; i++)
             pad[i] = 0x36 ^ keytmp[i];
-        if (!EVP_DigestInit_ex(ctx->i_ctx, md, impl)
+        if (!EVP_DigestInit_ex(ctx->i_ctx, md, NULL)
             || !EVP_DigestUpdate(ctx->i_ctx, pad,
                 EVP_MD_get_block_size(md)))
             goto err;
 
         for (i = 0; i < HMAC_MAX_MD_CBLOCK_SIZE; i++)
             pad[i] = 0x5c ^ keytmp[i];
-        if (!EVP_DigestInit_ex(ctx->o_ctx, md, impl)
+        if (!EVP_DigestInit_ex(ctx->o_ctx, md, NULL)
             || !EVP_DigestUpdate(ctx->o_ctx, pad,
                 EVP_MD_get_block_size(md)))
             goto err;

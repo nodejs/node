@@ -12,18 +12,9 @@
 #ifndef OSSL_CRYPTO_CMP_LOCAL_H
 #define OSSL_CRYPTO_CMP_LOCAL_H
 
-#include "internal/cryptlib.h"
-
 #include <openssl/cmp.h>
-#include <openssl/err.h>
-
-/* explicit #includes not strictly needed since implied by the above: */
-#include <openssl/crmf.h>
-#include <openssl/types.h>
-#include <openssl/safestack.h>
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
 #include "crypto/x509.h"
+#include "internal/cryptlib.h"
 
 #define IS_NULL_DN(name) (X509_NAME_get_entry(name, 0) == NULL)
 
@@ -64,6 +55,7 @@ struct ossl_cmp_ctx_st {
      * certificate responses (ip/cp/kup), revocation responses (rp), and PKIConf
      */
     int unprotectedErrors;
+    int nonmatchedErrorNonces; /* accept missing/wrong transactionID or recipNonce in error msgs */
     int noCacheExtraCerts;
     X509 *srvCert; /* certificate used to identify the server */
     X509 *validatedSrvCert; /* caches any already validated sender cert */
@@ -827,7 +819,7 @@ int ossl_cmp_X509_STORE_add1_certs(X509_STORE *store, STACK_OF(X509) *certs,
     int only_self_issued);
 STACK_OF(X509) *ossl_cmp_X509_STORE_get1_certs(X509_STORE *store);
 int ossl_cmp_sk_ASN1_UTF8STRING_push_str(STACK_OF(ASN1_UTF8STRING) *sk,
-    const char *text, int len);
+    const char *text, size_t len);
 int ossl_cmp_asn1_octet_string_set1(ASN1_OCTET_STRING **tgt,
     const ASN1_OCTET_STRING *src);
 int ossl_cmp_asn1_octet_string_set1_bytes(ASN1_OCTET_STRING **tgt,
@@ -954,7 +946,7 @@ OSSL_CMP_MSG *ossl_cmp_certrep_new(OSSL_CMP_CTX *ctx, int bodytype,
     int certReqId, const OSSL_CMP_PKISI *si,
     X509 *cert, const EVP_PKEY *pkey,
     const X509 *encryption_recip,
-    STACK_OF(X509) *chain, STACK_OF(X509) *caPubs,
+    const STACK_OF(X509) *chain, STACK_OF(X509) *caPubs,
     int unprotectedErrors);
 OSSL_CMP_MSG *ossl_cmp_rr_new(OSSL_CMP_CTX *ctx);
 OSSL_CMP_MSG *ossl_cmp_rp_new(OSSL_CMP_CTX *ctx, const OSSL_CMP_PKISI *si,

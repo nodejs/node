@@ -303,6 +303,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       UNREACHABLE();
     case IrOpcode::kDeadValue:
       CheckValueInputIs(node, 0, Type::None());
+      CHECK_NE(NodeProperties::GetValueInput(node, 0), node);
       CheckTypeIs(node, Type::None());
       break;
     case IrOpcode::kUnreachable:
@@ -653,6 +654,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kExitMachineGraph:
       CheckValueInputIs(node, 0, Type::Machine());
       break;
+#if V8_ENABLE_SANDBOX
+    case IrOpcode::kLoadTrustedPointer:
+      // TODO(manoskouk): what are the constraints here?
+      break;
+#endif
 
     // JavaScript operators
     // --------------------

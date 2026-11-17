@@ -14,7 +14,6 @@
 #include "conf_local.h"
 #include <openssl/x509.h>
 #include <openssl/asn1.h>
-#include <openssl/engine.h>
 
 #if defined(_WIN32) && !defined(__BORLANDC__)
 #define strdup _strdup

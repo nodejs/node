@@ -38,3 +38,24 @@ const promiseResolver = new dns.promises.Resolver();
     promiseResolver.setLocalAddress();
   }, Error);
 }
+
+// Verify that setLocalAddress rejects addresses containing null bytes instead
+// of silently truncating them at the first null byte
+{
+  for (const r of [resolver, promiseResolver]) {
+    assert.throws(() => {
+      r.setLocalAddress('127.0.0.1\u0000junk');
+    }, {
+      code: 'ERR_INVALID_ARG_VALUE',
+      name: 'TypeError',
+      message: /^The argument 'ipv4' must be a string without null bytes\. Received /,
+    });
+    assert.throws(() => {
+      r.setLocalAddress('127.0.0.1', '::1\u0000junk');
+    }, {
+      code: 'ERR_INVALID_ARG_VALUE',
+      name: 'TypeError',
+      message: /^The argument 'ipv6' must be a string without null bytes\. Received /,
+    });
+  }
+}

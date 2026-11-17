@@ -25,8 +25,8 @@ static int dh_paramgen_check(EVP_PKEY_CTX *ctx)
     }
     /* If key type not DH return error */
     if (evp_pkey_ctx_is_legacy(ctx)
-        && ctx->pmeth->pkey_id != EVP_PKEY_DH
-        && ctx->pmeth->pkey_id != EVP_PKEY_DHX)
+        && ctx->legacy_keytype != EVP_PKEY_DH
+        && ctx->legacy_keytype != EVP_PKEY_DHX)
         return -1;
     return 1;
 }
@@ -40,8 +40,8 @@ static int dh_param_derive_check(EVP_PKEY_CTX *ctx)
     }
     /* If key type not DH return error */
     if (evp_pkey_ctx_is_legacy(ctx)
-        && ctx->pmeth->pkey_id != EVP_PKEY_DH
-        && ctx->pmeth->pkey_id != EVP_PKEY_DHX)
+        && ctx->legacy_keytype != EVP_PKEY_DH
+        && ctx->legacy_keytype != EVP_PKEY_DHX)
         return -1;
     return 1;
 }

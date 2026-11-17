@@ -26,7 +26,7 @@ const channelName = 'crypto.fips.indicator';
 if (!hasOpenSSL(3, 4)) {
   common.skip('OpenSSL 3.4 or later is required');
 } else if (!hasFIPS(3, 4)) {
-  common.skip('an active OpenSSL 3.4+ FIPS provider is required');
+  common.skip('an active OpenSSL FIPS provider is required');
 } else if (!process.execArgv.includes('--enable-fips-indicator-events')) {
   spawnSyncAndExitWithoutError(
     process.execPath,

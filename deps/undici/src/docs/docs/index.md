@@ -155,7 +155,7 @@ const response = await fetch('https://api.example.com/data');
 - Building isomorphic code that runs in browsers and Node.js
 - Publishing to npm and want to maximize compatibility with JS runtimes
 - Simple HTTP requests without advanced configuration
-- You're publishing to npm and you want to maximize compatiblity
+- You're publishing to npm and you want to maximize compatibility
 - You don't depend on features from a specific version of undici
 
 #### Use Undici Module When:

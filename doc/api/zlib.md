@@ -1525,8 +1525,7 @@ which streaming never makes. Output is still bounded per chunk to the declared
 uncompressed size; pass `maxSize` to impose an explicit ceiling.
 
 For an in-memory entry stored without compression, the yielded chunks are
-zero-copy views of the entry's retained content (see
-[`zipEntry.rawContent`][]); do not mutate them.
+zero-copy views of the entry's retained content; do not mutate them.
 
 The yielded chunks are **provisional until the iterator completes**. CRC-32
 verification (and the final declared-size check) can only run once every byte
@@ -1669,20 +1668,56 @@ The entry's raw name bytes, before any character decoding. Useful when the
 archive's names are in an encoding other than UTF-8 or CP437 and the caller
 wants to decode them itself.
 
-### `zipEntry.rawContent`
+### `zipEntry.rawContent([options])`
 
 <!-- YAML
 added: v26.8.0
 -->
 
-* Type: {Buffer|null}
+* `options` {Object}
+  * `maxSize` {number} Reject content with more than this many compressed
+    bytes, before allocating anything. **Default:**
+    [`zlib.getMaxZipContentSize()`][].
+* Returns: {Promise} Fulfilled with a {Buffer} containing the entry's raw
+  content: the bytes as stored in the archive, still compressed if
+  [`zipEntry.compressed`][] is `true`. The buffer is a fresh copy that shares
+  no memory with the archive or with data the entry was created from.
 
-The entry's raw (still compressed, if applicable) content when it is held in
-memory, or `null` when there is no in-memory buffer to expose - for an entry
-created with [`zlib.ZipEntry.createStream()`][], or a file-backed entry
-returned by [`zipFile.get()`][], whose bytes are read from disk on demand
-rather than retained. Use [`zipEntry.content()`][] or
-[`zipEntry.contentIterator()`][] to read a file-backed entry.
+The content is neither decompressed nor checked against
+[`zipEntry.crc32`][], which covers the uncompressed bytes.
+
+Throws an [`ERR_ZIP_ENTRY_TOO_LARGE`][] error if the entry's compressed size
+exceeds `maxSize`, and an [`ERR_INVALID_STATE`][] error for a streaming entry
+([`zlib.ZipEntry.createStream()`][]) whose content is not yet available.
+
+### `zipEntry.rawContentSync([options])`
+
+<!-- YAML
+added: v27.0.0-alpha.0.0.0
+-->
+
+* `options` {Object} See [`zipEntry.rawContent()`][].
+* Returns: {Buffer} The entry's raw content.
+
+The synchronous version of [`zipEntry.rawContent()`][].
+
+### `zipEntry.rawContentIterator([options])`
+
+<!-- YAML
+added: v27.0.0-alpha.0.0.0
+-->
+
+* `options` {Object}
+  * `maxSize` {number} Reject content with more than this many compressed
+    bytes, before reading anything. **Default:** no limit.
+* Returns: {AsyncIterator} of {Buffer} chunks of the entry's raw content.
+
+Unlike [`zipEntry.rawContent()`][], this does not buffer the whole member in
+memory. For a file-backed entry (one returned by [`zipFile.get()`][]) the
+bytes are read from disk as the iterator is consumed and nothing is retained;
+the entry is valid only while its `ZipFile` is open. For an in-memory entry,
+the yielded chunk is a zero-copy view of the entry's retained content; do not
+mutate it.
 
 ### `zipEntry.size`
 
@@ -2373,6 +2408,49 @@ crc = zlib.crc32('world', crc);  // 4192936109
 
 crc = zlib.crc32(Buffer.from('hello', 'utf16le'));  // 1427272415
 crc = zlib.crc32(Buffer.from('world', 'utf16le'), crc);  // 4150509955
+```
+
+## `zlib.crc32c(data[, value])`
+
+<!-- YAML
+added: v27.0.0-alpha.0.0.0
+-->
+
+* `data` {string|Buffer|TypedArray|DataView} When `data` is a string,
+  it will be encoded as UTF-8 before being used for computation.
+* `value` {integer} An optional starting value. It must be a 32-bit unsigned
+  integer. **Default:** `0`
+* Returns: {integer} A 32-bit unsigned integer containing the checksum.
+
+Computes a 32-bit [Cyclic Redundancy Check][] checksum of `data` using the
+Castagnoli polynomial (CRC-32C, [RFC 3720][] section 12.1). If `value` is
+specified, it is used as the starting value of the checksum, otherwise, 0 is
+used as the starting value. Passing the result of a previous call as `value`
+continues the checksum, as with [`zlib.crc32()`][].
+
+CRC-32C is a different checksum from the CRC-32 computed by
+[`zlib.crc32()`][]; the two produce different results for the same input.
+CRC-32C is used by protocols and formats such as iSCSI, SCTP, ext4, Btrfs,
+and the Snappy framing format, and has better error detection properties than
+CRC-32.
+
+The CRC algorithm is designed to compute checksums and to detect error
+in data transmission. It's not suitable for cryptographic authentication.
+
+Strings are encoded as UTF-8, in the same way as [`zlib.crc32()`][].
+
+```mjs
+import zlib from 'node:zlib';
+
+let crc = zlib.crc32c('hello');  // 2591144780
+crc = zlib.crc32c('world', crc);  // 1456190592
+```
+
+```cjs
+const zlib = require('node:zlib');
+
+let crc = zlib.crc32c('hello');  // 2591144780
+crc = zlib.crc32c('world', crc);  // 1456190592
 ```
 
 ## `zlib.createBrotliCompress([options])`
@@ -3382,6 +3460,7 @@ Create a Zstandard decompression transform.
 [Brotli parameters]: #brotli-constants
 [Cyclic redundancy check]: https://en.wikipedia.org/wiki/Cyclic_redundancy_check
 [Memory usage tuning]: #memory-usage-tuning
+[RFC 3720]: https://www.rfc-editor.org/rfc/rfc3720.html
 [RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932.html
 [Streams API]: stream.md
 [Zstd compressor options]: #compressor-options-1
@@ -3425,15 +3504,17 @@ Create a Zstandard decompression transform.
 [`zipBuffer.comment`]: #zipbuffercomment
 [`zipBuffer.toBuffer()`]: #zipbuffertobufferoptions
 [`zipBuffer.toBufferSync()`]: #zipbuffertobuffersyncoptions
+[`zipEntry.compressed`]: #zipentrycompressed
 [`zipEntry.content()`]: #zipentrycontentoptions
 [`zipEntry.contentIterator()`]: #zipentrycontentiteratoroptions
 [`zipEntry.contentSync()`]: #zipentrycontentsyncoptions
+[`zipEntry.crc32`]: #zipentrycrc32
 [`zipEntry.isDirectory`]: #zipentryisdirectory
 [`zipEntry.isSymlink`]: #zipentryissymlink
 [`zipEntry.modified`]: #zipentrymodified
 [`zipEntry.nameBuffer`]: #zipentrynamebuffer
 [`zipEntry.name`]: #zipentryname
-[`zipEntry.rawContent`]: #zipentryrawcontent
+[`zipEntry.rawContent()`]: #zipentryrawcontentoptions
 [`zipFile.add()`]: #zipfileaddfilename-data-options
 [`zipFile.addEntry()`]: #zipfileaddentryentry
 [`zipFile.close()`]: #zipfileclose
@@ -3451,6 +3532,7 @@ Create a Zstandard decompression transform.
 [`zlib.ZipEntry.createSymlink()`]: #static-method-zlibzipentrycreatesymlinkfilename-target-options
 [`zlib.ZipEntry.createSync()`]: #static-method-zlibzipentrycreatesyncfilename-data-options
 [`zlib.ZipFile.open()`]: #static-method-zlibzipfileopenfilename-options
+[`zlib.crc32()`]: #zlibcrc32data-value
 [`zlib.createZipArchive()`]: #zlibcreateziparchiveentries-options
 [`zlib.createZipArchiveSync()`]: #zlibcreateziparchivesyncentries-options
 [`zlib.getMaxZipContentSize()`]: #zlibgetmaxzipcontentsize

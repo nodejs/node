@@ -23,11 +23,6 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-#if defined(NCRYPTO_ENGINE_COMPAT) && NCRYPTO_ENGINE_COMPAT &&                 \
-    !defined(OPENSSL_NO_ENGINE)
-#include <openssl/engine.h>
-#endif  // NCRYPTO_ENGINE_COMPAT && !OPENSSL_NO_ENGINE
-
 #ifndef OPENSSL_VERSION_PREREQ
 #define OPENSSL_VERSION_PREREQ(maj, min)                                       \
   (OPENSSL_VERSION_NUMBER >= (((maj) << 28) | ((min) << 20)))
@@ -39,92 +34,35 @@
 #define NCRYPTO_BSSL_LIBDECREPIT_MISSING 0
 #endif
 
-#if defined(OPENSSL_IS_BORINGSSL) && NCRYPTO_BSSL_LIBDECREPIT_MISSING
-#define NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK 1
-#else
-#define NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK 0
-#endif
+#define NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK                              \
+  (NCRYPTO_USE_BORINGSSL && NCRYPTO_BSSL_LIBDECREPIT_MISSING)
 
 // Backend split:
-// - OpenSSL >= 3 uses provider APIs and hides deprecated low-level objects.
-// - BoringSSL has its own API-compatible branch.
-// - OpenSSL < 3 remains the legacy fallback branch.
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 0)
-#define NCRYPTO_USE_OPENSSL3_PROVIDER 1
-#else
-#define NCRYPTO_USE_OPENSSL3_PROVIDER 0
-#endif
-
+// - OpenSSL uses provider APIs and hides deprecated low-level objects.
+// - BoringSSL has its own API-compatible branch and keeps using the legacy
+//   low-level key types.
 #ifdef OPENSSL_IS_BORINGSSL
 #define NCRYPTO_USE_BORINGSSL 1
-#else
+#define NCRYPTO_USE_OPENSSL_PROVIDER 0
+#elif OPENSSL_VERSION_PREREQ(3, 0)
 #define NCRYPTO_USE_BORINGSSL 0
-#endif
-
-#if !NCRYPTO_USE_OPENSSL3_PROVIDER && !NCRYPTO_USE_BORINGSSL
-#define NCRYPTO_USE_LEGACY_OPENSSL 1
+#define NCRYPTO_USE_OPENSSL_PROVIDER 1
 #else
-#define NCRYPTO_USE_LEGACY_OPENSSL 0
+#error "Unsupported crypto backend"
 #endif
 
-#if NCRYPTO_USE_BORINGSSL || NCRYPTO_USE_LEGACY_OPENSSL
-#define NCRYPTO_USE_LEGACY_KEY_TYPES 1
-#else
-#define NCRYPTO_USE_LEGACY_KEY_TYPES 0
-#endif
-
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 #include <openssl/core_names.h>
 #include <openssl/encoder.h>
 #include <openssl/param_build.h>
 #endif
 
-// The FIPS-related functions are only available
-// when the OpenSSL itself was compiled with FIPS support.
-#if defined(OPENSSL_FIPS) && !OPENSSL_VERSION_PREREQ(3, 0)
-#include <openssl/fips.h>
-#endif  // OPENSSL_FIPS
-
-#if OPENSSL_VERSION_PREREQ(3, 0)
-#define OPENSSL_WITH_AES_OCB 1
-#else
-#define OPENSSL_WITH_AES_OCB 0
-#endif
-
-#if !defined(OPENSSL_NO_ARGON2) && OPENSSL_VERSION_PREREQ(3, 2)
-#define OPENSSL_WITH_ARGON2 1
-#else
-#define OPENSSL_WITH_ARGON2 0
-#endif
-
-#if OPENSSL_VERSION_PREREQ(3, 0) || defined(OPENSSL_IS_BORINGSSL)
-#define OPENSSL_WITH_KEM 1
-#else
-#define OPENSSL_WITH_KEM 0
-#endif
-
-#if OPENSSL_VERSION_PREREQ(3, 0)
-#define OPENSSL_WITH_EVP_MAC 1
-#else
-#define OPENSSL_WITH_EVP_MAC 0
-#endif
-
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 0)
-#define OPENSSL_WITH_AES_SIV 1
-#else
-#define OPENSSL_WITH_AES_SIV 0
-#endif
-
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 2)
-#define OPENSSL_WITH_AES_GCM_SIV 1
-#else
-#define OPENSSL_WITH_AES_GCM_SIV 0
-#endif
-
-#if OPENSSL_VERSION_PREREQ(3, 0)
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 #define OSSL3_CONST const
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
 #define OSSL3_CONST
+#else
+#error "Unsupported crypto backend"
 #endif
 
 #ifdef __GNUC__
@@ -137,8 +75,10 @@
 // Boringssl has opted to use size_t for some size related
 // APIs while Openssl is still using ints
 using OPENSSL_SIZE_T = size_t;
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
 using OPENSSL_SIZE_T = int;
+#else
+#error "Unsupported crypto backend"
 #endif
 
 namespace ncrypto {
@@ -308,7 +248,7 @@ template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
 using PKCS8Pointer = DeleteFnPtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_free>;
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
 using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
 #endif
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
@@ -320,6 +260,7 @@ class DataPointer;
 class DHPointer;
 class ECKeyPointer;
 class EVPKeyPointer;
+class HMACCtxPointer;
 class KeyAlgorithm;
 class MacCache;
 class EVPMacCtxPointer;
@@ -359,7 +300,7 @@ class Digest final {
   Digest(const Digest& other);
   Digest& operator=(const Digest& other);
   inline Digest& operator=(const EVP_MD* md) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
     fetched_md_.reset();
 #endif
     md_ = md;
@@ -381,10 +322,13 @@ class Digest final {
 
   static const Digest FromName(const char* name);
   static const Digest Fetch(const char* name);
+  // Returns a Digest that holds its own reference to md if md was fetched from
+  // a provider.
+  static const Digest Ref(const EVP_MD* md);
 
  private:
   const EVP_MD* md_ = nullptr;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   explicit Digest(DeleteFnPtr<EVP_MD, EVP_MD_free> md);
   DeleteFnPtr<EVP_MD, EVP_MD_free> fetched_md_;
 #endif
@@ -413,30 +357,39 @@ class DigestCache final {
                                       CaseInsensitiveNameEqual>;
 
   DigestCache() = default;
+  ~DigestCache();
   NCRYPTO_DISALLOW_COPY_AND_MOVE(DigestCache)
 
   Result lookup(const char* name, uint64_t generation) const;
   inline Result lookup(int32_t id, uint64_t generation) const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     if (generation_ != generation || id == -1) return {};
     const uint32_t unsigned_id = static_cast<uint32_t>(id);
     if (unsigned_id < first_id_) return {};
     const size_t index = unsigned_id - first_id_;
     if (index >= digests_.size()) return {};
     return {digests_[index].get(), id};
-#else
+#elif NCRYPTO_USE_BORINGSSL
     static_cast<void>(id);
     static_cast<void>(generation);
     return {};
+#else
+#error "Unsupported crypto backend"
 #endif
   }
   Result insert(const char* name, const EVP_MD* digest, uint64_t generation);
   void reset(uint64_t generation);
   const AliasMap& aliases() const;
+#if !NCRYPTO_USE_BORINGSSL
+  // Returns an HMAC context for the cached digest that has no key yet.
+  // Duplicating it avoids fetching HMAC and the digest for every context.
+  const HMACCtxPointer* getHmacTemplate(const EVP_MD* digest,
+                                        uint64_t generation);
+#endif
 
  private:
   uint64_t generation_ = 0;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   using EVPMDPointer = DeleteFnPtr<EVP_MD, EVP_MD_free>;
 
   // IDs are not reused across generations because JavaScript caches them
@@ -444,6 +397,7 @@ class DigestCache final {
   uint32_t first_id_ = 0;
   uint32_t next_id_ = 0;
   std::vector<EVPMDPointer> digests_;
+  std::vector<std::unique_ptr<HMACCtxPointer>> hmac_templates_;
   AliasMap aliases_;
 #endif
 };
@@ -462,14 +416,14 @@ class CipherCache final {
   NCRYPTO_DISALLOW_COPY_AND_MOVE(CipherCache)
 
   const EVP_CIPHER* lookup(const char* name, uint64_t generation);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   const EVP_CIPHER* insert(const char* name,
                            DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free>&& cipher,
                            uint64_t generation);
 #endif
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   using EVPCipherPointer = DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free>;
 
   uint64_t generation_ = 0;
@@ -503,7 +457,7 @@ class Cipher final {
   Cipher(const Cipher& other);
   Cipher& operator=(const Cipher& other);
   inline Cipher& operator=(const EVP_CIPHER* cipher) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
     fetched_cipher_.reset();
 #endif
     cipher_ = cipher;
@@ -599,7 +553,7 @@ class Cipher final {
 
  private:
   const EVP_CIPHER* cipher_ = nullptr;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   explicit Cipher(DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher);
   DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched_cipher_;
 #endif
@@ -611,21 +565,25 @@ class Cipher final {
 class Dsa final {
  public:
   Dsa();
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   explicit Dsa(const EVP_PKEY* pkey);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   Dsa(OSSL3_CONST DSA* dsa);
+#else
+#error "Unsupported crypto backend"
 #endif
   NCRYPTO_DISALLOW_COPY_AND_MOVE(Dsa)
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   inline operator bool() const {
     return dsa_;
   }
-#else
+#elif NCRYPTO_USE_BORINGSSL
   inline operator bool() const { return dsa_ != nullptr; }
+#else
+#error "Unsupported crypto backend"
 #endif
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   inline operator OSSL3_CONST DSA*() const { return dsa_; }
 #endif
 
@@ -635,12 +593,14 @@ class Dsa final {
   size_t getDivisorLength() const;
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   bool dsa_ = false;
   DeleteFnPtr<BIGNUM, BN_free> p_;
   DeleteFnPtr<BIGNUM, BN_free> q_;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   OSSL3_CONST DSA* dsa_;
+#else
+#error "Unsupported crypto backend"
 #endif
 };
 
@@ -652,21 +612,25 @@ class Rsa final {
   Rsa();
   enum class Selection { Public, Private };
   static Rsa PublicOnly(const EVPKeyPointer& key);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   explicit Rsa(const EVP_PKEY* pkey, Selection selection = Selection::Private);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   Rsa(OSSL3_CONST RSA* rsa);
+#else
+#error "Unsupported crypto backend"
 #endif
   NCRYPTO_DISALLOW_COPY_AND_MOVE(Rsa)
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   inline operator bool() const {
     return rsa_;
   }
-#else
+#elif NCRYPTO_USE_BORINGSSL
   inline operator bool() const { return rsa_ != nullptr; }
+#else
+#error "Unsupported crypto backend"
 #endif
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   inline operator OSSL3_CONST RSA*() const { return rsa_; }
 #endif
 
@@ -733,7 +697,7 @@ class Rsa final {
                              const Buffer<const void> in);
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   bool rsa_ = false;
   bool rsa_pss_ = false;
   DeleteFnPtr<BIGNUM, BN_free> n_;
@@ -746,18 +710,22 @@ class Rsa final {
   DeleteFnPtr<BIGNUM, BN_clear_free> qi_;
   OtherPrimeInfoPointers other_prime_infos_;
   std::optional<PssParams> pss_params_;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   OSSL3_CONST RSA* rsa_;
+#else
+#error "Unsupported crypto backend"
 #endif
 };
 
 class Ec final {
  public:
   Ec();
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   explicit Ec(const EVP_PKEY* pkey);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   Ec(OSSL3_CONST EC_KEY* key);
+#else
+#error "Unsupported crypto backend"
 #endif
   NCRYPTO_DISALLOW_COPY_AND_MOVE(Ec)
 
@@ -767,7 +735,7 @@ class Ec final {
   int getCurve() const;
 
   inline operator bool() const { return ec_ != nullptr; }
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   inline operator OSSL3_CONST EC_KEY*() const { return ec_; }
 #endif
 
@@ -790,12 +758,14 @@ class Ec final {
   static bool GetCurves(GetCurveCallback callback);
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   DeleteFnPtr<EC_GROUP, EC_GROUP_free> ec_;
   DeleteFnPtr<EC_POINT, EC_POINT_free> pub_;
   point_conversion_form_t form_ = POINT_CONVERSION_UNCOMPRESSED;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   OSSL3_CONST EC_KEY* ec_ = nullptr;
+#else
+#error "Unsupported crypto backend"
 #endif
 };
 
@@ -917,10 +887,37 @@ class BIOPointer final {
 
   static int Write(BIOPointer* bio, std::string_view message);
 
+  // Writes the complete message and returns false if any bytes were not
+  // written.
+  static bool WriteAll(const BIOPointer& bio, std::string_view message);
+
+  // Returns the number of bytes written, or a negative value on error.
   template <typename... Args>
-  static void Printf(BIOPointer* bio, const char* format, Args... args) {
-    if (bio == nullptr || !*bio) return;
-    BIO_printf(bio->get(), format, std::forward<Args...>(args...));
+  static int Printf(BIOPointer* bio, const char* format, Args... args) {
+    if (bio == nullptr || !*bio) return -1;
+    return BIO_printf(bio->get(), format, std::forward<Args>(args)...);
+  }
+
+  // Formats and writes the complete message, returning false if formatting
+  // fails or any bytes were not written.
+  template <typename... Args>
+  static bool PrintfAll(const BIOPointer& bio,
+                        const char* format,
+                        Args... args) {
+    if (!bio) return false;
+
+    BIOPointer formatted = NewMem();
+    if (!formatted) return false;
+    int length =
+        BIO_printf(formatted.get(), format, std::forward<Args>(args)...);
+    if (length < 0) return false;
+
+    BUF_MEM* mem = formatted;
+    if (mem == nullptr || mem->length != static_cast<size_t>(length)) {
+      return false;
+    }
+    if (length == 0) return true;
+    return WriteAll(bio, std::string_view(mem->data, mem->length));
   }
 
  private:
@@ -1209,10 +1206,12 @@ class EVPKeyPointer final {
   static EVPKeyPointer NewRawSeed(const KeyAlgorithm& algorithm,
                                   const Buffer<const unsigned char>& data);
   static EVPKeyPointer NewDH(DHPointer&& dh);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   static EVPKeyPointer NewRSA(const Rsa& rsa);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   static EVPKeyPointer NewRSA(RSAPointer&& rsa);
+#else
+#error "Unsupported crypto backend"
 #endif
 
   enum class PKEncodingType {
@@ -1300,7 +1299,7 @@ class EVPKeyPointer final {
 
   bool assign(const ECKeyPointer& eckey);
   bool set(const ECKeyPointer& eckey);
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   operator const EC_KEY*() const;
 #endif
 
@@ -1396,38 +1395,44 @@ class DHPointer final {
   static DHPointer New(size_t bits, unsigned int generator);
 
   DHPointer() = default;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   explicit DHPointer(EVPKeyPointer&& key, const char* group_name = nullptr);
   DHPointer(BignumPointer&& p, BignumPointer&& g, const char* group_name);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   explicit DHPointer(DH* dh);
+#else
+#error "Unsupported crypto backend"
 #endif
   DHPointer(DHPointer&& other) noexcept;
   DHPointer& operator=(DHPointer&& other) noexcept;
   NCRYPTO_DISALLOW_COPY(DHPointer)
   ~DHPointer();
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   inline bool operator==(std::nullptr_t) noexcept {
     return !operator bool();
   }
   inline operator bool() const {
     return dh_ != nullptr || (p_ && g_);
   }
-#else
+#elif NCRYPTO_USE_BORINGSSL
   inline bool operator==(std::nullptr_t) noexcept { return dh_ == nullptr; }
   inline operator bool() const { return dh_ != nullptr; }
+#else
+#error "Unsupported crypto backend"
 #endif
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   inline DH* get() const { return dh_.get(); }
   void reset(DH* dh = nullptr);
   DH* release();
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
   inline EVP_PKEY* get() const {
     return dh_.get();
   }
   void reset(EVP_PKEY* dh = nullptr);
   EVP_PKEY* release();
+#else
+#error "Unsupported crypto backend"
 #endif
 
   enum class CheckResult {
@@ -1476,15 +1481,17 @@ class DHPointer final {
                                const EVPKeyPointer& theirKey);
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   DeleteFnPtr<EVP_PKEY, EVP_PKEY_free> dh_;
   BignumPointer p_;
   BignumPointer g_;
   BignumPointer pub_key_;
   BignumPointer pvt_key_;
   const char* group_name_ = nullptr;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   DeleteFnPtr<DH, DH_free> dh_;
+#else
+#error "Unsupported crypto backend"
 #endif
 };
 
@@ -1573,6 +1580,13 @@ class SSLPointer final {
 
 class X509Name final {
  public:
+  // A missing Entry means the name entry could not be inspected. A missing
+  // value marks an AttributeValue that the legacy UTF-8 view cannot represent.
+  struct Entry {
+    std::string key;
+    std::optional<std::string> value;
+  };
+
   X509Name();
   explicit X509Name(const X509_NAME* name);
   NCRYPTO_DISALLOW_COPY_AND_MOVE(X509Name)
@@ -1593,7 +1607,7 @@ class X509Name final {
     operator bool() const;
     bool operator==(const Iterator& other) const;
     bool operator!=(const Iterator& other) const;
-    std::pair<std::string, std::string> operator*() const;
+    std::optional<Entry> operator*() const;
 
    private:
     const X509Name& name_;
@@ -1608,8 +1622,32 @@ class X509Name final {
   int total_;
 };
 
+struct X509NameAttribute final {
+  int set = 0;
+  std::string oid;
+  std::optional<std::string> value;
+};
+
+using X509NameInspection = std::vector<X509NameAttribute>;
+
+struct X509RawExtension final {
+  std::string oid;
+  bool critical = false;
+  std::vector<unsigned char> value;
+};
+
+std::optional<std::vector<X509RawExtension>> inspectX509Extensions(
+    const STACK_OF(X509_EXTENSION) * extensions);
+
 class X509View final {
  public:
+  enum class CheckKeyResult {
+    MATCH,                  // The requested comparison passed.
+    NO_MATCH,               // It completed and produced an ordinary mismatch.
+    UNSUPPORTED_OPERATION,  // The backend cannot compare these keys.
+    OPERATION_FAILED,       // The backend failed for another reason.
+  };
+
   static X509View From(const SSLPointer& ssl);
   static X509View From(const SSLCtxPointer& ctx);
 
@@ -1632,23 +1670,28 @@ class X509View final {
   const X509Name getSubjectName() const;
   const X509Name getIssuerName() const;
   BIOPointer getSubject() const;
-  BIOPointer getSubjectAltName() const;
+  BIOPointer getSubjectAltName(bool* has_extension = nullptr) const;
   BIOPointer getIssuer() const;
-  BIOPointer getInfoAccess() const;
+  BIOPointer getInfoAccess(bool* has_extension = nullptr) const;
   BIOPointer getValidFrom() const;
   BIOPointer getValidTo() const;
   std::optional<std::string_view> getSignatureAlgorithm() const;
   std::optional<std::string> getSignatureAlgorithmOID() const;
-  int64_t getValidFromTime() const;
-  int64_t getValidToTime() const;
+  std::optional<int64_t> getValidFromTime() const;
+  std::optional<int64_t> getValidToTime() const;
   DataPointer getSerialNumber() const;
   Result<EVPKeyPointer, int> getPublicKey() const;
   StackOfASN1 getKeyUsage() const;
 
+  std::optional<int64_t> getVersion() const;
+  std::optional<X509NameInspection> inspectSubjectName() const;
+  std::optional<X509NameInspection> inspectIssuerName() const;
+  std::optional<std::vector<X509RawExtension>> inspectExtensions() const;
+
   bool isCA() const;
   bool isIssuedBy(const X509View& other) const;
-  bool checkPrivateKey(const EVPKeyPointer& pkey) const;
-  bool checkPublicKey(const EVPKeyPointer& pkey) const;
+  CheckKeyResult checkPrivateKey(const EVPKeyPointer& pkey) const;
+  Result<bool, int> checkPublicKey(const EVPKeyPointer& pkey) const;
 
   std::optional<std::string> getFingerprint(const Digest& method) const;
 
@@ -1664,10 +1707,15 @@ class X509View final {
                        int flags,
                        DataPointer* peerName = nullptr) const;
   CheckMatch checkEmail(std::string_view email, int flags) const;
-  CheckMatch checkIp(std::string_view ip, int flags) const;
+  CheckMatch checkIp(const Buffer<const unsigned char>& ip, int flags) const;
 
+  enum class UsageResult {
+    ABSENT,
+    PRESENT,
+    OPERATION_FAILED,
+  };
   using UsageCallback = std::function<void(const char*)>;
-  bool enumUsages(UsageCallback callback) const;
+  UsageResult enumUsages(UsageCallback callback) const;
 
   template <typename T>
   using KeyCallback = std::function<bool(const T& t)>;
@@ -1796,7 +1844,7 @@ class ECKeyPointer final {
  public:
   ECKeyPointer();
   explicit ECKeyPointer(const EVPKeyPointer& key);
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   explicit ECKeyPointer(EC_KEY* key);
 #endif
   ECKeyPointer(ECKeyPointer&& other) noexcept;
@@ -1804,24 +1852,28 @@ class ECKeyPointer final {
   NCRYPTO_DISALLOW_COPY(ECKeyPointer)
   ~ECKeyPointer();
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   inline bool operator==(std::nullptr_t) noexcept {
     return group_ == nullptr;
   }
   inline operator bool() const {
     return group_ != nullptr;
   }
-#else
+#elif NCRYPTO_USE_BORINGSSL
   inline bool operator==(std::nullptr_t) noexcept { return key_ == nullptr; }
   inline operator bool() const { return key_ != nullptr; }
+#else
+#error "Unsupported crypto backend"
 #endif
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   inline EC_KEY* get() const { return key_.get(); }
   inline operator EC_KEY*() const { return key_.get(); }
   void reset(EC_KEY* key = nullptr);
   EC_KEY* release();
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
   void reset();
+#else
+#error "Unsupported crypto backend"
 #endif
 
   ECKeyPointer clone() const;
@@ -1840,7 +1892,7 @@ class ECKeyPointer final {
   static ECKeyPointer New(const EC_GROUP* group);
   static ECKeyPointer NewByCurveName(int nid);
 
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
   static const EC_POINT* GetPublicKey(const EC_KEY* key);
   static const BIGNUM* GetPrivateKey(const EC_KEY* key);
   static const EC_GROUP* GetGroup(const EC_KEY* key);
@@ -1849,12 +1901,14 @@ class ECKeyPointer final {
 #endif
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   DeleteFnPtr<EC_GROUP, EC_GROUP_free> group_;
   DeleteFnPtr<EC_POINT, EC_POINT_free> pub_;
   DeleteFnPtr<BIGNUM, BN_clear_free> priv_;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   DeleteFnPtr<EC_KEY, EC_KEY_free> key_;
+#else
+#error "Unsupported crypto backend"
 #endif
 };
 
@@ -1878,7 +1932,7 @@ class EVPMDCtxPointer final {
   inline bool digestInit(const Digest& digest) {
     return digestInit(digest.get());
   }
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
+#if !NCRYPTO_USE_BORINGSSL
   bool digestInit(const EVP_MD* digest, const OSSL_PARAM* params);
   inline bool digestInit(const Digest& digest, const OSSL_PARAM* params) {
     return digestInit(digest.get(), params);
@@ -1923,7 +1977,7 @@ class EVPMDCtxPointer final {
   DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free> ctx_;
 };
 
-#if !OPENSSL_WITH_EVP_MAC
+#if NCRYPTO_USE_BORINGSSL
 class HMACCtxPointer final {
  public:
   HMACCtxPointer();
@@ -1950,9 +2004,9 @@ class HMACCtxPointer final {
  private:
   DeleteFnPtr<HMAC_CTX, HMAC_CTX_free> ctx_;
 };
-#endif  // !OPENSSL_WITH_EVP_MAC
+#endif  // NCRYPTO_USE_BORINGSSL
 
-#if OPENSSL_WITH_EVP_MAC
+#if !NCRYPTO_USE_BORINGSSL
 class EVPMacPointer final {
  public:
   EVPMacPointer() = default;
@@ -2074,63 +2128,30 @@ class HMACCtxPointer final {
   bool update(const Buffer<const void>& buf);
   DataPointer digest();
   bool digestInto(Buffer<void>* buf);
+  HMACCtxPointer clone() const;
 
   static HMACCtxPointer New();
+  // Creates a context that already uses md, so that init() does not have to
+  // fetch md again when it is called with the same digest.
+  static HMACCtxPointer New(const Digest& md);
 
  private:
   HMACCtxPointer(EVPMacPointer&& mac, EVPMacCtxPointer&& ctx);
 
   EVPMacPointer mac_;
   EVPMacCtxPointer ctx_;
+  const EVP_MD* md_ = nullptr;
   size_t md_size_ = 0;
 };
-#endif  // OPENSSL_WITH_EVP_MAC
+#endif  // !NCRYPTO_USE_BORINGSSL
 
-#if !OPENSSL_WITH_EVP_MAC
+#if NCRYPTO_USE_BORINGSSL
 class MacCache final {
  public:
   MacCache() = default;
   NCRYPTO_DISALLOW_COPY_AND_MOVE(MacCache)
 };
 #endif
-
-#ifndef OPENSSL_NO_ENGINE
-class EnginePointer final {
- public:
-  EnginePointer() = default;
-
-  explicit EnginePointer(void* engine_, bool finish_on_exit = false);
-  EnginePointer(EnginePointer&& other) noexcept;
-  EnginePointer& operator=(EnginePointer&& other) noexcept;
-  NCRYPTO_DISALLOW_COPY(EnginePointer)
-  ~EnginePointer();
-
-  inline operator bool() const { return engine != nullptr; }
-  inline void setFinishOnExit() { finish_on_exit = true; }
-
-  void reset(void* engine_ = nullptr, bool finish_on_exit_ = false);
-
-  bool setAsDefault(uint32_t flags, CryptoErrorList* errors = nullptr);
-  bool init(bool finish_on_exit = false);
-  EVPKeyPointer loadPrivateKey(const char* key_name);
-  bool setClientCertEngine(SSL_CTX* ctx);
-
-  void* release();
-
-  // Retrieve an OpenSSL Engine instance by name. If the name does not
-  // identify a valid named engine, the returned EnginePointer will be
-  // empty.
-  static EnginePointer getEngineByName(const char* name,
-                                       CryptoErrorList* errors = nullptr);
-
-  // Call once when initializing OpenSSL at startup for the process.
-  static void initEnginesOnce();
-
- private:
-  void* engine = nullptr;
-  bool finish_on_exit = false;
-};
-#endif  // !OPENSSL_NO_ENGINE
 
 // ============================================================================
 // FIPS
@@ -2176,7 +2197,7 @@ Buffer<char> ExportChallenge(const char* input, size_t length);
 // ============================================================================
 // KDF
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 class KDF final {
  public:
   KDF() = default;
@@ -2231,7 +2252,7 @@ DataPointer pbkdf2(const Digest& md,
                    uint32_t iterations,
                    size_t length);
 
-#if OPENSSL_WITH_ARGON2
+#if defined(OSSL_KDF_PARAM_ARGON2_LANES)
 enum class Argon2Type { ARGON2D, ARGON2I, ARGON2ID };
 
 DataPointer argon2(const Buffer<const char>& pass,
@@ -2248,7 +2269,6 @@ DataPointer argon2(const Buffer<const char>& pass,
 
 // ============================================================================
 // KEM (Key Encapsulation Mechanism)
-#if OPENSSL_WITH_KEM
 
 class KEM final {
  public:
@@ -2272,13 +2292,11 @@ class KEM final {
                                  const Buffer<const void>& ciphertext);
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   static bool SetOperationParameter(EVP_PKEY_CTX* ctx,
                                     const EVPKeyPointer& key);
 #endif
 };
-
-#endif  // OPENSSL_WITH_KEM
 
 // ============================================================================
 // Version metadata

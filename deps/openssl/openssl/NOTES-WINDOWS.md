@@ -7,6 +7,8 @@ Notes for Windows platforms
  - [Native builds using MinGW](#native-builds-using-mingw)
  - [Linking native applications](#linking-native-applications)
  - [Hosted builds using Cygwin](#hosted-builds-using-cygwin)
+ - [Hosted builds using Windows Subsystem for Linux (WSL)](
+   #hosted-builds-using-windows-subsystem-for-linux-wsl)
 
 There are various options to build and run OpenSSL on the Windows platforms.
 
@@ -23,7 +25,7 @@ or
 
 "Hosted" OpenSSL relies on an external POSIX compatibility layer
 for building (using GNU/Unix shell, compiler, and tools) and at run time.
-For this option, you can use Cygwin.
+For this option, you can use Cygwin or the Windows Subsystem for Linux (WSL).
 
 Native builds using Visual C++
 ==============================
@@ -85,12 +87,21 @@ Quick start
        on the Universal CRT or
     - `perl Configure VC-WIN64A-HYBRIDCRT` if you want 64-bit OpenSSL dependent
        on the Universal CRT or
+    - `perl Configure VC-WIN64-ARM-HYBRIDCRT` if you want Windows on Arm
+       (win-arm64) OpenSSL dependent on the Universal CRT or
     - `perl Configure`              to let Configure figure out the platform
 
     a. If you don't plan to develop OpenSSL yourself and don't need to rebuild,
        in other words, if you always do a new build, turning off the build
        dependency feature can speed up build times by up to 50%:
        `perl Configure no-makedepend`
+
+    b. If you want the OpenSSL binaries to be "self contained", usable on any
+       computer running MS Windows, use 'perl Configure enable-static-vcruntime'.
+       Otherwise, build will produce binaries that depend on the VC runtime
+       libraries being installed and available, and will not work on computers
+       that do not have them.  (This option adds 1 MB to the total size of the
+       two dll's.)
 
  6. `nmake`
 
@@ -112,11 +123,10 @@ install it to a variety of locations.
 The following keys:
 
     `\\HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\OpenSSL-<version>-<ctx>\OPENSSLDIR`
-    `\\HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\OpenSSL-<version>-<ctx>\ENGINESDIR`
     `\\HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\OpenSSL-<version>-<ctx>\MODULESDIR`
 
 Can be administratively set, and openssl will take the paths found there as the
-values for OPENSSLDIR, ENGINESDIR and MODULESDIR respectively.
+values for OPENSSLDIR and MODULESDIR respectively.
 
 To enable the reading of registry keys from windows builds, add
 `-DOSSL_WINCTX=<string>`to the Configure command line.  This define is used
@@ -288,3 +298,71 @@ NOTE: `make test` and normal file operations may fail in directories
 mounted as text (i.e. `mount -t c:\somewhere /home`) due to Cygwin
 stripping of carriage returns. To avoid this, ensure that a binary
 mount is used, e.g. `mount -b c:\somewhere /home`.
+
+Hosted builds using Windows Subsystem for Linux (WSL)
+======================================================
+
+WSL provides a Linux-compatible environment directly on Windows, allowing
+OpenSSL to be built using standard GNU/Unix tools. The resulting OpenSSL
+runs within the WSL environment and relies on the WSL compatibility layer
+at run time.
+
+ 1. Install WSL and a Linux distribution (e.g. Ubuntu), see
+    <https://learn.microsoft.com/windows/wsl/install>
+
+ 2. Ensure your distribution is up to date:
+
+        sudo apt update && sudo apt upgrade
+
+ 3. Install the required build dependencies. On Debian/Ubuntu-based
+    distributions:
+
+        sudo apt install build-essential perl make
+
+ 4. Optionally install the NASM assembler for optimised assembly routines:
+
+        sudo apt install nasm
+
+ 5. Run the WSL shell (e.g. Ubuntu) from the Start menu or by running
+    `wsl` from a Windows command prompt
+
+ 6. From the root of the OpenSSL source directory, configure the build:
+
+        ./Configure
+
+    or specify a prefix and openssldir explicitly:
+
+        ./Configure --prefix=/usr/local/ssl --openssldir=/usr/local/ssl
+
+ 7. Build, test, and install:
+
+        make
+        make test
+        make install
+
+Apart from the setup steps above, follow the Unix / Linux instructions
+in INSTALL.md and the shared library path guidance in NOTES-UNIX.md.
+
+NOTE: The OpenSSL source tree should reside on the Linux filesystem
+(e.g. under `~/`) rather than on a mounted Windows path such as
+`/mnt/c/`. Building from a mounted Windows path can result in
+significantly slower build times and occasional failures due to
+filesystem permission and interoperability differences between NTFS
+and the Linux layer. If your source is on the Windows filesystem,
+copy it into the WSL home directory first:
+
+    cp -r /mnt/c/path/to/openssl ~/openssl
+
+NOTE: If you do build from a mounted Windows path (e.g. /mnt/c/), be aware
+that Windows line endings (CRLF) in source or script files can cause
+configure and build scripts to fail. In this case, run dos2unix on the
+affected files before building:
+
+    dos2unix Configure   # removes all \r (carriage return) characters
+    dos2unix config      # does the same, but for the config script
+    dos2unix *.sh        # runs dos2unix on all shell scripts in the directory,
+                         # ensuring every .sh file has correct Unix line endings
+
+dos2unix can be installed via:
+
+    sudo apt install dos2unix

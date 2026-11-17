@@ -39,6 +39,14 @@ constexpr size_t kDefaultMaxSettings = 10;
 // Default maximum total memory cap for Http2Session.
 constexpr uint64_t kDefaultMaxSessionMemory = 10000000;
 
+// Per-DATA-chunk bookkeeping overhead charged against maxSessionMemory. DATA
+// frames delivered to JS are turned into Buffer views that stay alive in the
+// readable queue while a stream is paused. The overhead accounts for the
+// per-chunk view (and related) bookkeeping that is not captured by the payload
+// length alone, so that a peer sending many tiny DATA frames cannot make a
+// session retain an unbounded amount of memory.
+constexpr size_t kHttp2SessionDataChunkOverhead = 128;
+
 // Default connection-level flow control window (32MB) to improve throughput
 // on high-latency connections. See https://github.com/nodejs/node/issues/38426
 constexpr int32_t kDefaultConnectionWindowSize = 33554432;
@@ -155,13 +163,31 @@ struct Http2RcBufferPointerTraits {
 using Http2Headers = NgHeaders<Http2HeadersTraits>;
 using Http2RcBufferPointer = NgRcBufPointer<Http2RcBufferPointerTraits>;
 
+class Http2Stream;
+
 struct NgHttp2StreamWrite : public MemoryRetainer {
+  // Completed once all buffers from the request have been consumed.
   BaseObjectPtr<AsyncWrap> req_wrap;
+  // Retains the request's buffers without completing it.
+  BaseObjectPtr<AsyncWrap> buffer_owner;
+  BaseObjectPtr<Http2Stream> stream;
   uv_buf_t buf;
 
   inline explicit NgHttp2StreamWrite(uv_buf_t buf_) : buf(buf_) {}
-  inline NgHttp2StreamWrite(BaseObjectPtr<AsyncWrap> req_wrap, uv_buf_t buf_) :
-      req_wrap(std::move(req_wrap)), buf(buf_) {}
+  inline NgHttp2StreamWrite(BaseObjectPtr<AsyncWrap> req_wrap,
+                            BaseObjectPtr<AsyncWrap> buffer_owner,
+                            uv_buf_t buf_)
+      : req_wrap(std::move(req_wrap)),
+        buffer_owner(std::move(buffer_owner)),
+        buf(buf_) {}
+  inline NgHttp2StreamWrite(BaseObjectPtr<AsyncWrap> req_wrap,
+                            BaseObjectPtr<AsyncWrap> buffer_owner,
+                            BaseObjectPtr<Http2Stream> stream,
+                            uv_buf_t buf_)
+      : req_wrap(std::move(req_wrap)),
+        buffer_owner(std::move(buffer_owner)),
+        stream(std::move(stream)),
+        buf(buf_) {}
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(NgHttp2StreamWrite)
@@ -174,7 +200,6 @@ typedef uint32_t(*get_setting)(nghttp2_session* session,
 class Http2Ping;
 class Http2Session;
 class Http2Settings;
-class Http2Stream;
 class Origins;
 
 // This scope should be present when any call into nghttp2 that may schedule
@@ -549,6 +574,12 @@ class Http2Stream : public AsyncWrap,
   // backpressure handling.
   size_t inbound_consumed_data_while_paused_ = 0;
 
+  // The amount of memory charged against maxSessionMemory_ for DATA frames
+  // that were handed to JS while the stream was paused and therefore may still
+  // be retained in the readable queue. Released when the stream resumes
+  // reading (ReadStart) or is destroyed.
+  uint64_t inbound_consumed_data_while_paused_memory_ = 0;
+
   // Outbound Data... This is the data written by the JS layer that is
   // waiting to be written out to the socket.
   std::queue<NgHttp2StreamWrite> queue_;
@@ -715,6 +746,10 @@ class Http2Session : public AsyncWrap,
   // Stop reading if nghttp2 doesn't want to anymore.
   void MaybeStopReading();
 
+  // Restart reading if the session was stopped because of the memory limit and
+  // can now make progress.
+  void MaybeStartReading();
+
   // Returns pointer to the stream, or nullptr if stream does not exist
   BaseObjectPtr<Http2Stream> FindStream(int32_t id);
 
@@ -794,6 +829,7 @@ class Http2Session : public AsyncWrap,
   BaseObjectPtr<Http2Ping> PopPing();
   bool AddPing(const uint8_t* data, v8::Local<v8::Function> callback);
   bool HasPendingData() const;
+  bool HasStreamsAbandonedByNghttp2() const;
 
   BaseObjectPtr<Http2Settings> PopSettings();
   bool AddSettings(v8::Local<v8::Function> callback);
@@ -807,8 +843,27 @@ class Http2Session : public AsyncWrap,
     current_session_memory_ -= amount;
   }
 
+  // Called by a stream when it stops holding inbound DATA while paused, to
+  // keep inbound_queued_data_memory_ (which drives connection-level
+  // backpressure) in sync. The caller is responsible for also calling
+  // DecrementCurrentSessionMemory for the same amount.
+  void DecrementInboundQueuedDataMemory(uint64_t amount) {
+    inbound_queued_data_memory_ -= amount;
+  }
+
   void UpdateLocalCustomSettings(size_t count_,
                                  nghttp2_settings_entry* entries_);
+
+  void IncrementQueuedOutboundMemory(uint64_t amount) {
+    queued_outbound_memory_ += amount;
+    IncrementCurrentSessionMemory(amount);
+  }
+
+  void DecrementQueuedOutboundMemory(uint64_t amount) {
+    DCHECK_LE(amount, queued_outbound_memory_);
+    queued_outbound_memory_ -= amount;
+    DecrementCurrentSessionMemory(amount);
+  }
 
   // Tell our custom memory allocator that this rcbuf is independent of
   // this session now, and may outlive it.
@@ -823,9 +878,17 @@ class Http2Session : public AsyncWrap,
     return total;
   }
 
-  // Return true if current_session_memory + amount is less than the max
-  bool has_available_session_memory(uint64_t amount) const {
-    return current_session_memory() + amount <= max_session_memory_;
+  // Headers on local client streams may exclude queued outbound DATA, but
+  // retained headers and all other session memory still count towards the
+  // limit.
+  bool has_available_session_memory(uint64_t amount,
+                                    bool exclude_outbound = false) const {
+    uint64_t memory = current_session_memory();
+    if (exclude_outbound) {
+      DCHECK_LE(queued_outbound_memory_, memory);
+      memory -= queued_outbound_memory_;
+    }
+    return memory + amount <= max_session_memory_;
   }
 
   struct Statistics {
@@ -965,6 +1028,13 @@ class Http2Session : public AsyncWrap,
   // The maximum amount of memory allocated for this session
   uint64_t max_session_memory_ = kDefaultMaxSessionMemory;
   uint64_t current_session_memory_ = 0;
+  // Part of current_session_memory_: DATA not yet consumed by nghttp2.
+  uint64_t queued_outbound_memory_ = 0;
+  // The portion of current_session_memory_ that is held by inbound DATA frames
+  // queued in stream readable buffers while the streams are paused. Used to
+  // apply connection-level backpressure (stop reading) once the session cannot
+  // afford to buffer more.
+  uint64_t inbound_queued_data_memory_ = 0;
   // The amount of memory allocated by nghttp2 internals
   uint64_t current_nghttp2_memory_ = 0;
 
@@ -1001,8 +1071,8 @@ class Http2Session : public AsyncWrap,
   std::vector<uint8_t> outgoing_storage_;
   size_t outgoing_length_ = 0;
   std::vector<int32_t> pending_rst_streams_;
-  // Saved arguments for Close() deferred while nghttp2_session_mem_recv()
-  // callbacks are active.
+  // Saved arguments for Close() deferred while receiving data or waiting for
+  // an outgoing write to finish.
   uint32_t pending_close_code_ = NGHTTP2_NO_ERROR;
   bool pending_close_socket_closed_ = false;
   // Count streams that have been rejected while being opened. Exceeding a fixed
@@ -1019,8 +1089,8 @@ class Http2Session : public AsyncWrap,
 
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
   void ClearOutgoing(int status);
-  void FinishClose(uint32_t code, bool socket_closed);
-  void MaybeFinishPendingClose();
+  void FinishClose(uint32_t code, bool socket_closed, int write_status = 0);
+  void MaybeFinishPendingClose(int status = 0);
 
   void MaybeNotifyGracefulCloseComplete();
 

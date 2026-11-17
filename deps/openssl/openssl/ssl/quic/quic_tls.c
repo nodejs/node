@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -97,15 +97,18 @@ static int quic_free(OSSL_RECORD_LAYER *r);
 
 static int
 quic_new_record_layer(OSSL_LIB_CTX *libctx, const char *propq, int vers,
-    int role, int direction, int level, uint16_t epoch,
+    int role, int direction, int level, uint64_t epoch,
     unsigned char *secret, size_t secretlen,
-    unsigned char *key, size_t keylen, unsigned char *iv,
-    size_t ivlen, unsigned char *mackey, size_t mackeylen,
+    unsigned char *snkey, unsigned char *key, size_t keylen,
+    unsigned char *iv, size_t ivlen,
+    unsigned char *mackey, size_t mackeylen,
+    const EVP_CIPHER *snciph,
     const EVP_CIPHER *ciph, size_t taglen,
     int mactype,
     const EVP_MD *md, COMP_METHOD *comp,
     const EVP_MD *kdfdigest, BIO *prev, BIO *transport,
-    BIO *next, BIO_ADDR *local, BIO_ADDR *peer,
+    BIO *next,
+    int use_urxe,
     const OSSL_PARAM *settings, const OSSL_PARAM *options,
     const OSSL_DISPATCH *fns, void *cbarg, void *rlarg,
     OSSL_RECORD_LAYER **retrl)
@@ -363,8 +366,8 @@ static int quic_retry_write_records(OSSL_RECORD_LAYER *rl)
 
 static int quic_read_record(OSSL_RECORD_LAYER *rl, void **rechandle,
     int *rversion, uint8_t *type, const unsigned char **data,
-    size_t *datalen, uint16_t *epoch,
-    unsigned char *seq_num)
+    size_t *datalen, uint64_t *epoch,
+    uint64_t *seq_num)
 {
     if (rl->recread != 0 || rl->recunreleased != 0)
         return OSSL_RECORD_RETURN_FATAL;
@@ -581,6 +584,8 @@ static const OSSL_RECORD_METHOD quic_tls_record_method = {
     quic_release_record,
     quic_get_alert_code,
     quic_set1_bio,
+    NULL, /* set1_peer: Not used for QUIC */
+    NULL, /* set_use_urxe: Not used for QUIC */
     quic_set_protocol_version,
     quic_set_plain_alerts,
     quic_set_first_handshake,
@@ -592,6 +597,11 @@ static const OSSL_RECORD_METHOD quic_tls_record_method = {
     quic_set_max_frag_len,
     quic_get_max_record_overhead, /* Never called */
     quic_increment_sequence_ctr, /* Never called */
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
     quic_alloc_buffers,
     quic_free_buffers
 };
@@ -652,6 +662,16 @@ QUIC_TLS *ossl_quic_tls_new(const QUIC_TLS_ARGS *args)
 
     qtls->args = *args;
     return qtls;
+}
+
+int ossl_quic_tls_set0_ssl(QUIC_TLS *qtls, SSL *ssl)
+{
+    if (!ossl_assert(qtls != NULL && ssl != NULL
+            && qtls->args.s == NULL && !qtls->configured))
+        return 0;
+
+    qtls->args.s = ssl;
+    return 1;
 }
 
 void ossl_quic_tls_free(QUIC_TLS *qtls)
@@ -756,6 +776,10 @@ int ossl_quic_tls_tick(QUIC_TLS *qtls)
 
     if (qtls->inerror)
         return 0;
+
+    /* SSL_listen_ex() attaches the SSL after the channel is queued. */
+    if (qtls->args.s == NULL)
+        return 1;
 
     /*
      * SSL_get_error does not truly know what the cause of an SSL_read failure

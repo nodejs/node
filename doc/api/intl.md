@@ -20,7 +20,7 @@ programs. Some of them are:
 * The [WHATWG URL parser][]'s [internationalized domain names][] (IDNs) support
 * [`require('node:buffer').transcode()`][]
 * More accurate [REPL][] line editing
-* [`require('node:util').TextDecoder`][]
+* [`TextDecoder`][]
 * [`RegExp` Unicode Property Escapes][]
 
 Node.js and the underlying V8 engine use
@@ -57,7 +57,7 @@ option:
 | [WHATWG URL Parser][]                    | partial (no IDN support)          | full                         | full                   | full       |
 | [`require('node:buffer').transcode()`][] | none (function does not exist)    | full                         | full                   | full       |
 | [REPL][]                                 | partial (inaccurate line editing) | full                         | full                   | full       |
-| [`require('node:util').TextDecoder`][]   | partial (basic encodings support) | partial/full (depends on OS) | partial (Unicode-only) | full       |
+| [`TextDecoder`][]                        | partial (basic encodings support) | partial/full (depends on OS) | partial (Unicode-only) | full       |
 | [`RegExp` Unicode Property Escapes][]    | none (invalid `RegExp` error)     | full                         | full                   | full       |
 
 The "(not locale-aware)" designation denotes that the function carries out its
@@ -231,8 +231,8 @@ to be helpful:
 [`String.prototype.normalize()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize
 [`String.prototype.toLowerCase()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toLowerCase
 [`String.prototype.toUpperCase()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toUpperCase
+[`TextDecoder`]: globals.md#class-textdecoder
 [`require('node:buffer').transcode()`]: buffer.md#buffertranscodesource-fromenc-toenc
-[`require('node:util').TextDecoder`]: util.md#class-utiltextdecoder
 [btest402]: https://github.com/srl295/btest402
 [full-icu]: https://www.npmjs.com/package/full-icu
 [internationalized domain names]: https://en.wikipedia.org/wiki/Internationalized_domain_name

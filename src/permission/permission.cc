@@ -122,6 +122,14 @@ static void Drop(const FunctionCallbackInfo<Value>& args) {
     // are not guaranteed to be valid UTF-8.
     BufferValue resource(env->isolate(), args[1]);
     if (resource.length() > 0) {
+      // A wildcard would drop more than one variable at once. Dropping the
+      // whole scope, without a reference, is the only way to do that.
+      if (scope == PermissionScope::kEnv &&
+          resource.ToStringView().back() == '*') {
+        return THROW_ERR_INVALID_ARG_VALUE(
+            env,
+            "Wildcards are not supported when dropping environment variables");
+      }
       env->permission()->Drop(env, scope, resource.ToStringView());
       return;
     }

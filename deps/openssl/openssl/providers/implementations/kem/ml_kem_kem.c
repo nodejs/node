@@ -16,10 +16,13 @@
 #include <openssl/err.h>
 #include <openssl/proverr.h>
 #include "crypto/ml_kem.h"
+#include "internal/cryptlib.h"
+#include "internal/fips.h"
 #include "prov/provider_ctx.h"
 #include "prov/implementations.h"
 #include "prov/securitycheck.h"
 #include "prov/providercommon.h"
+#include "providers/implementations/kem/ml_kem_kem.inc"
 
 static OSSL_FUNC_kem_newctx_fn ml_kem_newctx;
 static OSSL_FUNC_kem_freectx_fn ml_kem_freectx;
@@ -29,6 +32,10 @@ static OSSL_FUNC_kem_decapsulate_init_fn ml_kem_decapsulate_init;
 static OSSL_FUNC_kem_decapsulate_fn ml_kem_decapsulate;
 static OSSL_FUNC_kem_set_ctx_params_fn ml_kem_set_ctx_params;
 static OSSL_FUNC_kem_settable_ctx_params_fn ml_kem_settable_ctx_params;
+#ifdef FIPS_MODULE
+static OSSL_FUNC_kem_get_ctx_params_fn ml_kem_get_ctx_params;
+static OSSL_FUNC_kem_gettable_ctx_params_fn ml_kem_gettable_ctx_params;
+#endif
 
 typedef struct {
     ML_KEM_KEY *key;
@@ -44,6 +51,12 @@ static void *ml_kem_newctx(void *provctx)
 
     if ((ctx = OPENSSL_malloc(sizeof(*ctx))) == NULL)
         return NULL;
+
+#ifdef FIPS_MODULE
+    if (!ossl_deferred_self_test(PROV_LIBCTX_OF(provctx),
+            ST_ID_KEM_ML_KEM))
+        return NULL;
+#endif
 
     ctx->key = NULL;
     ctx->entropy = NULL;
@@ -61,6 +74,27 @@ static void ml_kem_freectx(void *vctx)
     OPENSSL_free(ctx);
 }
 
+#ifdef FIPS_MODULE
+static const OSSL_PARAM *ml_kem_gettable_ctx_params(ossl_unused void *vctx,
+    ossl_unused void *provctx)
+{
+    return ml_kem_get_ctx_params_list;
+}
+
+static int ml_kem_get_ctx_params(void *vctx, OSSL_PARAM params[])
+{
+    PROV_ML_KEM_CTX *ctx = vctx;
+    struct ml_kem_get_ctx_params_st p;
+
+    if (ctx == NULL || !ml_kem_get_ctx_params_decoder(params, &p))
+        return 0;
+    if (!OSSL_FIPS_IND_GET_PARAM_CONDITIONAL(p.ind,
+            !ctx->test_entropy_used))
+        return 0;
+    return 1;
+}
+#endif
+
 static int ml_kem_init(void *vctx, int op, void *key,
     const OSSL_PARAM params[])
 {
@@ -71,20 +105,12 @@ static int ml_kem_init(void *vctx, int op, void *key,
     ctx->key = key;
     ctx->op = op;
     ctx->test_entropy_used = 0;
+    if (ctx->entropy != NULL) {
+        OPENSSL_cleanse(ctx->entropy, ML_KEM_RANDOM_BYTES);
+        ctx->entropy = NULL;
+    }
     return ml_kem_set_ctx_params(vctx, params);
 }
-
-#ifdef FIPS_MODULE
-static int ml_kem_get_ctx_params(void *vctx, OSSL_PARAM params[])
-{
-    PROV_ML_KEM_CTX *ctx = vctx;
-
-    if (ctx == NULL)
-        return 0;
-    return ossl_FIPS_IND_get_ctx_param_conditional(NULL, params,
-        !ctx->test_entropy_used);
-}
-#endif
 
 static int ml_kem_encapsulate_init(void *vctx, void *vkey,
     const OSSL_PARAM params[])
@@ -113,27 +139,17 @@ static int ml_kem_decapsulate_init(void *vctx, void *vkey,
 static int ml_kem_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     PROV_ML_KEM_CTX *ctx = vctx;
-    const OSSL_PARAM *p;
+    struct ml_kem_set_ctx_params_st p;
 
-    if (ctx == NULL)
+    if (ctx == NULL || !ml_kem_set_ctx_params_decoder(params, &p))
         return 0;
 
-    if (ctx->op == EVP_PKEY_OP_DECAPSULATE && ctx->entropy != NULL) {
-        /* Decapsulation is deterministic */
-        OPENSSL_cleanse(ctx->entropy, ML_KEM_RANDOM_BYTES);
-        ctx->entropy = NULL;
-    }
-
-    if (ossl_param_is_empty(params))
-        return 1;
-
     /* Encapsulation ephemeral input key material "ikmE" */
-    if (ctx->op == EVP_PKEY_OP_ENCAPSULATE
-        && (p = OSSL_PARAM_locate_const(params, OSSL_KEM_PARAM_IKME)) != NULL) {
+    if (ctx->op == EVP_PKEY_OP_ENCAPSULATE && p.ikme != NULL) {
         size_t len = ML_KEM_RANDOM_BYTES;
 
         ctx->entropy = ctx->entropy_buf;
-        if (OSSL_PARAM_get_octet_string(p, (void **)&ctx->entropy,
+        if (OSSL_PARAM_get_octet_string(p.ikme, (void **)&ctx->entropy,
                 len, &len)
             && len == ML_KEM_RANDOM_BYTES) {
             ctx->test_entropy_used = 1;
@@ -153,12 +169,7 @@ static int ml_kem_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 static const OSSL_PARAM *ml_kem_settable_ctx_params(ossl_unused void *vctx,
     ossl_unused void *provctx)
 {
-    static const OSSL_PARAM params[] = {
-        OSSL_PARAM_octet_string(OSSL_KEM_PARAM_IKME, NULL, 0),
-        OSSL_PARAM_END
-    };
-
-    return params;
+    return ml_kem_set_ctx_params_list;
 }
 
 static int ml_kem_encapsulate(void *vctx, unsigned char *ctext, size_t *clen,
@@ -283,10 +294,8 @@ const OSSL_DISPATCH ossl_ml_kem_asym_kem_functions[] = {
     { OSSL_FUNC_KEM_SET_CTX_PARAMS, (OSSL_FUNC)ml_kem_set_ctx_params },
     { OSSL_FUNC_KEM_SETTABLE_CTX_PARAMS, (OSSL_FUNC)ml_kem_settable_ctx_params },
 #ifdef FIPS_MODULE
-    { OSSL_FUNC_KEM_GET_CTX_PARAMS,
-        (OSSL_FUNC)ml_kem_get_ctx_params },
-    { OSSL_FUNC_KEM_GETTABLE_CTX_PARAMS,
-        (OSSL_FUNC)ossl_FIPS_IND_gettable_ctx_params },
+    { OSSL_FUNC_KEM_GET_CTX_PARAMS, (OSSL_FUNC)ml_kem_get_ctx_params },
+    { OSSL_FUNC_KEM_GETTABLE_CTX_PARAMS, (OSSL_FUNC)ml_kem_gettable_ctx_params },
 #endif
     OSSL_DISPATCH_END
 };

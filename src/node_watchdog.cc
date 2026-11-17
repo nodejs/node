@@ -137,7 +137,7 @@ std::string FormatProcessTimeoutHeader(const std::string& duration) {
 [[noreturn]] void ForceProcessTimeoutExit(const std::string& message) {
   FPrintF(stderr, "%s", message);
   fflush(stderr);
-  ResetStdio();
+  ResetStdio(true);
   std::_Exit(static_cast<int>(ExitCode::kProcessTimeout));
 }
 // LCOV_EXCL_STOP
@@ -305,7 +305,7 @@ std::string FormatProcessTimeoutDiagnostics(Environment* env) {
   // Running Workers keep the event loop alive through the Environment's own
   // task queue handle rather than through a HandleWrap.
   env->ForEachWorker([&](worker::Worker* worker) {
-    if (worker->is_internal() || !worker->has_ref() || worker->is_stopped()) {
+    if (!worker->has_ref() || worker->is_stopped()) {
       return;
     }
     std::string details = SPrintF("thread %d", worker->thread_id());

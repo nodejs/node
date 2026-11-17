@@ -14,8 +14,6 @@
       'includes': ['config/archs/BSD-x86/asm_avx2/openssl-fips.gypi'],
     }, 'target_arch=="ia32" and OS=="linux"', {
       'includes': ['config/archs/linux-elf/asm_avx2/openssl-fips.gypi'],
-    }, 'target_arch=="ia32" and OS=="mac"', {
-      'includes': ['config/archs/darwin-i386-cc/asm_avx2/openssl-fips.gypi'],
     }, 'target_arch=="ia32" and OS=="solaris"', {
       'includes': ['config/archs/solaris-x86-gcc/asm_avx2/openssl-fips.gypi'],
     }, 'target_arch=="ia32" and OS=="win"', {

@@ -7,7 +7,7 @@ $COMMON=rsa_ossl.c rsa_gen.c rsa_lib.c rsa_sign.c rsa_pk1.c \
 
 SOURCE[../../libcrypto]=$COMMON\
         rsa_saos.c rsa_err.c rsa_asn1.c rsa_ameth.c rsa_prn.c \
-        rsa_pmeth.c rsa_meth.c rsa_mp.c
+        rsa_meth.c rsa_mp.c
 IF[{- !$disabled{'deprecated-0.9.8'} -}]
   SOURCE[../../libcrypto]=rsa_depr.c
 ENDIF

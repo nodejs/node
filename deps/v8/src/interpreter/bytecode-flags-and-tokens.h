@@ -97,6 +97,23 @@ class StoreLookupSlotFlags {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StoreLookupSlotFlags);
 };
 
+class ResolveEvalFlags {
+ public:
+  using LanguageModeBit = base::BitField<LanguageMode, 0, 1>;
+  using PrivateNameLookupSkipsOuterClassBit = LanguageModeBit::Next<bool, 1>;
+  static_assert(LanguageModeSize <= LanguageModeBit::kNumValues);
+
+  static int Encode(LanguageMode language_mode,
+                    bool private_name_lookup_skips_outer_class) {
+    return LanguageModeBit::encode(language_mode) |
+           PrivateNameLookupSkipsOuterClassBit::encode(
+               private_name_lookup_skips_outer_class);
+  }
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ResolveEvalFlags);
+};
+
 enum class TryFinallyContinuationToken: int {
   // Fixed value tokens for paths we know we need.
   // Fallthrough is set to -1 to make it the fallthrough case of the jump table,

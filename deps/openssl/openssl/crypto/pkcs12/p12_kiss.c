@@ -37,6 +37,9 @@ int PKCS12_parse(PKCS12 *p12, const char *pass, EVP_PKEY **pkey, X509 **cert,
 {
     STACK_OF(X509) *ocerts = NULL;
     X509 *x = NULL;
+    STACK_OF(X509) *initial_ca = ca != NULL ? *ca : NULL;
+    int initial_ca_count = initial_ca == NULL ? 0 : sk_X509_num(initial_ca);
+    int ca_added_count = 0;
 
     if (pkey != NULL)
         *pkey = NULL;
@@ -127,6 +130,19 @@ err:
         X509_free(*cert);
         *cert = NULL;
     }
+
+    ca_added_count = ca == NULL || *ca == NULL ? 0 : sk_X509_num(*ca) - initial_ca_count;
+    while (ca_added_count > 0) {
+        X509 *t_cert = sk_X509_pop(*ca);
+        X509_free(t_cert);
+        ca_added_count--;
+    }
+
+    if (initial_ca == NULL && ca != NULL) {
+        sk_X509_free(*ca);
+        *ca = NULL;
+    }
+
     X509_free(x);
     OSSL_STACK_OF_X509_free(ocerts);
     return 0;

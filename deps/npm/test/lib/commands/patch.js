@@ -1,4 +1,5 @@
 const fs = require('node:fs')
+const fsPromises = require('node:fs/promises')
 const path = require('node:path')
 const t = require('tap')
 const Arborist = require('@npmcli/arborist')
@@ -907,6 +908,64 @@ t.test('update: a patch that no longer applies to its baseline rejects with EPAT
   fs.writeFileSync(path.join(npm.prefix, 'package.json'), JSON.stringify(pkg))
   npm.config.set('to', '2.0.0')
   await t.rejects(npm.exec('patch', ['update', name]), { code: 'EPATCHBASE' })
+})
+
+// fs/promises whose rm always fails for the rebase workdir, mimicking a concurrent git process leaving it non-empty.
+const failingWorkdirRm = {
+  'node:fs/promises': {
+    ...fsPromises,
+    rm: async (p, opts) => {
+      if (path.basename(p).startsWith('npm-patch-rebase-')) {
+        throw Object.assign(new Error(`ENOTEMPTY: directory not empty, rmdir '${p}'`), { code: 'ENOTEMPTY' })
+      }
+      return fsPromises.rm(p, opts)
+    },
+  },
+}
+
+t.test('update: a failed workdir cleanup does not mask the real error', async t => {
+  const name = 'upd-drift-rm'
+  const { npm, registry } = await loadMockNpm(t, {
+    config: { 'ignore-scripts': true, audit: false },
+    strictRegistryNock: false,
+    prefixDir: rootWith({ [name]: '^1.0.0' }),
+    mocks: failingWorkdirRm,
+  })
+  await setupVersions(npm, registry, name, { '1.0.0': 'real\n', '2.0.0': 'real2\n' })
+  await npm.exec('install', [])
+  fs.mkdirSync(path.join(npm.prefix, 'patches'), { recursive: true })
+  fs.writeFileSync(path.join(npm.prefix, 'patches', `${name}@1.0.0.patch`),
+    '--- a/index.js\t\n+++ b/index.js\t\n@@ -1,1 +1,1 @@\n-NOT-THE-REAL-LINE\n+changed\n')
+  const pkg = readJson(path.join(npm.prefix, 'package.json'))
+  pkg.patchedDependencies = { [`${name}@1.0.0`]: `patches/${name}@1.0.0.patch` }
+  fs.writeFileSync(path.join(npm.prefix, 'package.json'), JSON.stringify(pkg))
+  npm.config.set('to', '2.0.0')
+  await t.rejects(npm.exec('patch', ['update', name]), { code: 'EPATCHBASE' })
+})
+
+t.test('update: a failed workdir cleanup does not fail a successful update', async t => {
+  const name = 'upd-exact-rm'
+  const { npm, joinedOutput, outputs, registry } = await loadMockNpm(t, {
+    config: { 'ignore-scripts': true, audit: false },
+    strictRegistryNock: false,
+    prefixDir: rootWith({ [name]: '^1.0.0' }),
+    mocks: failingWorkdirRm,
+  })
+  await setupVersions(npm, registry, name, { '1.0.0': 'a\nb\nc\n', '2.0.0': 'a\nb\nCC\n' })
+  await npm.exec('install', [])
+
+  outputs.length = 0
+  await npm.exec('patch', ['add', name])
+  const editDir = joinedOutput().match(/directory: (.+)/)[1].trim()
+  fs.writeFileSync(path.join(editDir, 'index.js'), 'AA\nb\nc\n')
+  await npm.exec('patch', ['commit', editDir])
+
+  npm.config.set('to', '2.0.0')
+  await npm.exec('patch', ['update', name])
+
+  const pkg = readJson(path.join(npm.prefix, 'package.json'))
+  t.same(pkg.patchedDependencies, { [`${name}@2.0.0`]: `patches/${name}@2.0.0.patch` },
+    'selector renamed to the new version')
 })
 
 t.test('update: when the new version already contains the patch, reports EPATCHEMPTY', async t => {

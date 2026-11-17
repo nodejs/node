@@ -476,6 +476,27 @@ bool WriteAllToFd(int fd, const char* data, size_t len) {
 int NodeMemfdCreate(const char* name, unsigned int flags) {
   return static_cast<int>(syscall(SYS_memfd_create, name, flags));
 }
+
+// The dynamic loader knows a loaded object by the path it was opened with, and
+// hands back the object already loaded under a path instead of opening the
+// file again. An image is loaded through /proc/self/fd/N and its fd is closed
+// right after, so the kernel can hand N to the next image while the first is
+// still loaded. So ask the loader, and move to a higher number while the path
+// is taken. Holding the fd from here through the load keeps anyone else from
+// taking the path in between, and an object that has really been unloaded gives
+// its number back, so only images loaded at the same time compete for numbers.
+int MoveFdToFreeImagePath(int fd) {
+  while (true) {
+    const std::string path = "/proc/self/fd/" + std::to_string(fd);
+    void* loaded = dlopen(path.c_str(), RTLD_LAZY | RTLD_NOLOAD);
+    if (loaded == nullptr) return fd;
+    dlclose(loaded);
+    const int moved = fcntl(fd, F_DUPFD_CLOEXEC, fd + 1);
+    close(fd);
+    if (moved == -1) return -1;
+    fd = moved;
+  }
+}
 #endif  // __linux__
 #else   // _WIN32
 
@@ -636,7 +657,8 @@ bool AddonImage::Materialize(const char* data, size_t len) {
   // reaches the filesystem, so there is no temp file to secure, unlink, or
   // leak, and no noexec-mount problem. Request an executable memfd (MFD_EXEC,
   // Linux 6.3+); retry without it on older kernels that reject the flag, then
-  // fall back to a temp file if memfd is unavailable entirely.
+  // fall back to a temp file if memfd is unavailable entirely, or if so many
+  // images are loaded that no fd number is left to load another through.
 #ifndef MFD_CLOEXEC
 #define MFD_CLOEXEC 0x0001U
 #endif
@@ -654,6 +676,9 @@ bool AddonImage::Materialize(const char* data, size_t len) {
       fd_ = -1;
       return false;
     }
+    fd_ = MoveFdToFreeImagePath(fd_);
+  }
+  if (fd_ != -1) {
     path_ = "/proc/self/fd/" + std::to_string(fd_);
     return true;
   }

@@ -22,7 +22,12 @@ static long enc_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int enc_new(BIO *h);
 static int enc_free(BIO *data);
 static long enc_callback_ctrl(BIO *h, int cmd, BIO_info_cb *fps);
-#define ENC_BLOCK_SIZE (1024 * 4)
+/*
+ * ENC_BLOCK_SIZE has been sized to handle ciphers that do not support streaming.
+ * i.e. For AES Key wrapping of larger PQ private keys the buffer needs to be
+ * large enough to process the input/output in one EVP_CipherUpdate() call.
+ */
+#define ENC_BLOCK_SIZE (1024 * 8)
 #define ENC_MIN_CHUNK (256)
 #define BUF_OFFSET (ENC_MIN_CHUNK + EVP_MAX_BLOCK_LENGTH)
 
@@ -154,7 +159,7 @@ static int enc_read(BIO *b, char *out, int outl)
             if (i > 0)
                 ctx->read_end += i;
         } else {
-            i = ctx->read_end - ctx->read_start;
+            i = (int)(ctx->read_end - ctx->read_start);
         }
 
         if (i <= 0) {
@@ -306,8 +311,12 @@ static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
 
     ctx = BIO_get_data(b);
     next = BIO_next(b);
+    /*
+     * If there is no ctx, BIO_read() returns 0, which means EOF.
+     * BIO_eof() should return 1 in this case.
+     */
     if (ctx == NULL)
-        return 0;
+        return cmd == BIO_CTRL_EOF;
 
     switch (cmd) {
     case BIO_CTRL_RESET:
@@ -322,7 +331,11 @@ static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
         if (ctx->cont <= 0)
             ret = 1;
         else
-            ret = BIO_ctrl(next, cmd, num, ptr);
+            /*
+             * If there is no next BIO, BIO_read() returns 0, which means EOF.
+             * BIO_eof() should return 1 in this case.
+             */
+            ret = (next == NULL) ? 1 : BIO_ctrl(next, cmd, num, ptr);
         break;
     case BIO_CTRL_WPENDING:
         ret = ctx->buf_len - ctx->buf_off;

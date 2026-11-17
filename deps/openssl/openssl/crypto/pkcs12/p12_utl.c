@@ -12,6 +12,7 @@
 #include <openssl/pkcs12.h>
 #include "p12_local.h"
 #include "crypto/pkcs7/pk7_local.h"
+#include <crypto/asn1.h>
 
 /* Cheap and nasty Unicode stuff */
 
@@ -22,7 +23,7 @@ unsigned char *OPENSSL_asc2uni(const char *asc, int asclen,
     unsigned char *unitmp;
 
     if (asclen == -1)
-        asclen = strlen(asc);
+        asclen = (int)strlen(asc);
     if (asclen < 0)
         return NULL;
     ulen = asclen * 2 + 2;
@@ -56,11 +57,15 @@ char *OPENSSL_uni2asc(const unsigned char *uni, int unilen)
     /* If no terminating zero allow for one */
     if (!unilen || uni[unilen - 1])
         asclen++;
-    uni++;
     if ((asctmp = OPENSSL_malloc(asclen)) == NULL)
         return NULL;
+    /*
+     * Take the low byte of each big-endian UTF-16 unit. Index from the
+     * caller's pointer rather than incrementing it first, so that a zero
+     * length input does not do pointer arithmetic on a NULL pointer.
+     */
     for (i = 0; i < unilen; i += 2)
-        asctmp[i >> 1] = uni[i];
+        asctmp[i >> 1] = uni[i + 1];
     asctmp[asclen - 1] = 0;
     return asctmp;
 }
@@ -79,13 +84,14 @@ unsigned char *OPENSSL_utf82uni(const char *asc, int asclen,
 {
     int ulen, i, j;
     unsigned char *unitmp, *ret;
-    unsigned long utf32chr = 0;
+    uint32_t utf32chr = 0;
 
     if (asclen == -1)
-        asclen = strlen(asc);
+        asclen = (int)strlen(asc);
 
     for (ulen = 0, i = 0; i < asclen; i += j) {
-        j = UTF8_getc((const unsigned char *)asc + i, asclen - i, &utf32chr);
+        j = ossl_utf8_getc_internal((const unsigned char *)asc + i, asclen - i,
+            &utf32chr);
 
         /*
          * Following condition is somewhat opportunistic is sense that
@@ -121,7 +127,8 @@ unsigned char *OPENSSL_utf82uni(const char *asc, int asclen,
         return NULL;
     /* re-run the loop writing down UTF-16 characters in big-endian order */
     for (unitmp = ret, i = 0; i < asclen; i += j) {
-        j = UTF8_getc((const unsigned char *)asc + i, asclen - i, &utf32chr);
+        j = ossl_utf8_getc_internal((const unsigned char *)asc + i, asclen - i,
+            &utf32chr);
         if (utf32chr >= 0x10000) { /* pair if UTF-16 characters */
             unsigned int hi, lo;
 
@@ -149,7 +156,7 @@ unsigned char *OPENSSL_utf82uni(const char *asc, int asclen,
 
 static int bmp_to_utf8(char *str, const unsigned char *utf16, int len)
 {
-    unsigned long utf32chr;
+    uint32_t utf32chr;
 
     if (len == 0)
         return 0;
@@ -175,9 +182,8 @@ static int bmp_to_utf8(char *str, const unsigned char *utf16, int len)
         utf32chr += 0x10000;
     }
 
-    return UTF8_putc((unsigned char *)str, 4, utf32chr);
+    return ossl_utf8_putc_internal((unsigned char *)str, 4, utf32chr);
 }
-
 char *OPENSSL_uni2utf8(const unsigned char *uni, int unilen)
 {
     int asclen, i, j;

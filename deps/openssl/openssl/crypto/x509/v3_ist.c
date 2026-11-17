@@ -15,6 +15,8 @@
 #include <openssl/x509v3.h>
 #include "ext_dat.h"
 
+#include <crypto/asn1.h>
+
 /*
  * Issuer Sign Tool (1.2.643.100.112) The name of the tool used to signs the subject (ASN1_SEQUENCE)
  * This extension is required to obtain the status of a qualified certificate at Russian Federation.
@@ -50,28 +52,28 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
         if (strcmp(cnf->name, "signTool") == 0) {
             if (ist->signTool == NULL
                 || cnf->value == NULL
-                || !ASN1_STRING_set(ist->signTool, cnf->value, strlen(cnf->value))) {
+                || !ossl_asn1_string_set1_string(ist->signTool, cnf->value)) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
         } else if (strcmp(cnf->name, "cATool") == 0) {
             if (ist->cATool == NULL
                 || cnf->value == NULL
-                || !ASN1_STRING_set(ist->cATool, cnf->value, strlen(cnf->value))) {
+                || !ossl_asn1_string_set1_string(ist->cATool, cnf->value)) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
         } else if (strcmp(cnf->name, "signToolCert") == 0) {
             if (ist->signToolCert == NULL
                 || cnf->value == NULL
-                || !ASN1_STRING_set(ist->signToolCert, cnf->value, strlen(cnf->value))) {
+                || !ossl_asn1_string_set1_string(ist->signToolCert, cnf->value)) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
         } else if (strcmp(cnf->name, "cAToolCert") == 0) {
             if (ist->cAToolCert == NULL
                 || cnf->value == NULL
-                || !ASN1_STRING_set(ist->cAToolCert, cnf->value, strlen(cnf->value))) {
+                || !ossl_asn1_string_set1_string(ist->cAToolCert, cnf->value)) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }

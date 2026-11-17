@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -167,12 +167,22 @@ static long md_ctrl(BIO *b, int cmd, long num, void *ptr)
         else
             ret = 0;
         break;
+    case BIO_CTRL_EOF:
+        /*
+         * If there is no ctx or no next BIO, BIO_read() returns 0, which means
+         * EOF, BIO_eof() should return 1 in this case.
+         */
+        if (ctx == NULL || next == NULL)
+            ret = 1;
+        else
+            ret = BIO_ctrl(next, cmd, num, ptr);
+        break;
+    case BIO_CTRL_FLUSH:
     case BIO_C_DO_STATE_MACHINE:
         BIO_clear_retry_flags(b);
         ret = BIO_ctrl(next, cmd, num, ptr);
         BIO_copy_next_retry(b);
         break;
-
     case BIO_C_SET_MD:
         md = ptr;
         ret = EVP_DigestInit_ex(ctx, md, NULL);

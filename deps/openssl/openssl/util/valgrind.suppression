@@ -1,0 +1,162 @@
+{
+   reachable_globals_in_libcrypto
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*/libcrypto.so.*
+}
+{
+   reachable_globals_in_libssl
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*/libssl.so.*
+}
+{
+   openssl_test_title_reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:set_test_title
+   ...
+}
+
+{
+   reachable_globals_in_openssl_static
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:CRYPTO_*alloc
+   ...
+}
+{
+   reachable_crypto_aligned_alloc
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:CRYPTO_aligned_alloc
+   ...
+}
+{
+   glibc_dl_open_reachable_issue
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_dl_map_new_object
+   ...
+}
+{
+   glibc_dlopen_reachable_issue
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_dl_check_map_versions
+   ...
+}
+{
+   glibc_dlopen_reachable_issue
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_dl_new_object
+   ...
+}
+{
+   glibc_dlopen_reachable_issue
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:dl_open_worker
+   ...
+}
+{
+   valgrind_confusion_in_asm_code
+   Memcheck:Value8
+   ...
+   fun:ossl_cipher_generic_stream_update
+   ...
+}
+{
+   valgrind_confusion_in_asm_code
+   Memcheck:Cond
+   ...
+   fun:ossl_cipher_generic_stream_update
+   ...
+}
+{
+   valgrind_confusion_in_asm_code
+   Memcheck:Cond
+   fun:EVP_DecryptUpdate
+   ...
+}
+{
+   valgrind_confusion_in_asm_code
+   Memcheck:Cond
+   ...
+   fun:tls_get_more_records
+   ...
+}
+{
+   valgrind_confusion_in_asm_code
+   Memcheck:Cond
+   fun:ssl3_read_bytes
+   ...
+}
+{
+   valgrind_confusion_in_asm_code
+   Memcheck:Cond
+   fun:tls_release_record
+   ...
+}
+{
+   valgrind_confusion_in_asm_code
+   Memcheck:Cond
+   fun:ssl_release_record
+   ...
+}
+{
+   provider_activate_strdup 
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:OSSL_provider_init
+   fun:provider_init
+   fun:provider_activate
+   ...
+}
+{
+   provider_activate_strdup_without_provider_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:OSSL_provider_init
+   fun:provider_activate
+   ...
+}
+{
+   false_positive_conditional_check
+   Memcheck:Cond
+   fun:bcmp
+   fun:test_mem_eq
+   ...
+}
+{
+   false_positive_conditional_check
+   Memcheck:Cond
+   fun:ossl_gcm_stream_final
+   ...
+}
+{
+   false_positive_conditional_check
+   Memcheck:Cond
+   fun:gcm_cipher_internal
+   ...
+}
+{
+   asn1_string_poison_test_intentional_terminator_read
+   Memcheck:Addr1
+   fun:strlen
+   obj:*/asn1_string_poison_test
+}

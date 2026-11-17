@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,6 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include <stdio.h>
 #include <string.h>
 
 #include "apps.h"
@@ -196,7 +197,6 @@ int passwd_main(int argc, char **argv)
     }
 
     /* All remaining arguments are the password text */
-    argc = opt_num_rest();
     argv = opt_rest();
     if (*argv != NULL) {
         if (pw_source_defined)
@@ -249,7 +249,7 @@ int passwd_main(int argc, char **argv)
 
             passwds = passwds_static;
             if (in == NULL) {
-                if (EVP_read_pw_string(passwd_malloc, passwd_malloc_size, "Password: ",
+                if (EVP_read_pw_string(passwd_malloc, (int)passwd_malloc_size, "Password: ",
                         !(passed_salt || in_noverify))
                     != 0)
                     goto end;
@@ -257,7 +257,7 @@ int passwd_main(int argc, char **argv)
             passwds[0] = passwd_malloc;
         } else {
 #endif
-            BIO_printf(bio_err, "password required\n");
+            BIO_puts(bio_err, "password required\n");
             goto end;
         }
     }
@@ -278,7 +278,7 @@ int passwd_main(int argc, char **argv)
 
         assert(passwd != NULL);
         do {
-            int r = BIO_gets(in, passwd, pw_maxlen + 1);
+            int r = BIO_gets(in, passwd, (int)(pw_maxlen + 1));
             if (r > 0) {
                 char *c = (strchr(passwd, '\n'));
                 if (c != NULL) {
@@ -403,14 +403,14 @@ static char *md5crypt(const char *passwd, const char *magic, const char *salt)
         || !EVP_DigestFinal_ex(md2, buf, NULL))
         goto err;
 
-    for (i = passwd_len; i > sizeof(buf); i -= sizeof(buf)) {
+    for (i = (unsigned int)passwd_len; i > sizeof(buf); i -= sizeof(buf)) {
         if (!EVP_DigestUpdate(md, buf, sizeof(buf)))
             goto err;
     }
     if (!EVP_DigestUpdate(md, buf, i))
         goto err;
 
-    n = passwd_len;
+    n = (int)passwd_len;
     while (n) {
         if (!EVP_DigestUpdate(md, (n & 1) ? "\0" : passwd, 1))
             goto err;
@@ -595,7 +595,7 @@ static char *shacrypt(const char *passwd, const char *magic, const char *salt)
     if (rounds_custom) {
         char tmp_buf[80]; /* "rounds=999999999" */
 
-        BIO_snprintf(tmp_buf, sizeof(tmp_buf), "rounds=%u", rounds);
+        snprintf(tmp_buf, sizeof(tmp_buf), "rounds=%u", rounds);
 #ifdef CHARSET_EBCDIC
         /* In case we're really on a ASCII based platform and just pretend */
         if (tmp_buf[0] != 0x72) /* ASCII 'r' */
@@ -803,7 +803,7 @@ static int do_passwd(int passed_salt, char **salt_p, char **salt_malloc_p,
 
         if (*salt_malloc_p == NULL)
             *salt_p = *salt_malloc_p = app_malloc(saltlen + 1, "salt buffer");
-        if (RAND_bytes((unsigned char *)*salt_p, saltlen) <= 0)
+        if (RAND_bytes((unsigned char *)*salt_p, (int)saltlen) <= 0)
             goto end;
 
         for (i = 0; i < saltlen; i++)

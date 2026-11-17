@@ -111,53 +111,53 @@ $L$_remaining_num_blocks_is_7_hEgxyDlCngwrfFe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	vmovdqu8	zmm2{k1},[64+rdi]
 	add	rdi,0x70
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -175,53 +175,53 @@ $L$_remaining_num_blocks_is_6_hEgxyDlCngwrfFe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	vmovdqu8	ymm2,YMMWORD[64+rdi]
 	add	rdi,0x60
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -239,53 +239,53 @@ $L$_remaining_num_blocks_is_5_hEgxyDlCngwrfFe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	vmovdqu	xmm2,XMMWORD[64+rdi]
 	add	rdi,0x50
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -302,27 +302,27 @@ $L$_remaining_num_blocks_is_5_hEgxyDlCngwrfFe:
 $L$_remaining_num_blocks_is_4_hEgxyDlCngwrfFe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	add	rdi,0x40
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vpxorq	zmm1,zmm1,zmm9
 	vmovdqu8	ZMMWORD[rsi],zmm1
@@ -338,27 +338,27 @@ $L$_remaining_num_blocks_is_3_hEgxyDlCngwrfFe:
 	kmovq	k1,r8
 	vmovdqu8	zmm1{k1},[rdi]
 	add	rdi,0x30
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vpxorq	zmm1,zmm1,zmm9
 	vmovdqu8	ZMMWORD[rsi]{k1},zmm1
@@ -371,27 +371,27 @@ $L$_remaining_num_blocks_is_3_hEgxyDlCngwrfFe:
 $L$_remaining_num_blocks_is_2_hEgxyDlCngwrfFe:
 	vmovdqu8	ymm1,YMMWORD[rdi]
 	add	rdi,0x20
-	vbroadcasti32x4	ymm0,YMMWORD[rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[rcx]
 	vpternlogq	ymm1,ymm9,ymm0,0x96
-	vbroadcasti32x4	ymm0,YMMWORD[16+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[16+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[32+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[32+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[48+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[48+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[64+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[64+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[80+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[80+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[96+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[96+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[112+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[112+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[128+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[128+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[144+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[144+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[160+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[160+rcx]
 	vaesenclast	ymm1,ymm1,ymm0
 	vpxorq	ymm1,ymm1,ymm9
 	vmovdqu	YMMWORD[rsi],ymm1
@@ -427,8 +427,8 @@ $L$_remaining_num_blocks_is_1_hEgxyDlCngwrfFe:
 
 
 $L$_start_by16_hEgxyDlCngwrfFe:
-	vbroadcasti32x4	zmm0,ZMMWORD[rsp]
-	vbroadcasti32x4	zmm8,ZMMWORD[shufb_15_7]
+	vbroadcasti32x4	zmm0,XMMWORD[rsp]
+	vbroadcasti32x4	zmm8,XMMWORD[shufb_15_7]
 	mov	r8,0xaa
 	kmovq	k2,r8
 	vpshufb	zmm1,zmm0,zmm8
@@ -461,7 +461,7 @@ $L$_main_loop_run_16_hEgxyDlCngwrfFe:
 	vpxorq	zmm2,zmm2,zmm10
 	vpxorq	zmm3,zmm3,zmm11
 	vpxorq	zmm4,zmm4,zmm12
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
 	vpxorq	zmm3,zmm3,zmm0
@@ -470,17 +470,17 @@ $L$_main_loop_run_16_hEgxyDlCngwrfFe:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm15,zmm11,0x1
 	vpxord	zmm15,zmm15,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
@@ -489,17 +489,17 @@ $L$_main_loop_run_16_hEgxyDlCngwrfFe:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm16,zmm12,0x1
 	vpxord	zmm16,zmm16,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
@@ -508,17 +508,17 @@ $L$_main_loop_run_16_hEgxyDlCngwrfFe:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm17,zmm15,0x1
 	vpxord	zmm17,zmm17,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
@@ -527,7 +527,7 @@ $L$_main_loop_run_16_hEgxyDlCngwrfFe:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm18,zmm16,0x1
 	vpxord	zmm18,zmm18,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vaesenclast	zmm3,zmm3,zmm0
@@ -555,8 +555,8 @@ $L$_main_loop_run_16_hEgxyDlCngwrfFe:
 	jmp	NEAR $L$_do_n_blocks_hEgxyDlCngwrfFe
 
 $L$_start_by8_hEgxyDlCngwrfFe:
-	vbroadcasti32x4	zmm0,ZMMWORD[rsp]
-	vbroadcasti32x4	zmm8,ZMMWORD[shufb_15_7]
+	vbroadcasti32x4	zmm0,XMMWORD[rsp]
+	vbroadcasti32x4	zmm8,XMMWORD[shufb_15_7]
 	mov	r8,0xaa
 	kmovq	k2,r8
 	vpshufb	zmm1,zmm0,zmm8
@@ -575,24 +575,24 @@ $L$_main_loop_run_8_hEgxyDlCngwrfFe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	vmovdqu8	zmm2,ZMMWORD[64+rdi]
 	add	rdi,0x80
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
 	vpsrldq	zmm13,zmm9,0xf
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm15,zmm9,0x1
 	vpxord	zmm15,zmm15,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vpsrldq	zmm13,zmm10,0xf
@@ -600,36 +600,36 @@ $L$_main_loop_run_8_hEgxyDlCngwrfFe:
 	vpslldq	zmm16,zmm10,0x1
 	vpxord	zmm16,zmm16,zmm14
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -717,8 +717,8 @@ $L$_less_than_128_bytes_hEgxyDlCngwrfFe:
 	vpbroadcastq	zmm25,r10
 	cmp	rdx,0x10
 	jb	NEAR $L$_ret_hEgxyDlCngwrfFe
-	vbroadcasti32x4	zmm0,ZMMWORD[rsp]
-	vbroadcasti32x4	zmm8,ZMMWORD[shufb_15_7]
+	vbroadcasti32x4	zmm0,XMMWORD[rsp]
+	vbroadcasti32x4	zmm8,XMMWORD[shufb_15_7]
 	mov	r8d,0xaa
 	kmovq	k2,r8
 	mov	r8,rdx
@@ -754,53 +754,53 @@ $L$_num_blocks_is_7_hEgxyDlCngwrfFe:
 	vmovdqu8	zmm2{k1},[64+rdi]
 
 	add	rdi,0x70
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -828,53 +828,53 @@ $L$_num_blocks_is_6_hEgxyDlCngwrfFe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	vmovdqu8	ymm2,YMMWORD[64+rdi]
 	add	rdi,96
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -903,53 +903,53 @@ $L$_num_blocks_is_5_hEgxyDlCngwrfFe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	vmovdqu8	xmm2,XMMWORD[64+rdi]
 	add	rdi,80
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -977,27 +977,27 @@ $L$_num_blocks_is_4_hEgxyDlCngwrfFe:
 	vpxord	zmm10,zmm7,zmm5
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	add	rdi,64
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vpxorq	zmm1,zmm1,zmm9
 	vmovdqu8	ZMMWORD[rsi],zmm1
@@ -1018,27 +1018,27 @@ $L$_num_blocks_is_3_hEgxyDlCngwrfFe:
 	kmovq	k1,r8
 	vmovdqu8	zmm1{k1},[rdi]
 	add	rdi,48
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vpxorq	zmm1,zmm1,zmm9
 	vmovdqu8	ZMMWORD[rsi]{k1},zmm1
@@ -1058,27 +1058,27 @@ $L$_num_blocks_is_2_hEgxyDlCngwrfFe:
 
 	vmovdqu8	ymm1,YMMWORD[rdi]
 	add	rdi,32
-	vbroadcasti32x4	ymm0,YMMWORD[rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[rcx]
 	vpternlogq	ymm1,ymm9,ymm0,0x96
-	vbroadcasti32x4	ymm0,YMMWORD[16+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[16+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[32+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[32+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[48+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[48+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[64+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[64+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[80+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[80+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[96+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[96+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[112+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[112+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[128+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[128+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[144+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[144+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[160+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[160+rcx]
 	vaesenclast	ymm1,ymm1,ymm0
 	vpxorq	ymm1,ymm1,ymm9
 	vmovdqu8	YMMWORD[rsi],ymm1
@@ -1099,27 +1099,27 @@ $L$_num_blocks_is_1_hEgxyDlCngwrfFe:
 
 	vmovdqu8	xmm1,XMMWORD[rdi]
 	add	rdi,16
-	vbroadcasti32x4	ymm0,YMMWORD[rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[rcx]
 	vpternlogq	ymm1,ymm9,ymm0,0x96
-	vbroadcasti32x4	ymm0,YMMWORD[16+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[16+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[32+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[32+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[48+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[48+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[64+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[64+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[80+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[80+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[96+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[96+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[112+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[112+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[128+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[128+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[144+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[144+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[160+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[160+rcx]
 	vaesenclast	ymm1,ymm1,ymm0
 	vpxorq	ymm1,ymm1,ymm9
 	vmovdqu8	XMMWORD[rsi],xmm1
@@ -1269,54 +1269,54 @@ $L$_remaining_num_blocks_is_7_amivrujEyduiFoi:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -1339,54 +1339,54 @@ $L$_done_7_remain_amivrujEyduiFoi:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -1414,54 +1414,54 @@ $L$_remaining_num_blocks_is_6_amivrujEyduiFoi:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -1484,54 +1484,54 @@ $L$_done_6_remain_amivrujEyduiFoi:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -1558,54 +1558,54 @@ $L$_remaining_num_blocks_is_5_amivrujEyduiFoi:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -1628,54 +1628,54 @@ $L$_done_5_remain_amivrujEyduiFoi:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -1701,54 +1701,54 @@ $L$_remaining_num_blocks_is_4_amivrujEyduiFoi:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -1770,54 +1770,54 @@ $L$_done_4_remain_amivrujEyduiFoi:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -2116,8 +2116,8 @@ $L$_done_1_remain_amivrujEyduiFoi:
 	jmp	NEAR $L$_ret_amivrujEyduiFoi
 
 $L$_start_by16_amivrujEyduiFoi:
-	vbroadcasti32x4	zmm0,ZMMWORD[rsp]
-	vbroadcasti32x4	zmm8,ZMMWORD[shufb_15_7]
+	vbroadcasti32x4	zmm0,XMMWORD[rsp]
+	vbroadcasti32x4	zmm8,XMMWORD[shufb_15_7]
 	mov	r8,0xaa
 	kmovq	k2,r8
 
@@ -2158,7 +2158,7 @@ $L$_main_loop_run_16_amivrujEyduiFoi:
 	vpxorq	zmm2,zmm2,zmm10
 	vpxorq	zmm3,zmm3,zmm11
 	vpxorq	zmm4,zmm4,zmm12
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
 	vpxorq	zmm3,zmm3,zmm0
@@ -2167,17 +2167,17 @@ $L$_main_loop_run_16_amivrujEyduiFoi:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm15,zmm11,0x1
 	vpxord	zmm15,zmm15,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
@@ -2186,17 +2186,17 @@ $L$_main_loop_run_16_amivrujEyduiFoi:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm16,zmm12,0x1
 	vpxord	zmm16,zmm16,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
@@ -2205,17 +2205,17 @@ $L$_main_loop_run_16_amivrujEyduiFoi:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm17,zmm15,0x1
 	vpxord	zmm17,zmm17,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
@@ -2224,7 +2224,7 @@ $L$_main_loop_run_16_amivrujEyduiFoi:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm18,zmm16,0x1
 	vpxord	zmm18,zmm18,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 	vaesdeclast	zmm3,zmm3,zmm0
@@ -2253,8 +2253,8 @@ $L$_main_loop_run_16_amivrujEyduiFoi:
 
 $L$_start_by8_amivrujEyduiFoi:
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rsp]
-	vbroadcasti32x4	zmm8,ZMMWORD[shufb_15_7]
+	vbroadcasti32x4	zmm0,XMMWORD[rsp]
+	vbroadcasti32x4	zmm8,XMMWORD[shufb_15_7]
 	mov	r8,0xaa
 	kmovq	k2,r8
 
@@ -2283,24 +2283,24 @@ $L$_main_loop_run_8_amivrujEyduiFoi:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
 	vpsrldq	zmm13,zmm9,0xf
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm15,zmm9,0x1
 	vpxord	zmm15,zmm15,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vpsrldq	zmm13,zmm10,0xf
@@ -2308,37 +2308,37 @@ $L$_main_loop_run_8_amivrujEyduiFoi:
 	vpslldq	zmm16,zmm10,0x1
 	vpxord	zmm16,zmm16,zmm14
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -3867,73 +3867,73 @@ $L$_remaining_num_blocks_is_7_wcpqaDvsGlbjGoe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	vmovdqu8	zmm2{k1},[64+rdi]
 	add	rdi,0x70
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -3951,73 +3951,73 @@ $L$_remaining_num_blocks_is_6_wcpqaDvsGlbjGoe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	vmovdqu8	ymm2,YMMWORD[64+rdi]
 	add	rdi,0x60
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -4035,73 +4035,73 @@ $L$_remaining_num_blocks_is_5_wcpqaDvsGlbjGoe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	vmovdqu	xmm2,XMMWORD[64+rdi]
 	add	rdi,0x50
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -4118,35 +4118,35 @@ $L$_remaining_num_blocks_is_5_wcpqaDvsGlbjGoe:
 $L$_remaining_num_blocks_is_4_wcpqaDvsGlbjGoe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	add	rdi,0x40
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vpxorq	zmm1,zmm1,zmm9
 	vmovdqu8	ZMMWORD[rsi],zmm1
@@ -4162,35 +4162,35 @@ $L$_remaining_num_blocks_is_3_wcpqaDvsGlbjGoe:
 	kmovq	k1,r8
 	vmovdqu8	zmm1{k1},[rdi]
 	add	rdi,0x30
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vpxorq	zmm1,zmm1,zmm9
 	vmovdqu8	ZMMWORD[rsi]{k1},zmm1
@@ -4203,35 +4203,35 @@ $L$_remaining_num_blocks_is_3_wcpqaDvsGlbjGoe:
 $L$_remaining_num_blocks_is_2_wcpqaDvsGlbjGoe:
 	vmovdqu8	ymm1,YMMWORD[rdi]
 	add	rdi,0x20
-	vbroadcasti32x4	ymm0,YMMWORD[rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[rcx]
 	vpternlogq	ymm1,ymm9,ymm0,0x96
-	vbroadcasti32x4	ymm0,YMMWORD[16+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[16+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[32+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[32+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[48+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[48+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[64+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[64+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[80+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[80+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[96+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[96+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[112+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[112+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[128+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[128+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[144+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[144+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[160+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[160+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[176+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[176+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[192+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[192+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[208+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[208+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[224+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[224+rcx]
 	vaesenclast	ymm1,ymm1,ymm0
 	vpxorq	ymm1,ymm1,ymm9
 	vmovdqu	YMMWORD[rsi],ymm1
@@ -4271,8 +4271,8 @@ $L$_remaining_num_blocks_is_1_wcpqaDvsGlbjGoe:
 
 
 $L$_start_by16_wcpqaDvsGlbjGoe:
-	vbroadcasti32x4	zmm0,ZMMWORD[rsp]
-	vbroadcasti32x4	zmm8,ZMMWORD[shufb_15_7]
+	vbroadcasti32x4	zmm0,XMMWORD[rsp]
+	vbroadcasti32x4	zmm8,XMMWORD[shufb_15_7]
 	mov	r8,0xaa
 	kmovq	k2,r8
 	vpshufb	zmm1,zmm0,zmm8
@@ -4305,7 +4305,7 @@ $L$_main_loop_run_16_wcpqaDvsGlbjGoe:
 	vpxorq	zmm2,zmm2,zmm10
 	vpxorq	zmm3,zmm3,zmm11
 	vpxorq	zmm4,zmm4,zmm12
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
 	vpxorq	zmm3,zmm3,zmm0
@@ -4314,17 +4314,17 @@ $L$_main_loop_run_16_wcpqaDvsGlbjGoe:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm15,zmm11,0x1
 	vpxord	zmm15,zmm15,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
@@ -4333,17 +4333,17 @@ $L$_main_loop_run_16_wcpqaDvsGlbjGoe:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm16,zmm12,0x1
 	vpxord	zmm16,zmm16,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
@@ -4352,17 +4352,17 @@ $L$_main_loop_run_16_wcpqaDvsGlbjGoe:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm17,zmm15,0x1
 	vpxord	zmm17,zmm17,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
@@ -4371,27 +4371,27 @@ $L$_main_loop_run_16_wcpqaDvsGlbjGoe:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm18,zmm16,0x1
 	vpxord	zmm18,zmm18,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vaesenc	zmm3,zmm3,zmm0
 	vaesenc	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vaesenclast	zmm3,zmm3,zmm0
@@ -4419,8 +4419,8 @@ $L$_main_loop_run_16_wcpqaDvsGlbjGoe:
 	jmp	NEAR $L$_do_n_blocks_wcpqaDvsGlbjGoe
 
 $L$_start_by8_wcpqaDvsGlbjGoe:
-	vbroadcasti32x4	zmm0,ZMMWORD[rsp]
-	vbroadcasti32x4	zmm8,ZMMWORD[shufb_15_7]
+	vbroadcasti32x4	zmm0,XMMWORD[rsp]
+	vbroadcasti32x4	zmm8,XMMWORD[shufb_15_7]
 	mov	r8,0xaa
 	kmovq	k2,r8
 	vpshufb	zmm1,zmm0,zmm8
@@ -4439,24 +4439,24 @@ $L$_main_loop_run_8_wcpqaDvsGlbjGoe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	vmovdqu8	zmm2,ZMMWORD[64+rdi]
 	add	rdi,0x80
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
 	vpsrldq	zmm13,zmm9,0xf
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm15,zmm9,0x1
 	vpxord	zmm15,zmm15,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 	vpsrldq	zmm13,zmm10,0xf
@@ -4464,56 +4464,56 @@ $L$_main_loop_run_8_wcpqaDvsGlbjGoe:
 	vpslldq	zmm16,zmm10,0x1
 	vpxord	zmm16,zmm16,zmm14
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -4605,8 +4605,8 @@ $L$_less_than_128_bytes_wcpqaDvsGlbjGoe:
 	vpbroadcastq	zmm25,r10
 	cmp	rdx,0x10
 	jb	NEAR $L$_ret_wcpqaDvsGlbjGoe
-	vbroadcasti32x4	zmm0,ZMMWORD[rsp]
-	vbroadcasti32x4	zmm8,ZMMWORD[shufb_15_7]
+	vbroadcasti32x4	zmm0,XMMWORD[rsp]
+	vbroadcasti32x4	zmm8,XMMWORD[shufb_15_7]
 	mov	r8d,0xaa
 	kmovq	k2,r8
 	mov	r8,rdx
@@ -4642,73 +4642,73 @@ $L$_num_blocks_is_7_wcpqaDvsGlbjGoe:
 	vmovdqu8	zmm2{k1},[64+rdi]
 
 	add	rdi,0x70
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -4736,73 +4736,73 @@ $L$_num_blocks_is_6_wcpqaDvsGlbjGoe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	vmovdqu8	ymm2,YMMWORD[64+rdi]
 	add	rdi,96
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -4831,73 +4831,73 @@ $L$_num_blocks_is_5_wcpqaDvsGlbjGoe:
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	vmovdqu8	xmm2,XMMWORD[64+rdi]
 	add	rdi,80
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
 	vpternlogq	zmm2,zmm10,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
-	vaesenc	zmm1,zmm1,zmm0
-	vaesenc	zmm2,zmm2,zmm0
-
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesenc	zmm1,zmm1,zmm0
 	vaesenc	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesenc	zmm1,zmm1,zmm0
+	vaesenc	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vaesenclast	zmm2,zmm2,zmm0
 	vpxorq	zmm1,zmm1,zmm9
@@ -4925,35 +4925,35 @@ $L$_num_blocks_is_4_wcpqaDvsGlbjGoe:
 	vpxord	zmm10,zmm7,zmm5
 	vmovdqu8	zmm1,ZMMWORD[rdi]
 	add	rdi,64
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vpxorq	zmm1,zmm1,zmm9
 	vmovdqu8	ZMMWORD[rsi],zmm1
@@ -4974,35 +4974,35 @@ $L$_num_blocks_is_3_wcpqaDvsGlbjGoe:
 	kmovq	k1,r8
 	vmovdqu8	zmm1{k1},[rdi]
 	add	rdi,48
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpternlogq	zmm1,zmm9,zmm0,0x96
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
 	vaesenc	zmm1,zmm1,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesenclast	zmm1,zmm1,zmm0
 	vpxorq	zmm1,zmm1,zmm9
 	vmovdqu8	ZMMWORD[rsi]{k1},zmm1
@@ -5022,35 +5022,35 @@ $L$_num_blocks_is_2_wcpqaDvsGlbjGoe:
 
 	vmovdqu8	ymm1,YMMWORD[rdi]
 	add	rdi,32
-	vbroadcasti32x4	ymm0,YMMWORD[rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[rcx]
 	vpternlogq	ymm1,ymm9,ymm0,0x96
-	vbroadcasti32x4	ymm0,YMMWORD[16+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[16+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[32+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[32+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[48+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[48+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[64+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[64+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[80+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[80+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[96+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[96+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[112+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[112+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[128+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[128+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[144+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[144+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[160+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[160+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[176+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[176+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[192+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[192+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[208+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[208+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[224+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[224+rcx]
 	vaesenclast	ymm1,ymm1,ymm0
 	vpxorq	ymm1,ymm1,ymm9
 	vmovdqu8	YMMWORD[rsi],ymm1
@@ -5071,35 +5071,35 @@ $L$_num_blocks_is_1_wcpqaDvsGlbjGoe:
 
 	vmovdqu8	xmm1,XMMWORD[rdi]
 	add	rdi,16
-	vbroadcasti32x4	ymm0,YMMWORD[rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[rcx]
 	vpternlogq	ymm1,ymm9,ymm0,0x96
-	vbroadcasti32x4	ymm0,YMMWORD[16+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[16+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[32+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[32+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[48+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[48+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[64+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[64+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[80+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[80+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[96+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[96+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[112+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[112+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[128+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[128+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[144+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[144+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[160+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[160+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[176+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[176+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[192+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[192+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[208+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[208+rcx]
 	vaesenc	ymm1,ymm1,ymm0
-	vbroadcasti32x4	ymm0,YMMWORD[224+rcx]
+	vbroadcasti32x4	ymm0,XMMWORD[224+rcx]
 	vaesenclast	ymm1,ymm1,ymm0
 	vpxorq	ymm1,ymm1,ymm9
 	vmovdqu8	XMMWORD[rsi],xmm1
@@ -5261,74 +5261,74 @@ $L$_remaining_num_blocks_is_7_EmbgEptodyewbFa:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -5351,74 +5351,74 @@ $L$_done_7_remain_EmbgEptodyewbFa:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -5446,74 +5446,74 @@ $L$_remaining_num_blocks_is_6_EmbgEptodyewbFa:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -5536,74 +5536,74 @@ $L$_done_6_remain_EmbgEptodyewbFa:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -5630,74 +5630,74 @@ $L$_remaining_num_blocks_is_5_EmbgEptodyewbFa:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -5720,74 +5720,74 @@ $L$_done_5_remain_EmbgEptodyewbFa:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -5813,74 +5813,74 @@ $L$_remaining_num_blocks_is_4_EmbgEptodyewbFa:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -5902,74 +5902,74 @@ $L$_done_4_remain_EmbgEptodyewbFa:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
-	vaesdec	zmm1,zmm1,zmm0
-	vaesdec	zmm2,zmm2,zmm0
-
-
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
+	vaesdec	zmm1,zmm1,zmm0
+	vaesdec	zmm2,zmm2,zmm0
+
+
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 
@@ -6340,8 +6340,8 @@ $L$_done_1_remain_EmbgEptodyewbFa:
 	jmp	NEAR $L$_ret_EmbgEptodyewbFa
 
 $L$_start_by16_EmbgEptodyewbFa:
-	vbroadcasti32x4	zmm0,ZMMWORD[rsp]
-	vbroadcasti32x4	zmm8,ZMMWORD[shufb_15_7]
+	vbroadcasti32x4	zmm0,XMMWORD[rsp]
+	vbroadcasti32x4	zmm8,XMMWORD[shufb_15_7]
 	mov	r8,0xaa
 	kmovq	k2,r8
 
@@ -6382,7 +6382,7 @@ $L$_main_loop_run_16_EmbgEptodyewbFa:
 	vpxorq	zmm2,zmm2,zmm10
 	vpxorq	zmm3,zmm3,zmm11
 	vpxorq	zmm4,zmm4,zmm12
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
 	vpxorq	zmm3,zmm3,zmm0
@@ -6391,17 +6391,17 @@ $L$_main_loop_run_16_EmbgEptodyewbFa:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm15,zmm11,0x1
 	vpxord	zmm15,zmm15,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
@@ -6410,17 +6410,17 @@ $L$_main_loop_run_16_EmbgEptodyewbFa:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm16,zmm12,0x1
 	vpxord	zmm16,zmm16,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
@@ -6429,17 +6429,17 @@ $L$_main_loop_run_16_EmbgEptodyewbFa:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm17,zmm15,0x1
 	vpxord	zmm17,zmm17,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
@@ -6448,27 +6448,27 @@ $L$_main_loop_run_16_EmbgEptodyewbFa:
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm18,zmm16,0x1
 	vpxord	zmm18,zmm18,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vaesdec	zmm3,zmm3,zmm0
 	vaesdec	zmm4,zmm4,zmm0
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 	vaesdeclast	zmm3,zmm3,zmm0
@@ -6497,8 +6497,8 @@ $L$_main_loop_run_16_EmbgEptodyewbFa:
 
 $L$_start_by8_EmbgEptodyewbFa:
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rsp]
-	vbroadcasti32x4	zmm8,ZMMWORD[shufb_15_7]
+	vbroadcasti32x4	zmm0,XMMWORD[rsp]
+	vbroadcasti32x4	zmm8,XMMWORD[shufb_15_7]
 	mov	r8,0xaa
 	kmovq	k2,r8
 
@@ -6527,24 +6527,24 @@ $L$_main_loop_run_8_EmbgEptodyewbFa:
 	vpxorq	zmm2,zmm2,zmm10
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[rcx]
 	vpxorq	zmm1,zmm1,zmm0
 	vpxorq	zmm2,zmm2,zmm0
 	vpsrldq	zmm13,zmm9,0xf
 	vpclmulqdq	zmm14,zmm13,zmm25,0x0
 	vpslldq	zmm15,zmm9,0x1
 	vpxord	zmm15,zmm15,zmm14
-	vbroadcasti32x4	zmm0,ZMMWORD[16+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[16+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[32+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[32+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[48+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[48+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 	vpsrldq	zmm13,zmm10,0xf
@@ -6552,57 +6552,57 @@ $L$_main_loop_run_8_EmbgEptodyewbFa:
 	vpslldq	zmm16,zmm10,0x1
 	vpxord	zmm16,zmm16,zmm14
 
-	vbroadcasti32x4	zmm0,ZMMWORD[64+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[64+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[80+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[80+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[96+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[96+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[112+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[112+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[128+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[128+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[144+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[144+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[160+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[160+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[176+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[176+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[192+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[192+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[208+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[208+rcx]
 	vaesdec	zmm1,zmm1,zmm0
 	vaesdec	zmm2,zmm2,zmm0
 
 
-	vbroadcasti32x4	zmm0,ZMMWORD[224+rcx]
+	vbroadcasti32x4	zmm0,XMMWORD[224+rcx]
 	vaesdeclast	zmm1,zmm1,zmm0
 	vaesdeclast	zmm2,zmm2,zmm0
 

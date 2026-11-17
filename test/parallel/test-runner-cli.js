@@ -283,10 +283,10 @@ for (const isolation of ['none', 'process']) {
 }
 
 {
-  // Use test with --loader and --require.
+  // Use test with --import and --require.
   // This case is common since vscode uses --require to load the debugger.
   const args = ['--no-warnings',
-                '--experimental-loader', 'data:text/javascript,',
+                '--import', 'data:text/javascript,',
                 '--require', fixtures.path('empty.js'),
                 '--test', join(testFixtures, 'default-behavior', 'index.test.js')];
   const child = spawnSync(process.execPath, args);

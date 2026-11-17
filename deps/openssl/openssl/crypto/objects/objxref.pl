@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1998-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -84,6 +84,12 @@ print <<EOF;
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_LIBCRYPTO_OBJECTS_OBJ_XREF_H)
+#define OSSL_LIBCRYPTO_OBJECTS_OBJ_XREF_H
+
+/* clang-format off */
+
+#include <openssl/objects.h>
 
 typedef struct {
     int sign_id;
@@ -129,6 +135,8 @@ foreach (@srt2)
 	}
 
 print "};\n";
+print "/* clang-format on */\n";
+print "\n#endif /* !defined(OSSL_LIBCRYPTO_OBJECTS_OBJ_XREF_H) */\n";
 
 sub check_oid
 	{

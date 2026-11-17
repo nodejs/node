@@ -99,17 +99,20 @@ class DebugOptions : public Options {
     break_first_line = true;
   }
 
-  void DisableWaitOrBreakFirstLine() {
-    inspect_wait = false;
-    break_first_line = false;
-  }
-
   bool wait_for_connect() const {
     return break_first_line || break_node_first_line || inspect_wait;
   }
 
   bool should_break_first_line() const {
     return break_first_line || break_node_first_line;
+  }
+
+  const char* inspector_option_name() const {
+    if (break_node_first_line) return "--inspect-brk-node";
+    if (break_first_line) return "--inspect-brk";
+    if (inspect_wait) return "--inspect-wait";
+    if (inspector_enabled) return "--inspect";
+    return nullptr;
   }
 
   void CheckOptions(std::vector<std::string>* errors,
@@ -139,6 +142,7 @@ class EnvironmentOptions : public Options {
   std::string heap_snapshot_signal;
   std::string redirect_warnings;
   std::string diagnostic_dir;
+  std::string bench_gc;
   std::string bench_isolation = "process";
   std::string bench_name_pattern;
   std::string test_rerun_failures_path;
@@ -176,7 +180,6 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> experimental_test_tag_filter;
   std::vector<std::string> coverage_include_pattern;
   std::vector<std::string> coverage_exclude_pattern;
-  std::vector<std::string> userland_loaders;
   std::vector<std::string> watch_mode_paths;
   std::vector<std::string> preload_cjs_modules;
   std::vector<std::string> preload_esm_modules;
@@ -211,13 +214,13 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(experimental_bench) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_eventsource) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_ffi) = HAVE_FFI;
-  DEFINE_BOOL_FIELD(experimental_web_worker) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(experimental_web_worker) = true;
   DEFINE_BOOL_FIELD(experimental_websocket) = true;
   DEFINE_BOOL_FIELD(experimental_sqlite) = HAVE_SQLITE;
   DEFINE_BOOL_FIELD(experimental_stream_iter) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_vfs) = true;
   DEFINE_BOOL_FIELD(vfs_load) = false;
-  DEFINE_BOOL_FIELD(sea_vfs_archive) = false;
+  DEFINE_BOOL_FIELD(sea_vfs) = false;
   DEFINE_BOOL_FIELD(webstorage) = HAVE_SQLITE;
   DEFINE_BOOL_FIELD(experimental_dtls) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_quic) = EXPERIMENTALS_DEFAULT_VALUE;
@@ -266,6 +269,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(test_randomize) = false;
   DEFINE_BOOL_FIELD(has_test_random_seed) = false;
   DEFINE_BOOL_FIELD(test_only) = false;
+  DEFINE_BOOL_FIELD(test_forbid_only) = false;
   DEFINE_BOOL_FIELD(test_udp_no_try_send) = false;
   DEFINE_BOOL_FIELD(coverage_include_all) = false;
   DEFINE_BOOL_FIELD(throw_deprecation) = false;
@@ -298,6 +302,8 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(tls_max_v1_2) = false;
   DEFINE_BOOL_FIELD(tls_max_v1_3) = false;
   DEFINE_BOOL_FIELD(strip_types) = HAVE_AMARO;
+  DEFINE_BOOL_FIELD(experimental_strip_private_modules) =
+      EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(report_exclude_env) = false;
   DEFINE_BOOL_FIELD(report_exclude_network) = false;
 #if HAVE_INSPECTOR
@@ -442,7 +448,7 @@ class PerProcessOptions : public Options {
   DEFINE_BOOL_FIELD(force_fips_crypto) = false;
   std::string force_fips_crypto_policy = "provider";
 #endif  // HAVE_OPENSSL
-#if OPENSSL_VERSION_MAJOR >= 3
+#if HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
   DEFINE_BOOL_FIELD(openssl_legacy_provider) = false;
   DEFINE_BOOL_FIELD(openssl_shared_config) = false;
 #endif

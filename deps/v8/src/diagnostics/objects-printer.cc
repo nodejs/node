@@ -948,15 +948,24 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {
     os << "\n - debug pos: " << Brief(input_or_debug_pos());
   }
   const char* mode = "(invalid)";
-  switch (resume_mode()) {
+  switch (static_cast<ResumeMode>(resume_mode())) {
     case kNext:
       mode = ".next()";
+      break;
+    case kNextTrySkipAlloc:
+      mode = ".next() (try skip alloc)";
       break;
     case kReturn:
       mode = ".return()";
       break;
     case kThrow:
       mode = ".throw()";
+      break;
+    case kRethrow:
+      mode = ".throw() (rethrow)";
+      break;
+    case kNextAllocSkipped:
+      mode = ".next() (alloc skipped)";
       break;
   }
   os << "\n - resume mode: " << mode;

@@ -341,8 +341,21 @@ backing store.
 
 **Parameters**
 
-* `opts` {CacheHandler.CacheOptions} (optional) See the
-  [`CacheStore`](./CacheStore.md) documentation for accepted fields.
+* `opts` {Object} (optional)
+  * `store` {CacheStore} The store that cached responses are kept in. See
+    [`CacheStore`](./CacheStore.md). **Default:** a new `MemoryCacheStore`.
+  * `methods` {string[]} The HTTP methods to cache. Only safe methods are
+    allowed (`GET`, `HEAD`, `OPTIONS`, `TRACE`) and at least one is required.
+    **Default:** `['GET']`.
+  * `cacheByDefault` {number} RFC 9111 allows caching responses that are not
+    explicitly marked as cacheable or not cacheable. Set this to cache such
+    responses. **Default:** `undefined`.
+  * `type` {string} Whether the cache is `'shared'` or `'private'`, which
+    decides how directives such as `s-maxage` and `private` are applied.
+    **Default:** `'shared'`.
+  * `origins` {(string|RegExp)[]} Only requests to these origins are cached.
+    Strings are compared case-insensitively. **Default:** `undefined` (all
+    origins are cached).
 
 **Returns:** {Dispatcher.DispatcherComposeInterceptor}
 

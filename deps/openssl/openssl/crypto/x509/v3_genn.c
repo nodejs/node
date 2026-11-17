@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -49,13 +49,7 @@ ASN1_ITEM_TEMPLATE(GENERAL_NAMES) = ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF,
 ASN1_ITEM_TEMPLATE_END(GENERAL_NAMES)
 
 IMPLEMENT_ASN1_FUNCTIONS(GENERAL_NAMES)
-
-GENERAL_NAME *GENERAL_NAME_dup(const GENERAL_NAME *a)
-{
-    return (GENERAL_NAME *)ASN1_dup((i2d_of_void *)i2d_GENERAL_NAME,
-        (d2i_of_void *)d2i_GENERAL_NAME,
-        (char *)a);
-}
+IMPLEMENT_ASN1_DUP_FUNCTION(GENERAL_NAME)
 
 int GENERAL_NAME_set1_X509_NAME(GENERAL_NAME **tgt, const X509_NAME *src)
 {

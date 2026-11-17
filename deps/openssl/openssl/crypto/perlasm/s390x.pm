@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Copyright 2018-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -3172,4 +3172,4 @@ sub err {
 	return $ERR{$_[0]};
 }
 
-1;
+no warnings 'void'; 1;

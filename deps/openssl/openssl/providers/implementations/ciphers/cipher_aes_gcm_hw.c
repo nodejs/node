@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,52 +14,71 @@
  * non-internal use) in order to implement provider AES ciphers.
  */
 #include "internal/deprecated.h"
-
+#include <openssl/proverr.h>
 #include "cipher_aes_gcm.h"
 
-static int aes_gcm_initkey(PROV_GCM_CTX *ctx, const unsigned char *key,
-    size_t keylen)
+int ossl_aes_gcm_hw_initkey(PROV_GCM_CTX *ctx, const unsigned char *key,
+    size_t keylen, aes_set_encrypt_key_fn fn_set_key,
+    aes_block128_f fn_block, ctr128_f fn_ctr)
 {
     PROV_AES_GCM_CTX *actx = (PROV_AES_GCM_CTX *)ctx;
     AES_KEY *ks = &actx->ks.ks;
 
+    int ret = fn_set_key(key, (int)(keylen * 8), ks);
+    if (ret < 0) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_KEY_SETUP_FAILED);
+        return 0;
+    }
+
+    CRYPTO_gcm128_init(&ctx->gcm, ks, (block128_f)fn_block);
+    ctx->ctr = fn_ctr;
+    ctx->key_set = 1;
+
+    return 1;
+}
+
+static int aes_gcm_initkey(PROV_GCM_CTX *ctx, const unsigned char *key,
+    size_t keylen)
+{
 #ifdef HWAES_CAPABLE
     if (HWAES_CAPABLE) {
 #ifdef HWAES_ctr32_encrypt_blocks
-        GCM_HW_SET_KEY_CTR_FN(ks, HWAES_set_encrypt_key, HWAES_encrypt,
-            HWAES_ctr32_encrypt_blocks);
+        return ossl_aes_gcm_hw_initkey(ctx, key, keylen, HWAES_set_encrypt_key,
+            HWAES_encrypt, HWAES_ctr32_encrypt_blocks);
 #else
-        GCM_HW_SET_KEY_CTR_FN(ks, HWAES_set_encrypt_key, HWAES_encrypt, NULL);
+        return ossl_aes_gcm_hw_initkey(ctx, key, keylen, HWAES_set_encrypt_key,
+            HWAES_encrypt, NULL);
 #endif /* HWAES_ctr32_encrypt_blocks */
     } else
 #endif /* HWAES_CAPABLE */
 
 #ifdef BSAES_CAPABLE
         if (BSAES_CAPABLE) {
-        GCM_HW_SET_KEY_CTR_FN(ks, AES_set_encrypt_key, AES_encrypt,
-            ossl_bsaes_ctr32_encrypt_blocks);
+        return ossl_aes_gcm_hw_initkey(ctx, key, keylen, AES_set_encrypt_key,
+            AES_encrypt, (ctr128_f)ossl_bsaes_ctr32_encrypt_blocks);
     } else
 #endif /* BSAES_CAPABLE */
 
 #ifdef VPAES_CAPABLE
         if (VPAES_CAPABLE) {
-        GCM_HW_SET_KEY_CTR_FN(ks, vpaes_set_encrypt_key, vpaes_encrypt, NULL);
+        return ossl_aes_gcm_hw_initkey(ctx, key, keylen, vpaes_set_encrypt_key,
+            vpaes_encrypt, NULL);
     } else
 #endif /* VPAES_CAPABLE */
 
     {
 #ifdef AES_CTR_ASM
-        GCM_HW_SET_KEY_CTR_FN(ks, AES_set_encrypt_key, AES_encrypt,
-            AES_ctr32_encrypt);
+        return ossl_aes_gcm_hw_initkey(ctx, key, keylen, AES_set_encrypt_key,
+            AES_encrypt, (ctr128_f)AES_ctr32_encrypt);
 #else
-        GCM_HW_SET_KEY_CTR_FN(ks, AES_set_encrypt_key, AES_encrypt, NULL);
+        return ossl_aes_gcm_hw_initkey(ctx, key, keylen, AES_set_encrypt_key,
+            AES_encrypt, NULL);
 #endif /* AES_CTR_ASM */
     }
-    return 1;
 }
 
-static int generic_aes_gcm_cipher_update(PROV_GCM_CTX *ctx, const unsigned char *in,
-    size_t len, unsigned char *out)
+int ossl_generic_aes_gcm_cipher_update(PROV_GCM_CTX *ctx,
+    const unsigned char *in, size_t len, unsigned char *out)
 {
     if (ctx->enc) {
         if (ctx->ctr != NULL) {
@@ -127,28 +146,33 @@ static const PROV_GCM_HW aes_gcm = {
     aes_gcm_initkey,
     ossl_gcm_setiv,
     ossl_gcm_aad_update,
-    generic_aes_gcm_cipher_update,
+    ossl_generic_aes_gcm_cipher_update,
     ossl_gcm_cipher_final,
     ossl_gcm_one_shot
 };
 
-#if defined(S390X_aes_128_CAPABLE)
-#include "cipher_aes_gcm_hw_s390x.inc"
-#elif defined(AESNI_CAPABLE)
-#include "cipher_aes_gcm_hw_aesni.inc"
-#elif defined(SPARC_AES_CAPABLE)
-#include "cipher_aes_gcm_hw_t4.inc"
-#elif defined(AES_PMULL_CAPABLE) && defined(AES_GCM_ASM)
-#include "cipher_aes_gcm_hw_armv8.inc"
-#elif defined(PPC_AES_GCM_CAPABLE) && defined(_ARCH_PPC64)
-#include "cipher_aes_gcm_hw_ppc.inc"
-#elif defined(OPENSSL_CPUID_OBJ) && defined(__riscv) && __riscv_xlen == 64
-#include "cipher_aes_gcm_hw_rv64i.inc"
-#elif defined(OPENSSL_CPUID_OBJ) && defined(__riscv) && __riscv_xlen == 32
-#include "cipher_aes_gcm_hw_rv32i.inc"
-#else
 const PROV_GCM_HW *ossl_prov_aes_hw_gcm(size_t keybits)
 {
-    return &aes_gcm;
-}
+    const PROV_GCM_HW *aes_gcm_hw = NULL;
+
+#if defined(AESNI_CAPABLE)
+    aes_gcm_hw = ossl_prov_aes_hw_gcm_aesni();
+#elif defined(AES_PMULL_CAPABLE) && defined(AES_GCM_ASM)
+    aes_gcm_hw = ossl_prov_aes_hw_gcm_armv8();
+#elif defined(PPC_AES_GCM_CAPABLE) && defined(_ARCH_PPC64)
+    aes_gcm_hw = ossl_prov_aes_hw_gcm_ppc(keybits);
+#elif defined(OPENSSL_CPUID_OBJ) && defined(__riscv) && __riscv_xlen == 32
+    aes_gcm_hw = ossl_prov_aes_hw_gcm_rv32i();
+#elif defined(OPENSSL_CPUID_OBJ) && defined(__riscv) && __riscv_xlen == 64
+    aes_gcm_hw = ossl_prov_aes_hw_gcm_rv64i();
+#elif defined(S390X_aes_128_CAPABLE)
+    aes_gcm_hw = ossl_prov_aes_hw_gcm_s390x(keybits);
+#elif defined(SPARC_AES_CAPABLE)
+    aes_gcm_hw = ossl_prov_aes_hw_gcm_t4();
 #endif
+
+    if (aes_gcm_hw == NULL)
+        aes_gcm_hw = &aes_gcm;
+
+    return aes_gcm_hw;
+}

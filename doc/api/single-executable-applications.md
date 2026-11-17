@@ -7,6 +7,9 @@ added:
   - v19.7.0
   - v18.16.0
 changes:
+  - version: v27.0.0-alpha.0.1.0
+    pr-url: https://github.com/nodejs/node/pull/66768
+    description: Allowed "useCodeCache" together with "useVfs".
   - version: v25.5.0
     pr-url: https://github.com/nodejs/node/pull/61167
     description: Added built-in single executable application generation via the CLI flag `--build-sea`.
@@ -220,6 +223,13 @@ The VFS supports the `node:fs` operations for reading files and directories.
 Since the SEA VFS is read-only, write operations fail with `EROFS`. See the
 [VFS documentation][] for the full list of supported operations.
 
+`useVfs` does for a single executable application what [`--vfs-load`][] does
+for `node`: the entry point is its `"main"`, and modules resolve against its
+own files. `--vfs-load` therefore cannot be used in a single executable
+application, whether or not it uses `useVfs`: `--build-sea` rejects it in
+`"execArgv"`, and the executable rejects it at startup when it comes from
+`--node-options` or from the `execArgv` of a worker.
+
 #### Loading modules from the VFS in a SEA
 
 When `useVfs` is enabled, the main script is executed from inside the
@@ -261,6 +271,26 @@ Module format detection works the same way as on the real file
 system: name bundled ES modules with the `.mjs` extension (or provide the
 relevant `package.json` files as assets) so they are interpreted as ESM.
 
+#### Worker threads
+
+The virtual file system is mounted at the mount point reserved for
+[`--vfs-load`][], which is the same in every thread, and worker threads mount
+it as well. A path into it, such as the main script's
+`__filename` or a worker script bundled as an asset, can therefore be loaded
+in a [`Worker`][], which reaches the other assets the same way the main
+script does:
+
+```cjs
+const { Worker } = require('node:worker_threads');
+const path = require('node:path');
+
+// worker.js is bundled as an asset, at the root of the mount.
+new Worker(path.join(__dirname, 'worker.js'));
+```
+
+A virtual file system mounted with [`vfs.mount()`][] in one thread is not
+mounted in the others, so a worker cannot load a script from it.
+
 #### Serving the assets from a ZIP archive with `"vfsArchive"`
 
 Instead of listing individual `"assets"`, the configuration can point
@@ -296,10 +326,9 @@ executable only embeds the archive; read the files through the file system
 APIs instead. `"vfsArchive"` requires `"useVfs": true` and cannot be
 combined with `"assets"`.
 
-The archive is mounted at the mount point reserved for [`--vfs-load`][], which
-is the same in every thread, and worker threads mount it as well. A path into
-the archive, such as the main script's `__filename`, can therefore be loaded
-in a worker:
+The archive is mounted at the same mount point as the assets would be, and
+in [worker threads](#worker-threads) as well. A path into the archive, such
+as the main script's `__filename`, can therefore be loaded in a worker:
 
 ```cjs
 const { Worker, isMainThread } = require('node:worker_threads');
@@ -312,18 +341,25 @@ if (isMainThread) {
 }
 ```
 
-Since that mount point is taken by the archive, `--vfs-load` cannot be used
-with `"vfsArchive"`: `--build-sea` rejects it in `"execArgv"`, and the
-executable rejects it at startup when it comes from `--node-options` or from
-the `execArgv` of a worker.
+#### Code cache for the modules in the VFS
 
-#### Snapshot and code caching limitations
+When `"useCodeCache": true` is combined with `"useVfs": true`, the code cache
+is not limited to the main script: `--build-sea` compiles every JavaScript
+module in the virtual file system (and every TypeScript module, when type
+stripping is enabled), including the main script and the modules under
+`node_modules`, and embeds their V8 code cache into the preparation blob.
+The modules are compiled without being run, so the build has no side
+effects. A module that fails to compile is left out of the cache and fails
+the same way at run time if the application loads it.
 
-`"useVfs": true` cannot be used together with `"useSnapshot": true` or
-`"useCodeCache": true`. The code cache limitation is due to incomplete
-implementation, not a technical impossibility. Consider bundling the
-application if startup performance matters and do not rely on module loading
-from the VFS in that case.
+The cache is keyed by the path of each module inside the mount and verified
+against its source, so it is used by the executable whenever the modules are
+loaded from the VFS, and ignored if they changed. The cache is
+platform-specific, like the code cache of the main script.
+
+#### Snapshot limitations
+
+`"useVfs": true` cannot be used together with `"useSnapshot": true`.
 
 #### Native addon limitations
 
@@ -372,6 +408,9 @@ the preparation blob and get injected into the final executable. When the single
 executable application is launched, instead of compiling the `main` script from
 scratch, Node.js would use the code cache to speed up the compilation, then
 execute the script, which would improve the startup performance.
+
+When `useVfs` is also set to `true`, the code cache covers every module in the
+virtual file system, see [Code cache for the modules in the VFS][].
 
 ### Execution arguments
 
@@ -798,6 +837,7 @@ Suggestions for other resource injection tools/workflows are welcomed. Please
 start a discussion at <https://github.com/nodejs/single-executable/discussions>
 to help us document them.
 
+[Code cache for the modules in the VFS]: #code-cache-for-the-modules-in-the-vfs
 [CommonJS]: modules.md#modules-commonjs-modules
 [ECMAScript Modules]: esm.md#modules-ecmascript-modules
 [ELF]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
@@ -808,6 +848,7 @@ to help us document them.
 [VFS documentation]: vfs.md
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
 [`--vfs-load`]: cli.md#--vfs-loadsource
+[`Worker`]: worker_threads.md#class-worker
 [`node:zlib`]: zlib.md
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
@@ -818,6 +859,7 @@ to help us document them.
 [`sea.getRawAsset()`]: #seagetrawassetkey
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
+[`vfs.mount()`]: vfs.md#vfsmount
 [documentation about startup snapshot support in Node.js]: cli.md#--build-snapshot
 [fuse]: https://www.electronjs.org/docs/latest/tutorial/fuses
 [module loader integration]: vfs.md#module-loader-integration

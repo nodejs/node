@@ -11,6 +11,8 @@ sha256WithRSAEncryption sha256	rsaEncryption
 sha384WithRSAEncryption	sha384	rsaEncryption
 sha512WithRSAEncryption	sha512	rsaEncryption
 sha224WithRSAEncryption	sha224	rsaEncryption
+sha512_224WithRSAEncryption sha512_224 rsaEncryption
+sha512_256WithRSAEncryption sha512_256 rsaEncryption
 mdc2WithRSA		mdc2	rsaEncryption
 ripemd160WithRSA	ripemd160 rsaEncryption
 RSA_SHA3_224		sha3_224 rsaEncryption
@@ -64,6 +66,8 @@ ecdsa_with_SHA3_512     sha3_512    X9_62_id_ecPublicKey
 
 dsa_with_SHA224		sha224	dsa
 dsa_with_SHA256		sha256	dsa
+dsa_with_SHA384		sha384	dsa
+dsa_with_SHA512		sha512	dsa
 
 id_GostR3411_94_with_GostR3410_2001	id_GostR3411_94 id_GostR3410_2001
 id_GostR3411_94_with_GostR3410_94	id_GostR3411_94 id_GostR3410_94

@@ -9,30 +9,27 @@
 
 #include <stdio.h>
 #include <limits.h>
+#include <assert.h>
 #include "internal/cryptlib.h"
 #include <openssl/evp.h>
 #include "crypto/evp.h"
 #include "evp_local.h"
 
-static unsigned char conv_ascii2bin(unsigned char a,
-    const unsigned char *table);
-static int evp_encodeblock_int(EVP_ENCODE_CTX *ctx, unsigned char *t,
-    const unsigned char *f, int dlen);
-static int evp_decodeblock_int(EVP_ENCODE_CTX *ctx, unsigned char *t,
-    const unsigned char *f, int n, int eof);
-
-#ifndef CHARSET_EBCDIC
-#define conv_bin2ascii(a, table) ((table)[(a) & 0x3f])
-#else
-/*
- * We assume that PEM encoded files are EBCDIC files (i.e., printable text
- * files). Convert them here while decoding. When encoding, output is EBCDIC
- * (text) format again. (No need for conversion in the conv_bin2ascii macro,
- * as the underlying textstring data_bin2ascii[] is already EBCDIC)
- */
-#define conv_bin2ascii(a, table) ((table)[(a) & 0x3f])
+#if defined(OPENSSL_CPUID_OBJ) && !defined(OPENSSL_NO_ASM) && (defined(__x86_64) || defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64))
+#if !defined(_M_ARM64EC)
+#define HAS_IA32CAP_IS_64
+#endif /* !defined(_M_ARM64EC) */
 #endif
 
+#include "enc_b64_avx2.h"
+#include "enc_b64_scalar.h"
+
+static unsigned char conv_ascii2bin(unsigned char a,
+    const unsigned char *table);
+size_t evp_encodeblock_int(EVP_ENCODE_CTX *ctx, unsigned char *t,
+    const unsigned char *f, int dlen, int *wrap_cnt);
+static int evp_decodeblock_int(EVP_ENCODE_CTX *ctx, unsigned char *t,
+    const unsigned char *f, int n, int eof);
 /*-
  * 64 char lines
  * pad input with 0
@@ -44,11 +41,6 @@ static int evp_decodeblock_int(EVP_ENCODE_CTX *ctx, unsigned char *t,
 #define BIN_PER_LINE (64 / 4 * 3)
 #define CHUNKS_PER_LINE (64 / 4)
 #define CHAR_PER_LINE (64 + 1)
-
-static const unsigned char data_bin2ascii[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-/* SRP uses a different base64 alphabet */
-static const unsigned char srpdata_bin2ascii[65] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz./";
 
 /*-
  * 0xF0 is a EOLN
@@ -144,7 +136,6 @@ void evp_encode_ctx_set_flags(EVP_ENCODE_CTX *ctx, unsigned int flags)
 
 void EVP_EncodeInit(EVP_ENCODE_CTX *ctx)
 {
-    ctx->length = 48;
     ctx->num = 0;
     ctx->line_num = 0;
     ctx->flags = 0;
@@ -153,45 +144,70 @@ void EVP_EncodeInit(EVP_ENCODE_CTX *ctx)
 int EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
     const unsigned char *in, int inl)
 {
-    int i, j;
+    int i;
+    size_t j;
     size_t total = 0;
 
     *outl = 0;
     if (inl <= 0)
         return 0;
-    OPENSSL_assert(ctx->length <= (int)sizeof(ctx->enc_data));
-    if (ctx->length - ctx->num > inl) {
+    assert(EVP_ENCODE_B64_LENGTH <= (int)sizeof(ctx->enc_data));
+    if (EVP_ENCODE_B64_LENGTH - ctx->num > inl) {
         memcpy(&(ctx->enc_data[ctx->num]), in, inl);
         ctx->num += inl;
         return 1;
     }
     if (ctx->num != 0) {
-        i = ctx->length - ctx->num;
+        i = EVP_ENCODE_B64_LENGTH - ctx->num;
         memcpy(&(ctx->enc_data[ctx->num]), in, i);
         in += i;
         inl -= i;
-        j = evp_encodeblock_int(ctx, out, ctx->enc_data, ctx->length);
+        int wrap_cnt = 0;
+        j = evp_encodeblock_int(ctx, out, ctx->enc_data, EVP_ENCODE_B64_LENGTH,
+            &wrap_cnt);
         ctx->num = 0;
         out += j;
         total = j;
-        if ((ctx->flags & EVP_ENCODE_CTX_NO_NEWLINES) == 0) {
-            *(out++) = '\n';
-            total++;
-        }
         *out = '\0';
     }
-    while (inl >= ctx->length && total <= INT_MAX) {
-        j = evp_encodeblock_int(ctx, out, in, ctx->length);
-        in += ctx->length;
-        inl -= ctx->length;
-        out += j;
-        total += j;
-        if ((ctx->flags & EVP_ENCODE_CTX_NO_NEWLINES) == 0) {
-            *(out++) = '\n';
-            total++;
+    int wrap_cnt = 0;
+    if (EVP_ENCODE_B64_LENGTH % 3 != 0) {
+        j = evp_encodeblock_int(ctx, out, in, inl - (inl % EVP_ENCODE_B64_LENGTH),
+            &wrap_cnt);
+    } else {
+#if defined(__AVX2__) && defined(HAVE_AVX2_INTRINSICS)
+        const int newlines = !(ctx->flags & EVP_ENCODE_CTX_NO_NEWLINES) ? EVP_ENCODE_B64_LENGTH : 0;
+
+        j = encode_base64_avx2(ctx,
+            (unsigned char *)out,
+            (const unsigned char *)in,
+            inl - (inl % EVP_ENCODE_B64_LENGTH), newlines, &wrap_cnt);
+#elif defined(HAS_IA32CAP_IS_64) && defined(HAVE_AVX2_INTRINSICS)
+        if ((OPENSSL_ia32cap_P[2] & (1u << 5)) != 0) {
+            const int newlines = !(ctx->flags & EVP_ENCODE_CTX_NO_NEWLINES) ? EVP_ENCODE_B64_LENGTH : 0;
+
+            j = encode_base64_avx2(ctx,
+                (unsigned char *)out,
+                (const unsigned char *)in,
+                inl - (inl % EVP_ENCODE_B64_LENGTH), newlines, &wrap_cnt);
+        } else {
+            j = evp_encodeblock_int(ctx, out, in, inl - (inl % EVP_ENCODE_B64_LENGTH),
+                &wrap_cnt);
         }
-        *out = '\0';
+#else
+        j = evp_encodeblock_int(ctx, out, in, inl - (inl % EVP_ENCODE_B64_LENGTH),
+            &wrap_cnt);
+#endif
     }
+    in += inl - (inl % EVP_ENCODE_B64_LENGTH);
+    inl -= inl - (inl % EVP_ENCODE_B64_LENGTH);
+    out += j;
+    total += j;
+    if ((ctx->flags & EVP_ENCODE_CTX_NO_NEWLINES) == 0 && EVP_ENCODE_B64_LENGTH % 3 != 0) {
+        *(out++) = '\n';
+        total++;
+    }
+    *out = '\0';
     if (total > INT_MAX) {
         /* Too much output data! */
         *outl = 0;
@@ -200,72 +216,49 @@ int EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
     if (inl != 0)
         memcpy(&(ctx->enc_data[0]), in, inl);
     ctx->num = inl;
-    *outl = total;
+    *outl = (int)total;
 
     return 1;
 }
 
 void EVP_EncodeFinal(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl)
 {
-    unsigned int ret = 0;
+    size_t ret = 0;
+    int wrap_cnt = 0;
 
     if (ctx->num != 0) {
-        ret = evp_encodeblock_int(ctx, out, ctx->enc_data, ctx->num);
-        if ((ctx->flags & EVP_ENCODE_CTX_NO_NEWLINES) == 0)
-            out[ret++] = '\n';
-        out[ret] = '\0';
-        ctx->num = 0;
-    }
-    *outl = ret;
-}
-
-static int evp_encodeblock_int(EVP_ENCODE_CTX *ctx, unsigned char *t,
-    const unsigned char *f, int dlen)
-{
-    int i, ret = 0;
-    unsigned long l;
-    const unsigned char *table;
-
-    if (ctx != NULL && (ctx->flags & EVP_ENCODE_CTX_USE_SRP_ALPHABET) != 0)
-        table = srpdata_bin2ascii;
-    else
-        table = data_bin2ascii;
-
-    for (i = dlen; i > 0; i -= 3) {
-        if (i >= 3) {
-            l = (((unsigned long)f[0]) << 16L) | (((unsigned long)f[1]) << 8L) | f[2];
-            *(t++) = conv_bin2ascii(l >> 18L, table);
-            *(t++) = conv_bin2ascii(l >> 12L, table);
-            *(t++) = conv_bin2ascii(l >> 6L, table);
-            *(t++) = conv_bin2ascii(l, table);
-        } else {
-            l = ((unsigned long)f[0]) << 16L;
-            if (i == 2)
-                l |= ((unsigned long)f[1] << 8L);
-
-            *(t++) = conv_bin2ascii(l >> 18L, table);
-            *(t++) = conv_bin2ascii(l >> 12L, table);
-            *(t++) = (i == 1) ? '=' : conv_bin2ascii(l >> 6L, table);
-            *(t++) = '=';
+        ret = evp_encodeblock_int(ctx, out, ctx->enc_data, ctx->num,
+            &wrap_cnt);
+        if (ret > 0) {
+            if ((ctx->flags & EVP_ENCODE_CTX_NO_NEWLINES) == 0)
+                out[ret++] = '\n';
+            out[ret] = '\0';
+            ctx->num = 0;
         }
-        ret += 4;
-        f += 3;
     }
-
-    *t = '\0';
-    return ret;
+    *outl = (int)ret;
 }
 
 int EVP_EncodeBlock(unsigned char *t, const unsigned char *f, int dlen)
 {
-    return evp_encodeblock_int(NULL, t, f, dlen);
+    int wrap_cnt = 0;
+
+#if defined(__AVX2__) && defined(HAVE_AVX2_INTRINSICS)
+    return (int)encode_base64_avx2(NULL, t, f, dlen, 0, &wrap_cnt);
+#elif defined(HAS_IA32CAP_IS_64) && defined(HAVE_AVX2_INTRINSICS)
+    if ((OPENSSL_ia32cap_P[2] & (1u << 5)) != 0)
+        return (int)encode_base64_avx2(NULL, t, f, dlen, 0, &wrap_cnt);
+    else
+        return (int)evp_encodeblock_int(NULL, t, f, dlen, &wrap_cnt);
+#else
+    return (int)evp_encodeblock_int(NULL, t, f, dlen, &wrap_cnt);
+#endif
 }
 
 void EVP_DecodeInit(EVP_ENCODE_CTX *ctx)
 {
     /* Only ctx->num and ctx->flags are used during decoding. */
     ctx->num = 0;
-    ctx->length = 0;
     ctx->line_num = 0;
     ctx->flags = 0;
 }
@@ -463,16 +456,16 @@ static int evp_decodeblock_int(EVP_ENCODE_CTX *ctx, unsigned char *t,
 
     switch (eof) {
     case 2:
-        *(t++) = (unsigned char)(l >> 16L) & 0xff;
+        *t = (unsigned char)(l >> 16L) & 0xff;
         break;
     case 1:
         *(t++) = (unsigned char)(l >> 16L) & 0xff;
-        *(t++) = (unsigned char)(l >> 8L) & 0xff;
+        *t = (unsigned char)(l >> 8L) & 0xff;
         break;
     case 0:
         *(t++) = (unsigned char)(l >> 16L) & 0xff;
         *(t++) = (unsigned char)(l >> 8L) & 0xff;
-        *(t++) = (unsigned char)(l) & 0xff;
+        *t = (unsigned char)(l) & 0xff;
         break;
     }
     ret += 3 - eof;

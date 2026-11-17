@@ -1,0 +1,33 @@
+/*
+ * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+{- produce_param_decoder('template_key_types',
+                         (['OSSL_PKEY_PARAM_PUB_KEY',  'pub_key',  'octet_string'],
+                          ['OSSL_PKEY_PARAM_PRIV_KEY', 'priv_key', 'octet_string'],
+                         )); -}
+
+{- produce_param_decoder('template_get_params',
+                         (['OSSL_PKEY_PARAM_BITS',               'bits',    'int'],
+                          ['OSSL_PKEY_PARAM_SECURITY_BITS',      'secbits', 'int'],
+                          ['OSSL_PKEY_PARAM_MAX_SIZE',           'size',    'int'],
+                          ['OSSL_PKEY_PARAM_SECURITY_CATEGORY',  'seccat',  'int'],
+                          ['OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY', 'encpub',  'octet_string'],
+                         )); -}
+
+{- produce_param_decoder('template_set_params',
+                         (['OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY', 'pub', 'octet_string'],
+                         )); -}
+
+{- produce_param_decoder('template_gen_set_params',
+                         (['OSSL_PKEY_PARAM_GROUP_NAME', 'name', 'utf8_string'],
+                        )); -}

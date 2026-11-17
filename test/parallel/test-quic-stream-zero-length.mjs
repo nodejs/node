@@ -15,27 +15,57 @@ if (!hasQuic) {
 const { listen, connect } = await import('../common/quic.mjs');
 const { bytes } = await import('stream/iter');
 
-const serverDone = Promise.withResolvers();
+{
+  const serverDone = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall((serverSession) => {
-  serverSession.onstream = mustCall(async (stream) => {
-    const received = await bytes(stream);
-    assert.strictEqual(received.byteLength, 0);
-    stream.writer.endSync();
-    await stream.closed;
-    serverSession.close();
-    serverDone.resolve();
-  });
-}));
+  const serverEndpoint = await listen(mustCall((serverSession) => {
+    serverSession.onstream = mustCall(async (stream) => {
+      const received = await bytes(stream);
+      assert.strictEqual(received.byteLength, 0);
+      stream.writer.endSync();
+      await stream.closed;
+      serverSession.close();
+      serverDone.resolve();
+    });
+  }));
 
-const clientSession = await connect(serverEndpoint.address);
-await clientSession.opened;
+  const clientSession = await connect(serverEndpoint.address);
+  await clientSession.opened;
 
-const stream = await clientSession.createBidirectionalStream();
-stream.setBody(null);
+  const stream = await clientSession.createBidirectionalStream();
+  stream.setBody(null);
 
-await dump(stream);
+  await dump(stream);
 
-await Promise.all([stream.closed, serverDone.promise]);
-await clientSession.close();
-await serverEndpoint.close();
+  await Promise.all([stream.closed, serverDone.promise]);
+  await clientSession.close();
+  await serverEndpoint.close();
+}
+
+// Stream via createBidirectionalStream({ body: null }).
+{
+  const serverDone = Promise.withResolvers();
+
+  const serverEndpoint = await listen(mustCall((serverSession) => {
+    serverSession.onstream = mustCall(async (stream) => {
+      const received = await bytes(stream);
+      assert.strictEqual(received.byteLength, 0);
+      stream.writer.endSync();
+      await stream.closed;
+      serverSession.close();
+      serverDone.resolve();
+    });
+  }));
+
+  const clientSession = await connect(serverEndpoint.address);
+  await clientSession.opened;
+
+  const stream =
+    await clientSession.createBidirectionalStream({ body: null });
+
+  await dump(stream);
+
+  await Promise.all([stream.closed, serverDone.promise]);
+  await clientSession.close();
+  await serverEndpoint.close();
+}

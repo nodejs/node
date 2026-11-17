@@ -147,9 +147,15 @@ typedef struct ares_query ares_query_t;
 struct ares_query {
   /* Query ID from qbuf, for faster lookup, and current timeout */
   unsigned short       qid; /* host byte order */
-  ares_timeval_t       ts;  /*!< Timestamp query was sent */
+  /*! Distinguishes this query from any later one handed the same qid.
+   *  Query ids are 16-bit and recycled; this counter is not. */
+  size_t               serial;
+  ares_timeval_t       ts; /*!< Timestamp query was sent */
   ares_timeval_t       timeout;
   ares_channel_t      *channel;
+  /*! Query cache key, derived from the caller's request before the send path
+   *  can mutate query->query.  NULL when the cache is disabled. */
+  char                *qcache_key;
 
   /*
    * Node object for each list entry the query belongs to in order to
@@ -227,6 +233,9 @@ struct ares_channeldata {
   /* Server addresses and communications state. Sorted by least consecutive
    * failures, followed by the configuration order if failures are equal. */
   ares_slist_t        *servers;
+  /*! Bumped by each ares_servers_update().  Lets the stale-server removal loop
+   *  tell that a nested reconfiguration reconciled the list underneath it. */
+  size_t               servers_generation;
 
   /* random state to use when generating new ids and generating retry penalties
    */
@@ -236,6 +245,10 @@ struct ares_channeldata {
   ares_llist_t        *all_queries;
   /* Queries bucketed by qid, for quickly dispatching DNS responses: */
   ares_htable_szvp_t  *queries_by_qid;
+
+  /*! Monotonic source for ares_query_t.serial.  Never reused for the life of
+   *  the channel, so a recycled query id cannot impersonate an older query. */
+  size_t               query_serial;
 
   /* Queries bucketed by timeout, for quickly handling timeouts: */
   ares_slist_t        *queries_by_timeout;
@@ -248,6 +261,29 @@ struct ares_channeldata {
 
   ares_sock_state_cb   sock_state_cb;
   void                *sock_state_cb_data;
+  /*! Socket-state notifications queued during processing, delivered once the
+   *  library is no longer holding a connection a reentrant call could free.
+   *  Insertion order is preserved, so an application observes the same
+   *  sequence of state changes it would have seen inline. */
+  ares_array_t        *sock_state_queue;
+  /*! Depth of nested library entry points that may produce a deferred
+   *  application notification.  Queues are delivered as this returns to
+   *  zero.  Shared by every deferred callback kind rather than one counter
+   *  per kind, so the delivery rule exists in exactly one place. */
+  size_t               deferred_cb_depth;
+
+  /*! Servers and connections that have been unlinked from every lookup
+   *  structure but not yet freed, because a library call was in progress and
+   *  may still hold a pointer to them.  Drained by the same flush that
+   *  delivers deferred notifications, once no frame can still be holding one.
+   *
+   *  This is what makes a stale ares_server_t or ares_conn_t readable rather
+   *  than freed for the remainder of the call that captured it.  Callers
+   *  still revalidate before *acting* on one -- ares_server_in_channel() and
+   *  friends -- but a missed check is now "used a server that was removed"
+   *  rather than a use-after-free. */
+  ares_server_t       *pending_servers;
+  ares_conn_t         *pending_conns;
 
   ares_sock_create_callback           sock_create_cb;
   void                               *sock_create_cb_data;
@@ -295,6 +331,10 @@ struct ares_channeldata {
   /* Callback triggered when a server has a successful or failed response */
   ares_server_state_callback          server_state_cb;
   void                               *server_state_cb_data;
+  /*! Server-state notifications queued during processing, dispatched once the
+   *  library is no longer holding pointers a reentrant callback could free.
+   *  See ares_deferred_cb_leave(). */
+  ares_array_t                       *server_state_queue;
 
   /* TRUE if a reinit is pending.  Reinit spawns a thread to read the system
    * configuration and then apply the configuration since configuration
@@ -308,6 +348,11 @@ struct ares_channeldata {
    * system config changes might get triggered and we need a flag to make
    * sure we don't take action. */
   ares_bool_t                         sys_up;
+
+  /*! Set while ares_send_nolock() is running the refusal notification for a
+   *  channel being destroyed.  Bounds the recursion at one frame when the
+   *  application's callback responds by starting another lookup. */
+  ares_bool_t                         in_shutdown_refusal;
 };
 
 /* Does the domain end in ".onion" or ".onion."? Case-insensitive. */
@@ -351,6 +396,16 @@ void         *ares_dnsrec_convert_arg(ares_callback callback, void *arg);
 void ares_dnsrec_convert_cb(void *arg, ares_status_t status, size_t timeouts,
                             const ares_dns_record_t *dnsrec);
 
+/*! Unlink a query from every list and table that tracks it.
+ *
+ *  Must be called before running application code that could reach the query
+ *  again, so a reentrant teardown cannot find it and end it a second time.
+ *
+ *  \param[in] query  Query to detach.  Safe to call more than once on the
+ *                    same query.
+ */
+void ares_detach_query(ares_query_t *query);
+
 void ares_free_query(ares_query_t *query);
 
 unsigned short ares_generate_new_id(ares_rand_state *state);
@@ -389,7 +444,6 @@ ares_status_t ares_sysconfig_set_options(ares_sysconfig_t *sysconfig,
                                          const char       *str);
 
 ares_status_t ares_init_by_environment(ares_sysconfig_t *sysconfig);
-
 
 typedef ares_status_t (*ares_sysconfig_line_cb_t)(const ares_channel_t *channel,
                                                   ares_sysconfig_t     *sysconfig,
@@ -589,6 +643,70 @@ ares_status_t ares_dns_name_write(ares_buf_t *buf, ares_llist_t **list,
  */
 void          ares_queue_notify_empty(ares_channel_t *channel);
 
+/*! Is this server still installed on the channel?
+ *
+ *  Application callbacks may reconfigure the servers, which destroys any that
+ *  the new configuration omits.  A raw ares_server_t captured before such a
+ *  callback must be revalidated before it is used again.
+ *
+ *  \param[in] channel  Initialized ares channel.
+ *  \param[in] server   Server pointer captured earlier.
+ *  \return ARES_TRUE if still present.
+ */
+ares_bool_t   ares_server_in_channel(const ares_channel_t *channel,
+                                     const ares_server_t  *server);
+
+/*! Free everything awaiting reclamation on the channel.
+ *
+ *  Called only from the deferred-callback flush, at the point where the
+ *  outermost library call is unwinding and no frame can still hold a pointer
+ *  to an unlinked server or connection.
+ *
+ *  \param[in] channel  Initialized ares channel.
+ */
+void          ares_deferred_reclaim(ares_channel_t *channel);
+
+/*! Free one connection's memory.  Only for the deferred-reclaim path and the
+ *  immediate path in ares_close_connection(). */
+void          ares_conn_reap(ares_conn_t *conn);
+
+/*! Free one server's memory.  Only for the deferred-reclaim path and the
+ *  immediate path in ares_destroy_server(). */
+void          ares_server_reap(ares_server_t *server);
+
+/*! Enter a region that may produce application notifications the library is
+ *  not in a position to deliver yet -- socket-state and server-state changes.
+ *  Nesting is counted; queued notifications are delivered by the outermost
+ *  leave.
+ *
+ *  The outermost region must be opened by the public entry point itself
+ *  (ares_send_dnsrec(), ares_query_dnsrec(), ares_search(), ares_getaddrinfo(),
+ *  ares_process_fds(), ares_set_servers_*(), ...), with the channel lock
+ *  held, around everything it does.  Internal helpers such as
+ *  ares_send_nolock() open nested regions of their own, but their callers
+ *  often keep using lookup state afterwards -- a host or search query, a
+ *  query id out-pointer -- that a callback reentering the library may end
+ *  and free.  If such a helper were the outermost region, its leave would
+ *  run the callbacks while that state is still in use.
+ *
+ *  \param[in] channel  Initialized ares channel.
+ */
+void          ares_deferred_cb_enter(ares_channel_t *channel);
+
+/*! Leave such a region.  The outermost leave delivers the queues, at which
+ *  point the library holds no connection a reentrant call could free.
+ *
+ *  \param[in] channel  Initialized ares channel.
+ */
+void          ares_deferred_cb_leave(ares_channel_t *channel);
+
+/*! Deliver every server-state notification the channel has queued.  Called
+ *  only from the shared deferred-callback flush.
+ *
+ *  \param[in] channel  Initialized ares channel.
+ */
+void          ares_server_state_dispatch(ares_channel_t *channel);
+
 #define ARES_CONFIG_CHECK(x)                                              \
   (x && x->lookups && ares_slist_len(x->servers) > 0 && x->timeout > 0 && \
    x->tries > 0)
@@ -603,14 +721,47 @@ ares_status_t ares_qcache_create(ares_rand_state *rand_state,
                                  unsigned int     max_ttl,
                                  ares_qcache_t  **cache_out);
 void          ares_qcache_flush(ares_qcache_t *cache);
+/*! Derive the query cache key for a request.  Caller owns the result.
+ *
+ *  \param[in] dnsrec  Request to derive the key from.
+ *  \return allocated key, or NULL on failure.
+ */
+char         *ares_qcache_calc_key(const ares_dns_record_t *dnsrec);
+
+/*! Insert a response into the query cache.
+ *
+ *  \param[in] channel  Initialized channel object.
+ *  \param[in] now      Current timestamp.
+ *  \param[in] query    Query the response answers.  Its cache key, derived
+ *                      when the query was created, becomes the entry key; a
+ *                      NULL key means caching is switched off.
+ *  \param[in] dnsrec   Response to cache.  Duplicated internally; the caller
+ *                      retains ownership.
+ *  \return ARES_SUCCESS if cached, ARES_ENOTIMP if caching is off or the
+ *          response is not cacheable, otherwise another status.
+ */
 ares_status_t ares_qcache_insert(ares_channel_t          *channel,
                                  const ares_timeval_t    *now,
                                  const ares_query_t      *query,
                                  const ares_dns_record_t *dnsrec);
-ares_status_t ares_qcache_fetch(ares_channel_t           *channel,
-                                const ares_timeval_t     *now,
-                                const ares_dns_record_t  *dnsrec,
-                                const ares_dns_record_t **dnsrec_resp);
+/*! Fetch a cached answer for a request.
+ *
+ *  \param[in]  channel      Initialized channel object.
+ *  \param[in]  now          Current timestamp.
+ *  \param[in]  key          Cache key for the request, as produced by
+ *                           ares_qcache_calc_key().  Owned by the caller.
+ *  \param[out] dnsrec_resp  On ARES_SUCCESS, the cached answer, owned by the
+ *                           caller and destroyed with
+ *                           ares_dns_record_destroy().  Set to NULL on any
+ *                           other status, except ARES_EFORMERR, which is
+ *                           returned by the argument check before this is
+ *                           touched.
+ *  \return ARES_SUCCESS on a hit, ARES_ENOTFOUND on a miss, ARES_EFORMERR on
+ *          invalid arguments.
+ */
+ares_status_t ares_qcache_fetch(ares_channel_t       *channel,
+                                const ares_timeval_t *now, const char *key,
+                                ares_dns_record_t **dnsrec_resp);
 
 void   ares_metrics_record(const ares_query_t *query, ares_server_t *server,
                            ares_status_t status, const ares_dns_record_t *dnsrec);
@@ -635,7 +786,6 @@ typedef struct ares_event_thread ares_event_thread_t;
 
 void          ares_event_thread_destroy(ares_channel_t *channel);
 ares_status_t ares_event_thread_init(ares_channel_t *channel);
-
 
 #ifdef _WIN32
 #  define HOSTENT_ADDRTYPE_TYPE short

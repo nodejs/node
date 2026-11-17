@@ -424,7 +424,9 @@ static ares_status_t process_option(ares_sysconfig_t *sysconfig,
     }
     sysconfig->timeout_ms = valint * 1000;
   } else if (ares_streq(key, "retry") || ares_streq(key, "attempts")) {
-    if (valint == 0) {
+    if (valint == 0 || valint > 255) {
+      /* A bogus attempt count must not become an effectively unbounded
+       * retry loop; ignore it like other invalid options. */
       status = ARES_EFORMERR;
       goto done;
     }
@@ -589,7 +591,10 @@ ares_status_t ares_sysconfig_parse_resolv_line(const ares_channel_t *channel,
 
   ares_buf_consume_whitespace(line, ARES_TRUE);
 
-  status = buf_fetch_string(line, value, sizeof(value));
+  ares_buf_tag(line);
+  ares_buf_consume_until_charset(line, (const unsigned char *)"#;", 2,
+                                 ARES_FALSE);
+  status = ares_buf_tag_fetch_string(line, value, sizeof(value));
   if (status != ARES_SUCCESS) {
     return ARES_SUCCESS;
   }
@@ -608,8 +613,13 @@ ares_status_t ares_sysconfig_parse_resolv_line(const ares_channel_t *channel,
     }
   } else if (ares_streq(option, "lookup") ||
              ares_streq(option, "hostresorder")) {
-    ares_buf_tag_rollback(line);
-    status = config_lookup(sysconfig, line, " \t");
+    ares_buf_t *value_buf =
+      ares_buf_create_const((const unsigned char *)value, ares_strlen(value));
+    if (value_buf == NULL) {
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    }
+    status = config_lookup(sysconfig, value_buf, " \t");
+    ares_buf_destroy(value_buf);
   } else if (ares_streq(option, "search")) {
     status = config_search(sysconfig, value, 0);
   } else if (ares_streq(option, "nameserver")) {

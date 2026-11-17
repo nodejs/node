@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -498,6 +498,14 @@ CTLOG_STORE *CTLOG_STORE_new(void);
  * Deletes a CT log store and all of the CT log instances held within.
  */
 void CTLOG_STORE_free(CTLOG_STORE *store);
+
+/*
+ * Adds a CT log to a CTLOG_STORE.
+ * Takes ownership of the CTLOG on success - the caller must not free it after
+ * a successful call. On failure, the caller retains ownership.
+ * Returns 1 on success, 0 on failure.
+ */
+__owur int CTLOG_STORE_add0_log(CTLOG_STORE *store, CTLOG *log);
 
 /*
  * Finds a CT log in the store based on its log ID.

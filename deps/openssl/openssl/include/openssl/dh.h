@@ -205,7 +205,7 @@ OSSL_DEPRECATEDIN_3_0 const DH_METHOD *DH_OpenSSL(void);
 OSSL_DEPRECATEDIN_3_0 void DH_set_default_method(const DH_METHOD *meth);
 OSSL_DEPRECATEDIN_3_0 const DH_METHOD *DH_get_default_method(void);
 OSSL_DEPRECATEDIN_3_0 int DH_set_method(DH *dh, const DH_METHOD *meth);
-OSSL_DEPRECATEDIN_3_0 DH *DH_new_method(ENGINE *engine);
+OSSL_DEPRECATEDIN_3_0 DH *DH_new_method(ENGINE *engine /* must be NULL */);
 
 OSSL_DEPRECATEDIN_3_0 DH *DH_new(void);
 OSSL_DEPRECATEDIN_3_0 void DH_free(DH *dh);
@@ -275,7 +275,6 @@ OSSL_DEPRECATEDIN_3_0 const BIGNUM *DH_get0_pub_key(const DH *dh);
 OSSL_DEPRECATEDIN_3_0 void DH_clear_flags(DH *dh, int flags);
 OSSL_DEPRECATEDIN_3_0 int DH_test_flags(const DH *dh, int flags);
 OSSL_DEPRECATEDIN_3_0 void DH_set_flags(DH *dh, int flags);
-OSSL_DEPRECATEDIN_3_0 ENGINE *DH_get0_engine(DH *d);
 OSSL_DEPRECATEDIN_3_0 long DH_get_length(const DH *dh);
 OSSL_DEPRECATEDIN_3_0 int DH_set_length(DH *dh, long length);
 

@@ -93,6 +93,11 @@
     [ 'OS=="linux" and target_arch=="s390x"', {
       'cflags': [ '-march=z14' ],
     }],
+    [ 'v8_use_perfetto==1 and node_shared_perfetto=="false"', {
+      'dependencies': [
+        'deps/perfetto/perfetto.gyp:perfetto_sdk',
+      ],
+    }],
     [ 'node_enable_d8=="true"', {
       'dependencies': [ 'tools/v8_gypfiles/d8.gyp:d8' ],
     }],
@@ -403,7 +408,6 @@
       'defines': [ 'HAVE_OPENSSL=1' ],
       'conditions': [
         [ 'node_shared_openssl=="false"', {
-          'defines': [ 'OPENSSL_API_COMPAT=0x10100000L', ],
           'dependencies': [
             './deps/openssl/openssl.gyp:openssl',
 

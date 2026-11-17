@@ -229,16 +229,36 @@ function extractBody (object, keepalive = false) {
       )
     }
 
-    stream = webidl.is.ReadableStream(object)
-      ? object
-      : ReadableStream.from(object).pipeThrough(new TransformStream({
-        transform (chunk, controller) {
-          const bytes = isUint8Array(chunk) ? chunk : Buffer.from(chunk)
-          if (bytes.byteLength) {
-            controller.enqueue(bytes)
+    if (webidl.is.ReadableStream(object)) {
+      stream = object
+    } else {
+      const reader = ReadableStream.from(object).getReader()
+      let cancelled = false
+      // Do not pull from the iterable until the body is read.
+      stream = new ReadableStream({
+        async pull (controller) {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (cancelled) {
+              return
+            }
+            if (done) {
+              controller.close()
+              return
+            }
+            const bytes = isUint8Array(value) ? value : Buffer.from(value)
+            if (bytes.byteLength) {
+              controller.enqueue(bytes)
+              return
+            }
           }
+        },
+        cancel (reason) {
+          cancelled = true
+          return reader.cancel(reason)
         }
-      }))
+      }, { highWaterMark: 0 })
+    }
   }
 
   // 18. If source is a byte sequence, then set action to a

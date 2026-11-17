@@ -51,14 +51,15 @@ const struct ares_in6_addr ares_in6addr_any = { { { 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 /*
  * static int
- * inet_net_pton_ipv4(src, dst, size)
+ * inet_net_pton_ipv4(src, dst, size, allow_cidr)
  *      convert IPv4 network number from presentation to network format.
- *      accepts hex octets, hex strings, decimal octets, and /CIDR.
- *      "size" is in bytes and describes "dst".
+ *      accepts hex octets, hex strings, decimal octets, and, if
+ *      "allow_cidr" is true, /CIDR.  "size" is in bytes and describes "dst".
  * return:
  *      number of bits, either imputed classfully or specified with /CIDR,
  *      or -1 if some failure occurred (check errno).  ENOENT means it was
- *      not an IPv4 network specification.
+ *      not an IPv4 network specification (including a /CIDR suffix when
+ *      "allow_cidr" is false).
  * note:
  *      network byte order assumed.  this means 192.5.5.240/28 has
  *      0b11110000 in its fourth octet.
@@ -71,7 +72,7 @@ const struct ares_in6_addr ares_in6addr_any = { { { 0, 0, 0, 0, 0, 0, 0, 0, 0,
  *      Paul Vixie (ISC), June 1996
  */
 static int ares_inet_net_pton_ipv4(const char *src, unsigned char *dst,
-                                   size_t size)
+                                   size_t size, ares_bool_t allow_cidr)
 {
   static const char    xdigits[] = "0123456789abcdef";
   static const char    digits[]  = "0123456789";
@@ -147,7 +148,8 @@ static int ares_inet_net_pton_ipv4(const char *src, unsigned char *dst,
   }
 
   bits = -1;
-  if (ch == '/' && ares_isascii(src[0]) && ares_isdigit(src[0]) && dst > odst) {
+  if (allow_cidr && ch == '/' && ares_isascii(src[0]) && ares_isdigit(src[0]) &&
+      dst > odst) {
     /* CIDR width specifier.  Nothing can follow it. */
     ch   = *src++; /* Skip over the /. */
     bits = 0;
@@ -317,7 +319,7 @@ static int ares_inet_pton6(const char *src, unsigned char *dst)
       continue;
     }
     if (ch == '.' && ((tp + NS_INADDRSZ) <= endp) &&
-        ares_inet_net_pton_ipv4(curtok, tp, NS_INADDRSZ) > 0) {
+        ares_inet_net_pton_ipv4(curtok, tp, NS_INADDRSZ, ARES_FALSE) > 0) {
       tp         += NS_INADDRSZ;
       saw_xdigit  = 0;
       break; /* '\0' was seen by inet_pton4(). */
@@ -400,29 +402,23 @@ static int ares_inet_net_pton_ipv6(const char *src, unsigned char *dst,
     SET_SOCKERRNO(EMSGSIZE);
     return -1;
   }
+  /* Only the first (bits+7)/8 bytes carry the network, zero the remainder of
+   * the caller's buffer so it never holds uninitialized data. */
+  memset(dst, 0, size);
   memcpy(dst, &in6, bytes);
   return (int)bits;
 }
 
-/*
- * int
- * inet_net_pton(af, src, dst, size)
- *      convert network number from presentation to network format.
- *      accepts hex octets, hex strings, decimal octets, and /CIDR.
- *      "size" is in bytes and describes "dst".
- * return:
- *      number of bits, either imputed classfully or specified with /CIDR,
- *      or -1 if some failure occurred (check errno).  ENOENT means it was
- *      not a valid network specification.
+/* Parse a network, not an address.  See ares_inet_net_pton.h for the
+ * contract and how it differs from ares_inet_pton().
  * author:
  *      Paul Vixie (ISC), June 1996
- *
  */
 int ares_inet_net_pton(int af, const char *src, void *dst, size_t size)
 {
   switch (af) {
     case AF_INET:
-      return ares_inet_net_pton_ipv4(src, dst, size);
+      return ares_inet_net_pton_ipv4(src, dst, size, ARES_TRUE);
     case AF_INET6:
       return ares_inet_net_pton_ipv6(src, dst, size);
     default:
@@ -430,22 +426,35 @@ int ares_inet_net_pton(int af, const char *src, void *dst, size_t size)
   }
 }
 
+/*
+ * int
+ * inet_pton(af, src, dst)
+ *      convert an address (not a network) from presentation to network
+ *      format, like POSIX inet_pton().  A "/bits" prefix length denotes a
+ *      prefix, not an address (RFC 4291 Section 2.3 vs. the address text
+ *      forms of Section 2.2), and is rejected; dst is always fully written
+ *      on success (4 bytes for AF_INET, 16 bytes for AF_INET6).
+ *      For a network with a prefix length, use ares_inet_net_pton().
+ * return:
+ *      1 on success, 0 if src is not a valid address for af (as POSIX
+ *      inet_pton() does for any unparsable input), or -1 with errno set to
+ *      EAFNOSUPPORT if af is not supported.
+ */
 int ares_inet_pton(int af, const char *src, void *dst)
 {
-  int    result;
-  size_t size;
+  int result;
 
   if (af == AF_INET) {
-    size = sizeof(struct in_addr);
+    result =
+      ares_inet_net_pton_ipv4(src, dst, sizeof(struct in_addr), ARES_FALSE);
   } else if (af == AF_INET6) {
-    size = sizeof(struct ares_in6_addr);
+    result = ares_inet_pton6(src, dst);
   } else {
     SET_SOCKERRNO(EAFNOSUPPORT);
     return -1;
   }
-  result = ares_inet_net_pton(af, src, dst, size);
-  if (result == -1 && SOCKERRNO == ENOENT) {
-    return 0;
-  }
-  return (result > -1) ? 1 : -1;
+  /* Neither parser can fail for a system reason: any failure (ENOENT, or
+   * EMSGSIZE for too many IPv4 octets as in "1.2.3.4.5") means src is not a
+   * valid address. */
+  return (result > -1) ? 1 : 0;
 }

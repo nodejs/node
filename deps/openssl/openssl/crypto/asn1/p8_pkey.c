@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -72,11 +72,13 @@ int PKCS8_pkey_get0(const ASN1_OBJECT **ppkalg,
     const unsigned char **pk, int *ppklen,
     const X509_ALGOR **pa, const PKCS8_PRIV_KEY_INFO *p8)
 {
+    if (ASN1_STRING_get_length(p8->pkey) > INT_MAX)
+        return 0;
     if (ppkalg)
         *ppkalg = p8->pkeyalg->algorithm;
     if (pk) {
         *pk = ASN1_STRING_get0_data(p8->pkey);
-        *ppklen = ASN1_STRING_length(p8->pkey);
+        *ppklen = (int)ASN1_STRING_get_length(p8->pkey);
     }
     if (pa)
         *pa = p8->pkeyalg;

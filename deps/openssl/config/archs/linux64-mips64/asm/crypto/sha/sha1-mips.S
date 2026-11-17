@@ -1,4 +1,4 @@
-#include "mips_arch.h"
+#include "arch/mips_arch.h"
 
 .text
 
@@ -3036,4 +3036,4 @@ sha1_block_data_order:
 	daddu $29,16*8
 .end	sha1_block_data_order
 .rdata
-.asciiz	"SHA1 for MIPS, CRYPTOGAMS by <appro@openssl.org>"
+.asciiz	"SHA1 for MIPS, CRYPTOGAMS by <https://github.com/dot-asm>"

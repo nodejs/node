@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -156,7 +156,7 @@ X509 *X509_new_ex(OSSL_LIB_CTX *libctx, const char *propq)
 {
     X509 *cert = NULL;
 
-    cert = (X509 *)ASN1_item_new_ex(X509_it(), libctx, propq);
+    cert = (X509 *)ASN1_item_new_ex(ASN1_ITEM_rptr(X509), libctx, propq);
     if (!ossl_x509_set0_libctx(cert, libctx, propq)) {
         X509_free(cert);
         cert = NULL;
@@ -197,7 +197,7 @@ X509 *d2i_X509_AUX(X509 **a, const unsigned char **pp, long length)
     if (ret == NULL)
         return NULL;
     /* update length */
-    length -= q - *pp;
+    length -= (long)(q - *pp);
     if (length > 0 && !d2i_X509_CERT_AUX(&ret->aux, &q, length))
         goto err;
     *pp = q;
@@ -304,7 +304,7 @@ void X509_set0_distinguishing_id(X509 *x, ASN1_OCTET_STRING *d_id)
     x->distinguishing_id = d_id;
 }
 
-ASN1_OCTET_STRING *X509_get0_distinguishing_id(X509 *x)
+const ASN1_OCTET_STRING *X509_get0_distinguishing_id(const X509 *x)
 {
     return x->distinguishing_id;
 }

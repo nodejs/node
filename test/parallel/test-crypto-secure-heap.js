@@ -19,7 +19,6 @@ if (common.hasV8Sandbox) {
 
 const {
   isBoringSSL,
-  hasOpenSSL,
   hasFIPS,
 } = require('../common/crypto');
 
@@ -33,7 +32,6 @@ const fixtures = require('../common/fixtures');
 const {
   secureHeapUsed,
   createDiffieHellman,
-  getFips,
 } = require('crypto');
 
 if (process.argv[2] === 'child') {
@@ -47,8 +45,7 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(a.used, 0);
 
   {
-    const size = hasFIPS(3) ?
-      2048 : (getFips() === 1 || hasOpenSSL(3) ? 1024 : 256);
+    const size = hasFIPS(3) ? 2048 : 1024;
     const dh1 = createDiffieHellman(size);
     const p1 = dh1.getPrime('buffer');
     const dh2 = createDiffieHellman(p1, 'buffer');
@@ -70,28 +67,6 @@ if (process.argv[2] === 'child') {
   return;
 }
 
-if (process.argv[2] === 'workers') {
-  // Eight Workers held alive at once. A 1 KiB secure heap has room for a
-  // few DRBGs only, so an isolate setup that drew its entropy through
-  // OpenSSL would fail for the later Workers and abort the process.
-  const { Worker } = require('worker_threads');
-  const i32 = new Int32Array(new SharedArrayBuffer(4));
-  let online = 0;
-  for (let i = 0; i < 8; i++) {
-    const worker = new Worker(
-      'const { workerData } = require("worker_threads");' +
-      'Atomics.wait(workerData.i32, 0, 0);',
-      { eval: true, workerData: { i32 } });
-    worker.on('online', () => {
-      if (++online === 8) {
-        Atomics.store(i32, 0, 1);
-        Atomics.notify(i32, 0);
-      }
-    });
-  }
-  return;
-}
-
 const child = fork(
   process.argv[1],
   ['child'],
@@ -100,19 +75,6 @@ const child = fork(
 child.on('exit', common.mustCall((code) => {
   assert.strictEqual(code, 0);
 }));
-
-// AIX keeps OpenSSL as V8's entropy source, so a Worker's isolate setup
-// still draws on the secure heap there.
-if (!common.isAIX) {
-  const child = fork(
-    process.argv[1],
-    ['workers'],
-    { execArgv: ['--secure-heap=1024', '--secure-heap-min=4'] });
-  child.on('exit', common.mustCall((code, signal) => {
-    assert.strictEqual(signal, null);
-    assert.strictEqual(code, 0);
-  }));
-}
 
 {
   const child = fork(fixtures.path('a.js'), {

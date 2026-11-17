@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -47,8 +47,14 @@ extern "C" {
 
 #define PKCS12_MAC_KEY_LENGTH 20
 
-/* The macro is expected to be used only internally. Kept for backwards compatibility. */
-#define PKCS12_SALT_LEN 8
+/*
+ * The macro is expected to be used only internally. Kept for
+ * backwards compatibility. NIST requires 16, previous value was
+ * 8. Allow to override this at compile time.
+ */
+#ifndef PKCS12_SALT_LEN
+#define PKCS12_SALT_LEN 16
+#endif
 
 /* It's not clear if these are actually needed... */
 #define PKCS12_key_gen PKCS12_key_gen_utf8
@@ -95,11 +101,11 @@ typedef struct pkcs12_bag_st PKCS12_BAGS;
 
 #endif
 #ifndef OPENSSL_NO_DEPRECATED_1_1_0
-OSSL_DEPRECATEDIN_1_1_0 ASN1_TYPE *PKCS12_get_attr(const PKCS12_SAFEBAG *bag,
+OSSL_DEPRECATEDIN_1_1_0 const ASN1_TYPE *PKCS12_get_attr(const PKCS12_SAFEBAG *bag,
     int attr_nid);
 #endif
 
-ASN1_TYPE *PKCS8_get_attr(PKCS8_PRIV_KEY_INFO *p8, int attr_nid);
+const ASN1_TYPE *PKCS8_get_attr(PKCS8_PRIV_KEY_INFO *p8, int attr_nid);
 int PKCS12_mac_present(const PKCS12 *p12);
 void PKCS12_get0_mac(const ASN1_OCTET_STRING **pmac,
     const X509_ALGOR **pmacalg,
@@ -185,7 +191,7 @@ STACK_OF(PKCS12_SAFEBAG) *PKCS12_unpack_p7encdata(PKCS7 *p7, const char *pass,
 int PKCS12_pack_authsafes(PKCS12 *p12, STACK_OF(PKCS7) *safes);
 STACK_OF(PKCS7) *PKCS12_unpack_authsafes(const PKCS12 *p12);
 
-int PKCS12_add_localkeyid(PKCS12_SAFEBAG *bag, unsigned char *name,
+int PKCS12_add_localkeyid(PKCS12_SAFEBAG *bag, const unsigned char *name,
     int namelen);
 int PKCS12_add_friendlyname_asc(PKCS12_SAFEBAG *bag, const char *name,
     int namelen);
@@ -200,7 +206,7 @@ int PKCS12_add1_attr_by_NID(PKCS12_SAFEBAG *bag, int nid, int type,
 int PKCS12_add1_attr_by_txt(PKCS12_SAFEBAG *bag, const char *attrname, int type,
     const unsigned char *bytes, int len);
 int PKCS8_add_keyusage(PKCS8_PRIV_KEY_INFO *p8, int usage);
-ASN1_TYPE *PKCS12_get_attr_gen(const STACK_OF(X509_ATTRIBUTE) *attrs,
+const ASN1_TYPE *PKCS12_get_attr_gen(const STACK_OF(X509_ATTRIBUTE) *attrs,
     int attr_nid);
 char *PKCS12_get_friendlyname(PKCS12_SAFEBAG *bag);
 const STACK_OF(X509_ATTRIBUTE) *

@@ -62,7 +62,7 @@
       }, {
         'is_component_build': 0,
       }],
-      ['OS == "win" or OS == "mac"', {
+      ['(OS == "win" or OS == "mac") and v8_use_perfetto == 0', {
         # Sets -DENABLE_SYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
         'v8_enable_system_instrumentation': 1,
       }, {

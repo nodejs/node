@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2025-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,6 +9,10 @@
 
 #ifndef OSSL_CRYPTO_SKEY_H
 #define OSSL_CRYPTO_SKEY_H
+
+#include <stddef.h>
+
+#include <openssl/types.h>
 
 /* Known symmetric key type definitions */
 #define SKEY_TYPE_GENERIC 1 /* generic bytes container unknown key types */
@@ -27,6 +31,15 @@ struct prov_skey_st {
 
     unsigned char *data;
     size_t length;
+
+    /* Metadata — set during import, returned during export / get_key_id */
+    char *alias;
+    unsigned char *local_keyid;
+    size_t local_keyid_len;
+    unsigned char *algorithm_oid;
+    size_t algorithm_oid_len;
+    unsigned char *algorithm_params;
+    size_t algorithm_params_len;
 };
 
 #endif /* OSSL_CRYPTO_SKEY_H */

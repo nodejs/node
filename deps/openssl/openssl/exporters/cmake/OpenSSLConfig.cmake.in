@@ -133,7 +133,6 @@ set(OPENSSL_LIBRARY_DIR "${_ossl_prefix}/{- unixify($OpenSSL::safe::installdata:
 set(OPENSSL_INCLUDE_DIR{- $OUT = '';
                           $OUT .= ' "${_ossl_prefix}/' . $_ . '"'
                               foreach (@OpenSSL::safe::installdata::INCLUDEDIR_REL_PREFIX); -})
-set(OPENSSL_ENGINES_DIR "${_ossl_prefix}/{- unixify($OpenSSL::safe::installdata::LIBDIR_REL_PREFIX[0], 1); -}/{- unixify($OpenSSL::safe::installdata::ENGINESDIR_REL_LIBDIR[0], 1); -}")
 set(OPENSSL_MODULES_DIR "${_ossl_prefix}/{- unixify($OpenSSL::safe::installdata::LIBDIR_REL_PREFIX[0], 1); -}/{- unixify($OpenSSL::safe::installdata::MODULESDIR_REL_LIBDIR[0], 1); -}")
 set(OPENSSL_RUNTIME_DIR "${_ossl_prefix}/{- unixify($OpenSSL::safe::installdata::BINDIR_REL_PREFIX[0], 1); -}")
 {- output_off() if $disabled{uplink}; "" -}

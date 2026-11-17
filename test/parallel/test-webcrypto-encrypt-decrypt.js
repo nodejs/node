@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 const { getFips } = require('crypto');
 const { subtle } = globalThis.crypto;
 
@@ -48,18 +48,21 @@ async function testRSAOaep(publicKey, privateKey) {
 
   await testRSAOaep(publicKey, privateKey);
 
+  // SHA-3 is only supported for digest operations in BoringSSL.
   if (!isBoringSSL) {
     // Import the same key material with SHA-3 to avoid another RSA keygen.
     const [spki, pkcs8] = await Promise.all([
       subtle.exportKey('spki', publicKey),
       subtle.exportKey('pkcs8', privateKey),
     ]);
-    const algorithm = { name: 'RSA-OAEP', hash: 'SHA3-384' };
-    const [sha3PublicKey, sha3PrivateKey] = await Promise.all([
-      subtle.importKey('spki', spki, algorithm, false, ['encrypt']),
-      subtle.importKey('pkcs8', pkcs8, algorithm, false, ['decrypt']),
-    ]);
-    await testRSAOaep(sha3PublicKey, sha3PrivateKey);
+    for (const hash of ['SHA3-256', 'SHA3-384', 'SHA3-512']) {
+      const algorithm = { name: 'RSA-OAEP', hash };
+      const [sha3PublicKey, sha3PrivateKey] = await Promise.all([
+        subtle.importKey('spki', spki, algorithm, false, ['encrypt']),
+        subtle.importKey('pkcs8', pkcs8, algorithm, false, ['decrypt']),
+      ]);
+      await testRSAOaep(sha3PublicKey, sha3PrivateKey);
+    }
   }
 })().then(common.mustCall());
 
@@ -145,7 +148,7 @@ async function testRSAOaep(publicKey, privateKey) {
 }
 
 // Test Encrypt/Decrypt AES-OCB
-if (hasOpenSSL(3)) {
+if (!isBoringSSL) {
   const buf = globalThis.crypto.getRandomValues(new Uint8Array(50));
   const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
 
@@ -177,5 +180,5 @@ if (hasOpenSSL(3)) {
     test().then(common.mustCall());
   }
 } else {
-  common.printSkipMessage('Skipping unsupported AES-OCB test cases');
+  common.printSkipMessage('Skipping AES-OCB test cases unsupported by BoringSSL');
 }

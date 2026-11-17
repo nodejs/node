@@ -9,6 +9,7 @@
 
 /* chacha20_poly1305 cipher implementation */
 
+#include <openssl/proverr.h>
 #include "internal/endian.h"
 #include "cipher_chacha20_poly1305.h"
 
@@ -246,6 +247,7 @@ static int chacha20_poly1305_tls_cipher(PROV_CIPHER_CTX *bctx,
     if (bctx->enc) {
         memcpy(out, ctx->tag, POLY1305_BLOCK_SIZE);
     } else {
+        /* TODO: raise PROV_R_BAD_DECRYPT here too? TLS record path, silent for now */
         if (CRYPTO_memcmp(tohash, in, POLY1305_BLOCK_SIZE)) {
             if (len > POLY1305_BLOCK_SIZE)
                 memset(out - (len - POLY1305_BLOCK_SIZE), 0,
@@ -301,8 +303,10 @@ static int chacha20_poly1305_aead_cipher(PROV_CIPHER_CTX *bctx,
 
     if (in != NULL) { /* aad or text */
         if (out == NULL) { /* aad */
-            if (ctx->len.text != 0)
+            if (ctx->len.text != 0) {
+                ERR_raise(ERR_LIB_PROV, PROV_R_UPDATE_CALL_OUT_OF_ORDER);
                 goto err;
+            }
             Poly1305_Update(poly, in, inl);
             ctx->len.aad += inl;
             ctx->aad = 1;
@@ -378,6 +382,7 @@ static int chacha20_poly1305_aead_cipher(PROV_CIPHER_CTX *bctx,
             if (bctx->enc) {
                 memcpy(out, ctx->tag, POLY1305_BLOCK_SIZE);
             } else {
+                /* TODO: raise PROV_R_BAD_DECRYPT here too? TLS record path, silent for now */
                 if (CRYPTO_memcmp(temp, in, POLY1305_BLOCK_SIZE)) {
                     memset(out - plen, 0, plen);
                     goto err;
@@ -386,8 +391,10 @@ static int chacha20_poly1305_aead_cipher(PROV_CIPHER_CTX *bctx,
                 inl -= POLY1305_BLOCK_SIZE;
             }
         } else if (!bctx->enc) {
-            if (CRYPTO_memcmp(temp, ctx->tag, ctx->tag_len))
+            if (CRYPTO_memcmp(temp, ctx->tag, ctx->tag_len) != 0) {
+                ERR_raise(ERR_LIB_PROV, PROV_R_BAD_DECRYPT);
                 goto err;
+            }
         }
     }
 finish:
@@ -408,5 +415,5 @@ static const PROV_CIPHER_HW_CHACHA20_POLY1305 chacha20poly1305_hw = {
 
 const PROV_CIPHER_HW *ossl_prov_cipher_hw_chacha20_poly1305(size_t keybits)
 {
-    return (PROV_CIPHER_HW *)&chacha20poly1305_hw;
+    return (const PROV_CIPHER_HW *)&chacha20poly1305_hw;
 }

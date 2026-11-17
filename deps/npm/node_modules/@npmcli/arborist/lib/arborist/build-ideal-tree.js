@@ -1660,7 +1660,7 @@ This is a one-time fix-up, please be patient...
           // allow it.  either we're overriding, or it's not something
           // that will be installed by default anyway, and we'll fail when
           // we get to the point where we need to, if we need to.
-          if (conflictOK || !required.has(dep)) {
+          if (conflictOK || !required.has(dep) || this.#loadFailures.has(dep)) {
             edge.peerConflicted = true
             continue
           }
@@ -1694,7 +1694,7 @@ This is a one-time fix-up, please be patient...
       // isn't also required, then there's a good chance we won't need it,
       // so allow it for now and let it conflict if it turns out to actually
       // be necessary for the installation.
-      if (conflictOK || !required.has(edge.from)) {
+      if (conflictOK || !required.has(edge.from) || this.#loadFailures.has(current)) {
         continue
       }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -615,7 +615,7 @@ int ossl_quic_wire_encode_pkt_hdr(WPACKET *pkt,
     return 1;
 }
 
-int ossl_quic_wire_get_encoded_pkt_hdr_len(size_t short_conn_id_len,
+size_t ossl_quic_wire_get_encoded_pkt_hdr_len(size_t short_conn_id_len,
     const QUIC_PKT_HDR *hdr)
 {
     size_t len = 0, enclen;
@@ -870,7 +870,7 @@ int ossl_quic_calculate_retry_integrity_tag(OSSL_LIB_CTX *libctx,
     EVP_CIPHER_CTX *cctx = NULL;
     int ok = 0, l = 0, l2 = 0, wpkt_valid = 0;
     WPACKET wpkt;
-    /* Worst case length of the Retry Psuedo-Packet header is 68 bytes. */
+    /* Worst case length of the Retry Pseudo-Packet header is 68 bytes. */
     unsigned char buf[128];
     QUIC_PKT_HDR hdr2;
     size_t hdr_enc_len = 0;
@@ -892,7 +892,7 @@ int ossl_quic_calculate_retry_integrity_tag(OSSL_LIB_CTX *libctx,
     hdr2 = *hdr;
     hdr2.len = 0;
 
-    /* Assemble retry psuedo-packet. */
+    /* Assemble retry pseudo-packet. */
     if (!WPACKET_init_static_len(&wpkt, buf, sizeof(buf), 0)) {
         ERR_raise(ERR_LIB_SSL, ERR_R_CRYPTO_LIB);
         goto err;
@@ -937,14 +937,14 @@ int ossl_quic_calculate_retry_integrity_tag(OSSL_LIB_CTX *libctx,
     }
 
     /* Feed packet header as AAD data. */
-    if (EVP_CipherUpdate(cctx, NULL, &l, buf, hdr_enc_len) != 1) {
+    if (EVP_CipherUpdate(cctx, NULL, &l, buf, (int)hdr_enc_len) != 1) {
         ERR_raise(ERR_LIB_SSL, ERR_R_EVP_LIB);
         goto err;
     }
 
     /* Feed packet body as AAD data. */
     if (EVP_CipherUpdate(cctx, NULL, &l, hdr->data,
-            hdr->len - QUIC_RETRY_INTEGRITY_TAG_LEN)
+            (int)(hdr->len - QUIC_RETRY_INTEGRITY_TAG_LEN))
         != 1) {
         ERR_raise(ERR_LIB_SSL, ERR_R_EVP_LIB);
         goto err;

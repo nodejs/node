@@ -22,12 +22,15 @@
 char *CRYPTO_strdup(const char *str, const char *file, int line)
 {
     char *ret;
+    size_t len;
 
     if (str == NULL)
         return NULL;
-    ret = CRYPTO_malloc(strlen(str) + 1, file, line);
+
+    len = strlen(str) + 1;
+    ret = CRYPTO_malloc(len, file, line);
     if (ret != NULL)
-        strcpy(ret, str);
+        memcpy(ret, str, len);
     return ret;
 }
 
@@ -155,6 +158,52 @@ int OPENSSL_strtoul(const char *str, char **endptr, int base,
     if (errno != 0 || (endptr == NULL && **internal_endptr != '\0') || (str == *internal_endptr))
         return 0;
 
+    return 1;
+}
+
+/*
+ * Internal signed counterpart to OPENSSL_strtoul().  Parses a signed long with
+ * the same validation rules: it fails on a conversion error (including
+ * overflow/underflow), if no digits were consumed, or, when |endptr| is NULL,
+ * if the whole string was not consumed.  Returns 1 on success (storing the
+ * result in |*result|), 0 otherwise.
+ */
+int ossl_strtol(const char *str, char **endptr, int base, long *result)
+{
+    char *tmp_endptr;
+    char **internal_endptr = endptr == NULL ? &tmp_endptr : endptr;
+
+    errno = 0;
+
+    *internal_endptr = (char *)str;
+
+    if (result == NULL || str == NULL)
+        return 0;
+
+    *result = strtol(str, internal_endptr, base);
+    if (errno != 0
+        || (endptr == NULL && **internal_endptr != '\0')
+        || str == *internal_endptr)
+        return 0;
+
+    return 1;
+}
+
+/*
+ * As ossl_strtol() but stores the result in an int, additionally failing if
+ * the parsed value does not fit in an int.  Returns 1 on success (storing the
+ * result in |*result|), 0 otherwise.
+ */
+int ossl_strtoint(const char *str, char **endptr, int base, int *result)
+{
+    long l;
+
+    if (result == NULL || !ossl_strtol(str, endptr, base, &l))
+        return 0;
+    if (l < INT_MIN || l > INT_MAX)
+        return 0;
+
+    *result = (int)l;
     return 1;
 }
 
@@ -341,6 +390,8 @@ char *ossl_buf2hexstr_sep(const unsigned char *buf, long buflen, char sep)
     char *tmp;
     size_t tmp_n;
 
+    if (buflen < 0)
+        return NULL;
     if (buflen == 0)
         return OPENSSL_zalloc(1);
 
@@ -372,7 +423,7 @@ char *OPENSSL_buf2hexstr(const unsigned char *buf, long buflen)
 
 int openssl_strerror_r(int errnum, char *buf, size_t buflen)
 {
-#if defined(_MSC_VER) && _MSC_VER >= 1400 && !defined(_WIN32_WCE)
+#if defined(_MSC_VER) && _MSC_VER >= 1400
     return !strerror_s(buf, buflen, errnum);
 #elif defined(_GNU_SOURCE)
     char *err;

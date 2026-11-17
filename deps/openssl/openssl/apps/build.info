@@ -12,12 +12,13 @@ ENDIF
 # Source for the 'openssl' program
 $OPENSSLSRC=\
         openssl.c \
-        asn1parse.c ca.c ciphers.c crl.c crl2pkcs7.c dgst.c \
+        asn1parse.c ca.c ciphers.c configutl.c crl.c crl2pkcs7.c dgst.c \
         enc.c errstr.c \
         genpkey.c kdf.c mac.c nseq.c passwd.c pkcs7.c \
         pkcs8.c pkey.c pkeyparam.c pkeyutl.c prime.c rand.c req.c \
         s_client.c s_server.c s_time.c sess_id.c skeyutl.c smime.c speed.c \
         spkac.c verify.c version.c x509.c rehash.c storeutl.c \
+        ech.c \
         list.c info.c fipsinstall.c pkcs12.c
 IF[{- !$disabled{'ec'} -}]
   $OPENSSLSRC=$OPENSSLSRC ec.c ecparam.c
@@ -36,9 +37,6 @@ $OPENSSLSRC=$OPENSSLSRC dhparam.c
 ENDIF
 IF[{- !$disabled{'dsa'} -}]
 $OPENSSLSRC=$OPENSSLSRC dsa.c dsaparam.c gendsa.c
-ENDIF
-IF[{- !$disabled{'engine'} -}]
-$OPENSSLSRC=$OPENSSLSRC engine.c
 ENDIF
 IF[{- !$disabled{'rsa'} -}]
 $OPENSSLSRC=$OPENSSLSRC rsa.c genrsa.c

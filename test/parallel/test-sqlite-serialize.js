@@ -251,6 +251,18 @@ suite('Database.prototype.deserialize()', () => {
     db.close();
   });
 
+  test('treats undefined options.dbName as main', (t) => {
+    const db1 = new Database(':memory:');
+    db1.exec('CREATE TABLE t(x INTEGER)');
+    const buf = db1.serialize();
+    db1.close();
+
+    const db2 = new Database(':memory:');
+    db2.deserialize(buf, { dbName: undefined });
+    t.assert.strictEqual(db2.prepare('SELECT count(*) AS n FROM main.t').get().n, 0);
+    db2.close();
+  });
+
   test('accepts a Buffer as input', (t) => {
     const db1 = new Database(':memory:');
     db1.exec('CREATE TABLE t(x INTEGER)');

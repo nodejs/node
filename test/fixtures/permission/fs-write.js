@@ -230,6 +230,26 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
   });
 }
 
+// fs.mkstemp
+{
+  assert.throws(() => {
+    fs.mkstempSync(path.join(blockedFolder, 'any-file'));
+  },{
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+  fs.mkstemp(path.join(relativeProtectedFolder, 'any-file'), common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  }));
+  assert.rejects(async () => {
+    await fsPromises.mkstemp(path.join(blockedFolder, 'any-file'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+}
+
 // fs.rename
 {
   assert.throws(() => {

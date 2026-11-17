@@ -8,7 +8,9 @@
 #include "src/compiler/turboshaft/wasm-load-elimination-reducer.h"
 #endif
 
+#include "src/compiler/access-builder.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -18,6 +20,7 @@
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/flags/flags.h"
+#include "src/objects/string.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/compiler/turboshaft/reducer-test.h"
 
@@ -526,6 +529,81 @@ TEST_F(LateLoadEliminationReducerTest,
   // load1 MUST NOT be eliminated because obj1 may alias obj2 at runtime!
   const LoadOp* load1 = test.GetCapturedAs<LoadOp>("load1");
   ASSERT_NE(load1, nullptr);
+}
+
+TEST_F(LateLoadEliminationReducerTest,
+       FindOrderedHashEntry_Invalidates_String_First_Load) {
+  {
+    auto effects_test = CreateFromGraph(2, [](auto& Asm) {
+      V<Object> table = Asm.GetParameter(0);
+      V<Smi> key = V<Smi>::Cast(Asm.GetParameter(1));
+      V<Smi> C(map_op) = __ FindOrderedHashMapEntry(table, key);
+      V<Smi> C(set_op) = __ FindOrderedHashSetEntry(table, key);
+      V<WordPtr> C(int32_op) =
+          __ FindOrderedHashMapEntryForInt32Key(table, __ Word32Constant(0));
+      __ Return(__ Word32Constant(0),
+                base::VectorOf<OpIndex>({map_op, set_op, int32_op}));
+    });
+    const Operation* map_op = effects_test.GetCapture("map_op").Get();
+    EXPECT_TRUE(map_op->Effects().can_write());
+    EXPECT_TRUE(map_op->Effects().can_allocate);
+
+    const Operation* set_op = effects_test.GetCapture("set_op").Get();
+    EXPECT_TRUE(set_op->Effects().can_write());
+    EXPECT_TRUE(set_op->Effects().can_allocate);
+
+    const Operation* int32_op = effects_test.GetCapture("int32_op").Get();
+    EXPECT_FALSE(int32_op->Effects().can_write());
+    EXPECT_FALSE(int32_op->Effects().can_allocate);
+    EXPECT_TRUE(int32_op->Effects().produces.load_heap_memory);
+  }
+
+  EXPECT_EQ(AccessBuilder::ForConsStringFirst().offset,
+            AccessBuilder::ForThinStringActual().offset);
+
+  auto test = CreateFromGraph(3, [](auto& Asm) {
+    V<Object> table = Asm.GetParameter(0);
+    V<String> first0 = V<String>::Cast(Asm.GetParameter(1));
+    V<String> first1 = V<String>::Cast(Asm.GetParameter(2));
+
+    auto escaped_alloc = __ template Allocate<ConsString>(
+        __ WordPtrConstant(sizeof(ConsString)), AllocationType::kYoung,
+        AllocationAlignment::kTaggedAligned);
+    __ InitializeField(escaped_alloc, AccessBuilder::ForConsStringFirst(),
+                       first0);
+    V<ConsString> escaped_str =
+        __ FinishInitialization(std::move(escaped_alloc));
+
+    auto local_alloc = __ template Allocate<ConsString>(
+        __ WordPtrConstant(sizeof(ConsString)), AllocationType::kYoung,
+        AllocationAlignment::kTaggedAligned);
+    __ InitializeField(local_alloc, AccessBuilder::ForConsStringFirst(),
+                       first1);
+    V<ConsString> local_str = __ FinishInitialization(std::move(local_alloc));
+
+    V<Smi> entry = __ template CallBuiltin<builtin::FindOrderedHashMapEntry>(
+        Asm.context(), {.table = table, .key = escaped_str});
+
+    // String::MakeThin overwrites ConsString::first_ with ThinString::actual_.
+    V<String> C(escaped_load) = __ template LoadField<String>(
+        escaped_str, AccessBuilder::ForThinStringActual());
+    V<String> C(local_load) = __ template LoadField<String>(
+        local_str, AccessBuilder::ForConsStringFirst());
+
+    __ Return(__ Word32Constant(0),
+              base::VectorOf<OpIndex>({entry, escaped_load, local_load}));
+  });
+
+  test.Run<LateLoadEliminationReducer>();
+
+  // The load from the escaped ConsString must NOT be replaced with `first0`.
+  const LoadOp* escaped_load = test.GetCapturedAs<LoadOp>("escaped_load");
+  ASSERT_NE(escaped_load, nullptr);
+
+  // Non-escaping allocations remain eligible for load elimination.
+  if (!LATE_LOAD_ELIM_VERIFY) {
+    ASSERT_TRUE(test.GetCapture("local_load").IsEmpty());
+  }
 }
 
 #if V8_ENABLE_WEBASSEMBLY

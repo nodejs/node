@@ -14,17 +14,7 @@ assert.throws(() => {
   message: 'May not write null values to stream'
 });
 
-[
-  true,
-  false,
-  undefined,
-  1,
-  1.0,
-  +Infinity,
-  -Infinity,
-  [],
-  {},
-].forEach((value) => {
+for (const value of [ true, false, undefined, 1, 1.0, +Infinity, -Infinity, [], {} ]) {
   const socket = net.Stream({ highWaterMark: 0 });
   // We need to check the callback since 'error' will only
   // be emitted once per instance.
@@ -36,4 +26,4 @@ assert.throws(() => {
     message: 'The "chunk" argument must be of type string or an instance of ' +
               `Buffer, TypedArray, or DataView.${common.invalidArgTypeHelper(value)}`
   });
-});
+};

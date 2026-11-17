@@ -47,7 +47,6 @@ const {
 const { channels } = require('../core/diagnostics.js')
 
 const kOpenStreams = Symbol('open streams')
-const kRequestStreamId = Symbol('request stream id')
 const kRequestStream = Symbol('request stream')
 const kRequestStreamCleanup = Symbol('request stream cleanup')
 const kRequestStreamState = Symbol('request stream state')
@@ -60,6 +59,15 @@ const kRefusedStreamRetry = Symbol('refused stream retry')
 // an unbounded connect/refuse/reconnect loop that never settles and starves the
 // event loop.
 const MAX_GOAWAY_REPLAY_ATTEMPTS = 1
+
+// RFC 9113 section 6.2. node:http2 reports frame types as raw numbers.
+const HTTP2_FRAME_TYPE_HEADERS = 1
+
+// Lower bound on how long a liveness PING may take to be acked. Stream
+// timeouts can be tiny (tens of ms), while an ack on a live connection can take
+// longer than that on a loaded event loop; without a floor a slow but healthy
+// connection would be torn down.
+const MIN_PROBE_TIMEOUT = 1e3
 
 let extractBody
 
@@ -127,7 +135,9 @@ function getGoAwayPendingIdx (client, lastStreamID) {
       continue
     }
 
-    if (typeof request[kRequestStreamId] !== 'number' || request[kRequestStreamId] > maxAcceptedStreamID) {
+    // A pending stream may not have had an ID when it was bound to the request.
+    const streamId = request[kRequestStream]?.id
+    if (typeof streamId !== 'number' || streamId > maxAcceptedStreamID) {
       return i
     }
   }
@@ -136,7 +146,6 @@ function getGoAwayPendingIdx (client, lastStreamID) {
 }
 
 function detachRequestFromStream (request) {
-  request[kRequestStreamId] = null
   request[kRequestStream] = null
   request[kRequestStreamCleanup] = null
 }
@@ -146,7 +155,6 @@ function bindRequestToStream (request, stream, cleanup) {
   const previousStream = request[kRequestStream]
   detachRequestFromStream(request)
   previousCleanup?.(previousStream)
-  request[kRequestStreamId] = stream.id
   request[kRequestStream] = stream
   request[kRequestStreamCleanup] = cleanup
 }
@@ -247,8 +255,14 @@ function severRequestStream (stream) {
     closeStreamSession(stream)
   }
 
+  // #5936: Node can still deliver a session-level error to a native stream
+  // after undici has stopped tracking it (e.g. on idle session teardown). Keep
+  // a persistent noop error sink so the 'error' event is never emitted with no
+  // listener, which would crash the process. A single sink is enough even if
+  // one was already attached by the onError path, so clear it first.
   if (!stream.destroyed && !stream.closed) {
-    stream.once('error', noop)
+    stream.off('error', noop)
+    stream.on('error', noop)
   }
 }
 
@@ -277,6 +291,9 @@ function connectH2 (client, socket) {
     // Armed while the peer advertises MAX_CONCURRENT_STREAMS = 0 and we have
     // work that cannot start. See setNoStreamsTimeout.
     noStreamsTimeout: null,
+    // Armed while a PING checks whether the peer is still there after a
+    // stream timed out. See probeHttp2Session.
+    probeTimeout: null,
     // Sockets start out ref'd. Session ref/unref proxies to the socket, so a
     // single cached flag lets us skip redundant uv ref/unref calls, provided
     // every ref/unref of the session or its socket goes through
@@ -358,6 +375,11 @@ function connectH2 (client, socket) {
     */
     busy (request) {
       if (session[kRemoteSettings] === false && client[kRunning] > 0) {
+        return true
+      }
+
+      // Do not open streams on a connection that may be dead.
+      if (session[kHTTP2SessionState].probeTimeout != null) {
         return true
       }
 
@@ -490,6 +512,60 @@ function onNoStreamsTimeout (session) {
 
   // Drop the unusable session so the next request gets a fresh connection,
   // whose SETTINGS may well allow streams again.
+  session[kError] = err
+  resetHttp2Session(session, err)
+}
+
+// A stream timeout only resets that stream, unlike HTTP/1.1 which destroys the
+// socket. If the connection itself silently died (dropped by a NAT or load
+// balancer, a hung peer), every new stream would time out in turn and the
+// session would never be replaced. Ask the peer for a PING ack within the
+// timeout that just fired (but at least MIN_PROBE_TIMEOUT): if it answers, only
+// that request was slow; if not, drop the session so queued requests move to a
+// fresh connection.
+function probeHttp2Session (session, timeout) {
+  const state = session[kHTTP2SessionState]
+
+  if (state.probeTimeout != null || session.closed || session.destroyed) {
+    return
+  }
+
+  try {
+    session.ping(onHttp2ProbeAck.bind(session))
+  } catch {
+    // The session is going away on its own.
+    return
+  }
+
+  state.probeTimeout = setTimeout(onHttp2ProbeTimeout, Math.max(timeout, MIN_PROBE_TIMEOUT), session).unref()
+}
+
+function clearHttp2ProbeTimeout (session) {
+  const state = session[kHTTP2SessionState]
+
+  if (state?.probeTimeout != null) {
+    clearTimeout(state.probeTimeout)
+    state.probeTimeout = null
+  }
+}
+
+function onHttp2ProbeAck () {
+  if (this[kHTTP2SessionState].probeTimeout == null) {
+    return
+  }
+
+  clearHttp2ProbeTimeout(this)
+  this[kClient][kResume]()
+}
+
+function onHttp2ProbeTimeout (session) {
+  session[kHTTP2SessionState].probeTimeout = null
+
+  if (session.closed || session.destroyed) {
+    return
+  }
+
+  const err = new SocketError('HTTP/2: connection unresponsive', util.getSocketInfo(session[kSocket]))
   session[kError] = err
   resetHttp2Session(session, err)
 }
@@ -664,15 +740,17 @@ function onHttp2SessionGoAway (errorCode, lastStreamID) {
     }
   }
 
-  for (let i = 0; i < streamsToClose.length; i++) {
-    closeStream(streamsToClose[i])
-  }
-
   if (pendingIdx !== previousPendingIdx) {
     const remainingPendingRequests = client[kQueue].slice(previousPendingIdx)
     client[kQueue].length = pendingIdx
     client[kQueue].push(...retriableRequests, ...remainingPendingRequests)
   }
+
+  // Publish the rebuilt queue and detach the session before closing anything.
+  // A synchronous sibling HEADERS frameError can requeue an accepted-but-unsent
+  // request and resume the client. It must see the final indices and must not
+  // dispatch its retry on the session that is being retired.
+  client[kPendingIdx] = pendingIdx
 
   if (client[kHTTP2Session] === this) {
     client[kSocket] = null
@@ -686,12 +764,15 @@ function onHttp2SessionGoAway (errorCode, lastStreamID) {
 
   clearHttp2IdleTimeout(this)
   clearNoStreamsTimeout(this)
+  clearHttp2ProbeTimeout(this)
+
+  for (let i = 0; i < streamsToClose.length; i++) {
+    closeStream(streamsToClose[i])
+  }
 
   if (!this.closed && !this.destroyed) {
     this.close()
   }
-
-  client[kPendingIdx] = pendingIdx
 
   client.emit('disconnect', client[kUrl], [client], err)
 
@@ -711,6 +792,7 @@ function onHttp2SessionClose () {
 
   clearHttp2IdleTimeout(this)
   clearNoStreamsTimeout(this)
+  clearHttp2ProbeTimeout(this)
 
   if (state.ping.interval != null) {
     clearInterval(state.ping.interval)
@@ -798,8 +880,8 @@ function closeStreamSession (stream) {
 }
 
 function onUpgradeStreamClose () {
-  this.off('error', noop)
-
+  // #5936: Retain the noop error sink so a session-level error delivered to
+  // this stream after undici detaches it cannot crash via an unhandled 'error'.
   const state = this[kRequestStreamState]
   this[kRequestStreamState] = null
 
@@ -903,8 +985,11 @@ function releaseUpgradeStream (stream) {
 
   removeUpgradeStreamListeners(stream)
 
+  // #5936: removeUpgradeStreamListeners() dropped the noop sink; re-attach a
+  // persistent one so a late session-level error on this (possibly still native
+  // tracked) stream cannot crash via an unhandled 'error'.
   if (!stream.destroyed && !stream.closed) {
-    stream.once('error', noop)
+    stream.on('error', noop)
   }
 }
 
@@ -1337,12 +1422,14 @@ function releaseRequestStream (stream) {
     detachRequestFromStream(request)
   }
 
-  // A closed or destroyed stream cannot emit further events; leaving the
-  // listeners in place saves the removal scans (they are collected with
-  // the stream). All handlers bail out when the stream state is gone.
+  // #5936: Node can deliver a session-level error to a released stream before
+  // its native handle is dropped (e.g. on idle session teardown). Attach a
+  // persistent noop error sink so a late 'error' always has a listener and
+  // cannot crash the process. A closed/destroyed stream cannot emit further
+  // events and is no longer tracked natively, so skip the listener teardown.
   if (!stream.destroyed && !stream.closed) {
     removeRequestStreamListeners(stream)
-    stream.once('error', noop)
+    stream.on('error', noop)
   }
 }
 
@@ -1537,10 +1624,43 @@ function retryRefusedStream (stream, state) {
   // SHOULD NOT automatically retry the same request more than once.
   request[kRefusedStreamRetry] = true
 
+  // The peer only reset this stream, so the HTTP/2 session remains usable for
+  // the retry.
+  requeueStreamRequest(client, state)
+
+  return true
+}
+
+// nghttp2 refuses to send the HEADERS of a stream opened before a GOAWAY was
+// received but flushed after it. The peer never saw the request, so it can be
+// replayed on a new connection whatever its method. A GOAWAY whose
+// lastStreamID covers the stream (e.g. 2^31-1, a graceful shutdown notice)
+// leaves the stream attached to the session, so this is the only signal.
+function retryUnsentStream (state) {
+  const { client, request, session } = state
+
+  if (
+    !session[kReceivedGoAway] ||
+    state.responseReceived ||
+    request.aborted ||
+    request.completed ||
+    !canReplayRequest(request) ||
+    !registerGoAwayRefusal(request)
+  ) {
+    return false
+  }
+
+  requeueStreamRequest(client, state)
+
+  return true
+}
+
+function requeueStreamRequest (client, state) {
+  const { request } = state
+
   // Detach the failed attempt before moving the request back to the pending
-  // queue. The peer only reset this stream, so the HTTP/2 session remains
-  // usable for the retry. Severing also drops the 'close' listener, so the
-  // abandoned stream cannot later complete the retried request.
+  // queue. Severing also drops the 'close' listener, so the abandoned stream
+  // cannot later complete the retried request.
   detachRequestStreamForClose(request)
   state.stream = null
   state.requestFinalized = true
@@ -1548,8 +1668,6 @@ function retryRefusedStream (stream, state) {
   completeRequest(client, request)
   client[kQueue].splice(client[kPendingIdx], 0, request)
   client[kResume]()
-
-  return true
 }
 
 function onError (err) {
@@ -1561,6 +1679,10 @@ function onError (err) {
   }
 
   stream.off('error', onError)
+  // #5936: The stream has already errored, but Node may destroy it again with a
+  // session-level error before the native handle is released. Keep a persistent
+  // noop error sink so that re-delivery cannot go unhandled.
+  stream.on('error', noop)
 
   // Node's HTTP/2 implementation can turn an incomplete Content-Length body
   // into a protocol stream error instead of emitting 'end'. Prefer the
@@ -1592,6 +1714,11 @@ function onFrameError (type, code) {
   }
 
   stream.off('frameError', onFrameError)
+
+  if (type === HTTP2_FRAME_TYPE_HEADERS && retryUnsentStream(state)) {
+    return
+  }
+
   state.abort(new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`))
 }
 
@@ -1610,9 +1737,14 @@ function onTimeout () {
   // Remove self so timeout doesn't fire again after we handle it
   stream.off('timeout', onTimeout)
 
-  const err = state.responseReceived
-    ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${state.bodyTimeout}"`)
-    : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${state.headersTimeout}"`)
+  const { responseReceived, session, bodyTimeout, headersTimeout } = state
+  const err = responseReceived
+    ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${bodyTimeout}"`)
+    : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${headersTimeout}"`)
+
+  // Probe before aborting: completing the request resumes the queue, which
+  // must not open new streams until the peer has proven it is alive.
+  probeHttp2Session(session, responseReceived ? bodyTimeout : headersTimeout)
   state.abort(err)
 }
 

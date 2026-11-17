@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,6 +18,8 @@
 
 #include <openssl/des.h>
 
+#include "internal/common.h"
+
 #ifdef OPENSSL_BUILD_SHLIBCRYPTO
 #undef OPENSSL_EXTERN
 #define OPENSSL_EXTERN OPENSSL_EXPORT
@@ -26,84 +28,11 @@
 #define ITERATIONS 16
 #define HALF_ITERATIONS 8
 
-#define c2l(c, l) (l = ((DES_LONG)(*((c)++))), \
-    l |= ((DES_LONG)(*((c)++))) << 8L,         \
-    l |= ((DES_LONG)(*((c)++))) << 16L,        \
-    l |= ((DES_LONG)(*((c)++))) << 24L)
-
-/* NOTE - c is not incremented as per c2l */
-#define c2ln(c, l1, l2, n)                       \
-    {                                            \
-        c += n;                                  \
-        l1 = l2 = 0;                             \
-        switch (n) {                             \
-        case 8:                                  \
-            l2 = ((DES_LONG)(*(--(c)))) << 24L;  \
-        /* fall through */                       \
-        case 7:                                  \
-            l2 |= ((DES_LONG)(*(--(c)))) << 16L; \
-        /* fall through */                       \
-        case 6:                                  \
-            l2 |= ((DES_LONG)(*(--(c)))) << 8L;  \
-        /* fall through */                       \
-        case 5:                                  \
-            l2 |= ((DES_LONG)(*(--(c))));        \
-        /* fall through */                       \
-        case 4:                                  \
-            l1 = ((DES_LONG)(*(--(c)))) << 24L;  \
-        /* fall through */                       \
-        case 3:                                  \
-            l1 |= ((DES_LONG)(*(--(c)))) << 16L; \
-        /* fall through */                       \
-        case 2:                                  \
-            l1 |= ((DES_LONG)(*(--(c)))) << 8L;  \
-        /* fall through */                       \
-        case 1:                                  \
-            l1 |= ((DES_LONG)(*(--(c))));        \
-        }                                        \
-    }
-
-#define l2c(l, c) (*((c)++) = (unsigned char)(((l)) & 0xff), \
-    *((c)++) = (unsigned char)(((l) >> 8L) & 0xff),          \
-    *((c)++) = (unsigned char)(((l) >> 16L) & 0xff),         \
-    *((c)++) = (unsigned char)(((l) >> 24L) & 0xff))
-
-/* NOTE - c is not incremented as per l2c */
-#define l2cn(l1, l2, c, n)                                    \
-    {                                                         \
-        c += n;                                               \
-        switch (n) {                                          \
-        case 8:                                               \
-            *(--(c)) = (unsigned char)(((l2) >> 24L) & 0xff); \
-        /* fall through */                                    \
-        case 7:                                               \
-            *(--(c)) = (unsigned char)(((l2) >> 16L) & 0xff); \
-        /* fall through */                                    \
-        case 6:                                               \
-            *(--(c)) = (unsigned char)(((l2) >> 8L) & 0xff);  \
-        /* fall through */                                    \
-        case 5:                                               \
-            *(--(c)) = (unsigned char)(((l2)) & 0xff);        \
-        /* fall through */                                    \
-        case 4:                                               \
-            *(--(c)) = (unsigned char)(((l1) >> 24L) & 0xff); \
-        /* fall through */                                    \
-        case 3:                                               \
-            *(--(c)) = (unsigned char)(((l1) >> 16L) & 0xff); \
-        /* fall through */                                    \
-        case 2:                                               \
-            *(--(c)) = (unsigned char)(((l1) >> 8L) & 0xff);  \
-        /* fall through */                                    \
-        case 1:                                               \
-            *(--(c)) = (unsigned char)(((l1)) & 0xff);        \
-        }                                                     \
-    }
-
 #if defined(_MSC_VER)
 #define ROTATE(a, n) (_lrotr(a, n))
 #elif defined(__ICC)
 #define ROTATE(a, n) (_rotr(a, n))
-#elif defined(__GNUC__) && __GNUC__ >= 2 && !defined(__STRICT_ANSI__) && !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM) && !defined(PEDANTIC)
+#elif defined(__GNUC__) && !defined(__STRICT_ANSI__) && !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM) && !defined(PEDANTIC)
 #if defined(__i386) || defined(__i386__) || defined(__x86_64) || defined(__x86_64__)
 #define ROTATE(a, n) ({        \
     register unsigned int ret; \

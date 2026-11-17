@@ -5,6 +5,7 @@ export interface BufferBinding {
   setBufferPrototype(proto: object): void;
 
   byteLengthUtf8(str: string): number;
+  byteLengthUtf8Fast(str: string): number;
   copy(source: ArrayBufferView, target: ArrayBufferView, targetStart: number, sourceStart: number, toCopy: number): number;
   compare(a: ArrayBufferView, b: ArrayBufferView): number;
   compareOffset(source: ArrayBufferView, target: ArrayBufferView, targetStart?: number, sourceStart?: number, targetEnd?: number, sourceEnd?: number): number;

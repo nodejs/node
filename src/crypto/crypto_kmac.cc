@@ -3,7 +3,7 @@
 #include "node_internals.h"
 #include "threadpoolwork-inl.h"
 
-#if OPENSSL_WITH_EVP_MAC
+#if !NCRYPTO_USE_BORINGSSL
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <utility>
@@ -209,4 +209,4 @@ void Kmac::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace node::crypto
 
-#endif  // OPENSSL_WITH_EVP_MAC
+#endif  // !NCRYPTO_USE_BORINGSSL

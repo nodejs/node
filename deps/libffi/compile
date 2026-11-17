@@ -1,9 +1,9 @@
 #! /bin/sh
 # Wrapper for compilers which do not understand '-c -o'.
 
-scriptversion=2018-03-07.03; # UTC
+scriptversion=2025-06-18.21; # UTC
 
-# Copyright (C) 1999-2021 Free Software Foundation, Inc.
+# Copyright (C) 1999-2025 Free Software Foundation, Inc.
 # Written by Tom Tromey <tromey@cygnus.com>.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -37,11 +37,11 @@ IFS=" ""	$nl"
 
 file_conv=
 
-# func_file_conv build_file lazy
+# func_file_conv build_file unneeded_conversions
 # Convert a $build file to $host form and store it in $file
 # Currently only supports Windows hosts. If the determined conversion
-# type is listed in (the comma separated) LAZY, no conversion will
-# take place.
+# type is listed in (the comma separated) UNNEEDED_CONVERSIONS, no
+# conversion will take place.
 func_file_conv ()
 {
   file=$1
@@ -51,9 +51,20 @@ func_file_conv ()
 	# lazily determine how to convert abs files
 	case `uname -s` in
 	  MINGW*)
-	    file_conv=mingw
+	    if test -n "$MSYSTEM" && (cygpath --version) >/dev/null 2>&1; then
+	      # MSYS2 environment.
+	      file_conv=cygwin
+	    else
+	      # Original MinGW environment.
+	      file_conv=mingw
+	    fi
 	    ;;
-	  CYGWIN* | MSYS*)
+	  MSYS*)
+	    # Old MSYS environment, or MSYS2 with 32-bit MSYS2 shell.
+	    file_conv=cygwin
+	    ;;
+	  CYGWIN*)
+	    # Cygwin environment.
 	    file_conv=cygwin
 	    ;;
 	  *)
@@ -63,12 +74,14 @@ func_file_conv ()
       fi
       case $file_conv/,$2, in
 	*,$file_conv,*)
+	  # This is the optimization mentioned above:
+	  # If UNNEEDED_CONVERSIONS contains $file_conv, don't convert.
 	  ;;
 	mingw/*)
 	  file=`cmd //C echo "$file " | sed -e 's/"\(.*\) " *$/\1/'`
 	  ;;
-	cygwin/* | msys/*)
-	  file=`cygpath -m "$file" || echo "$file"`
+	cygwin/*)
+	  file=`cygpath -w "$file" || echo "$file"`
 	  ;;
 	wine/*)
 	  file=`winepath -w "$file" || echo "$file"`
@@ -143,7 +156,7 @@ func_cl_wrapper ()
 	  # configure might choose to run compile as 'compile cc -o foo foo.c'.
 	  eat=1
 	  case $2 in
-	    *.o | *.[oO][bB][jJ])
+	    *.o | *.lo | *.[oO][bB][jJ])
 	      func_file_conv "$2"
 	      set x "$@" -Fo"$file"
 	      shift
@@ -248,14 +261,17 @@ If you are trying to build a whole package this is not the
 right script to run: please start by reading the file 'INSTALL'.
 
 Report bugs to <bug-automake@gnu.org>.
+GNU Automake home page: <https://www.gnu.org/software/automake/>.
+General help using GNU software: <https://www.gnu.org/gethelp/>.
 EOF
     exit $?
     ;;
   -v | --v*)
-    echo "compile $scriptversion"
+    echo "compile (GNU Automake) $scriptversion"
     exit $?
     ;;
   cl | *[/\\]cl | cl.exe | *[/\\]cl.exe | \
+  clang-cl | *[/\\]clang-cl | clang-cl.exe | *[/\\]clang-cl.exe | \
   icl | *[/\\]icl | icl.exe | *[/\\]icl.exe )
     func_cl_wrapper "$@"      # Doesn't return...
     ;;
@@ -340,9 +356,9 @@ exit $ret
 # Local Variables:
 # mode: shell-script
 # sh-indentation: 2
-# eval: (add-hook 'before-save-hook 'time-stamp)
+# eval: (add-hook 'before-save-hook 'time-stamp nil t)
 # time-stamp-start: "scriptversion="
-# time-stamp-format: "%:y-%02m-%02d.%02H"
+# time-stamp-format: "%Y-%02m-%02d.%02H"
 # time-stamp-time-zone: "UTC0"
 # time-stamp-end: "; # UTC"
 # End:

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2012-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2012-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -69,7 +69,7 @@ $code=<<___;
 #ifndef __ASSEMBLER__
 # define __ASSEMBLER__ 1
 #endif
-#include "crypto/sparc_arch.h"
+#include "arch/sparc_arch.h"
 
 .text
 

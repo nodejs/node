@@ -10,6 +10,9 @@
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_APPS_PROGS_H)
+#define OSSL_APPS_PROGS_H
+
 #include "function.h"
 
 extern int asn1parse_main(int argc, char *argv[]);
@@ -17,6 +20,7 @@ extern int ca_main(int argc, char *argv[]);
 extern int ciphers_main(int argc, char *argv[]);
 extern int cmp_main(int argc, char *argv[]);
 extern int cms_main(int argc, char *argv[]);
+extern int configutl_main(int argc, char *argv[]);
 extern int crl_main(int argc, char *argv[]);
 extern int crl2pkcs7_main(int argc, char *argv[]);
 extern int dgst_main(int argc, char *argv[]);
@@ -24,9 +28,9 @@ extern int dhparam_main(int argc, char *argv[]);
 extern int dsa_main(int argc, char *argv[]);
 extern int dsaparam_main(int argc, char *argv[]);
 extern int ec_main(int argc, char *argv[]);
+extern int ech_main(int argc, char *argv[]);
 extern int ecparam_main(int argc, char *argv[]);
 extern int enc_main(int argc, char *argv[]);
-extern int engine_main(int argc, char *argv[]);
 extern int errstr_main(int argc, char *argv[]);
 extern int fipsinstall_main(int argc, char *argv[]);
 extern int gendsa_main(int argc, char *argv[]);
@@ -72,6 +76,7 @@ extern const OPTIONS ca_options[];
 extern const OPTIONS ciphers_options[];
 extern const OPTIONS cmp_options[];
 extern const OPTIONS cms_options[];
+extern const OPTIONS configutl_options[];
 extern const OPTIONS crl_options[];
 extern const OPTIONS crl2pkcs7_options[];
 extern const OPTIONS dgst_options[];
@@ -79,9 +84,9 @@ extern const OPTIONS dhparam_options[];
 extern const OPTIONS dsa_options[];
 extern const OPTIONS dsaparam_options[];
 extern const OPTIONS ec_options[];
+extern const OPTIONS ech_options[];
 extern const OPTIONS ecparam_options[];
 extern const OPTIONS enc_options[];
-extern const OPTIONS engine_options[];
 extern const OPTIONS errstr_options[];
 extern const OPTIONS fipsinstall_options[];
 extern const OPTIONS gendsa_options[];
@@ -123,3 +128,5 @@ extern const OPTIONS version_options[];
 extern const OPTIONS x509_options[];
 
 extern FUNCTION functions[];
+
+#endif /* !defined(OSSL_APPS_PROGS_H) */

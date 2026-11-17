@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,9 +14,9 @@
 
 #ifndef STRICT_ALIGNMENT
 #ifdef __GNUC__
-typedef u64 u64_a1 __attribute((__aligned__(1)));
+typedef uint64_t u64_a1 __attribute((__aligned__(1)));
 #else
-typedef u64 u64_a1;
+typedef uint64_t u64_a1;
 #endif
 #endif
 
@@ -27,9 +27,9 @@ int ossl_crypto_xts128gb_encrypt(const XTS128_CONTEXT *ctx,
 {
     DECLARE_IS_ENDIAN;
     union {
-        u64 u[2];
-        u32 d[4];
-        u8 c[16];
+        uint64_t u[2];
+        uint32_t d[4];
+        uint8_t c[16];
     } tweak, scratch;
     unsigned int i;
 
@@ -69,18 +69,18 @@ int ossl_crypto_xts128gb_encrypt(const XTS128_CONTEXT *ctx,
             return 0;
 
         if (IS_LITTLE_ENDIAN) {
-            u8 res;
-            u64 hi, lo;
+            uint8_t res;
+            uint64_t hi, lo;
 #ifdef BSWAP8
             hi = BSWAP8(tweak.u[0]);
             lo = BSWAP8(tweak.u[1]);
 #else
-            u8 *p = tweak.c;
+            uint8_t *p = tweak.c;
 
-            hi = (u64)GETU32(p) << 32 | GETU32(p + 4);
-            lo = (u64)GETU32(p + 8) << 32 | GETU32(p + 12);
+            hi = (uint64_t)GETU32(p) << 32 | GETU32(p + 4);
+            lo = (uint64_t)GETU32(p + 8) << 32 | GETU32(p + 12);
 #endif
-            res = (u8)lo & 1;
+            res = (uint8_t)lo & 1;
             tweak.u[0] = (lo >> 1) | (hi << 63);
             tweak.u[1] = hi >> 1;
             if (res)
@@ -91,13 +91,13 @@ int ossl_crypto_xts128gb_encrypt(const XTS128_CONTEXT *ctx,
 #else
             p = tweak.c;
 
-            hi = (u64)GETU32(p) << 32 | GETU32(p + 4);
-            lo = (u64)GETU32(p + 8) << 32 | GETU32(p + 12);
+            hi = (uint64_t)GETU32(p) << 32 | GETU32(p + 4);
+            lo = (uint64_t)GETU32(p + 8) << 32 | GETU32(p + 12);
 #endif
             tweak.u[0] = lo;
             tweak.u[1] = hi;
         } else {
-            u8 carry, res;
+            uint8_t carry, res;
             carry = 0;
             for (i = 0; i < 16; ++i) {
                 res = (tweak.c[i] << 7) & 0x80;
@@ -110,7 +110,7 @@ int ossl_crypto_xts128gb_encrypt(const XTS128_CONTEXT *ctx,
     }
     if (enc) {
         for (i = 0; i < len; ++i) {
-            u8 c = inp[i];
+            uint8_t c = inp[i];
             out[i] = scratch.c[i];
             scratch.c[i] = c;
         }
@@ -122,23 +122,23 @@ int ossl_crypto_xts128gb_encrypt(const XTS128_CONTEXT *ctx,
         memcpy(out - 16, scratch.c, 16);
     } else {
         union {
-            u64 u[2];
-            u8 c[16];
+            uint64_t u[2];
+            uint8_t c[16];
         } tweak1;
 
         if (IS_LITTLE_ENDIAN) {
-            u8 res;
-            u64 hi, lo;
+            uint8_t res;
+            uint64_t hi, lo;
 #ifdef BSWAP8
             hi = BSWAP8(tweak.u[0]);
             lo = BSWAP8(tweak.u[1]);
 #else
-            u8 *p = tweak.c;
+            uint8_t *p = tweak.c;
 
-            hi = (u64)GETU32(p) << 32 | GETU32(p + 4);
-            lo = (u64)GETU32(p + 8) << 32 | GETU32(p + 12);
+            hi = (uint64_t)GETU32(p) << 32 | GETU32(p + 4);
+            lo = (uint64_t)GETU32(p + 8) << 32 | GETU32(p + 12);
 #endif
-            res = (u8)lo & 1;
+            res = (uint8_t)lo & 1;
             tweak1.u[0] = (lo >> 1) | (hi << 63);
             tweak1.u[1] = hi >> 1;
             if (res)
@@ -149,13 +149,13 @@ int ossl_crypto_xts128gb_encrypt(const XTS128_CONTEXT *ctx,
 #else
             p = tweak1.c;
 
-            hi = (u64)GETU32(p) << 32 | GETU32(p + 4);
-            lo = (u64)GETU32(p + 8) << 32 | GETU32(p + 12);
+            hi = (uint64_t)GETU32(p) << 32 | GETU32(p + 4);
+            lo = (uint64_t)GETU32(p + 8) << 32 | GETU32(p + 12);
 #endif
             tweak1.u[0] = lo;
             tweak1.u[1] = hi;
         } else {
-            u8 carry, res;
+            uint8_t carry, res;
             carry = 0;
             for (i = 0; i < 16; ++i) {
                 res = (tweak.c[i] << 7) & 0x80;
@@ -178,7 +178,7 @@ int ossl_crypto_xts128gb_encrypt(const XTS128_CONTEXT *ctx,
         scratch.u[1] ^= tweak1.u[1];
 
         for (i = 0; i < len; ++i) {
-            u8 c = inp[16 + i];
+            uint8_t c = inp[16 + i];
             out[16 + i] = scratch.c[i];
             scratch.c[i] = c;
         }

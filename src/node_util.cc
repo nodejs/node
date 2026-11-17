@@ -352,6 +352,7 @@ static void IsInsideNodeModules(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+template <bool return_module>
 static void DefineLazyPropertiesGetter(
     Local<v8::Name> name, const v8::PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
@@ -381,6 +382,10 @@ static void DefineLazyPropertiesGetter(
     // V8 will have scheduled an error to be thrown.
     return;
   }
+  if constexpr (return_module) {
+    info.GetReturnValue().Set(require_result);
+    return;
+  }
   Local<Value> ret;
   if (!require_result.As<v8::Object>()->Get(context, name).ToLocal(&ret)) {
     // V8 will have scheduled an error to be thrown.
@@ -390,13 +395,15 @@ static void DefineLazyPropertiesGetter(
 }
 
 static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
-  // target: object, id: string, keys: string[][, enumerable = true]
+  // target: object, source: string | object, keys: string[],
+  // enumerable: boolean = true
   CHECK_GE(args.Length(), 3);
   // target: Object where to define the lazy properties.
   CHECK(args[0]->IsObject());
-  // id: Internal module to lazy-load where the API to expose are implemented.
-  CHECK(args[1]->IsString());
-  // keys: Keys to map from `require(id)` and `target`.
+  // source: Internal module ID for named exports, or a map from property names
+  // to module IDs for modules whose entire exports object is the lazy value.
+  CHECK(args[1]->IsString() || args[1]->IsObject());
+  // keys: Property names to expose on `target`.
   CHECK(args[2]->IsArray());
   // enumerable: Whether the property should be enumerable.
   CHECK(args.Length() == 3 || args[3]->IsBoolean());
@@ -404,7 +411,7 @@ static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
   auto context = args.GetIsolate()->GetCurrentContext();
 
   auto target = args[0].As<Object>();
-  Local<Value> id = args[1];
+  Local<Value> source = args[1];
   v8::PropertyAttribute attribute =
       args.Length() == 3 || args[3]->IsTrue() ? v8::None : v8::DontEnum;
 
@@ -417,12 +424,19 @@ static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
       return;
     }
     CHECK(key->IsString());
+    Local<Value> id = source;
+    auto getter = DefineLazyPropertiesGetter<false>;
+    if (source->IsObject()) {
+      if (!source.As<Object>()->Get(context, key).ToLocal(&id)) {
+        // V8 will have scheduled an error to be thrown.
+        return;
+      }
+      CHECK(id->IsString());
+      getter = DefineLazyPropertiesGetter<true>;
+    }
     if (target
-            ->SetLazyDataProperty(context,
-                                  key.As<String>(),
-                                  DefineLazyPropertiesGetter,
-                                  id,
-                                  attribute)
+            ->SetLazyDataProperty(
+                context, key.As<String>(), getter, id, attribute)
             .IsNothing()) {
       // V8 will have scheduled an error to be thrown.
       return;
@@ -499,7 +513,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ParseEnv);
   registry->Register(IsInsideNodeModules);
   registry->Register(DefineLazyProperties);
-  registry->Register(DefineLazyPropertiesGetter);
+  registry->Register(DefineLazyPropertiesGetter<false>);
+  registry->Register(DefineLazyPropertiesGetter<true>);
   registry->Register(ConstructSharedArrayBuffer);
   registry->Register(MarkPromiseAsHandled);
 }

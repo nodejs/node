@@ -64,8 +64,7 @@ Worker::Worker(Environment* env,
                std::shared_ptr<PerIsolateOptions> per_isolate_opts,
                std::vector<std::string>&& exec_argv,
                std::shared_ptr<KVStore> env_vars,
-               const SnapshotData* snapshot_data,
-               const bool is_internal)
+               const SnapshotData* snapshot_data)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_WORKER),
       per_isolate_opts_(per_isolate_opts),
       exec_argv_(exec_argv),
@@ -74,8 +73,7 @@ Worker::Worker(Environment* env,
       name_(name),
       env_vars_(env_vars),
       embedder_preload_(env->embedder_preload()),
-      snapshot_data_(snapshot_data),
-      is_internal_(is_internal) {
+      snapshot_data_(snapshot_data) {
   Debug(this, "Creating new worker instance with thread id %llu",
         thread_id_.id);
 
@@ -524,7 +522,6 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kWorkerThreads, "");
-  bool is_internal = args[5]->IsTrue();
   Isolate* isolate = args.GetIsolate();
 
   CHECK(args.IsConstructCall());
@@ -549,9 +546,9 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     url.append(value.out(), value.length());
   }
 
-  if (!args[6]->IsNullOrUndefined()) {
+  if (!args[5]->IsNullOrUndefined()) {
     Utf8Value value(
-        isolate, args[6]->ToString(env->context()).FromMaybe(Local<String>()));
+        isolate, args[5]->ToString(env->context()).FromMaybe(Local<String>()));
     name.append(value.out(), value.length());
   }
 
@@ -709,16 +706,6 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   // is inherited but the load behavior must not be.
   per_isolate_opts->per_env->vfs_load = false;
 
-  // Internal workers should not wait for inspector frontend to connect or
-  // break on the first line of internal scripts. Module loader threads are
-  // essential to load user codes and must not be blocked by the inspector
-  // for internal scripts.
-  // Still, `--inspect-node` can break on the first line of internal scripts.
-  if (is_internal) {
-    per_isolate_opts->per_env->get_debug_options()
-        ->DisableWaitOrBreakFirstLine();
-  }
-
   const SnapshotData* snapshot_data = env->isolate_data()->snapshot_data();
 
   Worker* worker = new Worker(env,
@@ -728,8 +715,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
                               per_isolate_opts,
                               std::move(exec_argv_out),
                               env_vars,
-                              snapshot_data,
-                              is_internal);
+                              snapshot_data);
 
   CHECK(args[3]->IsFloat64Array());
   Local<Float64Array> limit_info = args[3].As<Float64Array>();
@@ -1474,13 +1460,6 @@ void IsMainThreadGetter(Local<v8::Name>,
   info.GetReturnValue().Set(Environment::GetCurrent(info)->is_main_thread());
 }
 
-void IsInternalThreadGetter(Local<v8::Name>,
-                            const v8::PropertyCallbackInfo<Value>& info) {
-  Worker* worker =
-      Environment::GetCurrent(info)->isolate_data()->worker_context();
-  info.GetReturnValue().Set(worker != nullptr && worker->is_internal());
-}
-
 void OwnsProcessStateGetter(Local<v8::Name>,
                             const v8::PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(
@@ -1506,7 +1485,6 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     lazy("threadId", ThreadIdGetter);
     lazy("threadName", ThreadNameGetter);
     lazy("isMainThread", IsMainThreadGetter);
-    lazy("isInternalThread", IsInternalThreadGetter);
     lazy("ownsProcessState", OwnsProcessStateGetter);
     lazy("resourceLimits", ResourceLimitsGetter);
   }
@@ -1615,7 +1593,7 @@ void CreateWorkerPerContextProperties(Local<Object> target,
                                       Local<Value> unused,
                                       Local<Context> context,
                                       void* priv) {
-  // threadId, threadName, isMainThread, isInternalThread, ownsProcessState
+  // threadId, threadName, isMainThread, ownsProcessState
   // and resourceLimits are lazy properties of the per-isolate template (see
   // CreateWorkerPerIsolateProperties).
   NODE_DEFINE_CONSTANT(target, kMaxYoungGenerationSizeMb);
@@ -1630,7 +1608,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ThreadIdGetter);
   registry->Register(ThreadNameGetter);
   registry->Register(IsMainThreadGetter);
-  registry->Register(IsInternalThreadGetter);
   registry->Register(OwnsProcessStateGetter);
   registry->Register(ResourceLimitsGetter);
   registry->Register(Worker::New);

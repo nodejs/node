@@ -19,17 +19,14 @@
 #include <mutex>
 #include "math.h"
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
+#include <openssl/core_names.h>
+#include <openssl/params.h>
 #include "openssl/provider.h"
 #endif
 
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+#if defined(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR)
 #include <openssl/indicator.h>
-#endif
-
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
-#include <openssl/core_names.h>
-#include <openssl/params.h>
 #endif
 
 namespace node {
@@ -38,9 +35,6 @@ using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
 using ncrypto::CryptoErrorList;
 using ncrypto::DataPointer;
-#ifndef OPENSSL_NO_ENGINE
-using ncrypto::EnginePointer;
-#endif  // !OPENSSL_NO_ENGINE
 using ncrypto::SSLPointer;
 using v8::Array;
 using v8::ArrayBuffer;
@@ -110,7 +104,7 @@ bool CShakeOptions::Initialize(ncrypto::EVPMDCtxPointer* ctx,
   if (!ctx || !*ctx || digest == nullptr) return false;
   if (empty()) return ctx->digestInit(digest);
 
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const bool is_cshake =
       EVP_MD_is_a(digest, "CSHAKE-128") || EVP_MD_is_a(digest, "CSHAKE-256");
   if (!is_cshake) return false;
@@ -119,20 +113,23 @@ bool CShakeOptions::Initialize(ncrypto::EVPMDCtxPointer* ctx,
   size_t count = 0;
   if (has(kFunctionName)) {
     params[count++] = OSSL_PARAM_construct_utf8_string(
-        OSSL_DIGEST_PARAM_FUNCTION_NAME,
+        "function-name",
         const_cast<char*>(function_name.c_str()),
         function_name.size());
   }
   if (has(kCustomization)) {
     params[count++] = OSSL_PARAM_construct_utf8_string(
-        OSSL_DIGEST_PARAM_CUSTOMIZATION,
+        "customization",
         const_cast<char*>(customization.c_str()),
         customization.size());
   }
   params[count] = OSSL_PARAM_construct_end();
   return ctx->digestInit(digest, params);
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
+  // BoringSSL does not support these cSHAKE parameters.
   return false;
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
@@ -214,7 +211,7 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
   return 0;
 }
 
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+#if defined(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR)
 namespace {
 
 constexpr size_t kMaxPendingFipsIndicatorEvents = 256;
@@ -424,7 +421,7 @@ class FipsIndicatorState final {
 #endif
 
 void InstallFipsIndicatorCallback() {
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+#if defined(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR)
   const auto& options = per_process::cli_options;
   const bool strict = options->force_fips_crypto &&
                       options->force_fips_crypto_policy == "strict";
@@ -435,7 +432,7 @@ void InstallFipsIndicatorCallback() {
 }
 
 void SetupFipsIndicatorChannel(const FunctionCallbackInfo<Value>& args) {
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+#if defined(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR)
   Environment* env = Environment::GetCurrent(args);
   if (env->owns_process_state() &&
       per_process::cli_options->enable_fips_indicator_events) {
@@ -450,19 +447,6 @@ std::optional<std::string> ProcessFipsOptions() {
   const bool enable_fips = per_process::cli_options->enable_fips_crypto;
   const bool force_fips = per_process::cli_options->force_fips_crypto;
   if (!enable_fips && !force_fips) return std::nullopt;
-
-#if OPENSSL_VERSION_MAJOR >= 3
-  // Whether FIPS-approved implementations are reachable is decided by the
-  // OpenSSL configuration, not by Node.js. Refuse to start rather than
-  // restrict the default property query to a provider that is not there,
-  // which would leave every operation failing as unsupported.
-  if (!ncrypto::testFipsEnabled()) {
-    const std::string option = force_fips ? "--force-fips" : "--enable-fips";
-    return option + " requires an active OpenSSL provider named \"fips\". "
-                    "FIPS mode is configured through OpenSSL; see "
-                    "https://nodejs.org/api/crypto.html#fips-mode";
-  }
-#endif
 
   CryptoErrorList errors{CryptoErrorList::Option::NONE};
   if (!ncrypto::setFipsEnabled(true, &errors)) {
@@ -505,15 +489,6 @@ void InitCryptoOnce() {
   OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
   CHECK_NOT_NULL(settings);
 
-#if OPENSSL_VERSION_MAJOR < 3
-  // --openssl-config=...
-  if (!per_process::cli_options->openssl_config.empty()) {
-    const char* conf = per_process::cli_options->openssl_config.c_str();
-    OPENSSL_INIT_set_config_filename(settings, conf);
-  }
-#endif
-
-#if OPENSSL_VERSION_MAJOR >= 3
   // --openssl-legacy-provider
   if (per_process::cli_options->openssl_legacy_provider) {
     OSSL_PROVIDER* legacy_provider = OSSL_PROVIDER_load(nullptr, "legacy");
@@ -521,7 +496,6 @@ void InitCryptoOnce() {
       fprintf(stderr, "Unable to load legacy provider.\n");
     }
   }
-#endif
 
   OPENSSL_init_ssl(0, settings);
   InstallFipsIndicatorCallback();
@@ -554,10 +528,6 @@ void InitCryptoOnce() {
   // Turn off compression. Saves memory and protects against CRIME attacks.
   // No-op with OPENSSL_NO_COMP builds of OpenSSL.
   sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
-
-#ifndef OPENSSL_NO_ENGINE
-  EnginePointer::initEnginesOnce();
-#endif  // !OPENSSL_NO_ENGINE
 }
 
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
@@ -899,10 +869,12 @@ Maybe<void> Decorate(Environment* env,
   if (err == 0) return JustVoid();         // No decoration necessary.
 
   const char* ls = ERR_lib_error_string(err);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const char* fs = nullptr;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   const char* fs = ERR_func_error_string(err);
+#else
+#error "Unsupported crypto backend"
 #endif
   const char* rs = ERR_reason_error_string(err);
 
@@ -941,7 +913,7 @@ Maybe<void> Decorate(Environment* env,
 
 #ifdef OPENSSL_IS_BORINGSSL
 #define OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
 #define OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)                                   \
   V(PKCS12)                                                                    \
   V(DSO)                                                                       \
@@ -952,6 +924,8 @@ Maybe<void> Decorate(Environment* env,
   V(ASYNC)                                                                     \
   V(KDF)                                                                       \
   V(SM2)
+#else
+#error "Unsupported crypto backend"
 #endif
 
 #define OSSL_ERROR_CODES_MAP(V)                                                \
@@ -1039,28 +1013,6 @@ void ThrowCryptoError(Environment* env,
   }
   env->isolate()->ThrowException(exception);
 }
-
-#ifndef OPENSSL_NO_ENGINE
-void SetEngine(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  if (env->permission()->enabled()) [[unlikely]] {
-    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
-        env,
-        "Programmatic selection of OpenSSL engines is unsupported while the "
-        "experimental permission model is enabled");
-  }
-
-  CHECK(args.Length() >= 2 && args[0]->IsString());
-  uint32_t flags;
-  if (!args[1]->Uint32Value(env->context()).To(&flags)) return;
-
-  const node::Utf8Value engine_id(env->isolate(), args[0]);
-  // If the engine name is not known, calling setAsDefault on the
-  // empty engine pointer will be non-op that always returns false.
-  args.GetReturnValue().Set(
-      EnginePointer::getEngineByName(*engine_id).setAsDefault(flags));
-}
-#endif  // !OPENSSL_NO_ENGINE
 
 MaybeLocal<Value> EncodeBignum(Environment* env, const BIGNUM* bn, int size) {
   EscapableHandleScope scope(env->isolate());
@@ -1196,15 +1148,25 @@ void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
       BigInt::New(args.GetIsolate(), DataPointer::GetSecureHeapUsed()));
 }
+
+void IsKdfAlgorithmAvailable(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  const Utf8Value name(args.GetIsolate(), args[0]);
+  ncrypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+  args.GetReturnValue().Set(static_cast<bool>(ncrypto::KDF::Fetch(*name)));
+#elif NCRYPTO_USE_BORINGSSL
+  // BoringSSL does not provide the provider KDF API.
+  args.GetReturnValue().Set(false);
+#else
+#error "Unsupported crypto backend"
+#endif
+}
 }  // namespace
 
 namespace Util {
 void Initialize(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
-#ifndef OPENSSL_NO_ENGINE
-  SetMethod(context, target, "setEngine", SetEngine);
-#endif  // !OPENSSL_NO_ENGINE
-
   SetMethodNoSideEffect(context, target, "getFipsCrypto", GetFipsCrypto);
   SetMethodNoSideEffect(
       context, target, "getFipsCryptoGeneration", GetFipsCryptoGeneration);
@@ -1222,12 +1184,10 @@ void Initialize(Environment* env, Local<Object> target) {
 
   SetMethodNoSideEffect(
       context, target, "getOpenSSLSecLevelCrypto", GetOpenSSLSecLevelCrypto);
+  SetMethodNoSideEffect(
+      context, target, "isKdfAlgorithmAvailable", IsKdfAlgorithmAvailable);
 }
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-#ifndef OPENSSL_NO_ENGINE
-  registry->Register(SetEngine);
-#endif  // !OPENSSL_NO_ENGINE
-
   registry->Register(GetFipsCrypto);
   registry->Register(GetFipsCryptoGeneration);
   registry->Register(SetupFipsIndicatorChannel);
@@ -1236,6 +1196,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SecureBuffer);
   registry->Register(SecureHeapUsed);
   registry->Register(GetOpenSSLSecLevelCrypto);
+  registry->Register(IsKdfAlgorithmAvailable);
 }
 
 }  // namespace Util

@@ -1,0 +1,16 @@
+-- Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+--
+-- Licensed under the Apache License 2.0 (the "License").  You may not use
+-- this file except in compliance with the License.  You can obtain a copy
+-- in the file LICENSE in the source distribution or at
+-- https://www.openssl.org/source/license.html
+
+-- -------------------------------------------------------------------
+-- Taken from https://datatracker.ietf.org/doc/rfc8619/
+
+id-smime OBJECT IDENTIFIER ::= { 1 2 840 113549 1 9 16 }
+id-alg OBJECT IDENTIFIER ::= { id-smime  3 }
+
+id-alg-hkdf-with-sha256 OBJECT IDENTIFIER ::= { id-alg 28 }
+id-alg-hkdf-with-sha384 OBJECT IDENTIFIER ::= { id-alg 29 }
+id-alg-hkdf-with-sha512 OBJECT IDENTIFIER ::= { id-alg 30 }

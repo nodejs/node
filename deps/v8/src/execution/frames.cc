@@ -1903,10 +1903,35 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   bool has_tagged_outgoing_params =
       wasm_code->kind() != wasm::WasmCode::kWasmFunction &&
       wasm_code->kind() != wasm::WasmCode::kWasmToCapiWrapper;
-  if (!InFastCCall() && has_tagged_outgoing_params) {
-    FullObjectSlot parameters_base(&Memory<Address>(sp()));
-    v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
-                         parameters_limit);
+  if (!InFastCCall()) {
+    if (has_tagged_outgoing_params) {
+      FullObjectSlot parameters_base(&Memory<Address>(sp()));
+      v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
+                           parameters_limit);
+    } else if (wasm_code->kind() == wasm::WasmCode::kWasmFunction &&
+               callee_pc() != kNullAddress) {
+      // If a Wasm function calls a builtin with tagged stack parameters,
+      // visit those parameters. (Calls to other Wasm functions or to
+      // WasmToJsWrapperCSA have their tagged stack parameters visited by the
+      // callee frame instead.)
+      Builtin builtin =
+          OffHeapInstructionStream::TryLookupCode(isolate(), callee_pc());
+      if (Builtins::IsBuiltinId(builtin)) {
+        CallInterfaceDescriptor descriptor =
+            Builtins::CallInterfaceDescriptorFor(builtin);
+        DCHECK(!descriptor.AllowVarArgs());
+        if (!(descriptor.flags() & CallInterfaceDescriptorData::kNoStackScan)) {
+          int stack_params = descriptor.GetStackParameterCount();
+          DCHECK_IMPLIES(builtin == Builtin::kWasmToJsWrapperCSA,
+                         stack_params == 0);
+          if (stack_params > 0) {
+            FullObjectSlot parameters_base(&Memory<Address>(sp()));
+            v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
+                                 parameters_base + stack_params);
+          }
+        }
+      }
+    }
   }
 
   // Visit pointer spill slots and locals.

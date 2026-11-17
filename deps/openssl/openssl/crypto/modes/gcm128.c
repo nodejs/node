@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2010-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,9 +22,9 @@ typedef size_t size_t_aX;
 #if defined(BSWAP4) && defined(STRICT_ALIGNMENT)
 /* redefine, because alignment is ensured */
 #undef GETU32
-#define GETU32(p) BSWAP4(*(const u32 *)(p))
+#define GETU32(p) BSWAP4(*(const uint32_t *)(p))
 #undef PUTU32
-#define PUTU32(p, v) *(u32 *)(p) = BSWAP4(v)
+#define PUTU32(p, v) *(uint32_t *)(p) = BSWAP4(v)
 #endif
 
 /* RISC-V uses C implementation as a fallback. */
@@ -34,17 +34,17 @@ typedef size_t size_t_aX;
 #endif
 
 #define PACK(s) ((size_t)(s) << (sizeof(size_t) * 8 - 16))
-#define REDUCE1BIT(V)                                           \
-    do {                                                        \
-        if (sizeof(size_t) == 8) {                              \
-            u64 T = U64(0xe100000000000000) & (0 - (V.lo & 1)); \
-            V.lo = (V.hi << 63) | (V.lo >> 1);                  \
-            V.hi = (V.hi >> 1) ^ T;                             \
-        } else {                                                \
-            u32 T = 0xe1000000U & (0 - (u32)(V.lo & 1));        \
-            V.lo = (V.hi << 63) | (V.lo >> 1);                  \
-            V.hi = (V.hi >> 1) ^ ((u64)T << 32);                \
-        }                                                       \
+#define REDUCE1BIT(V)                                                \
+    do {                                                             \
+        if (sizeof(size_t) == 8) {                                   \
+            uint64_t T = U64(0xe100000000000000) & (0 - (V.lo & 1)); \
+            V.lo = (V.hi << 63) | (V.lo >> 1);                       \
+            V.hi = (V.hi >> 1) ^ T;                                  \
+        } else {                                                     \
+            uint32_t T = 0xe1000000U & (0 - (uint32_t)(V.lo & 1));   \
+            V.lo = (V.hi << 63) | (V.lo >> 1);                       \
+            V.hi = (V.hi >> 1) ^ ((uint64_t)T << 32);                \
+        }                                                            \
     } while (0)
 
 /*-
@@ -85,7 +85,7 @@ typedef size_t size_t_aX;
  * Value of 1 is not appropriate for performance reasons.
  */
 
-static void gcm_init_4bit(u128 Htable[16], const u64 H[2])
+static void gcm_init_4bit(u128 Htable[16], const uint64_t H[2])
 {
     u128 V;
 #if defined(OPENSSL_SMALL_FOOTPRINT)
@@ -165,14 +165,14 @@ static const size_t rem_4bit[16] = {
     PACK(0x9180), PACK(0x8DA0), PACK(0xA9C0), PACK(0xB5E0)
 };
 
-static void gcm_gmult_4bit(u64 Xi[2], const u128 Htable[16])
+static void gcm_gmult_4bit(uint64_t Xi[2], const u128 Htable[16])
 {
     u128 Z;
     int cnt = 15;
     size_t rem, nlo, nhi;
     DECLARE_IS_ENDIAN;
 
-    nlo = ((const u8 *)Xi)[15];
+    nlo = ((const uint8_t *)Xi)[15];
     nhi = nlo >> 4;
     nlo &= 0xf;
 
@@ -186,7 +186,7 @@ static void gcm_gmult_4bit(u64 Xi[2], const u128 Htable[16])
         if (sizeof(size_t) == 8)
             Z.hi ^= rem_4bit[rem];
         else
-            Z.hi ^= (u64)rem_4bit[rem] << 32;
+            Z.hi ^= (uint64_t)rem_4bit[rem] << 32;
 
         Z.hi ^= Htable[nhi].hi;
         Z.lo ^= Htable[nhi].lo;
@@ -194,7 +194,7 @@ static void gcm_gmult_4bit(u64 Xi[2], const u128 Htable[16])
         if (--cnt < 0)
             break;
 
-        nlo = ((const u8 *)Xi)[cnt];
+        nlo = ((const uint8_t *)Xi)[cnt];
         nhi = nlo >> 4;
         nlo &= 0xf;
 
@@ -204,7 +204,7 @@ static void gcm_gmult_4bit(u64 Xi[2], const u128 Htable[16])
         if (sizeof(size_t) == 8)
             Z.hi ^= rem_4bit[rem];
         else
-            Z.hi ^= (u64)rem_4bit[rem] << 32;
+            Z.hi ^= (uint64_t)rem_4bit[rem] << 32;
 
         Z.hi ^= Htable[nlo].hi;
         Z.lo ^= Htable[nlo].lo;
@@ -215,15 +215,15 @@ static void gcm_gmult_4bit(u64 Xi[2], const u128 Htable[16])
         Xi[0] = BSWAP8(Z.hi);
         Xi[1] = BSWAP8(Z.lo);
 #else
-        u8 *p = (u8 *)Xi;
-        u32 v;
-        v = (u32)(Z.hi >> 32);
+        uint8_t *p = (uint8_t *)Xi;
+        uint32_t v;
+        v = (uint32_t)(Z.hi >> 32);
         PUTU32(p, v);
-        v = (u32)(Z.hi);
+        v = (uint32_t)(Z.hi);
         PUTU32(p + 4, v);
-        v = (u32)(Z.lo >> 32);
+        v = (uint32_t)(Z.lo >> 32);
         PUTU32(p + 8, v);
-        v = (u32)(Z.lo);
+        v = (uint32_t)(Z.lo);
         PUTU32(p + 12, v);
 #endif
     } else {
@@ -243,8 +243,8 @@ static void gcm_gmult_4bit(u64 Xi[2], const u128 Htable[16])
  * mostly as reference and a placeholder for possible future
  * non-trivial optimization[s]...
  */
-static void gcm_ghash_4bit(u64 Xi[2], const u128 Htable[16],
-    const u8 *inp, size_t len)
+static void gcm_ghash_4bit(uint64_t Xi[2], const u128 Htable[16],
+    const uint8_t *inp, size_t len)
 {
     u128 Z;
     int cnt;
@@ -253,7 +253,7 @@ static void gcm_ghash_4bit(u64 Xi[2], const u128 Htable[16],
 
     do {
         cnt = 15;
-        nlo = ((const u8 *)Xi)[15];
+        nlo = ((const uint8_t *)Xi)[15];
         nlo ^= inp[15];
         nhi = nlo >> 4;
         nlo &= 0xf;
@@ -268,7 +268,7 @@ static void gcm_ghash_4bit(u64 Xi[2], const u128 Htable[16],
             if (sizeof(size_t) == 8)
                 Z.hi ^= rem_4bit[rem];
             else
-                Z.hi ^= (u64)rem_4bit[rem] << 32;
+                Z.hi ^= (uint64_t)rem_4bit[rem] << 32;
 
             Z.hi ^= Htable[nhi].hi;
             Z.lo ^= Htable[nhi].lo;
@@ -276,7 +276,7 @@ static void gcm_ghash_4bit(u64 Xi[2], const u128 Htable[16],
             if (--cnt < 0)
                 break;
 
-            nlo = ((const u8 *)Xi)[cnt];
+            nlo = ((const uint8_t *)Xi)[cnt];
             nlo ^= inp[cnt];
             nhi = nlo >> 4;
             nlo &= 0xf;
@@ -287,7 +287,7 @@ static void gcm_ghash_4bit(u64 Xi[2], const u128 Htable[16],
             if (sizeof(size_t) == 8)
                 Z.hi ^= rem_4bit[rem];
             else
-                Z.hi ^= (u64)rem_4bit[rem] << 32;
+                Z.hi ^= (uint64_t)rem_4bit[rem] << 32;
 
             Z.hi ^= Htable[nlo].hi;
             Z.lo ^= Htable[nlo].lo;
@@ -298,15 +298,15 @@ static void gcm_ghash_4bit(u64 Xi[2], const u128 Htable[16],
             Xi[0] = BSWAP8(Z.hi);
             Xi[1] = BSWAP8(Z.lo);
 #else
-            u8 *p = (u8 *)Xi;
-            u32 v;
-            v = (u32)(Z.hi >> 32);
+            uint8_t *p = (uint8_t *)Xi;
+            uint32_t v;
+            v = (uint32_t)(Z.hi >> 32);
             PUTU32(p, v);
-            v = (u32)(Z.hi);
+            v = (uint32_t)(Z.hi);
             PUTU32(p + 4, v);
-            v = (u32)(Z.lo >> 32);
+            v = (uint32_t)(Z.lo >> 32);
             PUTU32(p + 8, v);
-            v = (u32)(Z.lo);
+            v = (uint32_t)(Z.lo);
             PUTU32(p + 12, v);
 #endif
         } else {
@@ -321,8 +321,8 @@ static void gcm_ghash_4bit(u64 Xi[2], const u128 Htable[16],
 }
 #endif
 #else
-void gcm_gmult_4bit(u64 Xi[2], const u128 Htable[16]);
-void gcm_ghash_4bit(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+void gcm_gmult_4bit(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_4bit(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
     size_t len);
 #endif
 
@@ -341,9 +341,9 @@ void gcm_ghash_4bit(u64 Xi[2], const u128 Htable[16], const u8 *inp,
 #if !defined(I386_ONLY) && (defined(__i386) || defined(__i386__) || defined(__x86_64) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_AMD64) || defined(_M_X64))
 #define GHASH_ASM_X86_OR_64
 
-void gcm_init_clmul(u128 Htable[16], const u64 Xi[2]);
-void gcm_gmult_clmul(u64 Xi[2], const u128 Htable[16]);
-void gcm_ghash_clmul(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+void gcm_init_clmul(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_clmul(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_clmul(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
     size_t len);
 
 #if defined(__i386) || defined(__i386__) || defined(_M_IX86)
@@ -351,77 +351,83 @@ void gcm_ghash_clmul(u64 Xi[2], const u128 Htable[16], const u8 *inp,
 #define gcm_gmult_avx gcm_gmult_clmul
 #define gcm_ghash_avx gcm_ghash_clmul
 #else
-void gcm_init_avx(u128 Htable[16], const u64 Xi[2]);
-void gcm_gmult_avx(u64 Xi[2], const u128 Htable[16]);
-void gcm_ghash_avx(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+void gcm_init_avx(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_avx(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_avx(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
     size_t len);
 #endif
 
 #if defined(__i386) || defined(__i386__) || defined(_M_IX86)
 #define GHASH_ASM_X86
-void gcm_gmult_4bit_mmx(u64 Xi[2], const u128 Htable[16]);
-void gcm_ghash_4bit_mmx(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+void gcm_gmult_4bit_mmx(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_4bit_mmx(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
     size_t len);
 
-void gcm_gmult_4bit_x86(u64 Xi[2], const u128 Htable[16]);
-void gcm_ghash_4bit_x86(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+void gcm_gmult_4bit_x86(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_4bit_x86(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
     size_t len);
 #endif
 #elif defined(__arm__) || defined(__arm) || defined(__aarch64__) || defined(_M_ARM64)
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 #if __ARM_MAX_ARCH__ >= 7
 #define GHASH_ASM_ARM
 #define PMULL_CAPABLE (OPENSSL_armcap_P & ARMV8_PMULL)
 #if defined(__arm__) || defined(__arm)
 #define NEON_CAPABLE (OPENSSL_armcap_P & ARMV7_NEON)
 #endif
-void gcm_init_neon(u128 Htable[16], const u64 Xi[2]);
-void gcm_gmult_neon(u64 Xi[2], const u128 Htable[16]);
-void gcm_ghash_neon(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+void gcm_init_neon(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_neon(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_neon(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
     size_t len);
-void gcm_init_v8(u128 Htable[16], const u64 Xi[2]);
-void gcm_gmult_v8(u64 Xi[2], const u128 Htable[16]);
-void gcm_ghash_v8(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+void gcm_init_v8(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_v8(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_v8(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
     size_t len);
 #endif
 #elif defined(__sparc__) || defined(__sparc)
-#include "crypto/sparc_arch.h"
+#include "arch/sparc_arch.h"
 #define GHASH_ASM_SPARC
-void gcm_init_vis3(u128 Htable[16], const u64 Xi[2]);
-void gcm_gmult_vis3(u64 Xi[2], const u128 Htable[16]);
-void gcm_ghash_vis3(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+void gcm_init_vis3(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_vis3(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_vis3(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
     size_t len);
 #elif defined(OPENSSL_CPUID_OBJ) && (defined(__powerpc__) || defined(__POWERPC__) || defined(_ARCH_PPC))
-#include "crypto/ppc_arch.h"
+#include "arch/ppc_arch.h"
 #define GHASH_ASM_PPC
-void gcm_init_p8(u128 Htable[16], const u64 Xi[2]);
-void gcm_gmult_p8(u64 Xi[2], const u128 Htable[16]);
-void gcm_ghash_p8(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+void gcm_init_p8(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_p8(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_p8(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
     size_t len);
 #elif defined(OPENSSL_CPUID_OBJ) && defined(__riscv) && __riscv_xlen == 64
-#include "crypto/riscv_arch.h"
+#include "arch/riscv_arch.h"
 #define GHASH_ASM_RV64I
 /* Zbc/Zbkc (scalar crypto with clmul) based routines. */
-void gcm_init_rv64i_zbc(u128 Htable[16], const u64 Xi[2]);
-void gcm_init_rv64i_zbc__zbb(u128 Htable[16], const u64 Xi[2]);
-void gcm_init_rv64i_zbc__zbkb(u128 Htable[16], const u64 Xi[2]);
-void gcm_gmult_rv64i_zbc(u64 Xi[2], const u128 Htable[16]);
-void gcm_gmult_rv64i_zbc__zbkb(u64 Xi[2], const u128 Htable[16]);
-void gcm_ghash_rv64i_zbc(u64 Xi[2], const u128 Htable[16],
-    const u8 *inp, size_t len);
-void gcm_ghash_rv64i_zbc__zbkb(u64 Xi[2], const u128 Htable[16],
-    const u8 *inp, size_t len);
+void gcm_init_rv64i_zbc(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_init_rv64i_zbc__zbb(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_init_rv64i_zbc__zbkb(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_rv64i_zbc(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_gmult_rv64i_zbc__zbkb(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_rv64i_zbc(uint64_t Xi[2], const u128 Htable[16],
+    const uint8_t *inp, size_t len);
+void gcm_ghash_rv64i_zbc__zbkb(uint64_t Xi[2], const u128 Htable[16],
+    const uint8_t *inp, size_t len);
 /* zvkb/Zvbc (vector crypto with vclmul) based routines. */
-void gcm_init_rv64i_zvkb_zvbc(u128 Htable[16], const u64 Xi[2]);
-void gcm_gmult_rv64i_zvkb_zvbc(u64 Xi[2], const u128 Htable[16]);
-void gcm_ghash_rv64i_zvkb_zvbc(u64 Xi[2], const u128 Htable[16],
-    const u8 *inp, size_t len);
+void gcm_init_rv64i_zvkb_zvbc(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_rv64i_zvkb_zvbc(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_rv64i_zvkb_zvbc(uint64_t Xi[2], const u128 Htable[16],
+    const uint8_t *inp, size_t len);
 /* Zvkg (vector crypto with vgmul.vv and vghsh.vv). */
-void gcm_init_rv64i_zvkg(u128 Htable[16], const u64 Xi[2]);
-void gcm_init_rv64i_zvkg_zvkb(u128 Htable[16], const u64 Xi[2]);
-void gcm_gmult_rv64i_zvkg(u64 Xi[2], const u128 Htable[16]);
-void gcm_ghash_rv64i_zvkg(u64 Xi[2], const u128 Htable[16],
-    const u8 *inp, size_t len);
+void gcm_init_rv64i_zvkg(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_init_rv64i_zvkg_zvkb(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_rv64i_zvkg(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_rv64i_zvkg(uint64_t Xi[2], const u128 Htable[16],
+    const uint8_t *inp, size_t len);
+#elif defined(__e2k__) && (__iset__ >= 6)
+#define GHASH_ASM_E2KV6
+void gcm_init_e2kv6_clmul(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_e2kv6_clmul(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_e2kv6_clmul(uint64_t Xi[2], const u128 Htable[16],
+    const uint8_t *inp, size_t len);
 #endif
 #endif
 
@@ -552,6 +558,11 @@ static void gcm_get_funcs(struct gcm_funcs_st *ctx)
         }
     }
     return;
+#elif defined(GHASH_ASM_E2KV6)
+    ctx->ginit = gcm_init_e2kv6_clmul;
+    ctx->gmult = gcm_gmult_e2kv6_clmul;
+    ctx->ghash = gcm_ghash_e2kv6_clmul;
+    return;
 #elif defined(GHASH_ASM)
     /* all other architectures use the generic names */
     ctx->gmult = gcm_gmult_4bit;
@@ -560,7 +571,7 @@ static void gcm_get_funcs(struct gcm_funcs_st *ctx)
 #endif
 }
 
-void ossl_gcm_init_4bit(u128 Htable[16], const u64 H[2])
+void ossl_gcm_init_4bit(u128 Htable[16], const uint64_t H[2])
 {
     struct gcm_funcs_st funcs;
 
@@ -568,7 +579,7 @@ void ossl_gcm_init_4bit(u128 Htable[16], const u64 H[2])
     funcs.ginit(Htable, H);
 }
 
-void ossl_gcm_gmult_4bit(u64 Xi[2], const u128 Htable[16])
+void ossl_gcm_gmult_4bit(uint64_t Xi[2], const u128 Htable[16])
 {
     struct gcm_funcs_st funcs;
 
@@ -576,11 +587,11 @@ void ossl_gcm_gmult_4bit(u64 Xi[2], const u128 Htable[16])
     funcs.gmult(Xi, Htable);
 }
 
-void ossl_gcm_ghash_4bit(u64 Xi[2], const u128 Htable[16],
-    const u8 *inp, size_t len)
+void ossl_gcm_ghash_4bit(uint64_t Xi[2], const u128 Htable[16],
+    const uint8_t *inp, size_t len)
 {
     struct gcm_funcs_st funcs;
-    u64 tmp[2];
+    uint64_t tmp[2];
     size_t i;
 
     gcm_get_funcs(&funcs);
@@ -613,10 +624,10 @@ void CRYPTO_gcm128_init(GCM128_CONTEXT *ctx, void *key, block128_f block)
         ctx->H.u[0] = BSWAP8(ctx->H.u[0]);
         ctx->H.u[1] = BSWAP8(ctx->H.u[1]);
 #else
-        u8 *p = ctx->H.c;
-        u64 hi, lo;
-        hi = (u64)GETU32(p) << 32 | GETU32(p + 4);
-        lo = (u64)GETU32(p + 8) << 32 | GETU32(p + 12);
+        uint8_t *p = ctx->H.c;
+        uint64_t hi, lo;
+        hi = (uint64_t)GETU32(p) << 32 | GETU32(p + 4);
+        lo = (uint64_t)GETU32(p + 8) << 32 | GETU32(p + 12);
         ctx->H.u[0] = hi;
         ctx->H.u[1] = lo;
 #endif
@@ -646,7 +657,7 @@ void CRYPTO_gcm128_setiv(GCM128_CONTEXT *ctx, const unsigned char *iv,
         ctr = 1;
     } else {
         size_t i;
-        u64 len0 = len;
+        uint64_t len0 = len;
 
         /* Borrow ctx->Xi to calculate initial Yi */
         ctx->Xi.u[0] = 0;
@@ -669,14 +680,14 @@ void CRYPTO_gcm128_setiv(GCM128_CONTEXT *ctx, const unsigned char *iv,
 #ifdef BSWAP8
             ctx->Xi.u[1] ^= BSWAP8(len0);
 #else
-            ctx->Xi.c[8] ^= (u8)(len0 >> 56);
-            ctx->Xi.c[9] ^= (u8)(len0 >> 48);
-            ctx->Xi.c[10] ^= (u8)(len0 >> 40);
-            ctx->Xi.c[11] ^= (u8)(len0 >> 32);
-            ctx->Xi.c[12] ^= (u8)(len0 >> 24);
-            ctx->Xi.c[13] ^= (u8)(len0 >> 16);
-            ctx->Xi.c[14] ^= (u8)(len0 >> 8);
-            ctx->Xi.c[15] ^= (u8)(len0);
+            ctx->Xi.c[8] ^= (uint8_t)(len0 >> 56);
+            ctx->Xi.c[9] ^= (uint8_t)(len0 >> 48);
+            ctx->Xi.c[10] ^= (uint8_t)(len0 >> 40);
+            ctx->Xi.c[11] ^= (uint8_t)(len0 >> 32);
+            ctx->Xi.c[12] ^= (uint8_t)(len0 >> 24);
+            ctx->Xi.c[13] ^= (uint8_t)(len0 >> 16);
+            ctx->Xi.c[14] ^= (uint8_t)(len0 >> 8);
+            ctx->Xi.c[15] ^= (uint8_t)(len0);
 #endif
         } else {
             ctx->Xi.u[1] ^= len0;
@@ -718,7 +729,7 @@ int CRYPTO_gcm128_aad(GCM128_CONTEXT *ctx, const unsigned char *aad,
 {
     size_t i;
     unsigned int n;
-    u64 alen = ctx->len.u[0];
+    uint64_t alen = ctx->len.u[0];
 
     if (ctx->len.u[1])
         return -2;
@@ -774,7 +785,7 @@ int CRYPTO_gcm128_encrypt(GCM128_CONTEXT *ctx,
     DECLARE_IS_ENDIAN;
     unsigned int n, ctr, mres;
     size_t i;
-    u64 mlen = ctx->len.u[1];
+    uint64_t mlen = ctx->len.u[1];
     block128_f block = ctx->block;
     void *key = ctx->key;
 
@@ -999,7 +1010,7 @@ int CRYPTO_gcm128_decrypt(GCM128_CONTEXT *ctx,
     DECLARE_IS_ENDIAN;
     unsigned int n, ctr, mres;
     size_t i;
-    u64 mlen = ctx->len.u[1];
+    uint64_t mlen = ctx->len.u[1];
     block128_f block = ctx->block;
     void *key = ctx->key;
 
@@ -1057,7 +1068,7 @@ int CRYPTO_gcm128_decrypt(GCM128_CONTEXT *ctx,
                 }
 #else
                 while (n && len) {
-                    u8 c = *(in++);
+                    uint8_t c = *(in++);
                     *(out++) = c ^ ctx->EKi.c[n];
                     ctx->Xi.c[n] ^= c;
                     --len;
@@ -1176,7 +1187,7 @@ int CRYPTO_gcm128_decrypt(GCM128_CONTEXT *ctx,
                 }
 #else
                 while (len--) {
-                    u8 c = in[n];
+                    uint8_t c = in[n];
                     ctx->Xi.c[n] ^= c;
                     out[n] = c ^ ctx->EKi.c[n];
                     ++n;
@@ -1191,7 +1202,7 @@ int CRYPTO_gcm128_decrypt(GCM128_CONTEXT *ctx,
     }
 #endif
     for (i = 0; i < len; ++i) {
-        u8 c;
+        uint8_t c;
         if (n == 0) {
             (*block)(ctx->Yi.c, ctx->EKi.c, key);
             ++ctr;
@@ -1235,7 +1246,7 @@ int CRYPTO_gcm128_encrypt_ctr32(GCM128_CONTEXT *ctx,
     DECLARE_IS_ENDIAN;
     unsigned int n, ctr, mres;
     size_t i;
-    u64 mlen = ctx->len.u[1];
+    uint64_t mlen = ctx->len.u[1];
     void *key = ctx->key;
 
     mlen += len;
@@ -1389,7 +1400,7 @@ int CRYPTO_gcm128_decrypt_ctr32(GCM128_CONTEXT *ctx,
     DECLARE_IS_ENDIAN;
     unsigned int n, ctr, mres;
     size_t i;
-    u64 mlen = ctx->len.u[1];
+    uint64_t mlen = ctx->len.u[1];
     void *key = ctx->key;
 
     mlen += len;
@@ -1443,7 +1454,7 @@ int CRYPTO_gcm128_decrypt_ctr32(GCM128_CONTEXT *ctx,
         }
 #else
         while (n && len) {
-            u8 c = *(in++);
+            uint8_t c = *(in++);
             *(out++) = c ^ ctx->EKi.c[n];
             ctx->Xi.c[n] ^= c;
             --len;
@@ -1527,7 +1538,7 @@ int CRYPTO_gcm128_decrypt_ctr32(GCM128_CONTEXT *ctx,
 #if defined(GHASH)
             out[n] = (ctx->Xn[mres++] = in[n]) ^ ctx->EKi.c[n];
 #else
-            u8 c = in[n];
+            uint8_t c = in[n];
             ctx->Xi.c[mres++] ^= c;
             out[n] = c ^ ctx->EKi.c[n];
 #endif
@@ -1540,12 +1551,19 @@ int CRYPTO_gcm128_decrypt_ctr32(GCM128_CONTEXT *ctx,
 #endif
 }
 
+/*
+ * Calculate the tag and verify it against the supplied tag.
+ * Returns:
+ * -1: invalid tag length
+ *  0: tag verified
+ * >0: tag mismatch
+ */
 int CRYPTO_gcm128_finish(GCM128_CONTEXT *ctx, const unsigned char *tag,
     size_t len)
 {
     DECLARE_IS_ENDIAN;
-    u64 alen = ctx->len.u[0] << 3;
-    u64 clen = ctx->len.u[1] << 3;
+    uint64_t alen = ctx->len.u[0] << 3;
+    uint64_t clen = ctx->len.u[1] << 3;
 
 #if defined(GHASH) && !defined(OPENSSL_SMALL_FOOTPRINT)
     u128 bitlen;
@@ -1573,13 +1591,13 @@ int CRYPTO_gcm128_finish(GCM128_CONTEXT *ctx, const unsigned char *tag,
         alen = BSWAP8(alen);
         clen = BSWAP8(clen);
 #else
-        u8 *p = ctx->len.c;
+        uint8_t *p = ctx->len.c;
 
         ctx->len.u[0] = alen;
         ctx->len.u[1] = clen;
 
-        alen = (u64)GETU32(p) << 32 | GETU32(p + 4);
-        clen = (u64)GETU32(p + 8) << 32 | GETU32(p + 12);
+        alen = (uint64_t)GETU32(p) << 32 | GETU32(p + 4);
+        clen = (uint64_t)GETU32(p + 8) << 32 | GETU32(p + 12);
 #endif
     }
 

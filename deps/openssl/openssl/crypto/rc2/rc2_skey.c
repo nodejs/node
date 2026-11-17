@@ -14,7 +14,7 @@
 #include "internal/deprecated.h"
 
 #include <openssl/rc2.h>
-#include "rc2_local.h"
+#include "internal/common.h"
 
 static const unsigned char key_table[256] = {
     0xd9, 0x78, 0xf9, 0xc4, 0x19, 0xdd, 0xb5, 0xed, 0x28, 0xe9,

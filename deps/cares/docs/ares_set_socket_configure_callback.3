@@ -26,6 +26,10 @@ before it has been connected to the remote server, which is an ideal time
 to configure various socket options.  The callback must return ARES_SUCCESS
 if things are fine, or return -1 to signal an error. A returned error will
 abort the ares operation.
+
+The callback is invoked while c-ares is part-way through opening a
+connection.  It must not call any c-ares function on the same channel; see
+\fIares_set_socket_functions(3)\fP.
 .SH SEE ALSO
 .BR ares_init_options (3),
 .BR ares_set_socket_callback (3)

@@ -1,4 +1,3 @@
-// Flags: --experimental-web-worker
 'use strict';
 
 const common = require('../common');

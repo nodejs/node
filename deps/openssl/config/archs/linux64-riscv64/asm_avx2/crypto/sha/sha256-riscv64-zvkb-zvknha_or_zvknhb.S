@@ -3,7 +3,31 @@
 .globl sha256_block_data_order_zvkb_zvknha_or_zvknhb
 .type   sha256_block_data_order_zvkb_zvknha_or_zvknhb,@function
 sha256_block_data_order_zvkb_zvknha_or_zvknhb:
+
+    # Setup v0 mask for the vmerge to replace the first word (idx==0) in key-scheduling.
+    # The AVL is 4 in SHA, so we could use a single e8(8 element masking) for masking.
+    .word 3422613591
+    .word 1577103447
+
+    # H is stored as {a,b,c,d},{e,f,g,h}, but we need {f,e,b,a},{h,g,d,c}
+    # The dst vtype is e32m1 and the index vtype is e8mf4.
+    # We use index-load with the following index pattern at v26.
+    #   i8 index:
+    #     20, 16, 4, 0
+    # Instead of setting the i8 index, we could use a single 32bit
+    # little-endian value to cover the 4xi8 index.
+    #   i32 value:
+    #     0x 00 04 10 14
+    li t4, 0x00041014
+    .word 3439390807
+    .word 1578028375
+
+    addi t3, a0, 8
+
+    # Use index-load to get {f,e,b,a},{h,g,d,c}
     .word 3439489111
+    .word 128254727
+    .word 128844679
 
         la a3, K256 # Load round constants K256
     .word 34006279
@@ -38,33 +62,6 @@ sha256_block_data_order_zvkb_zvknha_or_zvknhb:
     addi a3, a3, 16
     .word 34008199
 
-
-    # H is stored as {a,b,c,d},{e,f,g,h}, but we need {f,e,b,a},{h,g,d,c}
-    # The dst vtype is e32m1 and the index vtype is e8mf4.
-    # We use index-load with the following index pattern at v26.
-    #   i8 index:
-    #     20, 16, 4, 0
-    # Instead of setting the i8 index, we could use a single 32bit
-    # little-endian value to cover the 4xi8 index.
-    #   i32 value:
-    #     0x 00 04 10 14
-    li t4, 0x00041014
-    .word 3439390807
-    .word 1578028375
-
-    addi t3, a0, 8
-
-    # Use index-load to get {f,e,b,a},{h,g,d,c}
-    .word 3439489111
-    .word 128254727
-    .word 128844679
-
-    # Setup v0 mask for the vmerge to replace the first word (idx==0) in key-scheduling.
-    # The AVL is 4 in SHA, so we could use a single e8(8 element masking) for masking.
-    .word 3422613591
-    .word 1577103447
-
-    .word 3439489111
 
 L_round_loop:
     # Decrement length by 1

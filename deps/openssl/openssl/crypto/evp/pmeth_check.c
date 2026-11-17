@@ -59,22 +59,6 @@ static int evp_pkey_public_check_combined(EVP_PKEY_CTX *ctx, int checktype)
         != -1)
         return ok;
 
-    if (pkey->type == EVP_PKEY_NONE)
-        goto not_supported;
-
-#ifndef FIPS_MODULE
-    /* legacy */
-    /* call customized public key check function first */
-    if (ctx->pmeth->public_check != NULL)
-        return ctx->pmeth->public_check(pkey);
-
-    /* use default public key check function in ameth */
-    if (pkey->ameth == NULL || pkey->ameth->pkey_public_check == NULL)
-        goto not_supported;
-
-    return pkey->ameth->pkey_public_check(pkey);
-#endif
-not_supported:
     ERR_raise(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
     return -2;
 }
@@ -105,22 +89,6 @@ static int evp_pkey_param_check_combined(EVP_PKEY_CTX *ctx, int checktype)
         != -1)
         return ok;
 
-    if (pkey->type == EVP_PKEY_NONE)
-        goto not_supported;
-
-#ifndef FIPS_MODULE
-    /* legacy */
-    /* call customized param check function first */
-    if (ctx->pmeth->param_check != NULL)
-        return ctx->pmeth->param_check(pkey);
-
-    /* use default param check function in ameth */
-    if (pkey->ameth == NULL || pkey->ameth->pkey_param_check == NULL)
-        goto not_supported;
-
-    return pkey->ameth->pkey_param_check(pkey);
-#endif
-not_supported:
     ERR_raise(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
     return -2;
 }
@@ -175,22 +143,6 @@ int EVP_PKEY_pairwise_check(EVP_PKEY_CTX *ctx)
         != -1)
         return ok;
 
-    if (pkey->type == EVP_PKEY_NONE)
-        goto not_supported;
-
-#ifndef FIPS_MODULE
-    /* legacy */
-    /* call customized check function first */
-    if (ctx->pmeth->check != NULL)
-        return ctx->pmeth->check(pkey);
-
-    /* use default check function in ameth */
-    if (pkey->ameth == NULL || pkey->ameth->pkey_check == NULL)
-        goto not_supported;
-
-    return pkey->ameth->pkey_check(pkey);
-#endif
-not_supported:
     ERR_raise(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
     return -2;
 }

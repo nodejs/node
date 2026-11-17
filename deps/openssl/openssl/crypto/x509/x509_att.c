@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -238,11 +238,11 @@ STACK_OF(X509_ATTRIBUTE) *X509at_add1_attr_by_txt(STACK_OF(X509_ATTRIBUTE)
     return ret;
 }
 
-void *X509at_get0_data_by_OBJ(const STACK_OF(X509_ATTRIBUTE) *x,
+const void *X509at_get0_data_by_OBJ(const STACK_OF(X509_ATTRIBUTE) *x,
     const ASN1_OBJECT *obj, int lastpos, int type)
 {
     int i = X509at_get_attr_by_OBJ(x, obj, lastpos);
-    X509_ATTRIBUTE *at;
+    const X509_ATTRIBUTE *at;
 
     if (i == -1)
         return NULL;
@@ -364,8 +364,24 @@ int X509_ATTRIBUTE_set1_data(X509_ATTRIBUTE *attr, int attrtype,
         }
         atype = stmp->type;
     } else if (len != -1) {
-        if ((stmp = ASN1_STRING_type_new(attrtype)) == NULL
-            || !ASN1_STRING_set(stmp, data, len)) {
+        if ((stmp = ASN1_STRING_type_new(attrtype)) == NULL) {
+            ERR_raise(ERR_LIB_X509, ERR_R_ASN1_LIB);
+            goto err;
+        }
+        if (attrtype == V_ASN1_BIT_STRING) {
+            /*
+             * ossl_asn1_string_set1_data() rejects bit strings, so use the
+             * dedicated bit string setter, with zero unused bits.
+             */
+            if (data == NULL && len > 0) {
+                ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
+                goto err;
+            }
+            if (!ASN1_BIT_STRING_set1(stmp, data, len, 0)) {
+                ERR_raise(ERR_LIB_X509, ERR_R_ASN1_LIB);
+                goto err;
+            }
+        } else if (!ossl_asn1_string_set1_data(stmp, data, len)) {
             ERR_raise(ERR_LIB_X509, ERR_R_ASN1_LIB);
             goto err;
         }
@@ -411,7 +427,7 @@ int X509_ATTRIBUTE_count(const X509_ATTRIBUTE *attr)
     return sk_ASN1_TYPE_num(attr->set);
 }
 
-ASN1_OBJECT *X509_ATTRIBUTE_get0_object(X509_ATTRIBUTE *attr)
+const ASN1_OBJECT *X509_ATTRIBUTE_get0_object(const X509_ATTRIBUTE *attr)
 {
     if (attr == NULL) {
         ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
@@ -420,10 +436,10 @@ ASN1_OBJECT *X509_ATTRIBUTE_get0_object(X509_ATTRIBUTE *attr)
     return attr->object;
 }
 
-void *X509_ATTRIBUTE_get0_data(X509_ATTRIBUTE *attr, int idx,
+const void *X509_ATTRIBUTE_get0_data(const X509_ATTRIBUTE *attr, int idx,
     int atrtype, void *data)
 {
-    ASN1_TYPE *ttmp = X509_ATTRIBUTE_get0_type(attr, idx);
+    const ASN1_TYPE *ttmp = X509_ATTRIBUTE_get0_type(attr, idx);
 
     if (ttmp == NULL)
         return NULL;
@@ -436,7 +452,7 @@ void *X509_ATTRIBUTE_get0_data(X509_ATTRIBUTE *attr, int idx,
     return ttmp->value.ptr;
 }
 
-ASN1_TYPE *X509_ATTRIBUTE_get0_type(X509_ATTRIBUTE *attr, int idx)
+const ASN1_TYPE *X509_ATTRIBUTE_get0_type(const X509_ATTRIBUTE *attr, int idx)
 {
     if (attr == NULL) {
         ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);

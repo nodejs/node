@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -27,7 +27,6 @@ static int v_verbose = 0, vflags = 0;
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_ENGINE,
     OPT_CAPATH,
     OPT_CAFILE,
     OPT_CASTORE,
@@ -51,18 +50,15 @@ const OPTIONS verify_options[] = {
 
     OPT_SECTION("General"),
     { "help", OPT_HELP, '-', "Display this summary" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
-#endif
     { "verbose", OPT_VERBOSE, '-',
         "Print extra information about the operations being performed." },
     { "nameopt", OPT_NAMEOPT, 's', "Certificate subject/issuer name printing options" },
 
     OPT_SECTION("Certificate chain"),
     { "trusted", OPT_TRUSTED, '<', "A file of trusted certificates" },
-    { "CAfile", OPT_CAFILE, '<', "A file of trusted certificates" },
-    { "CApath", OPT_CAPATH, '/', "A directory of files with trusted certificates" },
-    { "CAstore", OPT_CASTORE, ':', "URI to a store of trusted certificates" },
+    { "CAfile", OPT_CAFILE, '<', "File in PEM format with trusted CA certs" },
+    { "CApath", OPT_CAPATH, '/', "Dir with trusted CA cert files in PEM format" },
+    { "CAstore", OPT_CASTORE, ':', "URI of store with trusted CA certs" },
     { "no-CAfile", OPT_NOCAFILE, '-',
         "Do not load the default trusted certificates file" },
     { "no-CApath", OPT_NOCAPATH, '-',
@@ -89,7 +85,6 @@ const OPTIONS verify_options[] = {
 
 int verify_main(int argc, char **argv)
 {
-    ENGINE *e = NULL;
     STACK_OF(X509) *untrusted = NULL, *trusted = NULL;
     STACK_OF(X509_CRL) *crls = NULL;
     STACK_OF(OPENSSL_STRING) *vfyopts = NULL;
@@ -113,7 +108,7 @@ int verify_main(int argc, char **argv)
             goto end;
         case OPT_HELP:
             opt_help(verify_options);
-            BIO_printf(bio_err, "\nRecognized certificate chain purposes:\n");
+            BIO_puts(bio_err, "\nRecognized certificate chain purposes:\n");
             for (i = 0; i < X509_PURPOSE_get_count(); i++) {
                 X509_PURPOSE *ptmp = X509_PURPOSE_get0(i);
 
@@ -122,7 +117,7 @@ int verify_main(int argc, char **argv)
                     X509_PURPOSE_get0_name(ptmp));
             }
 
-            BIO_printf(bio_err, "Recognized certificate policy names:\n");
+            BIO_puts(bio_err, "Recognized certificate policy names:\n");
             for (i = 0; i < X509_VERIFY_PARAM_get_count(); i++) {
                 const X509_VERIFY_PARAM *vptmp = X509_VERIFY_PARAM_get0(i);
 
@@ -175,12 +170,6 @@ int verify_main(int argc, char **argv)
             break;
         case OPT_CRL_DOWNLOAD:
             crl_download = 1;
-            break;
-        case OPT_ENGINE:
-            if ((e = setup_engine(opt_arg(), 0)) == NULL) {
-                /* Failure message already displayed */
-                goto end;
-            }
             break;
         case OPT_SHOW_CHAIN:
             show_chain = 1;
@@ -252,7 +241,6 @@ end:
     OSSL_STACK_OF_X509_free(trusted);
     sk_X509_CRL_pop_free(crls, X509_CRL_free);
     sk_OPENSSL_STRING_free(vfyopts);
-    release_engine(e);
     return (ret < 0 ? 2 : ret);
 }
 
@@ -311,7 +299,7 @@ static int check(X509_STORE *ctx, const char *file,
 
             chain = X509_STORE_CTX_get1_chain(csc);
             num_untrusted = X509_STORE_CTX_get_num_untrusted(csc);
-            BIO_printf(bio_out, "Chain:\n");
+            BIO_puts(bio_out, "Chain:\n");
             for (j = 0; j < sk_X509_num(chain); j++) {
                 X509 *cert = sk_X509_value(chain, j);
                 BIO_printf(bio_out, "depth=%d: ", j);
@@ -319,8 +307,8 @@ static int check(X509_STORE *ctx, const char *file,
                     X509_get_subject_name(cert),
                     0, get_nameopt());
                 if (j < num_untrusted)
-                    BIO_printf(bio_out, " (untrusted)");
-                BIO_printf(bio_out, "\n");
+                    BIO_puts(bio_out, " (untrusted)");
+                BIO_puts(bio_out, "\n");
             }
             OSSL_STACK_OF_X509_free(chain);
         }
@@ -342,14 +330,14 @@ end:
 static int cb(int ok, X509_STORE_CTX *ctx)
 {
     int cert_error = X509_STORE_CTX_get_error(ctx);
-    X509 *current_cert = X509_STORE_CTX_get_current_cert(ctx);
+    const X509 *current_cert = X509_STORE_CTX_get_current_cert(ctx);
 
     if (!ok) {
         if (current_cert != NULL) {
             X509_NAME_print_ex(bio_err,
                 X509_get_subject_name(current_cert),
                 0, get_nameopt());
-            BIO_printf(bio_err, "\n");
+            BIO_puts(bio_err, "\n");
         }
         BIO_printf(bio_err, "%serror %d at %d depth lookup: %s\n",
             X509_STORE_CTX_get0_parent_ctx(ctx) ? "[CRL path] " : "",

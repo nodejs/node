@@ -9,6 +9,7 @@ use strict;
 
 package TLSProxy::Message;
 
+use TLSProxy::RecordNumber;
 use TLSProxy::Alert;
 
 use constant DTLS_MESSAGE_HEADER_LENGTH => 12;
@@ -21,6 +22,7 @@ use constant {
     MT_SERVER_HELLO => 2,
     MT_HELLO_VERIFY_REQUEST => 3,
     MT_NEW_SESSION_TICKET => 4,
+    MT_END_OF_EARLY_DATA => 5,
     MT_ENCRYPTED_EXTENSIONS => 8,
     MT_CERTIFICATE => 11,
     MT_SERVER_KEY_EXCHANGE => 12,
@@ -29,7 +31,10 @@ use constant {
     MT_CERTIFICATE_VERIFY => 15,
     MT_CLIENT_KEY_EXCHANGE => 16,
     MT_FINISHED => 20,
+    MT_CERTIFICATE_URL => 21,
     MT_CERTIFICATE_STATUS => 22,
+    MT_SUPPLEMENTAL_DATA => 23,
+    MT_KEY_UPDATE => 24,
     MT_COMPRESSED_CERTIFICATE => 25,
     MT_NEXT_PROTO => 67
 };
@@ -48,9 +53,12 @@ use constant {
 	AL_DESC_BAD_CERTIFICATE => 42,
     AL_DESC_ILLEGAL_PARAMETER => 47,
     AL_DESC_DECODE_ERROR => 50,
+    AL_DESC_DECRYPT_ERROR => 51,
     AL_DESC_PROTOCOL_VERSION => 70,
+    AL_DESC_INAPPROPRIATE_FALLBACK => 86,
     AL_DESC_NO_RENEGOTIATION => 100,
-    AL_DESC_MISSING_EXTENSION => 109
+    AL_DESC_MISSING_EXTENSION => 109,
+    AL_DESC_UNSUPPORTED_EXTENSION => 110
 };
 
 my %message_type = (
@@ -100,6 +108,8 @@ use constant {
     EXT_RENEGOTIATE => 65281,
     EXT_NPN => 13172,
     EXT_CRYPTOPRO_BUG_EXTENSION => 0xfde8,
+    EXT_ECH => 0xfe0d,
+    EXT_ECH_OUTER => 0xfd00,
     EXT_UNKNOWN => 0xfffe,
     #Unknown extension that should appear last
     EXT_FORCE_LAST => 0xffff
@@ -148,30 +158,41 @@ use constant {
     SERVER => 1
 };
 
-my $payload = "";
-my $messlen = -1;
-my $mt;
-my $startoffset = -1;
+# Handshake message reassembly is tracked separately per sender
+# (CLIENT/SERVER). The two peers can each have their own in-flight,
+# independently fragmented message at the same time, so a fragment that is
+# still incomplete for one sender must never be touched by traffic that
+# arrives from the other sender.
+my @payload = ("", "");
+my @messlen = (-1, -1);
+my @messseq = (-1, -1);
+my @messfraglen = (-1, -1);
+my @messfragoffs = (-1, -1);
+my @mt = (undef, undef);
+my @startoffset = (-1, -1);
 my $server = 0;
 my $success = 0;
 my $end = 0;
-my @message_rec_list = ();
-my @message_frag_lens = ();
+my @message_rec_list = ([], []);
+my @message_frag_lens = ([], []);
 my $ciphersuite = 0;
 my $successondata = 0;
 my $alert;
 
 sub clear
 {
-    $payload = "";
-    $messlen = -1;
-    $startoffset = -1;
+    @payload = ("", "");
+    @messlen = (-1, -1);
+    @messseq = (-1, -1);
+    @messfraglen = (-1, -1);
+    @messfragoffs = (-1, -1);
+    @startoffset = (-1, -1);
     $server = 0;
     $success = 0;
     $end = 0;
     $successondata = 0;
-    @message_rec_list = ();
-    @message_frag_lens = ();
+    @message_rec_list = ([], []);
+    @message_frag_lens = ([], []);
     $alert = undef;
 }
 
@@ -179,21 +200,18 @@ sub clear
 sub get_messages
 {
     my $class = shift;
-    my $serverin = shift;
     my $record = shift;
-    my $isdtls = shift;
+    my $serverin = $record->serverissender;
+    my $isdtls = $record->isdtls;
     my @messages = ();
     my $message;
 
-    @message_frag_lens = ();
+    $message_frag_lens[$serverin] = [];
 
-    if ($serverin != $server && length($payload) != 0) {
-        die "Changed peer, but we still have fragment data\n";
-    }
     $server = $serverin;
 
-    if ($record->content_type == TLSProxy::Record::RT_CCS) {
-        if ($payload ne "") {
+    if ($record->content_type == TLSProxy::Record::RT_CCS()) {
+        if ($payload[$server] ne "") {
             #We can't handle this yet
             die "CCS received before message data complete\n";
         }
@@ -204,44 +222,61 @@ sub get_messages
                 TLSProxy::Record->client_encrypting(1);
             }
         }
-    } elsif ($record->content_type == TLSProxy::Record::RT_HANDSHAKE) {
+    } elsif ($record->content_type == TLSProxy::Record::RT_HANDSHAKE()) {
         if ($record->len == 0 || $record->len_real == 0) {
             print "  Message truncated\n";
         } else {
             my $recoffset = 0;
 
-            if (length $payload > 0) {
+            if (length $payload[$server] > 0) {
                 #We are continuing processing a message started in a previous
-                #record. Add this record to the list associated with this
-                #message
-                push @message_rec_list, $record;
+                #record from this same sender. Add this record to the list
+                #associated with this message
+                push @{$message_rec_list[$server]}, $record;
 
-                if ($messlen <= length($payload)) {
+                if ($messlen[$server] <= length($payload[$server])) {
                     #Shouldn't happen
-                    die "Internal error: invalid messlen: ".$messlen
-                        ." payload length:".length($payload)."\n";
+                    die "Internal error: invalid messlen: ".$messlen[$server]
+                        ." payload length:".length($payload[$server])."\n";
                 }
-                if (length($payload) + $record->decrypt_len >= $messlen) {
+                if (length($payload[$server]) + $record->decrypt_len >= $messlen[$server]) {
                     #We can complete the message with this record
-                    $recoffset = $messlen - length($payload);
-                    $payload .= substr($record->decrypt_data, 0, $recoffset);
-                    push @message_frag_lens, $recoffset;
+                    $recoffset = $messlen[$server] - length($payload[$server]);
+
                     if ($isdtls) {
-                        # We must set $msgseq, $msgfrag, $msgfragoffs
-                        die "Internal error: cannot handle partial dtls messages\n"
+                        # For fragmented messages to be parsed correctly we need to
+                        # skip the handshake header
+                        $payload[$server] .= substr($record->decrypt_data, DTLS_MESSAGE_HEADER_LENGTH, $recoffset);
+                        push @{$message_frag_lens[$server]}, $recoffset;
+
+                        # We skipped the handshake header above and we need to
+                        # update recoffset accordingly
+                        $recoffset += DTLS_MESSAGE_HEADER_LENGTH;
+                    } else {
+                        $payload[$server] .= substr($record->decrypt_data, 0, $recoffset);
+                        push @{$message_frag_lens[$server]}, $recoffset;
                     }
-                    $message = create_message($server, $mt,
-                        #$msgseq, $msgfrag, $msgfragoffs,
-                        0, 0, 0,
-                        $payload, $startoffset, $isdtls);
+
+
+                    $message = create_message($server, $mt[$server],
+                        $messseq[$server], $messfraglen[$server], $messfragoffs[$server],
+                        $payload[$server], $startoffset[$server], $isdtls);
                     push @messages, $message;
 
-                    $payload = "";
+                    $payload[$server] = "";
                 } else {
                     #This is just part of the total message
-                    $payload .= $record->decrypt_data;
-                    $recoffset = $record->decrypt_len;
-                    push @message_frag_lens, $record->decrypt_len;
+                    if ($isdtls) {
+                        # DTLS 1.3 has a unified header before the handshake header.
+                        # We have processed the unified header and need to skip the
+                        # handshake header.
+                        $payload[$server] .= substr($record->decrypt_data, DTLS_MESSAGE_HEADER_LENGTH, length($record->decrypt_data) - DTLS_MESSAGE_HEADER_LENGTH);
+                        $recoffset = $record->decrypt_len;
+                    } else {
+                        $payload[$server] .= $record->decrypt_data;
+                        $recoffset = $record->decrypt_len;
+                    }
+                    push @{$message_frag_lens[$server]}, $record->decrypt_len;
                 }
                 print "  Partial message data read: ".$recoffset." bytes\n";
             }
@@ -254,57 +289,58 @@ sub get_messages
                     #Whilst technically probably valid we can't cope with this
                     die "End of record in the middle of a message header\n";
                 }
-                @message_rec_list = ($record);
+                $message_rec_list[$server] = [$record];
                 my $lenhi;
                 my $lenlo;
-                my $msgseq;
-                my $msgfrag;
-                my $msgfragoffs;
                 if ($isdtls) {
-                    my $msgfraghi;
-                    my $msgfraglo;
+                    my $msgfraglenhi;
+                    my $msgfraglenlo;
                     my $msgfragoffshi;
                     my $msgfragoffslo;
-                    ($mt, $lenhi, $lenlo, $msgseq, $msgfraghi, $msgfraglo, $msgfragoffshi, $msgfragoffslo) =
+                    ($mt[$server], $lenhi, $lenlo, $messseq[$server], $msgfragoffshi, $msgfragoffslo, $msgfraglenhi, $msgfraglenlo) =
                         unpack('CnCnnCnC', substr($record->decrypt_data, $recoffset));
-                    $msgfrag = ($msgfraghi << 8) | $msgfraglo;
-                    $msgfragoffs = ($msgfragoffshi << 8) | $msgfragoffslo;
+                    $messfraglen[$server] = ($msgfraglenhi << 8) | $msgfraglenlo;
+                    $messfragoffs[$server] = ($msgfragoffshi << 8) | $msgfragoffslo;
                 } else {
-                    ($mt, $lenhi, $lenlo) =
+                    ($mt[$server], $lenhi, $lenlo) =
                         unpack('CnC', substr($record->decrypt_data, $recoffset));
                 }
-                $messlen = ($lenhi << 8) | $lenlo;
-                print "  Message type: $message_type{$mt}($mt)\n";
-                print "  Message Length: $messlen\n";
-                $startoffset = $recoffset;
+                $messlen[$server] = ($lenhi << 8) | $lenlo;
+                print "  Message type: $message_type{$mt[$server]}($mt[$server])\n";
+                print "  Message Length: $messlen[$server]\n";
+                if ($isdtls) {
+                    print "  Message fragment length: $messfraglen[$server]\n";
+                    print "  Message fragment offset: $messfragoffs[$server]\n";
+                }
+                $startoffset[$server] = $recoffset;
                 $recoffset += $msgheaderlen;
-                $payload = "";
+                $payload[$server] = "";
 
                 if ($recoffset <= $record->decrypt_len) {
                     #Some payload data is present in this record
-                    if ($record->decrypt_len - $recoffset >= $messlen) {
+                    if ($record->decrypt_len - $recoffset >= $messlen[$server]) {
                         #We can complete the message with this record
-                        $payload .= substr($record->decrypt_data, $recoffset,
-                                           $messlen);
-                        $recoffset += $messlen;
-                        push @message_frag_lens, $messlen;
-                        $message = create_message($server, $mt, $msgseq,
-                                                  $msgfrag, $msgfragoffs,
-                                                  $payload, $startoffset, $isdtls);
+                        $payload[$server] .= substr($record->decrypt_data, $recoffset,
+                                           $messlen[$server]);
+                        $recoffset += $messlen[$server];
+                        push @{$message_frag_lens[$server]}, $messlen[$server];
+                        $message = create_message($server, $mt[$server], $messseq[$server],
+                                                  $messfraglen[$server], $messfragoffs[$server],
+                                                  $payload[$server], $startoffset[$server], $isdtls);
                         push @messages, $message;
 
-                        $payload = "";
+                        $payload[$server] = "";
                     } else {
                         #This is just part of the total message
-                        $payload .= substr($record->decrypt_data, $recoffset,
+                        $payload[$server] .= substr($record->decrypt_data, $recoffset,
                                            $record->decrypt_len - $recoffset);
                         $recoffset = $record->decrypt_len;
-                        push @message_frag_lens, $recoffset;
+                        push @{$message_frag_lens[$server]}, $recoffset;
                     }
                 }
             }
         }
-    } elsif ($record->content_type == TLSProxy::Record::RT_APPLICATION_DATA) {
+    } elsif ($record->content_type == TLSProxy::Record::RT_APPLICATION_DATA()) {
         print "  [ENCRYPTED APPLICATION DATA]\n";
         print "  [".$record->decrypt_data."]\n";
 
@@ -312,7 +348,7 @@ sub get_messages
             $success = 1;
             $end = 1;
         }
-    } elsif ($record->content_type == TLSProxy::Record::RT_ALERT) {
+    } elsif ($record->content_type == TLSProxy::Record::RT_ALERT()) {
         my ($alertlev, $alertdesc) = unpack('CC', $record->decrypt_data);
         print "  [$alertlev, $alertdesc]\n";
         #A CloseNotify from the client indicates we have finished successfully
@@ -339,7 +375,7 @@ sub get_messages
 #construct it
 sub create_message
 {
-    my ($server, $mt, $msgseq, $msgfrag, $msgfragoffs, $data, $startoffset, $isdtls) = @_;
+    my ($server, $mt, $msgseq, $msgfraglen, $msgfragoffs, $data, $startoffset, $isdtls) = @_;
     my $message;
 
     if ($mt == MT_CLIENT_HELLO) {
@@ -347,12 +383,12 @@ sub create_message
             $isdtls,
             $server,
             $msgseq,
-            $msgfrag,
+            $msgfraglen,
             $msgfragoffs,
             $data,
-            [@message_rec_list],
+            [@{$message_rec_list[$server]}],
             $startoffset,
-            [@message_frag_lens]
+            [@{$message_frag_lens[$server]}]
         );
         $message->parse();
     } elsif ($mt == MT_SERVER_HELLO) {
@@ -360,12 +396,12 @@ sub create_message
             $isdtls,
             $server,
             $msgseq,
-            $msgfrag,
+            $msgfraglen,
             $msgfragoffs,
             $data,
-            [@message_rec_list],
+            [@{$message_rec_list[$server]}],
             $startoffset,
-            [@message_frag_lens]
+            [@{$message_frag_lens[$server]}]
         );
         $message->parse();
     } elsif ($mt == MT_HELLO_VERIFY_REQUEST) {
@@ -373,12 +409,12 @@ sub create_message
             $isdtls,
             $server,
             $msgseq,
-            $msgfrag,
+            $msgfraglen,
             $msgfragoffs,
             $data,
-            [@message_rec_list],
+            [@{$message_rec_list[$server]}],
             $startoffset,
-            [@message_frag_lens]
+            [@{$message_frag_lens[$server]}]
         );
         $message->parse();
     } elsif ($mt == MT_ENCRYPTED_EXTENSIONS) {
@@ -386,12 +422,12 @@ sub create_message
             $isdtls,
             $server,
             $msgseq,
-            $msgfrag,
+            $msgfraglen,
             $msgfragoffs,
             $data,
-            [@message_rec_list],
+            [@{$message_rec_list[$server]}],
             $startoffset,
-            [@message_frag_lens]
+            [@{$message_frag_lens[$server]}]
         );
         $message->parse();
     } elsif ($mt == MT_CERTIFICATE) {
@@ -399,12 +435,12 @@ sub create_message
             $isdtls,
             $server,
             $msgseq,
-            $msgfrag,
+            $msgfraglen,
             $msgfragoffs,
             $data,
-            [@message_rec_list],
+            [@{$message_rec_list[$server]}],
             $startoffset,
-            [@message_frag_lens]
+            [@{$message_frag_lens[$server]}]
         );
         $message->parse();
     } elsif ($mt == MT_CERTIFICATE_REQUEST) {
@@ -412,12 +448,12 @@ sub create_message
             $isdtls,
             $server,
             $msgseq,
-            $msgfrag,
+            $msgfraglen,
             $msgfragoffs,
             $data,
-            [@message_rec_list],
+            [@{$message_rec_list[$server]}],
             $startoffset,
-            [@message_frag_lens]
+            [@{$message_frag_lens[$server]}]
         );
         $message->parse();
     } elsif ($mt == MT_CERTIFICATE_VERIFY) {
@@ -425,12 +461,12 @@ sub create_message
             $isdtls,
             $server,
             $msgseq,
-            $msgfrag,
+            $msgfraglen,
             $msgfragoffs,
             $data,
-            [@message_rec_list],
+            [@{$message_rec_list[$server]}],
             $startoffset,
-            [@message_frag_lens]
+            [@{$message_frag_lens[$server]}]
         );
         $message->parse();
     } elsif ($mt == MT_SERVER_KEY_EXCHANGE) {
@@ -438,12 +474,12 @@ sub create_message
             $isdtls,
             $server,
             $msgseq,
-            $msgfrag,
+            $msgfraglen,
             $msgfragoffs,
             $data,
-            [@message_rec_list],
+            [@{$message_rec_list[$server]}],
             $startoffset,
-            [@message_frag_lens]
+            [@{$message_frag_lens[$server]}]
         );
         $message->parse();
     } elsif ($mt == MT_NEW_SESSION_TICKET) {
@@ -451,20 +487,20 @@ sub create_message
             $message = TLSProxy::NewSessionTicket->new_dtls(
                 $server,
                 $msgseq,
-                $msgfrag,
+                $msgfraglen,
                 $msgfragoffs,
                 $data,
-                [@message_rec_list],
+                [@{$message_rec_list[$server]}],
                 $startoffset,
-                [@message_frag_lens]
+                [@{$message_frag_lens[$server]}]
             );
         } else {
             $message = TLSProxy::NewSessionTicket->new(
                 $server,
                 $data,
-                [@message_rec_list],
+                [@{$message_rec_list[$server]}],
                 $startoffset,
-                [@message_frag_lens]
+                [@{$message_frag_lens[$server]}]
             );
         }
         $message->parse();
@@ -473,12 +509,12 @@ sub create_message
             $isdtls,
             $server,
             $msgseq,
-            $msgfrag,
+            $msgfraglen,
             $msgfragoffs,
             $data,
-            [@message_rec_list],
+            [@{$message_rec_list[$server]}],
             $startoffset,
-            [@message_frag_lens]
+            [@{$message_frag_lens[$server]}]
         );
         $message->parse();
     } else {
@@ -488,12 +524,12 @@ sub create_message
             $server,
             $mt,
             $msgseq,
-            $msgfrag,
+            $msgfraglen,
             $msgfragoffs,
             $data,
-            [@message_rec_list],
+            [@{$message_rec_list[$server]}],
             $startoffset,
-            [@message_frag_lens]
+            [@{$message_frag_lens[$server]}]
         );
     }
 
@@ -528,7 +564,7 @@ sub new
         $server,
         $mt,
         $msgseq,
-        $msgfrag,
+        $msgfraglen,
         $msgfragoffs,
         $data,
         $records,
@@ -542,7 +578,7 @@ sub new
         records => $records,
         mt => $mt,
         msgseq => $msgseq,
-        msgfrag => $msgfrag,
+        msgfraglen => $msgfraglen,
         msgfragoffs => $msgfragoffs,
         startoffset => $startoffset,
         message_frag_lens => $message_frag_lens,
@@ -576,14 +612,21 @@ sub repack
     my $lenhi = length($self->data) >> 8;
 
     if ($self->{isdtls}) {
-        my $msgfraghi = $self->msgfrag >> 8;
-        my $msgfraglo = $self->msgfrag & 0xff;
+        my $msgfraglenhi = $self->msgfraglen >> 8;
+        my $msgfraglenlo = $self->msgfraglen & 0xff;
         my $msgfragoffshi = $self->msgfragoffs >> 8;
         my $msgfragoffslo = $self->msgfragoffs & 0xff;
 
+        if (length($self->data) != $self->msgfraglen) {
+            # TLSProxy does not support message fragmentation hence we can just
+            # overwrite the fragment lengths
+            $msgfraglenhi = $lenhi;
+            $msgfraglenlo = $lenlo;
+            print "DTLS Message Fragment Length overwritten with actual message size.\n"
+        }
         $msgdata = pack('CnCnnCnC', $self->mt, $lenhi, $lenlo, $self->msgseq,
-                                    $msgfraghi, $msgfraglo,
-                                    $msgfragoffshi, $msgfragoffslo).$self->data;
+                                    $msgfragoffshi, $msgfragoffslo,
+                                    $msgfraglenhi, $msgfraglenlo).$self->data;
     } else {
         $msgdata = pack('CnC', $self->mt, $lenhi, $lenlo).$self->data;
     }
@@ -619,7 +662,7 @@ sub repack
             if (TLSProxy::Proxy->is_tls13()) {
                 #Add content type (1 byte) and 16 tag bytes
                 $rec->data($rec->decrypt_data
-                    .pack("C", TLSProxy::Record::RT_HANDSHAKE).("\0"x16));
+                    .pack("C", TLSProxy::Record::RT_HANDSHAKE()).("\0"x16));
             } elsif ($rec->etm()) {
                 my $data = $rec->decrypt_data;
                 #Add padding
@@ -634,7 +677,8 @@ sub repack
                     $data .= pack("C", $macval);
                 }
 
-                if ($rec->version() >= TLSProxy::Record::VERS_TLS_1_1) {
+                if ((!$self->{isdtls} && $rec->version() >= TLSProxy::Record::VERS_TLS_1_1())
+                    || ($self->{isdtls} && $rec->version() <= TLSProxy::Record::VERS_DTLS_1())) {
                     #Explicit IV
                     $data = ("\0"x16).$data;
                 }
@@ -704,13 +748,13 @@ sub msgseq
     }
     return $self->{msgseq};
 }
-sub msgfrag
+sub msgfraglen
 {
     my $self = shift;
     if (@_) {
-        $self->{msgfrag} = shift;
+        $self->{msgfraglen} = shift;
     }
-    return $self->{msgfrag};
+    return $self->{msgfraglen};
 }
 sub msgfragoffs
 {

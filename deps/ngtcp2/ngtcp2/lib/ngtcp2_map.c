@@ -30,6 +30,7 @@
 #include <stdio.h>
 
 #include "ngtcp2_conv.h"
+#include "ngtcp2_macro.h"
 
 #define NGTCP2_INITIAL_HASHBITS 4
 
@@ -74,18 +75,19 @@ int ngtcp2_map_each(const ngtcp2_map *map, int (*func)(void *data, void *ptr),
   return 0;
 }
 
-/* Hasher from
-   https://github.com/rust-lang/rustc-hash/blob/dc5c33f1283de2da64d8d7a06401d91aded03ad4/src/lib.rs
-   to maximize the output's sensitivity to all input bits. */
-#define NGTCP2_MAP_HASHER 0xF1357AEA2E62A9C5ULL
-/* 64-bit Fibonacci hashing constant, Golden Ratio constant, to get
-   the high bits with the good distribution. */
-#define NGTCP2_MAP_FIBO 0x9E3779B97F4A7C15ULL
+/* 64-bit finalizer (fmix64) from MurmurHash3 to maximize the output's
+   sensitivity to all input bits. */
+#define NGTCP2_MAP_HASHER1 0xFF51AFD7ED558CCDULL
+#define NGTCP2_MAP_HASHER2 0xC4CEB9FE1A85EC53ULL
 
 static size_t map_index(const ngtcp2_map *map, ngtcp2_map_key_type key) {
-  key += map->seed;
-  key *= NGTCP2_MAP_HASHER;
-  return (size_t)((key * NGTCP2_MAP_FIBO) >> (64 - map->hashbits));
+  key ^= map->seed;
+  key ^= key >> 33;
+  key *= NGTCP2_MAP_HASHER1;
+  key ^= key >> 33;
+  key *= NGTCP2_MAP_HASHER2;
+  key ^= key >> 33;
+  return (size_t)(key >> (64 - map->hashbits));
 }
 
 #ifndef WIN32
@@ -107,17 +109,17 @@ void ngtcp2_map_print_distance(const ngtcp2_map *map) {
     }
 
     idx = map_index(map, map->keys[i]);
-    fprintf(stderr, "@%zu key=%" PRIu64 " base=%zu distance=%u\n", i,
+    fprintf(stderr, "@%zu key=%" PRIu64 " base=%zu distance=%zu\n", i,
             map->keys[i], idx, map->psl[i] - 1);
   }
 }
 #endif /* !defined(WIN32) */
 
 static void map_set_entry(ngtcp2_map *map, size_t idx, ngtcp2_map_key_type key,
-                          void *data, size_t psl) {
+                          size_t psl, void *data) {
   map->keys[idx] = key;
+  map->psl[idx] = psl;
   map->data[idx] = data;
-  map->psl[idx] = (uint8_t)psl;
 }
 
 #define NGTCP2_SWAP(TYPE, A, B)                                                \
@@ -129,15 +131,15 @@ static void map_set_entry(ngtcp2_map *map, size_t idx, ngtcp2_map_key_type key,
   } while (0)
 
 /*
- * map_insert inserts |key| and |data| to |map|, and returns the index
- * where the pair is stored if it succeeds.  Otherwise, it returns one
- * of the following negative error codes:
+ * map_insert inserts |key| and |data| to |map|.
+ *
+ * It returns 0 if it succeeds, or one of the following negative error
+ * codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     The another data associated to |key| is already present.
  */
-static ngtcp2_ssize map_insert(ngtcp2_map *map, ngtcp2_map_key_type key,
-                               void *data) {
+static int map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
   size_t idx = map_index(map, key);
   size_t mask = ((size_t)1 << map->hashbits) - 1;
   size_t psl = 1;
@@ -147,16 +149,16 @@ static ngtcp2_ssize map_insert(ngtcp2_map *map, ngtcp2_map_key_type key,
     kpsl = map->psl[idx];
 
     if (kpsl == 0) {
-      map_set_entry(map, idx, key, data, psl);
+      map_set_entry(map, idx, key, psl, data);
       ++map->size;
 
-      return (ngtcp2_ssize)idx;
+      return 0;
     }
 
     if (psl > kpsl) {
       NGTCP2_SWAP(ngtcp2_map_key_type, &key, &map->keys[idx]);
+      NGTCP2_SWAP(size_t, &psl, &map->psl[idx]);
       NGTCP2_SWAP(void *, &data, &map->data[idx]);
-      NGTCP2_SWAP(uint8_t, &psl, &map->psl[idx]);
     } else if (map->keys[idx] == key) {
       /* This check ensures that no duplicate keys are inserted.  But
          it is just a waste after first swap or if this function is
@@ -178,14 +180,14 @@ static ngtcp2_ssize map_insert(ngtcp2_map *map, ngtcp2_map_key_type key,
 static int map_resize(ngtcp2_map *map, size_t new_hashbits) {
   size_t i;
   size_t tablelen;
-  ngtcp2_ssize idx;
   ngtcp2_map new_map = {
     .mem = map->mem,
     .seed = map->seed,
     .hashbits = new_hashbits,
   };
   void *buf;
-  (void)idx;
+  int rv;
+  (void)rv;
 
   if (new_hashbits > NGTCP2_MAP_MAX_HASHBITS) {
     return NGTCP2_ERR_NOMEM;
@@ -194,16 +196,16 @@ static int map_resize(ngtcp2_map *map, size_t new_hashbits) {
   tablelen = (size_t)1 << new_hashbits;
 
   buf = ngtcp2_mem_calloc(map->mem, tablelen,
-                          sizeof(ngtcp2_map_key_type) + sizeof(void *) +
-                            sizeof(uint8_t));
-  if (buf == NULL) {
+                          sizeof(ngtcp2_map_key_type) + sizeof(size_t) +
+                            sizeof(void *));
+  if (!buf) {
     return NGTCP2_ERR_NOMEM;
   }
 
   new_map.keys = buf;
-  new_map.data =
-    (void *)((uint8_t *)new_map.keys + tablelen * sizeof(ngtcp2_map_key_type));
-  new_map.psl = (uint8_t *)new_map.data + tablelen * sizeof(void *);
+  new_map.psl = (size_t *)(void *)((uint8_t *)new_map.keys +
+                                   tablelen * sizeof(ngtcp2_map_key_type));
+  new_map.data = (void *)((uint8_t *)new_map.psl + tablelen * sizeof(size_t));
 
   if (map->size) {
     tablelen = (size_t)1 << map->hashbits;
@@ -213,31 +215,26 @@ static int map_resize(ngtcp2_map *map, size_t new_hashbits) {
         continue;
       }
 
-      idx = map_insert(&new_map, map->keys[i], map->data[i]);
+      rv = map_insert(&new_map, map->keys[i], map->data[i]);
 
       /* map_insert must not fail because all keys are unique during
          resize. */
-      assert(idx >= 0);
+      assert(0 == rv);
     }
   }
 
   ngtcp2_mem_free(map->mem, map->keys);
   map->keys = new_map.keys;
-  map->data = new_map.data;
   map->psl = new_map.psl;
+  map->data = new_map.data;
   map->hashbits = new_hashbits;
 
   return 0;
 }
 
-/* NGTCP2_MAX_PSL_RESIZE_THRESH is the maximum psl threshold.  If
-   reached, resize the table. */
-#define NGTCP2_MAX_PSL_RESIZE_THRESH 128
-
 int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
   int rv;
   size_t tablelen;
-  ngtcp2_ssize idx;
 
   assert(data);
 
@@ -254,27 +251,9 @@ int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
     if (rv != 0) {
       return rv;
     }
-
-    idx = map_insert(map, key, data);
-    if (idx < 0) {
-      return (int)idx;
-    }
-
-    return 0;
   }
 
-  idx = map_insert(map, key, data);
-  if (idx < 0) {
-    return (int)idx;
-  }
-
-  /* Resize if psl reaches really large value which is almost
-     improbable, but just in case. */
-  if (map->psl[idx] - 1 < NGTCP2_MAX_PSL_RESIZE_THRESH) {
-    return 0;
-  }
-
-  return map_resize(map, map->hashbits + 1);
+  return map_insert(map, key, data);
 }
 
 void *ngtcp2_map_find(const ngtcp2_map *map, ngtcp2_map_key_type key) {
@@ -332,7 +311,7 @@ int ngtcp2_map_remove(ngtcp2_map *map, ngtcp2_map_key_type key) {
           break;
         }
 
-        map_set_entry(map, dest, map->keys[idx], map->data[idx], kpsl - 1);
+        map_set_entry(map, dest, map->keys[idx], kpsl - 1, map->data[idx]);
 
         dest = idx;
 

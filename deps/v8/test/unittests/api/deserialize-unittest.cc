@@ -1333,4 +1333,148 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
   }
 }
 
+TEST_F(MergeDeserializedCodeTest, ModuleCacheClassicScriptMismatch) {
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
+      true;
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
+  IsolateAndContextScope scope(this);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+  PersistentScriptOrigin default_origin(
+      isolate(), NewString("http://example.com/test.js"));
+
+  constexpr char kPolyglotSource[] =
+      "let L0 = 1;\n"
+      "var z, o;\n"
+      "function g() { throw 1; }\n"
+      "function K(a, b) { var t = globalThis.top; (t.__keep = t.__keep || "
+      "[]).push(a, b); }\n"
+      "z = await /1; function lazyOuter() { function inner() {} } { try { g() "
+      "} catch /* 1, o = { a: function () {}, 'NAMENAMENAMENAME' //*/\n"
+      "(e) { K(() => e, function later() { return e }) } }\n";
+
+  // Setup: define `await` and `top` in global scope for classic script parse.
+  {
+    v8::HandleScope handle_scope(isolate());
+    Local<Script> setup =
+        Script::Compile(
+            context(), NewString("var await = 6; globalThis.top = globalThis;"))
+            .ToLocalChecked();
+    CHECK(!setup->Run(context()).IsEmpty());
+  }
+
+  // Step 1: Compile and run as a classic script, populating the Isolate
+  // compilation cache and retaining catch-block closures in globalThis.__keep.
+  // Also compile as a module with the same resource name and create a module
+  // code cache, then age and flush the classic script's top-level bytecode.
+  {
+    v8::HandleScope handle_scope(isolate());
+    ScriptOrigin classic_origin = default_origin.AsScriptOrigin();
+    Local<Script> script =
+        Script::Compile(context(), NewString(kPolyglotSource), &classic_origin)
+            .ToLocalChecked();
+    CHECK(!script->Run(context()).IsEmpty());
+
+    ScriptOrigin module_origin(NewString("http://example.com/test.js"), 0, 0,
+                               false, -1, Local<Value>(), false, false,
+                               /*is_module=*/true);
+    ScriptCompiler::Source module_source(NewString(kPolyglotSource),
+                                         module_origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate(), &module_source)
+            .ToLocalChecked();
+    cached_data.reset(
+        ScriptCompiler::CreateCodeCache(module->GetUnboundModuleScript()));
+
+    i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
+  }
+
+  // Step 2: Flush the classic script's top-level bytecode via major GC.
+  {
+    i::DisableConservativeStackScanningScopeForTesting no_css_scope(
+        i_isolate->heap());
+    InvokeMajorGC(i_isolate);
+    InvokeMajorGC(i_isolate);
+  }
+
+  // Step 3a: Start off-thread consumption of the MODULE code cache, then notify
+  // SourceTextAvailable with the CLASSIC ScriptOrigin after Run() completes.
+  {
+    auto task_cached_data = std::make_unique<ScriptCompiler::CachedData>(
+        cached_data->data, cached_data->length,
+        ScriptCompiler::CachedData::BufferNotOwned);
+    DeserializeThread deserialize_thread(
+        ScriptCompiler::StartConsumingCodeCache(
+            isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                           cached_data->data, cached_data->length,
+                           ScriptCompiler::CachedData::BufferNotOwned)));
+    CHECK(deserialize_thread.Start());
+    deserialize_thread.Join();
+
+    std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task =
+        deserialize_thread.TakeTask();
+    task->SourceTextAvailable(isolate(), NewString(kPolyglotSource),
+                              default_origin.AsScriptOrigin());
+    CHECK(!task->ShouldMergeWithExistingScript());
+
+    v8::HandleScope handle_scope(isolate());
+    ScriptCompiler::Source source(NewString(kPolyglotSource),
+                                  default_origin.AsScriptOrigin(),
+                                  task_cached_data.release(), task.release());
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    CHECK(!script.IsEmpty());
+    CHECK(source.GetCachedData()->rejected);
+
+    // Age and flush the recompiled classic script's top-level bytecode again so
+    // Step 3b also sees a flushed Script in the Isolate compilation cache.
+    i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
+  }
+  {
+    i::DisableConservativeStackScanningScopeForTesting no_css_scope(
+        i_isolate->heap());
+    InvokeMajorGC(i_isolate);
+    InvokeMajorGC(i_isolate);
+  }
+
+  // Step 3b: Also test calling SourceTextAvailable on the main thread BEFORE
+  // Run() executes on the background thread.
+  {
+    auto task_cached_data = std::make_unique<ScriptCompiler::CachedData>(
+        cached_data->data, cached_data->length,
+        ScriptCompiler::CachedData::BufferNotOwned);
+    std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task(
+        ScriptCompiler::StartConsumingCodeCache(
+            isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                           cached_data->data, cached_data->length,
+                           ScriptCompiler::CachedData::BufferNotOwned)));
+    task->SourceTextAvailable(isolate(), NewString(kPolyglotSource),
+                              default_origin.AsScriptOrigin());
+
+    DeserializeThread deserialize_thread(task.release());
+    CHECK(deserialize_thread.Start());
+    deserialize_thread.Join();
+    task = deserialize_thread.TakeTask();
+    CHECK(!task->ShouldMergeWithExistingScript());
+
+    v8::HandleScope handle_scope(isolate());
+    ScriptCompiler::Source source(NewString(kPolyglotSource),
+                                  default_origin.AsScriptOrigin(),
+                                  task_cached_data.release(), task.release());
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    CHECK(!script.IsEmpty());
+    CHECK(source.GetCachedData()->rejected);
+
+    Local<Script> run_kept =
+        Script::Compile(context(),
+                        NewString("for (const f of globalThis.__keep) f();"))
+            .ToLocalChecked();
+    CHECK(!run_kept->Run(context()).IsEmpty());
+  }
+}
+
 }  // namespace v8

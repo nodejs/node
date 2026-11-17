@@ -22,6 +22,7 @@
 #undef UNICODE
 
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "bio_local.h"
@@ -265,7 +266,7 @@ static int addr_strings(const BIO_ADDR *ap, int numeric,
          * didn't go the way one might expect.
          */
         if (serv[0] == '\0') {
-            BIO_snprintf(serv, sizeof(serv), "%d",
+            snprintf(serv, sizeof(serv), "%d",
                 ntohs(BIO_ADDR_rawport(ap)));
         }
 
@@ -279,7 +280,7 @@ static int addr_strings(const BIO_ADDR *ap, int numeric,
             *hostname = OPENSSL_strdup(inet_ntoa(ap->s_in.sin_addr));
         if (service != NULL) {
             char serv[6]; /* port is 16 bits => max 5 decimal digits */
-            BIO_snprintf(serv, sizeof(serv), "%d", ntohs(ap->s_in.sin_port));
+            snprintf(serv, sizeof(serv), "%d", ntohs(ap->s_in.sin_port));
             *service = OPENSSL_strdup(serv);
         }
     }
@@ -428,7 +429,7 @@ int BIO_ADDRINFO_protocol(const BIO_ADDRINFO *bai)
 socklen_t BIO_ADDRINFO_sockaddr_size(const BIO_ADDRINFO *bai)
 {
     if (bai != NULL)
-        return bai->bai_addrlen;
+        return (socklen_t)bai->bai_addrlen;
     return 0;
 }
 

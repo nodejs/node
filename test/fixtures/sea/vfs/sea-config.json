@@ -4,6 +4,7 @@
   "useVfs": true,
   "assets": {
     "config.json": "config.json",
+    "worker.js": "worker.js",
     "data/greeting.txt": "greeting.txt",
     "modules/math.js": "math.js",
     "modules/calculator.js": "calculator.js",

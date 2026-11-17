@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2009-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,7 +28,7 @@
 #endif
 #include <openssl/crypto.h>
 #include "internal/cryptlib.h"
-#include "crypto/ppc_arch.h"
+#include "arch/ppc_arch.h"
 
 unsigned int OPENSSL_ppccap_P = 0;
 
@@ -101,7 +101,7 @@ size_t OPENSSL_instrument_bus2(unsigned int *out, size_t cnt, size_t max)
 
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <sys/param.h>
-#if (defined(__FreeBSD__) && __FreeBSD_version >= 1200000) || (defined(__OpenBSD__) && OpenBSD >= 202409)
+#if (defined(__FreeBSD__) && __FreeBSD_version >= 1104000) || (defined(__OpenBSD__) && OpenBSD >= 202409)
 #include <sys/auxv.h>
 #define OSSL_IMPLEMENT_GETAUXVAL
 
@@ -134,7 +134,7 @@ static unsigned long getauxval(unsigned long key)
 #define HWCAP_ARCH_3_00 (1U << 23)
 #define HWCAP_ARCH_3_1 (1U << 18)
 
-#if defined(__GNUC__) && __GNUC__ >= 2
+#if defined(__GNUC__)
 __attribute__((constructor))
 #endif
 void OPENSSL_cpuid_setup(void)
@@ -160,11 +160,16 @@ void OPENSSL_cpuid_setup(void)
 
     if (sizeof(size_t) == 4) {
         struct utsname uts;
+        long major;
+        char *end;
 #if defined(_SC_AIX_KERNEL_BITMODE)
         if (sysconf(_SC_AIX_KERNEL_BITMODE) != 64)
             return;
 #endif
-        if (uname(&uts) != 0 || atoi(uts.version) < 6)
+        if (uname(&uts) != 0
+            || !ossl_strtol(uts.version, &end, 10, &major)
+            || (*end != '\0' && *end != '.')
+            || major < 6)
             return;
     }
 

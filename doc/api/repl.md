@@ -211,7 +211,7 @@ Uncaught Error: foo
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.0.0
     pr-url: https://github.com/nodejs/node/pull/64034
     description: The `--experimental-repl-await` flag was removed. Top-level
                  `await` is always enabled and can no longer be disabled.

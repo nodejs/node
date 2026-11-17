@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,7 @@
  */
 
 #include "crypto/bn.h"
-#include "crypto/s390x_arch.h"
+#include "arch/s390x_arch.h"
 
 #ifdef S390X_MOD_EXP
 
@@ -20,18 +20,22 @@
 #include <unistd.h>
 #include <errno.h>
 
+/*
+ * Returns 1 for success, 0 for failure, and -1 to tell the caller to use the
+ * SW-fallback.
+ */
 static int s390x_mod_exp_hw(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
     const BIGNUM *m)
 {
     struct ica_rsa_modexpo me;
     unsigned char *buffer;
     size_t size;
-    int res = 0;
+    int res = -1;
 
     if (OPENSSL_s390xcex == -1 || OPENSSL_s390xcex_nodev)
-        return 0;
+        return -1;
     size = BN_num_bytes(m);
-    buffer = OPENSSL_zalloc(4 * size);
+    buffer = OPENSSL_calloc(size, 4);
     if (buffer == NULL)
         return 0;
     me.inputdata = buffer;
@@ -42,11 +46,15 @@ static int s390x_mod_exp_hw(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
     me.n_modulus = buffer + 3 * size;
     if (BN_bn2binpad(a, me.inputdata, size) == -1
         || BN_bn2binpad(p, me.b_key, size) == -1
-        || BN_bn2binpad(m, me.n_modulus, size) == -1)
+        || BN_bn2binpad(m, me.n_modulus, size) == -1) {
+        res = 0;
         goto dealloc;
+    }
     if (ioctl(OPENSSL_s390xcex, ICARSAMODEXPO, &me) != -1) {
         if (BN_bin2bn(me.outputdata, size, r) != NULL)
             res = 1;
+        else
+            res = 0;
     } else if (errno == EBADF || errno == ENOTTY) {
         /*
          * In this cases, someone (e.g. a sandbox) closed the fd.
@@ -71,27 +79,34 @@ dealloc:
 int s390x_mod_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
     const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx)
 {
-    if (s390x_mod_exp_hw(r, a, p, m) == 1)
-        return 1;
-    return BN_mod_exp_mont(r, a, p, m, ctx, m_ctx);
+    int rc;
+
+    rc = s390x_mod_exp_hw(r, a, p, m);
+    if (rc < 0)
+        return BN_mod_exp_mont(r, a, p, m, ctx, m_ctx);
+    return rc;
 }
 
+/*
+ * Returns 1 for success, 0 for failure, and -1 to tell the caller to use the
+ * SW-fallback.
+ */
 int s390x_crt(BIGNUM *r, const BIGNUM *i, const BIGNUM *p, const BIGNUM *q,
     const BIGNUM *dmp, const BIGNUM *dmq, const BIGNUM *iqmp)
 {
     struct ica_rsa_modexpo_crt crt;
     unsigned char *buffer, *part;
     size_t size, plen, qlen;
-    int res = 0;
+    int res = -1;
 
     if (OPENSSL_s390xcex == -1 || OPENSSL_s390xcex_nodev)
-        return 0;
+        return -1;
     /*-
      * Hardware-accelerated CRT can only deal with p>q.  Fall back to
      * software in the (hopefully rare) other cases.
      */
     if (BN_ucmp(p, q) != 1)
-        return 0;
+        return -1;
     plen = BN_num_bytes(p);
     qlen = BN_num_bytes(q);
     size = (plen > qlen ? plen : qlen);
@@ -119,11 +134,15 @@ int s390x_crt(BIGNUM *r, const BIGNUM *i, const BIGNUM *p, const BIGNUM *q,
         || BN_bn2binpad(q, crt.nq_prime, size) == -1
         || BN_bn2binpad(dmp, crt.bp_key, size + 8) == -1
         || BN_bn2binpad(dmq, crt.bq_key, size) == -1
-        || BN_bn2binpad(iqmp, crt.u_mult_inv, size + 8) == -1)
+        || BN_bn2binpad(iqmp, crt.u_mult_inv, size + 8) == -1) {
+        res = 0;
         goto dealloc;
+    }
     if (ioctl(OPENSSL_s390xcex, ICARSACRT, &crt) != -1) {
         if (BN_bin2bn(crt.outputdata, crt.outputdatalength, r) != NULL)
             res = 1;
+        else
+            res = 0;
     } else if (errno == EBADF || errno == ENOTTY) {
         /*
          * In this cases, someone (e.g. a sandbox) closed the fd.

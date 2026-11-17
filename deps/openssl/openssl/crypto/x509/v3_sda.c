@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,7 +22,7 @@ static int i2r_ATTRIBUTES_SYNTAX(X509V3_EXT_METHOD *method,
     BIO *out, int indent)
 {
     X509_ATTRIBUTE *attr;
-    ASN1_TYPE *av;
+    const ASN1_TYPE *av;
     int i, j, attr_nid;
 
     if (!attrlst) {
@@ -37,7 +37,7 @@ static int i2r_ATTRIBUTES_SYNTAX(X509V3_EXT_METHOD *method,
     }
 
     for (i = 0; i < sk_X509_ATTRIBUTE_num(attrlst); i++) {
-        ASN1_OBJECT *attr_obj;
+        const ASN1_OBJECT *attr_obj;
         attr = sk_X509_ATTRIBUTE_value(attrlst, i);
         attr_obj = X509_ATTRIBUTE_get0_object(attr);
         attr_nid = OBJ_obj2nid(attr_obj);

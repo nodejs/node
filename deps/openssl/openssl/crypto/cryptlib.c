@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -15,13 +15,6 @@
 #if defined(_WIN32) && !defined(OPENSSL_SYS_UEFI)
 #include <tchar.h>
 #include <signal.h>
-#ifdef __WATCOMC__
-#if defined(_UNICODE) || defined(__UNICODE__)
-#define _vsntprintf _vsnwprintf
-#else
-#define _vsntprintf _vsnprintf
-#endif
-#endif
 #ifdef _MSC_VER
 #define alloca _alloca
 #endif
@@ -60,7 +53,7 @@ int OPENSSL_isservice(void)
     }
 
     if (_OPENSSL_isservice.p != (void *)-1)
-        return (*_OPENSSL_isservice.f)();
+        return (int)((*_OPENSSL_isservice.f)());
 
     h = GetProcessWindowStation();
     if (h == NULL)
@@ -110,8 +103,6 @@ void OPENSSL_showfatal(const char *fmta, ...)
     /*
      * First check if it's a console application, in which case the
      * error message would be printed to standard error.
-     * Windows CE does not have a concept of a console application,
-     * so we need to guard the check.
      */
 #ifdef STD_ERROR_HANDLE
     HANDLE h;
@@ -142,7 +133,7 @@ void OPENSSL_showfatal(const char *fmta, ...)
                 fmt = (const TCHAR *)L"no stack?";
                 break;
             }
-            if (!MultiByteToWideChar(CP_ACP, 0, fmta, len_0, fmtw, len_0))
+            if (!MultiByteToWideChar(CP_ACP, 0, fmta, (int)len_0, fmtw, (int)len_0))
                 for (i = 0; i < len_0; i++)
                     fmtw[i] = (WCHAR)fmta[i];
             for (i = 0; i < len_0; i++) {
@@ -260,9 +251,7 @@ void OPENSSL_die(const char *message, const char *file, int line)
     /*
      * Win32 abort() customarily shows a dialog, but we just did that...
      */
-#if !defined(_WIN32_WCE)
     raise(SIGABRT);
-#endif
     _exit(3);
 #endif
 }

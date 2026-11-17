@@ -1,90 +1,21 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+#if !defined(OSSL_LIBCRYPTO_CAST_CAST_LOCAL_H)
+#define OSSL_LIBCRYPTO_CAST_CAST_LOCAL_H
+
+#include <openssl/cast.h>
+
+#include "internal/common.h"
 
 #ifdef OPENSSL_SYS_WIN32
 #include <stdlib.h>
 #endif
-
-/* NOTE - c is not incremented as per n2l */
-#define n2ln(c, l1, l2, n)                           \
-    {                                                \
-        c += n;                                      \
-        l1 = l2 = 0;                                 \
-        switch (n) {                                 \
-        case 8:                                      \
-            l2 = ((unsigned long)(*(--(c))));        \
-        /* fall through */                           \
-        case 7:                                      \
-            l2 |= ((unsigned long)(*(--(c)))) << 8;  \
-        /* fall through */                           \
-        case 6:                                      \
-            l2 |= ((unsigned long)(*(--(c)))) << 16; \
-        /* fall through */                           \
-        case 5:                                      \
-            l2 |= ((unsigned long)(*(--(c)))) << 24; \
-        /* fall through */                           \
-        case 4:                                      \
-            l1 = ((unsigned long)(*(--(c))));        \
-        /* fall through */                           \
-        case 3:                                      \
-            l1 |= ((unsigned long)(*(--(c)))) << 8;  \
-        /* fall through */                           \
-        case 2:                                      \
-            l1 |= ((unsigned long)(*(--(c)))) << 16; \
-        /* fall through */                           \
-        case 1:                                      \
-            l1 |= ((unsigned long)(*(--(c)))) << 24; \
-        }                                            \
-    }
-
-/* NOTE - c is not incremented as per l2n */
-#define l2nn(l1, l2, c, n)                                   \
-    {                                                        \
-        c += n;                                              \
-        switch (n) {                                         \
-        case 8:                                              \
-            *(--(c)) = (unsigned char)(((l2)) & 0xff);       \
-        /* fall through */                                   \
-        case 7:                                              \
-            *(--(c)) = (unsigned char)(((l2) >> 8) & 0xff);  \
-        /* fall through */                                   \
-        case 6:                                              \
-            *(--(c)) = (unsigned char)(((l2) >> 16) & 0xff); \
-        /* fall through */                                   \
-        case 5:                                              \
-            *(--(c)) = (unsigned char)(((l2) >> 24) & 0xff); \
-        /* fall through */                                   \
-        case 4:                                              \
-            *(--(c)) = (unsigned char)(((l1)) & 0xff);       \
-        /* fall through */                                   \
-        case 3:                                              \
-            *(--(c)) = (unsigned char)(((l1) >> 8) & 0xff);  \
-        /* fall through */                                   \
-        case 2:                                              \
-            *(--(c)) = (unsigned char)(((l1) >> 16) & 0xff); \
-        /* fall through */                                   \
-        case 1:                                              \
-            *(--(c)) = (unsigned char)(((l1) >> 24) & 0xff); \
-        }                                                    \
-    }
-
-#undef n2l
-#define n2l(c, l) (l = ((unsigned long)(*((c)++))) << 24L, \
-    l |= ((unsigned long)(*((c)++))) << 16L,               \
-    l |= ((unsigned long)(*((c)++))) << 8L,                \
-    l |= ((unsigned long)(*((c)++))))
-
-#undef l2n
-#define l2n(l, c) (*((c)++) = (unsigned char)(((l) >> 24L) & 0xff), \
-    *((c)++) = (unsigned char)(((l) >> 16L) & 0xff),                \
-    *((c)++) = (unsigned char)(((l) >> 8L) & 0xff),                 \
-    *((c)++) = (unsigned char)(((l)) & 0xff))
 
 #if defined(OPENSSL_SYS_WIN32) && defined(_MSC_VER)
 #define ROTL(a, n) (_lrotl(a, n))
@@ -166,3 +97,5 @@ extern const CAST_LONG CAST_S_table4[256];
 extern const CAST_LONG CAST_S_table5[256];
 extern const CAST_LONG CAST_S_table6[256];
 extern const CAST_LONG CAST_S_table7[256];
+
+#endif /* !defined(OSSL_LIBCRYPTO_CAST_CAST_LOCAL_H) */

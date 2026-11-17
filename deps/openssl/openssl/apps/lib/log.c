@@ -1,11 +1,13 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#include <stdio.h>
 
 #include <openssl/trace.h>
 #include "apps.h"
@@ -46,11 +48,14 @@ static void log_with_prefix(const char *prog, const char *fmt, va_list ap)
     char prefix[80];
     BIO *bio, *pre = BIO_new(BIO_f_prefix());
 
-    (void)BIO_snprintf(prefix, sizeof(prefix), "%s: ", prog);
+    if (pre == NULL)
+        return;
+
+    (void)snprintf(prefix, sizeof(prefix), "%s: ", prog);
     (void)BIO_set_prefix(pre, prefix);
     bio = BIO_push(pre, bio_err);
     (void)BIO_vprintf(bio, fmt, ap);
-    (void)BIO_printf(bio, "\n");
+    (void)BIO_puts(bio, "\n");
     (void)BIO_flush(bio);
     (void)BIO_pop(pre);
     BIO_free(pre);
@@ -89,7 +94,7 @@ void trace_log_message(int category,
 #else
         (void)BIO_vprintf(out, fmt, ap);
 #endif
-        (void)BIO_printf(out, "\n");
+        (void)BIO_puts(out, "\n");
         OSSL_trace_end(category, out);
     }
     if (verbosity < level) {

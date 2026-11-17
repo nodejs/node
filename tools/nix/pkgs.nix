@@ -1,10 +1,10 @@
 arg:
 let
   repo = "https://github.com/NixOS/nixpkgs";
-  rev = "8edc0c72e3a38faf5434e40d1f19431125fe4b30";
+  rev = "2074cc672349f14240fb7ea90d509e0b643e9dd4";
   nixpkgs = import (builtins.fetchTarball {
     url = "${repo}/archive/${rev}.tar.gz";
-    sha256 = "0cwxl7z1x0ad9z8lcljl390y9lk73ql4fvx5lysy4s9c6723p8xn";
+    sha256 = "0x2cbp7qi17ll07dlns0bq6401r6563bvkv3bqvd6lia5ai5hj0k";
   }) arg;
 in
 # Unstable channel no longer supports Intel architecture for macOS. We can use the 26.05 channel
@@ -15,9 +15,27 @@ if builtins.currentSystem == "x86_64-darwin" then
 else
   nixpkgs
   // {
-    # TODO: remove pin once https://github.com/mozilla/sccache/issues/2869 is resolved
-    sccache = nixpkgs.callPackage (builtins.fetchurl {
-      url = "${repo}/raw/aff8a0b28396750446e5537a96461bc4facdb287/pkgs/by-name/sc/sccache/package.nix";
-      sha256 = "09dlc99sam9ld9jvzgcc00r4v4ls1cmbb0yim3mr895fpbs8b3qa";
-    }) { };
+    # OpenSSL 3.0.x was removed from unstable, but we want to keep testing it.
+    inherit (import ./pkgs-26.05.nix arg)
+      openssl_3
+      ;
+
+    boringssl =
+      let
+        inherit (nixpkgs) boringssl lib writeTextFile;
+      in
+      # BoringSSL does not install the openssl.pc metadata required by configure.
+      # https://boringssl-review.googlesource.com/c/boringssl/+/104208
+      writeTextFile {
+        inherit (boringssl) name;
+        passthru = { inherit (boringssl) version; };
+        destination = "/lib/pkgconfig/openssl.pc";
+        text = ''
+          Name: BoringSSL
+          Description: BoringSSL cryptography library
+          Version: ${boringssl.version}
+          Libs: -L${lib.getLib boringssl}/lib -lcrypto -lssl
+          Cflags: -I${lib.getInclude boringssl}/include
+        '';
+      };
   }

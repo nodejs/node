@@ -34,6 +34,7 @@
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
 
+#include "absl/crc/crc32c.h"
 #include "node_debug.h"
 #include "v8-fast-api-calls.h"
 #include "v8.h"
@@ -203,7 +204,10 @@ class ZlibContext final : public MemoryRetainer {
   void SetFlush(int flush);
   void GetAfterWriteOffsets(uint32_t* avail_in, uint32_t* avail_out) const;
   CompressionError GetErrorInfo() const;
-  inline void SetMode(node_zlib_mode mode) { mode_ = mode; }
+  inline void SetMode(node_zlib_mode mode) {
+    mode_ = mode;
+    auto_detect_ = mode == UNZIP;
+  }
   CompressionError ResetStream();
 
   // Zlib-specific:
@@ -228,6 +232,7 @@ class ZlibContext final : public MemoryRetainer {
  private:
   CompressionError ErrorForMessage(const char* message) const;
   CompressionError SetDictionary();
+  CompressionError ResetZStream();
   bool InitZlib();
 
   Mutex mutex_;  // Protects zlib_init_done_.
@@ -237,6 +242,7 @@ class ZlibContext final : public MemoryRetainer {
   int level_ = 0;
   int mem_level_ = 0;
   node_zlib_mode mode_ = NONE;
+  bool auto_detect_ = false;
   int strategy_ = 0;
   int window_bits_ = 0;
   bool reject_garbage_after_end_ = false;
@@ -379,6 +385,7 @@ class ZstdCompressContext final : public ZstdContext {
 
   uint64_t pledged_src_size_ = ZSTD_CONTENTSIZE_UNKNOWN;
   std::optional<uint64_t> consumed_src_size_;
+  bool frame_ended_ = false;
 
   // A frame is complete once ZSTD_compressStream2() has been called with
   // ZSTD_e_end and has returned 0. Resetting an incomplete frame is only unsafe
@@ -1214,7 +1221,7 @@ void ZlibContext::DoThreadPoolWork() {
         // Trailing zero bytes are okay, though, since they are frequently
         // used for padding.
 
-        ResetStream();
+        ResetZStream();
         err_ = inflate(&strm_, flush_);
       }
       break;
@@ -1293,6 +1300,14 @@ CompressionError ZlibContext::ResetStream() {
         Z_STREAM_ERROR);
   }
 
+  if (auto_detect_) {
+    mode_ = UNZIP;
+    gzip_id_bytes_read_ = 0;
+  }
+  return ResetZStream();
+}
+
+CompressionError ZlibContext::ResetZStream() {
   bool first_init_call = InitZlib();
   if (first_init_call && err_ != Z_OK) {
     return ErrorForMessage("Failed to init stream before reset");
@@ -1309,6 +1324,7 @@ CompressionError ZlibContext::ResetStream() {
     case INFLATE:
     case INFLATERAW:
     case GUNZIP:
+    case UNZIP:
       err_ = inflateReset(&strm_);
       break;
     default:
@@ -1772,6 +1788,7 @@ CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size,
                                            std::string_view dictionary,
                                            bool) {
   pledged_src_size_ = pledged_src_size;
+  frame_ended_ = false;
   frame_complete_ = true;
   frame_output_emitted_ = false;
   if (pledged_src_size == ZSTD_CONTENTSIZE_UNKNOWN) {
@@ -1844,6 +1861,7 @@ CompressionError ZstdCompressContext::ResetStream() {
   } else {
     consumed_src_size_ = 0;
   }
+  frame_ended_ = false;
   frame_complete_ = true;
   frame_output_emitted_ = false;
   error_ = ZSTD_error_no_error;
@@ -1853,6 +1871,10 @@ CompressionError ZstdCompressContext::ResetStream() {
 }
 
 void ZstdCompressContext::DoThreadPoolWork() {
+  // Ending an already ended frame would append an empty one.
+  if (frame_ended_ && input_.size == 0) {
+    return;
+  }
   // Zstd overrides a configured pledge when the first call uses ZSTD_e_end.
   size_t const input_pos = input_.pos;
   size_t const remaining =
@@ -1860,6 +1882,7 @@ void ZstdCompressContext::DoThreadPoolWork() {
   if (consumed_src_size_.has_value()) {
     *consumed_src_size_ += input_.pos - input_pos;
   }
+  frame_ended_ = remaining == 0 && flush_ == ZSTD_e_end;
   if (output_.pos > 0) {
     frame_output_emitted_ = true;
   }
@@ -2127,6 +2150,36 @@ static uint32_t FastCRC32(v8::Local<v8::Value> receiver,
 
 static CFunction fast_crc32_(CFunction::Make(FastCRC32));
 
+static inline uint32_t CRC32CImpl(Isolate* isolate,
+                                  Local<Value> data,
+                                  uint32_t value) {
+  return CallOnSequence<uint32_t>(
+      isolate, data, [&](const char* ptr, size_t size) -> uint32_t {
+        return static_cast<uint32_t>(absl::ExtendCrc32c(
+            absl::crc32c_t{value}, std::string_view(ptr, size)));
+      });
+}
+
+static void CRC32C(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsArrayBufferView() || args[0]->IsString());
+  CHECK(args[1]->IsUint32());
+  uint32_t value = args[1].As<v8::Uint32>()->Value();
+  args.GetReturnValue().Set(CRC32CImpl(args.GetIsolate(), args[0], value));
+}
+
+static uint32_t FastCRC32C(v8::Local<v8::Value> receiver,
+                           v8::Local<v8::Value> data,
+                           uint32_t value,
+                           // NOLINTNEXTLINE(runtime/references)
+                           v8::FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("zlib.crc32c");
+  v8::HandleScope handle_scope(options.isolate);
+  CHECK(data->IsArrayBufferView() || data->IsString());
+  return CRC32CImpl(options.isolate, data, value);
+}
+
+static CFunction fast_crc32c_(CFunction::Make(FastCRC32C));
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -2140,6 +2193,7 @@ void Initialize(Local<Object> target,
   MakeClass<ZstdDecompressStream>::Make(env, target, "ZstdDecompress");
 
   SetFastMethodNoSideEffect(context, target, "crc32", CRC32, &fast_crc32_);
+  SetFastMethodNoSideEffect(context, target, "crc32c", CRC32C, &fast_crc32c_);
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
               FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION)).Check();
@@ -2153,6 +2207,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   MakeClass<ZstdDecompressStream>::Make(registry);
   registry->Register(CRC32);
   registry->Register(fast_crc32_);
+  registry->Register(CRC32C);
+  registry->Register(fast_crc32c_);
 }
 
 }  // anonymous namespace
@@ -2246,37 +2302,10 @@ void DefineZlibConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target,
       BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION);
   NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_PARAM_LARGE_WINDOW);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_NO_ERROR);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_SUCCESS);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_NEEDS_MORE_INPUT);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_NEEDS_MORE_OUTPUT);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_EXUBERANT_NIBBLE);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_RESERVED);
-  NODE_DEFINE_CONSTANT(target,
-      BROTLI_DECODER_ERROR_FORMAT_EXUBERANT_META_NIBBLE);
-  NODE_DEFINE_CONSTANT(target,
-      BROTLI_DECODER_ERROR_FORMAT_SIMPLE_HUFFMAN_ALPHABET);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_SIMPLE_HUFFMAN_SAME);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_CL_SPACE);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_CONTEXT_MAP_REPEAT);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_BLOCK_LENGTH_1);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_BLOCK_LENGTH_2);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_TRANSFORM);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_DICTIONARY);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_WINDOW_BITS);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_PADDING_1);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_PADDING_2);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_DISTANCE);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_DICTIONARY_NOT_SET);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_INVALID_ARGUMENTS);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_ALLOC_CONTEXT_MODES);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_ALLOC_TREE_GROUPS);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_ALLOC_CONTEXT_MAP);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_ALLOC_RING_BUFFER_1);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_ALLOC_RING_BUFFER_2);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_ALLOC_BLOCK_TYPE_TREES);
-  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_UNREACHABLE);
+#define V(PREFIX, NAME, CODE)                                                  \
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER##PREFIX##NAME);
+  BROTLI_DECODER_ERROR_CODES_LIST(V, )
+#undef V
 
   // Zstd constants
   NODE_DEFINE_CONSTANT(target, ZSTD_e_continue);

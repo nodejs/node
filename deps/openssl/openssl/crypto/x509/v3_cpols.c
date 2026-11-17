@@ -18,6 +18,8 @@
 #include "pcy_local.h"
 #include "ext_dat.h"
 
+#include <crypto/asn1.h>
+
 /* Certificate policies extension support: this one is a bit complex... */
 
 static int i2r_certpol(X509V3_EXT_METHOD *method, STACK_OF(POLICYINFO) *pol,
@@ -166,6 +168,7 @@ static POLICYINFO *policy_section(X509V3_CTX *ctx,
     STACK_OF(CONF_VALUE) *polstrs, int ia5org)
 {
     int i;
+    int policyid_seen = 0;
     CONF_VALUE *cnf;
     POLICYINFO *pol;
     POLICYQUALINFO *qual;
@@ -179,12 +182,18 @@ static POLICYINFO *policy_section(X509V3_CTX *ctx,
         if (strcmp(cnf->name, "policyIdentifier") == 0) {
             ASN1_OBJECT *pobj;
 
+            if (policyid_seen) {
+                ERR_raise_data(ERR_LIB_X509V3, X509V3_R_DUPLICATE_FIELD,
+                    "field=%s", cnf->name);
+                goto err;
+            }
             if ((pobj = OBJ_txt2obj(cnf->value, 0)) == NULL) {
                 ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_OBJECT_IDENTIFIER);
                 X509V3_conf_err(cnf);
                 goto err;
             }
             pol->policyid = pobj;
+            policyid_seen = 1;
 
         } else if (!ossl_v3_name_cmp(cnf->name, "CPS")) {
             if (pol->qualifiers == NULL)
@@ -206,8 +215,7 @@ static POLICYINFO *policy_section(X509V3_CTX *ctx,
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
-            if (!ASN1_STRING_set(qual->d.cpsuri, cnf->value,
-                    strlen(cnf->value))) {
+            if (!ossl_asn1_string_set1_string(qual->d.cpsuri, cnf->value)) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
@@ -242,7 +250,7 @@ static POLICYINFO *policy_section(X509V3_CTX *ctx,
             goto err;
         }
     }
-    if (pol->policyid == NULL) {
+    if (!policyid_seen) {
         ERR_raise(ERR_LIB_X509V3, X509V3_R_NO_POLICY_IDENTIFIER);
         goto err;
     }
@@ -258,7 +266,7 @@ static int displaytext_get_tag_len(const char *tagstr)
 {
     const char *colon = strchr(tagstr, ':');
 
-    return (colon == NULL) ? -1 : colon - tagstr;
+    return (colon == NULL) ? -1 : (int)(colon - tagstr);
 }
 
 static int displaytext_str2tag(const char *tagstr, unsigned int *tag_len)
@@ -315,6 +323,11 @@ static POLICYQUALINFO *notice_section(X509V3_CTX *ctx,
 
         value = cnf->value;
         if (strcmp(cnf->name, "explicitText") == 0) {
+            if (not->exptext != NULL) {
+                ERR_raise_data(ERR_LIB_X509V3, X509V3_R_DUPLICATE_FIELD,
+                    "field=%s", cnf->name);
+                goto err;
+            }
             tag = displaytext_str2tag(value, &tag_len);
             if ((not->exptext = ASN1_STRING_type_new(tag)) == NULL) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
@@ -322,8 +335,8 @@ static POLICYQUALINFO *notice_section(X509V3_CTX *ctx,
             }
             if (tag_len != 0)
                 value += tag_len + 1;
-            len = strlen(value);
-            if (!ASN1_STRING_set(not->exptext, value, len)) {
+            len = (int)strlen(value);
+            if (!ossl_asn1_string_set1_data(not->exptext, (uint8_t *)value, len)) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
@@ -342,8 +355,7 @@ static POLICYQUALINFO *notice_section(X509V3_CTX *ctx,
                 nref->organization->type = V_ASN1_IA5STRING;
             else
                 nref->organization->type = V_ASN1_VISIBLESTRING;
-            if (!ASN1_STRING_set(nref->organization, cnf->value,
-                    strlen(cnf->value))) {
+            if (!ossl_asn1_string_set1_string(nref->organization, cnf->value)) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
@@ -444,7 +456,9 @@ static void print_qualifiers(BIO *out, STACK_OF(POLICYQUALINFO) *quals,
         case NID_id_qt_cps:
             BIO_printf(out, "%*sCPS: %.*s", indent, "",
                 qualinfo->d.cpsuri->length,
-                qualinfo->d.cpsuri->data);
+                qualinfo->d.cpsuri->length
+                    ? qualinfo->d.cpsuri->data
+                    : (const unsigned char *)"");
             break;
 
         case NID_id_qt_unotice:
@@ -469,7 +483,9 @@ static void print_notice(BIO *out, USERNOTICE *notice, int indent)
         ref = notice->noticeref;
         BIO_printf(out, "%*sOrganization: %.*s\n", indent, "",
             ref->organization->length,
-            ref->organization->data);
+            ref->organization->length
+                ? ref->organization->data
+                : (const unsigned char *)"");
         BIO_printf(out, "%*sNumber%s: ", indent, "",
             sk_ASN1_INTEGER_num(ref->noticenos) > 1 ? "s" : "");
         for (i = 0; i < sk_ASN1_INTEGER_num(ref->noticenos); i++) {
@@ -494,7 +510,9 @@ static void print_notice(BIO *out, USERNOTICE *notice, int indent)
     if (notice->exptext)
         BIO_printf(out, "%*sExplicit Text: %.*s", indent, "",
             notice->exptext->length,
-            notice->exptext->data);
+            notice->exptext->length
+                ? notice->exptext->data
+                : (const unsigned char *)"");
 }
 
 void X509_POLICY_NODE_print(BIO *out, X509_POLICY_NODE *node, int indent)

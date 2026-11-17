@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -193,6 +193,10 @@ void OPENSSL_cpuid_setup(void)
  * not volatile, but compilers do this in practice anyway.
  *
  * There are also assembler versions of this function.
+ *
+ * This C version and the per-architecture assembler versions are all verified
+ * to be constant-time under enable-ct-validation for Valgrind-supported
+ * architectures, currently x86_64 and aarch64.
  */
 #undef CRYPTO_memcmp
 int CRYPTO_memcmp(const void *in_a, const void *in_b, size_t len)

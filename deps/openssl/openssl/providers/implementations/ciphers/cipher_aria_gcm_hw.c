@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,7 +19,11 @@ static int aria_gcm_initkey(PROV_GCM_CTX *ctx, const unsigned char *key,
     PROV_ARIA_GCM_CTX *actx = (PROV_ARIA_GCM_CTX *)ctx;
     ARIA_KEY *ks = &actx->ks.ks;
 
-    GCM_HW_SET_KEY_CTR_FN(ks, ossl_aria_set_encrypt_key, ossl_aria_encrypt, NULL);
+    ossl_aria_set_encrypt_key(key, (int)(keylen * 8), ks);
+    CRYPTO_gcm128_init(&ctx->gcm, ks, (block128_f)ossl_aria_encrypt);
+    ctx->ctr = NULL;
+    ctx->key_set = 1;
+
     return 1;
 }
 

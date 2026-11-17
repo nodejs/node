@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,6 +9,10 @@
 
 #ifndef OSSL_CRYPTO_X509_V3_ADMIS_H
 #define OSSL_CRYPTO_X509_V3_ADMIS_H
+
+#include <openssl/asn1.h>
+#include <openssl/safestack.h>
+#include <openssl/x509v3.h>
 
 struct NamingAuthority_st {
     ASN1_OBJECT *namingAuthorityId;

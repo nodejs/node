@@ -18,7 +18,7 @@
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include "ec_local.h"
-#include "s390x_arch.h"
+#include "arch/s390x_arch.h"
 
 /* Size of parameter blocks */
 #define S390X_SIZE_PARAM 4096
@@ -98,9 +98,7 @@ static int ec_GFp_s390x_nistp_mul(const EC_GROUP *group, EC_POINT *r,
 
         memset(&param, 0, sizeof(param));
 
-        if (group->meth->point_get_affine_coordinates(group, point_ptr,
-                x, y, ctx)
-                != 1
+        if (EC_POINT_get_affine_coordinates(group, point_ptr, x, y, ctx) != 1
             || BN_bn2binpad(x, param + S390X_OFF_SRC_X(len), len) == -1
             || BN_bn2binpad(y, param + S390X_OFF_SRC_Y(len), len) == -1
             || BN_bn2binpad(scalar_ptr,
@@ -109,9 +107,7 @@ static int ec_GFp_s390x_nistp_mul(const EC_GROUP *group, EC_POINT *r,
             || s390x_pcc(fc, param) != 0
             || BN_bin2bn(param + S390X_OFF_RES_X(len), len, x) == NULL
             || BN_bin2bn(param + S390X_OFF_RES_Y(len), len, y) == NULL
-            || group->meth->point_set_affine_coordinates(group, r,
-                   x, y, ctx)
-                != 1)
+            || EC_POINT_set_affine_coordinates(group, r, x, y, ctx) != 1)
             goto ret;
 
         rc = 1;
@@ -127,6 +123,8 @@ ret:
     return rc;
 }
 
+#define MIN_ECDSA_SIGN_ORDERBITS 64
+
 static ECDSA_SIG *ecdsa_s390x_nistp_sign_sig(const unsigned char *dgst,
     int dgstlen,
     const BIGNUM *kinv,
@@ -140,6 +138,11 @@ static ECDSA_SIG *ecdsa_s390x_nistp_sign_sig(const unsigned char *dgst,
     ECDSA_SIG *sig;
     const EC_GROUP *group;
     const BIGNUM *privkey;
+    BN_CTX *bn_ctx = NULL;
+    const BIGNUM *order;
+#ifdef FIPS_MODULE
+    int order_bits;
+#endif
     int off;
 
     if (dgstlen < 0) {
@@ -154,6 +157,12 @@ static ECDSA_SIG *ecdsa_s390x_nistp_sign_sig(const unsigned char *dgst,
 
     group = EC_KEY_get0_group(eckey);
     if (group == NULL) {
+        ERR_raise(ERR_LIB_EC, EC_R_MISSING_PARAMETERS);
+        return NULL;
+    }
+
+    order = EC_GROUP_get0_order(group);
+    if (order == NULL) {
         ERR_raise(ERR_LIB_EC, EC_R_MISSING_PARAMETERS);
         return NULL;
     }
@@ -197,6 +206,42 @@ static ECDSA_SIG *ecdsa_s390x_nistp_sign_sig(const unsigned char *dgst,
             ERR_raise(ERR_LIB_EC, EC_R_INVALID_LENGTH);
             goto ret;
         }
+#ifdef FIPS_MODULE
+        /* get random value of k using OpenSSL's RNG */
+        bn_ctx = BN_CTX_secure_new_ex(ossl_ec_key_get_libctx(eckey));
+        if (bn_ctx == NULL)
+            goto ret;
+
+        /* Preallocate space */
+        order_bits = BN_num_bits(order);
+        /* Check the number of bits here so that an infinite loop is not possible */
+        if (order_bits < MIN_ECDSA_SIGN_ORDERBITS
+            || !BN_set_bit(k, order_bits))
+            goto ret;
+
+        do {
+            int res = 0;
+
+            if (dgst != NULL)
+                res = ossl_bn_gen_dsa_nonce_fixed_top(k, order, privkey,
+                    dgst, dgstlen, bn_ctx);
+            else
+                res = ossl_bn_priv_rand_range_fixed_top(k, order, 0, bn_ctx);
+
+            if (!res) {
+                ERR_raise(ERR_LIB_EC, EC_R_RANDOM_NUMBER_GENERATION_FAILED);
+                goto ret;
+            }
+        } while (ossl_bn_is_word_fixed_top(k, 0));
+
+        if (BN_bn2binpad(k, param + S390X_OFF_RN(len), len) == -1) {
+            ERR_raise(ERR_LIB_EC, EC_R_RANDOM_NUMBER_GENERATION_FAILED);
+            goto ret;
+        }
+
+        /* Turns KDSA internal nonce-generation off. */
+        fc |= S390X_KDSA_D;
+#else
         /*
          * Generate random k and copy to param block. RAND_priv_bytes_ex
          * is used instead of BN_priv_rand_range or BN_generate_dsa_nonce
@@ -209,9 +254,14 @@ static ECDSA_SIG *ecdsa_s390x_nistp_sign_sig(const unsigned char *dgst,
             ERR_raise(ERR_LIB_EC, EC_R_RANDOM_NUMBER_GENERATION_FAILED);
             goto ret;
         }
+#endif
     } else {
+        bn_ctx = BN_CTX_secure_new_ex(ossl_ec_key_get_libctx(eckey));
+        if (bn_ctx == NULL)
+            goto ret;
+
         /* Reconstruct k = (k^-1)^-1. */
-        if (ossl_ec_group_do_inverse_ord(group, k, kinv, NULL) == 0
+        if (ossl_ec_group_do_inverse_ord(group, k, kinv, bn_ctx) == 0
             || BN_bn2binpad(k, param + S390X_OFF_RN(len), len) == -1) {
             ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
             goto ret;
@@ -233,6 +283,7 @@ static ECDSA_SIG *ecdsa_s390x_nistp_sign_sig(const unsigned char *dgst,
 
     ok = 1;
 ret:
+    BN_CTX_free(bn_ctx);
     OPENSSL_cleanse(param, sizeof(param));
     if (ok != 1) {
         ECDSA_SIG_free(sig);
@@ -313,9 +364,7 @@ static int ecdsa_s390x_nistp_verify_sig(const unsigned char *dgst, int dgstlen,
         goto ret;
     }
 
-    if (group->meth->point_get_affine_coordinates(group, pubkey,
-            x, y, ctx)
-            != 1
+    if (EC_POINT_get_affine_coordinates(group, pubkey, x, y, ctx) != 1
         || BN_bn2binpad(x, param + S390X_OFF_X(len), len) == -1
         || BN_bn2binpad(y, param + S390X_OFF_Y(len), len) == -1) {
         ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);

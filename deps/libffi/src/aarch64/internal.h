@@ -78,6 +78,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
 #endif
 
+#ifdef __AARCH64EB__
+# define BE(X)	X
+#else
+# define BE(X)	0
+#endif
 /* Helpers for writing assembly compatible with arm ptr auth */
 #ifdef LIBFFI_ASM
 

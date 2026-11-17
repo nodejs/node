@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,7 +7,13 @@
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_LIBCRYPTO_ASN1_TBL_STANDARD_H)
+#define OSSL_LIBCRYPTO_ASN1_TBL_STANDARD_H
+
 /* size limits: this stuff is taken straight from RFC3280 */
+
+#include <openssl/asn1.h>
+#include <openssl/obj_mac.h>
 
 #define ub_name 32768
 #define ub_common_name 64
@@ -59,3 +65,5 @@ static const ASN1_STRING_TABLE tbl_standard[] = {
     { NID_dnsName, 0, -1, B_ASN1_UTF8STRING, STABLE_NO_MASK },
     { NID_id_on_SmtpUTF8Mailbox, 1, ub_email_address, B_ASN1_UTF8STRING, STABLE_NO_MASK }
 };
+
+#endif /* !defined(OSSL_LIBCRYPTO_ASN1_TBL_STANDARD_H) */

@@ -76,7 +76,7 @@ changes:
     description: Type stripping is now stable.
 -->
 
-By default Node.js will execute TypeScript files that contains only
+By default Node.js will execute TypeScript files that contain only
 erasable TypeScript syntax.
 Node.js will replace TypeScript syntax with whitespace,
 and no type checking is performed.
@@ -164,7 +164,7 @@ namespace TypeOnly {
 }
 ```
 
-This will result in [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`][] error:
+This will result in an [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`][] error:
 
 ```ts
 // This namespace is exporting a value
@@ -222,15 +222,25 @@ To discourage package authors from publishing packages written in TypeScript,
 Node.js refuses to handle TypeScript files inside folders under a `node_modules`
 path.
 
-### Paths aliases
+The [`--experimental-strip-private-modules`][] flag relaxes this restriction
+for packages whose `package.json` contains `"private": true`, such as
+workspace packages in a monorepo, which are not published to a registry.
+The limitation to private packages should never be lifted,
+as publishing packages with TypeScript sources
+is highly discouraged.
+Stripping types inside `node_modules` is intended only
+for local development.
 
-[`tsconfig` "paths"][] won't be transformed and therefore produce an error. The closest
+### Path aliases
+
+[`tsconfig` "paths"][] won't be transformed and will therefore produce an error. The closest
 feature available is [subpath imports][] with the limitation that they need to start
 with `#`.
 
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
+[`--experimental-strip-private-modules`]: cli.md#--experimental-strip-private-modules
 [`--no-strip-types`]: cli.md#--no-strip-types
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths

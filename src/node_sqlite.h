@@ -173,7 +173,18 @@ inline void FinalizeStatement(sqlite3_stmt* stmt) {
   sqlite3_finalize(stmt);
 }
 
+inline void CloseConnection(sqlite3* db) {
+  sqlite3_close_v2(db);
+}
+
+inline void FinishBackup(sqlite3_backup* backup) {
+  sqlite3_backup_finish(backup);
+}
+
 using StatementPtr = DeleteFnPtr<sqlite3_stmt, FinalizeStatement>;
+using ConnectionPtr = DeleteFnPtr<sqlite3, CloseConnection>;
+using BackupPtr = DeleteFnPtr<sqlite3_backup, FinishBackup>;
+using SessionPtr = DeleteFnPtr<sqlite3_session, sqlite3session_delete>;
 
 class StatementExecutionHelper {
  public:
@@ -262,6 +273,7 @@ class Database : public BaseObject {
   void RemoveBackup(BackupJob* backup);
   void AddBackup(BackupJob* backup);
   void FinalizeBackups();
+  void TrackStatement(Statement* statement);
   void UntrackStatement(Statement* statement);
   bool IsOpen();
   // SQL functions are one of several paths by which SQLite can invoke JS.
@@ -337,10 +349,7 @@ class Database : public BaseObject {
   DatabaseOpenConfiguration open_config_;
   bool allow_load_extension_;
   bool enable_load_extension_;
-  struct ConnectionDeleter {
-    void operator()(sqlite3* db) const { sqlite3_close_v2(db); }
-  };
-  std::unique_ptr<sqlite3, ConnectionDeleter> connection_;
+  ConnectionPtr connection_;
   bool ignore_next_sqlite_error_;
   int callback_depth_ = 0;
   int destructor_depth_ = 0;
@@ -354,7 +363,9 @@ class Database : public BaseObject {
   std::set<BackupJob*> backups_;
   std::unordered_set<Session*> sessions_;
   std::unordered_set<Statement*> statements_;
-  BaseObjectPtr<diagnostics_channel::Channel> trace_channel_;
+  // Weak ref: BindingData is the sole owner of Channels, so a strong ref here
+  // would outlive the binding that backs it during environment cleanup.
+  BaseObjectWeakPtr<diagnostics_channel::Channel> trace_channel_;
 
   friend class UserDefinedFunction;
   friend class CustomAggregate;
@@ -462,7 +473,7 @@ class Session : public BaseObject {
   Session(Environment* env,
           v8::Local<v8::Object> object,
           BaseObjectPtr<Database> database,
-          sqlite3_session* session);
+          SessionPtr session);
   ~Session() override;
   template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
   static void Changeset(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -472,7 +483,7 @@ class Session : public BaseObject {
       Environment* env);
   static BaseObjectPtr<Session> Create(Environment* env,
                                        BaseObjectPtr<Database> database,
-                                       sqlite3_session* session);
+                                       SessionPtr session);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Session)
@@ -480,10 +491,7 @@ class Session : public BaseObject {
 
  private:
   void Delete();
-  struct SessionDeleter {
-    void operator()(sqlite3_session* s) const { sqlite3session_delete(s); }
-  };
-  std::unique_ptr<sqlite3_session, SessionDeleter> session_;
+  SessionPtr session_;
   BaseObjectPtr<Database> database_;  // The Parent Database
   bool is_generating_changeset_ = false;
 

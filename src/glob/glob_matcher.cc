@@ -584,6 +584,7 @@ class PathMatcher {
   struct Section {
     size_t begin, end;  // pattern part indices
     ptrdiff_t after;    // last possible file index this section can start at
+    size_t non_gs;
   };
 
   Tri MatchGlobstar(Parts file,
@@ -660,13 +661,11 @@ class PathMatcher {
     // split body into globstar-delimited sections with their last possible
     // start positions
     std::vector<Section> sections;
-    sections.push_back({body_begin, body_begin, 0});
-    std::vector<size_t> non_gs_sums{0};
+    sections.push_back({body_begin, body_begin, 0, 0});
     size_t non_gs = 0;
     for (size_t i = body_begin; i < body_end; i++) {
       if (pattern[i].kind == PartMatcher::Kind::kGlobstar) {
-        non_gs_sums.push_back(non_gs);
-        sections.push_back({i + 1, i + 1, 0});
+        sections.push_back({i + 1, i + 1, 0, non_gs});
       } else {
         sections.back().end = i + 1;
         non_gs++;
@@ -674,12 +673,9 @@ class PathMatcher {
     }
     const ptrdiff_t file_length = static_cast<ptrdiff_t>(file.size()) -
                                   static_cast<ptrdiff_t>(file_tail_match);
-    {
-      size_t i = sections.size() - 1;
-      for (Section& s : sections) {
-        s.after = file_length - (static_cast<ptrdiff_t>(non_gs_sums[i--]) +
-                                 static_cast<ptrdiff_t>(s.end - s.begin));
-      }
+    // leave room for this section and every section after it
+    for (Section& s : sections) {
+      s.after = file_length - static_cast<ptrdiff_t>(non_gs - s.non_gs);
     }
     return MatchBodySections(
         file, pattern, sections, fi, 0, 0, file_tail_match != 0);

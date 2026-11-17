@@ -1,6 +1,9 @@
 $LIBSSL=../../libssl
 
 SOURCE[$LIBSSL]=poll_immediate.c
-IF[{- !$disabled{quic} -}]
-  SOURCE[$LIBSSL]=rio_notifier.c poll_builder.c
+IF[{- !$disabled{quic} || !$disabled{dtls} -}]
+  SOURCE[$LIBSSL]=rio_notifier.c
+ENDIF
+IF[{- !$disabled{quic} || !$disabled{dtls} -}]
+  SOURCE[$LIBSSL]=poll_builder.c
 ENDIF

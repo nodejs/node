@@ -27,42 +27,42 @@ struct quic_cfq_item_ex_st {
 
 uint64_t ossl_quic_cfq_item_get_frame_type(const QUIC_CFQ_ITEM *item)
 {
-    QUIC_CFQ_ITEM_EX *ex = (QUIC_CFQ_ITEM_EX *)item;
+    const QUIC_CFQ_ITEM_EX *ex = (const QUIC_CFQ_ITEM_EX *)item;
 
     return ex->frame_type;
 }
 
 const unsigned char *ossl_quic_cfq_item_get_encoded(const QUIC_CFQ_ITEM *item)
 {
-    QUIC_CFQ_ITEM_EX *ex = (QUIC_CFQ_ITEM_EX *)item;
+    const QUIC_CFQ_ITEM_EX *ex = (const QUIC_CFQ_ITEM_EX *)item;
 
     return ex->encoded;
 }
 
 size_t ossl_quic_cfq_item_get_encoded_len(const QUIC_CFQ_ITEM *item)
 {
-    QUIC_CFQ_ITEM_EX *ex = (QUIC_CFQ_ITEM_EX *)item;
+    const QUIC_CFQ_ITEM_EX *ex = (const QUIC_CFQ_ITEM_EX *)item;
 
     return ex->encoded_len;
 }
 
 int ossl_quic_cfq_item_get_state(const QUIC_CFQ_ITEM *item)
 {
-    QUIC_CFQ_ITEM_EX *ex = (QUIC_CFQ_ITEM_EX *)item;
+    const QUIC_CFQ_ITEM_EX *ex = (const QUIC_CFQ_ITEM_EX *)item;
 
     return ex->state;
 }
 
 uint32_t ossl_quic_cfq_item_get_pn_space(const QUIC_CFQ_ITEM *item)
 {
-    QUIC_CFQ_ITEM_EX *ex = (QUIC_CFQ_ITEM_EX *)item;
+    const QUIC_CFQ_ITEM_EX *ex = (const QUIC_CFQ_ITEM_EX *)item;
 
     return ex->pn_space;
 }
 
 int ossl_quic_cfq_item_is_unreliable(const QUIC_CFQ_ITEM *item)
 {
-    QUIC_CFQ_ITEM_EX *ex = (QUIC_CFQ_ITEM_EX *)item;
+    const QUIC_CFQ_ITEM_EX *ex = (const QUIC_CFQ_ITEM_EX *)item;
 
     return (ex->flags & QUIC_CFQ_ITEM_FLAG_UNRELIABLE) != 0;
 }

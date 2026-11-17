@@ -335,21 +335,28 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
 
     std::vector<uint8_t> cbor_buffer;
     ConvertJSONToCBOR(crdtp::SpanFrom(raw_message), &cbor_buffer);
-    Dispatchable dispatchable(crdtp::SpanFrom(cbor_buffer));
+    // TODO(legendecas): The fallthrough callback captures a raw `this`. That is
+    // safe only while every command in node_protocol_config.json is
+    // synchronous. An async command stores the callback and may invoke it
+    // after this session is gone, so add a lifetime guard before adding one.
+    Dispatchable dispatchable(
+        crdtp::SpanFrom(cbor_buffer),
+        std::string_view(),
+        [this](int call_id,
+               crdtp::span<uint8_t> method,
+               crdtp::span<uint8_t> serialized_message,
+               std::string_view associated_data) {
+          per_process::Debug(DebugCategory::INSPECTOR_SERVER,
+                             "[inspector] method not found\n");
+          node_dispatcher_->SendMethodNotFound(call_id, method);
+        });
     crdtp::span<uint8_t> method = dispatchable.Method();
     if (v8_inspector::V8InspectorSession::canDispatchMethod(
             StringView(method.data(), method.size()))) {
       session_->dispatchProtocolMessage(message);
       return;
     }
-    UberDispatcher::DispatchResult result =
-        node_dispatcher_->Dispatch(dispatchable);
-    if (!result.MethodFound()) {
-      per_process::Debug(DebugCategory::INSPECTOR_SERVER,
-                         "[inspector] method not found\n");
-      // Fall through to send a method not found error.
-    }
-    result.Run();
+    node_dispatcher_->Dispatch(dispatchable);
   }
 
   void schedulePauseOnNextStatement(const std::string& reason) {
@@ -442,13 +449,6 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     sendMessageToFrontend(json);
   }
 
-  // crdtp::FrontendChannel
-  void FallThrough(int call_id,
-                   crdtp::span<uint8_t> method,
-                   crdtp::span<uint8_t> message) override {
-    DCHECK(false);
-  }
-
   std::unique_ptr<protocol::RuntimeAgent> runtime_agent_;
 #ifndef V8_USE_PERFETTO
   std::unique_ptr<protocol::TracingAgent> tracing_agent_;
@@ -528,7 +528,16 @@ class NodeInspectorClient : public V8InspectorClient {
         is_main_ ? GetHumanReadableProcessName() : GetWorkerLabel(env);
     ContextInfo info(name);
     info.is_default = true;
-    contextCreated(env->context(), info);
+    // V8 does not allow a debugger to be attached while a startup or
+    // a debug context ID to be set during snapshot building.
+    if (!env->isolate_data()->is_building_snapshot()) {
+      contextCreated(env->context(), info);
+    }
+  }
+
+  ~NodeInspectorClient() override {
+    // Close the handle before the interface can lose its last strong reference.
+    if (interface_) interface_->Disconnect();
   }
 
   void runMessageLoopOnPause(int context_group_id) override {
@@ -922,6 +931,12 @@ bool Agent::StartIoThread() {
   }
 
   CHECK_NOT_NULL(client_);
+
+  if (parent_env_->isolate_data()->is_building_snapshot()) {
+    fprintf(stderr,
+            "The inspector cannot be activated while building a snapshot.\n");
+    return false;
+  }
 
   io_ = InspectorIo::Start(client_->getThreadHandle(),
                            path_,

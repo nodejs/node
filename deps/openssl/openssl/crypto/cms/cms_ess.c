@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,7 +25,7 @@ IMPLEMENT_ASN1_FUNCTIONS(CMS_ReceiptRequest)
 
 int CMS_get1_ReceiptRequest(CMS_SignerInfo *si, CMS_ReceiptRequest **prr)
 {
-    ASN1_STRING *str;
+    const ASN1_STRING *str;
     CMS_ReceiptRequest *rr;
     ASN1_OBJECT *obj = OBJ_nid2obj(NID_id_smime_aa_receiptRequest);
 
@@ -52,7 +52,7 @@ int CMS_get1_ReceiptRequest(CMS_SignerInfo *si, CMS_ReceiptRequest **prr)
 static int ossl_cms_signerinfo_get_signing_cert(const CMS_SignerInfo *si,
     ESS_SIGNING_CERT **psc)
 {
-    ASN1_STRING *str;
+    const ASN1_STRING *str;
     ESS_SIGNING_CERT *sc;
     ASN1_OBJECT *obj = OBJ_nid2obj(NID_id_smime_aa_signingCertificate);
 
@@ -79,7 +79,7 @@ static int ossl_cms_signerinfo_get_signing_cert(const CMS_SignerInfo *si,
 static int ossl_cms_signerinfo_get_signing_cert_v2(const CMS_SignerInfo *si,
     ESS_SIGNING_CERT_V2 **psc)
 {
-    ASN1_STRING *str;
+    const ASN1_STRING *str;
     ESS_SIGNING_CERT_V2 *sc;
     ASN1_OBJECT *obj = OBJ_nid2obj(NID_id_smime_aa_signingCertificateV2);
 
@@ -106,7 +106,10 @@ int ossl_cms_check_signing_certs(const CMS_SignerInfo *si,
     ESS_SIGNING_CERT_V2 *ssv2 = NULL;
     int ret = ossl_cms_signerinfo_get_signing_cert(si, &ss) >= 0
         && ossl_cms_signerinfo_get_signing_cert_v2(si, &ssv2) >= 0
-        && OSSL_ESS_check_signing_certs(ss, ssv2, chain, 1) > 0;
+        && OSSL_ESS_check_signing_certs_ex(ss, ssv2, chain,
+               ossl_cms_ctx_get0_libctx(si->cms_ctx),
+               ossl_cms_ctx_get0_propq(si->cms_ctx), 1)
+            > 0;
 
     ESS_SIGNING_CERT_free(ss);
     ESS_SIGNING_CERT_V2_free(ssv2);
@@ -128,7 +131,7 @@ CMS_ReceiptRequest *CMS_ReceiptRequest_create0_ex(
     if (id)
         ASN1_STRING_set0(rr->signedContentIdentifier, id, idlen);
     else {
-        if (!ASN1_STRING_set(rr->signedContentIdentifier, NULL, 32)) {
+        if (!ossl_asn1_string_set1_data(rr->signedContentIdentifier, NULL, 32)) {
             ERR_raise(ERR_LIB_CMS, ERR_R_ASN1_LIB);
             goto err;
         }
@@ -257,8 +260,9 @@ int ossl_cms_Receipt_verify(CMS_ContentInfo *cms, CMS_ContentInfo *req_cms)
     CMS_Receipt *rct = NULL;
     STACK_OF(CMS_SignerInfo) *sis, *osis;
     CMS_SignerInfo *si, *osi = NULL;
-    ASN1_OCTET_STRING *msig, **pcont;
-    ASN1_OBJECT *octype;
+    const ASN1_OCTET_STRING *msig;
+    ASN1_OCTET_STRING **pcont;
+    const ASN1_OBJECT *octype;
     unsigned char dig[EVP_MAX_MD_SIZE];
     unsigned int diglen;
 
@@ -381,7 +385,7 @@ ASN1_OCTET_STRING *ossl_cms_encode_Receipt(CMS_SignerInfo *si)
 {
     CMS_Receipt rct;
     CMS_ReceiptRequest *rr = NULL;
-    ASN1_OBJECT *ctype;
+    const ASN1_OBJECT *ctype;
     ASN1_OCTET_STRING *os = NULL;
 
     /* Get original receipt request */

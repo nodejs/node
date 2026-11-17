@@ -55,8 +55,8 @@ static struct in_addr *ares_save_opt_servers(const ares_channel_t *channel,
                                              int                  *nservers)
 {
   ares_slist_node_t *snode;
-  struct in_addr    *out =
-    ares_malloc_zero(ares_slist_len(channel->servers) * sizeof(*out));
+  size_t             cnt = ares_slist_len(channel->servers);
+  struct in_addr    *out = ares_malloc_zero_array(cnt, sizeof(*out));
 
   *nservers = 0;
 
@@ -64,7 +64,11 @@ static struct in_addr *ares_save_opt_servers(const ares_channel_t *channel,
     return NULL;
   }
 
-  for (snode = ares_slist_node_first(channel->servers); snode != NULL;
+  /* Never write more entries than were allocated.  The caller holds the
+   * channel lock so the server list cannot change underneath us; this is
+   * purely defensive. */
+  for (snode = ares_slist_node_first(channel->servers);
+       snode != NULL && (size_t)*nservers < cnt;
        snode = ares_slist_node_next(snode)) {
     const ares_server_t *server = ares_slist_node_val(snode);
 
@@ -79,9 +83,11 @@ static struct in_addr *ares_save_opt_servers(const ares_channel_t *channel,
   return out;
 }
 
-/* Save options from initialized channel */
-int ares_save_options(const ares_channel_t *channel,
-                      struct ares_options *options, int *optmask)
+/* Save options from initialized channel.  Caller must hold the channel lock
+ * (if channel is not NULL). */
+static ares_status_t ares_save_options_nolock(const ares_channel_t *channel,
+                                              struct ares_options  *options,
+                                              int                  *optmask)
 {
   size_t i;
 
@@ -150,7 +156,8 @@ int ares_save_options(const ares_channel_t *channel,
   if (channel->optmask & ARES_OPT_DOMAINS) {
     options->domains = NULL;
     if (channel->ndomains) {
-      options->domains = ares_malloc(channel->ndomains * sizeof(char *));
+      options->domains =
+        ares_malloc_zero_array(channel->ndomains, sizeof(char *));
       if (!options->domains) {
         return ARES_ENOMEM;
       }
@@ -176,7 +183,8 @@ int ares_save_options(const ares_channel_t *channel,
   if (channel->optmask & ARES_OPT_SORTLIST) {
     options->sortlist = NULL;
     if (channel->nsort) {
-      options->sortlist = ares_malloc(channel->nsort * sizeof(struct apattern));
+      options->sortlist =
+        ares_malloc_zero_array(channel->nsort, sizeof(*options->sortlist));
       if (!options->sortlist) {
         return ARES_ENOMEM;
       }
@@ -236,6 +244,27 @@ int ares_save_options(const ares_channel_t *channel,
   *optmask = (int)channel->optmask;
 
   return ARES_SUCCESS;
+}
+
+int ares_save_options(const ares_channel_t *channel,
+                      struct ares_options *options, int *optmask)
+{
+  ares_status_t status;
+
+  if (channel == NULL) {
+    /* Preserve historic behavior: initialize the pointers so
+     * ares_destroy_options() is safe, then return ARES_ENODATA */
+    return (int)ares_save_options_nolock(NULL, options, optmask);
+  }
+
+  /* The configuration may be modified concurrently by other threads (e.g.
+   * ares_set_servers_csv()), so it must only be read with the channel lock
+   * held. */
+  ares_channel_lock(channel);
+  status = ares_save_options_nolock(channel, options, optmask);
+  ares_channel_unlock(channel);
+
+  return (int)status;
 }
 
 static ares_status_t ares_init_options_servers(ares_channel_t       *channel,
@@ -462,8 +491,7 @@ ares_status_t ares_init_by_options(ares_channel_t            *channel,
     /* qcache_max_ttl is unsigned unlike the others */
     channel->qcache_max_ttl = options->qcache_max_ttl;
   } else {
-    optmask                 |= ARES_OPT_QUERY_CACHE;
-    channel->qcache_max_ttl  = 3600;
+    channel->qcache_max_ttl = 3600;
   }
 
   /* Initialize the ipv4 servers if provided */

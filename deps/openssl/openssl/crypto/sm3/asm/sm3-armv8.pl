@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2021-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2021-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -51,7 +51,7 @@ $code.=<<___;
 ___
 }
 
-# A round of compresson function
+# A round of compression function
 # Input:
 # 	ab - choose instruction among sm3tt1a, sm3tt1b, sm3tt2a, sm3tt2b
 # 	vstate0 - vstate1, store digest status(A - H)
@@ -109,7 +109,7 @@ ___
 }
 
 $code=<<___;
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 .text
 ___
 

@@ -42,6 +42,12 @@ Notes for Android platforms
     ./Configure android-arm64 -D__ANDROID_API__=29
     make
 
+**Note**: 64-bit devices running Android 15 (API Level 35) and above may require
+native libraries with a 16 KB page size. OpenSSL libraries with a 16 KB
+page size are built by default on version 3.6.0 and above. For prior
+versions of OpenSSL, you can pass the argument `-Wl,-z,max-page-size=16384`
+to Configure while building OpenSSL for 64-bit devices.
+
  Older versions of the NDK have GCC under their common prebuilt tools
  directory, so the bin path will be slightly different. EG: to compile
  for ICS on ARM with NDK 10d:

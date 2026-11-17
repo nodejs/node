@@ -716,8 +716,8 @@ int PKCS7_set_cipher(PKCS7 *p7, const EVP_CIPHER *cipher)
     return 1;
 }
 
-/* unfortunately cannot constify BIO_new_NDEF() due to this and CMS_stream() */
-int PKCS7_stream(unsigned char ***boundary, PKCS7 *p7)
+/* Return the content octet string that indefinite-length streaming encodes */
+ASN1_OCTET_STRING *ossl_pkcs7_get0_stream_content(PKCS7 *p7)
 {
     ASN1_OCTET_STRING *os = NULL;
 
@@ -769,11 +769,26 @@ int PKCS7_stream(unsigned char ***boundary, PKCS7 *p7)
         break;
     }
 
+    return os;
+}
+
+int ossl_pkcs7_stream(PKCS7 *p7)
+{
+    ASN1_OCTET_STRING *os = ossl_pkcs7_get0_stream_content(p7);
+
     if (os == NULL)
         return 0;
 
-    os->flags |= ASN1_STRING_FLAG_NDEF;
-    *boundary = &os->data;
+    p7->state |= PKCS7_STATE_STREAMING;
 
     return 1;
 }
+
+#if !defined(OPENSSL_NO_DEPRECATED_4_1)
+int PKCS7_stream(unsigned char ***boundary, PKCS7 *p7)
+{
+    if (boundary != NULL)
+        *boundary = NULL;
+    return ossl_pkcs7_stream(p7);
+}
+#endif /* !defined(OPENSSL_NO_DEPRECATED_4_1) */

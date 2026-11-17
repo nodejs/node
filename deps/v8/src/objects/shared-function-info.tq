@@ -42,6 +42,7 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   properties_are_final: bool: 1 bit;
   private_name_lookup_skips_outer_class: bool: 1 bit;
   is_hoisted_in_context: bool: 1 bit;
+  class_initializer_allows_await: bool: 1 bit;
 }
 
 @cppScope('SharedFunctionInfo')

@@ -6,22 +6,21 @@
 .p2align	4
 _sha256_block_data_order:
 
-	leaq	_OPENSSL_ia32cap_P(%rip),%r11
-	movl	0(%r11),%r9d
-	movl	4(%r11),%r10d
-	movl	8(%r11),%r11d
+	leaq	_OPENSSL_ia32cap_P(%rip),%r10
+	movq	0(%r10),%r9
+	movl	8(%r10),%r11d
 	testl	$536870912,%r11d
 	jnz	_shaext_shortcut
 	andl	$296,%r11d
 	cmpl	$296,%r11d
 	je	L$avx2_shortcut
-	andl	$1073741824,%r9d
-	andl	$268435968,%r10d
-	orl	%r9d,%r10d
-	cmpl	$1342177792,%r10d
+L$avx_dispatch:
+	movq	$1152923704703844352,%r11
+	andq	%r11,%r9
+	cmpq	%r11,%r9
 	je	L$avx_shortcut
-	testl	$512,%r10d
-	jnz	L$ssse3_shortcut
+	btq	$41,%r9
+	jc	L$ssse3_shortcut
 	movq	%rsp,%rax
 
 	pushq	%rbx
@@ -1771,7 +1770,7 @@ K256:
 .long	0x03020100,0x0b0a0908,0xffffffff,0xffffffff
 .long	0xffffffff,0xffffffff,0x03020100,0x0b0a0908
 .long	0xffffffff,0xffffffff,0x03020100,0x0b0a0908
-.byte	83,72,65,50,53,54,32,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+.byte	83,72,65,50,53,54,32,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,104,116,116,112,115,58,47,47,103,105,116,104,117,98,46,99,111,109,47,100,111,116,45,97,115,109,62,0
 .text
 
 .p2align	6

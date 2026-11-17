@@ -147,9 +147,6 @@ module.exports = {
   hasOpenSSL,
   hasFIPS,
   isBoringSSL,
-  get hasOpenSSL3() {
-    return hasOpenSSL(3);
-  },
   // opensslCli defined lazily to reduce overhead of spawnSync
   get opensslCli() {
     if (opensslCli !== null) return opensslCli;

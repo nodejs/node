@@ -46,7 +46,6 @@ int openssl_get_fork_id(void);
 
 char *ossl_safe_getenv(const char *name);
 
-extern CRYPTO_RWLOCK *memdbg_lock;
 int openssl_strerror_r(int errnum, char *buf, size_t buflen);
 #if !defined(OPENSSL_NO_STDIO)
 FILE *openssl_fopen(const char *filename, const char *mode);
@@ -101,9 +100,9 @@ typedef struct ossl_ex_data_global_st {
 #define OSSL_LIB_CTX_DRBG_INDEX 5
 #define OSSL_LIB_CTX_DRBG_NONCE_INDEX 6
 /* slot 7 unused, was CRNG test data and can be reused */
-#ifdef FIPS_MODULE
-#define OSSL_LIB_CTX_THREAD_EVENT_HANDLER_INDEX 8
-#endif
+/*
+ * slot 8 unused, was OSSL_LIB_CTX_THREAD_EVENT_HANDLER_INDEX
+ */
 #define OSSL_LIB_CTX_FIPS_PROV_INDEX 9
 #define OSSL_LIB_CTX_ENCODER_STORE_INDEX 10
 #define OSSL_LIB_CTX_DECODER_STORE_INDEX 11
@@ -118,10 +117,12 @@ typedef struct ossl_ex_data_global_st {
 #define OSSL_LIB_CTX_DECODER_CACHE_INDEX 20
 #define OSSL_LIB_CTX_COMP_METHODS 21
 #define OSSL_LIB_CTX_INDICATOR_CB_INDEX 22
-#define OSSL_LIB_CTX_MAX_INDEXES 22
+#define OSSL_LIB_CTX_SSL_CONF_IMODULE 23
+#define OSSL_LIB_CTX_MAX_INDEXES 23
 
 OSSL_LIB_CTX *ossl_lib_ctx_get_concrete(OSSL_LIB_CTX *ctx);
 int ossl_lib_ctx_is_default(OSSL_LIB_CTX *ctx);
+int ossl_lib_ctx_is_default_nocreate(OSSL_LIB_CTX *ctx);
 int ossl_lib_ctx_is_global_default(OSSL_LIB_CTX *ctx);
 
 /* Functions to retrieve pointers to data by index */
@@ -131,11 +132,7 @@ void ossl_lib_ctx_default_deinit(void);
 OSSL_EX_DATA_GLOBAL *ossl_lib_ctx_get_ex_data_global(OSSL_LIB_CTX *ctx);
 
 const char *ossl_lib_ctx_get_descriptor(OSSL_LIB_CTX *libctx);
-CRYPTO_THREAD_LOCAL *ossl_lib_ctx_get_rcukey(OSSL_LIB_CTX *libctx);
 
-int ossl_thread_init_local(CRYPTO_THREAD_LOCAL *key, void (*cleanup)(void *));
-
-OSSL_LIB_CTX *ossl_crypto_ex_data_get_ossl_lib_ctx(const CRYPTO_EX_DATA *ad);
 int ossl_crypto_new_ex_data_ex(OSSL_LIB_CTX *ctx, int class_index, void *obj,
     CRYPTO_EX_DATA *ad);
 int ossl_crypto_get_ex_new_index_ex(OSSL_LIB_CTX *ctx, int class_index,
@@ -154,15 +151,44 @@ int ossl_crypto_free_ex_index_ex(OSSL_LIB_CTX *ctx, int class_index, int idx);
 
 const void *ossl_bsearch(const void *key, const void *base, int num,
     int size, int (*cmp)(const void *, const void *),
+    int (*cmp_thunk)(int (*real_cmp_fn)(const void *, const void *), const void *, const void *),
     int flags);
 
+/**
+ * @brief Join a stack of ASN1_UTF8STRINGs into one allocated string.
+ *
+ * Concatenates the elements of text, separated by sep, into a newly allocated
+ * NUL terminated string. The element data is copied in full and may itself
+ * contain embedded NUL bytes, so a caller that treats the result as a C string
+ * will see it truncated at the first such byte.
+ *
+ * @param text the stack of ASN1_UTF8STRINGs to join
+ * @param sep separator placed between elements, or NULL for none
+ * @param max_len maximum length of the result, excluding the NUL terminator,
+ *                or 0 for no restriction
+ * @returns a newly allocated string to be freed with OPENSSL_free(), or NULL on
+ *          error or if the result would exceed max_len
+ */
 char *ossl_sk_ASN1_UTF8STRING2text(STACK_OF(ASN1_UTF8STRING) *text,
     const char *sep, size_t max_len);
-char *ossl_ipaddr_to_asc(unsigned char *p, int len);
+char *ossl_ipaddr_to_asc(const unsigned char *p, int len);
 
 char *ossl_buf2hexstr_sep(const unsigned char *buf, long buflen, char sep);
 unsigned char *ossl_hexstr2buf_sep(const char *str, long *buflen,
     const char sep);
+
+/*
+ * Parse a signed long with validation; see OPENSSL_strtoul() for the rules.
+ * Returns 1 on success (and stores the result in |*result|), 0 on failure.
+ */
+int ossl_strtol(const char *str, char **endptr, int base, long *result);
+
+/*
+ * As ossl_strtol() but stores the result in an int, additionally failing if
+ * the parsed value does not fit in an int.
+ * Returns 1 on success (and stores the result in |*result|), 0 on failure.
+ */
+int ossl_strtoint(const char *str, char **endptr, int base, int *result);
 
 /**
  *  Writes |n| value in hex format into |buf|,

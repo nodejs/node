@@ -10,7 +10,7 @@
 #include "permission/env_permission.h"
 #include "uv.h"
 #if HAVE_OPENSSL
-#include "ncrypto.h"  // Defines OPENSSL_VERSION_PREREQ for BoringSSL.
+#include "ncrypto.h"
 #include "quic/guard.h"
 #endif
 
@@ -142,7 +142,7 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
         "invalid value for --force-fips; expected 'provider' or 'strict'");
   }
 
-#if defined(OPENSSL_IS_BORINGSSL) || !OPENSSL_VERSION_PREREQ(3, 4)
+#if !defined(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR)
   if (enable_fips_indicator_events) {
     errors->push_back(
         "--enable-fips-indicator-events requires OpenSSL 3.4 or later");
@@ -203,23 +203,16 @@ void PerProcessOptions::CheckProcessTimeoutOptions(
   // make the timeout fire while the debugger is in control, so the two cannot
   // be combined. Runtime activation of the inspector is rejected separately.
   const DebugOptions& debug_options = per_isolate->per_env->debug_options();
-  const char* debug_option = nullptr;
-  if (debug_options.break_node_first_line) {
-    debug_option = "--inspect-brk-node";
-  } else if (debug_options.break_first_line) {
-    debug_option = "--inspect-brk";
-  } else if (debug_options.inspect_wait) {
-    debug_option = "--inspect-wait";
-  } else if (debug_options.inspector_enabled) {
-    debug_option = "--inspect";
-  } else if (debug_options.host_port.host() != "127.0.0.1" ||
-             debug_options.host_port.port() !=
-                 DebugOptions::kDefaultInspectorPort) {
-    // We can't catch the case where the value passed is the default value,
-    // then the option just becomes a noop which is fine.
-    debug_option = "--inspect-port";
-  } else if (debug_options.inspect_publish_uid_string != "stderr,http") {
-    debug_option = "--inspect-publish-uid";
+  const char* debug_option = debug_options.inspector_option_name();
+  if (debug_option == nullptr) {
+    if (debug_options.host_port.host() != "127.0.0.1" ||
+        debug_options.host_port.port() != DebugOptions::kDefaultInspectorPort) {
+      // We can't catch the case where the value passed is the default value,
+      // then the option just becomes a noop which is fine.
+      debug_option = "--inspect-port";
+    } else if (debug_options.inspect_publish_uid_string != "stderr,http") {
+      debug_option = "--inspect-publish-uid";
+    }
   }
   if (debug_option != nullptr) {
     errors->push_back(std::string("either --process-timeout or ") +
@@ -297,6 +290,16 @@ void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors,
     HandleMaxOldSpaceSizePercentage(errors, &max_old_space_size_percentage);
   }
 
+  if (build_snapshot) {
+    // V8 does not allow a debugger to be attached during snapshot building.
+    const char* debug_option = per_env->debug_options().inspector_option_name();
+    if (debug_option != nullptr) {
+      errors->push_back(
+          std::string("--build-snapshot cannot be used together with ") +
+          debug_option);
+    }
+  }
+
   per_env->CheckOptions(errors, argv);
 }
 
@@ -317,13 +320,11 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
   }
 
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  sea_vfs_archive = sea::IsSingleExecutable() &&
-                    sea::FindSingleExecutableResource().use_vfs_archive();
-  // The archive takes the mount point reserved for the --vfs-load source.
-  if (!vfs_load_source.empty() && sea_vfs_archive) {
+  sea_vfs = sea::IsSingleExecutable() &&
+            sea::FindSingleExecutableResource().use_vfs();
+  if (!vfs_load_source.empty() && sea::IsSingleExecutable()) {
     errors->push_back(
-        "--vfs-load cannot be used in a single executable application "
-        "built with \"vfsArchive\"");
+        "--vfs-load cannot be used in a single executable application");
   }
 #endif  // DISABLE_SINGLE_EXECUTABLE_APPLICATION
 
@@ -382,6 +383,10 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
       }
 
       debug_options_.allow_attaching_debugger = false;
+    }
+    if (!bench_gc.empty() && bench_gc != "none" && bench_gc != "once" &&
+        bench_gc != "sample") {
+      errors->push_back("invalid value for --bench-gc");
     }
     if (has_bench_samples && bench_samples == 0) {
       errors->push_back("--bench-samples must be greater than 0");
@@ -788,7 +793,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental Web Worker API",
             BOOL_FIELD(experimental_web_worker),
             kAllowedInEnvvar,
-            false);
+            true);
   AddOption("--experimental-websocket", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-global-customevent", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-sqlite",
@@ -827,7 +832,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kDisallowedInEnvvar);
   AddOption("[vfs_load_set]", "", BOOL_FIELD(vfs_load));
   Implies("--vfs-load", "[vfs_load_set]");
-  AddOption("[sea_vfs_archive]", "", BOOL_FIELD(sea_vfs_archive));
+  AddOption("[sea_vfs]", "", BOOL_FIELD(sea_vfs));
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",
@@ -854,11 +859,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             true);
   AddOption("--experimental-global-webcrypto", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-json-modules", "", NoOp{}, kAllowedInEnvvar);
-  AddOption("--experimental-loader",
-            "use the specified module as a custom loader",
-            &EnvironmentOptions::userland_loaders,
-            kAllowedInEnvvar);
-  AddAlias("--loader", "--experimental-loader");
   AddOption("--experimental-modules", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-wasm-modules", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-import-text",
@@ -1148,6 +1148,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             false,
             OptionNamespaces::kBenchRunnerNamespace);
   Implies("--bench", "[has_bench_options]");
+  AddOption("--bench-gc",
+            "run garbage collection before measured benchmark samples",
+            &EnvironmentOptions::bench_gc,
+            kAllowedInEnvvar,
+            OptionNamespaces::kBenchRunnerNamespace);
+  Implies("--bench-gc", "[has_bench_options]");
   AddOption("--bench-isolation",
             "configures the type of benchmark isolation used in the benchmark "
             "runner",
@@ -1276,6 +1282,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test-only",
             "run tests with 'only' option set",
             BOOL_FIELD(test_only),
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-forbid-only",
+            "fail tests that use the 'only' option",
+            BOOL_FIELD(test_forbid_only),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kTestRunnerNamespace);
@@ -1479,6 +1491,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             HAVE_AMARO);
   AddAlias("--experimental-strip-types", "--strip-types");
+  AddOption("--experimental-strip-private-modules",
+            "Type-stripping for TypeScript files under node_modules "
+            "belonging to packages marked \"private\": true",
+            BOOL_FIELD(experimental_strip_private_modules),
+            kAllowedInEnvvar);
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",
@@ -1779,9 +1796,9 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvvar);
 #endif  // V8_ENABLE_SANDBOX
 #endif  // HAVE_OPENSSL
-#if OPENSSL_VERSION_MAJOR >= 3
+#if HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
   AddOption("--openssl-legacy-provider",
-            "enable OpenSSL 3.0 legacy provider",
+            "enable OpenSSL's legacy provider",
             BOOL_FIELD(openssl_legacy_provider),
             kAllowedInEnvvar);
   AddOption("--openssl-shared-config",
@@ -1789,7 +1806,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             BOOL_FIELD(openssl_shared_config),
             kAllowedInEnvvar);
 
-#endif  // OPENSSL_VERSION_MAJOR
+#endif  // HAVE_OPENSSL && !OPENSSL_IS_BORINGSSL
   AddOption("--use-largepages",
             "This option is no longer supported and a no-op. It still accepts"
             " these values for compatibility: 'off' (default), 'on' (report a "

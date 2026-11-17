@@ -539,7 +539,7 @@ ___
 }
 
 $code=<<___;
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 .arch	armv8-a+crypto
 .text
 

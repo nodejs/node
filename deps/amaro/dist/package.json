@@ -1,14 +1,11 @@
 {
-  "name": "@swc/wasm-typescript",
-  "collaborators": [
-    "강동윤 <kdy1997.dev@gmail.com>"
-  ],
-  "description": "wasm module for swc",
-  "version": "1.15.43",
+  "name": "amaro",
+  "description": "Node.js TypeScript and REPL helpers built on SWC, compiled to WebAssembly",
+  "version": "1.2.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/swc-project/swc.git"
+    "url": "https://github.com/nodejs/amaro.git"
   },
   "files": [
     "wasm.js",

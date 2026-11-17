@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -64,7 +64,7 @@ int o2i_SCT_signature(SCT *sct, const unsigned char **in, size_t len)
     len_remaining -= siglen;
     *in = p + siglen;
 
-    return len - len_remaining;
+    return (int)(len - len_remaining);
 }
 
 SCT *o2i_SCT(SCT **psct, const unsigned char **in, size_t len)
@@ -189,7 +189,7 @@ int i2o_SCT_signature(const SCT *sct, unsigned char **out)
         memcpy(p, sct->sig, sct->sig_len);
     }
 
-    return len;
+    return (int)len;
 err:
     OPENSSL_free(pstart);
     return -1;
@@ -215,8 +215,10 @@ int i2o_SCT(const SCT *sct, unsigned char **out)
     else
         len = sct->sct_len;
 
+    if (len > INT_MAX)
+        return -1;
     if (out == NULL)
-        return len;
+        return (int)len;
 
     if (*out != NULL) {
         p = *out;
@@ -244,7 +246,7 @@ int i2o_SCT(const SCT *sct, unsigned char **out)
         memcpy(p, sct->sct, len);
     }
 
-    return len;
+    return (int)len;
 err:
     OPENSSL_free(pstart);
     return -1;
@@ -345,7 +347,7 @@ int i2o_SCT_LIST(const STACK_OF(SCT) *a, unsigned char **pp)
             if ((sct_len = i2o_SCT(sk_SCT_value(a, i), NULL)) == -1)
                 goto err;
         }
-        len2 += 2 + sct_len;
+        len2 += (size_t)sct_len + 2;
     }
 
     if (len2 > MAX_SCT_LIST_SIZE)
@@ -357,7 +359,7 @@ int i2o_SCT_LIST(const STACK_OF(SCT) *a, unsigned char **pp)
         if (!is_pp_new)
             *pp += len2;
     }
-    return len2;
+    return (int)len2;
 
 err:
     if (is_pp_new) {
@@ -378,8 +380,8 @@ STACK_OF(SCT) *d2i_SCT_LIST(STACK_OF(SCT) **a, const unsigned char **pp,
     if (d2i_ASN1_OCTET_STRING(&oct, &p, len) == NULL)
         return NULL;
 
-    p = oct->data;
-    if ((sk = o2i_SCT_LIST(a, &p, oct->length)) != NULL)
+    p = ASN1_STRING_get0_data(oct);
+    if ((sk = o2i_SCT_LIST(a, &p, ASN1_STRING_get_length(oct))) != NULL)
         *pp += len;
 
     ASN1_OCTET_STRING_free(oct);
@@ -388,14 +390,20 @@ STACK_OF(SCT) *d2i_SCT_LIST(STACK_OF(SCT) **a, const unsigned char **pp,
 
 int i2d_SCT_LIST(const STACK_OF(SCT) *a, unsigned char **out)
 {
-    ASN1_OCTET_STRING oct;
+    ASN1_OCTET_STRING *oct;
+    unsigned char *data = NULL;
     int len;
 
-    oct.data = NULL;
-    if ((oct.length = i2o_SCT_LIST(a, &oct.data)) == -1)
+    if ((len = i2o_SCT_LIST(a, &data)) == -1)
         return -1;
 
-    len = i2d_ASN1_OCTET_STRING(&oct, out);
-    OPENSSL_free(oct.data);
+    oct = ASN1_OCTET_STRING_new();
+    if (oct == NULL) {
+        OPENSSL_free(data);
+        return -1;
+    }
+    ASN1_STRING_set0(oct, data, len);
+    len = i2d_ASN1_OCTET_STRING(oct, out);
+    ASN1_OCTET_STRING_free(oct);
     return len;
 }

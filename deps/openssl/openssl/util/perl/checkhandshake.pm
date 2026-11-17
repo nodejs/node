@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -59,7 +59,8 @@ use constant {
     SUPPORTED_GROUPS_SRV_EXTENSION => 0x00100000,
     POST_HANDSHAKE_AUTH_CLI_EXTENSION => 0x00200000,
     CERT_COMP_CLI_EXTENSION => 0x00400000,
-    CERT_COMP_SRV_EXTENSION => 0x00800000
+    CERT_COMP_SRV_EXTENSION => 0x00800000,
+    COOKIE_EXTENSION => 0x01000000
 };
 
 our @handmessages = ();
@@ -68,6 +69,19 @@ our @extensions = ();
 sub checkhandshake($$$$)
 {
     my ($proxy, $handtype, $exttype, $testname) = @_;
+    my $msgs = \@handmessages;
+
+    # s_server validates DTLS peers with a HelloRetryRequest cookie, so every
+    # DTLS handshake exchanges the HRR messages and the cookie extension
+    if ($proxy->isdtls()) {
+        $msgs = [map {
+            [$_->[0],
+             $_->[1] != 0
+             && ($_->[1] & ~(HRR_HANDSHAKE | HRR_RESUME_HANDSHAKE)) == 0
+                 ? ALL_HANDSHAKES : $_->[1]]
+        } @handmessages];
+        $exttype |= COOKIE_EXTENSION;
+    }
 
     subtest $testname => sub {
         my $loop = 0;
@@ -79,11 +93,11 @@ sub checkhandshake($$$$)
         my $numsh = 0;
         if (TLSProxy::Proxy::is_tls13()) {
             #How many ServerHellos are we expecting?
-            for ($numtests = 0; $handmessages[$loop][1] != 0; $loop++) {
-                next if (($handmessages[$loop][1] & $handtype) == 0);
+            for ($numtests = 0; $msgs->[$loop][1] != 0; $loop++) {
+                next if (($msgs->[$loop][1] & $handtype) == 0);
                 $numsh++ if ($lastmt != TLSProxy::Message::MT_SERVER_HELLO
-                             && $handmessages[$loop][0] == TLSProxy::Message::MT_SERVER_HELLO);
-                $lastmt = $handmessages[$loop][0];
+                             && $msgs->[$loop][0] == TLSProxy::Message::MT_SERVER_HELLO);
+                $lastmt = $msgs->[$loop][0];
             }
         }
 
@@ -102,8 +116,8 @@ sub checkhandshake($$$$)
         #first ServerHello in the list completely
         $shnum++ if ($numsh == 1 && TLSProxy::Proxy::is_tls13());
         $loop = 0;
-        for ($numtests = 0; $handmessages[$loop][1] != 0; $loop++) {
-            next if (($handmessages[$loop][1] & $handtype) == 0);
+        for ($numtests = 0; $msgs->[$loop][1] != 0; $loop++) {
+            next if (($msgs->[$loop][1] & $handtype) == 0);
             if (scalar @{$proxy->message_list} > $nextmess) {
                 $message = ${$proxy->message_list}[$nextmess];
                 $nextmess++;
@@ -163,8 +177,8 @@ sub checkhandshake($$$$)
         #If we're only expecting one ServerHello out of two then we skip the
         #first ServerHello in the list completely
         $shnum++ if ($numsh == 1 && TLSProxy::Proxy::is_tls13());
-        for ($loop = 0; $handmessages[$loop][1] != 0; $loop++) {
-            next if (($handmessages[$loop][1] & $handtype) == 0);
+        for ($loop = 0; $msgs->[$loop][1] != 0; $loop++) {
+            next if (($msgs->[$loop][1] & $handtype) == 0);
             if (scalar @{$proxy->message_list} > $nextmess) {
                 $message = ${$proxy->message_list}[$nextmess];
                 $nextmess++;
@@ -173,12 +187,12 @@ sub checkhandshake($$$$)
             }
             if (!defined $message) {
                 fail("Message type check. Got nothing, expected "
-                     .$handmessages[$loop][0]);
+                     .$msgs->[$loop][0]);
                 next;
             } else {
-                ok($message->mt == $handmessages[$loop][0],
+                ok($message->mt == $msgs->[$loop][0],
                    "Message type check. Got ".$message->mt
-                   .", expected ".$handmessages[$loop][0]);
+                   .", expected ".$msgs->[$loop][0]);
             }
             if (TLSProxy::Proxy::is_tls13()) {
                 $chnum++ if $message->mt() == TLSProxy::Message::MT_CLIENT_HELLO;

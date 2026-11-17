@@ -59,11 +59,11 @@ int bn_mod_add_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
     BN_ULONG carry, temp, mask, *rp, *tp = storage;
     const BN_ULONG *ap, *bp;
 
-    if (bn_wexpand(r, mtop) == NULL)
+    if (bn_wexpand(r, (int)mtop) == NULL)
         return 0;
 
     if (mtop > OSSL_NELEM(storage)) {
-        tp = OPENSSL_malloc(mtop * sizeof(BN_ULONG));
+        tp = OPENSSL_malloc_array(mtop, sizeof(BN_ULONG));
         if (tp == NULL)
             return 0;
     }
@@ -85,12 +85,12 @@ int bn_mod_add_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
         bi += (i - b->dmax) >> (8 * sizeof(i) - 1);
     }
     rp = r->d;
-    carry -= bn_sub_words(rp, tp, m->d, mtop);
+    carry -= bn_sub_words(rp, tp, m->d, (int)mtop);
     for (i = 0; i < mtop; i++) {
         rp[i] = (carry & tp[i]) | (~carry & rp[i]);
         ((volatile BN_ULONG *)tp)[i] = 0;
     }
-    r->top = mtop;
+    r->top = (int)mtop;
     r->flags |= BN_FLG_FIXED_TOP;
     r->neg = 0;
 
@@ -140,7 +140,7 @@ int bn_mod_sub_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
     BN_ULONG borrow, carry, ta, tb, mask, *rp;
     const BN_ULONG *ap, *bp;
 
-    if (bn_wexpand(r, mtop) == NULL)
+    if (bn_wexpand(r, (int)mtop) == NULL)
         return 0;
 
     rp = r->d;
@@ -176,7 +176,7 @@ int bn_mod_sub_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
         carry += (rp[i] < ta);
     }
 
-    r->top = mtop;
+    r->top = (int)mtop;
     r->flags |= BN_FLG_FIXED_TOP;
     r->neg = 0;
 

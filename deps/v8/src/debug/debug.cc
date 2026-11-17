@@ -40,6 +40,7 @@
 #include "src/snapshot/embedded/embedded-data.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2973,6 +2974,60 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
           return;
         }
       }
+#if V8_ENABLE_WEBASSEMBLY
+    } else if (!it.done() && it.frame()->is_wasm()) {
+#if V8_ENABLE_DRUMBRAKE
+      if (!it.frame()->is_wasm_interpreter_entry())
+#endif  // V8_ENABLE_DRUMBRAKE
+      {
+        WasmFrame* wasm_frame = WasmFrame::cast(it.frame());
+        wasm::WasmCodeRefScope code_ref_scope;
+        // Optimized Wasm frames cannot be deoptimized on-stack at loop stack
+        // checks. Defer the pause to the next function call (or return to a
+        // debuggable caller frame) so that JavaScript executed during the
+        // pause cannot invalidate load-eliminated state in the optimized Wasm
+        // frame.
+        if (!wasm_frame->wasm_code()->is_liftoff()) {
+          if (ignore_events()) return;
+          thread_local_.scheduled_break_on_next_function_call_.Add(
+              break_reasons);
+          SetBreakOnNextFunctionCall();
+          for (it.Advance(); !it.done(); it.Advance()) {
+            if (it.frame()->is_wasm()) {
+#if V8_ENABLE_DRUMBRAKE
+              if (it.frame()->is_wasm_interpreter_entry()) continue;
+#endif  // V8_ENABLE_DRUMBRAKE
+              WasmFrame* caller_wasm = WasmFrame::cast(it.frame());
+              if (!caller_wasm->wasm_code()->is_inspectable()) continue;
+              wasm::DebugInfo* debug_info =
+                  caller_wasm->native_module()->GetDebugInfo();
+              if (debug_info->IsFrameBlackboxed(caller_wasm)) continue;
+              debug_info->PrepareStepOutTo(caller_wasm);
+              break;
+            }
+            JavaScriptFrame* js_frame = JavaScriptFrame::cast(it.frame());
+            if (js_frame->is_optimized()) {
+              Deoptimizer::DeoptimizeFunction(js_frame->function(),
+                                              LazyDeoptimizeReason::kDebugger,
+                                              js_frame->LookupCode());
+            }
+            HandleScope inner_scope(isolate_);
+            std::vector<Handle<SharedFunctionInfo>> infos;
+            js_frame->GetFunctions(&infos);
+            bool flooded = false;
+            for (; !infos.empty(); infos.pop_back()) {
+              Handle<SharedFunctionInfo> info = infos.back();
+              if (IsBlackboxed(info)) continue;
+              FloodWithOneShot(info);
+              flooded = true;
+              break;
+            }
+            if (flooded) break;
+          }
+          return;
+        }
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
   }
 

@@ -10,14 +10,7 @@
  */
 
 #include "cmp_local.h"
-#include "crypto/asn1.h"
-
-/* explicit #includes not strictly needed since implied by the above: */
-#include <openssl/asn1t.h>
-#include <openssl/cmp.h>
-#include <openssl/crmf.h>
-#include <openssl/err.h>
-#include <openssl/x509.h>
+#include "crypto/asn1.h" /* for ossl_X509_ALGOR_from_nid() */
 
 /*
  * This function is also used by the internal verify_PBMAC() in cmp_vfy.c.
@@ -79,8 +72,12 @@ ASN1_BIT_STRING *ossl_cmp_calc_protection(const OSSL_CMP_CTX *ctx,
         prot_part_der_len = (size_t)len;
 
         pbm_str = (ASN1_STRING *)ppval;
-        pbm_str_uc = pbm_str->data;
-        pbm = d2i_OSSL_CRMF_PBMPARAMETER(NULL, &pbm_str_uc, pbm_str->length);
+        pbm_str_uc = ASN1_STRING_get0_data(pbm_str);
+        if (ASN1_STRING_get_length(pbm_str) > INT_MAX) {
+            ERR_raise(ERR_LIB_CMP, CMP_R_WRONG_ALGORITHM_OID);
+            goto end;
+        }
+        pbm = d2i_OSSL_CRMF_PBMPARAMETER(NULL, &pbm_str_uc, (long)ASN1_STRING_get_length(pbm_str));
         if (pbm == NULL) {
             ERR_raise(ERR_LIB_CMP, CMP_R_WRONG_ALGORITHM_OID);
             goto end;
@@ -88,15 +85,14 @@ ASN1_BIT_STRING *ossl_cmp_calc_protection(const OSSL_CMP_CTX *ctx,
 
         if (!OSSL_CRMF_pbm_new(ctx->libctx, ctx->propq,
                 pbm, prot_part_der, prot_part_der_len,
-                ctx->secretValue->data, ctx->secretValue->length,
+                ASN1_STRING_get0_data(ctx->secretValue), ASN1_STRING_get_length(ctx->secretValue),
                 &protection, &sig_len))
             goto end;
 
-        if ((prot = ASN1_BIT_STRING_new()) == NULL)
+        if (sig_len > INT_MAX || (prot = ASN1_BIT_STRING_new()) == NULL)
             goto end;
         /* OpenSSL by default encodes all bit strings as ASN.1 NamedBitList */
-        ossl_asn1_string_set_bits_left(prot, 0);
-        if (!ASN1_BIT_STRING_set(prot, protection, sig_len)) {
+        if (!ASN1_BIT_STRING_set1(prot, protection, (int)sig_len, 0)) {
             ASN1_BIT_STRING_free(prot);
             prot = NULL;
         }
@@ -123,7 +119,8 @@ ASN1_BIT_STRING *ossl_cmp_calc_protection(const OSSL_CMP_CTX *ctx,
         if (ASN1_item_sign_ex(ASN1_ITEM_rptr(OSSL_CMP_PROTECTEDPART),
                 msg->header->protectionAlg, /* sets X509_ALGOR */
                 NULL, prot, &prot_part, NULL, ctx->pkey, md,
-                ctx->libctx, ctx->propq))
+                ctx->libctx, ctx->propq)
+            != 0)
             return prot;
         ASN1_BIT_STRING_free(prot);
         return NULL;
@@ -209,7 +206,7 @@ static X509_ALGOR *pbmac_algor(const OSSL_CMP_CTX *ctx)
         goto err;
     if ((pbm_der_len = i2d_OSSL_CRMF_PBMPARAMETER(pbm, &pbm_der)) < 0)
         goto err;
-    if (!ASN1_STRING_set(pbm_str, pbm_der, pbm_der_len))
+    if (!ossl_asn1_string_set1_data(pbm_str, pbm_der, pbm_der_len))
         goto err;
     alg = ossl_X509_ALGOR_from_nid(NID_id_PasswordBasedMAC,
         V_ASN1_SEQUENCE, pbm_str);

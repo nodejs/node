@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,22 +7,31 @@
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_LIBCRYPTO_EVP_EVP_LOCAL_H)
+#define OSSL_LIBCRYPTO_EVP_EVP_LOCAL_H
+
 #include <openssl/core_dispatch.h>
+#include <openssl/evp.h>
+
+#include <crypto/evp.h>
+
 #include "internal/refcount.h"
 
 #define EVP_CTRL_RET_UNSUPPORTED -1
 
+/*
+ * Length of the BASE64-encoded lines when encoding.
+ * This needs to be divisible by 3 to keep the AVX2 optimized code path.
+ */
+#define EVP_ENCODE_B64_LENGTH 48
+
 struct evp_md_ctx_st {
     const EVP_MD *reqdigest; /* The original requested digest */
     const EVP_MD *digest;
-    ENGINE *engine; /* functional reference if 'digest' is
-                     * ENGINE-provided */
     unsigned long flags;
-    void *md_data;
+
     /* Public key context for sign/verify */
     EVP_PKEY_CTX *pctx;
-    /* Update function: usually copied from EVP_MD */
-    int (*update)(EVP_MD_CTX *ctx, const void *data, size_t count);
 
     /*
      * Opaque ctx returned from a providers digest algorithm implementation
@@ -34,8 +43,6 @@ struct evp_md_ctx_st {
 
 struct evp_cipher_ctx_st {
     const EVP_CIPHER *cipher;
-    ENGINE *engine; /* functional reference if 'cipher' is
-                     * ENGINE-provided */
     int encrypt; /* encrypt or decrypt */
     int buf_len; /* number we have left */
     unsigned char oiv[EVP_MAX_IV_LENGTH]; /* original iv */
@@ -95,6 +102,7 @@ struct evp_keymgmt_st {
     int id; /* libcrypto internal */
 
     int name_id;
+    int no_store;
     /* NID for the legacy alg if there is one */
     int legacy_alg;
     char *type_name;
@@ -104,6 +112,7 @@ struct evp_keymgmt_st {
 
     /* Constructor(s), destructor, information */
     OSSL_FUNC_keymgmt_new_fn *new;
+    OSSL_FUNC_keymgmt_new_ex_fn *new_ex;
     OSSL_FUNC_keymgmt_free_fn *free;
     OSSL_FUNC_keymgmt_get_params_fn *get_params;
     OSSL_FUNC_keymgmt_gettable_params_fn *gettable_params;
@@ -140,6 +149,7 @@ struct evp_keymgmt_st {
 
 struct evp_keyexch_st {
     int name_id;
+    int no_store;
     char *type_name;
     const char *description;
     OSSL_PROVIDER *prov;
@@ -155,10 +165,12 @@ struct evp_keyexch_st {
     OSSL_FUNC_keyexch_settable_ctx_params_fn *settable_ctx_params;
     OSSL_FUNC_keyexch_get_ctx_params_fn *get_ctx_params;
     OSSL_FUNC_keyexch_gettable_ctx_params_fn *gettable_ctx_params;
+    OSSL_FUNC_keyexch_derive_skey_fn *derive_skey;
 } /* EVP_KEYEXCH */;
 
 struct evp_signature_st {
     int name_id;
+    int no_store;
     char *type_name;
     const char *description;
     OSSL_PROVIDER *prov;
@@ -202,6 +214,7 @@ struct evp_signature_st {
 
 struct evp_skeymgmt_st {
     int name_id;
+    int no_store;
     char *type_name;
     const char *description;
     OSSL_PROVIDER *prov;
@@ -219,12 +232,17 @@ struct evp_skeymgmt_st {
     /* Key identifier */
     OSSL_FUNC_skeymgmt_get_key_id_fn *get_key_id;
 
+    /* Key metadata accessors */
+    OSSL_FUNC_skeymgmt_get_local_keyid_fn *get_local_keyid;
+    OSSL_FUNC_skeymgmt_get_algorithm_id_fn *get_algorithm_id;
+
     /* destructor */
     OSSL_FUNC_skeymgmt_free_fn *free;
 } /* EVP_SKEYMGMT */;
 
 struct evp_asym_cipher_st {
     int name_id;
+    int no_store;
     char *type_name;
     const char *description;
     OSSL_PROVIDER *prov;
@@ -245,6 +263,7 @@ struct evp_asym_cipher_st {
 
 struct evp_kem_st {
     int name_id;
+    int no_store;
     char *type_name;
     const char *description;
     OSSL_PROVIDER *prov;
@@ -277,12 +296,6 @@ int PKCS5_v2_PBKDF2_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass,
 struct evp_Encode_Ctx_st {
     /* number saved in a partial encode/decode */
     int num;
-    /*
-     * The length is either the output line length (in input bytes) or the
-     * shortest input line length that is ok.  Once decoding begins, the
-     * length is adjusted up each time a longer line is decoded
-     */
-    int length;
     /* data to encode */
     unsigned char enc_data[80];
     /* number read on current line */
@@ -302,14 +315,14 @@ void *evp_generic_fetch(OSSL_LIB_CTX *ctx, int operation_id,
     const char *name, const char *properties,
     void *(*new_method)(int name_id,
         const OSSL_ALGORITHM *algodef,
-        OSSL_PROVIDER *prov),
+        OSSL_PROVIDER *prov, int no_store),
     int (*up_ref_method)(void *),
     void (*free_method)(void *));
 void *evp_generic_fetch_from_prov(OSSL_PROVIDER *prov, int operation_id,
     const char *name, const char *properties,
     void *(*new_method)(int name_id,
         const OSSL_ALGORITHM *algodef,
-        OSSL_PROVIDER *prov),
+        OSSL_PROVIDER *prov, int no_store),
     int (*up_ref_method)(void *),
     void (*free_method)(void *));
 void evp_generic_do_all_prefetched(OSSL_LIB_CTX *libctx, int operation_id,
@@ -320,7 +333,7 @@ void evp_generic_do_all(OSSL_LIB_CTX *libctx, int operation_id,
     void *user_arg,
     void *(*new_method)(int name_id,
         const OSSL_ALGORITHM *algodef,
-        OSSL_PROVIDER *prov),
+        OSSL_PROVIDER *prov, int no_store),
     int (*up_ref_method)(void *),
     void (*free_method)(void *));
 
@@ -384,27 +397,8 @@ int evp_do_md_ctx_setparams(const EVP_MD *md, void *provctx,
 
 OSSL_PARAM *evp_pkey_to_param(EVP_PKEY *pkey, size_t *sz);
 
-#define M_check_autoarg(ctx, arg, arglen, err)                               \
-    if (ctx->pmeth->flags & EVP_PKEY_FLAG_AUTOARGLEN) {                      \
-        size_t pksize = (size_t)EVP_PKEY_get_size(ctx->pkey);                \
-                                                                             \
-        if (pksize == 0) {                                                   \
-            ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_KEY); /*ckerr_ignore*/      \
-            return 0;                                                        \
-        }                                                                    \
-        if (arg == NULL) {                                                   \
-            *arglen = pksize;                                                \
-            return 1;                                                        \
-        }                                                                    \
-        if (*arglen < pksize) {                                              \
-            ERR_raise(ERR_LIB_EVP, EVP_R_BUFFER_TOO_SMALL); /*ckerr_ignore*/ \
-            return 0;                                                        \
-        }                                                                    \
-    }
-
 void evp_pkey_ctx_free_old_ops(EVP_PKEY_CTX *ctx);
 void evp_cipher_free_int(EVP_CIPHER *md);
-void evp_md_free_int(EVP_MD *md);
 
 /* OSSL_PROVIDER * is only used to get the library context */
 int evp_is_a(OSSL_PROVIDER *prov, int number,
@@ -413,3 +407,28 @@ int evp_names_do_all(OSSL_PROVIDER *prov, int number,
     void (*fn)(const char *name, void *data),
     void *data);
 int evp_cipher_cache_constants(EVP_CIPHER *cipher);
+
+#define EVP_DO_ALL_PROVIDED_THUNK(type)                                                       \
+    struct type##_do_all_provided_thunk {                                                     \
+        void (*fn)(type * method, void *arg);                                                 \
+        void *arg;                                                                            \
+    };                                                                                        \
+    static ossl_inline ossl_unused void type##_do_all_provided_thunk(void *method, void *arg) \
+    {                                                                                         \
+        struct type##_do_all_provided_thunk *t = arg;                                         \
+        (*t->fn)((type *)method, t->arg);                                                     \
+    }
+
+EVP_DO_ALL_PROVIDED_THUNK(EVP_ASYM_CIPHER)
+EVP_DO_ALL_PROVIDED_THUNK(EVP_MD)
+EVP_DO_ALL_PROVIDED_THUNK(EVP_CIPHER)
+EVP_DO_ALL_PROVIDED_THUNK(EVP_RAND)
+EVP_DO_ALL_PROVIDED_THUNK(EVP_KEYEXCH)
+EVP_DO_ALL_PROVIDED_THUNK(EVP_KDF)
+EVP_DO_ALL_PROVIDED_THUNK(EVP_KEM)
+EVP_DO_ALL_PROVIDED_THUNK(EVP_KEYMGMT)
+EVP_DO_ALL_PROVIDED_THUNK(EVP_MAC)
+EVP_DO_ALL_PROVIDED_THUNK(EVP_SIGNATURE)
+EVP_DO_ALL_PROVIDED_THUNK(EVP_SKEYMGMT)
+
+#endif /* !defined(OSSL_LIBCRYPTO_EVP_EVP_LOCAL_H) */

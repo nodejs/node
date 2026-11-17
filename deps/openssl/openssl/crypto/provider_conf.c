@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,6 +15,7 @@
 #include <openssl/provider.h>
 #include "internal/provider.h"
 #include "internal/cryptlib.h"
+#include "internal/conf.h"
 #include "provider_local.h"
 #include "crypto/context.h"
 
@@ -275,30 +276,7 @@ static int provider_conf_activate(OSSL_LIB_CTX *libctx, const char *name,
 static int provider_conf_parse_bool_setting(const char *confname,
     const char *confvalue, int *val)
 {
-
-    if (confvalue == NULL) {
-        ERR_raise_data(ERR_LIB_CRYPTO, CRYPTO_R_PROVIDER_SECTION_ERROR,
-            "directive %s set to unrecognized value",
-            confname);
-        return 0;
-    }
-    if ((strcmp(confvalue, "1") == 0)
-        || (strcmp(confvalue, "yes") == 0)
-        || (strcmp(confvalue, "YES") == 0)
-        || (strcmp(confvalue, "true") == 0)
-        || (strcmp(confvalue, "TRUE") == 0)
-        || (strcmp(confvalue, "on") == 0)
-        || (strcmp(confvalue, "ON") == 0)) {
-        *val = 1;
-    } else if ((strcmp(confvalue, "0") == 0)
-        || (strcmp(confvalue, "no") == 0)
-        || (strcmp(confvalue, "NO") == 0)
-        || (strcmp(confvalue, "false") == 0)
-        || (strcmp(confvalue, "FALSE") == 0)
-        || (strcmp(confvalue, "off") == 0)
-        || (strcmp(confvalue, "OFF") == 0)) {
-        *val = 0;
-    } else {
+    if (!ossl_conf_parse_bool(confvalue, val)) {
         ERR_raise_data(ERR_LIB_CRYPTO, CRYPTO_R_PROVIDER_SECTION_ERROR,
             "directive %s set to unrecognized value",
             confname);

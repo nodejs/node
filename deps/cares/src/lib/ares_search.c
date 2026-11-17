@@ -463,7 +463,12 @@ void ares_search(ares_channel_t *channel, const char *name, int dnsclass,
   }
 
   ares_channel_lock(channel);
+  /* Notifications raised along the way are delivered once this whole call
+   * has unwound, not from inside the internals it runs.  See
+   * ares_deferred_cb_enter(). */
+  ares_deferred_cb_enter(channel);
   ares_search_int(channel, dnsrec, ares_dnsrec_convert_cb, carg);
+  ares_deferred_cb_leave(channel);
   ares_channel_unlock(channel);
 
   ares_dns_record_destroy(dnsrec);
@@ -481,7 +486,12 @@ ares_status_t ares_search_dnsrec(ares_channel_t          *channel,
   }
 
   ares_channel_lock(channel);
+  /* Notifications raised along the way are delivered once this whole call
+   * has unwound, not from inside the internals it runs.  See
+   * ares_deferred_cb_enter(). */
+  ares_deferred_cb_enter(channel);
   status = ares_search_int(channel, dnsrec, callback, arg);
+  ares_deferred_cb_leave(channel);
   ares_channel_unlock(channel);
 
   return status;

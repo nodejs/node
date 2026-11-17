@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2009-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,7 +12,7 @@
 
 #include <openssl/opensslconf.h>
 #include <openssl/sha.h>
-#include "crypto/ppc_arch.h"
+#include "arch/ppc_arch.h"
 
 void sha256_block_p8(void *ctx, const void *inp, size_t len);
 void sha256_block_ppc(void *ctx, const void *inp, size_t len);

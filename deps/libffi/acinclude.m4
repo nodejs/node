@@ -334,13 +334,13 @@ libat_min_gnu_ld_version=21400
 # Change "yes" into either "no" or a style name.
 if test $enable_symvers != no && test $libat_shared_libgcc = yes; then
   if test $with_gnu_ld = yes; then
-    if test $libat_gnu_ld_version -ge $libat_min_gnu_ld_version ; then
-      enable_symvers=gnu
-    elif test $libat_ld_is_gold = yes ; then
+    if test $libat_ld_is_gold = yes ; then
       enable_symvers=gnu
     elif test $libat_ld_is_lld = yes ; then
       enable_symvers=gnu
     elif test $libat_ld_is_mold = yes ; then
+      enable_symvers=gnu
+    elif test $libat_gnu_ld_version -ge $libat_min_gnu_ld_version ; then
       enable_symvers=gnu
     else
       # The right tools, the right setup, but too old.  Fallbacks?

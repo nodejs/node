@@ -115,7 +115,7 @@ signed char *bn_compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len)
         r[j++] = sign * digit;
 
         window_val >>= 1;
-        window_val += bit * BN_is_bit_set(scalar, j + w);
+        window_val += bit * BN_is_bit_set(scalar, (int)(j + w));
 
         if (window_val > next_bit) {
             ERR_raise(ERR_LIB_BN, ERR_R_INTERNAL_ERROR);

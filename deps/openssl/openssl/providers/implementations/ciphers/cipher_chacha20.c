@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,9 +10,11 @@
 /* Dispatch functions for chacha20 cipher */
 
 #include <openssl/proverr.h>
+#include <openssl/params.h>
 #include "cipher_chacha20.h"
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
+#include "providers/implementations/ciphers/cipher_chacha20.inc"
 
 #define CHACHA20_KEYLEN (CHACHA_KEY_SIZE)
 #define CHACHA20_BLKLEN (1)
@@ -31,6 +33,13 @@ static OSSL_FUNC_cipher_settable_ctx_params_fn chacha20_settable_ctx_params;
 #define chacha20_update ossl_cipher_generic_stream_update
 #define chacha20_final ossl_cipher_generic_stream_final
 #define chacha20_gettable_params ossl_cipher_generic_gettable_params
+#define CHACHA_U32TOU8(ct, st)                 \
+    do {                                       \
+        (ct)[3] = (unsigned char)((st) >> 24); \
+        (ct)[2] = (unsigned char)((st) >> 16); \
+        (ct)[1] = (unsigned char)((st) >> 8);  \
+        (ct)[0] = (unsigned char)(st);         \
+    } while (0)
 
 void ossl_chacha20_initctx(PROV_CHACHA20_CTX *ctx)
 {
@@ -70,16 +79,14 @@ static void *chacha20_dupctx(void *vctx)
     PROV_CHACHA20_CTX *ctx = (PROV_CHACHA20_CTX *)vctx;
     PROV_CHACHA20_CTX *dupctx = NULL;
 
-    if (ctx != NULL) {
-        dupctx = OPENSSL_memdup(ctx, sizeof(*dupctx));
-        if (dupctx != NULL && dupctx->base.tlsmac != NULL && dupctx->base.alloced) {
-            dupctx->base.tlsmac = OPENSSL_memdup(dupctx->base.tlsmac,
-                dupctx->base.tlsmacsize);
-            if (dupctx->base.tlsmac == NULL) {
-                OPENSSL_free(dupctx);
-                dupctx = NULL;
-            }
-        }
+    if (ctx == NULL)
+        return NULL;
+
+    dupctx = OPENSSL_memdup(ctx, sizeof(*dupctx));
+    if (dupctx != NULL
+        && !ossl_cipher_generic_dupctx_tlsmac(&dupctx->base, &ctx->base)) {
+        OPENSSL_clear_free(dupctx, sizeof(*dupctx));
+        return NULL;
     }
     return dupctx;
 }
@@ -94,44 +101,53 @@ static int chacha20_get_params(OSSL_PARAM params[])
 
 static int chacha20_get_ctx_params(void *vctx, OSSL_PARAM params[])
 {
-    OSSL_PARAM *p;
+    PROV_CHACHA20_CTX *ctx = (PROV_CHACHA20_CTX *)vctx;
+    unsigned char ivbuf[CHACHA20_IVLEN];
+    struct chacha20_get_ctx_params_st p;
 
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_IVLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, CHACHA20_IVLEN)) {
+    if (ctx == NULL || !chacha20_get_ctx_params_decoder(params, &p))
+        return 0;
+
+    if (p.ivlen != NULL && !OSSL_PARAM_set_size_t(p.ivlen, CHACHA20_IVLEN)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
         return 0;
     }
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_KEYLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, CHACHA20_KEYLEN)) {
+
+    if (p.keylen != NULL && !OSSL_PARAM_set_size_t(p.keylen, CHACHA20_KEYLEN)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
         return 0;
     }
 
+    if (p.upd_iv != NULL) {
+        CHACHA_U32TOU8(ivbuf, ctx->counter[0]);
+        CHACHA_U32TOU8(ivbuf + 4, ctx->counter[1]);
+        CHACHA_U32TOU8(ivbuf + 8, ctx->counter[2]);
+        CHACHA_U32TOU8(ivbuf + 12, ctx->counter[3]);
+        if (!OSSL_PARAM_set_octet_string(p.upd_iv, ivbuf, CHACHA20_IVLEN)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+            return 0;
+        }
+    }
     return 1;
 }
 
-static const OSSL_PARAM chacha20_known_gettable_ctx_params[] = {
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_KEYLEN, NULL),
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_IVLEN, NULL),
-    OSSL_PARAM_END
-};
 const OSSL_PARAM *chacha20_gettable_ctx_params(ossl_unused void *cctx,
     ossl_unused void *provctx)
 {
-    return chacha20_known_gettable_ctx_params;
+    return chacha20_get_ctx_params_list;
 }
 
 static int chacha20_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
-    const OSSL_PARAM *p;
+    PROV_CHACHA20_CTX *ctx = (PROV_CHACHA20_CTX *)vctx;
+    struct chacha20_set_ctx_params_st p;
     size_t len;
 
-    if (ossl_param_is_empty(params))
-        return 1;
+    if (ctx == NULL || !chacha20_set_ctx_params_decoder(params, &p))
+        return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_KEYLEN);
-    if (p != NULL) {
-        if (!OSSL_PARAM_get_size_t(p, &len)) {
+    if (p.keylen != NULL) {
+        if (!OSSL_PARAM_get_size_t(p.keylen, &len)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }
@@ -140,9 +156,9 @@ static int chacha20_set_ctx_params(void *vctx, const OSSL_PARAM params[])
             return 0;
         }
     }
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_IVLEN);
-    if (p != NULL) {
-        if (!OSSL_PARAM_get_size_t(p, &len)) {
+
+    if (p.ivlen != NULL) {
+        if (!OSSL_PARAM_get_size_t(p.ivlen, &len)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }
@@ -154,15 +170,10 @@ static int chacha20_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     return 1;
 }
 
-static const OSSL_PARAM chacha20_known_settable_ctx_params[] = {
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_KEYLEN, NULL),
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_IVLEN, NULL),
-    OSSL_PARAM_END
-};
 const OSSL_PARAM *chacha20_settable_ctx_params(ossl_unused void *cctx,
     ossl_unused void *provctx)
 {
-    return chacha20_known_settable_ctx_params;
+    return chacha20_set_ctx_params_list;
 }
 
 int ossl_chacha20_einit(void *vctx, const unsigned char *key, size_t keylen,

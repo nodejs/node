@@ -182,5 +182,17 @@ class TestGetFlavor(unittest.TestCase):
         assert flavor6 == "wasi"
 
 
+class TestRelativePath(unittest.TestCase):
+    def test_common_parent(self):
+        assert gyp.common.RelativePath("/a/b", "/a/c") == os.path.join("..", "b")
+
+    def test_only_root_in_common(self):
+        """Paths whose only common ancestor is the filesystem root."""
+        assert gyp.common.RelativePath("/a/b", "/c") == os.path.join("..", "a", "b")
+
+    def test_same_path(self):
+        assert gyp.common.RelativePath("/a/b", "/a/b") == ""
+
+
 if __name__ == "__main__":
     unittest.main()

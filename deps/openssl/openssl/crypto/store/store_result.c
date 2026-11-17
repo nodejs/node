@@ -83,6 +83,8 @@ static int try_crl(struct extracted_param_data_st *, OSSL_STORE_INFO **,
     OSSL_LIB_CTX *, const char *);
 static int try_pkcs12(struct extracted_param_data_st *, OSSL_STORE_INFO **,
     OSSL_STORE_CTX *, OSSL_LIB_CTX *, const char *);
+static int try_skey(struct extracted_param_data_st *, OSSL_STORE_INFO **,
+    const OSSL_PROVIDER *, OSSL_LIB_CTX *, const char *);
 
 int ossl_store_handle_load_result(const OSSL_PARAM params[], void *arg)
 {
@@ -148,6 +150,10 @@ int ossl_store_handle_load_result(const OSSL_PARAM params[], void *arg)
     ERR_pop_to_mark();
     ERR_set_mark();
     if (*v == NULL && !try_pkcs12(&helper_data, v, ctx, libctx, propq))
+        goto err;
+    ERR_pop_to_mark();
+    ERR_set_mark();
+    if (*v == NULL && !try_skey(&helper_data, v, provider, libctx, propq))
         goto err;
     ERR_pop_to_mark();
 
@@ -365,7 +371,7 @@ static EVP_PKEY *try_key_value_legacy(struct extracted_param_data_st *data,
                  * No need to check the returned value, |new_der|
                  * will be NULL on error anyway.
                  */
-                PKCS12_pbe_crypt(alg, pbuf, plen,
+                PKCS12_pbe_crypt(alg, pbuf, (int)plen,
                     oct->data, oct->length,
                     &new_der, &len, 0);
                 der_len = len;
@@ -495,11 +501,11 @@ static int try_cert(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
             ignore_trusted = 0;
 
         if (d2i_X509_AUX(&cert, (const unsigned char **)&data->octet_data,
-                data->octet_data_size)
+                (long)data->octet_data_size)
                 == NULL
             && (!ignore_trusted
                 || d2i_X509(&cert, (const unsigned char **)&data->octet_data,
-                       data->octet_data_size)
+                       (long)data->octet_data_size)
                     == NULL)) {
             X509_free(cert);
             cert = NULL;
@@ -525,7 +531,7 @@ static int try_crl(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
         X509_CRL *crl;
 
         crl = d2i_X509_CRL(NULL, (const unsigned char **)&data->octet_data,
-            data->octet_data_size);
+            (long)data->octet_data_size);
 
         if (crl != NULL)
             /* We determined the object type */
@@ -557,7 +563,7 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
         PKCS12 *p12;
 
         p12 = d2i_PKCS12(NULL, (const unsigned char **)&data->octet_data,
-            data->octet_data_size);
+            (long)data->octet_data_size);
 
         if (p12 != NULL) {
             char *pass = NULL;
@@ -598,7 +604,7 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
                  * we must do it for PKCS12_parse()
                  */
                 pass[tpass_len] = '\0';
-                if (!PKCS12_verify_mac(p12, pass, tpass_len)) {
+                if (!PKCS12_verify_mac(p12, pass, (int)tpass_len)) {
                     ERR_raise_data(ERR_LIB_OSSL_STORE,
                         OSSL_STORE_R_ERROR_VERIFYING_PKCS12_MAC,
                         tpass_len == 0 ? "empty password" : "maybe wrong password");
@@ -664,4 +670,51 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
     }
 
     return ok;
+}
+
+static int try_skey(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
+    const OSSL_PROVIDER *provider, OSSL_LIB_CTX *libctx, const char *propq)
+{
+    EVP_SKEY *skey = NULL;
+    const char *skeymgmt_name = data->data_type == NULL
+        ? OSSL_SKEY_TYPE_GENERIC
+        : data->data_type;
+    size_t keysize = 0;
+    unsigned char *keybytes = NULL;
+
+    if (data->object_type != OSSL_OBJECT_SKEY)
+        return 0;
+
+    if (data->octet_data != NULL) {
+        keysize = data->octet_data_size;
+        keybytes = (unsigned char *)data->octet_data;
+        skey = EVP_SKEY_import_raw_key(libctx, skeymgmt_name,
+            keybytes, keysize, propq);
+    } else if (data->ref != NULL) {
+        EVP_SKEYMGMT *skeymgmt = evp_skeymgmt_fetch_from_prov((OSSL_PROVIDER *)provider,
+            skeymgmt_name, propq);
+        OSSL_PARAM params[2];
+
+        /*
+         * We got an internal reference from a particular provider so we need the SKEYMGMT
+         * exactly from this provider
+         */
+        if (skeymgmt == NULL)
+            return 0;
+
+        keysize = data->ref_size;
+        keybytes = (unsigned char *)data->ref;
+        params[0] = OSSL_PARAM_construct_octet_ptr(OSSL_OBJECT_PARAM_REFERENCE,
+            (void **)&keybytes, keysize);
+        params[1] = OSSL_PARAM_construct_end();
+
+        skey = EVP_SKEY_import_SKEYMGMT(libctx, skeymgmt, OSSL_SKEYMGMT_SELECT_ALL, params);
+    }
+
+    if (skey != NULL)
+        *v = OSSL_STORE_INFO_new_SKEY(skey);
+    if (*v == NULL)
+        EVP_SKEY_free(skey);
+
+    return 1;
 }

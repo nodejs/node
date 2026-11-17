@@ -70,6 +70,7 @@ my $K512 = "K512";
 
 # Function arguments
 my ($H, $INP, $LEN, $KT, $H2, $INDEX_PATTERN) = ("a0", "a1", "a2", "a3", "t3", "t4");
+my ($T0, $T1) = ("t0", "t1");
 
 ################################################################################
 # void sha512_block_data_order_zvkb_zvknhb(void *c, const void *p, size_t len)
@@ -78,8 +79,6 @@ $code .= <<___;
 .globl sha512_block_data_order_zvkb_zvknhb
 .type sha512_block_data_order_zvkb_zvknhb,\@function
 sha512_block_data_order_zvkb_zvknhb:
-    @{[vsetivli "zero", 4, "e64", "m2", "ta", "ma"]}
-
     # H is stored as {a,b,c,d},{e,f,g,h}, but we need {f,e,b,a},{h,g,d,c}
     # The dst vtype is e64m2 and the index vtype is e8mf4.
     # We use index-load with the following index pattern at v1.
@@ -105,9 +104,226 @@ sha512_block_data_order_zvkb_zvknhb:
     @{[vsetivli "zero", 1, "e8", "m1", "ta", "ma"]}
     @{[vmv_v_i $V0, 0x01]}
 
-    @{[vsetivli "zero", 4, "e64", "m2", "ta", "ma"]}
+    # Obtain VLEN and select the corresponding branch
+    csrr t0, vlenb
+    srl t1, t0, 5
+    beqz t1, sha512_block_data_order_zvkb_zvknhb_zvl128
+sha512_block_data_order_zvkb_zvknhb_zvl256_zvl512:
+    # When vlen=256 or 512, the round constants K512 can be loaded
+    # at once in vector register files.
+    @{[vsetivli "zero", 4, "e64", "m1", "ta", "ma"]}
+    # Load round constants K512
+    la $KT, $K512
+    @{[vle64_v $V2, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V3, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V4, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V5, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V6, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V7, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V8, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V9, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V11, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V13, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V15, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V17, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V19, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V21, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V23, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V25, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V27, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V29, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V30, ($KT)]}
+    addi $KT, $KT, 32
+    @{[vle64_v $V31, ($KT)]}
 
-L_round_loop:
+L_round_loop_256_512:
+    # Decrement length by 1
+    addi $LEN, $LEN, -1
+
+    # Keep the current state as we need it later: H' = H+{a',b',c',...,h'}.
+    @{[vmv1r_v $V26, $V22]}
+    @{[vmv1r_v $V28, $V24]}
+
+    # Load the 1024-bits of the message block in v10, v12, v14, v16
+    # and perform the endian swap.
+    @{[vle64_v $V10, $INP]}
+    @{[vrev8_v $V10, $V10]}
+    addi $INP, $INP, 32
+    @{[vle64_v $V12, $INP]}
+    @{[vrev8_v $V12, $V12]}
+    addi $INP, $INP, 32
+    @{[vle64_v $V14, $INP]}
+    @{[vrev8_v $V14, $V14]}
+    addi $INP, $INP, 32
+    @{[vle64_v $V16, $INP]}
+    @{[vrev8_v $V16, $V16]}
+    addi $INP, $INP, 32
+
+    # Quad-round 0 (+0, v10->v12->v14->v16)
+    @{[vadd_vv $V18, $V2, $V10]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V14, $V12, $V0]}
+    @{[vsha2ms_vv $V10, $V18, $V16]}
+
+    # Quad-round 1 (+1, v12->v14->v16->v10)
+    @{[vadd_vv $V18, $V3, $V12]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V16, $V14, $V0]}
+    @{[vsha2ms_vv $V12, $V18, $V10]}
+
+    # Quad-round 2 (+2, v14->v16->v10->v12)
+    @{[vadd_vv $V18, $V4, $V14]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V10, $V16, $V0]}
+    @{[vsha2ms_vv $V14, $V18, $V12]}
+
+    # Quad-round 3 (+3, v16->v10->v12->v14)
+    @{[vadd_vv $V18, $V5, $V16]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V12, $V10, $V0]}
+    @{[vsha2ms_vv $V16, $V18, $V14]}
+
+    # Quad-round 4 (+4, v10->v12->v14->v16)
+    @{[vadd_vv $V18, $V6, $V10]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V14, $V12, $V0]}
+    @{[vsha2ms_vv $V10, $V18, $V16]}
+
+    # Quad-round 5 (+5, v12->v14->v16->v10)
+    @{[vadd_vv $V18, $V7, $V12]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V16, $V14, $V0]}
+    @{[vsha2ms_vv $V12, $V18, $V10]}
+
+    # Quad-round 6 (+6, v14->v16->v10->v12)
+    @{[vadd_vv $V18, $V8, $V14]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V10, $V16, $V0]}
+    @{[vsha2ms_vv $V14, $V18, $V12]}
+
+    # Quad-round 7 (+7, v16->v10->v12->v14)
+    @{[vadd_vv $V18, $V9, $V16]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V12, $V10, $V0]}
+    @{[vsha2ms_vv $V16, $V18, $V14]}
+
+    # Quad-round 8 (+8, v10->v12->v14->v16)
+    @{[vadd_vv $V18, $V11, $V10]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V14, $V12, $V0]}
+    @{[vsha2ms_vv $V10, $V18, $V16]}
+
+    # Quad-round 9 (+9, v12->v14->v16->v10)
+    @{[vadd_vv $V18, $V13, $V12]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V16, $V14, $V0]}
+    @{[vsha2ms_vv $V12, $V18, $V10]}
+
+    # Quad-round 10 (+10, v14->v16->v10->v12)
+    @{[vadd_vv $V18, $V15, $V14]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V10, $V16, $V0]}
+    @{[vsha2ms_vv $V14, $V18, $V12]}
+
+    # Quad-round 11 (+11, v16->v10->v12->v14)
+    @{[vadd_vv $V18, $V17, $V16]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V12, $V10, $V0]}
+    @{[vsha2ms_vv $V16, $V18, $V14]}
+
+    # Quad-round 12 (+12, v10->v12->v14->v16)
+    @{[vadd_vv $V18, $V19, $V10]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V14, $V12, $V0]}
+    @{[vsha2ms_vv $V10, $V18, $V16]}
+
+    # Quad-round 13 (+13, v12->v14->v16->v10)
+    @{[vadd_vv $V18, $V21, $V12]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V16, $V14, $V0]}
+    @{[vsha2ms_vv $V12, $V18, $V10]}
+
+    # Quad-round 14 (+14, v14->v16->v10->v12)
+    @{[vadd_vv $V18, $V23, $V14]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V10, $V16, $V0]}
+    @{[vsha2ms_vv $V14, $V18, $V12]}
+
+    # Quad-round 15 (+15, v16->v10->v12->v14)
+    @{[vadd_vv $V18, $V25, $V16]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+    @{[vmerge_vvm $V18, $V12, $V10, $V0]}
+    @{[vsha2ms_vv $V16, $V18, $V14]}
+
+    # Quad-round 16 (+0, v10->v12->v14->v16)
+    # Note that we stop generating new message schedule words (Wt, v10-16)
+    # as we already generated all the words we end up consuming (i.e., W[79:76]).
+    @{[vadd_vv $V18, $V27, $V10]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+
+    # Quad-round 17 (+1, v12->v14->v16->v10)
+    @{[vadd_vv $V18, $V29, $V12]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+
+    # Quad-round 18 (+2, v14->v16->v10->v12)
+    @{[vadd_vv $V18, $V30, $V14]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+
+    # Quad-round 19 (+3, v16->v10->v12->v14)
+    @{[vadd_vv $V18, $V31, $V16]}
+    @{[vsha2cl_vv $V24, $V22, $V18]}
+    @{[vsha2ch_vv $V22, $V24, $V18]}
+
+    # H' = H+{a',b',c',...,h'}
+    @{[vadd_vv $V22, $V26, $V22]}
+    @{[vadd_vv $V24, $V28, $V24]}
+    bnez $LEN, L_round_loop_256_512
+
+    # Store {f,e,b,a},{h,g,d,c} back to {a,b,c,d},{e,f,g,h}.
+    @{[vsuxei8_v $V22, ($H), $V1]}
+    @{[vsuxei8_v $V24, ($H2), $V1]}
+
+    ret
+sha512_block_data_order_zvkb_zvknhb_zvl128:
+    @{[vsetivli $T0, 4, "e64", "m2", "ta", "ma"]}
+L_round_loop_128:
     # Load round constants K512
     la $KT, $K512
 
@@ -204,7 +420,7 @@ L_round_loop:
     # H' = H+{a',b',c',...,h'}
     @{[vadd_vv $V22, $V26, $V22]}
     @{[vadd_vv $V24, $V28, $V24]}
-    bnez $LEN, L_round_loop
+    bnez $LEN, L_round_loop_128
 
     # Store {f,e,b,a},{h,g,d,c} back to {a,b,c,d},{e,f,g,h}.
     @{[vsuxei8_v $V22, ($H), $V1]}

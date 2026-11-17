@@ -36,14 +36,33 @@ static int ossl_X509_check(OSSL_CMP_CTX *ctx, const char *source, X509 *cert,
     int type_CA, const X509_VERIFY_PARAM *vpm)
 {
     uint32_t ex_flags = X509_get_extension_flags(cert);
-    int res = X509_cmp_timeframe(vpm, X509_get0_notBefore(cert),
-        X509_get0_notAfter(cert));
-    int ret = res == 0;
+    int ret, err;
     OSSL_CMP_severity level = vpm == NULL ? OSSL_CMP_LOG_WARNING : OSSL_CMP_LOG_ERR;
 
-    if (!ret)
+    ret = X509_check_certificate_times(vpm, cert, &err);
+    if (!ret) {
+        const char *msg;
+
+        switch (err) {
+        case X509_V_ERR_CERT_NOT_YET_VALID:
+            msg = "not yet valid";
+            break;
+        case X509_V_ERR_CERT_HAS_EXPIRED:
+            msg = "has expired";
+            break;
+        case X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
+            msg = "has an invalid not before field";
+            break;
+        case X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
+            msg = "has an invalid not after field";
+            break;
+        default:
+            msg = "is invalid for an unspecfied reason";
+            break;
+        }
         cert_msg(OPENSSL_FUNC, OPENSSL_FILE, OPENSSL_LINE, level, ctx,
-            source, cert, res > 0 ? "has expired" : "not yet valid");
+            source, cert, msg);
+    }
     if (type_CA >= 0 && (ex_flags & EXFLAG_V1) == 0) {
         int is_CA = (ex_flags & EXFLAG_CA) != 0;
 
@@ -93,7 +112,8 @@ static OSSL_CMP_ITAV *get_genm_itav(OSSL_CMP_CTX *ctx,
     req = NULL;
     itavs = OSSL_CMP_exec_GENM_ses(ctx);
     if (itavs == NULL) {
-        if (OSSL_CMP_CTX_get_status(ctx) != OSSL_CMP_PKISTATUS_request)
+        if (OSSL_CMP_CTX_get_status(ctx) != OSSL_CMP_PKISTATUS_request
+            && OSSL_CMP_CTX_get_status(ctx) != OSSL_CMP_PKISTATUS_rejection)
             ERR_raise_data(ERR_LIB_CMP, CMP_R_GETTING_GENP,
                 "with infoType %s", desc);
         return NULL;
@@ -130,7 +150,7 @@ static OSSL_CMP_ITAV *get_genm_itav(OSSL_CMP_CTX *ctx,
         OSSL_CMP_ITAV_free(itav);
     }
     ERR_raise_data(ERR_LIB_CMP, CMP_R_INVALID_GENP,
-        "could not find any ITAV for %s", desc);
+        "could not find any suitable ITAV for %s", desc);
 
 err:
     sk_OSSL_CMP_ITAV_free(itavs);
@@ -319,11 +339,14 @@ int OSSL_CMP_get1_rootCaKeyUpdate(OSSL_CMP_CTX *ctx,
         ERR_raise(ERR_LIB_CMP, CMP_R_INVALID_ROOTCAKEYUPDATE);
         goto end;
     }
-    if (oldWithOld != NULL && my_oldWithNew != NULL
-        && !verify_ss_cert_trans(ctx, *newWithNew, my_oldWithNew,
-            oldWithOld_copy, "oldWithOld")) {
-        ERR_raise(ERR_LIB_CMP, CMP_R_INVALID_ROOTCAKEYUPDATE);
-        goto end;
+    if (my_oldWithNew != NULL) {
+        if (oldWithOld == NULL) {
+            ossl_cmp_log(WARN, ctx, "oldWithNew certificate received in genp for verifying oldWithOld, but oldWithOld was not provided");
+        } else if (!verify_ss_cert_trans(ctx, *newWithNew, my_oldWithNew,
+                       oldWithOld_copy, "oldWithOld")) {
+            ERR_raise(ERR_LIB_CMP, CMP_R_INVALID_ROOTCAKEYUPDATE);
+            goto end;
+        }
     }
 
     if (!X509_up_ref(*newWithNew))

@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -40,6 +40,8 @@ use OpenSSL::stackhash qw(generate_stack_macros);
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+DEFINE_STACK_OF(OCSP_RESPONSE)
 
 /*-
 SSL_CTX -> X509_STORE
@@ -81,7 +83,7 @@ typedef enum {
 typedef struct x509_trust_st {
     int trust;
     int flags;
-    int (*check_trust)(struct x509_trust_st *, X509 *, int);
+    int (*check_trust)(struct x509_trust_st *, const X509 *, int);
     char *name;
     int arg1;
     void *arg2;
@@ -125,7 +127,7 @@ int X509_TRUST_set(int *t, int trust);
 int X509_TRUST_get_count(void);
 X509_TRUST *X509_TRUST_get0(int idx);
 int X509_TRUST_get_by_id(int id);
-int X509_TRUST_add(int id, int flags, int (*ck)(X509_TRUST *, X509 *, int),
+int X509_TRUST_add(int id, int flags, int (*ck)(X509_TRUST *, const X509 *, int),
     const char *name, int arg1, void *arg2);
 void X509_TRUST_cleanup(void);
 int X509_TRUST_get_flags(const X509_TRUST *xp);
@@ -137,16 +139,16 @@ int X509_add1_trust_object(X509 *x, const ASN1_OBJECT *obj);
 int X509_add1_reject_object(X509 *x, const ASN1_OBJECT *obj);
 void X509_trust_clear(X509 *x);
 void X509_reject_clear(X509 *x);
-STACK_OF(ASN1_OBJECT) *X509_get0_trust_objects(X509 *x);
-STACK_OF(ASN1_OBJECT) *X509_get0_reject_objects(X509 *x);
+const STACK_OF(ASN1_OBJECT) *X509_get0_trust_objects(const X509 *x);
+const STACK_OF(ASN1_OBJECT) *X509_get0_reject_objects(const X509 *x);
 
-int (*X509_TRUST_set_default(int (*trust)(int, X509 *, int)))(int, X509 *,
+int (*X509_TRUST_set_default(int (*trust)(int, const X509 *, int)))(int, const X509 *,
     int);
-int X509_check_trust(X509 *x, int id, int flags);
+int X509_check_trust(const X509 *x, int id, int flags);
 
 int X509_verify_cert(X509_STORE_CTX *ctx);
 int X509_STORE_CTX_verify(X509_STORE_CTX *ctx);
-STACK_OF(X509) *X509_build_chain(X509 *target, STACK_OF(X509) *certs,
+STACK_OF(X509) *X509_build_chain(const X509 *target, STACK_OF(X509) *certs,
     X509_STORE *store, int with_self_signed,
     OSSL_LIB_CTX *libctx, const char *propq);
 
@@ -156,9 +158,9 @@ typedef int (*X509_STORE_CTX_verify_cb)(int, X509_STORE_CTX *);
 int X509_STORE_CTX_print_verify_cb(int ok, X509_STORE_CTX *ctx);
 typedef int (*X509_STORE_CTX_verify_fn)(X509_STORE_CTX *);
 typedef int (*X509_STORE_CTX_get_issuer_fn)(X509 **issuer,
-    X509_STORE_CTX *ctx, X509 *x);
+    X509_STORE_CTX *ctx, const X509 *x);
 typedef int (*X509_STORE_CTX_check_issued_fn)(X509_STORE_CTX *ctx,
-    X509 *x, X509 *issuer);
+    const X509 *x, const X509 *issuer);
 typedef int (*X509_STORE_CTX_check_revocation_fn)(X509_STORE_CTX *ctx);
 typedef int (*X509_STORE_CTX_get_crl_fn)(X509_STORE_CTX *ctx,
     X509_CRL **crl, X509 *x);
@@ -167,7 +169,7 @@ typedef int (*X509_STORE_CTX_cert_crl_fn)(X509_STORE_CTX *ctx,
     X509_CRL *crl, X509 *x);
 typedef int (*X509_STORE_CTX_check_policy_fn)(X509_STORE_CTX *ctx);
 typedef STACK_OF(X509)
-    *(*X509_STORE_CTX_lookup_certs_fn)(X509_STORE_CTX *ctx,
+    *(*X509_STORE_CTX_lookup_certs_fn)(const X509_STORE_CTX *ctx,
         const X509_NAME *nm);
 typedef STACK_OF(X509_CRL)
     *(*X509_STORE_CTX_lookup_crls_fn)(const X509_STORE_CTX *ctx,
@@ -323,6 +325,20 @@ void X509_STORE_CTX_set_depth(X509_STORE_CTX *ctx, int depth);
 #define X509_V_ERR_EC_KEY_EXPLICIT_PARAMS 94
 #define X509_V_ERR_RPK_UNTRUSTED 95
 
+/* additional OCSP status errors */
+#define X509_V_ERR_OCSP_RESP_INVALID 96
+#define X509_V_ERR_OCSP_SIGNATURE_FAILURE 97
+#define X509_V_ERR_OCSP_NOT_YET_VALID 98
+#define X509_V_ERR_OCSP_HAS_EXPIRED 99
+#define X509_V_ERR_OCSP_NO_RESPONSE 100
+#define X509_V_ERR_CRL_VERIFY_FAILED 101
+
+/* additional AKID errors */
+#define X509_V_ERR_EMPTY_AUTHORITY_KEY_IDENTIFIER 102
+#define X509_V_ERR_AKID_ISSUER_SERIAL_NOT_PAIRED 103
+
+#define X509_V_ERR_DUPLICATE_EXTENSION 104
+
 /* Certificate verify flags */
 #ifndef OPENSSL_NO_DEPRECATED_1_1_0
 #define X509_V_FLAG_CB_ISSUER_CHECK 0x0 /* Deprecated */
@@ -374,6 +390,11 @@ void X509_STORE_CTX_set_depth(X509_STORE_CTX *ctx, int depth);
 /* Do not check certificate/CRL validity against current time */
 #define X509_V_FLAG_NO_CHECK_TIME 0x200000
 
+/* Verify OCSP stapling response for server certificate */
+#define X509_V_FLAG_OCSP_RESP_CHECK 0x400000
+/* Verify OCSP stapling responses for whole chain */
+#define X509_V_FLAG_OCSP_RESP_CHECK_ALL 0x800000
+
 #define X509_VP_FLAG_DEFAULT 0x1
 #define X509_VP_FLAG_OVERWRITE 0x2
 #define X509_VP_FLAG_RESET_FLAGS 0x4
@@ -406,10 +427,13 @@ void X509_STORE_free(X509_STORE *xs);
 int X509_STORE_lock(X509_STORE *xs);
 int X509_STORE_unlock(X509_STORE *xs);
 int X509_STORE_up_ref(X509_STORE *xs);
+#ifndef OPENSSL_NO_DEPRECATED_4_0
+OSSL_DEPRECATEDIN_4_0_FOR("use X509_STORE_get1_objects()")
 STACK_OF(X509_OBJECT) *X509_STORE_get0_objects(const X509_STORE *xs);
+#endif
 STACK_OF(X509_OBJECT) *X509_STORE_get1_objects(X509_STORE *xs);
 STACK_OF(X509) *X509_STORE_get1_all_certs(X509_STORE *xs);
-STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *xs,
+STACK_OF(X509) *X509_STORE_CTX_get1_certs(const X509_STORE_CTX *xs,
     const X509_NAME *nm);
 STACK_OF(X509_CRL) *X509_STORE_CTX_get1_crls(const X509_STORE_CTX *st,
     const X509_NAME *nm);
@@ -472,11 +496,11 @@ void *X509_STORE_get_ex_data(const X509_STORE *xs, int idx);
 X509_STORE_CTX *X509_STORE_CTX_new_ex(OSSL_LIB_CTX *libctx, const char *propq);
 X509_STORE_CTX *X509_STORE_CTX_new(void);
 
-int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *x);
+int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, const X509 *x);
 
 void X509_STORE_CTX_free(X509_STORE_CTX *ctx);
 int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *trust_store,
-    X509 *target, STACK_OF(X509) *untrusted);
+    const X509 *target, STACK_OF(X509) *untrusted);
 int X509_STORE_CTX_init_rpk(X509_STORE_CTX *ctx, X509_STORE *trust_store,
     EVP_PKEY *rpk);
 void X509_STORE_CTX_set0_trusted_stack(X509_STORE_CTX *ctx, STACK_OF(X509) *sk);
@@ -597,7 +621,7 @@ int X509_LOOKUP_meth_set_get_by_alias(X509_LOOKUP_METHOD *method,
 X509_LOOKUP_get_by_alias_fn X509_LOOKUP_meth_get_get_by_alias(
     const X509_LOOKUP_METHOD *method);
 
-int X509_STORE_add_cert(X509_STORE *xs, X509 *x);
+int X509_STORE_add_cert(X509_STORE *xs, const X509 *x);
 int X509_STORE_add_crl(X509_STORE *xs, X509_CRL *x);
 
 int X509_STORE_CTX_get_by_subject(const X509_STORE_CTX *vs,
@@ -677,6 +701,9 @@ void X509_STORE_CTX_set_cert(X509_STORE_CTX *ctx, X509 *target);
 void X509_STORE_CTX_set0_rpk(X509_STORE_CTX *ctx, EVP_PKEY *target);
 void X509_STORE_CTX_set0_verified_chain(X509_STORE_CTX *c, STACK_OF(X509) *sk);
 void X509_STORE_CTX_set0_crls(X509_STORE_CTX *ctx, STACK_OF(X509_CRL) *sk);
+#ifndef OPENSSL_NO_OCSP
+void X509_STORE_CTX_set_ocsp_resp(X509_STORE_CTX *ctx, STACK_OF(OCSP_RESPONSE) *sk);
+#endif
 int X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose);
 int X509_STORE_CTX_set_trust(X509_STORE_CTX *ctx, int trust);
 int X509_STORE_CTX_purpose_inherit(X509_STORE_CTX *ctx, int def_purpose,
@@ -737,6 +764,8 @@ int X509_VERIFY_PARAM_set1_host(X509_VERIFY_PARAM *param,
     const char *name, size_t namelen);
 int X509_VERIFY_PARAM_add1_host(X509_VERIFY_PARAM *param,
     const char *name, size_t namelen);
+void X509_VERIFY_PARAM_set1_host_input_validation(X509_VERIFY_PARAM *param,
+    int (*validate_host)(const char *name, size_t len));
 void X509_VERIFY_PARAM_set_hostflags(X509_VERIFY_PARAM *param,
     unsigned int flags);
 unsigned int X509_VERIFY_PARAM_get_hostflags(const X509_VERIFY_PARAM *param);
@@ -745,10 +774,28 @@ void X509_VERIFY_PARAM_move_peername(X509_VERIFY_PARAM *, X509_VERIFY_PARAM *);
 char *X509_VERIFY_PARAM_get0_email(X509_VERIFY_PARAM *param);
 int X509_VERIFY_PARAM_set1_email(X509_VERIFY_PARAM *param,
     const char *email, size_t emaillen);
+int X509_VERIFY_PARAM_set1_rfc822(X509_VERIFY_PARAM *param,
+    const char *email, size_t emaillen);
+int X509_VERIFY_PARAM_add1_rfc822(X509_VERIFY_PARAM *param,
+    const char *email, size_t len);
+void X509_VERIFY_PARAM_set1_rfc822_input_validation(X509_VERIFY_PARAM *param,
+    int (*validate_rfc822)(const char *name, size_t len));
+int X509_VERIFY_PARAM_set1_smtputf8(X509_VERIFY_PARAM *param,
+    const char *email, size_t emaillen);
+int X509_VERIFY_PARAM_add1_smtputf8(X509_VERIFY_PARAM *param,
+    const char *email, size_t len);
+void X509_VERIFY_PARAM_set1_smtputf8_input_validation(X509_VERIFY_PARAM *param,
+    int (*validate_smtputf8)(const char *name, size_t len));
 char *X509_VERIFY_PARAM_get1_ip_asc(X509_VERIFY_PARAM *param);
 int X509_VERIFY_PARAM_set1_ip(X509_VERIFY_PARAM *param,
-    const unsigned char *ip, size_t iplen);
+    const uint8_t *ip, size_t iplen);
+void X509_VERIFY_PARAM_set1_ip_input_validation(X509_VERIFY_PARAM *param,
+    int (*validate_ip)(const uint8_t *name, size_t len));
 int X509_VERIFY_PARAM_set1_ip_asc(X509_VERIFY_PARAM *param,
+    const char *ipasc);
+int X509_VERIFY_PARAM_add1_ip(X509_VERIFY_PARAM *param,
+    const uint8_t *ip, size_t len);
+int X509_VERIFY_PARAM_add1_ip_asc(X509_VERIFY_PARAM *param,
     const char *ipasc);
 
 int X509_VERIFY_PARAM_get_depth(const X509_VERIFY_PARAM *param);

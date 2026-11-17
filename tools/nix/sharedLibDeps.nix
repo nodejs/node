@@ -30,7 +30,15 @@
   http-parser = pkgs.llhttp;
 }
 // (pkgs.lib.optionalAttrs withLief {
-  inherit (pkgs) lief;
+  # TODO: remove this override once the pin we use has picked up a new LIEF version that includes that patch.
+  lief = pkgs.lief.overrideAttrs (old: {
+    patches = (old.patches or [ ]) ++ [
+      (pkgs.fetchpatch2 {
+        url = "https://github.com/lief-project/LIEF/commit/15777f106f6220046cf26ee99940d1f56751325e.patch?full_index=1";
+        hash = "sha256-Dm7YsBZ4+It+c5PEodsjq7cdOryYOSXt6Lf7h0OH+7M=";
+      })
+    ];
+  });
 })
 // (pkgs.lib.optionalAttrs withQuic {
   inherit (pkgs)

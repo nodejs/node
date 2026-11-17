@@ -114,13 +114,21 @@ static int bn_i2c(const ASN1_VALUE **pval, unsigned char *cont, int *putype,
 static int bn_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
     int utype, char *free_cont, const ASN1_ITEM *it)
 {
+    int allocated = 0;
     BIGNUM *bn;
 
-    if (*pval == NULL && !bn_new(pval, it))
+    /* Reject encodings that imply a negative number. */
+    if (len == 0 || (*cont & 0x80) != 0) {
+        ERR_raise(ERR_LIB_ASN1, ASN1_R_INVALID_VALUE);
+        return 0;
+    }
+
+    if (*pval == NULL && (allocated = bn_new(pval, it)) == 0)
         return 0;
     bn = (BIGNUM *)*pval;
     if (!BN_bin2bn(cont, len, bn)) {
-        bn_free(pval, it);
+        if (allocated != 0)
+            bn_free(pval, it);
         return 0;
     }
     return 1;
@@ -129,15 +137,19 @@ static int bn_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
 static int bn_secure_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
     int utype, char *free_cont, const ASN1_ITEM *it)
 {
-    int ret;
+    int ret, allocated = 0;
     BIGNUM *bn;
 
-    if (*pval == NULL && !bn_secure_new(pval, it))
+    if (*pval == NULL && (allocated = bn_secure_new(pval, it)) == 0)
         return 0;
 
     ret = bn_c2i(pval, cont, len, utype, free_cont, it);
-    if (!ret)
+    if (!ret) {
+        if (allocated != 0)
+            bn_free(pval, it);
+
         return 0;
+    }
 
     /* Set constant-time flag for all secure BIGNUMS */
     bn = (BIGNUM *)*pval;

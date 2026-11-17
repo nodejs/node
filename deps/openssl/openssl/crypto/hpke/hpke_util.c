@@ -193,7 +193,7 @@ const OSSL_HPKE_KEM_INFO *ossl_HPKE_KEM_INFO_find_random(OSSL_LIB_CTX *ctx)
 {
     uint32_t rval = 0;
     int err = 0;
-    size_t sz = OSSL_NELEM(hpke_kem_tab);
+    uint32_t sz = OSSL_NELEM(hpke_kem_tab);
 
     rval = ossl_rand_uniform_uint32(ctx, sz, &err);
     return (err == 1 ? NULL : &hpke_kem_tab[rval]);
@@ -215,7 +215,7 @@ const OSSL_HPKE_KDF_INFO *ossl_HPKE_KDF_INFO_find_random(OSSL_LIB_CTX *ctx)
 {
     uint32_t rval = 0;
     int err = 0;
-    size_t sz = OSSL_NELEM(hpke_kdf_tab);
+    uint32_t sz = OSSL_NELEM(hpke_kdf_tab);
 
     rval = ossl_rand_uniform_uint32(ctx, sz, &err);
     return (err == 1 ? NULL : &hpke_kdf_tab[rval]);
@@ -238,7 +238,7 @@ const OSSL_HPKE_AEAD_INFO *ossl_HPKE_AEAD_INFO_find_random(OSSL_LIB_CTX *ctx)
     uint32_t rval = 0;
     int err = 0;
     /* the minus 1 below is so we don't pick the EXPORTONLY codepoint */
-    size_t sz = OSSL_NELEM(hpke_aead_tab) - 1;
+    uint32_t sz = OSSL_NELEM(hpke_aead_tab) - 1;
 
     rval = ossl_rand_uniform_uint32(ctx, sz, &err);
     return (err == 1 ? NULL : &hpke_aead_tab[rval]);

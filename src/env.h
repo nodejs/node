@@ -322,11 +322,12 @@ class EnabledDebugList;
 class StreamReadSlab {
  public:
   // Sized to match the read buffer size that libuv suggests for stream
-  // reads: a slab typically serves a single large read (still avoiding the
-  // copy that right-sizing the buffer would need), or many small ones.
-  // Larger slabs amortize allocations further, but stay alive (pinned by
-  // chunk views) long enough to be promoted to V8's old generation, where
-  // their external memory is only reclaimed by major GCs.
+  // reads: a slab serves a single large read (still avoiding the copy that
+  // right-sizing the buffer would need), or is reused for small reads that
+  // are copied out of it. Larger slabs amortize allocations further, but
+  // stay alive (pinned by chunk views) long enough to be promoted to V8's
+  // old generation, where their external memory is only reclaimed by major
+  // GCs.
   static constexpr size_t kSlabSize = 64 * 1024;
 
   // Reserve `suggested` bytes. Starts a new slab if the current one does
@@ -433,7 +434,7 @@ class AsyncHooks : public MemoryRetainer {
   void push_async_context(
       double async_id,
       double trigger_async_id,
-      std::variant<v8::Local<v8::Object>*, v8::Global<v8::Object>*>
+      const std::variant<v8::Local<v8::Object>*, v8::Global<v8::Object>*>&
           execution_async_resource);
   bool pop_async_context(double async_id);
   void clear_async_id_stack();  // Used in fatal exceptions.
@@ -1117,6 +1118,10 @@ class Environment final : public MemoryRetainer {
   static void BuildEmbedderGraph(v8::Isolate* isolate,
                                  v8::EmbedderGraph* graph,
                                  void* data);
+  static void PointerCompressionHeapWarningCallback(v8::Isolate* isolate,
+                                                    v8::GCType type,
+                                                    v8::GCCallbackFlags flags,
+                                                    void* data);
 
   inline std::shared_ptr<EnvironmentOptions> options();
   inline std::shared_ptr<ExclusiveAccess<HostPort>> inspector_host_port();
@@ -1170,8 +1175,10 @@ class Environment final : public MemoryRetainer {
   void InitializeCompileCache();
   // Enable built-in compile cache if it has not yet been enabled.
   // The cache will be persisted to disk on exit.
-  CompileCacheEnableResult EnableCompileCache(const std::string& cache_dir,
-                                              EnableOption option);
+  CompileCacheEnableResult EnableCompileCache(
+      const std::string& cache_dir,
+      EnableOption option,
+      const std::string& key_root = std::string());
   void FlushCompileCache();
 
   void RunAndClearNativeImmediates(bool only_refed = false);
@@ -1205,6 +1212,28 @@ class Environment final : public MemoryRetainer {
 
   inline void AddHeapProfileNearHeapLimitCallback();
   inline void RemoveHeapProfileNearHeapLimitCallback(size_t heap_limit);
+
+  // The heap of a single isolate cannot grow beyond the 4 GiB pointer
+  // compression cage in builds that enable pointer compression. In builds
+  // that do not, warn once per Environment when the heap that survives a full
+  // garbage collection suggests that it would not fit:
+  // - Pointer compression shrinks a heap by at most half (only tagged slots
+  //   shrink), so a heap of twice the cage size or more will not fit.
+  // - V8 reports typical savings of about 40%, so a heap of about 6.5 GiB or
+  //   more (4 GiB / 0.6) is likely not to fit.
+  static constexpr uint64_t kPointerCompressionCageSize = uint64_t{1} << 32;
+  static constexpr uint64_t kPointerCompressionHeapLikelyThreshold =
+      uint64_t{13} << 29;  // 6.5 GiB
+  static constexpr uint64_t kPointerCompressionHeapCertainThreshold =
+      2 * kPointerCompressionCageSize;  // 8 GiB
+  static constexpr const char* kPointerCompressionHeapWarningCode =
+      "HEAP_EXCEEDS_POINTER_COMPRESSION_LIMIT";
+  bool ShouldWarnAboutPointerCompressionHeap() const;
+  void AddPointerCompressionHeapWarningCallback();
+  void RemovePointerCompressionHeapWarningCallback();
+  // Used by tests to trigger the warning without allocating a large heap.
+  inline void set_pointer_compression_heap_warning_thresholds(
+      uint64_t likely_bytes, uint64_t certain_bytes);
 
   v8::CpuProfilingResult StartCpuProfile(const CpuProfileOptions& options);
   v8::CpuProfile* StopCpuProfile(v8::ProfilerId profile_id);
@@ -1311,6 +1340,15 @@ class Environment final : public MemoryRetainer {
   uint32_t heap_limit_profile_taken_ = 0;
   uint32_t heap_profile_near_heap_limit_ = 0;
   bool heap_profile_near_heap_limit_callback_added_ = false;
+
+  bool pointer_compression_heap_warning_callback_added_ = false;
+  // Set once the warning has been scheduled, so that later GCs that run
+  // before the callback is removed do not schedule it again.
+  bool pointer_compression_heap_warning_scheduled_ = false;
+  uint64_t pointer_compression_heap_likely_threshold_ =
+      kPointerCompressionHeapLikelyThreshold;
+  uint64_t pointer_compression_heap_certain_threshold_ =
+      kPointerCompressionHeapCertainThreshold;
 
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;

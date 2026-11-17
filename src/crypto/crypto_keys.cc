@@ -21,6 +21,7 @@ namespace node {
 
 using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
+using ncrypto::ClearErrorOnReturn;
 using ncrypto::ECKeyPointer;
 using ncrypto::ECPointPointer;
 using ncrypto::EVPKeyCtxPointer;
@@ -333,8 +334,7 @@ bool GetAsymmetricKeyDetail(Environment* env,
   }
   const auto& pkey = key.GetAsymmetricKey();
   const auto* algorithm = pkey.getAlgorithm();
-  // Preserve RSA2 support on legacy backends without exposing its numeric ID.
-  if (algorithm != nullptr ? algorithm->isRsa() : pkey.isRsaVariant()) {
+  if (algorithm != nullptr && algorithm->isRsa()) {
     return GetRsaKeyDetail(env, key, target);
   }
   if (algorithm == &KeyAlgorithm::DSA) return GetDsaKeyDetail(env, key, target);
@@ -653,7 +653,7 @@ static KeyObjectData ImportRawKey(Environment* env,
       throw_invalid();
       return {};
     }
-#if NCRYPTO_USE_LEGACY_KEY_TYPES
+#if NCRYPTO_USE_BORINGSSL
     eckey.release();
 #endif
     return KeyObjectData::CreateAsymmetric(target_type, std::move(pkey));
@@ -681,6 +681,7 @@ static KeyObjectData ImportRawKey(Environment* env,
 // Shared helper for importing a JWK asymmetric key.  Extracts kty from the
 // JWK object and dispatches to the appropriate importer.
 static KeyObjectData ImportJWKFromArgs(Environment* env, Local<Object> jwk) {
+  ClearErrorOnReturn clear_error_on_return;
   Local<Value> kty;
   if (!jwk->Get(env->context(), env->jwk_kty_string()).ToLocal(&kty) ||
       !kty->IsString()) {
@@ -1312,13 +1313,10 @@ void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
     case kKeyTypePublic:
       // Fall through
     case kKeyTypePrivate: {
+      ClearErrorOnReturn clear_error_on_return;
       EVP_PKEY* pkey = key.GetAsymmetricKey().get();
       EVP_PKEY* pkey2 = key2.GetAsymmetricKey().get();
-#if OPENSSL_VERSION_MAJOR >= 3
       int ok = EVP_PKEY_eq(pkey, pkey2);
-#else
-      int ok = EVP_PKEY_cmp(pkey, pkey2);
-#endif
       if (ok == -2) {
         Environment* env = Environment::GetCurrent(args);
         return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);

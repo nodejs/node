@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,6 +34,7 @@ struct bss_sock_st {
 #ifndef OPENSSL_NO_KTLS
     unsigned char ktls_record_type;
 #endif
+    int sflags;
 };
 
 static int sock_write(BIO *h, const char *buf, int num);
@@ -106,8 +107,9 @@ static int sock_read(BIO *b, char *out, int outl)
 {
     int ret = 0;
 
-    if (out != NULL) {
+    if (out != NULL && outl > 0) {
         clear_socket_error();
+        b->flags &= ~BIO_FLAGS_IN_EOF;
 #ifndef OPENSSL_NO_KTLS
         if (BIO_get_ktls_recv(b))
             ret = ktls_read_record(b->num, out, outl);
@@ -116,10 +118,10 @@ static int sock_read(BIO *b, char *out, int outl)
             ret = readsocket(b->num, out, outl);
         BIO_clear_retry_flags(b);
         if (ret <= 0) {
-            if (BIO_sock_should_retry(ret))
-                BIO_set_retry_read(b);
-            else if (ret == 0)
+            if (ret == 0)
                 b->flags |= BIO_FLAGS_IN_EOF;
+            else if (BIO_sock_should_retry(ret))
+                BIO_set_retry_read(b);
         }
     }
     return ret;
@@ -128,15 +130,13 @@ static int sock_read(BIO *b, char *out, int outl)
 static int sock_write(BIO *b, const char *in, int inl)
 {
     int ret = 0;
-#if !defined(OPENSSL_NO_KTLS) || defined(OSSL_TFO_SENDTO)
     struct bss_sock_st *data = (struct bss_sock_st *)b->ptr;
-#endif
 
     clear_socket_error();
 #ifndef OPENSSL_NO_KTLS
     if (BIO_should_ktls_ctrl_msg_flag(b)) {
         unsigned char record_type = data->ktls_record_type;
-        ret = ktls_send_ctrl_message(b->num, record_type, in, inl);
+        ret = ktls_send_ctrl_message(b->num, record_type, in, inl, data->sflags);
         if (ret >= 0) {
             ret = inl;
             BIO_clear_ktls_ctrl_msg_flag(b);
@@ -145,15 +145,14 @@ static int sock_write(BIO *b, const char *in, int inl)
 #endif
 #if defined(OSSL_TFO_SENDTO)
         if (data->tfo_first) {
-        struct bss_sock_st *data = (struct bss_sock_st *)b->ptr;
         socklen_t peerlen = BIO_ADDR_sockaddr_size(&data->tfo_peer);
 
-        ret = sendto(b->num, in, inl, OSSL_TFO_SENDTO,
+        ret = sendto(b->num, in, inl, OSSL_TFO_SENDTO | data->sflags,
             BIO_ADDR_sockaddr(&data->tfo_peer), peerlen);
         data->tfo_first = 0;
     } else
 #endif
-        ret = writesocket(b->num, in, inl);
+        ret = writesocket_ex(b->num, in, inl, data->sflags);
     BIO_clear_retry_flags(b);
     if (ret <= 0) {
         if (BIO_sock_should_retry(ret))
@@ -264,6 +263,20 @@ static long sock_ctrl(BIO *b, int cmd, long num, void *ptr)
             ret = 0;
         }
         break;
+    case BIO_C_SET_SEND_FLAGS:
+        if (num > INT_MAX || num < INT_MIN) {
+            ERR_raise(ERR_LIB_BIO, BIO_R_INVALID_ARGUMENT);
+            return 0;
+        }
+#if defined(OPENSSL_SYS_VXWORKS) || defined(OPENSSL_SYS_TANDEM)
+        if (num != 0) {
+            ERR_raise(ERR_LIB_BIO, BIO_R_INVALID_ARGUMENT);
+            return 0;
+        }
+#endif
+        data->sflags = (int)num;
+        ret = 1;
+        break;
     default:
         ret = 0;
         break;
@@ -273,10 +286,12 @@ static long sock_ctrl(BIO *b, int cmd, long num, void *ptr)
 
 static int sock_puts(BIO *bp, const char *str)
 {
-    int n, ret;
+    int ret;
+    size_t n = strlen(str);
 
-    n = strlen(str);
-    ret = sock_write(bp, str, n);
+    if (n > INT_MAX)
+        return -1;
+    ret = sock_write(bp, str, (int)n);
     return ret;
 }
 
@@ -294,53 +309,26 @@ int BIO_sock_should_retry(int i)
 
 int BIO_sock_non_fatal_error(int err)
 {
-    switch (err) {
 #if defined(OPENSSL_SYS_WINDOWS)
-#if defined(WSAEWOULDBLOCK)
-    case WSAEWOULDBLOCK:
+    return err == WSAEWOULDBLOCK
+        || err == WSAENOTCONN
+        || err == WSAEINTR
+        || err == WSAEINPROGRESS
+        || err == WSAEALREADY;
+#else /* POSIX.1-2001 */
+    return err == EWOULDBLOCK
+        || err == EAGAIN
+        || err == ENOTCONN
+        || err == EINTR
+#if !defined(__DJGPP__) && !defined(OPENSSL_SYS_TANDEM)
+        || err == EPROTO
 #endif
+#ifdef __FreeBSD__
+        || err == EBUSY
 #endif
-
-#ifdef EWOULDBLOCK
-#ifdef WSAEWOULDBLOCK
-#if WSAEWOULDBLOCK != EWOULDBLOCK
-    case EWOULDBLOCK:
+        || err == EINPROGRESS
+        || err == EALREADY;
 #endif
-#else
-    case EWOULDBLOCK:
-#endif
-#endif
-
-#if defined(ENOTCONN)
-    case ENOTCONN:
-#endif
-
-#ifdef EINTR
-    case EINTR:
-#endif
-
-#ifdef EAGAIN
-#if EWOULDBLOCK != EAGAIN
-    case EAGAIN:
-#endif
-#endif
-
-#ifdef EPROTO
-    case EPROTO:
-#endif
-
-#ifdef EINPROGRESS
-    case EINPROGRESS:
-#endif
-
-#ifdef EALREADY
-    case EALREADY:
-#endif
-        return 1;
-    default:
-        break;
-    }
-    return 0;
 }
 
 #endif /* #ifndef OPENSSL_NO_SOCK */

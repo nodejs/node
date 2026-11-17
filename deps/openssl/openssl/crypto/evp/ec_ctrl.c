@@ -30,7 +30,7 @@ static ossl_inline int evp_pkey_ctx_getset_ecdh_param_checks(const EVP_PKEY_CTX 
 
     /* If key type not EC return error */
     if (evp_pkey_ctx_is_legacy(ctx)
-        && ctx->pmeth != NULL && ctx->pmeth->pkey_id != EVP_PKEY_EC)
+        && ctx->legacy_keytype != EVP_PKEY_EC)
         return -1;
 
     return 1;

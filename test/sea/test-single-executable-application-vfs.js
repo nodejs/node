@@ -36,3 +36,24 @@ spawnSyncAndAssert(
     },
   },
 );
+
+// A SEA rejects --vfs-load at startup, so it cannot take the mount point of
+// the assets. --build-sea already refuses it in "execArgv", so pass it through
+// --node-options instead.
+const rejectedFile = buildSEA(fixtures.path('sea', 'vfs'), {
+  configPath: 'sea-config-vfs-load-rejected.json',
+});
+spawnSyncAndAssert(
+  rejectedFile,
+  ['--node-options=--experimental-vfs --vfs-load=.'],
+  {
+    env: {
+      ...process.env,
+      NODE_DEBUG_NATIVE: undefined,
+    },
+  },
+  {
+    status: 9,
+    stderr: /--vfs-load cannot be used in a single executable application/,
+  },
+);

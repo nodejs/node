@@ -4674,7 +4674,7 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
 void CodeGenerator::PopTempStackSlots() {
   if (temp_slots_ > 0) {
     frame_access_state()->IncreaseSPDelta(-temp_slots_);
-    __ add(sp, sp, Operand(temp_slots_ * kSystemPointerSize));
+    __ Add(sp, sp, Operand(temp_slots_ * kSystemPointerSize));
     temp_slots_ = 0;
   }
 }

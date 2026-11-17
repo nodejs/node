@@ -6,7 +6,7 @@ Notes on Perl
  - [Perl on VMS](#perl-on-vms)
  - [Perl on NonStop](#perl-on-nonstop)
  - [Required Perl modules](#required-perl-modules)
- - [Notes on installing a Perl module](#notes-on-installing-a-perl-module])
+ - [Notes on installing a Perl module](#notes-on-installing-a-perl-module)
 
 General Notes
 -------------

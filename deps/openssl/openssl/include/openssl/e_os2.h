@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -72,14 +72,11 @@ extern "C" {
 #if defined(OPENSSL_SYS_WINNT)
 #undef OPENSSL_SYS_UNIX
 #endif
-#if defined(OPENSSL_SYS_WINCE)
-#undef OPENSSL_SYS_UNIX
-#endif
 #endif
 #endif
 
 /* Anything that tries to look like Microsoft is "Windows" */
-#if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WIN64) || defined(OPENSSL_SYS_WINNT) || defined(OPENSSL_SYS_WINCE)
+#if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WIN64) || defined(OPENSSL_SYS_WINNT)
 #undef OPENSSL_SYS_UNIX
 #define OPENSSL_SYS_WINDOWS
 #ifndef OPENSSL_SYS_MSDOS
@@ -184,33 +181,6 @@ extern "C" {
 #define OPENSSL_EXTERN extern
 #endif
 
-#ifdef _WIN32
-#ifdef _WIN64
-#define ossl_ssize_t __int64
-#define OSSL_SSIZE_MAX _I64_MAX
-#else
-#define ossl_ssize_t int
-#define OSSL_SSIZE_MAX INT_MAX
-#endif
-#endif
-
-#if defined(OPENSSL_SYS_UEFI) && !defined(ossl_ssize_t)
-#define ossl_ssize_t INTN
-#define OSSL_SSIZE_MAX MAX_INTN
-#endif
-
-#ifndef ossl_ssize_t
-#include <sys/types.h>
-#define ossl_ssize_t ssize_t
-#if defined(SSIZE_MAX)
-#define OSSL_SSIZE_MAX SSIZE_MAX
-#elif defined(_POSIX_SSIZE_MAX)
-#define OSSL_SSIZE_MAX _POSIX_SSIZE_MAX
-#else
-#define OSSL_SSIZE_MAX ((ssize_t)(SIZE_MAX >> 1))
-#endif
-#endif
-
 #if defined(UNUSEDRESULT_DEBUG)
 #define __owur __attribute__((__warn_unused_result__))
 #else
@@ -230,24 +200,15 @@ typedef UINT32 uint32_t;
 typedef INT64 int64_t;
 typedef UINT64 uint64_t;
 typedef UINTN uintptr_t;
+#ifndef OSSL_SSIZE_MAX
+typedef INTN ossl_ssize_t;
+#define OSSL_SSIZE_MAX MAX_INTN
+#endif
 #elif (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L) || defined(__osf__) || defined(__sgi) || defined(__hpux) || defined(OPENSSL_SYS_VMS) || defined(__OpenBSD__)
 #include <inttypes.h>
 #undef OPENSSL_NO_INTTYPES_H
 /* Because the specs say that inttypes.h includes stdint.h if present */
 #undef OPENSSL_NO_STDINT_H
-#elif defined(_MSC_VER) && _MSC_VER < 1600
-/*
- * minimally required typdefs for systems not supporting inttypes.h or
- * stdint.h: currently just older VC++
- */
-typedef signed char int8_t;
-typedef unsigned char uint8_t;
-typedef short int16_t;
-typedef unsigned short uint16_t;
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef __int64 int64_t;
-typedef unsigned __int64 uint64_t;
 #elif defined(OPENSSL_SYS_TANDEM)
 #include <stdint.h>
 #include <sys/types.h>
@@ -255,6 +216,29 @@ typedef unsigned __int64 uint64_t;
 #include <stdint.h>
 #undef OPENSSL_NO_STDINT_H
 #endif
+
+#ifdef _WIN32
+#ifdef _WIN64
+typedef int64_t ossl_ssize_t;
+#define OSSL_SSIZE_MAX INT64_MAX
+#else
+typedef int ossl_ssize_t;
+#define OSSL_SSIZE_MAX INT_MAX
+#endif
+#endif
+
+#ifndef OSSL_SSIZE_MAX
+#include <sys/types.h>
+typedef ssize_t ossl_ssize_t;
+#if defined(SSIZE_MAX)
+#define OSSL_SSIZE_MAX SSIZE_MAX
+#elif defined(_POSIX_SSIZE_MAX)
+#define OSSL_SSIZE_MAX _POSIX_SSIZE_MAX
+#else
+#define OSSL_SSIZE_MAX ((ssize_t)(SIZE_MAX >> 1))
+#endif
+#endif
+
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L && defined(INTMAX_MAX) && defined(UINTMAX_MAX)
 typedef intmax_t ossl_intmax_t;
 typedef uintmax_t ossl_uintmax_t;
@@ -269,7 +253,7 @@ typedef uint64_t ossl_uintmax_t;
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 /* just use inline */
 #define ossl_inline inline
-#elif defined(__GNUC__) && __GNUC__ >= 2
+#elif defined(__GNUC__)
 #define ossl_inline __inline__
 #elif defined(_MSC_VER)
 /*
@@ -287,7 +271,7 @@ typedef uint64_t ossl_uintmax_t;
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__cplusplus)
 #define ossl_noreturn _Noreturn
-#elif defined(__GNUC__) && __GNUC__ >= 2
+#elif defined(__GNUC__)
 #define ossl_noreturn __attribute__((noreturn))
 #else
 #define ossl_noreturn
@@ -298,6 +282,22 @@ typedef uint64_t ossl_uintmax_t;
 #define ossl_unused __attribute__((unused))
 #else
 #define ossl_unused
+#endif
+
+/*
+ * OPENSSL_NONSTRING: mark a char/unsigned char buffer object or struct field
+ * whose contents are not necessarily NUL terminated, so that misuse with C
+ * string functions (strlen(), strcpy(), "%s", ...) is diagnosed by compilers
+ * that support the attribute. It has no effect elsewhere.
+ */
+#if defined(__has_attribute)
+#if __has_attribute(nonstring)
+#define OPENSSL_NONSTRING __attribute__((nonstring))
+#else
+#define OPENSSL_NONSTRING
+#endif
+#else
+#define OPENSSL_NONSTRING
 #endif
 
 #ifdef __cplusplus

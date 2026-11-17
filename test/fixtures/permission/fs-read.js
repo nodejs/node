@@ -255,6 +255,20 @@ const regularFile = __filename;
   }));
 }
 
+// fs.mkstemp: the file is opened for reading and writing
+{
+  const expected = {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+  };
+  assert.throws(() => {
+    fs.mkstempSync(path.join(blockedFolder, 'any-file'));
+  }, expected);
+  fs.mkstemp(path.join(blockedFolder, 'any-file'), common.expectsError(expected));
+  assert.rejects(fs.promises.mkstemp(path.join(blockedFolder, 'any-file')), expected)
+    .then(common.mustCall());
+}
+
 // fs.opendir
 {
   fs.opendir(blockedFolder, common.expectsError({
@@ -705,6 +719,57 @@ const regularFile = __filename;
   fs.lstat(regularFile, (err) => {
     assert.ifError(err);
   });
+}
+
+// fs.realpath (JS implementation, walks the path with lstat)
+{
+  assert.throws(() => {
+    fs.realpathSync(blockedFile);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+  }));
+  assert.throws(() => {
+    fs.realpathSync(bufferBlockedFile);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+  }));
+  assert.throws(() => {
+    fs.realpathSync(path.join(blockedFolder, 'anyfile'));
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+  }));
+  // Must not act as a file-existence oracle: a non-existent path inside a
+  // blocked folder must be denied, not reported as ENOENT.
+  assert.throws(() => {
+    fs.realpathSync(path.join(blockedFolder, 'does-not-exist'));
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+  }));
+  fs.realpath(blockedFile, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+  }));
+  assert.throws(() => {
+    fs.realpathSync(blockedFile);
+  }, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-fs-read to manage permissions.',
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: blockedFile,
+  }));
+  assert.rejects(async () => {
+    await fsPromises.realpath(blockedFile);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+  })).then(common.mustCall());
+
+  // doesNotThrow
+  assert.strictEqual(typeof fs.realpathSync(regularFile), 'string');
 }
 
 // fs.realpath.native

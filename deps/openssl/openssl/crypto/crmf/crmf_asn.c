@@ -12,11 +12,7 @@
  */
 
 #include <openssl/asn1t.h>
-
 #include "crmf_local.h"
-
-/* explicit #includes not strictly needed since implied by the above: */
-#include <openssl/crmf.h>
 
 ASN1_SEQUENCE(OSSL_CRMF_PRIVATEKEYINFO) = {
     ASN1_SIMPLE(OSSL_CRMF_PRIVATEKEYINFO, version, ASN1_INTEGER),

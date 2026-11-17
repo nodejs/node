@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2018-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -62,7 +62,7 @@ my @opensslcpphandlers = (
     ##################################################################
     # OpenSSL CPP specials
     #
-    # These are used to convert certain pre-precessor expressions into
+    # These are used to convert certain pre-processor expressions into
     # others that @cpphandlers have a better chance to understand.
 
     # This changes any OPENSSL_NO_DEPRECATED_x_y[_z] check to a check of
@@ -73,6 +73,22 @@ my @opensslcpphandlers = (
       massager => sub {
           return (<<"EOF");
 #if$1 OPENSSL_NO_DEPRECATEDIN_$2
+EOF
+      }
+    },
+    # Do the same for modern CPP definition tests.
+    { regexp   => qr/#if (\!defined).*OPENSSL_NO_DEPRECATED_(\d+_\d+(?:_\d+)?).*$/,
+      massager => sub {
+          return (<<"EOF");
+#ifndef OPENSSL_NO_DEPRECATEDIN_$2
+EOF
+      }
+    },
+    # Do the same for modern CPP definition tests.
+    { regexp   => qr/#if (defined).*OPENSSL_NO_DEPRECATED_(\d+_\d+(?:_\d+)?).*$/,
+      massager => sub {
+          return (<<"EOF");
+#ifdef OPENSSL_NO_DEPRECATEDIN_$2
 EOF
       }
     }
@@ -463,6 +479,15 @@ int d2i_$2(void);
 int i2d_$2(void);
 int $2_free(void);
 int $2_new(void);
+DECLARE_ASN1_ITEM($2)
+EOF
+      },
+    },
+    { regexp   => qr/DECLARE_ASN1_ENCODE_FUNCTIONS_name_attr<<<\((.*),\s*(.*)\)>>>/,
+      massager => sub {
+          return (<<"EOF");
+int d2i_$2(void);
+int i2d_$2(void);
 DECLARE_ASN1_ITEM($2)
 EOF
       },

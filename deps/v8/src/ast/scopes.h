@@ -1387,6 +1387,13 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return ClassScopeHasPrivateBrandField::decode(flags_);
   }
 
+  bool class_initializer_allows_await() const {
+    return ClassInitializerAllowsAwaitField::decode(flags_);
+  }
+  void set_class_initializer_allows_await(bool value) {
+    flags_ = ClassInitializerAllowsAwaitField::update(flags_, value);
+  }
+
  private:
   V8_INLINE void AllocateParameter(Variable* var, int index);
 
@@ -1430,6 +1437,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
       HasThisDeclarationField::Next<bool, 1>;
   using ClassScopeHasPrivateBrandField =
       NeedsPrivateNameContextChainRecalcField::Next<bool, 1>;
+  using ClassInitializerAllowsAwaitField =
+      ClassScopeHasPrivateBrandField::Next<bool, 1>;
 
 #if DEBUG
   bool is_being_lazily_parsed_;
@@ -1503,6 +1512,7 @@ void Scope::RecordEvalCall() {
     GetDeclarationScope()->RecordDeclarationScopeEvalCall();
   }
   RecordInnerScopeEvalCall();
+  GetClosureScope()->RecordNeedsPrivateNameContextChainRecalc();
   // The eval contents might access "super" (if it's inside a function that
   // binds super).
   DeclarationScope* receiver_scope = GetReceiverScope();

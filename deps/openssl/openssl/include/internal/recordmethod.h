@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -56,6 +56,8 @@ typedef struct ossl_record_layer_st OSSL_RECORD_LAYER;
 struct ossl_record_template_st {
     unsigned char type;
     unsigned int version;
+    uint64_t sequence_number;
+    uint64_t epoch;
     const unsigned char *buf;
     size_t buflen;
 };
@@ -114,15 +116,17 @@ struct ossl_record_method_st {
         const char *propq, int vers,
         int role, int direction,
         int level,
-        uint16_t epoch,
+        uint64_t epoch,
         unsigned char *secret,
         size_t secretlen,
+        unsigned char *snkey,
         unsigned char *key,
         size_t keylen,
         unsigned char *iv,
         size_t ivlen,
         unsigned char *mackey,
         size_t mackeylen,
+        const EVP_CIPHER *snciph,
         const EVP_CIPHER *ciph,
         size_t taglen,
         int mactype,
@@ -132,8 +136,7 @@ struct ossl_record_method_st {
         BIO *prev,
         BIO *transport,
         BIO *next,
-        BIO_ADDR *local,
-        BIO_ADDR *peer,
+        int use_urxe,
         const OSSL_PARAM *settings,
         const OSSL_PARAM *options,
         const OSSL_DISPATCH *fns,
@@ -224,7 +227,7 @@ struct ossl_record_method_st {
      */
     int (*read_record)(OSSL_RECORD_LAYER *rl, void **rechandle, int *rversion,
         uint8_t *type, const unsigned char **data, size_t *datalen,
-        uint16_t *epoch, unsigned char *seq_num);
+        uint64_t *epoch, uint64_t *seq_num);
     /*
      * Release length bytes from a buffer associated with a record previously
      * read with read_record. Once all the bytes from a record are released, the
@@ -245,6 +248,21 @@ struct ossl_record_method_st {
      * new_record_layer call
      */
     int (*set1_bio)(OSSL_RECORD_LAYER *rl, BIO *bio);
+
+    /*
+     * Update the peer address for DTLS write record layers. When set
+     * (family != AF_UNSPEC), the record layer will use BIO_sendmmsg()
+     * with this address instead of BIO_write(). This is used by
+     * listener-created connections that share the listener's network BIO.
+     */
+    int (*set1_peer)(OSSL_RECORD_LAYER *rl, const BIO_ADDR *peer);
+
+    /*
+     * Set whether to use the URXE queue for reading. This is used by
+     * listener-created DTLS connections that receive data via the
+     * listener's demux rather than directly from a BIO.
+     */
+    void (*set_use_urxe)(OSSL_RECORD_LAYER *rl, int use_urxe);
 
     /* Called when protocol negotiation selects a protocol version to use */
     int (*set_protocol_version)(OSSL_RECORD_LAYER *rl, int version);
@@ -307,6 +325,31 @@ struct ossl_record_method_st {
     int (*increment_sequence_ctr)(OSSL_RECORD_LAYER *rl);
 
     /*
+     * Get the Sequence number
+     */
+    int (*get_sequence)(OSSL_RECORD_LAYER *rl, uint64_t *sequence);
+
+    /*
+     * Set the Sequence number to a specific value
+     */
+    int (*set_sequence)(OSSL_RECORD_LAYER *rl, uint64_t sequence);
+
+    /*
+     * Get the Epoch value
+     */
+    int (*get_epoch)(OSSL_RECORD_LAYER *rl, uint64_t *epoch);
+
+    /*
+     * Set the current MTU length to be used for the record layer.
+     */
+    int (*set_curr_mtu)(OSSL_RECORD_LAYER *rl, size_t curr_mtu);
+
+    /*
+     * Return number of records in the queue of unprocessed records
+     */
+    size_t (*unprocessed_records)(OSSL_RECORD_LAYER *rl);
+
+    /*
      * Allocate read or write buffers. Does nothing if already allocated.
      * Assumes default buffer length and 1 pipeline.
      */
@@ -317,6 +360,14 @@ struct ossl_record_method_st {
      * data. Buffers are automatically reallocated on next read/write.
      */
     int (*free_buffers)(OSSL_RECORD_LAYER *rl);
+
+    /*
+     * DTLS only. Instead of freeing previous record layer hand it over
+     * so that a retransmission arriving for the previous epoch can still
+     * be processed correctly. The current record layer takes ownership
+     * of the previous record layer.
+     */
+    int (*set_prev_epoch_rl)(OSSL_RECORD_LAYER *rl, OSSL_RECORD_LAYER *prev);
 };
 
 /* Standard built-in record methods */

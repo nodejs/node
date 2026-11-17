@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2015-2016 Cryptography Research, Inc.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -12,6 +12,8 @@
 
 #ifndef OSSL_CRYPTO_EC_CURVE448_ED448_H
 #define OSSL_CRYPTO_EC_CURVE448_ED448_H
+
+#include <openssl/types.h>
 
 #include "point_448.h"
 
@@ -29,128 +31,6 @@
 
 /* EdDSA decoding ratio. */
 #define C448_EDDSA_DECODE_RATIO (4 / 4)
-
-/*
- * EdDSA key generation.  This function uses a different (non-Decaf) encoding.
- *
- * pubkey (out): The public key.
- * privkey (in): The private key.
- */
-c448_error_t
-ossl_c448_ed448_derive_public_key(
-    OSSL_LIB_CTX *ctx,
-    uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
-    const uint8_t privkey[EDDSA_448_PRIVATE_BYTES],
-    const char *propq);
-
-/*
- * EdDSA signing.
- *
- * signature (out): The signature.
- * privkey (in): The private key.
- * pubkey (in):  The public key.
- * message (in):  The message to sign.
- * message_len (in):  The length of the message.
- * prehashed (in):  Nonzero if the message is actually the hash of something
- *                  you want to sign.
- * context (in):  A "context" for this signature of up to 255 bytes.
- * context_len (in):  Length of the context.
- *
- * For Ed25519, it is unsafe to use the same key for both prehashed and
- * non-prehashed messages, at least without some very careful protocol-level
- * disambiguation.  For Ed448 it is safe.
- */
-c448_error_t
-ossl_c448_ed448_sign(OSSL_LIB_CTX *ctx,
-    uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
-    const uint8_t privkey[EDDSA_448_PRIVATE_BYTES],
-    const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
-    const uint8_t *message, size_t message_len,
-    uint8_t prehashed, const uint8_t *context,
-    size_t context_len,
-    const char *propq);
-
-/*
- * EdDSA signing with prehash.
- *
- * signature (out): The signature.
- * privkey (in): The private key.
- * pubkey (in): The public key.
- * hash (in): The hash of the message.  This object will not be modified by the
- *            call.
- * context (in): A "context" for this signature of up to 255 bytes.  Must be the
- *               same as what was used for the prehash.
- * context_len (in): Length of the context.
- *
- * For Ed25519, it is unsafe to use the same key for both prehashed and
- * non-prehashed messages, at least without some very careful protocol-level
- * disambiguation.  For Ed448 it is safe.
- */
-c448_error_t
-ossl_c448_ed448_sign_prehash(OSSL_LIB_CTX *ctx,
-    uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
-    const uint8_t privkey[EDDSA_448_PRIVATE_BYTES],
-    const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
-    const uint8_t hash[64],
-    const uint8_t *context,
-    size_t context_len,
-    const char *propq);
-
-/*
- * EdDSA signature verification.
- *
- * Uses the standard (i.e. less-strict) verification formula.
- *
- * signature (in): The signature.
- * pubkey (in): The public key.
- * message (in): The message to verify.
- * message_len (in): The length of the message.
- * prehashed (in): Nonzero if the message is actually the hash of something you
- *                 want to verify.
- * context (in): A "context" for this signature of up to 255 bytes.
- * context_len (in): Length of the context.
- *
- * For Ed25519, it is unsafe to use the same key for both prehashed and
- * non-prehashed messages, at least without some very careful protocol-level
- * disambiguation.  For Ed448 it is safe.
- */
-c448_error_t
-ossl_c448_ed448_verify(OSSL_LIB_CTX *ctx,
-    const uint8_t
-        signature[EDDSA_448_SIGNATURE_BYTES],
-    const uint8_t
-        pubkey[EDDSA_448_PUBLIC_BYTES],
-    const uint8_t *message, size_t message_len,
-    uint8_t prehashed, const uint8_t *context,
-    uint8_t context_len,
-    const char *propq);
-
-/*
- * EdDSA signature verification.
- *
- * Uses the standard (i.e. less-strict) verification formula.
- *
- * signature (in): The signature.
- * pubkey (in): The public key.
- * hash (in): The hash of the message.  This object will not be modified by the
- *            call.
- * context (in): A "context" for this signature of up to 255 bytes.  Must be the
- *               same as what was used for the prehash.
- * context_len (in): Length of the context.
- *
- * For Ed25519, it is unsafe to use the same key for both prehashed and
- * non-prehashed messages, at least without some very careful protocol-level
- * disambiguation.  For Ed448 it is safe.
- */
-c448_error_t
-ossl_c448_ed448_verify_prehash(
-    OSSL_LIB_CTX *ctx,
-    const uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
-    const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
-    const uint8_t hash[64],
-    const uint8_t *context,
-    uint8_t context_len,
-    const char *propq);
 
 /*
  * EdDSA point encoding.  Used internally, exposed externally.
@@ -192,20 +72,5 @@ c448_error_t
 ossl_curve448_point_decode_like_eddsa_and_mul_by_ratio(
     curve448_point_t p,
     const uint8_t enc[EDDSA_448_PUBLIC_BYTES]);
-
-/*
- * EdDSA to ECDH private key conversion
- * Using the appropriate hash function, hash the EdDSA private key
- * and keep only the lower bytes to get the ECDH private key
- *
- * x (out): The ECDH private key as in RFC7748
- * ed (in): The EdDSA private key
- */
-c448_error_t
-ossl_c448_ed448_convert_private_key_to_x448(
-    OSSL_LIB_CTX *ctx,
-    uint8_t x[X448_PRIVATE_BYTES],
-    const uint8_t ed[EDDSA_448_PRIVATE_BYTES],
-    const char *propq);
 
 #endif /* OSSL_CRYPTO_EC_CURVE448_ED448_H */

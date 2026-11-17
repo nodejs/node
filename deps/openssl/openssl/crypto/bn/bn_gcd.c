@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -167,7 +167,7 @@ static ossl_inline BIGNUM *bn_mod_inverse_no_branch(BIGNUM *in,
     if (BN_is_one(A)) {
         /* Y*a == 1  (mod |n|) */
         if (!Y->neg && BN_ucmp(Y, n) < 0) {
-            if (!BN_copy(R, Y))
+            if (BN_copy(R, Y) == NULL)
                 goto err;
         } else {
             if (!BN_nnmod(R, Y, n, ctx))
@@ -456,7 +456,7 @@ BIGNUM *int_bn_mod_inverse(BIGNUM *in,
                     if (!BN_lshift(tmp, X, 2))
                         goto err;
                 } else if (D->top == 1) {
-                    if (!BN_copy(tmp, X))
+                    if (BN_copy(tmp, X) == NULL)
                         goto err;
                     if (!BN_mul_word(tmp, D->d[0]))
                         goto err;
@@ -492,7 +492,7 @@ BIGNUM *int_bn_mod_inverse(BIGNUM *in,
     if (BN_is_one(A)) {
         /* Y*a == 1  (mod |n|) */
         if (!Y->neg && BN_ucmp(Y, n) < 0) {
-            if (!BN_copy(R, Y))
+            if (BN_copy(R, Y) == NULL)
                 goto err;
         } else {
             if (!BN_nnmod(R, Y, n, ctx))
@@ -618,7 +618,7 @@ int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
         pow2_numbits_temp = r->d[i] | g->d[i];
         pow2_condition_mask = constant_time_is_zero_bn(pow2_flag);
         pow2_flag &= constant_time_is_zero_bn(pow2_numbits_temp);
-        pow2_shifts += pow2_flag;
+        pow2_shifts += (int)pow2_flag;
         pow2_numbits = constant_time_select_bn(pow2_condition_mask,
             pow2_numbits, pow2_numbits_temp);
     }
@@ -627,7 +627,7 @@ int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
     pow2_flag = 1;
     for (j = 0; j < BN_BITS2; j++) {
         pow2_flag &= pow2_numbits;
-        pow2_shifts += pow2_flag;
+        pow2_shifts += (int)pow2_flag;
         pow2_numbits >>= 1;
     }
 
@@ -653,7 +653,8 @@ int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
 
     for (i = 0; i < m; i++) {
         /* conditionally flip signs if delta is positive and g is odd */
-        cond = ((unsigned int)-delta >> (8 * sizeof(delta) - 1)) & g->d[0] & 1
+        cond = ((unsigned int)-delta >> (8 * sizeof(delta) - 1))
+            & (unsigned int)g->d[0] & 1
             /* make sure g->top > 0 (i.e. if top == 0 then g == 0 always) */
             & (~((unsigned int)(g->top - 1) >> (sizeof(g->top) * 8 - 1)));
         delta = (-cond & -delta) | ((cond - 1) & delta);
@@ -665,7 +666,7 @@ int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
         delta++;
         if (!BN_add(temp, g, r))
             goto err;
-        BN_consttime_swap(g->d[0] & 1 /* g is odd */
+        BN_consttime_swap((unsigned int)g->d[0] & 1 /* g is odd */
                 /* make sure g->top > 0 (i.e. if top == 0 then g == 0 always) */
                 & (~((unsigned int)(g->top - 1) >> (sizeof(g->top) * 8 - 1))),
             g, temp, top);

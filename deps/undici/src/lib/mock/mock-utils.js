@@ -240,6 +240,13 @@ function removeTrailingSlash (path) {
     return path
   }
 
+  // Only strip slashes from the pathname, not from a query string after it
+  const queryIndex = path.indexOf('?')
+  const search = queryIndex === -1 ? '' : path.slice(queryIndex)
+  if (queryIndex !== -1) {
+    path = path.slice(0, queryIndex)
+  }
+
   while (path.endsWith('/')) {
     path = path.slice(0, -1)
   }
@@ -248,7 +255,7 @@ function removeTrailingSlash (path) {
     path = '/'
   }
 
-  return path
+  return path + search
 }
 
 function buildKey (opts) {
@@ -379,6 +386,9 @@ function dispatchMockReply (mockDispatches, mockDispatch, key, opts, handler, re
     paused: false,
     rawHeaders: null,
     rawTrailers: null,
+    get aborted () {
+      return aborted
+    },
     pause () {
       this.paused = true
     },

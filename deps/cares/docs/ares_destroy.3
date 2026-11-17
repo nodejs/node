@@ -20,6 +20,13 @@ by the channel.
 channel, passing a status of \fIARES_EDESTRUCTION\fP. These calls give the
 callbacks a chance to clean up any state which might have been stored in their
 arguments. A callback must not add new requests to a channel being destroyed.
+Such a request is refused: the request is not started, and its callback is
+invoked with a status of \fIARES_EDESTRUCTION\fP so that any state attached to
+its argument can be released. A request made from within that notification is
+refused without a further notification, so that a callback which responds to
+failure by retrying cannot recurse without bound; its argument is not handed
+back. This applies as of c-ares version 1.35.0, and c-ares version 1.34.9 on
+the 1.34 branch.
 
 There is no ability to make this function thread-safe.  No additional calls
 using this channel may be made once this function is called.

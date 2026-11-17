@@ -46,6 +46,11 @@ IF[{- !$disabled{asm} -}]
   $MODESASM_riscv64=ghash-riscv64.s ghash-riscv64-zvkb-zvbc.s ghash-riscv64-zvkg.s aes-gcm-riscv64-zvkb-zvkg-zvkned.s
   $MODESDEF_riscv64=GHASH_ASM
 
+  $MODESASM_e2kv6=asm/ghash-e2kv6.c
+  $MODESDEF_e2kv6=GHASH_ASM
+  $MODESASM_e2kv7=asm/ghash-e2kv6.c
+  $MODESDEF_e2kv7=GHASH_ASM
+
   # Now that we have defined all the arch specific variables, use the
   # appropriate one, and define the appropriate macros
   IF[$MODESASM_{- $target{asm_arch} -}]

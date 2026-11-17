@@ -18,6 +18,9 @@
 #include "ext_dat.h"
 #include "x509_local.h"
 #include "crypto/asn1.h"
+#include "crypto/evp.h"
+
+#include <crypto/asn1.h>
 
 static int i2r_ISSUER_SERIAL(X509V3_EXT_METHOD *method,
     OSSL_ISSUER_SERIAL *iss,
@@ -104,15 +107,16 @@ static int i2r_OBJECT_DIGEST_INFO(X509V3_EXT_METHOD *method,
     BIO *out, int indent)
 {
     int64_t dot = 0;
+#ifndef OPENSSL_NO_DEPRECATED_3_6
     int sig_nid;
     X509_ALGOR *digalg;
+#endif
     ASN1_STRING *sig;
 
     if (odi == NULL) {
         ERR_raise(ERR_LIB_ASN1, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
-    digalg = &odi->digestAlgorithm;
     sig = &odi->objectDigest;
     if (!ASN1_ENUMERATED_get_int64(&dot, &odi->digestedObjectType)) {
         return 0;
@@ -140,16 +144,19 @@ static int i2r_OBJECT_DIGEST_INFO(X509V3_EXT_METHOD *method,
     BIO_puts(out, "\n");
     if (BIO_printf(out, "\n%*sSignature Value: ", indent, "") <= 0)
         return 0;
+#ifndef OPENSSL_NO_DEPRECATED_3_6
+    digalg = &odi->digestAlgorithm;
     sig_nid = OBJ_obj2nid(odi->digestAlgorithm.algorithm);
     if (sig_nid != NID_undef) {
         int pkey_nid, dig_nid;
         const EVP_PKEY_ASN1_METHOD *ameth;
         if (OBJ_find_sigid_algs(sig_nid, &dig_nid, &pkey_nid)) {
-            ameth = EVP_PKEY_asn1_find(NULL, pkey_nid);
+            ameth = evp_pkey_asn1_find(pkey_nid);
             if (ameth && ameth->sig_print)
                 return ameth->sig_print(out, digalg, sig, indent + 4, 0);
         }
     }
+#endif
     if (BIO_write(out, "\n", 1) != 1)
         return 0;
     if (sig)

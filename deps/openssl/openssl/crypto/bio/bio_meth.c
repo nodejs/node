@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -121,12 +121,25 @@ int bread_conv(BIO *bio, char *data, size_t datal, size_t *readbytes)
 {
     int ret;
 
+    if (datal == 0) {
+        *readbytes = 0;
+        return 1;
+    }
+
     if (datal > INT_MAX)
         datal = INT_MAX;
 
     ret = bio->method->bread_old(bio, data, (int)datal);
 
-    if (ret <= 0) {
+    bio->flags &= ~BIO_FLAGS_AUTO_EOF;
+    if (ret == 0) {
+        if (BIO_ctrl(bio, BIO_CTRL_EOF, 0, NULL) == 0)
+            bio->flags |= BIO_FLAGS_AUTO_EOF;
+        *readbytes = 0;
+        return 0;
+    }
+
+    if (ret < 0) {
         *readbytes = 0;
         return ret;
     }

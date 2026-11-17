@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,6 +12,8 @@
 #pragma once
 
 #include <openssl/x509_acert.h>
+
+#include <crypto/asn1.h>
 
 #define OSSL_ODI_TYPE_PUBLIC_KEY 0
 #define OSSL_ODI_TYPE_PUBLIC_KEY_CERT 1

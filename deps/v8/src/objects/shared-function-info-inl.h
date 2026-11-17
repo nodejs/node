@@ -511,6 +511,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, is_hoisted_in_context,
                     SharedFunctionInfo::IsHoistedInContextBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
+                    class_initializer_allows_await,
+                    SharedFunctionInfo::ClassInitializerAllowsAwaitBit)
 
 bool SharedFunctionInfo::optimization_disabled(CodeKind kind) const {
   switch (kind) {

@@ -5,7 +5,7 @@ const common = require('../common');
 if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 
 const fixtures = require('../common/fixtures');
 
@@ -40,9 +40,7 @@ connect({
       });
     } else {
       assert.throws(() => { throw err; }, {
-        message: hasOpenSSL(3) ?
-          'error:0A00010A:SSL routines::wrong ssl version' :
-          'error:1420410A:SSL routines:SSL_renegotiate:wrong ssl version',
+        message: 'error:0A00010A:SSL routines::wrong ssl version',
         code: 'ERR_SSL_WRONG_SSL_VERSION',
         library: 'SSL routines',
         reason: 'wrong ssl version',

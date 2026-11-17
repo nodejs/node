@@ -1,4 +1,4 @@
-@ Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+@ Copyright 2007-2026 The OpenSSL Project Authors. All Rights Reserved.
 @
 @ Licensed under the Apache License 2.0 (the "License").  You may not use
 @ this file except in compliance with the License.  You can obtain a copy
@@ -7,10 +7,10 @@
 
 
 @ ====================================================================
-@ Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+@ Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 @ project. The module is, however, dual licensed under OpenSSL and
 @ CRYPTOGAMS licenses depending on where you obtain it. For further
-@ details see http://www.openssl.org/~appro/cryptogams/.
+@ details see https://github.com/dot-asm/cryptogams/.
 @
 @ Permission to use under GPL terms is granted.
 @ ====================================================================
@@ -42,8 +42,8 @@
 @ terms it's 22.6 cycles per byte, which is disappointing result.
 @ Technical writers asserted that 3-way S4 pipeline can sustain
 @ multiple NEON instructions per cycle, but dual NEON issue could
-@ not be observed, see http://www.openssl.org/~appro/Snapdragon-S4.html
-@ for further details. On side note Cortex-A15 processes one byte in
+@ not be observed.
+@ On side note Cortex-A15 processes one byte in
 @ 16 cycles.
 
 @ Byte order [in]dependence. =========================================
@@ -53,7 +53,7 @@
 @ was reflected in below two parameters as 0 and 4. Now caller is
 @ expected to maintain native byte order for whole 64-bit values.
 #ifndef __KERNEL__
-# include "arm_arch.h"
+# include "arch/arm_arch.h"
 # define VFP_ABI_PUSH	vstmdb	sp!,{d8-d15}
 # define VFP_ABI_POP	vldmia	sp!,{d8-d15}
 #else
@@ -141,6 +141,7 @@ K512:
 
 .globl	sha512_block_data_order
 .type	sha512_block_data_order,%function
+.align	5
 sha512_block_data_order:
 .Lsha512_block_data_order:
 #if __ARM_ARCH__<7 && !defined(__thumb2__)
@@ -1868,7 +1869,7 @@ sha512_block_data_order_neon:
 	bx	lr				@ .word	0xe12fff1e
 .size	sha512_block_data_order_neon,.-sha512_block_data_order_neon
 #endif
-.byte	83,72,65,53,49,50,32,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,65,82,77,118,52,47,78,69,79,78,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+.byte	83,72,65,53,49,50,32,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,65,82,77,118,52,47,78,69,79,78,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,104,116,116,112,115,58,47,47,103,105,116,104,117,98,46,99,111,109,47,100,111,116,45,97,115,109,62,0
 .align	2
 .align	2
 #if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)

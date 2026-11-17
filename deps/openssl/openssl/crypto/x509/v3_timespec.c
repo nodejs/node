@@ -13,7 +13,7 @@
 #include <crypto/asn1.h>
 #include "ext_dat.h"
 
-static const char *WEEKDAY_NAMES[7] = {
+static const char *const WEEKDAY_NAMES[7] = {
     "SUN",
     "MON",
     "TUE",
@@ -23,7 +23,7 @@ static const char *WEEKDAY_NAMES[7] = {
     "SAT"
 };
 
-static const char *WEEK_NAMES[5] = {
+static const char *const WEEK_NAMES[5] = {
     "first",
     "second",
     "third",
@@ -31,7 +31,7 @@ static const char *WEEK_NAMES[5] = {
     "final"
 };
 
-static const char *MONTH_NAMES[12] = {
+static const char *const MONTH_NAMES[12] = {
     "JAN",
     "FEB",
     "MAR",
@@ -142,7 +142,11 @@ static int i2r_OSSL_TIME_SPEC_ABSOLUTE(X509V3_EXT_METHOD *method,
             return 0;
         if (!ossl_asn1_time_print_ex(out, time->startTime, 0))
             return 0;
-        if (BIO_printf(out, "%.*s", time->startTime->length, time->startTime->data) <= 0)
+        if (BIO_printf(out, "%.*s", time->startTime->length,
+                time->startTime->length
+                    ? time->startTime->data
+                    : (const unsigned char *)"")
+            <= 0)
             return 0;
     } else if (time->endTime != NULL) {
         if (!BIO_puts(out, "Any time until "))

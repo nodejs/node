@@ -9,6 +9,8 @@ const kGeneratorClosed:
     constexpr int31 generates 'JSGeneratorObject::kGeneratorClosed';
 const kGeneratorResumeModeNext:
     constexpr int31 generates 'JSGeneratorObject::kNext';
+const kGeneratorResumeModeNextAllocSkipped:
+    constexpr int31 generates 'JSGeneratorObject::kNextAllocSkipped';
 const kGeneratorResumeModeThrow:
     constexpr int31 generates 'JSGeneratorObject::kThrow';
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,13 +7,16 @@
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_LIBCRYPTO_MD5_MD5_LOCAL_H)
+#define OSSL_LIBCRYPTO_MD5_MD5_LOCAL_H
+
 #include <stdlib.h>
 #include <string.h>
 #include <openssl/e_os2.h>
 #include <openssl/md5.h>
 
 #ifdef MD5_ASM
-#if defined(__i386) || defined(__i386__) || defined(_M_IX86) || defined(__x86_64) || defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64) || defined(__aarch64__) || (defined(__loongarch__) && __loongarch_grlen == 64)
+#if defined(__i386) || defined(__i386__) || defined(_M_IX86) || defined(__x86_64) || defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64) || defined(__aarch64__) || (defined(__loongarch__) && __loongarch_grlen == 64) || (defined(__riscv) && __riscv_xlen == 64)
 #define md5_block_data_order ossl_md5_block_asm_data_order
 #elif defined(__ia64) || defined(__ia64__) || defined(_M_IA64)
 #define md5_block_data_order ossl_md5_block_asm_data_order
@@ -46,7 +49,9 @@ void md5_block_data_order(MD5_CTX *c, const void *p, size_t num);
     } while (0)
 #define HASH_BLOCK_DATA_ORDER md5_block_data_order
 
-#include "crypto/md32_common.h"
+/* clang-format off */
+#include "crypto/md32_common.inc"
+/* clang-format on */
 
 /*-
 #define F(x,y,z)        (((x) & (y))  |  ((~(x)) & (z)))
@@ -90,3 +95,5 @@ void md5_block_data_order(MD5_CTX *c, const void *p, size_t num);
         a = ROTATE(a, s);                    \
         a += b;                              \
     };
+
+#endif /* !defined(OSSL_LIBCRYPTO_MD5_MD5_LOCAL_H) */

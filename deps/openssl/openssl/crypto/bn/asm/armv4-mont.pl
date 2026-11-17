@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 
 # January 2007.
@@ -97,7 +97,7 @@ $_n0="$num,#14*4";
 $_num="$num,#15*4";	$_bpend=$_num;
 
 $code=<<___;
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 
 #if defined(__thumb2__)
 .syntax	unified
@@ -684,7 +684,7 @@ $code.=<<___;
 
 	vst1.32	{${temp}[0]}, [$toutptr, :32]		@ top-most bit
 	sub	$nptr,$nptr,$num,lsl#2			@ rewind $nptr
-	subs	$aptr,sp,#0				@ clear carry flag
+	subs	$aptr,sp,#0				@ set carry flag
 	add	$bptr,sp,$num,lsl#2
 
 .LNEON_sub:
@@ -746,7 +746,7 @@ $code.=<<___;
 ___
 }
 $code.=<<___;
-.asciz	"Montgomery multiplication for ARMv4/NEON, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz	"Montgomery multiplication for ARMv4/NEON, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	2
 #if __ARM_MAX_ARCH__>=7
 .extern	OPENSSL_armcap_P

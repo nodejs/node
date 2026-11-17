@@ -5,8 +5,10 @@
 #include "crypto/crypto_cipher.h"
 #include "crypto/crypto_context.h"
 #include "gtest/gtest.h"
+#include "ncrypto.h"
 #include "node_options.h"
 #include "openssl/err.h"
+#include "openssl/x509v3.h"
 #include "util.h"
 
 #include <climits>
@@ -15,17 +17,71 @@
 #include <string_view>
 #include <vector>
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/provider.h>
+#include <openssl/rand.h>
 #endif
 
 using ncrypto::Ec;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::KeyAlgorithm;
+
+namespace {
+
+struct GeneralNamesDeleter {
+  void operator()(GENERAL_NAMES* names) const {
+    sk_GENERAL_NAME_pop_free(names, GENERAL_NAME_free);
+  }
+};
+
+struct AccessDescriptionsDeleter {
+  void operator()(AUTHORITY_INFO_ACCESS* descriptions) const {
+    sk_ACCESS_DESCRIPTION_pop_free(descriptions, ACCESS_DESCRIPTION_free);
+  }
+};
+
+using GeneralNamePointer =
+    ncrypto::DeleteFnPtr<GENERAL_NAME, GENERAL_NAME_free>;
+using GeneralNamesPointer = std::unique_ptr<GENERAL_NAMES, GeneralNamesDeleter>;
+using AccessDescriptionPointer =
+    ncrypto::DeleteFnPtr<ACCESS_DESCRIPTION, ACCESS_DESCRIPTION_free>;
+using AccessDescriptionsPointer =
+    std::unique_ptr<AUTHORITY_INFO_ACCESS, AccessDescriptionsDeleter>;
+using ASN1ObjectPointer = ncrypto::DeleteFnPtr<ASN1_OBJECT, ASN1_OBJECT_free>;
+using ASN1StringPointer =
+    ncrypto::DeleteFnPtr<ASN1_IA5STRING, ASN1_IA5STRING_free>;
+using ASN1TimePointer = ncrypto::DeleteFnPtr<ASN1_TIME, ASN1_TIME_free>;
+using X509ExtensionPointer =
+    ncrypto::DeleteFnPtr<X509_EXTENSION, X509_EXTENSION_free>;
+using X509NamePointer = ncrypto::DeleteFnPtr<X509_NAME, X509_NAME_free>;
+
+std::string LongObjectIdentifier() {
+  std::string oid = "1.2";
+  for (int i = 0; i < 30; i++) oid += ".123456789";
+  return oid;
+}
+
+std::string BioContents(const ncrypto::BIOPointer& bio) {
+  BUF_MEM* mem = bio;
+  if (mem == nullptr) return {};
+  return std::string(mem->data, mem->length);
+}
+
+void RaiseTestError() {
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  ERR_raise(ERR_LIB_USER, ERR_R_INTERNAL_ERROR);
+#elif NCRYPTO_USE_BORINGSSL
+  ERR_put_error(ERR_LIB_USER, 0, ERR_R_INTERNAL_ERROR, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
+#endif
+}
+
+}  // namespace
 
 /*
  * This test verifies that a call to NewRootCertDir with the build time
@@ -56,6 +112,50 @@ TEST(NodeCrypto, TryGetIntCipherOutputLength) {
       0, static_cast<size_t>(INT_MAX) + 1, &output_len));
 }
 
+TEST(NodeCrypto, SpkacOperationsClearErrorQueue) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  constexpr std::string_view invalid = "garbage";
+
+  EXPECT_FALSE(ncrypto::VerifySpkac(invalid.data(), invalid.size()));
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+
+  EXPECT_FALSE(ncrypto::ExportPublicKey(invalid.data(), invalid.size()));
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+
+  const auto challenge =
+      ncrypto::ExportChallenge(invalid.data(), invalid.size());
+  EXPECT_EQ(challenge.data, nullptr);
+  EXPECT_EQ(challenge.len, 0UL);
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+}
+
+TEST(NodeCrypto, PrivateKeyParsingIgnoresUnrelatedErrors) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::RSA);
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(ctx.initForKeygen());
+  ASSERT_TRUE(ctx.setRsaKeygenBits(2048));
+  EVP_PKEY* raw = nullptr;
+  ASSERT_EQ(EVP_PKEY_keygen(ctx.get(), &raw), 1);
+  EVPKeyPointer key(raw);
+
+  const EVPKeyPointer::PrivateKeyEncodingConfig config(
+      false,
+      EVPKeyPointer::PKFormatType::PEM,
+      EVPKeyPointer::PKEncodingType::PKCS8);
+  auto encoded = key.writePrivateKey(config);
+  ASSERT_TRUE(encoded);
+  const BUF_MEM* mem = encoded.value;
+  ASSERT_NE(mem, nullptr);
+
+  RaiseTestError();
+  ASSERT_NE(ERR_peek_error(), 0UL);
+  auto parsed = EVPKeyPointer::TryParsePrivateKey(
+      config, {reinterpret_cast<const unsigned char*>(mem->data), mem->length});
+  EXPECT_TRUE(parsed);
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+}
+
 TEST(NodeCrypto, KeyAlgorithmNames) {
   EXPECT_EQ(KeyAlgorithm::FromName("rsa-pss"), &KeyAlgorithm::RSA_PSS);
   EXPECT_EQ(KeyAlgorithm::FromName("ML-DSA-44"), &KeyAlgorithm::ML_DSA_44);
@@ -74,7 +174,56 @@ TEST(NodeCrypto, KeyAlgorithmNames) {
   EXPECT_FALSE(empty.isA(static_cast<const char*>(nullptr)));
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
+TEST(NodeCrypto, DhNamedGroupCheckDoesNotRequireRandomness) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  ncrypto::DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> libctx(
+      OSSL_LIB_CTX_new());
+  ASSERT_TRUE(libctx);
+  ASSERT_EQ(
+      RAND_set_DRBG_type(
+          libctx.get(), "node-test-unavailable-rng", nullptr, nullptr, nullptr),
+      1);
+  OSSL_LIB_CTX* previous_libctx = OSSL_LIB_CTX_set0_default(libctx.get());
+  auto restore_libctx = node::OnScopeLeave(
+      [previous_libctx] { OSSL_LIB_CTX_set0_default(previous_libctx); });
+
+  // Primality checks need randomness. Known groups must skip those checks.
+  unsigned char random_byte;
+  ASSERT_NE(RAND_bytes_ex(libctx.get(), &random_byte, 1, 0), 1);
+  ERR_clear_error();
+
+  using DH = ncrypto::DHPointer;
+  for (const char* name :
+       {"modp5", "modp14", "modp15", "modp16", "modp17", "modp18"}) {
+    auto prime = DH::FindGroup(name);
+    auto generator = DH::GetStandardGenerator();
+    ASSERT_TRUE(prime);
+    ASSERT_TRUE(generator);
+    auto dh = DH::New(std::move(prime), std::move(generator));
+    ASSERT_TRUE(dh);
+    EXPECT_EQ(dh.check(), DH::CheckResult::NONE) << name;
+  }
+
+  auto prime = DH::FindGroup("modp14");
+  auto generator = DH::GetStandardGenerator();
+  ASSERT_TRUE(prime);
+  ASSERT_TRUE(generator);
+  ASSERT_EQ(BN_add_word(prime.get(), 1), 1);
+  auto composite = DH::New(std::move(prime), std::move(generator));
+  ASSERT_TRUE(composite);
+  EXPECT_EQ(composite.check(), DH::CheckResult::P_NOT_PRIME);
+
+  prime = DH::FindGroup("modp14");
+  generator = DH::GetStandardGenerator();
+  ASSERT_TRUE(prime);
+  ASSERT_TRUE(generator);
+  ASSERT_EQ(BN_add_word(generator.get(), 1), 1);
+  auto other_generator = DH::New(std::move(prime), std::move(generator));
+  ASSERT_TRUE(other_generator);
+  EXPECT_EQ(other_generator.check(), DH::CheckResult::CHECK_FAILED);
+}
+
 TEST(NodeCrypto, ProviderPkcs1PublicKeyImport) {
   ncrypto::ClearErrorOnReturn clear_errors;
   auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::RSA);
@@ -342,6 +491,82 @@ TEST(NodeCrypto, RsaPrimeProduct) {
   EXPECT_FALSE(rsa.checkPrimeProduct());
 }
 
+#if !NCRYPTO_USE_BORINGSSL
+namespace {
+constexpr int kMinimumPrimeChecks = 64;
+
+bool CheckMersennePrime(int exponent, int requested_checks) {
+  auto candidate = ncrypto::BignumPointer::New();
+  if (!candidate || BN_set_bit(candidate.get(), exponent) != 1 ||
+      BN_sub_word(candidate.get(), 1) != 1) {
+    return false;
+  }
+
+  int completed_checks = 0;
+  const int result = candidate.isPrime(
+      requested_checks, [&completed_checks](int event, int iteration) {
+        if (event == 1 && iteration >= 0) completed_checks++;
+        return true;
+      });
+  return result == 1 && completed_checks >= requested_checks;
+}
+}  // namespace
+
+TEST(NodeCrypto, BignumPrimeChecksHonorRequestedCount) {
+  EXPECT_TRUE(CheckMersennePrime(127, kMinimumPrimeChecks + 1));
+  EXPECT_TRUE(CheckMersennePrime(2203, 129));
+}
+
+TEST(NodeCrypto, BignumPrimeCheckCancellation) {
+  auto candidate = ncrypto::BignumPointer::New();
+  ASSERT_TRUE(candidate);
+  ASSERT_EQ(BN_set_bit(candidate.get(), 127), 1);
+  ASSERT_EQ(BN_sub_word(candidate.get(), 1), 1);
+
+  int invocations = 0;
+  int completed_checks = 0;
+  bool valid_events = true;
+  const int result =
+      candidate.isPrime(kMinimumPrimeChecks + 1, [&](int event, int iteration) {
+        if (event != 1) {
+          valid_events = false;
+          return false;
+        }
+        if (iteration == -1) {
+          invocations++;
+          return true;
+        }
+        if (iteration != completed_checks % kMinimumPrimeChecks) {
+          valid_events = false;
+          return false;
+        }
+        if (completed_checks == kMinimumPrimeChecks) return false;
+        completed_checks++;
+        return true;
+      });
+  EXPECT_EQ(result, -1);
+  EXPECT_TRUE(valid_events);
+  EXPECT_EQ(invocations, 3);
+  EXPECT_EQ(completed_checks, kMinimumPrimeChecks);
+  ERR_clear_error();
+}
+
+TEST(NodeCrypto, BignumPrimeCheckCancellationSmallPrime) {
+  // 311 is resolved by trial division, so OpenSSL never invokes the callback.
+  auto candidate = ncrypto::BignumPointer::New();
+  ASSERT_TRUE(candidate);
+  ASSERT_EQ(BN_set_word(candidate.get(), 311), 1);
+
+  int invocations = 0;
+  const int result = candidate.isPrime(INT_MAX, [&](int, int) {
+    invocations++;
+    return false;
+  });
+  EXPECT_EQ(result, -1);
+  EXPECT_EQ(invocations, 1);
+}
+#endif
+
 TEST(NodeCrypto, EcKeyComponents) {
   ncrypto::ClearErrorOnReturn clear_errors;
   ncrypto::BignumPointer x;
@@ -404,12 +629,14 @@ TEST(NodeCrypto, EcKeyComponents) {
         0);
     auto raw_public =
         ncrypto::Ec::TryExportPublic(key, POINT_CONVERSION_UNCOMPRESSED);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     ASSERT_TRUE(raw_public);
     ASSERT_EQ(raw_public.size(), point.size());
     EXPECT_EQ(memcmp(raw_public.get(), point.get(), point.size()), 0);
-#else
+#elif NCRYPTO_USE_BORINGSSL
     EXPECT_FALSE(raw_public);
+#else
+#error "Unsupported crypto backend"
 #endif
     EXPECT_FALSE(
         ncrypto::Ec::TryExportPublic(key, POINT_CONVERSION_COMPRESSED));
@@ -463,7 +690,7 @@ TEST(NodeCrypto, ResolveKeyAlgorithm) {
     key.reset();
     EXPECT_EQ(key.getAlgorithm(), nullptr);
   }
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   // Legacy keys must resolve even without provider-backed key material.
   key = EVPKeyPointer::New();
   ASSERT_EQ(EVP_PKEY_set_type(key.get(), NID_rsaEncryption), 1);
@@ -487,7 +714,7 @@ TEST(NodeCrypto, PublicKeyTypeNames) {
   EXPECT_STREQ(key.getKeyTypeName(), "ed25519");
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 TEST(NodeCrypto, LegacyKeyAlgorithmResolution) {
   ncrypto::ClearErrorOnReturn clear_errors;
   auto key = EVPKeyPointer::New();
@@ -533,7 +760,7 @@ TEST(NodeCrypto, EcGroupNames) {
   }
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 namespace {
 // Deliberately longer than the fixed-size group buffer formerly used by
 // ncrypto.
@@ -723,7 +950,7 @@ TEST(NodeCrypto, NamedRawKey) {
   EXPECT_TRUE(key.supportsRawPublic());
   EXPECT_TRUE(key.supportsRawPrivate());
   EXPECT_EQ(key.getAlgorithm()->seedSize(), 0);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
   // Provider aliases are recognized without comparing the primary type name.
   EXPECT_TRUE(key.isA("1.3.101.112"));
   auto ctx = ncrypto::EVPKeyCtxPointer::NewFromName("1.3.101.112");
@@ -778,7 +1005,7 @@ TEST(NodeCrypto, ProviderPqcKeyWithoutLegacyId) {
                                                      algorithm->seedSize()};
     auto key = EVPKeyPointer::NewRawSeed(*algorithm, input);
     ASSERT_TRUE(key);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
     EXPECT_EQ(EVP_PKEY_id(key.get()), -1);
 #endif
     EXPECT_TRUE(key.isA(*algorithm));
@@ -855,7 +1082,7 @@ TEST(NodeCrypto, UnavailableBoringSSLKeyAlgorithms) {
 }
 #endif
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if !NCRYPTO_USE_BORINGSSL
 TEST(NodeCrypto, PrivateKeyEncodingOwnsFetchedCipher) {
   ncrypto::ClearErrorOnReturn clear_errors;
   EVPKeyPointer::PrivateKeyEncodingConfig assigned;
@@ -889,3 +1116,476 @@ TEST(NodeCrypto, PrivateKeyEncodingProviderOnlyCipher) {
   EXPECT_EQ(EVP_CIPHER_is_a(cipher.get(), "AES-128-CBC-CTS"), 1);
 }
 #endif
+
+TEST(NodeCrypto, BIOPointerRequiresCompleteWrites) {
+  BIO* raw_output = nullptr;
+  BIO* raw_input = nullptr;
+  ASSERT_EQ(BIO_new_bio_pair(&raw_output, 1, &raw_input, 1), 1);
+  ncrypto::BIOPointer output(raw_output);
+  ncrypto::BIOPointer input(raw_input);
+  EXPECT_FALSE(ncrypto::BIOPointer::WriteAll(output, "ab"));
+
+  raw_output = nullptr;
+  raw_input = nullptr;
+  ASSERT_EQ(BIO_new_bio_pair(&raw_output, 1, &raw_input, 1), 1);
+  output.reset(raw_output);
+  input.reset(raw_input);
+  EXPECT_FALSE(ncrypto::BIOPointer::PrintfAll(output, "%s", "ab"));
+}
+
+TEST(NodeCrypto, PreservesInvalidX509TimeDiagnostic) {
+  ncrypto::X509Pointer cert(X509_new());
+  ASN1TimePointer invalid_time(ASN1_STRING_type_new(V_ASN1_UTCTIME));
+  ASSERT_TRUE(cert);
+  ASSERT_TRUE(invalid_time);
+  ASSERT_EQ(ASN1_STRING_set(invalid_time.get(), "221303214037Z", -1), 1);
+  ASSERT_EQ(X509_set1_notBefore(cert.get(), invalid_time.get()), 1);
+
+  const ncrypto::BIOPointer valid_from = cert.view().getValidFrom();
+  ASSERT_TRUE(valid_from);
+  EXPECT_EQ(BioContents(valid_from), "Bad time value");
+  EXPECT_FALSE(cert.view().getValidFromTime().has_value());
+}
+
+#if NCRYPTO_USE_BORINGSSL
+TEST(NodeCrypto, PreservesBoringSSLTimezoneOffsetDiagnostic) {
+  ncrypto::X509Pointer cert(X509_new());
+  ASN1TimePointer offset_time(ASN1_STRING_type_new(V_ASN1_UTCTIME));
+  ASSERT_TRUE(cert);
+  ASSERT_TRUE(offset_time);
+  ASSERT_EQ(ASN1_STRING_set(offset_time.get(), "700101000000+0400", -1), 1);
+  ASSERT_EQ(ASN1_TIME_check(offset_time.get()), 1);
+  ASSERT_EQ(X509_set1_notBefore(cert.get(), offset_time.get()), 1);
+  ASSERT_EQ(X509_set1_notAfter(cert.get(), offset_time.get()), 1);
+
+  const ncrypto::BIOPointer valid_from = cert.view().getValidFrom();
+  const ncrypto::BIOPointer valid_to = cert.view().getValidTo();
+  ASSERT_TRUE(valid_from);
+  ASSERT_TRUE(valid_to);
+  EXPECT_EQ(BioContents(valid_from), "Bad time value");
+  EXPECT_EQ(BioContents(valid_to), "Bad time value");
+  EXPECT_FALSE(cert.view().getValidFromTime().has_value());
+  EXPECT_FALSE(cert.view().getValidToTime().has_value());
+}
+#endif
+
+TEST(NodeCrypto, PrintsEmptyX509Names) {
+  ncrypto::X509Pointer cert(X509_new());
+  X509NamePointer empty_name(X509_NAME_new());
+  ASSERT_TRUE(cert);
+  ASSERT_TRUE(empty_name);
+  ASSERT_EQ(X509_set_subject_name(cert.get(), empty_name.get()), 1);
+  ASSERT_EQ(X509_set_issuer_name(cert.get(), empty_name.get()), 1);
+
+  const ncrypto::BIOPointer subject = cert.view().getSubject();
+  const ncrypto::BIOPointer issuer = cert.view().getIssuer();
+  ASSERT_TRUE(subject);
+  ASSERT_TRUE(issuer);
+  EXPECT_EQ(BioContents(subject), "");
+  EXPECT_EQ(BioContents(issuer), "");
+}
+
+TEST(NodeCrypto, X509FormattingPreservesUnrelatedErrors) {
+  ncrypto::X509Pointer cert(X509_new());
+  X509NamePointer empty_name(X509_NAME_new());
+  ASSERT_TRUE(cert);
+  ASSERT_TRUE(empty_name);
+  ASSERT_EQ(X509_set_subject_name(cert.get(), empty_name.get()), 1);
+
+  ERR_clear_error();
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  ERR_raise(ERR_LIB_USER, 1);
+#elif NCRYPTO_USE_BORINGSSL
+  ERR_put_error(ERR_LIB_USER, 0, 1, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
+#endif
+  const unsigned long expected = ERR_peek_error();  // NOLINT(runtime/int)
+  ASSERT_NE(expected, 0UL);
+
+  const ncrypto::BIOPointer subject = cert.view().getSubject();
+  ASSERT_TRUE(subject);
+  EXPECT_EQ(ERR_peek_error(), expected);
+  EXPECT_TRUE(cert.view().getVersion().has_value());
+  EXPECT_EQ(ERR_peek_error(), expected);
+  EXPECT_TRUE(cert.view().inspectSubjectName().has_value());
+  EXPECT_EQ(ERR_peek_error(), expected);
+  EXPECT_TRUE(cert.view().inspectIssuerName().has_value());
+  EXPECT_EQ(ERR_peek_error(), expected);
+  EXPECT_TRUE(cert.view().inspectExtensions().has_value());
+  EXPECT_EQ(ERR_peek_error(), expected);
+  ERR_clear_error();
+}
+
+TEST(NodeCrypto, X509IssuerChecksPreserveUnrelatedErrors) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::RSA);
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(ctx.initForKeygen());
+  ASSERT_TRUE(ctx.setRsaKeygenBits(2048));
+  EVP_PKEY* raw = nullptr;
+  ASSERT_EQ(EVP_PKEY_keygen(ctx.get(), &raw), 1);
+  EVPKeyPointer key(raw);
+
+  ncrypto::X509Pointer cert(X509_new());
+  ASSERT_TRUE(cert);
+  ASSERT_EQ(X509_set_version(cert.get(), 2), 1);
+  ASSERT_EQ(ASN1_INTEGER_set(X509_get_serialNumber(cert.get()), 1), 1);
+  ASSERT_EQ(
+      ASN1_TIME_set_string(X509_getm_notBefore(cert.get()), "20260101000000Z"),
+      1);
+  ASSERT_EQ(
+      ASN1_TIME_set_string(X509_getm_notAfter(cert.get()), "20270101000000Z"),
+      1);
+  X509NamePointer name(X509_NAME_new());
+  ASSERT_TRUE(name);
+  ASSERT_EQ(X509_NAME_add_entry_by_txt(
+                name.get(),
+                "CN",
+                MBSTRING_ASC,
+                reinterpret_cast<const unsigned char*>("issuer"),
+                -1,
+                -1,
+                0),
+            1);
+  ASSERT_EQ(X509_set_subject_name(cert.get(), name.get()), 1);
+  ASSERT_EQ(X509_set_issuer_name(cert.get(), name.get()), 1);
+  ASSERT_EQ(X509_set_pubkey(cert.get(), key.get()), 1);
+  ASSERT_GT(X509_sign(cert.get(), key.get(), EVP_sha256()), 0);
+
+  X509NamePointer mismatch_name(X509_NAME_dup(name.get()));
+  ASSERT_TRUE(mismatch_name);
+  ASSERT_EQ(X509_NAME_add_entry_by_txt(
+                mismatch_name.get(),
+                "OU",
+                MBSTRING_ASC,
+                reinterpret_cast<const unsigned char*>("other"),
+                -1,
+                -1,
+                0),
+            1);
+
+  ncrypto::DeleteFnPtr<ASN1_OCTET_STRING, ASN1_OCTET_STRING_free> invalid_value(
+      ASN1_OCTET_STRING_new());
+  ASSERT_TRUE(invalid_value);
+  const unsigned char truncated_sequence[] = {0x30};
+  ASSERT_EQ(
+      ASN1_OCTET_STRING_set(
+          invalid_value.get(), truncated_sequence, sizeof(truncated_sequence)),
+      1);
+  X509ExtensionPointer invalid_constraints(X509_EXTENSION_create_by_NID(
+      nullptr, NID_basic_constraints, 0, invalid_value.get()));
+  ASSERT_TRUE(invalid_constraints);
+
+  for (const bool seed_error : {true, false}) {
+    // Reparse each issuer so extension-cache failures are exercised each time.
+    auto matching_issuer = cert.view().clone();
+    auto mismatch = cert.view().clone();
+    auto malformed = cert.view().clone();
+    ASSERT_TRUE(matching_issuer);
+    ASSERT_TRUE(mismatch);
+    ASSERT_TRUE(malformed);
+    ASSERT_EQ(X509_set_subject_name(mismatch.get(), mismatch_name.get()), 1);
+    ASSERT_EQ(X509_add_ext(malformed.get(), invalid_constraints.get(), -1), 1);
+
+    const auto check = [seed_error](ncrypto::X509View subject,
+                                    ncrypto::X509View issuer,
+                                    bool issued) {
+      ERR_clear_error();
+      if (seed_error) {
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+        ERR_raise(ERR_LIB_USER, 1);
+#elif NCRYPTO_USE_BORINGSSL
+        ERR_put_error(ERR_LIB_USER, 0, 1, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
+#endif
+      }
+      const auto expected = ERR_peek_error();
+      if (seed_error) ASSERT_NE(expected, 0UL);
+      EXPECT_EQ(subject.isIssuedBy(issuer), issued);
+      EXPECT_EQ(ERR_get_error(), expected);
+      EXPECT_EQ(ERR_get_error(), 0UL);
+    };
+
+    check(cert.view(), matching_issuer.view(), true);
+    check(cert.view(), mismatch.view(), false);
+    check(cert.view(), malformed.view(), false);
+    check({}, matching_issuer.view(), false);
+    check(cert.view(), {}, false);
+  }
+}
+
+TEST(NodeCrypto, X509KeyVisitorsHandleMissingPublicKey) {
+  ncrypto::X509Pointer cert(X509_new());
+  ASSERT_TRUE(cert);
+
+  const auto visit = [&cert] {
+    EXPECT_TRUE(cert.view().ifRsa([](const ncrypto::Rsa&) {
+      ADD_FAILURE() << "RSA callback called without a public key";
+      return false;
+    }));
+    EXPECT_TRUE(cert.view().ifEc([](const ncrypto::Ec&) {
+      ADD_FAILURE() << "EC callback called without a public key";
+      return false;
+    }));
+  };
+
+  ERR_clear_error();
+  visit();
+  EXPECT_EQ(ERR_peek_error(), 0UL);
+
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  ERR_raise(ERR_LIB_USER, 1);
+#elif NCRYPTO_USE_BORINGSSL
+  ERR_put_error(ERR_LIB_USER, 0, 1, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
+#endif
+  const unsigned long expected = ERR_peek_error();  // NOLINT(runtime/int)
+  ASSERT_NE(expected, 0UL);
+
+  visit();
+  EXPECT_EQ(ERR_peek_error(), expected);
+  ERR_clear_error();
+}
+
+TEST(NodeCrypto, X509UsageVisitorPreservesCallbackErrors) {
+  ncrypto::X509Pointer cert(X509_new());
+  ncrypto::StackOfASN1 usages(sk_ASN1_OBJECT_new_null());
+  ASN1ObjectPointer usage(OBJ_txt2obj("1.3.6.1.5.5.7.3.1", 1));
+  ASSERT_TRUE(cert);
+  ASSERT_TRUE(usages);
+  ASSERT_TRUE(usage);
+  ASSERT_GT(sk_ASN1_OBJECT_push(usages.get(), usage.get()), 0);
+  usage.release();
+
+  X509ExtensionPointer eku(X509V3_EXT_i2d(NID_ext_key_usage, 0, usages.get()));
+  ASSERT_TRUE(eku);
+  ASSERT_EQ(X509_add_ext(cert.get(), eku.get(), -1), 1);
+
+  ERR_clear_error();
+  int calls = 0;
+  const auto result = cert.view().enumUsages([&calls](const char* oid) {
+    calls++;
+    EXPECT_STREQ(oid, "1.3.6.1.5.5.7.3.1");
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+    ERR_raise(ERR_LIB_USER, 1);
+#elif NCRYPTO_USE_BORINGSSL
+    ERR_put_error(ERR_LIB_USER, 0, 1, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
+#endif
+  });
+  EXPECT_EQ(result, ncrypto::X509View::UsageResult::PRESENT);
+  EXPECT_EQ(calls, 1);
+  EXPECT_NE(ERR_peek_error(), 0UL);
+  ERR_clear_error();
+}
+
+TEST(NodeCrypto, X509UsageVisitorReportsFailures) {
+  using UsageResult = ncrypto::X509View::UsageResult;
+  ncrypto::ClearErrorOnReturn clear_errors;
+  ncrypto::X509Pointer cert(X509_new());
+  ASSERT_TRUE(cert);
+  const auto unexpected_usage = [](const char*) {
+    ADD_FAILURE() << "Unexpected extended key usage";
+  };
+  EXPECT_EQ(cert.view().enumUsages(unexpected_usage), UsageResult::ABSENT);
+
+  ncrypto::StackOfASN1 usages(sk_ASN1_OBJECT_new_null());
+  ASSERT_TRUE(usages);
+  X509ExtensionPointer empty_eku(
+      X509V3_EXT_i2d(NID_ext_key_usage, 0, usages.get()));
+  ASSERT_TRUE(empty_eku);
+  ASSERT_EQ(X509_add_ext(cert.get(), empty_eku.get(), -1), 1);
+  EXPECT_EQ(cert.view().enumUsages(unexpected_usage), UsageResult::PRESENT);
+
+  ASSERT_EQ(X509_add_ext(cert.get(), empty_eku.get(), -1), 1);
+  EXPECT_EQ(cert.view().enumUsages(unexpected_usage),
+            UsageResult::OPERATION_FAILED);
+
+  ncrypto::X509Pointer malformed(X509_new());
+  ncrypto::DeleteFnPtr<ASN1_OCTET_STRING, ASN1_OCTET_STRING_free> value(
+      ASN1_OCTET_STRING_new());
+  ASSERT_TRUE(malformed);
+  ASSERT_TRUE(value);
+  const unsigned char truncated_sequence[] = {0x30};
+  ASSERT_EQ(ASN1_OCTET_STRING_set(
+                value.get(), truncated_sequence, sizeof(truncated_sequence)),
+            1);
+  X509ExtensionPointer malformed_eku(
+      X509_EXTENSION_create_by_NID(nullptr, NID_ext_key_usage, 0, value.get()));
+  ASSERT_TRUE(malformed_eku);
+  ASSERT_EQ(X509_add_ext(malformed.get(), malformed_eku.get(), -1), 1);
+  EXPECT_EQ(malformed.view().enumUsages(unexpected_usage),
+            UsageResult::OPERATION_FAILED);
+}
+
+TEST(NodeCrypto, X509InfoAccessReportsPresence) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  ncrypto::X509Pointer cert(X509_new());
+  ASSERT_TRUE(cert);
+  bool has_extension = true;
+  EXPECT_FALSE(cert.view().getInfoAccess(&has_extension));
+  EXPECT_FALSE(has_extension);
+
+  AccessDescriptionsPointer descriptions(sk_ACCESS_DESCRIPTION_new_null());
+  ASSERT_TRUE(descriptions);
+  X509ExtensionPointer info_access(
+      X509V3_EXT_i2d(NID_info_access, 0, descriptions.get()));
+  ASSERT_TRUE(info_access);
+  ASSERT_EQ(X509_add_ext(cert.get(), info_access.get(), -1), 1);
+  EXPECT_FALSE(cert.view().getInfoAccess(&has_extension));
+  EXPECT_TRUE(has_extension);
+}
+
+TEST(NodeCrypto, PreservesLongX509NameObjectIdentifiers) {
+  const std::string oid_text = LongObjectIdentifier();
+  X509NamePointer name(X509_NAME_new());
+  ASN1ObjectPointer oid(OBJ_txt2obj(oid_text.c_str(), 1));
+  ASSERT_TRUE(name);
+  ASSERT_TRUE(oid);
+  ASSERT_EQ(X509_NAME_add_entry_by_OBJ(
+                name.get(),
+                oid.get(),
+                V_ASN1_UTF8STRING,
+                reinterpret_cast<const unsigned char*>("value"),
+                -1,
+                -1,
+                0),
+            1);
+
+  ncrypto::X509Name x509_name(name.get());
+  const auto entry = *x509_name.begin();
+  ASSERT_TRUE(entry.has_value());
+  EXPECT_EQ(entry->key, oid_text);
+  ASSERT_TRUE(entry->value.has_value());
+  EXPECT_EQ(*entry->value, "value");
+}
+
+TEST(NodeCrypto, IdentifiesUnconvertibleX509NameValues) {
+  X509NamePointer name(X509_NAME_new());
+  ASN1ObjectPointer oid(OBJ_txt2obj("2.5.4.3", 1));
+  const unsigned char value[] = "value";
+  ASSERT_TRUE(name);
+  ASSERT_TRUE(oid);
+  ASSERT_EQ(X509_NAME_add_entry_by_OBJ(name.get(),
+                                       oid.get(),
+                                       V_ASN1_BIT_STRING,
+                                       value,
+                                       sizeof(value) - 1,
+                                       -1,
+                                       0),
+            1);
+
+  ncrypto::X509Name x509_name(name.get());
+  const auto entry = *x509_name.begin();
+  ASSERT_TRUE(entry.has_value());
+  EXPECT_EQ(entry->key, "CN");
+  EXPECT_FALSE(entry->value.has_value());
+}
+
+TEST(NodeCrypto, RejectsInvalidConvertibleX509NameValues) {
+  X509NamePointer name(X509_NAME_new());
+  ASN1ObjectPointer oid(OBJ_txt2obj("2.5.4.3", 1));
+  const unsigned char valid_value[] = "value";
+  const unsigned char invalid_value[] = {0xff};
+  ASSERT_TRUE(name);
+  ASSERT_TRUE(oid);
+  ASSERT_EQ(X509_NAME_add_entry_by_OBJ(name.get(),
+                                       oid.get(),
+                                       V_ASN1_UTF8STRING,
+                                       valid_value,
+                                       sizeof(valid_value) - 1,
+                                       -1,
+                                       0),
+            1);
+  // Intentionally corrupt the otherwise valid entry after construction.
+  auto* entry =
+      const_cast<X509_NAME_ENTRY*>(X509_NAME_get_entry(name.get(), 0));
+  ASSERT_NE(entry, nullptr);
+  auto* value = const_cast<ASN1_STRING*>(X509_NAME_ENTRY_get_data(entry));
+  ASSERT_NE(value, nullptr);
+  ASSERT_EQ(ASN1_STRING_set(value, invalid_value, sizeof(invalid_value)), 1);
+
+  ncrypto::X509Name x509_name(name.get());
+  EXPECT_FALSE((*x509_name.begin()).has_value());
+}
+
+TEST(NodeCrypto, RejectsEmptyX509SubjectAltNames) {
+  GeneralNamesPointer names(sk_GENERAL_NAME_new_null());
+  ASSERT_TRUE(names);
+
+  X509ExtensionPointer san(
+      X509V3_EXT_i2d(NID_subject_alt_name, 0, names.get()));
+  ASSERT_TRUE(san);
+  ncrypto::BIOPointer output = ncrypto::BIOPointer::NewMem();
+  ASSERT_TRUE(output);
+  EXPECT_FALSE(ncrypto::SafeX509SubjectAltNamePrint(output, san.get()));
+  EXPECT_TRUE(BioContents(output).empty());
+}
+
+TEST(NodeCrypto, RejectsEmptyX509AuthorityInfoAccess) {
+  AccessDescriptionsPointer descriptions(sk_ACCESS_DESCRIPTION_new_null());
+  ASSERT_TRUE(descriptions);
+
+  X509ExtensionPointer info_access(
+      X509V3_EXT_i2d(NID_info_access, 0, descriptions.get()));
+  ASSERT_TRUE(info_access);
+  ncrypto::BIOPointer output = ncrypto::BIOPointer::NewMem();
+  ASSERT_TRUE(output);
+  EXPECT_FALSE(ncrypto::SafeX509InfoAccessPrint(output, info_access.get()));
+  EXPECT_TRUE(BioContents(output).empty());
+}
+
+TEST(NodeCrypto, PrintsLongX509ExtensionObjectIdentifiers) {
+  const std::string oid_text = LongObjectIdentifier();
+  ASSERT_GT(oid_text.size(), 256U);
+
+  GeneralNamesPointer names(sk_GENERAL_NAME_new_null());
+  GeneralNamePointer name(GENERAL_NAME_new());
+  ASN1ObjectPointer oid(OBJ_txt2obj(oid_text.c_str(), 1));
+  ASSERT_TRUE(names);
+  ASSERT_TRUE(name);
+  ASSERT_TRUE(oid);
+  GENERAL_NAME_set0_value(name.get(), GEN_RID, oid.release());
+  ASSERT_GT(sk_GENERAL_NAME_push(names.get(), name.get()), 0);
+  name.release();
+
+  X509ExtensionPointer san(
+      X509V3_EXT_i2d(NID_subject_alt_name, 0, names.get()));
+  ASSERT_TRUE(san);
+  ncrypto::BIOPointer output = ncrypto::BIOPointer::NewMem();
+  ASSERT_TRUE(output);
+  ASSERT_TRUE(ncrypto::SafeX509SubjectAltNamePrint(output, san.get()));
+  EXPECT_EQ(BioContents(output), "Registered ID:" + oid_text);
+
+  AccessDescriptionsPointer descriptions(sk_ACCESS_DESCRIPTION_new_null());
+  AccessDescriptionPointer description(ACCESS_DESCRIPTION_new());
+  ASN1ObjectPointer method(OBJ_txt2obj(oid_text.c_str(), 1));
+  ASN1StringPointer uri(ASN1_IA5STRING_new());
+  ASSERT_TRUE(descriptions);
+  ASSERT_TRUE(description);
+  ASSERT_TRUE(method);
+  ASSERT_TRUE(uri);
+  ASSERT_EQ(ASN1_STRING_set(uri.get(), "https://example.com/", -1), 1);
+  ASN1_OBJECT_free(description->method);
+  description->method = method.release();
+  GENERAL_NAME_set0_value(description->location, GEN_URI, uri.release());
+  ASSERT_GT(sk_ACCESS_DESCRIPTION_push(descriptions.get(), description.get()),
+            0);
+  description.release();
+
+  X509ExtensionPointer info_access(
+      X509V3_EXT_i2d(NID_info_access, 0, descriptions.get()));
+  ASSERT_TRUE(info_access);
+  output = ncrypto::BIOPointer::NewMem();
+  ASSERT_TRUE(output);
+  ASSERT_TRUE(ncrypto::SafeX509InfoAccessPrint(output, info_access.get()));
+  std::string expected = oid_text + " - URI:https://example.com/";
+#if NCRYPTO_USE_BORINGSSL
+  expected += "\n";
+#endif
+  EXPECT_EQ(BioContents(output), expected);
+}

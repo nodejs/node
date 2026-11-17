@@ -23,12 +23,11 @@ static int slh_dsa_compute_pk_root(SLH_DSA_HASH_CTX *ctx, SLH_DSA_KEY *out, int 
 static void slh_dsa_key_hash_cleanup(SLH_DSA_KEY *key)
 {
     OPENSSL_free(key->propq);
-    if (key->md_big != key->md)
-        EVP_MD_free(key->md_big);
-    key->md_big = NULL;
+    EVP_MD_free(key->md_sha512);
     EVP_MD_free(key->md);
     EVP_MAC_free(key->hmac);
     key->md = NULL;
+    key->md_sha512 = NULL;
 }
 
 static int slh_dsa_key_hash_init(SLH_DSA_KEY *key)
@@ -45,13 +44,10 @@ static int slh_dsa_key_hash_init(SLH_DSA_KEY *key)
      * SHAKE algorithm(s) use SHAKE for all functions.
      */
     if (is_shake == 0) {
-        if (security_category == 1) {
-            /* For category 1 SHA2-256 is used for all hash operations */
-            key->md_big = key->md;
-        } else {
+        if (security_category != 1) {
             /* Security categories 3 & 5 also need SHA-512 */
-            key->md_big = EVP_MD_fetch(key->libctx, "SHA2-512", key->propq);
-            if (key->md_big == NULL)
+            key->md_sha512 = EVP_MD_fetch(key->libctx, "SHA2-512", key->propq);
+            if (key->md_sha512 == NULL)
                 goto err;
         }
         key->hmac = EVP_MAC_fetch(key->libctx, "HMAC", key->propq);
@@ -59,7 +55,7 @@ static int slh_dsa_key_hash_init(SLH_DSA_KEY *key)
             goto err;
     }
     key->adrs_func = ossl_slh_get_adrs_fn(is_shake == 0);
-    key->hash_func = ossl_slh_get_hash_fn(is_shake);
+    key->hash_func = ossl_slh_get_hash_fn(is_shake, security_category);
     return 1;
 err:
     return 0;
@@ -67,8 +63,8 @@ err:
 
 static void slh_dsa_key_hash_dup(SLH_DSA_KEY *dst, const SLH_DSA_KEY *src)
 {
-    if (src->md_big != NULL && src->md_big != src->md)
-        EVP_MD_up_ref(src->md_big);
+    if (src->md_sha512 != NULL)
+        EVP_MD_up_ref(src->md_sha512);
     if (src->md != NULL)
         EVP_MD_up_ref(src->md);
     if (src->hmac != NULL)
@@ -264,11 +260,11 @@ void ossl_slh_dsa_key_reset(SLH_DSA_KEY *key)
  *                        if it exists.
  * @returns 1 on success, or 0 on failure.
  */
-int ossl_slh_dsa_key_fromdata(SLH_DSA_KEY *key, const OSSL_PARAM params[],
+int ossl_slh_dsa_key_fromdata(SLH_DSA_KEY *key, const OSSL_PARAM *param_pub,
+    const OSSL_PARAM *param_priv,
     int include_private)
 {
     size_t priv_len, key_len, data_len = 0;
-    const OSSL_PARAM *param_priv = NULL, *param_pub = NULL;
     void *p;
 
     if (key == NULL)
@@ -281,7 +277,6 @@ int ossl_slh_dsa_key_fromdata(SLH_DSA_KEY *key, const OSSL_PARAM params[],
 
     /* Private key is optional */
     if (include_private) {
-        param_priv = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PRIV_KEY);
         if (param_priv != NULL) {
             p = key->priv;
             if (!OSSL_PARAM_get_octet_string(param_priv, &p, priv_len, &data_len))
@@ -305,7 +300,6 @@ int ossl_slh_dsa_key_fromdata(SLH_DSA_KEY *key, const OSSL_PARAM params[],
      * the public key, (Keygen must be used for this case currently).
      */
     p = SLH_DSA_PUB(key);
-    param_pub = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PUB_KEY);
     if (param_pub == NULL
         || !OSSL_PARAM_get_octet_string(param_pub, &p, key_len, &data_len)
         || data_len != key_len)
@@ -389,7 +383,9 @@ int ossl_slh_dsa_generate_key(SLH_DSA_HASH_CTX *ctx, SLH_DSA_KEY *out,
             || RAND_bytes_ex(lib_ctx, pub, pk_seed_len, 0) <= 0)
             goto err;
     }
-    if (!slh_dsa_compute_pk_root(ctx, out, 0))
+
+    if (!ossl_slh_dsa_hash_ctx_prehash_pk_seed(ctx, pub, pk_seed_len)
+        || !slh_dsa_compute_pk_root(ctx, out, 0))
         goto err;
     out->pub = pub;
     out->has_priv = 1;
@@ -447,6 +443,11 @@ size_t ossl_slh_dsa_key_get_priv_len(const SLH_DSA_KEY *key)
 size_t ossl_slh_dsa_key_get_n(const SLH_DSA_KEY *key)
 {
     return key->params->n;
+}
+
+int ossl_slh_dsa_key_get_security_category(const SLH_DSA_KEY *key)
+{
+    return key->params->security_category;
 }
 
 size_t ossl_slh_dsa_key_get_sig_len(const SLH_DSA_KEY *key)

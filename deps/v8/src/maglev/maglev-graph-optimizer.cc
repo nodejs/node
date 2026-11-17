@@ -389,8 +389,10 @@ void Subgraph<MaglevGraphOptimizer>::Goto(Label* label) {
 
 void Subgraph<MaglevGraphOptimizer>::Bind(Label* label) {
   DCHECK_NULL(reducer_->current_block());
-  DCHECK_NOT_NULL(label->variable_merge_state_);
+  CHECK_NOT_NULL(label->variable_merge_state_);
+  DCHECK_NULL(label->merge_state_);
   MergePointInterpreterFrameState* merge_state = label->variable_merge_state_;
+  label->variable_merge_state_ = nullptr;
   DCHECK_EQ(merge_state->predecessors_so_far(), label->predecessor_count_);
   DCHECK_GT(label->predecessor_count_, 0);
 
@@ -591,6 +593,20 @@ bool MaglevGraphOptimizer::IsRangeLessEqual(ValueNode* lhs, ValueNode* rhs) {
   return ranges_->IsLessEqualConstraint(reducer_.current_block(), lhs, rhs);
 }
 
+ProcessResult MaglevGraphOptimizer::OverwriteWith(Opcode opcode) {
+  TRACE(TraceColor::kDarkGreen << "Overwriting "
+                               << PrintNodeLabel(current_node()) << " with "
+                               << opcode);
+
+  current_node()->OverwriteWith(opcode);
+
+  // Since we've changed the type of the node, we need to trigger a revisit,
+  // otherwise the next processors would see a stale static type for this node
+  // and will thus wrongly treat it as a node of the old type instead of the new
+  // one.
+  return ProcessResult::kRevisit;
+}
+
 ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
   // If current node is not a value node, we shouldn't try to replace it.
   CHECK(current_node()->Cast<ValueNode>());
@@ -688,11 +704,54 @@ ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(
   }
 }
 
+namespace {
+
+// Returns the type check that `alt` is guaranteed to have already performed
+// on its tagged input node.
+NodeType GuaranteedInputType(UseRepresentation repr, ValueNode* alt) {
+  switch (repr) {
+    case UseRepresentation::kInt32:
+    case UseRepresentation::kFloat64:
+      return NodeType::kNumber;
+    case UseRepresentation::kHoleyFloat64:
+      return NodeType::kNumberOrUndefined;
+    // Unlike Int32/Float64, a Truncate node doesn't have a single fixed check,
+    // it depends on its assumed_input_type.
+    case UseRepresentation::kTruncatedInt32:
+      if (auto* t = alt->TryCast<TruncateCheckedNumberOrOddballToInt32>()) {
+        return t->assumed_input_type();
+      }
+      if (auto* t = alt->TryCast<TruncateUnsafeNumberOrOddballToInt32>()) {
+        return t->assumed_input_type();
+      }
+      return NodeType::kNumberOrOddball;
+    case UseRepresentation::kTagged:
+    case UseRepresentation::kTaggedForNumberToString:
+    case UseRepresentation::kUint32:
+    case UseRepresentation::kNonTruncated:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
+
+bool MaglevGraphOptimizer::CanReuseAlternative(
+    ValueNode* node, ValueNode* alt, UseRepresentation repr,
+    std::optional<NodeType> assumed_input_type) {
+  if (!assumed_input_type.has_value()) return true;
+  // We cannot replace a stricter check with a weaker one, as subsequent
+  // operations might rely on this node to deopt invalid inputs.
+  return reducer_.CheckType(node, *assumed_input_type) ||
+         NodeTypeIs(GuaranteedInputType(repr, alt), *assumed_input_type);
+}
+
 MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
     ValueNode* node, UseRepresentation use_repr,
     std::optional<NodeType> assumed_input_type) {
   DCHECK_NE(use_repr, UseRepresentation::kTagged);
-  if (node->value_representation() == ValueRepresentationFromUse(use_repr)) {
+  if (node->value_representation() == ValueRepresentationFromUse(use_repr) &&
+      CanReuseAlternative(node, node, use_repr, assumed_input_type)) {
     return node;
   }
   if (node->Is<ReturnedValue>()) {
@@ -710,8 +769,11 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
     // Check if we already have a canonical conversion.
     NodeInfo* node_info =
         known_node_aspects().GetOrCreateInfoFor(broker(), node);
-    auto& alternative = node_info->alternative();
-    if (ValueNode* alt = alternative.get(use_repr)) return alt;
+    if (ValueNode* alternative = node_info->alternative().get(use_repr);
+        alternative &&
+        CanReuseAlternative(node, alternative, use_repr, assumed_input_type)) {
+      return alternative;
+    }
     // If `node` is itself tagging an untagged value, convert that value
     // directly instead of untagging the tagged result.
     if (node->is_conversion()) {
@@ -725,6 +787,15 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
   // current_node_ does not have a deopt info.
   if (!CanEagerDeopt()) {
     return {};
+  }
+  if (node->is_holey_float64() && assumed_input_type.has_value() &&
+      NodeTypeIs(*assumed_input_type, NodeType::kNumberOrBoolean)) {
+    // HoleyFloat64 can hold the hole or undefined, whereas the replaced node
+    // checked that the input is a number (or boolean, which cannot occur in
+    // HoleyFloat64). Convert to Float64 first so CheckedHoleyFloat64ToFloat64
+    // preserves the check that subsequent operations may rely on.
+    GET_VALUE_OR_ABORT(
+        node, reducer_.GetFloat64ForToNumber(node, *assumed_input_type));
   }
   switch (use_repr) {
     case UseRepresentation::kInt32:
@@ -2642,7 +2713,7 @@ UNTAGGING_CASE(UnsafeNumberOrOddballToHoleyFloat64, HoleyFloat64,
     REPLACE_AND_RETURN_IF_DONE(GetUntaggedValueWithRepresentation(    \
         node->input_node(0), UseRepresentation::k##Repr, ConvType));  \
     if (reducer_.CheckType(node->input_node(0), ConvType)) {          \
-      node->OverwriteWith(Opcode::k##UnsafeNode);                     \
+      return OverwriteWith(Opcode::k##UnsafeNode);                    \
     }                                                                 \
     return ProcessResult::kContinue;                                  \
   }
@@ -2694,7 +2765,7 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
   // }
   // DCHECK(maybe_input.IsFail());
   if (reducer_.CheckType(node->input_node(0), NodeType::kSmi)) {
-    node->OverwriteWith(Opcode::kUnsafeSmiUntag);
+    return OverwriteWith(Opcode::kUnsafeSmiUntag);
   }
   return ProcessResult::kContinue;
 }
@@ -2716,7 +2787,7 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedNumberToFloat64(
     return ProcessResult::kTruncateBlock;
   }
   if (reducer_.CheckType(node->input_node(0), NodeType::kNumber)) {
-    node->OverwriteWith(Opcode::kUnsafeNumberToFloat64);
+    return OverwriteWith(Opcode::kUnsafeNumberToFloat64);
   }
   return ProcessResult::kContinue;
 }
@@ -2740,7 +2811,7 @@ ProcessResult MaglevGraphOptimizer::VisitUnsafeFloat64ToHoleyFloat64(
   // undefined NaN since the widen was chosen, and widening those would give
   // them back their meaning.
   if (node->ValueInput().node()->MayBeHoleOrUndefinedNan()) {
-    node->OverwriteWith(Opcode::kChangeFloat64ToHoleyFloat64);
+    return OverwriteWith(Opcode::kChangeFloat64ToHoleyFloat64);
   }
   return ProcessResult::kContinue;
 }
@@ -3920,7 +3991,7 @@ ProcessResult MaglevGraphOptimizer::VisitTruncateCheckedNumberAsSafeIntToInt32(
     return ReplaceWith(node->input_node(0)->input_node(0));
   }
   if (reducer_.CheckType(node->input_node(0), NodeType::kNumber)) {
-    node->OverwriteWith(Opcode::kTruncateUnsafeNumberAsSafeIntToInt32);
+    return OverwriteWith(Opcode::kTruncateUnsafeNumberAsSafeIntToInt32);
   }
   return ProcessResult::kContinue;
 }

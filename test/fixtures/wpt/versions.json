@@ -28,7 +28,7 @@
     "path": "fetch/data-urls/resources"
   },
   "FileAPI": {
-    "commit": "7f5130188818b6c12c636491186b459ec2bf131f",
+    "commit": "5878c7a7c0201cef04904f098351825c5c671d3f",
     "path": "FileAPI"
   },
   "hr-time": {
@@ -100,7 +100,7 @@
     "path": "web-locks"
   },
   "WebCryptoAPI": {
-    "commit": "b638c093cd3e1849715130bcd99041f79980bb12",
+    "commit": "e87deca3369c630ca2ade57734c5a42adbbc7e48",
     "path": "WebCryptoAPI"
   },
   "webidl": {

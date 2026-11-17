@@ -206,7 +206,7 @@ class MaglevPhiRepresentationSelector {
       // removed altogether (or rather, replaced by an identity node).
       return UpdateUntaggingOfPhi(
           node->NodeBase::input(0).node()->template Cast<Phi>(),
-          node->template Cast<ValueNode>());
+          node->template Cast<ValueNode>(), state);
     }
     return ProcessResult::kContinue;
   }
@@ -273,7 +273,8 @@ class MaglevPhiRepresentationSelector {
 
   // Updates {old_untagging} to reflect that its Phi input has been untagged and
   // that a different conversion is now needed.
-  ProcessResult UpdateUntaggingOfPhi(Phi* phi, ValueNode* old_untagging);
+  ProcessResult UpdateUntaggingOfPhi(Phi* phi, ValueNode* old_untagging,
+                                     const ProcessingState* state);
 
   ProcessResult EmitUnconditionalDeopt(NodeBase* node, DeoptimizeReason reason);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -27,7 +27,6 @@ typedef enum OPTION_choice {
     OPT_VERIFY,
     OPT_IN,
     OPT_OUT,
-    OPT_ENGINE,
     OPT_KEY,
     OPT_CHALLENGE,
     OPT_PASSIN,
@@ -43,14 +42,11 @@ const OPTIONS spkac_options[] = {
     { "help", OPT_HELP, '-', "Display this summary" },
     { "spksect", OPT_SPKSECT, 's',
         "Specify the name of an SPKAC-dedicated section of configuration" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
-#endif
 
     OPT_SECTION("Input"),
     { "in", OPT_IN, '<', "Input file" },
     { "key", OPT_KEY, '<', "Create SPKAC using private key" },
-    { "keyform", OPT_KEYFORM, 'f', "Private key file format (ENGINE, other values ignored)" },
+    { "keyform", OPT_KEYFORM, 'f', "Private key file format (DER/PEM)" },
     { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
     { "challenge", OPT_CHALLENGE, 's', "Challenge string" },
     { "spkac", OPT_SPKAC, 's', "Alternative SPKAC name" },
@@ -70,7 +66,6 @@ int spkac_main(int argc, char **argv)
 {
     BIO *out = NULL;
     CONF *conf = NULL;
-    ENGINE *e = NULL;
     EVP_PKEY *pkey = NULL;
     NETSCAPE_SPKI *spki = NULL;
     char *challenge = NULL, *keyfile = NULL;
@@ -132,9 +127,6 @@ int spkac_main(int argc, char **argv)
         case OPT_DIGEST:
             digest = opt_arg();
             break;
-        case OPT_ENGINE:
-            e = setup_engine(opt_arg(), 0);
-            break;
         case OPT_PROV_CASES:
             if (!opt_provider(o))
                 goto end;
@@ -147,7 +139,7 @@ int spkac_main(int argc, char **argv)
         goto opthelp;
 
     if (!app_passwd(passinarg, NULL, &passin, NULL)) {
-        BIO_printf(bio_err, "Error getting password\n");
+        BIO_puts(bio_err, "Error getting password\n");
         goto end;
     }
 
@@ -156,23 +148,23 @@ int spkac_main(int argc, char **argv)
             goto end;
 
         pkey = load_key(strcmp(keyfile, "-") ? keyfile : NULL,
-            keyformat, 1, passin, e, "private key");
+            keyformat, 1, passin, "private key");
         if (pkey == NULL)
             goto end;
         spki = NETSCAPE_SPKI_new();
         if (spki == NULL)
             goto end;
         if (challenge != NULL
-            && !ASN1_STRING_set(spki->spkac->challenge,
-                challenge, (int)strlen(challenge)))
+            && !ASN1_STRING_set1_string(spki->spkac->challenge,
+                challenge))
             goto end;
         if (!NETSCAPE_SPKI_set_pubkey(spki, pkey)) {
-            BIO_printf(bio_err, "Error setting public key\n");
+            BIO_puts(bio_err, "Error setting public key\n");
             goto end;
         }
         i = NETSCAPE_SPKI_sign(spki, pkey, md);
         if (i <= 0) {
-            BIO_printf(bio_err, "Error signing SPKAC\n");
+            BIO_puts(bio_err, "Error signing SPKAC\n");
             goto end;
         }
         spkstr = NETSCAPE_SPKI_b64_encode(spki);
@@ -204,7 +196,7 @@ int spkac_main(int argc, char **argv)
     spki = NETSCAPE_SPKI_b64_decode(spkstr, -1);
 
     if (spki == NULL) {
-        BIO_printf(bio_err, "Error loading SPKAC\n");
+        BIO_puts(bio_err, "Error loading SPKAC\n");
         ERR_print_errors(bio_err);
         goto end;
     }
@@ -219,9 +211,9 @@ int spkac_main(int argc, char **argv)
     if (verify) {
         i = NETSCAPE_SPKI_verify(spki, pkey);
         if (i > 0) {
-            BIO_printf(bio_err, "Signature OK\n");
+            BIO_puts(bio_err, "Signature OK\n");
         } else {
-            BIO_printf(bio_err, "Signature Failure\n");
+            BIO_puts(bio_err, "Signature Failure\n");
             ERR_print_errors(bio_err);
             goto end;
         }
@@ -237,7 +229,6 @@ end:
     NETSCAPE_SPKI_free(spki);
     BIO_free_all(out);
     EVP_PKEY_free(pkey);
-    release_engine(e);
     OPENSSL_free(passin);
     return ret;
 }

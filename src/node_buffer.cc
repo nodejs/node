@@ -826,39 +826,27 @@ void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(static_cast<uint64_t>(str->Utf8LengthV2(isolate)));
 }
 
-uint32_t FastByteLengthUtf8(
-    Local<Value> receiver,
-    Local<Value> sourceValue,
-    FastApiCallbackOptions& options) {  // NOLINT(runtime/references)
-  TRACK_V8_FAST_API_CALL("Buffer::FastByteLengthUtf8");
-  auto isolate = options.isolate;
-  HandleScope handleScope(isolate);
-  CHECK(sourceValue->IsString());
-  Local<String> sourceStr = sourceValue.As<String>();
+// The fast API's slow fallback must not flatten strings either: it uses the
+// same unsupported lazy-deoptimization continuation as the fast callback.
+// Return a Smi sentinel so JavaScript can make a separate ordinary API call.
+void ByteLengthUtf8FastFallback(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(-1);
+}
 
-  if (!sourceStr->IsExternalOneByte()) {
-    // Below ~512 units, or for one-byte, V8's Utf8LengthV2 is faster.
-    if (sourceStr->Length() >= 512 && !sourceStr->IsOneByte()) {
-      String::ValueView view(isolate, sourceStr);
-      if (!view.is_one_byte()) {
-        // with_replacement matches Buffer.from's U+FFFD for lone surrogates.
-        return simdutf::utf8_length_from_utf16_with_replacement(
-                   reinterpret_cast<const char16_t*>(view.data16()),
-                   view.length())
-            .count;
-      }
-    }
-    return sourceStr->Utf8LengthV2(isolate);
-  }
-  auto source = sourceStr->GetExternalOneByteStringResource();
+int32_t FastByteLengthUtf8(Local<Value> receiver,
+                           const FastOneByteString& source) {
+  TRACK_V8_FAST_API_CALL("Buffer::FastByteLengthUtf8");
+  // Even two UTF-8 bytes per Latin-1 code unit fit in a 31-bit Smi.
+  static_assert(String::kMaxLength <= INT32_MAX / 4);
   // For short inputs, the function call overhead to simdutf is maybe
   // not worth it, reserve simdutf for long strings.
-  if (source->length() > 128) {
-    return simdutf::utf8_length_from_latin1(source->data(), source->length());
+  if (source.length > 128) {
+    return static_cast<int32_t>(
+        simdutf::utf8_length_from_latin1(source.data, source.length));
   }
 
-  uint32_t length = source->length();
-  const auto input = reinterpret_cast<const uint8_t*>(source->data());
+  uint32_t length = source.length;
+  const auto input = reinterpret_cast<const uint8_t*>(source.data);
 
   uint32_t answer = length;
   uint32_t i = 0;
@@ -889,7 +877,7 @@ uint32_t FastByteLengthUtf8(
     answer += input[i] >> 7;
   }
 
-  return answer;
+  return static_cast<int32_t>(answer);
 }
 
 static CFunction fast_byte_length_utf8(CFunction::Make(FastByteLengthUtf8));
@@ -2029,10 +2017,11 @@ void Initialize(Local<Object> target,
 
   SetMethod(context, target, "setBufferPrototype", SetBufferPrototype);
 
+  SetMethodNoSideEffect(context, target, "byteLengthUtf8", SlowByteLengthUtf8);
   SetFastMethodNoSideEffect(context,
                             target,
-                            "byteLengthUtf8",
-                            SlowByteLengthUtf8,
+                            "byteLengthUtf8Fast",
+                            ByteLengthUtf8FastFallback,
                             &fast_byte_length_utf8);
   SetFastMethod(context, target, "copy", SlowCopy, &fast_copy);
   SetFastMethodNoSideEffect(context, target, "compare", Compare, &fast_compare);
@@ -2123,6 +2112,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetBufferPrototype);
 
   registry->Register(SlowByteLengthUtf8);
+  registry->Register(ByteLengthUtf8FastFallback);
   registry->Register(fast_byte_length_utf8);
   registry->Register(SlowCopy);
   registry->Register(fast_copy);

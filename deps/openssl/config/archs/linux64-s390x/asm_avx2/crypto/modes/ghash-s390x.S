@@ -1,4 +1,4 @@
-#include "s390x_arch.h"
+#include "arch/s390x_arch.h"
 
 .text
 
@@ -155,4 +155,4 @@ rem_4bit:
 	.long	152567808,0,148504576,0,177995776,0,190709760,0
 .type	rem_4bit,@object
 .size	rem_4bit,(.-rem_4bit)
-.string	"GHASH for s390x, CRYPTOGAMS by <appro@openssl.org>"
+.string	"GHASH for s390x, CRYPTOGAMS by <https://github.com/dot-asm>"

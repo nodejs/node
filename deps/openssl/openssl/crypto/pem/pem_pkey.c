@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,8 +7,10 @@
  * https://www.openssl.org/source/license.html
  */
 
-/* We need to use some deprecated APIs */
-#define OPENSSL_SUPPRESS_DEPRECATED
+/*
+ * We need to use some deprecated APIs
+ */
+#include "internal/deprecated.h"
 
 #include <stdio.h>
 #include <openssl/buffer.h>
@@ -17,7 +19,6 @@
 #include <openssl/x509.h>
 #include <openssl/pkcs12.h>
 #include <openssl/pem.h>
-#include <openssl/engine.h>
 #include <openssl/dh.h>
 #include <openssl/decoder.h>
 #include <openssl/ui.h>
@@ -173,7 +174,7 @@ static EVP_PKEY *pem_read_bio_key_legacy(BIO *bp, EVP_PKEY **x,
         PKCS8_PRIV_KEY_INFO_free(p8inf);
     } else if ((slen = ossl_pem_check_suffix(nm, "PRIVATE KEY")) > 0) {
         const EVP_PKEY_ASN1_METHOD *ameth;
-        ameth = EVP_PKEY_asn1_find_str(NULL, nm, slen);
+        ameth = evp_pkey_asn1_find_str(nm, slen);
         if (ameth == NULL || ameth->old_priv_decode == NULL)
             goto p8err;
         ret = ossl_d2i_PrivateKey_legacy(ameth->pkey_id, x, &p, len, libctx,
@@ -359,7 +360,7 @@ int PEM_write_bio_PrivateKey_traditional(BIO *bp, const EVP_PKEY *x,
         EVP_PKEY_free(copy);
         return 0;
     }
-    BIO_snprintf(pem_str, 80, "%s PRIVATE KEY", x->ameth->pem_str);
+    snprintf(pem_str, 80, "%s PRIVATE KEY", x->ameth->pem_str);
     ret = PEM_ASN1_write_bio((i2d_of_void *)i2d_PrivateKey,
         pem_str, bp, x, enc, kstr, klen, cb, u);
 
@@ -399,7 +400,7 @@ legacy:
     if (!x->ameth || !x->ameth->param_encode)
         return 0;
 
-    BIO_snprintf(pem_str, 80, "%s PARAMETERS", x->ameth->pem_str);
+    snprintf(pem_str, 80, "%s PARAMETERS", x->ameth->pem_str);
     return PEM_ASN1_write_bio((i2d_of_void *)x->ameth->param_encode,
         pem_str, out, x, NULL, NULL, 0, 0, NULL);
 }

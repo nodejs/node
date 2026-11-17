@@ -197,8 +197,8 @@ function parseMetadata (metadata) {
   /** @type {MetadataList} */
   const result = []
 
-  // 2. For each item returned by splitting metadata on spaces:
-  for (const item of metadata.split(' ')) {
+  // 2. For each item returned by splitting metadata on ASCII whitespace:
+  for (const item of metadata.split(/[\t\n\f\r ]+/)) {
     // 1. Let expression-and-options be the result of splitting item on U+003F (?).
     const expressionAndOptions = item.split('?', 1)
 

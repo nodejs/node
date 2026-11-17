@@ -92,7 +92,10 @@ class DeoptimizationLiteral {
     return literal;
   }
 
-  IndirectHandle<Object> object() const { return object_; }
+  bool IsObject(IndirectHandle<Object> object) const {
+    return kind_ == DeoptimizationLiteralKind::kObject &&
+           object_.equals(object);
+  }
 
   bool operator==(const DeoptimizationLiteral& other) const {
     if (kind_ != other.kind_) {

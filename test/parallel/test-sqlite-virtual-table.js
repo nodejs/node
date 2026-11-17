@@ -622,6 +622,115 @@ suite('Database.prototype.createModule()', () => {
       assert.deepStrictEqual(cleanedUp, [1, 2]);
     });
 
+    test('does not call return() on a normally exhausted iterator', () => {
+      // Once next() reports `done: true` the iterator is finished, so no
+      // cleanup should run. A throwing return() must not fail an otherwise
+      // successful query. Matches `for...of`, which only calls return() on
+      // abrupt termination.
+      const db = new Database(':memory:');
+      let returnCalls = 0;
+      function cleanup() {
+        returnCalls++;
+        throw new Error('cleanup boom');
+      }
+      for (const [label, makeRows] of [
+        ['empty', () => {
+          return {
+            [Symbol.iterator]() { return this; },
+            next() { return { value: [], done: true }; },
+            return: cleanup,
+          };
+        }],
+        ['fully_consumed', () => {
+          let i = 0;
+          return {
+            [Symbol.iterator]() { return this; },
+            next() { return { value: [i++], done: i > 2 }; },
+            return: cleanup,
+          };
+        }],
+      ]) {
+        db.createModule(`exhausted_${label}`, {
+          columns: [{ name: 'v', type: 'INTEGER' }],
+          rows: makeRows,
+        });
+
+        const rows = db.prepare(`SELECT v FROM exhausted_${label}`).all();
+        assert.deepStrictEqual(
+          rows.map((row) => row.v),
+          label === 'empty' ? [] : [0, 1]);
+      }
+      assert.strictEqual(returnCalls, 0);
+    });
+
+    test('does not call return() on an exhausted iterator when re-filtered', () => {
+      // A scalar subquery drains the inner iterator for each outer row, so
+      // xFilter re-filters a cursor whose iterator already reported done.
+      const db = new Database(':memory:');
+      let returnCalls = 0;
+
+      db.createModule('exhausted_refilter', {
+        columns: [
+          { name: 'v', type: 'INTEGER' },
+          { name: 'input', type: 'INTEGER', hidden: true },
+        ],
+        rows() {
+          let i = 0;
+          return {
+            [Symbol.iterator]() { return this; },
+            next() { return { value: [i++], done: i > 2 }; },
+            return() {
+              returnCalls++;
+              throw new Error('cleanup boom');
+            },
+          };
+        },
+      });
+
+      db.exec('CREATE TABLE t(a); INSERT INTO t VALUES (1), (2), (3)');
+      const rows = db.prepare(
+        'SELECT a, (SELECT count(*) FROM exhausted_refilter(t.a)) AS c FROM t'
+      ).all();
+      assert.deepStrictEqual(rows, [
+        { __proto__: null, a: 1, c: 2 },
+        { __proto__: null, a: 2, c: 2 },
+        { __proto__: null, a: 3, c: 2 },
+      ]);
+      assert.strictEqual(returnCalls, 0);
+    });
+
+    test('does not call return() after an iterator protocol error', () => {
+      // `for...of` does not close an iterator whose next() is invalid, so the
+      // protocol error is reported and return() is never called.
+      const db = new Database(':memory:');
+      let returnCalls = 0;
+      for (const [label, next, message] of [
+        ['next_not_function', 5,
+         /iterator must have a next\(\) method/],
+        ['next_non_object', () => 42,
+         /iterator's next\(\) method must return an object/],
+      ]) {
+        db.createModule(`protocol_${label}`, {
+          columns: [{ name: 'v', type: 'INTEGER' }],
+          rows() {
+            return {
+              [Symbol.iterator]() { return this; },
+              next,
+              return() {
+                returnCalls++;
+                throw new Error('cleanup boom');
+              },
+            };
+          },
+        });
+
+        assert.throws(
+          () => db.prepare(`SELECT v FROM protocol_${label}`).all(),
+          { code: 'ERR_SQLITE_ERROR', message });
+      }
+      assert.strictEqual(returnCalls, 0);
+    });
+
     test('does not run cleanup when the statement is collected', () => {
       // The destructor runs from a GC callback, where JavaScript cannot be
       // executed. An abandoned generator does not run `finally` in JavaScript

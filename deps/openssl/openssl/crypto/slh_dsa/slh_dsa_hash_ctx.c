@@ -11,6 +11,8 @@
 #include "slh_dsa_local.h"
 #include "slh_dsa_key.h"
 #include <openssl/evp.h>
+#include <openssl/sha.h>
+#include "crypto/evp.h"
 
 /**
  * @brief Create a SLH_DSA_HASH_CTX that contains parameters, functions, and
@@ -31,23 +33,10 @@ SLH_DSA_HASH_CTX *ossl_slh_dsa_hash_ctx_new(const SLH_DSA_KEY *key)
         return NULL;
 
     ret->key = key;
-    ret->md_ctx = EVP_MD_CTX_new();
-    if (ret->md_ctx == NULL)
+    if (key->pub != NULL
+        && !ossl_slh_dsa_hash_ctx_prehash_pk_seed(ret, SLH_DSA_PK_SEED(key), key->params->n))
         goto err;
-    if (EVP_DigestInit_ex2(ret->md_ctx, key->md, NULL) != 1)
-        goto err;
-    if (key->md_big != NULL) {
-        /* Gets here for SHA2 algorithms */
-        if (key->md_big == key->md) {
-            ret->md_big_ctx = ret->md_ctx;
-        } else {
-            /* Only gets here for SHA2 */
-            ret->md_big_ctx = EVP_MD_CTX_new();
-            if (ret->md_big_ctx == NULL)
-                goto err;
-            if (EVP_DigestInit_ex2(ret->md_big_ctx, key->md_big, NULL) != 1)
-                goto err;
-        }
+    if (!key->params->is_shake) {
         if (key->hmac != NULL) {
             ret->hmac_ctx = EVP_MAC_CTX_new(key->hmac);
             if (ret->hmac_ctx == NULL)
@@ -76,17 +65,8 @@ SLH_DSA_HASH_CTX *ossl_slh_dsa_hash_ctx_dup(const SLH_DSA_HASH_CTX *src)
     /* Note that the key is not ref counted, since it does not own the key */
     ret->key = src->key;
 
-    if (src->md_ctx != NULL
-        && (ret->md_ctx = EVP_MD_CTX_dup(src->md_ctx)) == NULL)
+    if (!src->key->hash_func->prehash_dup(ret, src))
         goto err;
-    if (src->md_big_ctx != NULL) {
-        if (src->md_big_ctx != src->md_ctx) {
-            if ((ret->md_big_ctx = EVP_MD_CTX_dup(src->md_big_ctx)) == NULL)
-                goto err;
-        } else {
-            ret->md_big_ctx = ret->md_ctx;
-        }
-    }
     if (src->hmac_ctx != NULL
         && (ret->hmac_ctx = EVP_MAC_CTX_dup(src->hmac_ctx)) == NULL)
         goto err;
@@ -94,6 +74,19 @@ SLH_DSA_HASH_CTX *ossl_slh_dsa_hash_ctx_dup(const SLH_DSA_HASH_CTX *src)
 err:
     ossl_slh_dsa_hash_ctx_free(ret);
     return NULL;
+}
+
+/**
+ * @brief Cache the pk seed.
+ * SLH_DSA performs a large number of hash operations that consist of either
+ *  SHAKE256(PK.seed || .. ) OR
+ *  SHA256(PK.seed || toByte(0, 64 - n) || ...)
+ * So cache this value and reuse it as the starting point for many hash functions.
+ */
+int ossl_slh_dsa_hash_ctx_prehash_pk_seed(SLH_DSA_HASH_CTX *ctx,
+    const uint8_t *pkseed, size_t n)
+{
+    return ctx->key->hash_func->prehash_pk_seed(ctx, pkseed, n);
 }
 
 /**
@@ -105,10 +98,9 @@ void ossl_slh_dsa_hash_ctx_free(SLH_DSA_HASH_CTX *ctx)
 {
     if (ctx == NULL)
         return;
-    EVP_MD_CTX_free(ctx->md_ctx);
-    if (ctx->md_big_ctx != ctx->md_ctx)
-        EVP_MD_CTX_free(ctx->md_big_ctx);
+    OPENSSL_clear_free(ctx->shactx, ctx->shactx_len);
+    OPENSSL_clear_free(ctx->shactx_pkseed, ctx->shactx_len);
+    OPENSSL_clear_free(ctx->scratch, ctx->scratch_len);
     EVP_MAC_CTX_free(ctx->hmac_ctx);
-    /* Erases the |scratch| hash intermediates */
-    OPENSSL_clear_free(ctx, sizeof(*ctx));
+    OPENSSL_free(ctx);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,22 +12,35 @@
 #pragma once
 
 #ifdef WINDOWS
-#if !defined(_WIN32_WCE) && !defined(_WIN32_WINNT)
+#if !defined(_WIN32_WINNT)
 /*
- * Defining _WIN32_WINNT here in e_winsock.h implies certain "discipline."
- * Most notably we ought to check for availability of each specific
- * routine that was introduced after denoted _WIN32_WINNT with
- * GetProcAddress(). Normally newer functions are masked with higher
- * _WIN32_WINNT in SDK headers. So that if you wish to use them in
- * some module, you'd need to override _WIN32_WINNT definition in
- * the target module in order to "reach for" prototypes, but replace
- * calls to new functions with indirect calls. Alternatively it
- * might be possible to achieve the goal by /DELAYLOAD-ing .DLLs
- * and check for current OS version instead.
+ * The _WIN32_WINNT is described here:
+ * https://learn.microsoft.com/en-us/cpp/porting/modifying-winver-and-win32-winnt?view=msvc-170
+ * In a nutshell the macro defines minimal required Windows version where
+ * the resulting application is guaranteed to run on. If left undefined here,
+ * then the definition is provided by the Windows SDK found on host where
+ * application is being built.
+ *
+ * OpenSSL defaults to version 0x501, which matches Windows XP, meaning the
+ * compiled library will use APIs available on Windows XP and later.  User may
+ * override the version specified here at build time using command as
+ * follows:
+ *     perl ./Configure "-D_WIN32_WINNT=0x...." ...
+ *
+ * The list of recognized constants (as found in the link above) is as follows:
+ * 	0x0400 // Windows NT 4.0
+ *	0x0500 // Windows 2000
+ *	0x0501 // Windows XP
+ *	0x0502 // Windows Server 2003
+ *	0x0600 // Windows Vista, Windows Server 2008, Windows Vista
+ *	0x0601 // Windows 7
+ *	0x0602 // Windows 8
+ *	0x0603 // Windows 8.1
+ *	0x0A00 // Windows 10
  */
 #define _WIN32_WINNT 0x0501
 #endif
-#if defined(_WIN32_WINNT) || defined(_WIN32_WCE)
+#if defined(_WIN32_WINNT)
 /*
  * Just like defining _WIN32_WINNT including winsock2.h implies
  * certain "discipline" for maintaining [broad] binary compatibility.

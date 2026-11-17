@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -96,15 +96,16 @@ int ossl_quic_gen_rand_conn_id(OSSL_LIB_CTX *libctx, size_t len,
 
 #define QUIC_MIN_INITIAL_DGRAM_LEN 1200
 
+#define QUIC_MAX_MAX_UDP_PAYLOAD_SIZE 65527 /* RFC 9000 s. 18.2 */
+#define QUIC_DEFAULT_MAX_UDP_PAYLOAD_SIZE QUIC_MAX_MAX_UDP_PAYLOAD_SIZE
+
 #define QUIC_DEFAULT_ACK_DELAY_EXP 3
 #define QUIC_MAX_ACK_DELAY_EXP 20
 
 #define QUIC_DEFAULT_MAX_ACK_DELAY 25
+#define QUIC_MAX_MAX_ACK_DELAY 16383 /* RFC 9000 s. 18.2 */
 
 #define QUIC_MIN_ACTIVE_CONN_ID_LIMIT 2
-
-/* Arbitrary choice of default idle timeout (not an RFC value). */
-#define QUIC_DEFAULT_IDLE_TIMEOUT 30000
 
 #define QUIC_STATELESS_RESET_TOKEN_LEN 16
 

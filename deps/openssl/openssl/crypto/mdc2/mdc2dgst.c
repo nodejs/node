@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,18 +19,7 @@
 #include <openssl/crypto.h>
 #include <openssl/des.h>
 #include <openssl/mdc2.h>
-
-#undef c2l
-#define c2l(c, l) (l = ((DES_LONG)(*((c)++))), \
-    l |= ((DES_LONG)(*((c)++))) << 8L,         \
-    l |= ((DES_LONG)(*((c)++))) << 16L,        \
-    l |= ((DES_LONG)(*((c)++))) << 24L)
-
-#undef l2c
-#define l2c(l, c) (*((c)++) = (unsigned char)(((l)) & 0xff), \
-    *((c)++) = (unsigned char)(((l) >> 8L) & 0xff),          \
-    *((c)++) = (unsigned char)(((l) >> 16L) & 0xff),         \
-    *((c)++) = (unsigned char)(((l) >> 24L) & 0xff))
+#include "internal/common.h"
 
 static void mdc2_body(MDC2_CTX *c, const unsigned char *in, size_t len);
 int MDC2_Init(MDC2_CTX *c)

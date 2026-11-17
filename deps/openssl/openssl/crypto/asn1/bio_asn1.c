@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -252,11 +252,16 @@ static int asn1_bio_flush_ex(BIO *b, BIO_ASN1_BUF_CTX *ctx,
     asn1_ps_func *cleanup, asn1_bio_state_t next)
 {
     int ret;
+    BIO *next_bio = BIO_next(b);
 
     if (ctx->ex_len <= 0)
         return 1;
+    if (next_bio == NULL)
+        return 0;
     for (;;) {
-        ret = BIO_write(BIO_next(b), ctx->ex_buf + ctx->ex_pos, ctx->ex_len);
+        ret = BIO_write(next_bio, ctx->ex_buf + ctx->ex_pos, ctx->ex_len);
+        BIO_clear_retry_flags(b);
+        BIO_copy_next_retry(b);
         if (ret <= 0)
             break;
         ctx->ex_len -= ret;
@@ -291,23 +296,36 @@ static int asn1_bio_setup_ex(BIO *b, BIO_ASN1_BUF_CTX *ctx,
 
 static int asn1_bio_read(BIO *b, char *in, int inl)
 {
+    int ret = 0;
     BIO *next = BIO_next(b);
     if (next == NULL)
         return 0;
-    return BIO_read(next, in, inl);
+    ret = BIO_read(next, in, inl);
+    BIO_clear_retry_flags(b);
+    BIO_copy_next_retry(b);
+    return ret;
 }
 
 static int asn1_bio_puts(BIO *b, const char *str)
 {
-    return asn1_bio_write(b, str, strlen(str));
+    size_t len = strlen(str);
+
+    if (len > INT_MAX)
+        return -1;
+
+    return asn1_bio_write(b, str, (int)len);
 }
 
 static int asn1_bio_gets(BIO *b, char *str, int size)
 {
+    int ret = 0;
     BIO *next = BIO_next(b);
     if (next == NULL)
         return 0;
-    return BIO_gets(next, str, size);
+    ret = BIO_gets(next, str, size);
+    BIO_clear_retry_flags(b);
+    BIO_copy_next_retry(b);
+    return ret;
 }
 
 static long asn1_bio_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
@@ -363,6 +381,14 @@ static long asn1_bio_ctrl(BIO *b, int cmd, long arg1, void *arg2)
         *(void **)arg2 = ctx->ex_arg;
         break;
 
+    case BIO_C_DO_STATE_MACHINE:
+        if (next == NULL)
+            return 0;
+        BIO_clear_retry_flags(b);
+        ret = BIO_ctrl(next, cmd, arg1, arg2);
+        BIO_copy_next_retry(b);
+        break;
+
     case BIO_CTRL_FLUSH:
         if (next == NULL)
             return 0;
@@ -381,12 +407,23 @@ static long asn1_bio_ctrl(BIO *b, int cmd, long arg1, void *arg2)
                 return ret;
         }
 
-        if (ctx->state == ASN1_STATE_DONE)
-            return BIO_ctrl(next, cmd, arg1, arg2);
-        else {
-            BIO_clear_retry_flags(b);
+        BIO_clear_retry_flags(b);
+        if (ctx->state == ASN1_STATE_DONE) {
+            ret = BIO_ctrl(next, cmd, arg1, arg2);
+            BIO_copy_next_retry(b);
+            return ret;
+        } else {
             return 0;
         }
+
+    case BIO_CTRL_EOF:
+        /*
+         * If there is no next BIO, BIO_read() returns 0, which means EOF.
+         * BIO_eof() should return 1 in this case.
+         */
+        if (next == NULL)
+            return 1;
+        return BIO_ctrl(next, cmd, arg1, arg2);
 
     default:
         if (next == NULL)

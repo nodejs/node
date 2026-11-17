@@ -30,8 +30,7 @@ bool IC::IsHandler(Tagged<MaybeObject> object) {
   Tagged<HeapObject> heap_object;
   return (IsSmi(object) && (object.ptr() != kNullAddress)) ||
          (object.GetHeapObjectIfWeak(&heap_object) &&
-          (IsMap(heap_object) || IsPropertyCell(heap_object) ||
-           IsAccessorPair(heap_object))) ||
+          (IsMap(heap_object) || IsAccessorPair(heap_object))) ||
          (object.GetHeapObjectIfStrong(&heap_object) &&
           (IsDataHandler(heap_object) || IsCode(heap_object)));
 }

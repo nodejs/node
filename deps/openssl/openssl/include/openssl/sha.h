@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -31,7 +31,7 @@ extern "C" {
  * ! SHA_LONG has to be at least 32 bits wide.                    !
  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  */
-#define SHA_LONG unsigned int
+typedef unsigned int SHA_LONG;
 
 #define SHA_LBLOCK 16
 #define SHA_CBLOCK (SHA_LBLOCK * 4) /* SHA treats input data as a      \
@@ -60,10 +60,11 @@ unsigned char *SHA1(const unsigned char *d, size_t n, unsigned char *md);
                                         * big-endian values. */
 
 typedef struct SHA256state_st {
-    SHA_LONG h[8];
-    SHA_LONG Nl, Nh;
-    SHA_LONG data[SHA_LBLOCK];
-    unsigned int num, md_len;
+    SHA_LONG h[8]; /* Hash values (32 bytes) */
+    SHA_LONG Nl, Nh; /* The length of the message in bits is stored into 64 bits */
+    SHA_LONG data[SHA_LBLOCK]; /* Buffer used to store input less than 512 bits */
+    unsigned int num; /* The size of the partial buffered input in data[] */
+    unsigned int md_len; /* The output size (used for truncation) */
 } SHA256_CTX;
 
 OSSL_DEPRECATEDIN_3_0 int SHA224_Init(SHA256_CTX *c);
@@ -100,11 +101,11 @@ unsigned char *SHA256(const unsigned char *d, size_t n, unsigned char *md);
  */
 #define SHA512_CBLOCK (SHA_LBLOCK * 8)
 #if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
-#define SHA_LONG64 unsigned __int64
+typedef unsigned __int64 SHA_LONG64;
 #elif defined(__arch64__)
-#define SHA_LONG64 unsigned long
+typedef unsigned long SHA_LONG64;
 #else
-#define SHA_LONG64 unsigned long long
+typedef unsigned long long SHA_LONG64;
 #endif
 
 typedef struct SHA512state_st {

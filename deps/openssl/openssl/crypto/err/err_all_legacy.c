@@ -27,7 +27,6 @@
 #include "crypto/dsaerr.h"
 #include "internal/dsoerr.h"
 #include "crypto/ecerr.h"
-#include "crypto/engineerr.h"
 #include "crypto/evperr.h"
 #include "crypto/httperr.h"
 #include "crypto/objectserr.h"
@@ -81,9 +80,6 @@ IMPLEMENT_LEGACY_ERR_LOAD(DSA)
 #endif
 #ifndef OPENSSL_NO_EC
 IMPLEMENT_LEGACY_ERR_LOAD(EC)
-#endif
-#ifndef OPENSSL_NO_ENGINE
-IMPLEMENT_LEGACY_ERR_LOAD(ENGINE)
 #endif
 IMPLEMENT_LEGACY_ERR_LOAD(ERR)
 IMPLEMENT_LEGACY_ERR_LOAD(EVP)

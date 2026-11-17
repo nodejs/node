@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,10 @@
 #define OSSL_QUIC_TRACE_H
 
 #ifndef OPENSSL_NO_QUIC
+
+#include <stddef.h>
+
+#include <openssl/ssl.h>
 
 int ossl_quic_trace(int write_p, int version, int content_type,
     const void *buf, size_t msglen, SSL *ssl, void *arg);

@@ -1,4 +1,4 @@
-#include "mips_arch.h"
+#include "arch/mips_arch.h"
 
 .text
 
@@ -279,4 +279,4 @@ bn_mul_mont_internal:
 	daddu $29,14*8
 .end	bn_mul_mont_internal
 .rdata
-.asciiz	"Montgomery Multiplication for MIPS, CRYPTOGAMS by <appro@openssl.org>"
+.asciiz	"Montgomery Multiplication for MIPS, CRYPTOGAMS by <https://github.com/dot-asm>"

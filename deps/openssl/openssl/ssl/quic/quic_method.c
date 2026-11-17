@@ -11,6 +11,16 @@
 #include <openssl/objects.h>
 #include "quic_local.h"
 
+/*
+ * NOTE: An endpoint method can be used to create a quic connection
+ * for use as a client or server, based on a subsequent call to
+ * SSL_set_[accept|connect]_state
+ */
+IMPLEMENT_quic_meth_func(OSSL_QUIC_ANY_VERSION,
+    OSSL_QUIC_method,
+    ssl_undefined_function,
+    ossl_quic_connect, ssl3_undef_enc_method)
+
 IMPLEMENT_quic_meth_func(OSSL_QUIC_ANY_VERSION,
     OSSL_QUIC_client_method,
     ssl_undefined_function,

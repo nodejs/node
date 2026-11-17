@@ -133,7 +133,7 @@ void Environment::ResetPromiseHooks(Local<Function> init,
 void AsyncHooks::push_async_context(
     double async_id,
     double trigger_async_id,
-    std::variant<Local<Object>*, Global<Object>*> resource) {
+    const std::variant<Local<Object>*, Global<Object>*>& resource) {
   std::visit([](auto* ptr) { CHECK_IMPLIES(ptr != nullptr, !ptr->IsEmpty()); },
              resource);
 
@@ -161,9 +161,13 @@ void AsyncHooks::push_async_context(
   // False positive: https://github.com/cpplint/cpplint/issues/410
   // NOLINTNEXTLINE(whitespace/newline)
   if (std::visit([](auto* ptr) { return ptr != nullptr; }, resource)) {
-    native_execution_async_resources_.resize(offset + 1);
     // Caveat: This is a v8::Local<>* assignment, we do not keep a v8::Global<>!
-    native_execution_async_resources_[offset] = resource;
+    if (native_execution_async_resources_.size() == offset) {
+      native_execution_async_resources_.push_back(resource);
+    } else {
+      native_execution_async_resources_.resize(offset + 1);
+      native_execution_async_resources_[offset] = resource;
+    }
   }
 }
 
@@ -196,7 +200,11 @@ bool AsyncHooks::pop_async_context(double async_id) {
                  native_execution_async_resources_[i]);
     }
 #endif
-    native_execution_async_resources_.resize(offset);
+    if (native_execution_async_resources_.size() == offset + 1) {
+      native_execution_async_resources_.pop_back();
+    } else {
+      native_execution_async_resources_.resize(offset);
+    }
     native_execution_async_resources_.shrink_to_fit();
   }
 
@@ -987,12 +995,10 @@ Environment::Environment(IsolateData* isolate_data,
                      : thread_id.id),
       thread_name_(thread_name) {
   isolate_data->AddEnvironment();
-#if HAVE_OPENSSL && NCRYPTO_USE_OPENSSL3_PROVIDER
+#if HAVE_OPENSSL && !NCRYPTO_USE_BORINGSSL
   provider_digest_cache = std::make_unique<ncrypto::DigestCache>();
   provider_cipher_cache = std::make_unique<ncrypto::CipherCache>();
-#if OPENSSL_WITH_EVP_MAC
   provider_mac_cache = std::make_unique<ncrypto::MacCache>();
-#endif
 #endif
 
   if (!is_main_thread()) {
@@ -1103,7 +1109,9 @@ Environment::Environment(IsolateData* isolate_data,
   if (options_->permission || options_->permission_audit) {
     permission()->EnablePermissions();
     static const std::array args = {std::string("*")};
-    if (options_->permission_audit) {
+    // --permission takes precedence over --permission-audit.
+    const bool audit_only = options_->permission_audit && !options_->permission;
+    if (audit_only) {
       permission()->EnableWarningOnly();
     }
     // The process shouldn't be able to neither
@@ -1113,7 +1121,7 @@ Environment::Environment(IsolateData* isolate_data,
       // In audit mode addon loading must stay enabled: the denial is
       // published through the diagnostics channel by the permission
       // check in DLOpen() instead of being rejected upfront.
-      if (!options_->permission_audit) {
+      if (!audit_only) {
         options_->allow_native_addons = false;
       }
       permission()->Apply(this, args, permission::PermissionScope::kAddon);
@@ -1169,7 +1177,7 @@ Environment::Environment(IsolateData* isolate_data,
         }
       }
 
-      if (first_argv != "inspect") {
+      if (!first_argv.empty() && first_argv != "-" && first_argv != "inspect") {
         options_->allow_fs_read.push_back(first_argv);
       }
     }
@@ -1258,6 +1266,7 @@ Environment::~Environment() {
   if (heap_profile_near_heap_limit_callback_added_) {
     RemoveHeapProfileNearHeapLimitCallback(0);
   }
+  RemovePointerCompressionHeapWarningCallback();
 
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
@@ -1291,7 +1300,7 @@ Environment::~Environment() {
     // environment-owned methods before unloading any addon DSOs.
     provider_digest_cache.reset();
     provider_cipher_cache.reset();
-#if OPENSSL_WITH_EVP_MAC
+#if !NCRYPTO_USE_BORINGSSL
     provider_mac_cache.reset();
 #endif
 #endif
@@ -1385,7 +1394,9 @@ void Environment::InitializeCompileCache() {
 }
 
 CompileCacheEnableResult Environment::EnableCompileCache(
-    const std::string& cache_dir, EnableOption option) {
+    const std::string& cache_dir,
+    EnableOption option,
+    const std::string& key_root) {
   CompileCacheEnableResult result;
   std::string disable_env;
   if (credentials::SafeGetenv(
@@ -1402,7 +1413,7 @@ CompileCacheEnableResult Environment::EnableCompileCache(
   if (!compile_cache_handler_) {
     std::unique_ptr<CompileCacheHandler> handler =
         std::make_unique<CompileCacheHandler>(this);
-    result = handler->Enable(this, cache_dir, option);
+    result = handler->Enable(this, cache_dir, option, key_root);
     if (result.status == CompileCacheEnableStatus::ENABLED) {
       compile_cache_handler_ = std::move(handler);
       AtExit(
@@ -2329,6 +2340,84 @@ void Environment::TracePromises(PromiseHookType type,
   // TODO(joyeecheung): we can dump the native stack trace too if the
   // JS stack trace is empty i.e. it may be resolved on the native side.
   PrintCurrentStackTrace(isolate);
+}
+
+bool Environment::ShouldWarnAboutPointerCompressionHeap() const {
+#if defined(V8_COMPRESS_POINTERS)
+  // The cage already enforces the limit, so there is nothing to warn about.
+  return false;
+#else
+  // 32-bit address spaces cannot hold a 4 GiB heap in the first place.
+  // --no-warnings and --disable-warning are not checked here: like every
+  // other process warning, they only suppress the default stderr output, and
+  // 'warning' listeners still receive the event.
+  return sizeof(void*) == 8;
+#endif
+}
+
+void Environment::AddPointerCompressionHeapWarningCallback() {
+  if (pointer_compression_heap_warning_callback_added_) return;
+  pointer_compression_heap_warning_callback_added_ = true;
+  // Only full GCs: the heap that survives a mark-compact is the closest
+  // approximation of the live heap, and young-generation GCs are frequent.
+  isolate_->AddGCEpilogueCallback(
+      PointerCompressionHeapWarningCallback, this, v8::kGCTypeMarkSweepCompact);
+}
+
+void Environment::RemovePointerCompressionHeapWarningCallback() {
+  if (!pointer_compression_heap_warning_callback_added_) return;
+  pointer_compression_heap_warning_callback_added_ = false;
+  isolate_->RemoveGCEpilogueCallback(PointerCompressionHeapWarningCallback,
+                                     this);
+}
+
+void Environment::PointerCompressionHeapWarningCallback(
+    Isolate* isolate, v8::GCType type, v8::GCCallbackFlags flags, void* data) {
+  Environment* env = static_cast<Environment*>(data);
+  if (env->pointer_compression_heap_warning_scheduled_) return;
+
+  v8::HeapStatistics stats;
+  isolate->GetHeapStatistics(&stats);
+  const uint64_t used = stats.used_heap_size();
+  if (used < env->pointer_compression_heap_likely_threshold_ &&
+      used < env->pointer_compression_heap_certain_threshold_) {
+    return;
+  }
+  // The wording is decided once, when the warning is first triggered.
+  const bool certain = used >= env->pointer_compression_heap_certain_threshold_;
+
+  // JavaScript cannot run inside a GC callback, and V8 does not allow
+  // removing a GC callback while it is iterating over them, so do both from
+  // an immediate instead.
+  env->pointer_compression_heap_warning_scheduled_ = true;
+  env->SetImmediate(
+      [used, certain](Environment* env) {
+        env->RemovePointerCompressionHeapWarningCallback();
+        constexpr uint64_t kMiB = 1024 * 1024;
+        std::string thread =
+            env->is_main_thread()
+                ? std::string("the main thread")
+                : SPrintF("worker thread %d", env->thread_id());
+        std::string outcome =
+            certain ? "Pointer compression reduces heap usage by at most "
+                      "half, so this heap will exceed that limit, and the "
+                      "application will run out of memory"
+                    : "Pointer compression typically reduces heap usage by "
+                      "about 40%, so this heap is likely to exceed that "
+                      "limit, and the application may run out of memory";
+        std::string message = SPrintF(
+            "The V8 heap of %s is using %d MiB after garbage collection. "
+            "When pointer compression is enabled, the heap of each thread is "
+            "limited to %d MiB. %s in Node.js builds that enable pointer "
+            "compression.",
+            thread,
+            used / kMiB,
+            kPointerCompressionCageSize / kMiB,
+            outcome);
+        USE(ProcessEmitWarningGeneric(
+            env, message, "Warning", kPointerCompressionHeapWarningCode));
+      },
+      CallbackFlags::kUnrefed);
 }
 
 // V8 only invokes the most recently registered near-heap-limit callback.

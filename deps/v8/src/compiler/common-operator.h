@@ -538,6 +538,20 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 V8_EXPORT_PRIVATE const ExitMachineGraphParameters&
 ExitMachineGraphParametersOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
+#if V8_ENABLE_SANDBOX
+struct LoadTrustedPointerParameters {
+  int offset;
+  IndirectPointerTagRange tag;
+
+  bool operator==(const LoadTrustedPointerParameters&) const = default;
+};
+
+size_t hash_value(const LoadTrustedPointerParameters& params);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           LoadTrustedPointerParameters params);
+#endif  // V8_ENABLE_SANDBOX
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class V8_EXPORT_PRIVATE CommonOperatorBuilder final
@@ -616,6 +630,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* HeapConstant(const Handle<HeapObject>&);
   const Operator* CompressedHeapConstant(const Handle<HeapObject>&);
   const Operator* TrustedHeapConstant(const Handle<HeapObject>&);
+#if V8_ENABLE_SANDBOX
+  const Operator* LoadTrustedPointer(int offset, IndirectPointerTagRange tag);
+#endif
   const Operator* ObjectId(uint32_t);
 
   const Operator* RelocatableInt32Constant(int32_t value,

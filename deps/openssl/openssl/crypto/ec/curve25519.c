@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -236,6 +236,13 @@ static void x25519_scalar_mulx(uint8_t out[32], const uint8_t scalar[32],
         fe64_sub(tmp1, x2, z2);
         fe64_add(x2, x2, z2);
         fe64_add(z2, x3, z3);
+        /* The original copy in x25519_scalar_mult_generic uses argument order
+         * fe_mul(z3, tmp0, x2), with the input arguments swapped.
+         *
+         * The assembly implementation of fe64_mul used here runs faster in
+         * parallel with its nearby instructions when an earlier-computable
+         * input (like tmp0) is passed as the 2nd input because it consumes
+         * the 2nd input at a faster rate than the 1st input. */
         fe64_mul(z3, x2, tmp0);
         fe64_mul(z2, z2, tmp1);
         fe64_sqr(tmp0, tmp1);

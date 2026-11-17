@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,16 +14,14 @@
 #include "internal/deprecated.h"
 
 #include <openssl/bn.h>
-#ifndef FIPS_MODULE
-#include <openssl/engine.h>
-#endif
 #include "internal/cryptlib.h"
 #include "internal/refcount.h"
+#include "internal/common.h"
 #include "crypto/dsa.h"
 #include "crypto/dh.h" /* required by DSA_dup_DH() */
 #include "dsa_local.h"
 
-static DSA *dsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx);
+static DSA *dsa_new_intern(OSSL_LIB_CTX *libctx);
 
 #ifndef FIPS_MODULE
 
@@ -98,11 +96,6 @@ void DSA_set_flags(DSA *d, int flags)
     d->flags |= flags;
 }
 
-ENGINE *DSA_get0_engine(DSA *d)
-{
-    return d->engine;
-}
-
 int DSA_set_method(DSA *dsa, const DSA_METHOD *meth)
 {
     /*
@@ -113,10 +106,6 @@ int DSA_set_method(DSA *dsa, const DSA_METHOD *meth)
     mtmp = dsa->meth;
     if (mtmp->finish)
         mtmp->finish(dsa);
-#ifndef OPENSSL_NO_ENGINE
-    ENGINE_finish(dsa->engine);
-    dsa->engine = NULL;
-#endif
     dsa->meth = meth;
     if (meth->init)
         meth->init(dsa);
@@ -129,7 +118,7 @@ const DSA_METHOD *DSA_get_method(DSA *d)
     return d->meth;
 }
 
-static DSA *dsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
+static DSA *dsa_new_intern(OSSL_LIB_CTX *libctx)
 {
     DSA *ret = OPENSSL_zalloc(sizeof(*ret));
 
@@ -151,24 +140,6 @@ static DSA *dsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
 
     ret->libctx = libctx;
     ret->meth = DSA_get_default_method();
-#if !defined(FIPS_MODULE) && !defined(OPENSSL_NO_ENGINE)
-    ret->flags = ret->meth->flags & ~DSA_FLAG_NON_FIPS_ALLOW; /* early default init */
-    if (engine) {
-        if (!ENGINE_init(engine)) {
-            ERR_raise(ERR_LIB_DSA, ERR_R_ENGINE_LIB);
-            goto err;
-        }
-        ret->engine = engine;
-    } else
-        ret->engine = ENGINE_get_default_DSA();
-    if (ret->engine) {
-        ret->meth = ENGINE_get_DSA(ret->engine);
-        if (ret->meth == NULL) {
-            ERR_raise(ERR_LIB_DSA, ERR_R_ENGINE_LIB);
-            goto err;
-        }
-    }
-#endif
 
     ret->flags = ret->meth->flags & ~DSA_FLAG_NON_FIPS_ALLOW;
 
@@ -194,18 +165,20 @@ err:
 
 DSA *DSA_new_method(ENGINE *engine)
 {
-    return dsa_new_intern(engine, NULL);
+    if (!ossl_assert(engine == NULL))
+        return NULL;
+    return dsa_new_intern(NULL);
 }
 
 DSA *ossl_dsa_new(OSSL_LIB_CTX *libctx)
 {
-    return dsa_new_intern(NULL, libctx);
+    return dsa_new_intern(libctx);
 }
 
 #ifndef FIPS_MODULE
 DSA *DSA_new(void)
 {
-    return dsa_new_intern(NULL, NULL);
+    return dsa_new_intern(NULL);
 }
 #endif
 
@@ -224,9 +197,6 @@ void DSA_free(DSA *r)
 
     if (r->meth != NULL && r->meth->finish != NULL)
         r->meth->finish(r);
-#if !defined(FIPS_MODULE) && !defined(OPENSSL_NO_ENGINE)
-    ENGINE_finish(r->engine);
-#endif
 
 #ifndef FIPS_MODULE
     CRYPTO_free_ex_data(CRYPTO_EX_INDEX_DSA, r, &r->ex_data);
@@ -245,12 +215,17 @@ int DSA_up_ref(DSA *r)
 {
     int i;
 
-    if (CRYPTO_UP_REF(&r->references, &i) <= 0)
+    if (!CRYPTO_UP_REF(&r->references, &i))
         return 0;
 
     REF_PRINT_COUNT("DSA", i, r);
     REF_ASSERT_ISNT(i < 2);
     return ((i > 1) ? 1 : 0);
+}
+
+OSSL_LIB_CTX *ossl_dsa_get0_libctx(const DSA *d)
+{
+    return d->libctx;
 }
 
 void ossl_dsa_set0_libctx(DSA *d, OSSL_LIB_CTX *libctx)

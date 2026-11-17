@@ -48,23 +48,43 @@ int ossl_ml_dsa_set_prekey(ML_DSA_KEY *key, int flags_set, int flags_clr,
         || key->seed != NULL)
         return 0;
 
-    if (sk != NULL
-        && (key->priv_encoding = OPENSSL_memdup(sk, sk_len)) == NULL)
-        goto end;
-    if (seed != NULL
-        && (key->seed = OPENSSL_memdup(seed, seed_len)) == NULL)
-        goto end;
+    if (sk != NULL) {
+        key->priv_encoding = OPENSSL_secure_malloc(sk_len);
+        if (key->priv_encoding == NULL)
+            goto end;
+        memcpy(key->priv_encoding, sk, sk_len);
+    }
+
+    if (seed != NULL) {
+        if ((key->seed = OPENSSL_secure_malloc(seed_len)) == NULL)
+            goto end;
+        memcpy(key->seed, seed, seed_len);
+    }
     key->prov_flags |= flags_set;
     key->prov_flags &= ~flags_clr;
     ret = 1;
 
 end:
     if (!ret) {
-        OPENSSL_free(key->priv_encoding);
-        OPENSSL_free(key->seed);
+        OPENSSL_secure_clear_free(key->priv_encoding, sk_len);
+        OPENSSL_secure_clear_free(key->seed, seed_len);
         key->priv_encoding = key->seed = NULL;
     }
     return ret;
+}
+
+/*
+ * @brief Fetch digest algorithms based on a propq.
+ * For the import case ossl_ml_dsa_key_new() gets passed a NULL propq,
+ * so the propq is optionally deferred to the import using OSSL_PARAM.
+ */
+int ossl_ml_dsa_key_fetch_digests(ML_DSA_KEY *key, const char *propq)
+{
+    EVP_MD_free(key->shake128_md);
+    EVP_MD_free(key->shake256_md);
+    key->shake128_md = EVP_MD_fetch(key->libctx, "SHAKE-128", propq);
+    key->shake256_md = EVP_MD_fetch(key->libctx, "SHAKE-256", propq);
+    return (key->shake128_md != NULL && key->shake256_md != NULL);
 }
 
 /**
@@ -89,9 +109,7 @@ ML_DSA_KEY *ossl_ml_dsa_key_new(OSSL_LIB_CTX *libctx, const char *propq,
         ret->libctx = libctx;
         ret->params = params;
         ret->prov_flags = ML_DSA_KEY_PROV_FLAGS_DEFAULT;
-        ret->shake128_md = EVP_MD_fetch(libctx, "SHAKE-128", propq);
-        ret->shake256_md = EVP_MD_fetch(libctx, "SHAKE-256", propq);
-        if (ret->shake128_md == NULL || ret->shake256_md == NULL)
+        if (!ossl_ml_dsa_key_fetch_digests(ret, propq))
             goto err;
     }
     return ret;
@@ -114,7 +132,7 @@ int ossl_ml_dsa_key_priv_alloc(ML_DSA_KEY *key)
 
     if (key->s1.poly != NULL)
         return 0;
-    if (!vector_alloc(&key->s1, l + 2 * k))
+    if (!vector_secure_alloc(&key->s1, l + 2 * k))
         return 0;
 
     poly = key->s1.poly;
@@ -148,12 +166,12 @@ void ossl_ml_dsa_key_reset(ML_DSA_KEY *key)
      * must not access after |s1|'s poly is freed.
      */
     if (key->s1.poly != NULL) {
-        vector_zero(&key->s1);
-        vector_zero(&key->s2);
-        vector_zero(&key->t0);
-        vector_free(&key->s1);
-        key->s2.poly = NULL;
-        key->t0.poly = NULL;
+        const ML_DSA_PARAMS *params = key->params;
+        size_t k = params->k, l = params->l;
+
+        vector_secure_free(&key->s1, l + 2 * k);
+        vector_init(&key->s2, NULL, 0);
+        vector_init(&key->t0, NULL, 0);
     }
     /* The |t1| vector is public and allocated separately */
     vector_free(&key->t1);
@@ -161,10 +179,10 @@ void ossl_ml_dsa_key_reset(ML_DSA_KEY *key)
     OPENSSL_free(key->pub_encoding);
     key->pub_encoding = NULL;
     if (key->priv_encoding != NULL)
-        OPENSSL_clear_free(key->priv_encoding, key->params->sk_len);
+        OPENSSL_secure_clear_free(key->priv_encoding, key->params->sk_len);
     key->priv_encoding = NULL;
     if (key->seed != NULL)
-        OPENSSL_clear_free(key->seed, ML_DSA_SEED_BYTES);
+        OPENSSL_secure_clear_free(key->seed, ML_DSA_SEED_BYTES);
     key->seed = NULL;
 }
 
@@ -218,16 +236,17 @@ ML_DSA_KEY *ossl_ml_dsa_key_dup(const ML_DSA_KEY *src, int selection)
                         vector_copy(&ret->s2, &src->s2);
                         vector_copy(&ret->t0, &src->t0);
                     }
-                    if ((ret->priv_encoding = OPENSSL_memdup(src->priv_encoding,
-                             src->params->sk_len))
-                        == NULL)
+                    ret->priv_encoding = OPENSSL_secure_malloc(src->params->sk_len);
+                    if (ret->priv_encoding == NULL)
                         goto err;
+                    memcpy(ret->priv_encoding, src->priv_encoding, src->params->sk_len);
                 }
-                if (src->seed != NULL
-                    && (ret->seed = OPENSSL_memdup(src->seed,
-                            ML_DSA_SEED_BYTES))
-                        == NULL)
-                    goto err;
+                if (src->seed != NULL) {
+                    ret->seed = OPENSSL_secure_malloc(ML_DSA_SEED_BYTES);
+                    if (ret->seed == NULL)
+                        goto err;
+                    memcpy(ret->seed, src->seed, ML_DSA_SEED_BYTES);
+                }
             }
         }
         EVP_MD_up_ref(src->shake128_md);
@@ -313,17 +332,17 @@ int ossl_ml_dsa_key_has(const ML_DSA_KEY *key, int selection)
  * @returns 1 on success, or 0 on failure.
  */
 static int public_from_private(const ML_DSA_KEY *key, EVP_MD_CTX *md_ctx,
-    VECTOR *t1, VECTOR *t0)
+    const OSSL_ML_DSA_SAMPLE_OPS *sample_ops, VECTOR *t1, VECTOR *t0)
 {
     int ret = 0;
     const ML_DSA_PARAMS *params = key->params;
-    uint32_t k = params->k, l = params->l;
+    uint32_t k = (uint32_t)params->k, l = (uint32_t)params->l;
     POLY *polys;
     MATRIX a_ntt;
     VECTOR s1_ntt;
     VECTOR t;
 
-    polys = OPENSSL_malloc(sizeof(*polys) * (k + l + k * l));
+    polys = OPENSSL_malloc_array(k + l + k * l, sizeof(*polys));
     if (polys == NULL)
         return 0;
 
@@ -332,7 +351,7 @@ static int public_from_private(const ML_DSA_KEY *key, EVP_MD_CTX *md_ctx,
     matrix_init(&a_ntt, s1_ntt.poly + l, k, l);
 
     /* Using rho generate A' = A in NTT form */
-    if (!matrix_expand_A(md_ctx, key->shake128_md, key->rho, &a_ntt))
+    if (!sample_ops->matrix_expand_A(md_ctx, key->shake128_md, key->rho, &a_ntt))
         goto err;
 
     /* t = NTT_inv(A' * NTT(s1)) + s2 */
@@ -362,6 +381,7 @@ err:
 int ossl_ml_dsa_key_public_from_private(ML_DSA_KEY *key)
 {
     int ret = 0;
+    const OSSL_ML_DSA_SAMPLE_OPS *sample_ops = ossl_ml_dsa_sample_ops();
     VECTOR t0;
     EVP_MD_CTX *md_ctx = NULL;
 
@@ -369,7 +389,7 @@ int ossl_ml_dsa_key_public_from_private(ML_DSA_KEY *key)
         return 0;
     ret = ((md_ctx = EVP_MD_CTX_new()) != NULL)
         && ossl_ml_dsa_key_pub_alloc(key) /* allocate space for t1 */
-        && public_from_private(key, md_ctx, &key->t1, &t0)
+        && public_from_private(key, md_ctx, sample_ops, &key->t1, &t0)
         && vector_equal(&t0, &key->t0) /* compare the generated t0 to the expected */
         && ossl_ml_dsa_pk_encode(key)
         && shake_xof(md_ctx, key->shake256_md,
@@ -384,15 +404,16 @@ int ossl_ml_dsa_key_public_from_private(ML_DSA_KEY *key)
 int ossl_ml_dsa_key_pairwise_check(const ML_DSA_KEY *key)
 {
     int ret = 0;
+    const OSSL_ML_DSA_SAMPLE_OPS *sample_ops = ossl_ml_dsa_sample_ops();
     VECTOR t1, t0;
     POLY *polys = NULL;
-    uint32_t k = key->params->k;
+    uint32_t k = (uint32_t)key->params->k;
     EVP_MD_CTX *md_ctx = NULL;
 
     if (key->pub_encoding == NULL || key->priv_encoding == 0)
         return 0;
 
-    polys = OPENSSL_malloc(sizeof(*polys) * (2 * k));
+    polys = OPENSSL_malloc_array(2 * k, sizeof(*polys));
     if (polys == NULL)
         return 0;
     md_ctx = EVP_MD_CTX_new();
@@ -401,7 +422,7 @@ int ossl_ml_dsa_key_pairwise_check(const ML_DSA_KEY *key)
 
     vector_init(&t1, polys, k);
     vector_init(&t0, polys + k, k);
-    if (!public_from_private(key, md_ctx, &t1, &t0))
+    if (!public_from_private(key, md_ctx, sample_ops, &t1, &t0))
         goto err;
 
     ret = vector_equal(&t1, &key->t1) && vector_equal(&t0, &key->t0);
@@ -422,6 +443,7 @@ err:
 static int keygen_internal(ML_DSA_KEY *out)
 {
     int ret = 0;
+    const OSSL_ML_DSA_SAMPLE_OPS *sample_ops = ossl_ml_dsa_sample_ops();
     uint8_t augmented_seed[ML_DSA_SEED_BYTES + 2];
     uint8_t expanded_seed[ML_DSA_RHO_BYTES + ML_DSA_PRIV_SEED_BYTES + ML_DSA_K_BYTES];
     const uint8_t *const rho = expanded_seed; /* p = Public Random Seed */
@@ -448,18 +470,15 @@ static int keygen_internal(ML_DSA_KEY *out)
     memcpy(out->rho, rho, sizeof(out->rho));
     memcpy(out->K, K, sizeof(out->K));
 
-    ret = vector_expand_S(md_ctx, out->shake256_md, params->eta, priv_seed, &out->s1, &out->s2)
-        && public_from_private(out, md_ctx, &out->t1, &out->t0)
+    ret = sample_ops->vector_expand_S(md_ctx, out->shake256_md, params->eta,
+              priv_seed, &out->s1, &out->s2)
+        && public_from_private(out, md_ctx, sample_ops, &out->t1, &out->t0)
         && ossl_ml_dsa_pk_encode(out)
         && shake_xof(md_ctx, out->shake256_md, out->pub_encoding, out->params->pk_len,
             out->tr, sizeof(out->tr))
         && ossl_ml_dsa_sk_encode(out);
 
 err:
-    if (out->seed != NULL && (out->prov_flags & ML_DSA_KEY_RETAIN_SEED) == 0) {
-        OPENSSL_clear_free(out->seed, ML_DSA_SEED_BYTES);
-        out->seed = NULL;
-    }
     EVP_MD_CTX_free(md_ctx);
     OPENSSL_cleanse(augmented_seed, sizeof(augmented_seed));
     OPENSSL_cleanse(expanded_seed, sizeof(expanded_seed));
@@ -473,10 +492,10 @@ int ossl_ml_dsa_generate_key(ML_DSA_KEY *out)
     int ret;
 
     if (out->seed == NULL) {
-        if ((out->seed = OPENSSL_malloc(seed_len)) == NULL)
+        if ((out->seed = OPENSSL_secure_malloc(seed_len)) == NULL)
             return 0;
         if (RAND_priv_bytes_ex(out->libctx, out->seed, seed_len, 0) <= 0) {
-            OPENSSL_free(out->seed);
+            OPENSSL_secure_free(out->seed);
             out->seed = NULL;
             return 0;
         }
@@ -487,6 +506,11 @@ int ossl_ml_dsa_generate_key(ML_DSA_KEY *out)
     if (sk == NULL) {
         ret = keygen_internal(out);
     } else {
+        /*
+         * A constant-time comparison is unnecessary here since this check
+         * is only performed during key generation and is not exposed to
+         * timing attacks.
+         */
         if ((ret = keygen_internal(out)) != 0
             && memcmp(out->priv_encoding, sk, out->params->sk_len) != 0) {
             ret = 0;
@@ -495,7 +519,7 @@ int ossl_ml_dsa_generate_key(ML_DSA_KEY *out)
                 "explicit %s private key does not match seed",
                 out->params->alg);
         }
-        OPENSSL_clear_free(sk, out->params->sk_len);
+        OPENSSL_secure_clear_free(sk, out->params->sk_len);
     }
     return ret;
 }
@@ -530,6 +554,11 @@ size_t ossl_ml_dsa_key_get_pub_len(const ML_DSA_KEY *key)
 size_t ossl_ml_dsa_key_get_collision_strength_bits(const ML_DSA_KEY *key)
 {
     return key->params->bit_strength;
+}
+
+int ossl_ml_dsa_key_get_security_category(const ML_DSA_KEY *key)
+{
+    return key->params->security_category;
 }
 
 /* Returns the private key data or NULL if there is no private key */

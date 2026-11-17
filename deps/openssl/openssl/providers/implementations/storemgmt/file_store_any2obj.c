@@ -30,12 +30,15 @@
 #include <openssl/buffer.h>
 #include <openssl/err.h>
 #include <openssl/asn1err.h>
+#include <openssl/proverr.h>
+#include "internal/cryptlib.h"
 #include <openssl/params.h>
 #include "internal/asn1.h"
 #include "internal/sizes.h"
 #include "crypto/pem.h" /* For internal PVK and "blob" headers */
 #include "prov/bio.h"
-#include "file_store_local.h"
+#include "prov/file_store_local.h"
+#include "providers/implementations/storemgmt/file_store_any2obj.inc"
 
 /*
  * newctx and freectx are not strictly necessary.  However, the method creator,
@@ -68,13 +71,16 @@ static void any2obj_freectx(void *ctx)
 static int any2obj_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     struct any2obj_ctx_st *ctx = vctx;
-    const OSSL_PARAM *p;
+    struct any2obj_set_ctx_params_st p;
     char *str;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_OBJECT_PARAM_DATA_STRUCTURE);
+    if (ctx == NULL || !any2obj_set_ctx_params_decoder(params, &p))
+        return 0;
+
     str = ctx->data_structure;
-    if (p != NULL
-        && !OSSL_PARAM_get_utf8_string(p, &str, sizeof(ctx->data_structure)))
+    if (p.datastruct != NULL
+        && !OSSL_PARAM_get_utf8_string(p.datastruct, &str,
+            sizeof(ctx->data_structure)))
         return 0;
 
     return 1;
@@ -82,11 +88,7 @@ static int any2obj_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 
 static const OSSL_PARAM *any2obj_settable_ctx_params(ossl_unused void *provctx)
 {
-    static const OSSL_PARAM settables[] = {
-        OSSL_PARAM_utf8_string(OSSL_OBJECT_PARAM_DATA_STRUCTURE, NULL, 0),
-        OSSL_PARAM_END
-    };
-    return settables;
+    return any2obj_set_ctx_params_list;
 }
 
 static int any2obj_decode_final(void *vctx, int objtype, const char *input_type,
@@ -176,7 +178,7 @@ static int msblob2obj_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     }
 
     ERR_set_mark();
-    ok = BIO_read(in, &mem->data[0], mem_want) == (int)mem_want;
+    ok = BIO_read(in, &mem->data[0], (int)mem_want) == (int)mem_want;
     mem_len += mem_want;
     ERR_pop_to_mark();
     if (!ok)
@@ -201,7 +203,7 @@ static int msblob2obj_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     }
 
     ERR_set_mark();
-    ok = BIO_read(in, &mem->data[mem_len], mem_want) == (int)mem_want;
+    ok = BIO_read(in, &mem->data[mem_len], (int)mem_want) == (int)mem_want;
     mem_len += mem_want;
     ERR_pop_to_mark();
 
@@ -248,7 +250,7 @@ static int pvk2obj_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     }
 
     ERR_set_mark();
-    ok = BIO_read(in, &mem->data[0], mem_want) == (int)mem_want;
+    ok = BIO_read(in, &mem->data[0], (int)mem_want) == (int)mem_want;
     mem_len += mem_want;
     ERR_pop_to_mark();
     if (!ok)
@@ -269,7 +271,7 @@ static int pvk2obj_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     }
 
     ERR_set_mark();
-    ok = BIO_read(in, &mem->data[mem_len], mem_want) == (int)mem_want;
+    ok = BIO_read(in, &mem->data[mem_len], (int)mem_want) == (int)mem_want;
     mem_len += mem_want;
     ERR_pop_to_mark();
 
@@ -304,14 +306,67 @@ err:
         OSSL_DISPATCH_END                                                    \
     }
 
+#define MAX_RAW_KEY_SIZE 2048
+
+static OSSL_FUNC_decoder_decode_fn raw2obj_decode;
+static int raw2obj_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
+    OSSL_CALLBACK *data_cb, void *data_cbarg,
+    OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+{
+    struct any2obj_ctx_st *ctx = vctx;
+    BIO *in = ossl_bio_new_from_core_bio(ctx->provctx, cin);
+    BUF_MEM *mem = NULL;
+    size_t len = 0, max_len = MAX_RAW_KEY_SIZE;
+    int ok = 0;
+
+    if (in == NULL)
+        goto err;
+
+    if ((mem = BUF_MEM_new()) == NULL
+        || BUF_MEM_grow(mem, max_len) == 0) {
+        ERR_raise(ERR_LIB_PEM, ERR_R_BUF_LIB);
+        goto err;
+    }
+
+    ok = BIO_read_ex(in, &mem->data[0], max_len, &len);
+    if (ok == 0) {
+        ERR_raise(ERR_LIB_BIO, ERR_R_BIO_LIB);
+        goto err;
+    }
+
+    if (len == 0) {
+        ERR_raise(ERR_LIB_PEM, ERR_R_UNSUPPORTED);
+        goto err;
+    }
+
+    BIO_free(in);
+    in = NULL;
+
+    if (BUF_MEM_grow(mem, len) != len) {
+        ERR_raise(ERR_LIB_PEM, ERR_R_BUF_LIB);
+        goto err;
+    }
+
+    /* any2obj_decode_final() frees |mem| for us */
+    return any2obj_decode_final(ctx, OSSL_OBJECT_SKEY, "raw", "SKEY",
+        mem, data_cb, data_cbarg);
+
+err:
+    BIO_free(in);
+    BUF_MEM_free(mem);
+    return 0;
+}
+
 MAKE_DECODER(der, OSSL_OBJECT_UNKNOWN);
 MAKE_DECODER(msblob, OSSL_OBJECT_PKEY);
 MAKE_DECODER(pvk, OSSL_OBJECT_PKEY);
+MAKE_DECODER(raw, OSSL_OBJECT_SKEY);
 
 const OSSL_ALGORITHM ossl_any_to_obj_algorithm[] = {
     { "obj", "input=DER", der_to_obj_decoder_functions },
     { "obj", "input=MSBLOB", msblob_to_obj_decoder_functions },
     { "obj", "input=PVK", pvk_to_obj_decoder_functions },
+    { "obj", "input=RAW", raw_to_obj_decoder_functions },
     {
         NULL,
     }

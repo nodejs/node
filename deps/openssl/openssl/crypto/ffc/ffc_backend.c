@@ -12,9 +12,9 @@
 #include "internal/sizes.h"
 
 /*
- * The intention with the "backend" source file is to offer backend support
- * for legacy backends (EVP_PKEY_ASN1_METHOD and EVP_PKEY_METHOD) and provider
- * implementations alike.
+ * The intention with the "backend" source file is to offer backend functions
+ * for legacy backends (EVP_PKEY_ASN1_METHOD) and provider implementations
+ * alike.
  */
 
 int ossl_ffc_params_fromdata(FFC_PARAMS *ffc, const OSSL_PARAM params[])

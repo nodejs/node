@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # January 2015
@@ -789,7 +789,7 @@ sub SSSE3ROUND {	# critical path is 20 "SIMD ticks" per round
 &data_word(0,-1,-1,-1);
 &align	(64);
 }
-&asciz	("ChaCha20 for x86, CRYPTOGAMS by <appro\@openssl.org>");
+&asciz	("ChaCha20 for x86, CRYPTOGAMS by <https://github.com/dot-asm>");
 
 if ($ymm) {
 my ($xa,$xa_,$xb,$xb_,$xc,$xc_,$xd,$xd_)=map("xmm$_",(0..7));

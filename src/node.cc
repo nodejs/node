@@ -50,11 +50,8 @@
 
 #if HAVE_OPENSSL
 #include "ncrypto.h"
-#if OPENSSL_VERSION_MAJOR >= 3
-#include <openssl/provider.h>
-#endif
 #include "node_crypto.h"
-#if OPENSSL_VERSION_MAJOR >= 3 && !defined(CONF_MFLAGS_IGNORE_MISSING_FILE)
+#if !defined(OPENSSL_IS_BORINGSSL) && !defined(CONF_MFLAGS_IGNORE_MISSING_FILE)
 // OpenSSL hides this deprecated macro under OPENSSL_NO_DEPRECATED, but the
 // non-deprecated OPENSSL_INIT settings API still accepts the flag value.
 #define CONF_MFLAGS_IGNORE_MISSING_FILE 0x10
@@ -189,7 +186,7 @@ const char* conf_section_name = STRINGIFY(NODE_OPENSSL_CONF_NAME);
 
 #ifdef __POSIX__
 void SignalExit(int signo, siginfo_t* info, void* ucontext) {
-  ResetStdio();
+  ResetStdio(true);
   raise(signo);
 }
 #endif  // __POSIX__
@@ -244,6 +241,9 @@ void Environment::InitializeDiagnostics() {
       Environment::BuildEmbedderGraph, this);
   if (heap_snapshot_near_heap_limit_ > 0) {
     AddHeapSnapshotNearHeapLimitCallback();
+  }
+  if (ShouldWarnAboutPointerCompressionHeap()) {
+    AddPointerCompressionHeapWarningCallback();
   }
   if (options_->trace_uncaught)
     isolate_->SetCaptureStackTraceForUncaughtExceptions(true);
@@ -450,7 +450,7 @@ void TrapWebAssemblyOrContinue(int signo, siginfo_t* info, void* ucontext) {
       sa.sa_handler = SIG_DFL;
       CHECK_EQ(sigaction(signo, &sa, nullptr), 0);
 
-      ResetStdio();
+      ResetStdio(true);
       raise(signo);
     }
   }
@@ -500,6 +500,14 @@ static struct {
 } stdio[1 + STDERR_FILENO];
 #endif  // __POSIX__
 
+// Set once Node.js changes the terminal mode itself. Accessed from signal
+// handlers, so it must be lock-free.
+static std::atomic<bool> terminal_mode_changed{false};
+
+void SetTerminalModeChanged() {
+  terminal_mode_changed.store(true, std::memory_order_relaxed);
+}
+
 void ResetSignalHandlers() {
 #ifdef __POSIX__
   // Restore signal dispositions, the parent process may have changed them.
@@ -544,7 +552,7 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   init_process_flags.store(flags);
 
   if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
-    atexit(ResetStdio);
+    atexit([]() { ResetStdio(); });
   }
 
 #ifdef __POSIX__
@@ -668,7 +676,7 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
 }
 
 // Safe to call more than once and from signal handlers.
-void ResetStdio() {
+void ResetStdio(bool force_terminal_restore) {
   if (init_process_flags.load() &
       ProcessInitializationFlags::kNoStdioInitialization) {
     return;
@@ -676,6 +684,15 @@ void ResetStdio() {
 
   uv_tty_reset_mode();
 #ifdef __POSIX__
+  // Only write back the terminal attributes recorded at startup when Node.js
+  // changed the terminal mode itself, or when exiting because of a signal.
+  // Another process sharing the terminal (e.g. a pager in `node -h | less`)
+  // may have changed them in the meantime, and a process that never touched
+  // the terminal has nothing to restore.
+  const bool restore_terminal =
+      force_terminal_restore ||
+      terminal_mode_changed.load(std::memory_order_relaxed);
+
   for (auto& s : stdio) {
     const int fd = &s - stdio;
 
@@ -707,7 +724,7 @@ void ResetStdio() {
       CHECK_NE(err, -1);
     }
 
-    if (s.isatty) {
+    if (s.isatty && restore_terminal) {
       sigset_t sa;
       int err;
 
@@ -1308,7 +1325,6 @@ InitializeOncePerProcessInternal(
   if (!(flags & ProcessInitializationFlags::kNoInitOpenSSL)) {
 #if HAVE_OPENSSL
 #ifndef OPENSSL_IS_BORINGSSL
-#if OPENSSL_VERSION_MAJOR >= 3
     auto GetOpenSSLErrorString = []() -> std::string {
       std::string ret;
       ERR_print_errors_cb(
@@ -1324,6 +1340,7 @@ InitializeOncePerProcessInternal(
 
     // In the case of FIPS builds we should make sure
     // the random source is properly initialized first.
+    //
     // Call OPENSSL_init_crypto to initialize OPENSSL_INIT_LOAD_CONFIG to
     // avoid the default behavior where errors raised during the parsing of the
     // OpenSSL configuration file are not propagated and cannot be detected.
@@ -1380,11 +1397,7 @@ InitializeOncePerProcessInternal(
                                    GetOpenSSLErrorString());
       return result;
     }
-#else  // OPENSSL_VERSION_MAJOR < 3
-    if (FIPS_mode()) {
-      OPENSSL_init();
-    }
-#endif
+
     if (auto fips_error = crypto::ProcessFipsOptions()) {
       result->exit_code_ = ExitCode::kGenericUserError;
       result->early_return_ = true;
@@ -1393,36 +1406,15 @@ InitializeOncePerProcessInternal(
     }
     crypto::InstallFipsIndicatorCallback();
 
-    // Activating the default provider here keeps --openssl-legacy-provider
-    // working. Its explicit load disables OpenSSL's fallback, and the eager
-    // CSPRNG check used to activate the provider as a side effect. Only
-    // check the seeding when that provider is missing or FIPS is on, so a
-    // configuration without a DRBG still aborts at startup instead of
-    // hanging at the first crypto call. Otherwise the DRBG is instantiated
-    // on first use.
-#if OPENSSL_VERSION_MAJOR >= 3
-    const bool check_csprng = ncrypto::isFipsEnabled() ||
-                              !OSSL_PROVIDER_available(nullptr, "default");
-#else
-    const bool check_csprng = true;
-#endif
-    if (check_csprng) {
-      CHECK(ncrypto::CSPRNG(nullptr, 0));
-    }
+    // Ensure CSPRNG is properly seeded.
+    CHECK(ncrypto::CSPRNG(nullptr, 0));
 
-    // V8 uses the entropy for hash seeds, ASLR and Math.random(), none of
-    // it cryptographic. Going through OpenSSL would instantiate the DRBG
-    // and build the default provider's algorithm tables on every startup.
-    // V8 falls back to very weak entropy when the source fails, so abort
-    // instead.
     V8::SetEntropySource([](unsigned char* buffer, size_t length) {
-#ifdef _AIX
-      // uv_random() reads /dev/random on AIX, which blocks. OpenSSL seeds
-      // from /dev/urandom there.
+      // V8 falls back to very weak entropy when this function fails
+      // and /dev/urandom isn't available. That wouldn't be so bad if
+      // the entropy was only used for Math.random() but it's also used for
+      // hash table and address space layout randomization. Better to abort.
       CHECK(ncrypto::CSPRNG(buffer, length));
-#else
-      CHECK_EQ(uv_random(nullptr, nullptr, buffer, length, 0, nullptr), 0);
-#endif
       return true;
     });
 #endif  // !defined(OPENSSL_IS_BORINGSSL)
@@ -1440,7 +1432,8 @@ InitializeOncePerProcessInternal(
         permission::ParseEnvAllowList(env_options->allow_env);
     const bool allow_all =
         std::find(allow.begin(), allow.end(), "*") != allow.end();
-    if (env_options->permission_audit && !allow_all) {
+    if (env_options->permission_audit && !env_options->permission &&
+        !allow_all) {
       // In audit mode nothing is removed, but accesses to the variables that
       // enforcing the permission model would remove are published.
       permission::RecordAuditedEnvironmentVariables(allow);

@@ -12,14 +12,6 @@
 /* CMP functions for PKIMessage checking */
 
 #include "cmp_local.h"
-#include <openssl/cmp_util.h>
-
-/* explicit #includes not strictly needed since implied by the above: */
-#include <openssl/asn1t.h>
-#include <openssl/cmp.h>
-#include <openssl/crmf.h>
-#include <openssl/err.h>
-#include <openssl/x509.h>
 
 /* Verify a message protected by signature according to RFC section 5.1.3.3 */
 static int verify_signature(const OSSL_CMP_CTX *cmp_ctx,
@@ -255,7 +247,7 @@ static int cert_acceptable(const OSSL_CMP_CTX *ctx,
     int self_issued = X509_check_issued(cert, cert) == X509_V_OK;
     char *str;
     X509_VERIFY_PARAM *vpm = ts != NULL ? X509_STORE_get0_param(ts) : NULL;
-    int time_cmp;
+    int err;
 
     ossl_cmp_log3(INFO, ctx, " considering %s%s %s with..",
         self_issued ? "self-issued " : "", desc1, desc2);
@@ -275,13 +267,28 @@ static int cert_acceptable(const OSSL_CMP_CTX *ctx,
         return 0;
     }
 
-    time_cmp = X509_cmp_timeframe(vpm, X509_get0_notBefore(cert),
-        X509_get0_notAfter(cert));
-    if (time_cmp != 0) {
-        int err = time_cmp > 0 ? X509_V_ERR_CERT_HAS_EXPIRED
-                               : X509_V_ERR_CERT_NOT_YET_VALID;
+    if (!X509_check_certificate_times(vpm, cert, &err)) {
+        const char *message;
 
-        ossl_cmp_warn(ctx, time_cmp > 0 ? "cert has expired" : "cert is not yet valid");
+        switch (err) {
+        case X509_V_ERR_CERT_NOT_YET_VALID:
+            message = "cert is not yet valid";
+            break;
+        case X509_V_ERR_CERT_HAS_EXPIRED:
+            message = "cert has expired";
+            break;
+        case X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
+            message = "cert has an invalid not before field";
+            break;
+        case X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
+            message = "cert has an invalid not after field";
+            break;
+        default:
+            message = "cert is invalid for an unspecfied reason";
+            break;
+        }
+
+        ossl_cmp_warn(ctx, message);
         if (ctx->log_cb != NULL /* logging not temporarily disabled */
             && verify_cb_cert(ts, cert, err) <= 0)
             return 0;
@@ -322,21 +329,31 @@ static int check_cert_path(const OSSL_CMP_CTX *ctx, X509_STORE *store,
 /*
  * Exceptional handling for 3GPP TS 33.310 [3G/LTE Network Domain Security
  * (NDS); Authentication Framework (AF)], only to use for IP messages
- * and if the ctx option is explicitly set: use self-issued certificates
- * from extraCerts as trust anchor to validate sender cert -
- * provided it also can validate the newly enrolled certificate
+ * and if the ctx option is explicitly set: use self-issued certificates from
+ * extraCerts as trust anchors when validating the CMP message protection cert
+ * in this and any subsequent responses from the server in the same transaction,
+ * but only if these extraCerts can also be used as trust anchors for validating
+ * the newly enrolled certificate received in the IP message.
  */
 static int check_cert_path_3gpp(const OSSL_CMP_CTX *ctx,
     const OSSL_CMP_MSG *msg, X509 *scrt)
 {
     int valid = 0;
     X509_STORE *store;
+    STACK_OF(X509) *extraCerts;
 
     if (!ctx->permitTAInExtraCertsForIR)
         return 0;
 
+    /*
+     * Initially, use extraCerts from the IP message.
+     * For subsequent msgs (pollRep or PKIConf) in the same transaction,
+     * use extraCertsIn remembered from earlier message (typically, the IP message).
+     * The extraCertsIn field will be cleared by OSSL_CMP_CTX_reinit().
+     */
+    extraCerts = ctx->extraCertsIn == NULL ? msg->extraCerts : ctx->extraCertsIn;
     if ((store = X509_STORE_new()) == NULL
-        || !ossl_cmp_X509_STORE_add1_certs(store, msg->extraCerts,
+        || !ossl_cmp_X509_STORE_add1_certs(store, extraCerts,
             1 /* self-issued only */))
         goto err;
 
@@ -552,10 +569,11 @@ end:
  * (in this order) and is path is validated against ctx->trusted.
  * On success cache the found cert using ossl_cmp_ctx_set1_validatedSrvCert().
  *
- * If ctx->permitTAInExtraCertsForIR is true and when validating a CMP IP msg,
- * the trust anchor for validating the IP msg may be taken from msg->extraCerts
- * if a self-issued certificate is found there that can be used to
- * validate the enrolled certificate returned in the IP.
+ * If ctx->permitTAInExtraCertsForIR is true, when validating a CMP IP message,
+ * trust anchors for validating the IP message (and any subsequent responses
+ * by the server in the same transaction) may be taken from msg->extraCerts
+ * if self-issued certificates are found there that can also be used
+ * to validate the newly enrolled certificate returned in the IP msg.
  * This is according to the need given in 3GPP TS 33.310.
  *
  * Returns 1 on success, 0 on error or validation failed.
@@ -658,24 +676,35 @@ int OSSL_CMP_validate_msg(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg)
     return 0;
 }
 
-static int check_transactionID_or_nonce(ASN1_OCTET_STRING *expected,
-    ASN1_OCTET_STRING *actual, int reason)
+static int check_transactionID_or_nonce(OSSL_CMP_CTX *ctx, const ASN1_OCTET_STRING *expected,
+    const ASN1_OCTET_STRING *actual, int bodytype, int reason)
 {
     if (expected != NULL
         && (actual == NULL || ASN1_OCTET_STRING_cmp(expected, actual) != 0)) {
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
-        char *expected_str, *actual_str;
+        char *expected_str, *actual_str, *expected_msg, *actual_msg;
+        const int strict = bodytype != OSSL_CMP_PKIBODY_ERROR || !ctx->nonmatchedErrorNonces;
+        int res = 0;
 
+        if (reason == 0) /* at end of polling, overall check is not yet complete */
+            return res;
         expected_str = i2s_ASN1_OCTET_STRING(NULL, expected);
+        expected_msg = expected_str == NULL ? "?" : expected_str;
         actual_str = actual == NULL ? NULL : i2s_ASN1_OCTET_STRING(NULL, actual);
-        ERR_raise_data(ERR_LIB_CMP, reason,
-            "expected = %s, actual = %s",
-            expected_str == NULL ? "?" : expected_str,
-            actual == NULL ? "(none)" : actual_str == NULL ? "?"
-                                                           : actual_str);
+        actual_msg = actual == NULL ? "(none)" : actual_str == NULL ? "?"
+                                                                    : actual_str;
+        if (strict) {
+            ERR_raise_data(ERR_LIB_CMP, reason, "expected = %s, actual = %s",
+                expected_msg, actual_msg);
+        } else {
+            ossl_cmp_log3(WARN, ctx, "ignoring missing or non-matching %s of error message, expected = %s, actual = %s",
+                reason == CMP_R_TRANSACTIONID_UNMATCHED ? "transactionID" : "recipNonce",
+                expected_msg, actual_msg);
+            res = 1;
+        }
         OPENSSL_free(expected_str);
         OPENSSL_free(actual_str);
-        return 0;
+        return res;
 #endif
     }
     return 1;
@@ -706,11 +735,13 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
 {
     OSSL_CMP_PKIHEADER *hdr;
     const X509_NAME *expected_sender;
+    int bodytype, end_of_polling;
     int num_untrusted, num_added, res;
 
     if (!ossl_assert(ctx != NULL && msg != NULL && msg->header != NULL))
         return 0;
     hdr = OSSL_CMP_MSG_get0_header(msg);
+    bodytype = OSSL_CMP_MSG_get_bodytype(msg);
 
     /* If expected_sender is given, validate sender name of received msg */
     expected_sender = ctx->expected_sender;
@@ -719,6 +750,11 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
     if (expected_sender != NULL) {
         const X509_NAME *actual_sender;
         char *str;
+
+        if (hdr->sender == NULL) {
+            ERR_raise(ERR_LIB_CMP, CMP_R_MISSING_SENDER_IDENTIFICATION);
+            return 0;
+        }
 
         if (hdr->sender->type != GEN_DIRNAME) {
             ERR_raise(ERR_LIB_CMP, CMP_R_SENDER_GENERALNAME_TYPE_NOT_SUPPORTED);
@@ -739,6 +775,8 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
             return 0;
         }
     }
+
+    /* Ignoring recipient */
     /* Note: if recipient was NULL-DN it could be learned here if needed */
 
     num_added = sk_X509_num(msg->extraCerts);
@@ -805,7 +843,7 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
 #endif
     }
 
-    if (OSSL_CMP_MSG_get_bodytype(msg) < 0) {
+    if (bodytype < 0) {
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
         ERR_raise(ERR_LIB_CMP, CMP_R_PKIBODY_ERROR);
         return 0;
@@ -813,30 +851,25 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
     }
 
     /* compare received transactionID with the expected one in previous msg */
-    if (!check_transactionID_or_nonce(ctx->transactionID, hdr->transactionID,
-            CMP_R_TRANSACTIONID_UNMATCHED))
+    if (!check_transactionID_or_nonce(ctx, ctx->transactionID, hdr->transactionID,
+            bodytype, CMP_R_TRANSACTIONID_UNMATCHED))
         return 0;
 
     /*
-     * enable clearing irrelevant errors
-     * in attempts to validate recipient nonce in case of delayed delivery.
+     * Compare received nonce with the one we sent last.
+     * When we received the final response at the end of polling,
+     * we allow also the nonce that we sent earlier with the original request,
+     * as specified in RFC 9483 section 5.1.5.
      */
-    (void)ERR_set_mark();
-    /* compare received nonce with the one we sent */
-    if (!check_transactionID_or_nonce(ctx->senderNonce, hdr->recipNonce,
-            CMP_R_RECIPNONCE_UNMATCHED)) {
-        /* check if we are polling and received final response */
-        if (ctx->first_senderNonce == NULL
-            || OSSL_CMP_MSG_get_bodytype(msg) == OSSL_CMP_PKIBODY_POLLREP
-            /* compare received nonce with our sender nonce at poll start */
-            || !check_transactionID_or_nonce(ctx->first_senderNonce,
-                hdr->recipNonce,
-                CMP_R_RECIPNONCE_UNMATCHED)) {
-            (void)ERR_clear_last_mark();
+    end_of_polling = ctx->first_senderNonce != NULL && bodytype != OSSL_CMP_PKIBODY_POLLREP;
+    if (!check_transactionID_or_nonce(ctx, ctx->senderNonce, hdr->recipNonce,
+            bodytype, end_of_polling ? 0 : CMP_R_RECIPNONCE_UNMATCHED)) {
+        if (!end_of_polling
+            /* otherwise, compare received nonce with our sender nonce at poll start: */
+            || !check_transactionID_or_nonce(ctx, ctx->first_senderNonce, hdr->recipNonce,
+                bodytype, CMP_R_RECIPNONCE_UNMATCHED))
             return 0;
-        }
     }
-    (void)ERR_pop_to_mark();
 
     /* if not yet present, learn transactionID */
     if (ctx->transactionID == NULL
@@ -858,7 +891,7 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
          * the caPubs field may be directly trusted as a root CA
          * certificate by the initiator.'
          */
-        switch (OSSL_CMP_MSG_get_bodytype(msg)) {
+        switch (bodytype) {
         case OSSL_CMP_PKIBODY_IP:
         case OSSL_CMP_PKIBODY_CP:
         case OSSL_CMP_PKIBODY_KUP:

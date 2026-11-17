@@ -1,11 +1,14 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_RIPEMD_RMD_LOCAL_H)
+#define OSSL_LIBCRYPTO_RIPEMD_RMD_LOCAL_H
 
 #include <stdlib.h>
 #include <string.h>
@@ -48,7 +51,9 @@ void ripemd160_block_data_order(RIPEMD160_CTX *c, const void *p, size_t num);
     } while (0)
 #define HASH_BLOCK_DATA_ORDER ripemd160_block_data_order
 
-#include "crypto/md32_common.h"
+/* clang-format off */
+#include "crypto/md32_common.inc"
+/* clang-format on */
 
 /*
  * Transformed F2 and F4 are courtesy of Wei Dai
@@ -101,3 +106,5 @@ void ripemd160_block_data_order(RIPEMD160_CTX *c, const void *p, size_t num);
         a = ROTATE(a, s) + e;        \
         c = ROTATE(c, 10);           \
     }
+
+#endif /* !defined(OSSL_LIBCRYPTO_RIPEMD_RMD_LOCAL_H) */

@@ -12,7 +12,7 @@ some of the following resources:
 - The [OpenSSL Guide] incorporates various code samples. The complete source
   for these can be [found in the source tree under `demos/guide`](./demos/guide/).
 - The [openssl-quic(7) manual page], which provides a basic reference overview
-  of QUIC functionality and how use of QUIC differs from use of TLS with regard
+  of QUIC functionality and how the use of QUIC differs from the use of TLS with regard
   to our API.
 - The [Demo-Driven Design (DDD)][DDD] demos, which demonstrate the use of QUIC
   using simple examples. These can be [found in the source tree under
@@ -61,7 +61,7 @@ $ openssl s_client -quic -alpn myalpn -connect host:port
 
 In the above example replace `host` with the hostname of the server (e.g.
 `www.example.com`) and `port` with the port for the server (e.g. `443`). Replace
-`myalpn` with the Application Layer Protocol to use (e.g.`h3` represents
+`myalpn` with the Application Layer Protocol to use (e.g. `h3` represents
 HTTP/3). IANA maintains a standard list of [ALPN ids] that can be used.
 
 This example connects to a QUIC server and opens a single bidirectional stream.
@@ -98,11 +98,11 @@ use this dedicated server example instead.
 For more information about implementing QUIC servers with OpenSSL, refer to the
 [OpenSSL Guide] and the [openssl-quic(7) manual page].
 
-[openssl-quic(7) manual page]: https://www.openssl.org/docs/manmaster/man7/openssl-quic.html
-[OpenSSL Guide]: https://www.openssl.org/docs/manmaster/man7/ossl-guide-introduction.html
+[openssl-quic(7) manual page]: https://docs.openssl.org/master/man7/openssl-quic
+[OpenSSL Guide]: https://docs.openssl.org/master/man7/ossl-guide-introduction
 [DDD]: https://github.com/openssl/openssl/tree/master/doc/designs/ddd
 [found in the source tree under `doc/designs/ddd`]: ./doc/designs/ddd/
 [demo found in `demos/http3`]: ./demos/http3/
-[QUIC Introduction]: https://www.openssl.org/docs/manmaster/man7/ossl-guide-quic-introduction.html
+[QUIC Introduction]: https://docs.openssl.org/master/man7/ossl-guide-quic-introduction
 [RFC 9114]: https://tools.ietf.org/html/rfc9114
 [ALPN ids]: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids

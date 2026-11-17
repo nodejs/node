@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,7 @@
 #include "internal/cryptlib.h"
 #include <openssl/asn1.h>
 #include <openssl/objects.h>
+#include "tbl_standard.h"
 
 static STACK_OF(ASN1_STRING_TABLE) *stable = NULL;
 static void st_free(ASN1_STRING_TABLE *tbl);
@@ -41,7 +42,7 @@ unsigned long ASN1_STRING_get_default_mask(void)
  * MASK:XXXX : a numerical mask value.
  * default   : use Printable, IA5, T61, BMP, and UTF8 string types
  * nombstr   : any string type except variable-sized BMPStrings or UTF8Strings
- * pkix      : PKIX recommendation in RFC2459
+ * pkix      : PKIX recommendation in RFC 5280
  * utf8only  : this is the default, use UTF8Strings
  */
 
@@ -107,8 +108,6 @@ ASN1_STRING *ASN1_STRING_set_by_NID(ASN1_STRING **out,
  * Now the tables and helper functions for the string table:
  */
 
-#include "tbl_standard.h"
-
 static int sk_table_cmp(const ASN1_STRING_TABLE *const *a,
     const ASN1_STRING_TABLE *const *b)
 {
@@ -128,6 +127,11 @@ ASN1_STRING_TABLE *ASN1_STRING_TABLE_get(int nid)
 {
     int idx;
     ASN1_STRING_TABLE fnd;
+
+    if (nid <= 0) {
+        ERR_raise(ERR_LIB_ASN1, ERR_R_PASSED_INVALID_ARGUMENT);
+        return NULL;
+    }
 
 #ifndef OPENSSL_NO_AUTOLOAD_CONFIG
     /* "stable" can be impacted by config, so load the config file first */
@@ -189,6 +193,11 @@ int ASN1_STRING_TABLE_add(int nid,
     unsigned long flags)
 {
     ASN1_STRING_TABLE *tmp;
+
+    if (nid <= 0 || (minsize >= 0 && maxsize >= 0 && minsize > maxsize)) {
+        ERR_raise(ERR_LIB_ASN1, ERR_R_PASSED_INVALID_ARGUMENT);
+        return 0;
+    }
 
     tmp = stable_get(nid);
     if (tmp == NULL) {

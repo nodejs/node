@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -33,7 +33,7 @@ int evp_keymgmt_util_try_import(const OSSL_PARAM params[], void *arg)
 
     /* Just in time creation of keydata */
     if (data->keydata == NULL) {
-        if ((data->keydata = evp_keymgmt_newdata(data->keymgmt)) == NULL) {
+        if ((data->keydata = evp_keymgmt_newdata(data->keymgmt, params)) == NULL) {
             ERR_raise(ERR_LIB_EVP, ERR_R_EVP_LIB);
             return 0;
         }
@@ -219,14 +219,13 @@ static void op_cache_free(OP_CACHE_ELEM *e)
     OPENSSL_free(e);
 }
 
-int evp_keymgmt_util_clear_operation_cache(EVP_PKEY *pk)
+void evp_keymgmt_util_clear_operation_cache(EVP_PKEY *pk)
 {
-    if (pk != NULL) {
-        sk_OP_CACHE_ELEM_pop_free(pk->operation_cache, op_cache_free);
-        pk->operation_cache = NULL;
-    }
+    if (pk == NULL)
+        return;
 
-    return 1;
+    sk_OP_CACHE_ELEM_pop_free(pk->operation_cache, op_cache_free);
+    pk->operation_cache = NULL;
 }
 
 OP_CACHE_ELEM *evp_keymgmt_util_find_operation_cache(EVP_PKEY *pk,
@@ -296,18 +295,22 @@ void evp_keymgmt_util_cache_keyinfo(EVP_PKEY *pk)
     if (pk->keydata != NULL) {
         int bits = 0;
         int security_bits = 0;
+        int security_category = -1;
         int size = 0;
-        OSSL_PARAM params[4];
+        OSSL_PARAM params[5];
 
         params[0] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_BITS, &bits);
         params[1] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_SECURITY_BITS,
             &security_bits);
-        params[2] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_MAX_SIZE, &size);
-        params[3] = OSSL_PARAM_construct_end();
+        params[2] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_SECURITY_CATEGORY,
+            &security_category);
+        params[3] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_MAX_SIZE, &size);
+        params[4] = OSSL_PARAM_construct_end();
         if (evp_keymgmt_get_params(pk->keymgmt, pk->keydata, params)) {
             pk->cache.size = size;
             pk->cache.bits = bits;
             pk->cache.security_bits = security_bits;
+            pk->cache.security_category = security_category;
         }
     }
 }
@@ -317,7 +320,7 @@ void *evp_keymgmt_util_fromdata(EVP_PKEY *target, EVP_KEYMGMT *keymgmt,
 {
     void *keydata = NULL;
 
-    if ((keydata = evp_keymgmt_newdata(keymgmt)) == NULL
+    if ((keydata = evp_keymgmt_newdata(keymgmt, params)) == NULL
         || !evp_keymgmt_import(keymgmt, keydata, selection, params)
         || !evp_keymgmt_util_assign_pkey(target, keymgmt, keydata)) {
         evp_keymgmt_freedata(keymgmt, keydata);

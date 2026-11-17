@@ -733,13 +733,6 @@ by the `node:assert` module.
 An attempt was made to register something that is not a function as an
 `AsyncHooks` callback.
 
-<a id="ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED"></a>
-
-### `ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED`
-
-An operation related to module loading is customized by an asynchronous loader
-hook that never settled the promise before the loader thread exits.
-
 <a id="ERR_ASYNC_RESOURCE_DOMAIN_REMOVED"></a>
 
 ### `ERR_ASYNC_RESOURCE_DOMAIN_REMOVED`
@@ -911,9 +904,8 @@ Argon2 is not supported by the current version of OpenSSL being used.
 
 ### `ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED`
 
-An OpenSSL engine was requested (for example, through the `clientCertEngine` or
-`privateKeyEngine` TLS options) that is not supported by the version of OpenSSL
-being used, likely due to the compile-time flag `OPENSSL_NO_ENGINE`.
+An OpenSSL engine-based TLS or HTTPS option was used after support for custom
+engines reached End-of-Life in Node.js.
 
 <a id="ERR_CRYPTO_ECDH_INVALID_FORMAT"></a>
 
@@ -929,13 +921,6 @@ class `getPublicKey()` method.
 An invalid value for the `key` argument has been passed to the
 `crypto.ECDH()` class `computeSecret()` method. It means that the public
 key lies outside of the elliptic curve.
-
-<a id="ERR_CRYPTO_ENGINE_UNKNOWN"></a>
-
-### `ERR_CRYPTO_ENGINE_UNKNOWN`
-
-An invalid crypto engine identifier was passed to
-[`require('node:crypto').setEngine()`][].
 
 <a id="ERR_CRYPTO_FIPS_FORCED"></a>
 
@@ -1127,6 +1112,16 @@ added: v15.0.0
 -->
 
 An invalid authentication tag length was provided.
+
+<a id="ERR_CRYPTO_INVALID_X509_CERTIFICATE"></a>
+
+### `ERR_CRYPTO_INVALID_X509_CERTIFICATE`
+
+<!-- YAML
+added: v27.0.0-alpha.0.1.0
+-->
+
+An X.509 certificate field could not be inspected.
 
 <a id="ERR_CRYPTO_JOB_INIT_FAILED"></a>
 
@@ -2362,19 +2357,6 @@ for more information.
 
 IP is blocked by `net.BlockList`.
 
-<a id="ERR_LOADER_CHAIN_INCOMPLETE"></a>
-
-### `ERR_LOADER_CHAIN_INCOMPLETE`
-
-<!-- YAML
-added:
-  - v18.6.0
-  - v16.17.0
--->
-
-An ESM loader hook returned without calling `next()` and without explicitly
-signaling a short circuit.
-
 <a id="ERR_LOAD_SQLITE_EXTENSION"></a>
 
 ### `ERR_LOAD_SQLITE_EXTENSION`
@@ -3596,6 +3578,17 @@ entry types are found.
 A `--vfs-load` source does not exist, is neither a regular file nor a
 directory, or is a source no provider claims.
 
+<a id="ERR_VFS_NOT_MOUNTED"></a>
+
+### `ERR_VFS_NOT_MOUNTED`
+
+A path into a virtual file system was used in a thread in which that virtual
+file system is not mounted. Each thread has its own mounts: a virtual file
+system mounted with [`vfs.mount()`][] is not mounted in the [`Worker`][]
+threads, so a worker cannot be started from a script in it. The source
+mounted with [`--vfs-load`][] and the virtual file system of a
+[single executable application][] are mounted in every thread.
+
 <a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING"></a>
 
 ### `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`
@@ -3923,6 +3916,17 @@ attempting a [`require()`][] operation or when loading the program entry point.
 > Stability: 0 - Deprecated. These error codes are either inconsistent, or have
 > been removed.
 
+<a id="ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED"></a>
+
+### `ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+An operation related to module loading is customized by an asynchronous loader
+hook that never settled the promise before the loader thread exits.
+
 <a id="ERR_CANNOT_TRANSFER_OBJECT"></a>
 
 ### `ERR_CANNOT_TRANSFER_OBJECT`
@@ -3944,6 +3948,17 @@ removed: v15.0.0
 -->
 
 The native call from `process.cpuUsage` could not be processed.
+
+<a id="ERR_CRYPTO_ENGINE_UNKNOWN"></a>
+
+### `ERR_CRYPTO_ENGINE_UNKNOWN`
+
+<!-- YAML
+removed: v27.0.0-alpha.0.0.0
+-->
+
+An invalid crypto engine identifier was passed to
+`require('node:crypto').setEngine()`.
 
 <a id="ERR_CRYPTO_HASH_DIGEST_NO_UTF16"></a>
 
@@ -4149,6 +4164,20 @@ changes:
 -->
 
 An invalid transfer object was passed to `postMessage()`.
+
+<a id="ERR_LOADER_CHAIN_INCOMPLETE"></a>
+
+### `ERR_LOADER_CHAIN_INCOMPLETE`
+
+<!-- YAML
+added:
+  - v18.6.0
+  - v16.17.0
+removed: REPLACEME
+-->
+
+An ESM loader hook returned without calling `next()` and without explicitly
+signaling a short circuit.
 
 <a id="ERR_MANIFEST_ASSERT_INTEGRITY"></a>
 
@@ -4774,6 +4803,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`--force-fips`]: cli.md#--force-fips
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
+[`--vfs-load`]: cli.md#--vfs-loadsource
 [`ABORT_ERR`]: #abort_err
 [`BoundSocket`]: net.md#class-netboundsocket
 [`Class: DOMException`]: globals.md#class-domexception
@@ -4792,6 +4822,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`REPL`]: repl.md
 [`ServerResponse`]: http.md#class-httpserverresponse
 [`Temporal`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
+[`Worker`]: worker_threads.md#class-worker
 [`Writable`]: stream.md#class-streamwritable
 [`ZipBuffer`]: zlib.md#class-zlibzipbuffer
 [`ZipFile`]: zlib.md#class-zlibzipfile
@@ -4840,7 +4871,6 @@ An error occurred trying to allocate memory. This should never happen.
 [`process.send()`]: process.md#processsendmessage-sendhandle-options-callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`readable._read()`]: stream.md#readable_readsize
-[`require('node:crypto').setEngine()`]: crypto.md#cryptosetengineengine-flags
 [`require()`]: modules.md#requireid
 [`server.close()`]: net.md#serverclosecallback
 [`server.listen()`]: net.md#serverlisten
@@ -4856,6 +4886,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`util.inspect()`]: util.md#utilinspectobject-options
 [`util.parseArgs()`]: util.md#utilparseargsconfig
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
+[`vfs.mount()`]: vfs.md#vfsmount
 [`zlib`]: zlib.md
 [crypto digest algorithm]: crypto.md#cryptogethashes
 [debugger]: debugger.md
@@ -4866,6 +4897,7 @@ An error occurred trying to allocate memory. This should never happen.
 [package map]: packages.md#package-maps
 [relative URL]: https://url.spec.whatwg.org/#relative-url-string
 [self-reference a package using its name]: packages.md#self-referencing-a-package-using-its-name
+[single executable application]: single-executable-applications.md#virtual-file-system-vfs-for-assets
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [stream-based]: stream.md
 [syscall]: https://man7.org/linux/man-pages/man2/syscalls.2.html

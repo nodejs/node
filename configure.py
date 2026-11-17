@@ -59,7 +59,7 @@ maglev_enabled_architectures = ('x64', 'arm', 'arm64', 'ppc64', 's390x', 'riscv6
 
 # builtins may be removed later if they have been disabled by options
 shareable_builtins = {'undici/undici': 'deps/undici/undici.js',
-                     'amaro/dist/index': 'deps/amaro/dist/index.js'
+                     'amaro/dist/internal': 'deps/amaro/dist/internal.js'
 }
 
 # create option groups
@@ -269,7 +269,8 @@ parser.add_argument('--openssl-is-fips',
     action='store_true',
     dest='openssl_is_fips',
     default=None,
-    help='specifies that the OpenSSL library is FIPS compatible')
+    help='specifies that the shared OpenSSL library is FIPS capable '
+         '(requires --shared-openssl)')
 
 parser.add_argument('--openssl-use-def-ca-store',
     action='store_true',
@@ -297,7 +298,6 @@ shared_optgroup.add_argument('--shared-abseil-includes',
 shared_optgroup.add_argument('--shared-abseil-libname',
     action='store',
     dest='shared_abseil_libname',
-    default=None,
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-abseil-libpath',
@@ -319,7 +319,6 @@ shared_optgroup.add_argument('--shared-gtest-includes',
 shared_optgroup.add_argument('--shared-gtest-libname',
     action='store',
     dest='shared_gtest_libname',
-    default='gtest',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-gtest-libpath',
@@ -341,7 +340,6 @@ shared_optgroup.add_argument('--shared-hdr-histogram-includes',
 shared_optgroup.add_argument('--shared-hdr-histogram-libname',
     action='store',
     dest='shared_hdr_histogram_libname',
-    default='hdr_histogram',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-hdr-histogram-libpath',
@@ -363,7 +361,6 @@ shared_optgroup.add_argument('--shared-highway-includes',
 shared_optgroup.add_argument('--shared-highway-libname',
     action='store',
     dest='shared_highway_libname',
-    default='hwy',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-highway-libpath',
@@ -385,7 +382,6 @@ shared_optgroup.add_argument('--shared-http-parser-includes',
 shared_optgroup.add_argument('--shared-http-parser-libname',
     action='store',
     dest='shared_http_parser_libname',
-    default='llhttp',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-http-parser-libpath',
@@ -407,7 +403,6 @@ shared_optgroup.add_argument('--shared-libuv-includes',
 shared_optgroup.add_argument('--shared-libuv-libname',
     action='store',
     dest='shared_libuv_libname',
-    default='uv',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-libuv-libpath',
@@ -429,7 +424,6 @@ shared_optgroup.add_argument('--shared-lief-includes',
 shared_optgroup.add_argument('--shared-lief-libname',
     action='store',
     dest='shared_lief_libname',
-    default='LIEF',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-lief-libpath',
@@ -451,7 +445,6 @@ shared_optgroup.add_argument('--shared-nbytes-includes',
 shared_optgroup.add_argument('--shared-nbytes-libname',
     action='store',
     dest='shared_nbytes_libname',
-    default='nbytes',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-nbytes-libpath',
@@ -473,7 +466,6 @@ shared_optgroup.add_argument('--shared-nghttp2-includes',
 shared_optgroup.add_argument('--shared-nghttp2-libname',
     action='store',
     dest='shared_nghttp2_libname',
-    default='nghttp2',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-nghttp2-libpath',
@@ -495,7 +487,6 @@ shared_optgroup.add_argument('--shared-nghttp3-includes',
 shared_optgroup.add_argument('--shared-nghttp3-libname',
     action='store',
     dest='shared_nghttp3_libname',
-    default='nghttp3',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-nghttp3-libpath',
@@ -517,7 +508,6 @@ shared_optgroup.add_argument('--shared-ngtcp2-includes',
 shared_optgroup.add_argument('--shared-ngtcp2-libname',
     action='store',
     dest='shared_ngtcp2_libname',
-    default='ngtcp2',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-ngtcp2-libpath',
@@ -539,7 +529,6 @@ shared_optgroup.add_argument('--shared-openssl-includes',
 shared_optgroup.add_argument('--shared-openssl-libname',
     action='store',
     dest='shared_openssl_libname',
-    default='crypto,ssl',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-openssl-libpath',
@@ -562,7 +551,6 @@ shared_optgroup.add_argument('--shared-perfetto-includes',
 shared_optgroup.add_argument('--shared-perfetto-libname',
     action='store',
     dest='shared_perfetto_libname',
-    default='perfetto',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-perfetto-libpath',
@@ -584,7 +572,6 @@ shared_optgroup.add_argument('--shared-uvwasi-includes',
 shared_optgroup.add_argument('--shared-uvwasi-libname',
     action='store',
     dest='shared_uvwasi_libname',
-    default='uvwasi',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-uvwasi-libpath',
@@ -606,7 +593,6 @@ shared_optgroup.add_argument('--shared-zlib-includes',
 shared_optgroup.add_argument('--shared-zlib-libname',
     action='store',
     dest='shared_zlib_libname',
-    default='z',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-zlib-libpath',
@@ -628,7 +614,6 @@ shared_optgroup.add_argument('--shared-simdjson-includes',
 shared_optgroup.add_argument('--shared-simdjson-libname',
     action='store',
     dest='shared_simdjson_libname',
-    default='simdjson',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-simdjson-libpath',
@@ -651,7 +636,6 @@ shared_optgroup.add_argument('--shared-simdutf-includes',
 shared_optgroup.add_argument('--shared-simdutf-libname',
     action='store',
     dest='shared_simdutf_libname',
-    default='simdutf',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-simdutf-libpath',
@@ -673,7 +657,6 @@ shared_optgroup.add_argument('--shared-ada-includes',
 shared_optgroup.add_argument('--shared-ada-libname',
     action='store',
     dest='shared_ada_libname',
-    default='ada',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-ada-libpath',
@@ -695,7 +678,6 @@ shared_optgroup.add_argument('--shared-merve-includes',
 shared_optgroup.add_argument('--shared-merve-libname',
     action='store',
     dest='shared_merve_libname',
-    default='merve',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-merve-libpath',
@@ -717,7 +699,6 @@ shared_optgroup.add_argument('--shared-brotli-includes',
 shared_optgroup.add_argument('--shared-brotli-libname',
     action='store',
     dest='shared_brotli_libname',
-    default='brotlidec,brotlienc',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-brotli-libpath',
@@ -739,7 +720,6 @@ shared_optgroup.add_argument('--shared-cares-includes',
 shared_optgroup.add_argument('--shared-cares-libname',
     action='store',
     dest='shared_cares_libname',
-    default='cares',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-cares-libpath',
@@ -761,7 +741,6 @@ shared_optgroup.add_argument('--shared-sqlite-includes',
 shared_optgroup.add_argument('--shared-sqlite-libname',
     action='store',
     dest='shared_sqlite_libname',
-    default='sqlite3',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-sqlite-libpath',
@@ -783,7 +762,6 @@ shared_optgroup.add_argument('--shared-ffi-includes',
 shared_optgroup.add_argument('--shared-ffi-libname',
     action='store',
     dest='shared_ffi_libname',
-    default='ffi',
     help='alternative libffi name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-ffi-libpath',
@@ -805,7 +783,6 @@ shared_optgroup.add_argument('--shared-temporal_capi-includes',
 shared_optgroup.add_argument('--shared-temporal_capi-libname',
     action='store',
     dest='shared_temporal_capi_libname',
-    default='temporal_capi',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-temporal_capi-libpath',
@@ -827,7 +804,6 @@ shared_optgroup.add_argument('--shared-zstd-includes',
 shared_optgroup.add_argument('--shared-zstd-libname',
     action='store',
     dest='shared_zstd_libname',
-    default='zstd',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-zstd-libpath',
@@ -1423,8 +1399,9 @@ def try_check_compiler(cc, lang):
 #
 # The version of asm compiler is needed for building openssl asm files.
 # See deps/openssl/openssl.gypi for detail.
-# Commands and regular expressions to obtain its version number are taken from
-# https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/sha/asm/sha512-x86_64.pl#L112-L129
+# Commands and regular expressions to obtain its version number mirror the
+# bundled OpenSSL assembler scripts, including
+# deps/openssl/openssl/crypto/sha/asm/sha512-x86_64.pl.
 #
 def get_version_helper(cc, regexp):
   try:
@@ -1620,6 +1597,55 @@ def get_rustc_version(rustc):
   warn(f'Could not recognize `rustc`: {rustc_ret}')
   return '0.0'
 
+# Prefixes of Rust target triple architectures for each GYP architecture.
+rust_arch_prefixes = {
+  'arm': ('arm', 'thumb'),
+  'arm64': ('aarch64',),
+  'ia32': ('i386', 'i586', 'i686'),
+  'loong64': ('loongarch64',),
+  'mips64el': ('mips64el',),
+  'mipsel': ('mipsel',),
+  'ppc64': ('powerpc64',),
+  'riscv64': ('riscv64',),
+  's390x': ('s390x',),
+  'x64': ('x86_64',),
+}
+
+def get_rust_cross_targets(host_arch, default_target):
+  """Returns (host triple, target triple, problem). problem is non-empty when
+  the triples for a bundled Temporal cross build cannot be determined."""
+  rust_target = os.environ.get('CARGO_BUILD_TARGET', '') or default_target
+  if not rust_target:
+    return '', '', 'Cross compilation with bundled Temporal requires CARGO_BUILD_TARGET.'
+
+  rust_host_target = ''
+  rustc = os.environ.get('RUSTC', 'rustc')
+  try:
+    version = subprocess.check_output(shlex.split(rustc) + ['-vV'],
+                                      stderr=subprocess.PIPE, text=True)
+  except (OSError, subprocess.CalledProcessError):
+    version = ''
+  match = re.search(r'^host: (\S+)$', version, re.MULTILINE)
+  if match:
+    rust_host_target = match.group(1)
+  if not rust_host_target:
+    return '', '', 'Cannot determine the Rust host triple from `rustc -vV`.'
+
+  # The host toolset follows CC_host, which may build 32-bit host tools for
+  # 32-bit targets (e.g. CC_host="gcc -m32") on a 64-bit Rust host.
+  rust_host_arch, _, rust_host_rest = rust_host_target.partition('-')
+  if not rust_host_arch.startswith(rust_arch_prefixes.get(host_arch, ('',))):
+    if host_arch == 'ia32' and rust_host_arch == 'x86_64':
+      rust_host_target = f'i686-{rust_host_rest}'
+    else:
+      return '', '', (f'Rust host triple {rust_host_target} does not match '
+                      f'the host toolset architecture {host_arch} (CC_host).')
+
+  for triple in (rust_host_target, rust_target):
+    if not re.fullmatch(r'[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)+', triple):
+      error('Rust targets must be target triples, not paths to target JSON files')
+  return rust_host_target, rust_target, ''
+
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
 # the version check more by accident than anything else but a more rigorous
 # check involves checking the build number against an allowlist.  I'm not
@@ -1671,7 +1697,7 @@ def check_compiler(o):
   if not options.v8_disable_temporal_support and not options.shared_temporal_capi:
     # Minimum cargo and rustc versions should match values in BUILDING.md.
     min_cargo_ver_tuple = (1, 86)
-    min_rustc_ver_tuple = (1, 86)
+    min_rustc_ver_tuple = (1, 88)
     cargo = os.environ.get('CARGO', 'cargo')
     cargo_ver = get_cargo_version(cargo)
     print_verbose(f'Detected cargo (CARGO={cargo}): {cargo_ver}')
@@ -1957,6 +1983,23 @@ def configure_node(o):
     os.environ['GYP_CROSSCOMPILE'] = "1"
 
   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
+  o['variables']['cargo_cross_compiling'] = 0
+  if (flavor != 'win' and cross_compiling and
+      not options.v8_disable_temporal_support and not options.shared_temporal_capi):
+    # Only bundled Temporal cross builds need explicit per-toolset Rust targets.
+    rust_host_target, rust_target, problem = get_rust_cross_targets(
+        host_arch, o['variables']['cargo_rust_target'])
+    if problem:
+      # Like a missing Rust toolchain, this is only fatal when Temporal support
+      # was explicitly requested.
+      if options.v8_enable_temporal_support:
+        error(problem)
+      warn(f'{problem} Support for Temporal will be disabled.')
+      options.v8_disable_temporal_support = True
+    else:
+      o['variables']['cargo_cross_compiling'] = 1
+      o['variables']['cargo_rust_target_target'] = rust_target
+      o['variables']['cargo_rust_target_host'] = rust_host_target
 
   if target_arch == 'arm64':
     o['variables']['arm_fpu'] = options.arm_fpu or 'neon'
@@ -2195,19 +2238,26 @@ def configure_napi(output):
   version = getnapibuildversion.get_napi_version()
   output['variables']['napi_build_version'] = version
 
-def configure_library(lib, output, pkgname=None, libraries_key='libraries'):
+def configure_library(lib, output, pkgname=None, libraries_key='libraries', with_separate_include_var=False):
   shared_lib = 'shared_' + lib
   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
+
   libraries = output[libraries_key] if libraries_key in output else output['variables'][libraries_key]
+
+  include_dirs = []
+  if with_separate_include_var:
+    output['variables'][f'node_{shared_lib}_include_dirs'] = include_dirs
 
   if getattr(options, shared_lib):
     (pkg_libs, pkg_cflags, pkg_libpath, _) = pkg_config(pkgname or lib)
 
     if options.__dict__[shared_lib + '_includes']:
-      output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
+      include_dirs += [options.__dict__[shared_lib + '_includes']]
     elif pkg_cflags:
       stripped_flags = [flag.strip() for flag in pkg_cflags.split('-I')]
-      output['include_dirs'] += [flag for flag in stripped_flags if flag]
+      include_dirs += [flag for flag in stripped_flags if flag]
+
+    output['include_dirs'] += include_dirs
 
     # libpath needs to be provided ahead libraries
     if options.__dict__[shared_lib + '_libpath']:
@@ -2222,12 +2272,15 @@ def configure_library(lib, output, pkgname=None, libraries_key='libraries'):
     elif pkg_libpath:
       libraries += [pkg_libpath]
 
-    default_libs = getattr(options, shared_lib + '_libname')
+    user_provided_value = getattr(options, shared_lib + '_libname')
 
-    if default_libs:
-      libraries += [f'-l{l}' for l in default_libs.split(',')]
+    if user_provided_value is not None:
+      libraries += [f'-l{l}' for l in user_provided_value.split(',')]
     elif pkg_libs:
       libraries += pkg_libs.split()
+    elif pkg_libs is None:
+      pkg = (pkgname or lib)
+      libraries += [f'-l{l}' for l in pkg] if isinstance(pkg, list) else f'-l${pkg}'
 
 
 def configure_v8(o, configs):
@@ -2315,7 +2368,6 @@ def configure_openssl(o):
   variables['node_shared_ngtcp2'] = b(options.shared_ngtcp2)
   variables['node_shared_nghttp3'] = b(options.shared_nghttp3)
   variables['openssl_is_fips'] = b(options.openssl_is_fips)
-  variables['node_fipsinstall'] = b(False)
 
   if options.openssl_no_asm:
     variables['openssl_no_asm'] = 1
@@ -2349,15 +2401,15 @@ def configure_openssl(o):
   if not options.shared_openssl and not options.openssl_no_asm:
     is_x86 = 'x64' in variables['target_arch'] or 'ia32' in variables['target_arch']
 
-    # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
-    # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
-    openssl110_asm_supported = \
+    # Check for an assembler that supports the instructions used by OpenSSL.
+    # See deps/openssl/openssl/INSTALL.md for its toolchain requirements.
+    openssl_asm_supported = \
       ('gas_version' in variables and Version(variables['gas_version']) >= Version('2.23')) or \
       ('xcode_version' in variables and Version(variables['xcode_version']) >= Version('5.0')) or \
       ('llvm_version' in variables and Version(variables['llvm_version']) >= Version('3.3')) or \
       ('nasm_version' in variables and Version(variables['nasm_version']) >= Version('2.10'))
 
-    if is_x86 and not openssl110_asm_supported:
+    if is_x86 and not openssl_asm_supported:
       error('''Did not find a new enough assembler, install one or build with
        --openssl-no-asm.
        Please refer to BUILDING.md''')
@@ -2370,16 +2422,24 @@ def configure_openssl(o):
   if options.openssl_no_asm and options.shared_openssl:
     error('--openssl-no-asm is incompatible with --shared-openssl')
 
+  if options.openssl_is_fips and not options.shared_openssl:
+    error('--openssl-is-fips is only available with --shared-openssl')
+
   if options.openssl_is_fips:
     o['defines'] += ['OPENSSL_FIPS']
 
-  if options.openssl_is_fips and not options.shared_openssl:
-    variables['node_fipsinstall'] = b(True)
-
-  configure_library('openssl', o)
+  configure_library('openssl', o, with_separate_include_var=True)
 
   o['variables']['openssl_version'] = get_openssl_version(o)
   o['variables']['openssl_is_boringssl'] = get_openssl_is_boringssl(o)
+
+  # BoringSSL identifies itself as OpenSSL 1.1.1 and is exempt from this check.
+  # A version of 0 means detection failed, which is already warned about in
+  # get_openssl_version() and is caught at compile time by ncrypto.h.
+  openssl_version = o['variables']['openssl_version']
+  if o['variables']['openssl_is_boringssl'] == 'false' and \
+     0 < openssl_version < 0x30000000:
+    error('OpenSSL 1.x is no longer supported, v3.0.0 or later is required.')
 
 def configure_lief(o):
   if options.without_lief:
@@ -2407,7 +2467,7 @@ def configure_sqlite(o):
       without_sqlite_error('--shared-sqlite')
     return
 
-  configure_library('sqlite', o, pkgname='sqlite3')
+  configure_library('sqlite', o, pkgname='sqlite3', with_separate_include_var=True)
 
 def bundled_ffi_supported(os_name, target_arch):
   if target_arch == 'x86':
@@ -2450,12 +2510,25 @@ def configure_ffi(o):
   configure_library('ffi', o, pkgname='libffi')
 
 def configure_quic(o):
-  o['variables']['node_use_quic'] = b(options.experimental_quic and
-                                      not options.without_ssl)
+  if options.experimental_quic and options.without_ssl:
+    error('--experimental-quic is incompatible with --without-ssl')
+  o['variables']['node_use_quic'] = b(options.experimental_quic)
+
+  if not options.experimental_quic:
+    for lib in ['nghttp3', 'ngtcp2']:
+      shared_lib = 'shared_' + lib
+      if getattr(options, shared_lib):
+        error(f'--shared-{lib} requires --experimental-quic')
+    return
+
+  configure_library('nghttp3', output, pkgname='libnghttp3')
+  configure_library('ngtcp2', output, pkgname='libngtcp2')
 
 def configure_dtls(o):
-  o['variables']['node_use_dtls'] = b(options.experimental_dtls and
-                                      not options.without_ssl)
+  if options.experimental_dtls and options.without_ssl:
+    error('--experimental-dtls is incompatible with --without-ssl')
+
+  o['variables']['node_use_dtls'] = b(options.experimental_dtls)
 
 def configure_static(o):
   if options.fully_static or options.partly_static:
@@ -2465,7 +2538,12 @@ def configure_static(o):
       return
 
     if options.fully_static:
-      o['libraries'] += ['-static']
+      if flavor == 'linux':
+        # `-static` drops the `-pie` from common.gypi, e.g. clang:
+        # https://github.com/llvm/llvm-project/blob/68b03cf380e61c86aa59f94a10e8ce2d4c10cbb0/clang/lib/Driver/ToolChains/Gnu.cpp#L351-L366
+        o['libraries'] += ['-static-pie']
+      else:
+        o['libraries'] += ['-static']
     elif options.partly_static:
       o['libraries'] += ['-static-libgcc', '-static-libstdc++']
       if options.enable_asan:
@@ -2496,7 +2574,7 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
             info(f'Using floating patch "{patchfile}" from "{dir_base}"')
         file_list.append(srcfile)
     break
-  return file_list
+  return sorted(file_list)
 
 def configure_intl(o):
   def icu_download(path):
@@ -2893,9 +2971,9 @@ configure_node(output)
 configure_node_lib_files(output)
 configure_node_cctest_sources(output)
 configure_napi(output)
-configure_library('zlib', output)
+configure_library('zlib', output, with_separate_include_var=True)
 configure_library('http_parser', output, pkgname='libllhttp')
-configure_library('libuv', output)
+configure_library('libuv', output, with_separate_include_var=True)
 configure_library('abseil', output, pkgname=[
   'absl_absl_check',
   'absl_absl_log',
@@ -2911,6 +2989,7 @@ configure_library('abseil', output, pkgname=[
   'absl_cleanup',
   'absl_config',
   'absl_cord',
+  'absl_crc32c',
   'absl_core_headers',
   'absl_die_if_null',
   'absl_dynamic_annotations',
@@ -2968,14 +3047,12 @@ configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 # Only cctest uses gtest; keep it out of the node binary's link line.
 output['variables']['node_shared_gtest_libraries'] = []
-configure_library('gtest', output, libraries_key='node_shared_gtest_libraries')
+configure_library('gtest', output, ['gtest_main', 'gtest'], 'node_shared_gtest_libraries')
 configure_library('hdr_histogram', output)
 configure_library('highway', output, pkgname='libhwy')
 configure_library('merve', output)
 configure_library('nbytes', output)
 configure_library('nghttp2', output, pkgname='libnghttp2')
-configure_library('nghttp3', output, pkgname='libnghttp3')
-configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_lief(output);
 configure_perfetto(output);
 configure_sqlite(output);
@@ -2994,7 +3071,7 @@ configure_section_file(output)
 
 # remove builtins that have been disabled
 if options.without_amaro:
-    del shareable_builtins['amaro/dist/index']
+    del shareable_builtins['amaro/dist/internal']
 
 # configure shareable builtins
 output['variables']['node_builtin_shareable_builtins'] = []

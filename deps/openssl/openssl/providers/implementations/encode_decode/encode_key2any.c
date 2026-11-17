@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -38,9 +38,13 @@
 #include "prov/bio.h"
 #include "prov/provider_ctx.h"
 #include "prov/der_rsa.h"
-#include "endecoder_local.h"
-#include "ml_dsa_codecs.h"
-#include "ml_kem_codecs.h"
+#include "prov/endecoder_local.h"
+#include "prov/ml_dsa_codecs.h"
+#include "prov/ml_kem_codecs.h"
+#include "prov/lms_codecs.h"
+#include "providers/implementations/encode_decode/encode_key2any.inc"
+
+#include <crypto/asn1.h>
 
 #if defined(OPENSSL_NO_DH) && defined(OPENSSL_NO_DSA) && defined(OPENSSL_NO_EC)
 #define OPENSSL_NO_KEYPARAMS
@@ -58,6 +62,9 @@ typedef struct key2any_ctx_st {
     EVP_CIPHER *cipher;
 
     struct ossl_passphrase_data_st pwdata;
+
+    /* Just-in-time ML-KEM and ML-DSA output format override */
+    char *output_formats;
 } KEY2ANY_CTX;
 
 typedef int check_key_type_fn(const void *key, int nid);
@@ -123,7 +130,8 @@ static X509_SIG *p8info_to_encp8(PKCS8_PRIV_KEY_INFO *p8info,
         return NULL;
     }
     /* First argument == -1 means "standard" */
-    p8 = PKCS8_encrypt_ex(-1, ctx->cipher, kstr, klen, NULL, 0, 0, p8info, libctx, NULL);
+    p8 = PKCS8_encrypt_ex(-1, ctx->cipher, kstr, (int)klen, NULL, 0, 0, p8info,
+        libctx, NULL);
     OPENSSL_cleanse(kstr, klen);
     return p8;
 }
@@ -794,7 +802,7 @@ k2d_NOCTX(ec_param, i2d_ECParameters)
         return 0;
 
     *pder = keyblob;
-    return ecxkey->keylen;
+    return (int)ecxkey->keylen;
 }
 
 static int ecx_pki_priv_to_der(const void *vecxkey, unsigned char **pder,
@@ -810,7 +818,7 @@ static int ecx_pki_priv_to_der(const void *vecxkey, unsigned char **pder,
     }
 
     oct.data = ecxkey->privkey;
-    oct.length = ecxkey->keylen;
+    oct.length = (int)ecxkey->keylen;
     oct.flags = 0;
 
     keybloblen = i2d_ASN1_OCTET_STRING(&oct, pder);
@@ -855,7 +863,8 @@ static int ml_dsa_pki_priv_to_der(const void *vkey, unsigned char **pder,
 {
     KEY2ANY_CTX *ctx = vctx;
 
-    return ossl_ml_dsa_i2d_prvkey(vkey, pder, ctx->provctx);
+    return ossl_ml_dsa_i2d_prvkey(vkey, pder,
+        ctx->provctx, ctx->output_formats);
 }
 
 #define ml_dsa_epki_priv_to_der ml_dsa_pki_priv_to_der
@@ -885,7 +894,8 @@ static int ml_kem_pki_priv_to_der(const void *vkey, unsigned char **pder,
 {
     KEY2ANY_CTX *ctx = vctx;
 
-    return ossl_ml_kem_i2d_prvkey(vkey, pder, ctx->provctx);
+    return ossl_ml_kem_i2d_prvkey(vkey, pder,
+        ctx->provctx, ctx->output_formats);
 }
 
 #define ml_kem_epki_priv_to_der ml_kem_pki_priv_to_der
@@ -1034,7 +1044,7 @@ static int slh_dsa_spki_pub_to_der(const void *vkey, unsigned char **pder,
         return 0;
 
     *pder = key_blob;
-    return key_len;
+    return (int)key_len;
 }
 
 static int slh_dsa_pki_priv_to_der(const void *vkey, unsigned char **pder,
@@ -1053,7 +1063,7 @@ static int slh_dsa_pki_priv_to_der(const void *vkey, unsigned char **pder,
         && ((*pder = OPENSSL_memdup(ossl_slh_dsa_key_get_priv(key), len)) == NULL))
         return 0;
 
-    return len;
+    return (int)len;
 }
 #define slh_dsa_epki_priv_to_der slh_dsa_pki_priv_to_der
 
@@ -1098,6 +1108,19 @@ static int slh_dsa_pki_priv_to_der(const void *vkey, unsigned char **pder,
 #define slh_dsa_shake_256f_pem_type "SLH-DSA-SHAKE-256f"
 #endif /* OPENSSL_NO_SLH_DSA */
 
+#ifndef OPENSSL_NO_LMS
+static int lms_spki_pub_to_der(const void *vkey, unsigned char **pder,
+    ossl_unused void *ctx)
+{
+    return ossl_lms_i2d_pubkey(vkey, pder);
+}
+
+#define prepare_lms_params NULL
+#define lms_check_key_type NULL
+#define lms_evp_type EVP_PKEY_HSS_LMS
+#define lms_pem_type "LMS"
+#endif /* OPENSSL_NO_LMS */
+
 /* ---------------------------------------------------------------------- */
 
 static OSSL_FUNC_decoder_newctx_fn key2any_newctx;
@@ -1121,37 +1144,34 @@ static void key2any_freectx(void *vctx)
 
     ossl_pw_clear_passphrase_data(&ctx->pwdata);
     EVP_CIPHER_free(ctx->cipher);
+    OPENSSL_free(ctx->output_formats);
     OPENSSL_free(ctx);
 }
 
 static const OSSL_PARAM *key2any_settable_ctx_params(ossl_unused void *provctx)
 {
-    static const OSSL_PARAM settables[] = {
-        OSSL_PARAM_utf8_string(OSSL_ENCODER_PARAM_CIPHER, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_ENCODER_PARAM_PROPERTIES, NULL, 0),
-        OSSL_PARAM_END,
-    };
-
-    return settables;
+    return key2any_set_ctx_params_list;
 }
 
 static int key2any_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     KEY2ANY_CTX *ctx = vctx;
-    OSSL_LIB_CTX *libctx = ossl_prov_ctx_get0_libctx(ctx->provctx);
-    const OSSL_PARAM *cipherp = OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_CIPHER);
-    const OSSL_PARAM *propsp = OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_PROPERTIES);
-    const OSSL_PARAM *save_paramsp = OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_SAVE_PARAMETERS);
+    struct key2any_set_ctx_params_st p;
 
-    if (cipherp != NULL) {
+    if (ctx == NULL || !key2any_set_ctx_params_decoder(params, &p))
+        return 0;
+
+    if (p.cipher != NULL) {
         const char *ciphername = NULL;
         const char *props = NULL;
+        OSSL_LIB_CTX *libctx;
 
-        if (!OSSL_PARAM_get_utf8_string_ptr(cipherp, &ciphername))
+        if (!OSSL_PARAM_get_utf8_string_ptr(p.cipher, &ciphername))
             return 0;
-        if (propsp != NULL && !OSSL_PARAM_get_utf8_string_ptr(propsp, &props))
+        if (p.propq != NULL && !OSSL_PARAM_get_utf8_string_ptr(p.propq, &props))
             return 0;
 
+        libctx = ossl_prov_ctx_get0_libctx(ctx->provctx);
         EVP_CIPHER_free(ctx->cipher);
         ctx->cipher = NULL;
         ctx->cipher_intent = ciphername != NULL;
@@ -1160,10 +1180,23 @@ static int key2any_set_ctx_params(void *vctx, const OSSL_PARAM params[])
             return 0;
     }
 
-    if (save_paramsp != NULL) {
-        if (!OSSL_PARAM_get_int(save_paramsp, &ctx->save_parameters))
+    if (p.svprm != NULL && !OSSL_PARAM_get_int(p.svprm, &ctx->save_parameters))
+        return 0;
+
+    if (p.output_formats != NULL) {
+        char *val = NULL;
+
+        if (!OSSL_PARAM_get_utf8_string(p.output_formats, &val, 0))
             return 0;
+        OPENSSL_free(ctx->output_formats);
+        if (*val != '\0') {
+            ctx->output_formats = val;
+        } else {
+            OPENSSL_free(val);
+            ctx->output_formats = NULL;
+        }
     }
+
     return 1;
 }
 
@@ -1749,3 +1782,8 @@ MAKE_ENCODER(ml_dsa_87, ml_dsa, PrivateKeyInfo, pem);
 MAKE_ENCODER(ml_dsa_87, ml_dsa, SubjectPublicKeyInfo, der);
 MAKE_ENCODER(ml_dsa_87, ml_dsa, SubjectPublicKeyInfo, pem);
 #endif /* OPENSSL_NO_ML_DSA */
+
+#ifndef OPENSSL_NO_LMS
+MAKE_ENCODER(lms, lms, SubjectPublicKeyInfo, der);
+MAKE_ENCODER(lms, lms, SubjectPublicKeyInfo, pem);
+#endif

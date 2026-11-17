@@ -125,16 +125,19 @@ for (const { file, status } of [
     fixtures.path('bench-runner/a.cjs'),
   ]);
   assert.strictEqual(result.status, 0);
-  parseRecords(result);
-  assert.match(fs.readFileSync(destination, 'utf8'),
-               /^benchmark \| samples \| mean rate/);
+  const records = parseRecords(result);
+  assert.strictEqual(records[0].type, 'bench:environment');
+  const output = fs.readFileSync(destination, 'utf8');
+  assert.match(output, /^node: v\d+/);
+  assert.match(output, /^benchmark \| samples \| mean rate/m);
 }
 
 {
   const result = spawnBench([fixtures.path('bench-runner/a.cjs')]);
   assert.strictEqual(result.status, 0);
   assert.strictEqual(result.stderr, '');
-  assert.match(result.stdout, /^benchmark \| samples \| mean rate/);
+  assert.match(result.stdout, /^node: v\d+/);
+  assert.match(result.stdout, /^benchmark \| samples \| mean rate/m);
   assert.match(result.stdout, /1 completed, 0 failed, 0 skipped/);
 }
 

@@ -37,8 +37,6 @@ let
         ../../common.gypi
         ../../configure.py
         ../../deps/v8
-        ../../node.gyp
-        ../../node.gypi
         ../../tools/gyp/pylib
         ../../tools/gyp_node.py
         ../../tools/v8_gypfiles/features.gypi
@@ -154,9 +152,26 @@ stdenv.mkDerivation (finalAttrs: {
       return []
     EOF
   '';
-  # We need to remove the node_inspector.gypi ref so GYP does not search for it.
+  # To avoid invalidating cached build on unrelated `node.gyp` and `node.gypi` changes,
+  # we stub `node.gyp` to only reference the targets needed to build V8.
   postPatch = ''
-    substituteInPlace node.gyp --replace-fail "'includes' : [ 'src/inspector/node_inspector.gypi' ]" "'includes' : []"
+    cat -> node.gyp <<'EOF'
+    ${builtins.toJSON {
+      targets = [
+        {
+          target_name = "v8_deps_root";
+          type = "none";
+          dependencies = lib.unique (
+            builtins.concatLists (
+              builtins.filter builtins.isList (
+                builtins.split "'(tools/v8_gypfiles/v8\\.gyp:[A-Za-z0-9_]+)'" (builtins.readFile ../../node.gypi)
+              )
+            )
+          );
+        }
+      ];
+    }}
+    EOF
   ''
   + lib.optionalString (icu == null) ''
     substituteInPlace configure.py \
@@ -179,7 +194,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   buildPhase = ''
     runHook preBuild
-    ninja -v -C out/Release v8_snapshot v8_libplatform
+    ninja -v -C out/Release v8_deps_root
     runHook postBuild
   '';
   installPhase = ''

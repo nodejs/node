@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -443,11 +443,20 @@ struct ISSUING_DIST_POINT_st {
 #define EXFLAG_FRESHEST 0x1000
 #define EXFLAG_SS 0x2000 /* cert is apparently self-signed */
 
+#define EXFLAG_NO_FINGERPRINT 0x100000
+
+/*
+ * The following flags are no longer used. On X509_V_FLAG_X509_STRICT they were
+ * previously enforced as checks on critical extensions but this behavior has
+ * been removed.
+ */
 #define EXFLAG_BCONS_CRITICAL 0x10000
 #define EXFLAG_AKID_CRITICAL 0x20000
 #define EXFLAG_SKID_CRITICAL 0x40000
 #define EXFLAG_SAN_CRITICAL 0x80000
-#define EXFLAG_NO_FINGERPRINT 0x100000
+
+/* A certificate MUST NOT include more than one instance of an extension. */
+#define EXFLAG_DUPLICATE 0x200000
 
 /* https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.3 */
 #define KU_DIGITAL_SIGNATURE X509v3_KU_DIGITAL_SIGNATURE
@@ -621,8 +630,8 @@ DECLARE_ASN1_FUNCTIONS(ISSUING_DIST_POINT)
 
 int DIST_POINT_set_dpname(DIST_POINT_NAME *dpn, const X509_NAME *iname);
 
-int NAME_CONSTRAINTS_check(X509 *x, NAME_CONSTRAINTS *nc);
-int NAME_CONSTRAINTS_check_CN(X509 *x, NAME_CONSTRAINTS *nc);
+int NAME_CONSTRAINTS_check(const X509 *x, NAME_CONSTRAINTS *nc);
+int NAME_CONSTRAINTS_check_CN(const X509 *x, NAME_CONSTRAINTS *nc);
 
 DECLARE_ASN1_FUNCTIONS(ACCESS_DESCRIPTION)
 DECLARE_ASN1_FUNCTIONS(AUTHORITY_INFO_ACCESS)
@@ -715,11 +724,11 @@ int X509V3_EXT_add_list(X509V3_EXT_METHOD *extlist);
 int X509V3_EXT_add_alias(int nid_to, int nid_from);
 void X509V3_EXT_cleanup(void);
 
-const X509V3_EXT_METHOD *X509V3_EXT_get(X509_EXTENSION *ext);
+const X509V3_EXT_METHOD *X509V3_EXT_get(const X509_EXTENSION *ext);
 const X509V3_EXT_METHOD *X509V3_EXT_get_nid(int nid);
 int X509V3_add_standard_extensions(void);
 STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line);
-void *X509V3_EXT_d2i(X509_EXTENSION *ext);
+void *X509V3_EXT_d2i(const X509_EXTENSION *ext);
 void *X509V3_get_d2i(const STACK_OF(X509_EXTENSION) *x, int nid, int *crit,
     int *idx);
 
@@ -735,31 +744,31 @@ int X509V3_add1_i2d(STACK_OF(X509_EXTENSION) **x, int nid, void *value,
 
 void X509V3_EXT_val_prn(BIO *out, STACK_OF(CONF_VALUE) *val, int indent,
     int ml);
-int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, unsigned long flag,
+int X509V3_EXT_print(BIO *out, const X509_EXTENSION *ext, unsigned long flag,
     int indent);
 #ifndef OPENSSL_NO_STDIO
-int X509V3_EXT_print_fp(FILE *out, X509_EXTENSION *ext, int flag, int indent);
+int X509V3_EXT_print_fp(FILE *out, const X509_EXTENSION *ext, int flag, int indent);
 #endif
 int X509V3_extensions_print(BIO *out, const char *title,
     const STACK_OF(X509_EXTENSION) *exts,
     unsigned long flag, int indent);
 
-int X509_check_ca(X509 *x);
-int X509_check_purpose(X509 *x, int id, int ca);
-int X509_supported_extension(X509_EXTENSION *ex);
-int X509_check_issued(X509 *issuer, X509 *subject);
+int X509_check_ca(const X509 *x);
+int X509_check_purpose(const X509 *x, int id, int ca);
+int X509_supported_extension(const X509_EXTENSION *ex);
+int X509_check_issued(const X509 *issuer, const X509 *subject);
 int X509_check_akid(const X509 *issuer, const AUTHORITY_KEYID *akid);
 void X509_set_proxy_flag(X509 *x);
 void X509_set_proxy_pathlen(X509 *x, long l);
-long X509_get_proxy_pathlen(X509 *x);
+long X509_get_proxy_pathlen(const X509 *x);
 
-uint32_t X509_get_extension_flags(X509 *x);
-uint32_t X509_get_key_usage(X509 *x);
-uint32_t X509_get_extended_key_usage(X509 *x);
-const ASN1_OCTET_STRING *X509_get0_subject_key_id(X509 *x);
-const ASN1_OCTET_STRING *X509_get0_authority_key_id(X509 *x);
-const GENERAL_NAMES *X509_get0_authority_issuer(X509 *x);
-const ASN1_INTEGER *X509_get0_authority_serial(X509 *x);
+uint32_t X509_get_extension_flags(const X509 *x);
+uint32_t X509_get_key_usage(const X509 *x);
+uint32_t X509_get_extended_key_usage(const X509 *x);
+const ASN1_OCTET_STRING *X509_get0_subject_key_id(const X509 *x);
+const ASN1_OCTET_STRING *X509_get0_authority_key_id(const X509 *x);
+const GENERAL_NAMES *X509_get0_authority_issuer(const X509 *x);
+const ASN1_INTEGER *X509_get0_authority_serial(const X509 *x);
 
 int X509_PURPOSE_get_count(void);
 int X509_PURPOSE_get_unused_id(OSSL_LIB_CTX *libctx);
@@ -777,10 +786,10 @@ char *X509_PURPOSE_get0_sname(const X509_PURPOSE *xp);
 int X509_PURPOSE_get_trust(const X509_PURPOSE *xp);
 int X509_PURPOSE_set(int *p, int purpose);
 
-STACK_OF(OPENSSL_STRING) *X509_get1_email(X509 *x);
-STACK_OF(OPENSSL_STRING) *X509_REQ_get1_email(X509_REQ *x);
+STACK_OF(OPENSSL_STRING) *X509_get1_email(const X509 *x);
+STACK_OF(OPENSSL_STRING) *X509_REQ_get1_email(const X509_REQ *x);
 void X509_email_free(STACK_OF(OPENSSL_STRING) *sk);
-STACK_OF(OPENSSL_STRING) *X509_get1_ocsp(X509 *x);
+STACK_OF(OPENSSL_STRING) *X509_get1_ocsp(const X509 *x);
 
 /* Flags for X509_check_* functions */
 
@@ -805,13 +814,15 @@ STACK_OF(OPENSSL_STRING) *X509_get1_ocsp(X509 *x);
  */
 #define _X509_CHECK_FLAG_DOT_SUBDOMAINS 0x8000
 
-int X509_check_host(X509 *x, const char *chk, size_t chklen,
+#if !defined(OPENSSL_NO_DEPRECATED_4_1)
+OSSL_DEPRECATEDIN_4_1 int X509_check_host(const X509 *x, const char *chk, size_t chklen,
     unsigned int flags, char **peername);
-int X509_check_email(X509 *x, const char *chk, size_t chklen,
+OSSL_DEPRECATEDIN_4_1 int X509_check_email(const X509 *x, const char *chk, size_t chklen,
     unsigned int flags);
-int X509_check_ip(X509 *x, const unsigned char *chk, size_t chklen,
+OSSL_DEPRECATEDIN_4_1 int X509_check_ip(const X509 *x, const unsigned char *chk, size_t chklen,
     unsigned int flags);
-int X509_check_ip_asc(X509 *x, const char *ipasc, unsigned int flags);
+OSSL_DEPRECATEDIN_4_1 int X509_check_ip_asc(const X509 *x, const char *ipasc, unsigned int flags);
+#endif /* !defined(OPENSSL_NO_DEPRECATED_4_1) */
 
 ASN1_OCTET_STRING *a2i_IPADDRESS(const char *ipasc);
 ASN1_OCTET_STRING *a2i_IPADDRESS_NC(const char *ipasc);
@@ -922,7 +933,7 @@ DECLARE_ASN1_FUNCTIONS(IPAddressChoice)
 DECLARE_ASN1_FUNCTIONS(IPAddressFamily)
 
 /*
- * API tag for elements of the ASIdentifer SEQUENCE.
+ * API tag for elements of the ASIdentifier SEQUENCE.
  */
 #define V3_ASID_ASNUM 0
 #define V3_ASID_RDI 1
@@ -945,17 +956,17 @@ int X509v3_asid_add_inherit(ASIdentifiers *asid, int which);
 int X509v3_asid_add_id_or_range(ASIdentifiers *asid, int which,
     ASN1_INTEGER *min, ASN1_INTEGER *max);
 int X509v3_addr_add_inherit(IPAddrBlocks *addr,
-    const unsigned afi, const unsigned *safi);
+    unsigned afi, const unsigned *safi);
 int X509v3_addr_add_prefix(IPAddrBlocks *addr,
-    const unsigned afi, const unsigned *safi,
+    unsigned afi, const unsigned *safi,
     unsigned char *a, const int prefixlen);
 int X509v3_addr_add_range(IPAddrBlocks *addr,
-    const unsigned afi, const unsigned *safi,
+    unsigned afi, const unsigned *safi,
     unsigned char *min, unsigned char *max);
 unsigned X509v3_addr_get_afi(const IPAddressFamily *f);
-int X509v3_addr_get_range(IPAddressOrRange *aor, const unsigned afi,
+int X509v3_addr_get_range(IPAddressOrRange *aor, unsigned afi,
     unsigned char *min, unsigned char *max,
-    const int length);
+    int length);
 
 /*
  * Canonical forms.
@@ -978,10 +989,10 @@ int X509v3_addr_subset(IPAddrBlocks *a, IPAddrBlocks *b);
  */
 int X509v3_asid_validate_path(X509_STORE_CTX *);
 int X509v3_addr_validate_path(X509_STORE_CTX *);
-int X509v3_asid_validate_resource_set(STACK_OF(X509) *chain,
+int X509v3_asid_validate_resource_set(const STACK_OF(X509) *chain,
     ASIdentifiers *ext,
     int allow_inheritance);
-int X509v3_addr_validate_resource_set(STACK_OF(X509) *chain,
+int X509v3_addr_validate_resource_set(const STACK_OF(X509) *chain,
     IPAddrBlocks *ext, int allow_inheritance);
 
 #endif /* OPENSSL_NO_RFC3779 */

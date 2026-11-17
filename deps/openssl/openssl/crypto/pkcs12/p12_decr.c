@@ -12,6 +12,8 @@
 #include <openssl/pkcs12.h>
 #include <openssl/trace.h>
 
+#include <crypto/asn1.h>
+
 /*
  * Encrypt/Decrypt a buffer based on password and algor, result in a
  * OPENSSL_malloc'ed buffer

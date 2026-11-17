@@ -67,6 +67,11 @@ __owur const SSL_METHOD *OSSL_QUIC_client_thread_method(void);
  */
 __owur const SSL_METHOD *OSSL_QUIC_server_method(void);
 
+/*
+ * Method used for QUIC client/server connection
+ */
+__owur const SSL_METHOD *OSSL_QUIC_method(void);
+
 #ifdef __cplusplus
 }
 #endif

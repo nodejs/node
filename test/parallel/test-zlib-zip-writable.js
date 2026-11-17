@@ -150,6 +150,7 @@ test('ZipFile addEntry() promotes a spent streaming entry into a readable file-b
   ]);
   try {
     const zip = await zlib.ZipFile.open(filePath, { writable: true });
+    let mem;
     try {
       const payload = 'streamed payload'.repeat(64);
       async function* source() {
@@ -177,13 +178,13 @@ test('ZipFile addEntry() promotes a spent streaming entry into a readable file-b
       assert.strictEqual(copy.get('s.txt').crc32 >>> 0, streamEntry.crc32 >>> 0);
 
       // An in-memory entry added alongside keeps its own buffer (not promoted).
-      const mem = await zlib.ZipEntry.create('m.txt', Buffer.from('in memory'));
+      mem = await zlib.ZipEntry.create('m.txt', Buffer.from('in memory'));
       await zip.addEntry(mem);
-      assert.deepStrictEqual(mem.rawContent, mem.rawContent); // still a Buffer
-      assert.notStrictEqual(mem.rawContent, null);
     } finally {
       await zip.close();
     }
+    // Still readable once the ZipFile is closed, so it was not promoted.
+    assert.strictEqual((await mem.content()).toString(), 'in memory');
 
     // The bytes persisted correctly and re-open sees the streamed member.
     const reread = await zlib.ZipFile.open(filePath);

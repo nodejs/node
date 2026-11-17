@@ -1,7 +1,5 @@
 #include "crypto/crypto_kem.h"
 
-#if OPENSSL_WITH_KEM
-
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "crypto/crypto_keys.h"
@@ -261,5 +259,3 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace crypto
 }  // namespace node
-
-#endif

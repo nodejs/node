@@ -12,13 +12,15 @@ const {
   randomBytes,
   generateKeyPairSync,
 } = require('crypto');
-const { hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const { kSupportedAlgorithms } = require('internal/crypto/util');
 const rejectsXCurves = hasFIPS(3, 5);
 
 const hashes = Object.keys(kSupportedAlgorithms.digest).filter((name) => {
   return name.startsWith('SHA-') || name.startsWith('SHA3-');
 });
+const unsupportedKeyHashes = isBoringSSL ? ['SHA3-256', 'SHA3-384', 'SHA3-512'] : [];
+const keyHashes = hashes.filter((hash) => !unsupportedKeyHashes.includes(hash));
 const namedCurves = ['P-256', 'P-384', 'P-521'];
 
 const signingUsages = {
@@ -105,6 +107,17 @@ function runVector(vector) {
   assertVector(vector, false);
 }
 
+function assertUnsupportedKeyHashes(keyObject, name, usages) {
+  for (const hash of unsupportedKeyHashes) {
+    for (const extractable of [true, false]) {
+      assert.throws(() => keyObject.toCryptoKey({ name, hash }, extractable, usages), {
+        name: 'NotSupportedError',
+        message: 'SHA-3 is only supported for digest operations',
+      });
+    }
+  }
+}
+
 function symmetricVectors(name, usages) {
   const vectors = [];
   for (const length of [128, 192, 256]) {
@@ -181,7 +194,8 @@ function hmacVectors() {
   const vectors = [];
   for (const length of [128, 192, 256]) {
     const key = secretKey(length);
-    for (const hash of hashes) {
+    assertUnsupportedKeyHashes(key, 'HMAC', ['sign', 'verify']);
+    for (const hash of keyHashes) {
       vectors.push(vector(
         key,
         { name: 'HMAC', hash },
@@ -219,7 +233,8 @@ function rsaVectors(name, usagesByType) {
   const keyPair = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const vectors = [];
   for (const keyObject of [keyPair.publicKey, keyPair.privateKey]) {
-    for (const hash of hashes) {
+    assertUnsupportedKeyHashes(keyObject, name, getUsages(keyObject, usagesByType));
+    for (const hash of keyHashes) {
       vectors.push(vector(
         keyObject,
         { name, hash },

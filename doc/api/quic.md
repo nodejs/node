@@ -987,7 +987,8 @@ added: v23.8.0
     is application-specific. **Default:** `'transport'`.
   * `reason` {string} An optional human-readable reason string included in
     the `CONNECTION_CLOSE` frame. Per RFC 9000, this is for diagnostic purposes
-    only and should not be used for machine-readable error descriptions.
+    only and should not be used for machine-readable error descriptions. If its
+    UTF-8 encoding exceeds 256 bytes, it is truncated to at most 256 bytes.
 * Returns: {Promise}
 
 Initiate a graceful close of the session. Existing streams will be allowed
@@ -1066,7 +1067,9 @@ added: v23.8.0
   * `type` {string} Either `'transport'` or `'application'`. **Default:**
     `'transport'`.
   * `reason` {string} An optional human-readable reason string included in
-    the `CONNECTION_CLOSE` frame.
+    the `CONNECTION_CLOSE` frame. Per RFC 9000, this is for diagnostic purposes
+    only and should not be used for machine-readable error descriptions. If its
+    UTF-8 encoding exceeds 256 bytes, it is truncated to at most 256 bytes.
 
 Immediately destroy the session. All streams will be destroyed and the
 session will be closed. If `error` is provided and [`session.onerror`][] is
@@ -1976,9 +1979,10 @@ changes:
 * `error` {any}
 * `options` {Object}
   * `code` {bigint|number} The application error code to include in the
-    `RESET_STREAM` and `STOP_SENDING` frames sent to the peer. Numbers are
-    coerced to `BigInt`. When omitted, the wire code is derived from `error`
-    (see below).
+    `RESET_STREAM` and `STOP_SENDING` frames sent to the peer. Must be a
+    non-negative 62-bit unsigned varint
+    (`0n <= code <= 2n ** 62n - 1n`). Numbers are coerced to `BigInt`. When
+    omitted, the wire code is derived from `error` (see below).
   * `reason` {string} An optional human-readable reason string. Accepted for
     symmetry with [`session.close()`][] and [`session.destroy()`][], but
     **not transmitted on the wire** — neither `RESET_STREAM` nor
@@ -1988,6 +1992,11 @@ changes:
 Immediately and abruptly destroys the stream. If `error` is provided and
 [`stream.onerror`][] is set, the `onerror` callback is invoked before
 destruction. The `stream.closed` promise rejects with the error.
+
+Buffered incoming data remains readable after destruction, even if iteration
+has not started. If the readable side ended without a FIN, the iterator yields
+that data before reporting the truncation or error according to
+[`sessionOptions.truncatedReads`][].
 
 When the stream is destroyed with an `error` (or with an explicit
 `options.code`), the QUIC stack signals the abort to the peer:
@@ -2058,8 +2067,9 @@ not perform this derivation: they send `code` as given.
 added: v23.8.0
 -->
 
-* `code` {number|bigint} The application error code to send to the peer.
-  **Default:** `0n`.
+* `code` {number|bigint} The application error code to send to the peer. Must
+  be a non-negative 62-bit unsigned varint
+  (`0n <= code <= 2n ** 62n - 1n`). **Default:** `0n`.
 
 Tells the peer that this end will not send any more data on this stream,
 sending a `RESET_STREAM` frame carrying `code`. The readable side is left
@@ -2078,8 +2088,9 @@ remote-initiated unidirectional stream, which has no writable side to abort.
 added: v23.8.0
 -->
 
-* `code` {number|bigint} The application error code to send to the peer.
-  **Default:** `0n`.
+* `code` {number|bigint} The application error code to send to the peer. Must
+  be a non-negative 62-bit unsigned varint
+  (`0n <= code <= 2n ** 62n - 1n`). **Default:** `0n`.
 
 Asks the peer to stop sending data on this stream, sending a `STOP_SENDING`
 frame carrying `code`. The writable side is left open, so this end can
@@ -4882,6 +4893,7 @@ throughput issues caused by flow control.
 [`sessionOptions.sessionTicket`]: #sessionoptionssessionticket
 [`sessionOptions.sni`]: #sessionoptionssni-server-only
 [`sessionOptions.token`]: #sessionoptionstoken-client-only
+[`sessionOptions.truncatedReads`]: #sessionoptionstruncatedreads
 [`stream.destroy()`]: #streamdestroyerror-options
 [`stream.headers`]: #streamheaders
 [`stream.onerror`]: #streamonerror

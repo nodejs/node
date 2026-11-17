@@ -29,7 +29,7 @@
 
 #undef SPARC_T4_MONT
 #if defined(OPENSSL_BN_ASM_MONT) && (defined(__sparc__) || defined(__sparc))
-#include "crypto/sparc_arch.h"
+#include "arch/sparc_arch.h"
 #define SPARC_T4_MONT
 #endif
 
@@ -206,7 +206,7 @@ int BN_mod_exp_recp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
 
     if (m->neg) {
         /* ignore sign of 'm' */
-        if (!BN_copy(aa, m))
+        if (BN_copy(aa, m) == NULL)
             goto err;
         aa->neg = 0;
         if (BN_RECP_CTX_set(&recp, aa, ctx) <= 0)
@@ -755,6 +755,7 @@ int bn_mod_exp_mont_fixed_top(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
         for (i = 1; i < top; i++)
             tmp.d[i] = (~m->d[i]) & BN_MASK2;
         tmp.top = top;
+        tmp.flags |= BN_FLG_FIXED_TOP;
     } else
 #endif
         if (!bn_to_mont_fixed_top(&tmp, BN_value_one(), mont, ctx))

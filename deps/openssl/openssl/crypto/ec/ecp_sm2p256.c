@@ -532,7 +532,7 @@ static int ecp_sm2p256_windowed_mul(const EC_GROUP *group,
     } t, p;
 
     if (num > OPENSSL_MALLOC_MAX_NELEMS(P256_POINT)
-        || (scalars = OPENSSL_malloc(num * sizeof(BIGNUM *))) == NULL) {
+        || (scalars = OPENSSL_malloc_array(num, sizeof(BIGNUM *))) == NULL) {
         ECerr(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -564,6 +564,13 @@ static int ecp_sm2p256_windowed_mul(const EC_GROUP *group,
             ECerr(ERR_LIB_EC, EC_R_COORDINATES_OUT_OF_RANGE);
             goto err;
         }
+
+        /*
+         * The scalar is secret (e.g. the SM2 decryption private key). Mark it
+         * so that under enable-ct-validation Valgrind flags any branch or
+         * memory index depending on it inside the scalar multiplication below.
+         */
+        CONSTTIME_SECRET(k, sizeof(k));
 
         ecp_sm2p256_point_get_affine(&t.a, &p.p);
         ecp_sm2p256_point_P_mul_by_scalar(&kP, k, t.a);
@@ -610,6 +617,13 @@ static int ecp_sm2p256_points_mul(const EC_GROUP *group,
             ECerr(ERR_LIB_EC, EC_R_COORDINATES_OUT_OF_RANGE);
             goto err;
         }
+
+        /*
+         * The generator scalar is secret (e.g. the SM2 signature nonce k).
+         * Mark it so that under enable-ct-validation any branch or memory
+         * index depending on it in [k]G is flagged by Valgrind.
+         */
+        CONSTTIME_SECRET(k, sizeof(k));
 #if !defined(OPENSSL_NO_SM2_PRECOMP)
         if (ecp_sm2p256_is_affine_G(generator)) {
             ecp_sm2p256_point_G_mul_by_scalar(&p.p, k);
@@ -644,6 +658,16 @@ static int ecp_sm2p256_points_mul(const EC_GROUP *group,
         if (!p_is_infinity)
             ecp_sm2p256_point_add(&p.p, &p.p, out);
     }
+
+    /*
+     * The result ([k]G, or [d]C) is public. Declassify it so that the
+     * (legitimately variable-time) serialisation below and the branches the
+     * caller performs on the public signature/ciphertext do not trip
+     * ct-validation.
+     */
+    CONSTTIME_DECLASSIFY(p.p.X, sizeof(p.p.X));
+    CONSTTIME_DECLASSIFY(p.p.Y, sizeof(p.p.Y));
+    CONSTTIME_DECLASSIFY(p.p.Z, sizeof(p.p.Z));
 
     /* Not constant-time, but we're only operating on the public output. */
     if (!bn_set_words(r->X, p.p.X, P256_LIMBS)

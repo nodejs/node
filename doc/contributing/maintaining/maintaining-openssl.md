@@ -74,7 +74,8 @@ cherry-picked to older release lines that still provide binaries on 32-bit Windo
 ```
 
 Use `make` to regenerate all platform dependent files in
-`deps/openssl/config/archs/`:
+`deps/openssl/config/archs/` and shared generated files in
+`deps/openssl/config/common/`:
 
 ```bash
 # On non-Linux machines
@@ -98,9 +99,9 @@ git diff -- deps/openssl
 _Note_: On Windows, OpenSSL Configure generates a `makefile` that can be
 used for the `nmake` command. The `make` command in step 2 (above) uses
 `Makefile_VC-WIN64A`, `Makefile_VC-WIN32`, and `Makefile_VC-WIN64-ARM`,
-which are manually created. When source files or build options are updated in
-Windows, these Makefiles need to be changed by hand. If you are not sure,
-please ask @shigeki for details.
+which are manually created. The generator adds rules for headers, C files,
+assembly, and includes from OpenSSL's build metadata. Review these Makefiles
+when source files or build options change.
 
 ## 4. Commit and test
 
@@ -108,7 +109,7 @@ Update all architecture dependent files. Do not forget to git add or remove
 files if they are changed before committing:
 
 ```bash
-git add -A deps/openssl/config/archs
+git add -A deps/openssl/config
 git add -A deps/openssl/openssl
 git commit
 ```
@@ -122,7 +123,7 @@ deps: update archs files for openssl-<version>
 After an OpenSSL source update, all the config files need to be
 regenerated and committed by:
     $ make -C deps/openssl/config
-    $ git add -A deps/openssl/config/archs
+    $ git add -A deps/openssl/config
     $ git add -A deps/openssl/openssl
     $ git commit
 ```

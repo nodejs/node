@@ -1,11 +1,14 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_PROVIDER_LOCAL_H)
+#define OSSL_LIBCRYPTO_PROVIDER_LOCAL_H
 
 #include <openssl/core.h>
 
@@ -31,3 +34,5 @@ int ossl_provider_info_add_to_store(OSSL_LIB_CTX *libctx,
 int ossl_provider_info_add_parameter(OSSL_PROVIDER_INFO *provinfo,
     const char *name,
     const char *value);
+
+#endif /* !defined(OSSL_LIBCRYPTO_PROVIDER_LOCAL_H) */

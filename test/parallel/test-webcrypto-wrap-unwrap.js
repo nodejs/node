@@ -60,7 +60,7 @@ const kWrappingData = {
 if (fips3)
   delete kWrappingData['ChaCha20-Poly1305'];
 
-if (hasOpenSSL(3) && !fips3) {
+if (!isBoringSSL && !fips3) {
   kWrappingData['AES-OCB'] = {
     generate: { length: 128 },
     wrap: {
@@ -484,7 +484,7 @@ async function testNonByteLengthWrapUnwrap({
     implicitAlgorithm: hmacAlgorithm,
   });
 
-  if (hasOpenSSL(3) && getFips() !== 1) {
+  if (!isBoringSSL && getFips() !== 1) {
     for (const name of ['KMAC128', 'KMAC256']) {
       const keyData = new Uint8Array(32).fill(0xff);
       const kmacKey = await subtle.importKey(

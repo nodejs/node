@@ -21,7 +21,7 @@ namespace node::quic {
 class Session;
 class TLSContext;
 
-#if OPENSSL_IS_BORING
+#ifdef OPENSSL_IS_BORINGSSL
 static_assert(false,
               "This implementation of tlscontext relies on OpenSSL APIS "
               "that are not available in BoringSSL. An alternative impl "
@@ -41,7 +41,7 @@ class OSSLContext final {
   operator SSL*() const;
   operator ngtcp2_crypto_ossl_ctx*() const;
 
-  void Initialize(SSL* ssl,
+  void Initialize(ncrypto::SSLPointer ssl,
                   ngtcp2_crypto_conn_ref* ref,
                   ngtcp2_conn* connection,
                   SSL_CTX* ssl_ctx);
@@ -73,6 +73,7 @@ class OSSLContext final {
  private:
   ngtcp2_crypto_ossl_ctx* ctx_;
   ngtcp2_conn* connection_ = nullptr;
+  ncrypto::SSLPointer ssl_;
 };
 
 // Every QUIC Session has exactly one TLSSession that maintains the state

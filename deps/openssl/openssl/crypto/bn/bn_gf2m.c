@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -335,7 +335,7 @@ int BN_GF2m_mod_arr(BIGNUM *r, const BIGNUM *a, const int p[])
         d0 = p[0] % BN_BITS2;
         d1 = BN_BITS2 - d0;
         z[j - n] ^= (zz >> d0);
-        if (d0)
+        if (ossl_likely(d0))
             z[j - n - 1] ^= (zz << d1);
     }
 
@@ -349,7 +349,7 @@ int BN_GF2m_mod_arr(BIGNUM *r, const BIGNUM *a, const int p[])
         d1 = BN_BITS2 - d0;
 
         /* clear up the top d1 bits */
-        if (d0)
+        if (ossl_likely(d0))
             z[dN] = (z[dN] << d1) >> d1;
         else
             z[dN] = 0;
@@ -464,7 +464,7 @@ int BN_GF2m_mod_mul(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
     bn_check_top(b);
     bn_check_top(p);
 
-    arr = OPENSSL_malloc(sizeof(*arr) * max);
+    arr = OPENSSL_malloc_array(max, sizeof(*arr));
     if (arr == NULL)
         return 0;
     ret = BN_GF2m_poly2arr(p, arr, max);
@@ -524,7 +524,7 @@ int BN_GF2m_mod_sqr(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
     bn_check_top(a);
     bn_check_top(p);
 
-    arr = OPENSSL_malloc(sizeof(*arr) * max);
+    arr = OPENSSL_malloc_array(max, sizeof(*arr));
     if (arr == NULL)
         return 0;
     ret = BN_GF2m_poly2arr(p, arr, max);
@@ -568,7 +568,7 @@ static int BN_GF2m_mod_inv_vartime(BIGNUM *r, const BIGNUM *a,
     if (BN_is_zero(u))
         goto err;
 
-    if (!BN_copy(v, p))
+    if (BN_copy(v, p) == NULL)
         goto err;
 #if 0
     if (!BN_one(b))
@@ -696,7 +696,7 @@ static int BN_GF2m_mod_inv_vartime(BIGNUM *r, const BIGNUM *a,
     }
 #endif
 
-    if (!BN_copy(r, b))
+    if (BN_copy(r, b) == NULL)
         goto err;
     bn_check_top(r);
     ret = 1;
@@ -881,7 +881,7 @@ int BN_GF2m_mod_exp_arr(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
                 goto err;
         }
     }
-    if (!BN_copy(r, u))
+    if (BN_copy(r, u) == NULL)
         goto err;
     bn_check_top(r);
     ret = 1;
@@ -907,7 +907,7 @@ int BN_GF2m_mod_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
     bn_check_top(b);
     bn_check_top(p);
 
-    arr = OPENSSL_malloc(sizeof(*arr) * max);
+    arr = OPENSSL_malloc_array(max, sizeof(*arr));
     if (arr == NULL)
         return 0;
     ret = BN_GF2m_poly2arr(p, arr, max);
@@ -969,7 +969,7 @@ int BN_GF2m_mod_sqrt(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
     bn_check_top(a);
     bn_check_top(p);
 
-    arr = OPENSSL_malloc(sizeof(*arr) * max);
+    arr = OPENSSL_malloc_array(max, sizeof(*arr));
     if (arr == NULL)
         return 0;
     ret = BN_GF2m_poly2arr(p, arr, max);
@@ -1020,7 +1020,7 @@ int BN_GF2m_mod_solve_quad_arr(BIGNUM *r, const BIGNUM *a_, const int p[],
 
     if (p[0] & 0x1) { /* m is odd */
         /* compute half-trace of a */
-        if (!BN_copy(z, a))
+        if (BN_copy(z, a) == NULL)
             goto err;
         for (j = 1; j <= (p[0] - 1) / 2; j++) {
             if (!BN_GF2m_mod_sqr_arr(z, z, p, ctx))
@@ -1045,7 +1045,7 @@ int BN_GF2m_mod_solve_quad_arr(BIGNUM *r, const BIGNUM *a_, const int p[],
             if (!BN_GF2m_mod_arr(rho, rho, p))
                 goto err;
             BN_zero(z);
-            if (!BN_copy(w, rho))
+            if (BN_copy(w, rho) == NULL)
                 goto err;
             for (j = 1; j <= p[0] - 1; j++) {
                 if (!BN_GF2m_mod_sqr_arr(z, z, p, ctx))
@@ -1076,7 +1076,7 @@ int BN_GF2m_mod_solve_quad_arr(BIGNUM *r, const BIGNUM *a_, const int p[],
         goto err;
     }
 
-    if (!BN_copy(r, z))
+    if (BN_copy(r, z) == NULL)
         goto err;
     bn_check_top(r);
 
@@ -1103,7 +1103,7 @@ int BN_GF2m_mod_solve_quad(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
     bn_check_top(a);
     bn_check_top(p);
 
-    arr = OPENSSL_malloc(sizeof(*arr) * max);
+    arr = OPENSSL_malloc_array(max, sizeof(*arr));
     if (arr == NULL)
         goto err;
     ret = BN_GF2m_poly2arr(p, arr, max);

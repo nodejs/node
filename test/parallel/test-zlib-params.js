@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 const fixtures = require('../common/fixtures');
@@ -38,3 +38,13 @@ process.once('exit', function() {
   const actual = Buffer.concat(bufs);
   assert.deepStrictEqual(actual, expected);
 });
+
+{
+  const deflater = zlib.createDeflate();
+  deflater.write('x');
+  deflater.params(9, zlib.constants.Z_DEFAULT_STRATEGY,
+                  common.mustCall((err) => {
+                    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+                  }));
+  deflater.destroy();
+}

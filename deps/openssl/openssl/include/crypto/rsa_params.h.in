@@ -1,0 +1,246 @@
+/*
+ * Copyright 2026 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+#ifndef OSSL_CRYPTO_RSA_PARAMS_H
+#define OSSL_CRYPTO_RSA_PARAMS_H
+
+/* clang-format off */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+#include "crypto/rsa.h"
+#include <openssl/core_names.h>
+#include <openssl/err.h>
+#include <openssl/proverr.h>
+
+{-
+our @RSA_KEY_MP_TYPES = (
+    ['OSSL_PKEY_PARAM_RSA_FACTOR1',      'mp.factors[0]', 'BN'],
+    ['OSSL_PKEY_PARAM_RSA_FACTOR2',      'mp.factors[1]', 'BN'],
+    ['OSSL_PKEY_PARAM_RSA_FACTOR3',      'mp.factors[2]', 'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_FACTOR4',      'mp.factors[3]', 'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_FACTOR5',      'mp.factors[4]', 'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_FACTOR6',      'mp.factors[5]', 'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_FACTOR7',      'mp.factors[6]', 'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_FACTOR8',      'mp.factors[7]', 'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_FACTOR9',      'mp.factors[8]', 'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_FACTOR10',     'mp.factors[9]', 'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_EXPONENT1',    'mp.exps[0]',    'BN'],
+    ['OSSL_PKEY_PARAM_RSA_EXPONENT2',    'mp.exps[1]',    'BN'],
+    ['OSSL_PKEY_PARAM_RSA_EXPONENT3',    'mp.exps[2]',    'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_EXPONENT4',    'mp.exps[3]',    'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_EXPONENT5',    'mp.exps[4]',    'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_EXPONENT6',    'mp.exps[5]',    'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_EXPONENT7',    'mp.exps[6]',    'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_EXPONENT8',    'mp.exps[7]',    'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_EXPONENT9',    'mp.exps[8]',    'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_EXPONENT10',   'mp.exps[9]',    'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_COEFFICIENT1', 'mp.coeffs[0]',  'BN'],
+    ['OSSL_PKEY_PARAM_RSA_COEFFICIENT2', 'mp.coeffs[1]',  'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_COEFFICIENT3', 'mp.coeffs[2]',  'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_COEFFICIENT4', 'mp.coeffs[3]',  'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_COEFFICIENT5', 'mp.coeffs[4]',  'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_COEFFICIENT6', 'mp.coeffs[5]',  'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_COEFFICIENT7', 'mp.coeffs[6]',  'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_COEFFICIENT8', 'mp.coeffs[7]',  'BN', '!fips'],
+    ['OSSL_PKEY_PARAM_RSA_COEFFICIENT9', 'mp.coeffs[8]',  'BN', '!fips'],
+);
+
+our @RSA_KEY_TYPES = (
+    ['OSSL_PKEY_PARAM_RSA_N', 'n', 'BN'],
+    ['OSSL_PKEY_PARAM_RSA_E', 'e', 'BN'],
+    ['OSSL_PKEY_PARAM_RSA_D', 'd', 'BN'],
+    @RSA_KEY_MP_TYPES
+);
+
+our @RSA_PSS_IMPORT_TYPES = (
+    ['OSSL_PKEY_PARAM_RSA_DIGEST',       'digest',       'utf8_string'],
+    ['OSSL_PKEY_PARAM_RSA_DIGEST_PROPS', 'digest_props', 'utf8_string'],
+    ['OSSL_PKEY_PARAM_RSA_MASKGENFUNC',  'maskgenfunc',  'utf8_string'],
+    ['OSSL_PKEY_PARAM_RSA_MGF1_DIGEST',  'mgf1_digest',  'utf8_string'],
+    ['OSSL_PKEY_PARAM_RSA_PSS_SALTLEN',  'pss_saltlen',  'int'],
+);
+
+our @RSA_PSS_EXPORT_TYPES = (
+    ['OSSL_PKEY_PARAM_RSA_DIGEST',      'digest',      'utf8_string'],
+    ['OSSL_PKEY_PARAM_RSA_MASKGENFUNC', 'maskgenfunc', 'utf8_string'],
+    ['OSSL_PKEY_PARAM_RSA_MGF1_DIGEST', 'mgf1_digest', 'utf8_string'],
+    ['OSSL_PKEY_PARAM_RSA_PSS_SALTLEN', 'pss_saltlen', 'int'],
+);
+
+our @RSA_GEN_BASIC_TYPES = (
+    ['OSSL_PKEY_PARAM_RSA_BITS',   'bits',   'size_t'],
+    ['OSSL_PKEY_PARAM_RSA_PRIMES', 'primes', 'size_t'],
+    ['OSSL_PKEY_PARAM_RSA_E',      'e',      'BN'],
+    ['OSSL_PKEY_PARAM_RSA_A',      'a',      'uint32'],
+    ['OSSL_PKEY_PARAM_RSA_B',      'b',      'uint32'],
+);
+
+our @RSA_ACVP_INPUT_TYPES = (
+    ['OSSL_PKEY_PARAM_RSA_TEST_XP',  'fips.xp',  'BN', 'fips'],
+    ['OSSL_PKEY_PARAM_RSA_TEST_XP1', 'fips.xp1', 'BN', 'fips'],
+    ['OSSL_PKEY_PARAM_RSA_TEST_XP2', 'fips.xp2', 'BN', 'fips'],
+    ['OSSL_PKEY_PARAM_RSA_TEST_XQ',  'fips.xq',  'BN', 'fips'],
+    ['OSSL_PKEY_PARAM_RSA_TEST_XQ1', 'fips.xq1', 'BN', 'fips'],
+    ['OSSL_PKEY_PARAM_RSA_TEST_XQ2', 'fips.xq2', 'BN', 'fips'],
+);
+
+our @RSA_ACVP_OUTPUT_TYPES = (
+    ['OSSL_PKEY_PARAM_RSA_TEST_P1', 'fips.p1', 'BN', 'fips'],
+    ['OSSL_PKEY_PARAM_RSA_TEST_P2', 'fips.p2', 'BN', 'fips'],
+    ['OSSL_PKEY_PARAM_RSA_TEST_Q1', 'fips.q1', 'BN', 'fips'],
+    ['OSSL_PKEY_PARAM_RSA_TEST_Q2', 'fips.q2', 'BN', 'fips'],
+);
+
+return "";
+-}
+
+/* Key component parsing used by the public compatibility wrappers. */
+#define rsa_key_fromdata_st rsa_params_st
+{- produce_param_decoder('rsa_key_fromdata',
+                         (@RSA_KEY_TYPES,
+                          ['OSSL_PKEY_PARAM_RSA_DERIVE_FROM_PQ', 'derive', 'int']
+                         )); -}
+
+#define rsa_key_todata_st rsa_params_st
+{- produce_param_decoder('rsa_key_todata',
+                         (@RSA_KEY_TYPES, @RSA_ACVP_OUTPUT_TYPES)); -}
+
+#define rsa_pss_fromdata_st rsa_params_st
+{- produce_param_decoder('rsa_pss_fromdata', @RSA_PSS_IMPORT_TYPES); -}
+
+#define rsa_pss_todata_st rsa_params_st
+{- produce_param_decoder('rsa_pss_todata', @RSA_PSS_EXPORT_TYPES); -}
+
+/*
+ * Parameters processed by plain RSA get_params(), including conditional ACVP
+ * data.
+ */
+#define rsa_get_params_st rsa_params_st
+{- produce_param_decoder('rsa_get_params',
+                         (['OSSL_PKEY_PARAM_BITS',              'bits',            'int'],
+                          ['OSSL_PKEY_PARAM_SECURITY_BITS',     'secbits',          'int'],
+                          ['OSSL_PKEY_PARAM_MAX_SIZE',          'maxsize',          'int'],
+                          ['OSSL_PKEY_PARAM_SECURITY_CATEGORY', 'seccat',           'int'],
+                          ['OSSL_PKEY_PARAM_DEFAULT_DIGEST',    'default_digest',   'utf8_string'],
+                          @RSA_KEY_TYPES,
+                          @RSA_ACVP_OUTPUT_TYPES
+                         )); -}
+
+/* Parameters processed by RSA-PSS get_params(). */
+#define rsapss_get_params_st rsa_params_st
+{- produce_param_decoder('rsapss_get_params',
+                         (['OSSL_PKEY_PARAM_BITS',              'bits',            'int'],
+                          ['OSSL_PKEY_PARAM_SECURITY_BITS',     'secbits',          'int'],
+                          ['OSSL_PKEY_PARAM_MAX_SIZE',          'maxsize',          'int'],
+                          ['OSSL_PKEY_PARAM_SECURITY_CATEGORY', 'seccat',           'int'],
+                          ['OSSL_PKEY_PARAM_DEFAULT_DIGEST',    'default_digest',   'utf8_string'],
+                          ['OSSL_PKEY_PARAM_MANDATORY_DIGEST',  'mandatory_digest', 'utf8_string'],
+                          @RSA_KEY_TYPES,
+                          @RSA_PSS_EXPORT_TYPES,
+                          @RSA_ACVP_OUTPUT_TYPES
+                         )); -}
+
+/* Plain RSA generation parameters. */
+#define rsa_gen_set_params_st rsa_params_st
+{- produce_param_decoder('rsa_gen_set_params',
+                         (@RSA_GEN_BASIC_TYPES,
+                          @RSA_ACVP_INPUT_TYPES
+                         )); -}
+
+#define rsapss_gen_set_params_st rsa_params_st
+{- produce_param_decoder('rsapss_gen_set_params',
+                         (@RSA_GEN_BASIC_TYPES,
+                          @RSA_PSS_IMPORT_TYPES,
+                          @RSA_ACVP_INPUT_TYPES
+                         )); -}
+
+/* Legacy EVP_PKEY import-from callbacks retain their existing signatures. */
+#define rsa_pkey_import_from_st rsa_params_st
+{- produce_param_decoder('rsa_pkey_import_from',
+                         (@RSA_KEY_TYPES,
+                          ['OSSL_PKEY_PARAM_RSA_DERIVE_FROM_PQ', 'derive', 'int']
+                         )); -}
+
+#define rsa_pss_pkey_import_from_st rsa_params_st
+{- produce_param_decoder('rsa_pss_pkey_import_from',
+                         (@RSA_KEY_TYPES,
+                          ['OSSL_PKEY_PARAM_RSA_DERIVE_FROM_PQ', 'derive', 'int'],
+                          @RSA_PSS_IMPORT_TYPES
+                         )); -}
+
+/* FIPS ACVP helpers also use the generated trie. */
+#define rsa_acvp_input_st rsa_params_st
+{- produce_param_decoder('rsa_acvp_input', @RSA_ACVP_INPUT_TYPES); -}
+
+#define rsa_acvp_output_st rsa_params_st
+{- produce_param_decoder('rsa_acvp_output', @RSA_ACVP_OUTPUT_TYPES); -}
+
+/* Selection-specific import and export declarations. */
+#define rsa_key_import_types_st rsa_params_st
+{- produce_param_decoder('rsa_key_import_types',
+                         (@RSA_KEY_TYPES,
+                          ['OSSL_PKEY_PARAM_RSA_DERIVE_FROM_PQ', 'derive', 'int']
+                         )); -}
+
+#define rsa_key_export_types_st
+#define rsa_key_export_types_decoder
+{- produce_param_decoder('rsa_key_export_types', @RSA_KEY_TYPES); -}
+
+#define rsa_other_import_types_st rsa_params_st
+{- produce_param_decoder('rsa_other_import_types'); -}
+
+#define rsa_other_export_types_st
+#define rsa_other_export_types_decoder
+{- produce_param_decoder('rsa_other_export_types'); -}
+
+#define rsa_all_import_types_st rsa_params_st
+{- produce_param_decoder('rsa_all_import_types',
+                         (@RSA_KEY_TYPES,
+                          ['OSSL_PKEY_PARAM_RSA_DERIVE_FROM_PQ', 'derive', 'int']
+                         )); -}
+
+#define rsa_all_export_types_st
+#define rsa_all_export_types_decoder
+{- produce_param_decoder('rsa_all_export_types', @RSA_KEY_TYPES); -}
+
+#define rsapss_key_import_types_st rsa_params_st
+{- produce_param_decoder('rsapss_key_import_types',
+                         (@RSA_KEY_TYPES,
+                          ['OSSL_PKEY_PARAM_RSA_DERIVE_FROM_PQ', 'derive', 'int']
+                         )); -}
+
+#define rsapss_key_export_types_st
+#define rsapss_key_export_types_decoder
+{- produce_param_decoder('rsapss_key_export_types', @RSA_KEY_TYPES); -}
+
+#define rsapss_other_import_types_st rsa_params_st
+{- produce_param_decoder('rsapss_other_import_types', @RSA_PSS_IMPORT_TYPES); -}
+
+#define rsapss_other_export_types_st
+#define rsapss_other_export_types_decoder
+{- produce_param_decoder('rsapss_other_export_types', @RSA_PSS_EXPORT_TYPES); -}
+
+#define rsapss_all_import_types_st rsa_params_st
+{- produce_param_decoder('rsapss_all_import_types',
+                         (@RSA_KEY_TYPES,
+                          ['OSSL_PKEY_PARAM_RSA_DERIVE_FROM_PQ', 'derive', 'int'],
+                          @RSA_PSS_IMPORT_TYPES
+                         )); -}
+
+#define rsapss_all_export_types_st
+#define rsapss_all_export_types_decoder
+{- produce_param_decoder('rsapss_all_export_types',
+                         (@RSA_KEY_TYPES, @RSA_PSS_EXPORT_TYPES)); -}
+
+/* clang-format on */
+
+#endif

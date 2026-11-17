@@ -1,11 +1,12 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+#include "internal/deprecated.h"
 
 #include <stdio.h>
 #include "internal/cryptlib.h"
@@ -16,6 +17,8 @@
 #include <openssl/x509.h>
 #include "crypto/x509.h"
 
+OSSL_BEGIN_ALLOW_DEPRECATED
+#if !defined(OPENSSL_NO_DEPRECATED_4_0)
 int X509_NAME_get_text_by_NID(const X509_NAME *name, int nid,
     char *buf, int len)
 {
@@ -42,10 +45,13 @@ int X509_NAME_get_text_by_OBJ(const X509_NAME *name, const ASN1_OBJECT *obj,
     if (len <= 0)
         return 0;
     i = (data->length > (len - 1)) ? (len - 1) : data->length;
-    memcpy(buf, data->data, i);
+    if (i > 0)
+        memcpy(buf, data->data, i);
     buf[i] = '\0';
     return i;
 }
+#endif /* !defined(OPENSSL_NO_DEPRECATED_4_0) */
+OSSL_END_ALLOW_DEPRECATED
 
 int X509_NAME_entry_count(const X509_NAME *name)
 {
@@ -89,7 +95,7 @@ int X509_NAME_get_index_by_OBJ(const X509_NAME *name, const ASN1_OBJECT *obj,
     return -1;
 }
 
-X509_NAME_ENTRY *X509_NAME_get_entry(const X509_NAME *name, int loc)
+const X509_NAME_ENTRY *X509_NAME_get_entry(const X509_NAME *name, int loc)
 {
     if (name == NULL || sk_X509_NAME_ENTRY_num(name->entries) <= loc
         || loc < 0)
@@ -327,9 +333,12 @@ int X509_NAME_ENTRY_set_data(X509_NAME_ENTRY *ne, int type,
                    OBJ_obj2nid(ne->object))
             ? 1
             : 0;
-    if (len < 0)
-        len = strlen((const char *)bytes);
-    i = ASN1_STRING_set(ne->value, bytes, len);
+    if (len < -1)
+        return 0;
+    if (len == -1)
+        i = ossl_asn1_string_set1_string(ne->value, (const char *)bytes);
+    else
+        i = ossl_asn1_string_set1_data(ne->value, bytes, (size_t)len);
     if (!i)
         return 0;
     if (type != V_ASN1_UNDEF) {
@@ -341,14 +350,14 @@ int X509_NAME_ENTRY_set_data(X509_NAME_ENTRY *ne, int type,
     return 1;
 }
 
-ASN1_OBJECT *X509_NAME_ENTRY_get_object(const X509_NAME_ENTRY *ne)
+const ASN1_OBJECT *X509_NAME_ENTRY_get_object(const X509_NAME_ENTRY *ne)
 {
     if (ne == NULL)
         return NULL;
     return ne->object;
 }
 
-ASN1_STRING *X509_NAME_ENTRY_get_data(const X509_NAME_ENTRY *ne)
+const ASN1_STRING *X509_NAME_ENTRY_get_data(const X509_NAME_ENTRY *ne)
 {
     if (ne == NULL)
         return NULL;

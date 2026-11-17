@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -43,6 +43,16 @@ int bread_conv(BIO *bio, char *data, size_t datal, size_t *read);
 #define BIO_CTRL_SET_KTLS_TX_SEND_CTRL_MSG 74
 #define BIO_CTRL_CLEAR_KTLS_TX_CTRL_MSG 75
 #define BIO_CTRL_SET_KTLS_TX_ZEROCOPY_SENDFILE 90
+
+/* Internal BIO flags */
+
+#define BIO_FLAGS_AUTO_EOF 0x80
+
+/*
+ * This is used with memory BIOs:
+ * BIO_FLAGS_MEM_LEGACY_EOF means legacy behaviour of BIO_eof()
+ */
+#define BIO_FLAGS_MEM_LEGACY_EOF 0x1000
 
 /*
  * This is used with socket BIOs:

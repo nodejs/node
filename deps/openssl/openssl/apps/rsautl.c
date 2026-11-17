@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -27,7 +27,6 @@
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_ENGINE,
     OPT_IN,
     OPT_OUT,
     OPT_ASN1PARSE,
@@ -57,14 +56,11 @@ const OPTIONS rsautl_options[] = {
     { "verify", OPT_VERIFY, '-', "Verify with public key" },
     { "encrypt", OPT_ENCRYPT, '-', "Encrypt with public key" },
     { "decrypt", OPT_DECRYPT, '-', "Decrypt with private key" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
-#endif
 
     OPT_SECTION("Input"),
     { "in", OPT_IN, '<', "Input file" },
     { "inkey", OPT_INKEY, 's', "Input key, by default an RSA private key" },
-    { "keyform", OPT_KEYFORM, 'E', "Private key format (ENGINE, other values ignored)" },
+    { "keyform", OPT_KEYFORM, 'f', "Private key format (DER/PEM)" },
     { "pubin", OPT_PUBIN, '-', "Input key is an RSA public pkey" },
     { "certin", OPT_CERTIN, '-', "Input is a cert carrying an RSA public key" },
     { "rev", OPT_REV, '-', "Reverse the order of the input buffer" },
@@ -88,7 +84,6 @@ const OPTIONS rsautl_options[] = {
 int rsautl_main(int argc, char **argv)
 {
     BIO *in = NULL, *out = NULL;
-    ENGINE *e = NULL;
     EVP_PKEY *pkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
     X509 *x;
@@ -122,9 +117,6 @@ int rsautl_main(int argc, char **argv)
             break;
         case OPT_OUT:
             outfile = opt_arg();
-            break;
-        case OPT_ENGINE:
-            e = setup_engine(opt_arg(), 0);
             break;
         case OPT_ASN1PARSE:
             asn1parse = 1;
@@ -192,22 +184,22 @@ int rsautl_main(int argc, char **argv)
         goto end;
 
     if (need_priv && (key_type != KEY_PRIVKEY)) {
-        BIO_printf(bio_err, "A private key is needed for this operation\n");
+        BIO_puts(bio_err, "A private key is needed for this operation\n");
         goto end;
     }
 
     if (!app_passwd(passinarg, NULL, &passin, NULL)) {
-        BIO_printf(bio_err, "Error getting password\n");
+        BIO_puts(bio_err, "Error getting password\n");
         goto end;
     }
 
     switch (key_type) {
     case KEY_PRIVKEY:
-        pkey = load_key(keyfile, keyformat, 0, passin, e, "private key");
+        pkey = load_key(keyfile, keyformat, 0, passin, "private key");
         break;
 
     case KEY_PUBKEY:
-        pkey = load_pubkey(keyfile, keyformat, 0, NULL, e, "public key");
+        pkey = load_pubkey(keyfile, keyformat, 0, NULL, "public key");
         break;
 
     case KEY_CERT:
@@ -231,14 +223,14 @@ int rsautl_main(int argc, char **argv)
 
     keysize = EVP_PKEY_get_size(pkey);
 
-    rsa_in = app_malloc(keysize * 2, "hold rsa key");
+    rsa_in = app_malloc_array(2, keysize, "hold rsa key");
     rsa_out = app_malloc(keysize, "output rsa key");
     rsa_outlen = keysize;
 
     /* Read the input data */
     rv = BIO_read(in, rsa_in, keysize * 2);
     if (rv < 0) {
-        BIO_printf(bio_err, "Error reading input Data\n");
+        BIO_puts(bio_err, "Error reading input Data\n");
         goto end;
     }
     rsa_inlen = rv;
@@ -282,24 +274,23 @@ int rsautl_main(int argc, char **argv)
     }
 
     if (!rv) {
-        BIO_printf(bio_err, "RSA operation error\n");
+        BIO_puts(bio_err, "RSA operation error\n");
         ERR_print_errors(bio_err);
         goto end;
     }
     ret = 0;
     if (asn1parse) {
-        if (!ASN1_parse_dump(out, rsa_out, rsa_outlen, 1, -1)) {
+        if (!ASN1_parse_dump(out, rsa_out, (long)rsa_outlen, 1, -1)) {
             ERR_print_errors(bio_err);
         }
     } else if (hexdump) {
-        BIO_dump(out, (char *)rsa_out, rsa_outlen);
+        BIO_dump(out, (char *)rsa_out, (int)rsa_outlen);
     } else {
-        BIO_write(out, rsa_out, rsa_outlen);
+        BIO_write(out, rsa_out, (int)rsa_outlen);
     }
 end:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
-    release_engine(e);
     BIO_free(in);
     BIO_free_all(out);
     OPENSSL_free(rsa_in);

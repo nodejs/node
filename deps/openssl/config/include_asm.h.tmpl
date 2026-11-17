@@ -15,8 +15,6 @@
 # include "./archs/linux-aarch64/%%-$asmdir-%%/include/%%-$incdir-%%/%%-$name-%%.h"
 #elif defined(OPENSSL_LINUX) && defined(__riscv) && (__riscv_xlen == 64)
 # include "./archs/linux64-riscv64/%%-$asmdir-%%/include/%%-$incdir-%%/%%-$name-%%.h"
-#elif defined(__APPLE__) && defined(__MACH__) && defined(__i386__)
-# include "./archs/darwin-i386-cc/%%-$asmdir-%%/include/%%-$incdir-%%/%%-$name-%%.h"
 #elif defined(__APPLE__) && defined(__MACH__) && defined(__x86_64__)
 # include "./archs/darwin64-x86_64-cc/%%-$asmdir-%%/include/%%-$incdir-%%/%%-$name-%%.h"
 #elif defined(__APPLE__) && defined(__MACH__) && defined(__arm64__)

@@ -744,12 +744,20 @@ void Parser::ParseProgram(Isolate* isolate, DirectHandle<Script> script,
   }
 
   scanner_.Initialize();
+  std::optional<ClassScope::HeritageParsingScope> heritage;
+  if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class() &&
+                  original_scope_->is_class_scope())) {
+    heritage.emplace(original_scope_->AsClassScope());
+  }
   FunctionLiteral* result =
       DoParseProgram(isolate, info, script->eval_from_position());
   if (flags().allow_heap_allocation()) {
     HandleDebugMagicComments(isolate, script);
   }
   if (result == nullptr) return;
+  if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class())) {
+    result->scope()->RecordNeedsPrivateNameContextChainRecalc();
+  }
   result->scope()->set_is_hoisted_in_context(
       info->flags().is_hoisted_in_context());
   if (flags().allow_heap_allocation()) {
@@ -1252,6 +1260,9 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     }
 
     if (has_error()) return nullptr;
+    if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class())) {
+      result->scope()->RecordNeedsPrivateNameContextChainRecalc();
+    }
     result->set_requires_instance_members_initializer(
         flags().requires_instance_members_initializer());
     result->set_class_scope_has_private_brand(
@@ -1274,10 +1285,19 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
   // this point the scanner should be rewound to the position of the class
   // token.
   DCHECK_EQ(peek_position(), initializer_pos);
-  // Insert a FunctionState with the closest outer Declaration scope
+  // Insert a FunctionState with the closest outer Declaration scope.
+  // The immediate enclosing function scope may have been elided from the
+  // ScopeInfo chain if it did not allocate a context. Since class bodies are
+  // always strict mode, 'yield' is never a valid identifier in computed
+  // property names, so we can unconditionally enable generator mode; whether
+  // 'await' is a keyword is recorded on the initializer SharedFunctionInfo.
   DeclarationScope* nearest_decl_scope = original_scope_->GetDeclarationScope();
   DCHECK_NOT_NULL(nearest_decl_scope);
-  FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
+  FunctionKind enclosing_kind = flags().class_initializer_allows_await()
+                                    ? FunctionKind::kAsyncGeneratorFunction
+                                    : FunctionKind::kGeneratorFunction;
+  FunctionState function_state(&function_state_, &scope_, nearest_decl_scope,
+                               enclosing_kind);
 
   // We preparse the class members that are not fields with initializers
   // in order to collect the function literal ids.

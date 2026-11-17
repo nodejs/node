@@ -29,7 +29,7 @@ extern "C" {
 #endif
 #if !defined(OPENSSL_NO_DEPRECATED_3_0)
 
-#define RIPEMD160_LONG unsigned int
+typedef unsigned int RIPEMD160_LONG;
 
 #define RIPEMD160_CBLOCK 64
 #define RIPEMD160_LBLOCK (RIPEMD160_CBLOCK / 4)

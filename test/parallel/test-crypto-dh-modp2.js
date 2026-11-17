@@ -8,7 +8,11 @@ const crypto = require('crypto');
 const { hasFIPS, modp2buf, isBoringSSL } = require('../common/crypto');
 
 if (isBoringSSL) {
-  common.skip('Skipping unsupported Diffie-Hellman tests');
+  // BoringSSL omits this named group but accepts its raw parameters.
+  assert.throws(() => crypto.createDiffieHellmanGroup('modp2'), {
+    code: 'ERR_CRYPTO_UNKNOWN_DH_GROUP',
+    message: 'Unknown DH group',
+  });
 }
 
 if (hasFIPS(3)) {
@@ -16,7 +20,8 @@ if (hasFIPS(3)) {
     code: 'ERR_INVALID_ARG_VALUE',
   });
 } else {
-  const modp2 = crypto.createDiffieHellmanGroup('modp2');
+  const modp2 = isBoringSSL ? crypto.createDiffieHellman(modp2buf, 2) :
+    crypto.createDiffieHellmanGroup('modp2');
 
   {
   // Ensure specific generator (buffer) works as expected.

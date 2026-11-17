@@ -460,6 +460,9 @@ class V8_EXPORT_PRIVATE Debug {
   bool scheduled_break_on_function_call() const {
     return !thread_local_.scheduled_break_on_next_function_call_.empty();
   }
+  v8::debug::BreakReasons scheduled_break_on_next_function_call() const {
+    return thread_local_.scheduled_break_on_next_function_call_;
+  }
 
   bool IsRestartFrameScheduled() const {
     return thread_local_.restart_frame_id_ != StackFrameId::NO_ID;

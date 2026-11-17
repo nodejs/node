@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { describe, test } from 'node:test';
 
 test('worker ID is available as environment variable', (t) => {
 	const workerId = process.env.NODE_TEST_WORKER_ID;
@@ -22,5 +22,11 @@ test('worker ID is available via context', (t) => {
 
 	if (workerId !== Number(envWorkerId)) {
 		throw new Error(`context.workerId (${workerId}) should match NODE_TEST_WORKER_ID (${envWorkerId})`);
+	}
+});
+
+describe('worker ID is available via suite context', (s) => {
+	if (s.workerId !== Number(process.env.NODE_TEST_WORKER_ID)) {
+		throw new Error(`suite context.workerId (${s.workerId}) should match NODE_TEST_WORKER_ID (${process.env.NODE_TEST_WORKER_ID})`);
 	}
 });

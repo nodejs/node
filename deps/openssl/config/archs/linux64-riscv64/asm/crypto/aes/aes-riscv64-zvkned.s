@@ -264,57 +264,50 @@ rv64i_zvkned_cbc_decrypt:
 .size rv64i_zvkned_cbc_decrypt,.-rv64i_zvkned_cbc_decrypt
 .p2align 3
 L_cbc_dec_128:
-    # Load all 11 round keys to v1-v11 registers.
-        .word 3439489111
-    .word 34005127
-    addi a3, a3, 16
-    .word 34005255
-    addi a3, a3, 16
-    .word 34005383
-    addi a3, a3, 16
-    .word 34005511
-    addi a3, a3, 16
-    .word 34005639
-    addi a3, a3, 16
-    .word 34005767
-    addi a3, a3, 16
-    .word 34005895
-    addi a3, a3, 16
-    .word 34006023
-    addi a3, a3, 16
-    .word 34006151
-    addi a3, a3, 16
-    .word 34006279
-    addi a3, a3, 16
-    .word 34006407
-
-
+    .word 3439489111
     # Load IV.
     .word 34039815
+
+.Lcbc_dec_loop:
+    li t0, 10
+    addi a3, a3, 160
+    .word 34006407
+    addi a3, a3, -16
+    .word 34006279
+    li t1, 64
+    bgeu a2, t1, .Lcbc_check_64
 
     .word 33909767
     .word 1577846999
     j 2f
 
 1:
+    li t0, 10
+    addi a3, a3, 160
+    .word 34006407
+    addi a3, a3, -16
+    .word 34006279
     .word 33909767
     .word 1577846999
     addi a1, a1, 16
 
 2:
     # AES body
-        .word 2796792951   # with round key w[40,43]
+    .word 2796792951   # with round key w[40,43]
+    addi t0, t0, -2
+3:
+    addi a3, a3, -16
+    .word 34006407
     .word 2795514999  # with round key w[36,39]
-    .word 2794466423   # with round key w[32,35]
-    .word 2793417847   # with round key w[28,31]
-    .word 2792369271   # with round key w[24,27]
-    .word 2791320695   # with round key w[20,23]
-    .word 2790272119   # with round key w[16,19]
-    .word 2789223543   # with round key w[12,15]
-    .word 2788174967   # with round key w[ 8,11]
-    .word 2787126391   # with round key w[ 4, 7]
-    .word 2786110583   # with round key w[ 0, 3]
-
+    addi a3, a3, -16
+    .word 34006279
+    .word 2796563575   # with round key w[32,35]
+    addi t0, t0, -2
+    bnez t0, 3b
+    addi a3, a3, -16
+    .word 34006407
+    .word 2795514999   # with round key w[ 4, 7]
+    .word 2796596343   # with round key w[ 0, 3]
 
     .word 797445207
     .word 33942567
@@ -325,6 +318,221 @@ L_cbc_dec_128:
 
     bnez a2, 1b
 
+    .word 34039847
+
+    ret
+
+# =====================================================
+# If data 128bytes > length ≥ 64 bytes, process in batches of 4 blocks:
+# 4-block CBC decryption process:
+#   1. Load 4 ciphertext blocks
+#   2. Back up the ciphertext blocks
+#   3. Decrypt each data block
+#   4. Reload ciphertext blocks into registers v17-v20 for XOR
+#   5. XOR with previous ciphertext block (CBC chain)
+#   6. Update IV and store plaintext
+# If the data length is less than 64 bytes, process it block by block using the Lcbc_dec_loop function
+# =====================================================
+.Lcbc_check_64:
+    li t1, 128
+    bgeu a2, t1, .Lcbc_check_128
+
+    .word 33909767
+    addi a0, a0, 16
+    .word 33909895
+    addi a0, a0, 16
+    .word 33910023
+    addi a0, a0, 16
+    .word 33910151
+    .word 33909255
+    addi a0, a0, -16
+    .word 33909127
+
+    .word 2796792951   # with round key w[40,43]
+    .word 2796793079   # with round key w[40,43]
+    .word 2796793207   # with round key w[40,43]
+    .word 2796793335   # with round key w[40,43]
+    addi t0, t0, -2
+4:
+    addi a3, a3, -16
+    .word 34006407
+    .word 2795514999  # with round key w[36,39]
+    .word 2795515127  # with round key w[36,39]
+    .word 2795515255  # with round key w[36,39]
+    .word 2795515383  # with round key w[36,39]
+    addi a3, a3, -16
+    .word 34006279
+    .word 2796563575   # with round key w[32,35]
+    .word 2796563703   # with round key w[32,35]
+    .word 2796563831   # with round key w[32,35]
+    .word 2796563959   # with round key w[32,35]
+    addi t0, t0, -2
+    bnez t0, 4b
+    addi a3, a3, -16
+    .word 34006407
+    addi a0, a0, -16
+    .word 33908999
+    addi a0, a0, -16
+    .word 33908871
+
+    .word 2795514999   # with round key w[ 4, 7]
+    .word 2795515127   # with round key w[ 4, 7]
+    .word 2795515255   # with round key w[ 4, 7]
+    .word 2795515383   # with round key w[ 4, 7]
+
+    .word 2796596343   # with round key w[ 0, 3]
+    .word 2796596471   # with round key w[ 0, 3]
+    .word 2796596599   # with round key w[ 0, 3]
+    .word 2796596727   # with round key w[ 0, 3]
+
+    .word 797445207
+    .word 798526679
+    .word 799608151
+    .word 800689623
+
+    .word 33942567
+    addi a1, a1, 16
+    .word 33942695
+    addi a1, a1, 16
+    .word 33942823
+    addi a1, a1, 16
+    .word 33942951
+    addi a1, a1, 16
+
+    .word 1577715799
+
+    addi a2, a2, -64
+    addi a0, a0, 64
+    bnez a2, .Lcbc_dec_loop
+    .word 34039847
+
+    ret
+
+# =====================================================
+# If data length ≥ 128 bytes, process 8 blocks in batch:
+# 8-block CBC decryption pipeline:
+#   1. Load 8 ciphertext blocks
+#   2. Back up the ciphertext blocks
+#   3. Decrypt each data block
+#   4. Reload ciphertext blocks into registers v17-v23 and v15 for XOR
+#   5. XOR with previous ciphertext block (CBC chain)
+#   6. Update IV and store plaintext
+# =====================================================
+.Lcbc_check_128:
+    .word 33909767
+    addi a0, a0, 16
+    .word 33909895
+    addi a0, a0, 16
+    .word 33910023
+    addi a0, a0, 16
+    .word 33910151
+    addi a0, a0, 16
+    .word 33910279
+    addi a0, a0, 16
+    .word 33910407
+    addi a0, a0, 16
+    .word 33910535
+    addi a0, a0, 16
+    .word 33910663
+    .word 33908615
+    addi a0, a0, -16
+    .word 33909639
+
+    .word 2796792951   # with round key w[40,43]
+    .word 2796793079   # with round key w[40,43]
+    .word 2796793207   # with round key w[40,43]
+    .word 2796793335   # with round key w[40,43]
+    .word 2796793463   # with round key w[40,43]
+    .word 2796793591   # with round key w[40,43]
+    .word 2796793719   # with round key w[40,43]
+    .word 2796793847   # with round key w[40,43]
+    addi a0, a0, -16
+    .word 33909511
+    addi a0, a0, -16
+    .word 33909383
+    addi t0, t0, -2
+4:
+    addi a3, a3, -16
+    .word 34006407
+    .word 2795514999  # with round key w[36,39]
+    .word 2795515127  # with round key w[36,39]
+    .word 2795515255  # with round key w[36,39]
+    .word 2795515383  # with round key w[36,39]
+    .word 2795515511  # with round key w[36,39]
+    .word 2795515639  # with round key w[36,39]
+    .word 2795515767  # with round key w[36,39]
+    .word 2795515895  # with round key w[36,39]
+    addi a3, a3, -16
+    .word 34006279
+    .word 2796563575   # with round key w[32,35]
+    .word 2796563703   # with round key w[32,35]
+    .word 2796563831   # with round key w[32,35]
+    .word 2796563959   # with round key w[32,35]
+    .word 2796564087   # with round key w[32,35]
+    .word 2796564215   # with round key w[32,35]
+    .word 2796564343   # with round key w[32,35]
+    .word 2796564471   # with round key w[32,35]
+    addi t0, t0, -2
+    bnez t0, 4b
+    addi a3, a3, -16
+    .word 34006407
+    addi a0, a0, -16
+    .word 33909255
+    addi a0, a0, -16
+    .word 33909127
+    addi a0, a0, -16
+    .word 33908999
+    addi a0, a0, -16
+    .word 33908871
+    .word 2795514999   # with round key w[ 4, 7]
+    .word 2795515127   # with round key w[ 4, 7]
+    .word 2795515255   # with round key w[ 4, 7]
+    .word 2795515383   # with round key w[ 4, 7]
+    .word 2795515511   # with round key w[ 4, 7]
+    .word 2795515639   # with round key w[ 4, 7]
+    .word 2795515767   # with round key w[ 4, 7]
+    .word 2795515895   # with round key w[ 4, 7]
+
+    .word 2796596343   # with round key w[ 0, 3]
+    .word 2796596471   # with round key w[ 0, 3]
+    .word 2796596599   # with round key w[ 0, 3]
+    .word 2796596727   # with round key w[ 0, 3]
+    .word 2796596855   # with round key w[ 0, 3]
+    .word 2796596983   # with round key w[ 0, 3]
+    .word 2796597111   # with round key w[ 0, 3]
+    .word 2796597239   # with round key w[ 0, 3]
+
+    .word 797445207
+    .word 798526679
+    .word 799608151
+    .word 800689623
+    .word 801771095
+    .word 802852567
+    .word 803934039
+    .word 805015511
+
+    .word 33942567
+    addi a1, a1, 16
+    .word 33942695
+    addi a1, a1, 16
+    .word 33942823
+    addi a1, a1, 16
+    .word 33942951
+    addi a1, a1, 16
+    .word 33943079
+    addi a1, a1, 16
+    .word 33943207
+    addi a1, a1, 16
+    .word 33943335
+    addi a1, a1, 16
+    .word 33943463
+    addi a1, a1, 16
+
+    .word 1577551959
+
+    addi a2, a2, -128
+    addi a0, a0, 128
+    bnez a2, .Lcbc_dec_loop
     .word 34039847
 
     ret

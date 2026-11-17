@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -75,7 +75,7 @@ int X509_CRL_up_ref(X509_CRL *crl)
 {
     int i;
 
-    if (CRYPTO_UP_REF(&crl->references, &i) <= 0)
+    if (!CRYPTO_UP_REF(&crl->references, &i))
         return 0;
 
     REF_PRINT_COUNT("X509_CRL", i, crl);
@@ -110,7 +110,7 @@ ASN1_TIME *X509_CRL_get_nextUpdate(X509_CRL *crl)
 }
 #endif
 
-X509_NAME *X509_CRL_get_issuer(const X509_CRL *crl)
+const X509_NAME *X509_CRL_get_issuer(const X509_CRL *crl)
 {
     return crl->crl.issuer;
 }
@@ -120,9 +120,14 @@ const STACK_OF(X509_EXTENSION) *X509_CRL_get0_extensions(const X509_CRL *crl)
     return crl->crl.extensions;
 }
 
-STACK_OF(X509_REVOKED) *X509_CRL_get_REVOKED(X509_CRL *crl)
+STACK_OF(X509_REVOKED) *X509_CRL_get_REVOKED(const X509_CRL *crl)
 {
     return crl->crl.revoked;
+}
+
+const X509_ALGOR *X509_CRL_get0_tbs_sigalg(const X509_CRL *crl)
+{
+    return &crl->crl.sig_alg;
 }
 
 void X509_CRL_get0_signature(const X509_CRL *crl, const ASN1_BIT_STRING **psig,

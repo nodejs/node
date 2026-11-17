@@ -77,43 +77,6 @@ OPENSSL_brd31_probe:
 .byte	0,12,0x14,0,0,0,0,0
 .size	OPENSSL_brd31_probe,.-OPENSSL_brd31_probe
 
-
-.globl	OPENSSL_wipe_cpu
-.type	OPENSSL_wipe_cpu,@function
-.align	4
-OPENSSL_wipe_cpu:
-.localentry	OPENSSL_wipe_cpu,0
-
-	xor	0,0,0
-	fmr	0,31
-	fmr	1,31
-	fmr	2,31
-	mr	3,1
-	fmr	3,31
-	xor	4,4,4
-	fmr	4,31
-	xor	5,5,5
-	fmr	5,31
-	xor	6,6,6
-	fmr	6,31
-	xor	7,7,7
-	fmr	7,31
-	xor	8,8,8
-	fmr	8,31
-	xor	9,9,9
-	fmr	9,31
-	xor	10,10,10
-	fmr	10,31
-	xor	11,11,11
-	fmr	11,31
-	xor	12,12,12
-	fmr	12,31
-	fmr	13,31
-	blr	
-.long	0
-.byte	0,12,0x14,0,0,0,0,0
-.size	OPENSSL_wipe_cpu,.-OPENSSL_wipe_cpu
-
 .globl	OPENSSL_atomic_add
 .type	OPENSSL_atomic_add,@function
 .align	4

@@ -101,35 +101,35 @@ def read_config():
                                     config_base)
     config_json_file.close()
     defaults = {
-      ".use_snake_file_names": False,
-      ".use_title_case_methods": False,
-      ".use_embedder_types": False,
-      ".imported": False,
-      ".imported.export_macro": "",
-      ".imported.export_header": False,
-      ".imported.header": False,
-      ".imported.package": False,
-      ".imported.options": False,
-      ".protocol.export_macro": "",
-      ".protocol.export_header": False,
-      ".protocol.options": False,
-      ".protocol.file_name_prefix": "",
-      ".exported": False,
-      ".exported.export_macro": "",
-      ".exported.export_header": False,
-      ".lib": False,
-      ".lib.export_macro": "",
-      ".lib.export_header": False,
-      ".crdtp": False,
-      ".crdtp.dir": os.path.join(inspector_protocol_dir, "crdtp"),
-      ".crdtp.namespace": "crdtp",
+        ".use_snake_file_names": False,
+        ".use_title_case_methods": False,
+        ".use_embedder_types": False,
+        ".imported": False,
+        ".imported.export_macro": "",
+        ".imported.export_header": False,
+        ".imported.header": False,
+        ".imported.package": False,
+        ".imported.options": False,
+        ".protocol.export_macro": "",
+        ".protocol.export_header": False,
+        ".protocol.options": False,
+        ".protocol.file_name_prefix": "",
+        ".exported": False,
+        ".exported.export_macro": "",
+        ".exported.export_header": False,
+        ".lib": False,
+        ".lib.export_macro": "",
+        ".lib.export_header": False,
+        ".crdtp": False,
+        ".crdtp.dir": os.path.join(inspector_protocol_dir, "crdtp"),
+        ".crdtp.namespace": "crdtp",
     }
     for key_value in config_values:
       parts = key_value.split("=")
       if len(parts) == 2:
         defaults["." + parts[0]] = parts[1]
-    return (jinja_dir, config_file, init_defaults(config_partial, "", defaults),
-            depfile, stamp)
+    return (jinja_dir, config_file, init_defaults(config_partial, "",
+                                                  defaults), depfile, stamp)
   except Exception:
     # Work with python 2 and 3 http://docs.python.org/py3k/howto/pyporting.html
     exc = sys.exc_info()[1]
@@ -286,32 +286,32 @@ def create_any_type_definition():
 def create_string_type_definition():
   # pylint: disable=W0622
   return {
-    "return_type": "String",
-    "pass_type": "const String&",
-    "to_pass_type": "%s",
-    "to_raw_type": "%s",
-    "to_rvalue": "%s",
-    "type": "String",
-    "raw_type": "String",
-    "raw_pass_type": "const String&",
-    "raw_return_type": "String",
-    "is_primitive": True
+      "return_type": "String",
+      "pass_type": "const String&",
+      "to_pass_type": "%s",
+      "to_raw_type": "%s",
+      "to_rvalue": "%s",
+      "type": "String",
+      "raw_type": "String",
+      "raw_pass_type": "const String&",
+      "raw_return_type": "String",
+      "is_primitive": True
   }
 
 
 def create_binary_type_definition():
   # pylint: disable=W0622
   return {
-    "return_type": "Binary",
-    "pass_type": "const Binary&",
-    "to_pass_type": "%s",
-    "to_raw_type": "%s",
-    "to_rvalue": "%s",
-    "type": "Binary",
-    "raw_type": "Binary",
-    "raw_pass_type": "const Binary&",
-    "raw_return_type": "Binary",
-    "is_primitive": True
+      "return_type": "Binary",
+      "pass_type": "const Binary&",
+      "to_pass_type": "%s",
+      "to_raw_type": "%s",
+      "to_rvalue": "%s",
+      "type": "Binary",
+      "raw_type": "Binary",
+      "raw_pass_type": "const Binary&",
+      "raw_return_type": "Binary",
+      "is_primitive": True
   }
 
 
@@ -333,17 +333,17 @@ def create_primitive_type_definition(type):
     "boolean": "TypeBoolean",
   }
   return {
-    "return_type": typedefs[type],
-    "pass_type": typedefs[type],
-    "to_pass_type": "%s",
-    "to_raw_type": "%s",
-    "to_rvalue": "%s",
-    "type": typedefs[type],
-    "raw_type": typedefs[type],
-    "raw_pass_type": typedefs[type],
-    "raw_return_type": typedefs[type],
-    "default_value": defaults[type],
-    "is_primitive": True
+      "return_type": typedefs[type],
+      "pass_type": typedefs[type],
+      "to_pass_type": "%s",
+      "to_raw_type": "%s",
+      "to_rvalue": "%s",
+      "type": typedefs[type],
+      "raw_type": typedefs[type],
+      "raw_pass_type": typedefs[type],
+      "raw_return_type": typedefs[type],
+      "default_value": defaults[type],
+      "is_primitive": True
   }
 
 def wrap_array_definition(type):
@@ -444,10 +444,12 @@ class Protocol(object):
       domain_match = re.match(r'^(.*)[.]', ref)
       if domain_match:
         referenced_domain_name = domain_match.group(1)
-        if referenced_domain_name != domain['domain'] and not referenced_domain_name in dependencies:
-            sys.stderr.write(("Domains [%s] uses type [%s] from domain [%s], but did not declare the dependency\n\n"
-                    ) % (domain["domain"], ref, referenced_domain_name))
-            exit(1)
+        if referenced_domain_name != domain[
+            'domain'] and not referenced_domain_name in dependencies:
+          sys.stderr.write((
+              "Domains [%s] uses type [%s] from domain [%s], but did not declare the dependency\n\n"
+          ) % (domain["domain"], ref, referenced_domain_name))
+          exit(1)
 
   def generate_used_types(self):
     all_refs = set()
@@ -552,10 +554,10 @@ class Protocol(object):
     return self.type_definitions[prop["type"]]
 
   def optional_type(self, prop):
-      type = self.resolve_type(prop)
-      template = ("std::optional<{}>" if type.get('is_primitive', False)
-                  else "std::unique_ptr<{}>")
-      return template.format(type.get("raw_type"))
+    type = self.resolve_type(prop)
+    template = ("std::optional<{}>"
+                if type.get('is_primitive', False) else "std::unique_ptr<{}>")
+    return template.format(type.get("raw_type"))
 
   def generate_command(self, domain, command):
     if not self.config.protocol.options:
@@ -571,6 +573,12 @@ class Protocol(object):
 
   def generate_type(self, domain, typename):
     return domain + "." + typename in self.used_types
+
+  def should_pass_associated_data(self, domain, command):
+    if not self.config.protocol.options:
+      return False
+    return self.check_options(self.config.protocol.options, domain, command,
+                              "pass_associated_data", None, False)
 
   def is_async_command(self, domain, command):
     if not self.config.protocol.options:
@@ -658,25 +666,23 @@ def main():
     }
 
     if domain["domain"] in protocol.generate_domains:
-      output_h = os.path.join(config.protocol.output, to_file_name(
-          config, file_name + ".h"))
+      output_h = os.path.join(config.protocol.output,
+                              to_file_name(config, file_name + ".h"))
       outputs[output_h] = h_template.render(template_context)
       source_set.add(h_template.filename)
-      output_cpp = os.path.join(config.protocol.output, to_file_name(
-          config, file_name + ".cpp"))
+      output_cpp = os.path.join(config.protocol.output,
+                                to_file_name(config, file_name + ".cpp"))
       outputs[output_cpp] = cpp_template.render(template_context)
       source_set.add(cpp_template.filename)
       if domain["domain"] in protocol.exported_domains:
-        output_export_h = os.path.join(config.exported.output, to_file_name(
-            config, file_name + ".h"))
-        outputs[output_export_h] = exported_template.render(
-                template_context)
+        output_export_h = os.path.join(config.exported.output,
+                                       to_file_name(config, file_name + ".h"))
+        outputs[output_export_h] = exported_template.render(template_context)
         source_set.add(exported_template.filename)
     if domain["domain"] in protocol.imported_domains:
-      output_import_h = os.path.join(config.protocol.output, to_file_name(
-          config, file_name + ".h"))
-      outputs[output_import_h] = imported_template.render(
-              template_context)
+      output_import_h = os.path.join(config.protocol.output,
+                                     to_file_name(config, file_name + ".h"))
+      outputs[output_import_h] = imported_template.render(template_context)
       source_set.add(imported_template.filename)
 
   if config.lib:
@@ -699,19 +705,19 @@ def main():
 
     if not config.use_embedder_types:
       protocol_h_templates += [
-        "Values_h.template",
-        "Object_h.template",
-        "ValueConversions_h.template",
+          "Values_h.template",
+          "Object_h.template",
+          "ValueConversions_h.template",
       ]
       protocol_cpp_templates += [
-        "Protocol_cpp.template",
-        "Values_cpp.template",
-        "Object_cpp.template",
-        "ValueConversions_cpp.template",
+          "Protocol_cpp.template",
+          "Values_cpp.template",
+          "Object_cpp.template",
+          "ValueConversions_cpp.template",
       ]
     else:
       protocol_h_templates += [
-        "Forward_h.template",
+          "Forward_h.template",
       ]
 
     def generate_lib_file(file_name, template_files):
@@ -729,8 +735,9 @@ def main():
         config, "Protocol.h")), protocol_h_templates)
 
     if not config.use_embedder_types:
-      generate_lib_file(os.path.join(config.lib.output, to_file_name(
-          config, "Protocol.cpp")), protocol_cpp_templates)
+      generate_lib_file(
+          os.path.join(config.lib.output, to_file_name(config, "Protocol.cpp")),
+          protocol_cpp_templates)
 
   if stamp_filename:
     with open(stamp_filename, "w"):
@@ -748,8 +755,8 @@ def main():
   if deps_filename:
     assert stamp_filename
     with open(deps_filename, "w") as deps_file:
-      deps_file.write("%s: %s\n" % (
-        stamp_filename, " ".join(sorted(source_set))))
+      deps_file.write("%s: %s\n" %
+                      (stamp_filename, " ".join(sorted(source_set))))
 
 
 if __name__ == "__main__":

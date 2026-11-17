@@ -1,10 +1,10 @@
 #! /bin/sh
 # Attempt to guess a canonical system name.
-#   Copyright 1992-2022 Free Software Foundation, Inc.
+#   Copyright 1992-2024 Free Software Foundation, Inc.
 
 # shellcheck disable=SC2006,SC2268 # see below for rationale
 
-timestamp='2022-01-09'
+timestamp='2024-07-27'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ me=`echo "$0" | sed -e 's,.*/,,'`
 usage="\
 Usage: $0 [OPTION]
 
-Output the configuration name of the system \`$me' is run on.
+Output the configuration name of the system '$me' is run on.
 
 Options:
   -h, --help         print this help, then exit
@@ -60,13 +60,13 @@ version="\
 GNU config.guess ($timestamp)
 
 Originally written by Per Bothner.
-Copyright 1992-2022 Free Software Foundation, Inc.
+Copyright 1992-2024 Free Software Foundation, Inc.
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
 
 help="
-Try \`$me --help' for more information."
+Try '$me --help' for more information."
 
 # Parse command line
 while test $# -gt 0 ; do
@@ -102,8 +102,8 @@ GUESS=
 # temporary files to be created and, as you can see below, it is a
 # headache to deal with in a portable fashion.
 
-# Historically, `CC_FOR_BUILD' used to be named `HOST_CC'. We still
-# use `HOST_CC' if defined, but it is deprecated.
+# Historically, 'CC_FOR_BUILD' used to be named 'HOST_CC'. We still
+# use 'HOST_CC' if defined, but it is deprecated.
 
 # Portable tmp directory creation inspired by the Autoconf team.
 
@@ -123,7 +123,7 @@ set_cc_for_build() {
     dummy=$tmp/dummy
     case ${CC_FOR_BUILD-},${HOST_CC-},${CC-} in
 	,,)    echo "int x;" > "$dummy.c"
-	       for driver in cc gcc c89 c99 ; do
+	       for driver in cc gcc c17 c99 c89 ; do
 		   if ($driver -c -o "$dummy.o" "$dummy.c") >/dev/null 2>&1 ; then
 		       CC_FOR_BUILD=$driver
 		       break
@@ -155,6 +155,9 @@ Linux|GNU|GNU/*)
 
 	set_cc_for_build
 	cat <<-EOF > "$dummy.c"
+	#if defined(__ANDROID__)
+	LIBC=android
+	#else
 	#include <features.h>
 	#if defined(__UCLIBC__)
 	LIBC=uclibc
@@ -162,11 +165,14 @@ Linux|GNU|GNU/*)
 	LIBC=dietlibc
 	#elif defined(__GLIBC__)
 	LIBC=gnu
+	#elif defined(__LLVM_LIBC__)
+	LIBC=llvm
 	#else
 	#include <stdarg.h>
 	/* First heuristic to detect musl libc.  */
 	#ifdef __DEFINED_va_list
 	LIBC=musl
+	#endif
 	#endif
 	#endif
 	EOF
@@ -459,7 +465,7 @@ case $UNAME_MACHINE:$UNAME_SYSTEM:$UNAME_RELEASE:$UNAME_VERSION in
 		UNAME_RELEASE=`uname -v`
 		;;
 	esac
-	# Japanese Language versions have a version number like `4.1.3-JL'.
+	# Japanese Language versions have a version number like '4.1.3-JL'.
 	SUN_REL=`echo "$UNAME_RELEASE" | sed -e 's/-/_/'`
 	GUESS=sparc-sun-sunos$SUN_REL
 	;;
@@ -628,7 +634,8 @@ EOF
 		sed 's/^		//' << EOF > "$dummy.c"
 		#include <sys/systemcfg.h>
 
-		main()
+		int
+		main ()
 			{
 			if (!__power_pc())
 				exit(1);
@@ -712,7 +719,8 @@ EOF
 		#include <stdlib.h>
 		#include <unistd.h>
 
-		int main ()
+		int
+		main ()
 		{
 		#if defined(_SC_KERNEL_BITS)
 		    long bits = sysconf(_SC_KERNEL_BITS);
@@ -904,7 +912,7 @@ EOF
 	fi
 	;;
     *:FreeBSD:*:*)
-	UNAME_PROCESSOR=`/usr/bin/uname -p`
+	UNAME_PROCESSOR=`uname -p`
 	case $UNAME_PROCESSOR in
 	    amd64)
 		UNAME_PROCESSOR=x86_64 ;;
@@ -966,11 +974,37 @@ EOF
 	GNU_REL=`echo "$UNAME_RELEASE" | sed -e 's/[-(].*//'`
 	GUESS=$UNAME_MACHINE-unknown-$GNU_SYS$GNU_REL-$LIBC
 	;;
+    x86_64:[Mm]anagarm:*:*|i?86:[Mm]anagarm:*:*)
+	GUESS="$UNAME_MACHINE-pc-managarm-mlibc"
+	;;
+    *:[Mm]anagarm:*:*)
+	GUESS="$UNAME_MACHINE-unknown-managarm-mlibc"
+	;;
     *:Minix:*:*)
 	GUESS=$UNAME_MACHINE-unknown-minix
 	;;
     aarch64:Linux:*:*)
-	GUESS=$UNAME_MACHINE-unknown-linux-$LIBC
+	set_cc_for_build
+	CPU=$UNAME_MACHINE
+	LIBCABI=$LIBC
+	if test "$CC_FOR_BUILD" != no_compiler_found; then
+	    ABI=64
+	    sed 's/^	    //' << EOF > "$dummy.c"
+	    #ifdef __ARM_EABI__
+	    #ifdef __ARM_PCS_VFP
+	    ABI=eabihf
+	    #else
+	    ABI=eabi
+	    #endif
+	    #endif
+EOF
+	    cc_set_abi=`$CC_FOR_BUILD -E "$dummy.c" 2>/dev/null | grep '^ABI' | sed 's, ,,g'`
+	    eval "$cc_set_abi"
+	    case $ABI in
+		eabi | eabihf) CPU=armv8l; LIBCABI=$LIBC$ABI ;;
+	    esac
+	fi
+	GUESS=$CPU-unknown-linux-$LIBCABI
 	;;
     aarch64_be:Linux:*:*)
 	UNAME_MACHINE=aarch64_be
@@ -1036,7 +1070,16 @@ EOF
     k1om:Linux:*:*)
 	GUESS=$UNAME_MACHINE-unknown-linux-$LIBC
 	;;
-    loongarch32:Linux:*:* | loongarch64:Linux:*:* | loongarchx32:Linux:*:*)
+    kvx:Linux:*:*)
+	GUESS=$UNAME_MACHINE-unknown-linux-$LIBC
+	;;
+    kvx:cos:*:*)
+	GUESS=$UNAME_MACHINE-unknown-cos
+	;;
+    kvx:mbr:*:*)
+	GUESS=$UNAME_MACHINE-unknown-mbr
+	;;
+    loongarch32:Linux:*:* | loongarch64:Linux:*:*)
 	GUESS=$UNAME_MACHINE-unknown-linux-$LIBC
 	;;
     m32r*:Linux:*:*)
@@ -1151,16 +1194,27 @@ EOF
 	;;
     x86_64:Linux:*:*)
 	set_cc_for_build
+	CPU=$UNAME_MACHINE
 	LIBCABI=$LIBC
 	if test "$CC_FOR_BUILD" != no_compiler_found; then
-	    if (echo '#ifdef __ILP32__'; echo IS_X32; echo '#endif') | \
-		(CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
-		grep IS_X32 >/dev/null
-	    then
-		LIBCABI=${LIBC}x32
-	    fi
+	    ABI=64
+	    sed 's/^	    //' << EOF > "$dummy.c"
+	    #ifdef __i386__
+	    ABI=x86
+	    #else
+	    #ifdef __ILP32__
+	    ABI=x32
+	    #endif
+	    #endif
+EOF
+	    cc_set_abi=`$CC_FOR_BUILD -E "$dummy.c" 2>/dev/null | grep '^ABI' | sed 's, ,,g'`
+	    eval "$cc_set_abi"
+	    case $ABI in
+		x86) CPU=i686 ;;
+		x32) LIBCABI=${LIBC}x32 ;;
+	    esac
 	fi
-	GUESS=$UNAME_MACHINE-pc-linux-$LIBCABI
+	GUESS=$CPU-pc-linux-$LIBCABI
 	;;
     xtensa*:Linux:*:*)
 	GUESS=$UNAME_MACHINE-unknown-linux-$LIBC
@@ -1180,7 +1234,7 @@ EOF
 	GUESS=$UNAME_MACHINE-pc-sysv4.2uw$UNAME_VERSION
 	;;
     i*86:OS/2:*:*)
-	# If we were able to find `uname', then EMX Unix compatibility
+	# If we were able to find 'uname', then EMX Unix compatibility
 	# is probably installed.
 	GUESS=$UNAME_MACHINE-pc-os2-emx
 	;;
@@ -1321,7 +1375,7 @@ EOF
 		GUESS=ns32k-sni-sysv
 	fi
 	;;
-    PENTIUM:*:4.0*:*)	# Unisys `ClearPath HMP IX 4000' SVR4/MP effort
+    PENTIUM:*:4.0*:*)	# Unisys 'ClearPath HMP IX 4000' SVR4/MP effort
 			# says <Richard.M.Bartel@ccMail.Census.GOV>
 	GUESS=i586-unisys-sysv4
 	;;
@@ -1367,8 +1421,11 @@ EOF
     BePC:Haiku:*:*)	# Haiku running on Intel PC compatible.
 	GUESS=i586-pc-haiku
 	;;
-    x86_64:Haiku:*:*)
-	GUESS=x86_64-unknown-haiku
+    ppc:Haiku:*:*)	# Haiku running on Apple PowerPC
+	GUESS=powerpc-apple-haiku
+	;;
+    *:Haiku:*:*)	# Haiku modern gcc (not bound by BeOS compat)
+	GUESS=$UNAME_MACHINE-unknown-haiku
 	;;
     SX-4:SUPER-UX:*:*)
 	GUESS=sx4-nec-superux$UNAME_RELEASE
@@ -1540,6 +1597,9 @@ EOF
     *:Unleashed:*:*)
 	GUESS=$UNAME_MACHINE-unknown-unleashed$UNAME_RELEASE
 	;;
+    *:Ironclad:*:*)
+	GUESS=$UNAME_MACHINE-unknown-ironclad
+	;;
 esac
 
 # Do we have a guess based on uname results?
@@ -1563,6 +1623,7 @@ cat > "$dummy.c" <<EOF
 #endif
 #endif
 #endif
+int
 main ()
 {
 #if defined (sony)

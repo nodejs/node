@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,8 +14,8 @@
 #include "ocsp_local.h"
 
 static int ocsp_find_signer(X509 **psigner, OCSP_BASICRESP *bs,
-    STACK_OF(X509) *certs, unsigned long flags);
-static X509 *ocsp_find_signer_sk(STACK_OF(X509) *certs, OCSP_RESPID *id);
+    const STACK_OF(X509) *certs, unsigned long flags);
+static X509 *ocsp_find_signer_sk(const STACK_OF(X509) *certs, OCSP_RESPID *id);
 static int ocsp_check_issuer(OCSP_BASICRESP *bs, STACK_OF(X509) *chain);
 static int ocsp_check_ids(STACK_OF(OCSP_SINGLERESP) *sresp,
     OCSP_CERTID **ret);
@@ -23,7 +23,7 @@ static int ocsp_match_issuerid(X509 *cert, OCSP_CERTID *cid,
     STACK_OF(OCSP_SINGLERESP) *sresp);
 static int ocsp_check_delegated(X509 *x);
 static int ocsp_req_find_signer(X509 **psigner, OCSP_REQUEST *req,
-    const X509_NAME *nm, STACK_OF(X509) *certs,
+    const X509_NAME *nm, const STACK_OF(X509) *certs,
     unsigned long flags);
 
 /* Returns 1 on success, 0 on failure, or -1 on fatal error */
@@ -95,7 +95,7 @@ static int ocsp_verify(OCSP_REQUEST *req, OCSP_BASICRESP *bs,
 }
 
 /* Verify a basic response message */
-int OCSP_basic_verify(OCSP_BASICRESP *bs, STACK_OF(X509) *certs,
+int OCSP_basic_verify(OCSP_BASICRESP *bs, const STACK_OF(X509) *certs,
     X509_STORE *st, unsigned long flags)
 {
     X509 *signer, *x;
@@ -160,13 +160,13 @@ end:
 }
 
 int OCSP_resp_get0_signer(OCSP_BASICRESP *bs, X509 **signer,
-    STACK_OF(X509) *extra_certs)
+    const STACK_OF(X509) *extra_certs)
 {
     return ocsp_find_signer(signer, bs, extra_certs, 0) > 0;
 }
 
 static int ocsp_find_signer(X509 **psigner, OCSP_BASICRESP *bs,
-    STACK_OF(X509) *certs, unsigned long flags)
+    const STACK_OF(X509) *certs, unsigned long flags)
 {
     X509 *signer;
     OCSP_RESPID *rid = &bs->tbsResponseData.responderId;
@@ -185,7 +185,7 @@ static int ocsp_find_signer(X509 **psigner, OCSP_BASICRESP *bs,
     return 0;
 }
 
-static X509 *ocsp_find_signer_sk(STACK_OF(X509) *certs, OCSP_RESPID *id)
+static X509 *ocsp_find_signer_sk(const STACK_OF(X509) *certs, OCSP_RESPID *id)
 {
     int i, r;
     unsigned char tmphash[SHA_DIGEST_LENGTH], *keyhash;
@@ -314,17 +314,11 @@ static int ocsp_match_issuerid(X509 *cert, OCSP_CERTID *cid,
 
         OBJ_obj2txt(name, sizeof(name), cid->hashAlgorithm.algorithm, 0);
 
-        (void)ERR_set_mark();
         dgst = EVP_MD_fetch(NULL, name, NULL);
-        if (dgst == NULL)
-            dgst = (EVP_MD *)EVP_get_digestbyname(name);
-
         if (dgst == NULL) {
-            (void)ERR_clear_last_mark();
             ERR_raise(ERR_LIB_OCSP, OCSP_R_UNKNOWN_MESSAGE_DIGEST);
             goto end;
         }
-        (void)ERR_pop_to_mark();
 
         mdlen = EVP_MD_get_size(dgst);
         if (mdlen <= 0) {
@@ -380,7 +374,7 @@ static int ocsp_check_delegated(X509 *x)
  * Just find the signer's certificate and verify it against a given trust value.
  * Returns 1 on success, 0 on failure and on fatal error.
  */
-int OCSP_request_verify(OCSP_REQUEST *req, STACK_OF(X509) *certs,
+int OCSP_request_verify(OCSP_REQUEST *req, const STACK_OF(X509) *certs,
     X509_STORE *store, unsigned long flags)
 {
     X509 *signer;
@@ -417,7 +411,7 @@ int OCSP_request_verify(OCSP_REQUEST *req, STACK_OF(X509) *certs,
 }
 
 static int ocsp_req_find_signer(X509 **psigner, OCSP_REQUEST *req,
-    const X509_NAME *nm, STACK_OF(X509) *certs,
+    const X509_NAME *nm, const STACK_OF(X509) *certs,
     unsigned long flags)
 {
     X509 *signer;

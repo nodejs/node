@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,7 +7,17 @@
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_LIBCRYPTO_SLH_DSA_SLH_DSA_KEY_H)
+#define OSSL_LIBCRYPTO_SLH_DSA_SLH_DSA_KEY_H
+
+#include <openssl/crypto.h>
 #include <openssl/e_os2.h>
+
+#include "crypto/slh_dsa.h"
+
+#include "slh_params.h"
+#include "slh_adrs.h"
+#include "slh_hash.h"
 
 #define SLH_DSA_MAX_N 32
 #define SLH_DSA_SK_SEED(key) ((key)->priv)
@@ -44,7 +54,9 @@ struct slh_dsa_key_st {
     const SLH_HASH_FUNC *hash_func;
     /* See FIPS 205 Section 11.1 */
 
-    EVP_MD *md; /* Used for SHAKE and SHA-256 */
-    EVP_MD *md_big; /* Used for SHA-256 or SHA-512 */
+    EVP_MD *md; /* Used for general SHAKE and SHA-256 hashes */
+    EVP_MD *md_sha512; /* Used for SHA-512 hashes */
     EVP_MAC *hmac;
 };
+
+#endif /* !defined(OSSL_LIBCRYPTO_SLH_DSA_SLH_DSA_KEY_H) */

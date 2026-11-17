@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,12 +28,6 @@
 static LHASH_OF(OBJ_NAME) *names_lh = NULL;
 static int names_type_num = OBJ_NAME_TYPE_NUM;
 static CRYPTO_RWLOCK *obj_lock = NULL;
-
-struct name_funcs_st {
-    unsigned long (*hash_func)(const char *name);
-    int (*cmp_func)(const char *a, const char *b);
-    void (*free_func)(const char *, int, const char *);
-};
 
 static STACK_OF(NAME_FUNCS) *name_funcs_stack;
 
@@ -335,7 +329,7 @@ void OBJ_NAME_do_all_sorted(int type,
     int n;
 
     d.type = type;
-    d.names = OPENSSL_malloc(sizeof(*d.names) * lh_OBJ_NAME_num_items(names_lh));
+    d.names = OPENSSL_malloc_array(lh_OBJ_NAME_num_items(names_lh), sizeof(*d.names));
     /* Really should return an error if !d.names...but its a void function! */
     if (d.names != NULL) {
         d.n = 0;

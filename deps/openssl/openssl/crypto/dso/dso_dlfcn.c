@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,6 +15,8 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* make sure dladdr is declared */
 #endif
+
+#include <stdio.h>
 
 #include "dso_local.h"
 #include "internal/e_os.h"
@@ -262,11 +264,11 @@ static char *dlfcn_name_converter(DSO *dso, const char *filename)
     }
     if (transform) {
         if ((DSO_flags(dso) & DSO_FLAG_NAME_TRANSLATION_EXT_ONLY) == 0)
-            BIO_snprintf(translated, rsize, "lib%s" DSO_EXTENSION, filename);
+            snprintf(translated, rsize, "lib%s" DSO_EXTENSION, filename);
         else
-            BIO_snprintf(translated, rsize, "%s" DSO_EXTENSION, filename);
+            snprintf(translated, rsize, "%s" DSO_EXTENSION, filename);
     } else {
-        BIO_snprintf(translated, rsize, "%s", filename);
+        snprintf(translated, rsize, "%s", filename);
     }
     return translated;
 }

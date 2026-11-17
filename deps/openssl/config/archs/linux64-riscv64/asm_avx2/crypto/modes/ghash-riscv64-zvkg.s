@@ -43,7 +43,7 @@ gcm_init_rv64i_zvkg:
 .globl gcm_init_rv64i_zvkg_zvkb
 .type gcm_init_rv64i_zvkg_zvkb,@function
 gcm_init_rv64i_zvkg_zvkb:
-    .word 0xc1817057 # vsetivli x0, 2, e64, m1, ta, ma
+    .word 0xc1817057 # vsetivli x0, 2, e64, m1, tu, mu
     .word 33943559             # vle64.v v0, (a1)
     .word 1241817175            # vrev8.v v0, v0
     .word 33910823        # vse64.v v0, (a0)

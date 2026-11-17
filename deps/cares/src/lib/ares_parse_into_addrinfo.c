@@ -108,7 +108,7 @@ ares_status_t ares_parse_into_addrinfo(const ares_dns_record_t *dnsrec,
         status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
         goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
       }
-      cname->ttl   = (int)ares_dns_rr_get_ttl(rr);
+      cname->ttl   = ares_dns_ttl_as_int(ares_dns_rr_get_ttl(rr));
       cname->alias = ares_strdup(ares_dns_rr_get_name(rr));
       if (cname->alias == NULL) {
         status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */

@@ -376,6 +376,7 @@ signatures as their [`node:fs`][] counterparts:
 * `utimesSync(path, atime, mtime)`
 * `lutimesSync(path, atime, mtime)`
 * `mkdtempSync(prefix)`
+* `mkstempSync(prefix)`
 * `opendirSync(path[, options])`
 * `openAsBlob(path[, options])`
 * File-descriptor ops: `openSync`, `closeSync`, `readSync`, `writeSync`,
@@ -387,8 +388,8 @@ signatures as their [`node:fs`][] counterparts:
 
 `readFile`, `writeFile`, `stat`, `lstat`, `readdir`, `realpath`, `readlink`,
 `access`, `open`, `close`, `read`, `write`, `rm`, `fstat`, `truncate`,
-`ftruncate`, `link`, `mkdtemp`, `opendir`. Each takes a Node.js-style
-callback `(err, ...result) => {}`.
+`ftruncate`, `link`, `mkdtemp`, `mkstemp`, `opendir`. Each takes a
+Node.js-style callback `(err, ...result) => {}`.
 
 #### Promise API
 
@@ -409,8 +410,8 @@ example();
 The promise namespace mirrors `fs.promises` and includes `readFile`,
 `writeFile`, `appendFile`, `stat`, `lstat`, `readdir`, `mkdir`, `rmdir`,
 `unlink`, `rename`, `copyFile`, `realpath`, `readlink`, `symlink`,
-`access`, `rm`, `truncate`, `link`, `mkdtemp`, `chmod`, `chown`, `lchown`,
-`utimes`, `lutimes`, `open`, `lchmod`, and `watch`.
+`access`, `rm`, `truncate`, `link`, `mkdtemp`, `mkstemp`, `chmod`, `chown`,
+`lchown`, `utimes`, `lutimes`, `open`, `lchmod`, and `watch`.
 
 ## The reserved root directory
 
@@ -573,8 +574,10 @@ ESM entry points (`"mainFormat": "module"`) are supported: the main module
 is loaded from inside the mount through the ESM loader, and
 `import.meta.dirname` points at the mount root.
 
-`"useVfs"` cannot be used together with `"useSnapshot"` or `"useCodeCache"`.
-The SEA configuration parser will error if either combination is detected.
+`"useVfs"` cannot be used together with `"useSnapshot"`; the SEA
+configuration parser will error if the combination is detected. With
+`"useCodeCache"`, every module in the mount is compiled at build time and its
+code cache is embedded into the executable.
 
 Instead of listing individual `"assets"`, the SEA configuration can point
 `"vfsArchive"` at a prebuilt ZIP archive; the mount is then backed by a

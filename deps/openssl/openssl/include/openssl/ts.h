@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -155,7 +155,7 @@ int TS_REQ_get_ext_count(TS_REQ *a);
 int TS_REQ_get_ext_by_NID(TS_REQ *a, int nid, int lastpos);
 int TS_REQ_get_ext_by_OBJ(TS_REQ *a, const ASN1_OBJECT *obj, int lastpos);
 int TS_REQ_get_ext_by_critical(TS_REQ *a, int crit, int lastpos);
-X509_EXTENSION *TS_REQ_get_ext(TS_REQ *a, int loc);
+const X509_EXTENSION *TS_REQ_get_ext(TS_REQ *a, int loc);
 X509_EXTENSION *TS_REQ_delete_ext(TS_REQ *a, int loc);
 int TS_REQ_add_ext(TS_REQ *a, X509_EXTENSION *ex, int loc);
 void *TS_REQ_get_ext_d2i(TS_REQ *a, int nid, int *crit, int *idx);
@@ -217,7 +217,7 @@ int TS_TST_INFO_get_ext_by_NID(TS_TST_INFO *a, int nid, int lastpos);
 int TS_TST_INFO_get_ext_by_OBJ(TS_TST_INFO *a, const ASN1_OBJECT *obj,
     int lastpos);
 int TS_TST_INFO_get_ext_by_critical(TS_TST_INFO *a, int crit, int lastpos);
-X509_EXTENSION *TS_TST_INFO_get_ext(TS_TST_INFO *a, int loc);
+const X509_EXTENSION *TS_TST_INFO_get_ext(TS_TST_INFO *a, int loc);
 X509_EXTENSION *TS_TST_INFO_delete_ext(TS_TST_INFO *a, int loc);
 int TS_TST_INFO_add_ext(TS_TST_INFO *a, X509_EXTENSION *ex, int loc);
 void *TS_TST_INFO_get_ext_d2i(TS_TST_INFO *a, int nid, int *crit, int *idx);
@@ -358,7 +358,7 @@ TS_RESP *TS_RESP_create_response(TS_RESP_CTX *ctx, BIO *req_bio);
  * they are defined in ts/ts_resp_verify.c.
  */
 
-int TS_RESP_verify_signature(PKCS7 *token, STACK_OF(X509) *certs,
+int TS_RESP_verify_signature(PKCS7 *token, const STACK_OF(X509) *certs,
     X509_STORE *store, X509 **signer_out);
 
 /* Context structure for the generic verify method. */
@@ -418,19 +418,19 @@ void TS_VERIFY_CTX_cleanup(TS_VERIFY_CTX *ctx);
 int TS_VERIFY_CTX_set_flags(TS_VERIFY_CTX *ctx, int f);
 int TS_VERIFY_CTX_add_flags(TS_VERIFY_CTX *ctx, int f);
 #ifndef OPENSSL_NO_DEPRECATED_3_4
-OSSL_DEPRECATEDIN_3_4_FOR("Unclear semantics, replace with TS_VERIFY_CTX_set0_data().")
+OSSL_DEPRECATEDIN_3_4_FOR("unclear semantics, replace with TS_VERIFY_CTX_set0_data()")
 BIO *TS_VERIFY_CTX_set_data(TS_VERIFY_CTX *ctx, BIO *b);
 #endif
 int TS_VERIFY_CTX_set0_data(TS_VERIFY_CTX *ctx, BIO *b);
 #ifndef OPENSSL_NO_DEPRECATED_3_4
-OSSL_DEPRECATEDIN_3_4_FOR("Unclear semantics, replace with TS_VERIFY_CTX_set0_imprint().")
+OSSL_DEPRECATEDIN_3_4_FOR("unclear semantics, replace with TS_VERIFY_CTX_set0_imprint()")
 unsigned char *TS_VERIFY_CTX_set_imprint(TS_VERIFY_CTX *ctx,
     unsigned char *hexstr, long len);
 #endif
 int TS_VERIFY_CTX_set0_imprint(TS_VERIFY_CTX *ctx,
     unsigned char *hexstr, long len);
 #ifndef OPENSSL_NO_DEPRECATED_3_4
-OSSL_DEPRECATEDIN_3_4_FOR("Unclear semantics, replace with TS_VERIFY_CTX_set0_store().")
+OSSL_DEPRECATEDIN_3_4_FOR("unclear semantics, replace with TS_VERIFY_CTX_set0_store()")
 X509_STORE *TS_VERIFY_CTX_set_store(TS_VERIFY_CTX *ctx, X509_STORE *s);
 #endif
 int TS_VERIFY_CTX_set0_store(TS_VERIFY_CTX *ctx, X509_STORE *s);
@@ -438,7 +438,7 @@ int TS_VERIFY_CTX_set0_store(TS_VERIFY_CTX *ctx, X509_STORE *s);
 #define TS_VERIFY_CTS_set_certs(ctx, cert) TS_VERIFY_CTX_set_certs(ctx, cert)
 #endif
 #ifndef OPENSSL_NO_DEPRECATED_3_4
-OSSL_DEPRECATEDIN_3_4_FOR("Unclear semantics, replace with TS_VERIFY_CTX_set0_certs().")
+OSSL_DEPRECATEDIN_3_4_FOR("unclear semantics, replace with TS_VERIFY_CTX_set0_certs()")
 STACK_OF(X509) *TS_VERIFY_CTX_set_certs(TS_VERIFY_CTX *ctx, STACK_OF(X509) *certs);
 #endif
 int TS_VERIFY_CTX_set0_certs(TS_VERIFY_CTX *ctx, STACK_OF(X509) *certs);
@@ -486,11 +486,6 @@ EVP_PKEY *TS_CONF_load_key(const char *file, const char *pass);
 const char *TS_CONF_get_tsa_section(CONF *conf, const char *section);
 int TS_CONF_set_serial(CONF *conf, const char *section, TS_serial_cb cb,
     TS_RESP_CTX *ctx);
-#ifndef OPENSSL_NO_ENGINE
-int TS_CONF_set_crypto_device(CONF *conf, const char *section,
-    const char *device);
-int TS_CONF_set_default_engine(const char *name);
-#endif
 int TS_CONF_set_signer_cert(CONF *conf, const char *section,
     const char *cert, TS_RESP_CTX *ctx);
 int TS_CONF_set_certs(CONF *conf, const char *section, const char *certs,

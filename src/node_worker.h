@@ -36,8 +36,7 @@ class Worker : public AsyncWrap {
          std::shared_ptr<PerIsolateOptions> per_isolate_opts,
          std::vector<std::string>&& exec_argv,
          std::shared_ptr<KVStore> env_vars,
-         const SnapshotData* snapshot_data,
-         const bool is_internal);
+         const SnapshotData* snapshot_data);
   ~Worker() override;
 
   // Run the worker. This is only called from the worker thread.
@@ -64,7 +63,6 @@ class Worker : public AsyncWrap {
 
   bool is_stopped() const;
   const SnapshotData* snapshot_data() const { return snapshot_data_; }
-  bool is_internal() const { return is_internal_; }
   std::string_view name() const { return name_; }
   uint64_t thread_id() const { return thread_id_.id; }
   // Whether the Worker keeps the parent's event loop alive, see
@@ -146,7 +144,6 @@ class Worker : public AsyncWrap {
   Environment* env_ = nullptr;
 
   const SnapshotData* snapshot_data_ = nullptr;
-  const bool is_internal_;
   friend class WorkerThreadData;
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,8 +7,13 @@
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_SSL_RECORD_RECORD_H)
+#define OSSL_SSL_RECORD_RECORD_H
+
 #include <openssl/core_dispatch.h>
+
 #include "internal/recordmethod.h"
+#include "internal/statem.h"
 
 /*****************************************************************************
  *                                                                           *
@@ -34,23 +39,31 @@ typedef struct tls_record_st {
     size_t length;
     /* Offset into the data buffer where to start reading */
     size_t off;
-    /* epoch number. DTLS only */
-    uint16_t epoch;
+    /* Serialized DTLS epoch */
+    uint64_t epoch;
     /* sequence number. DTLS only */
-    unsigned char seq_num[SEQ_NUM_SIZE];
+    uint64_t seq_num;
 #ifndef OPENSSL_NO_SCTP
     struct bio_dgram_sctp_rcvinfo recordinfo;
 #endif
 } TLS_RECORD;
 
+/*
+ * RFC 9147 Section 8: sending implementations MUST NOT allow the epoch to
+ * exceed 2^48-1. This margin (rather than the 2^64-1 wire/representation
+ * ceiling of Section 6.1) is what actually bounds w_conn_epoch for DTLS 1.3.
+ */
+#define DTLS1_3_MAX_EPOCH ((uint64_t)0xFFFFFFFFFFFFULL)
+#define DTLS1_MAX_EPOCH UINT16_MAX
+
 typedef struct dtls_record_layer_st {
     /*
-     * The current data and handshake epoch.  This is initially
+     * The current data and handshake epoch. This is initially
      * undefined, and starts at zero once the initial handshake is
      * completed
      */
-    uint16_t r_epoch;
-    uint16_t w_epoch;
+    uint64_t r_conn_epoch;
+    uint64_t w_conn_epoch;
 
     /*
      * Buffered application records. Only for records between CCS and
@@ -122,6 +135,8 @@ typedef struct record_layer_st {
     /* Record layer data to be processed */
     TLS_RECORD tlsrecs[SSL_MAX_PIPELINES];
 
+    /* DTLS epoch zero write sequence number */
+    uint64_t wlayer_epoch_zero_sequence;
 } RECORD_LAYER;
 
 /*****************************************************************************
@@ -140,7 +155,6 @@ int RECORD_LAYER_reset(RECORD_LAYER *rl);
 int RECORD_LAYER_read_pending(const RECORD_LAYER *rl);
 int RECORD_LAYER_processed_read_pending(const RECORD_LAYER *rl);
 int RECORD_LAYER_write_pending(const RECORD_LAYER *rl);
-int RECORD_LAYER_is_sslv2_record(RECORD_LAYER *rl);
 __owur size_t ssl3_pending(const SSL *s);
 __owur int ssl3_write_bytes(SSL *s, uint8_t type, const void *buf, size_t len,
     size_t *written);
@@ -151,6 +165,7 @@ __owur int ssl3_read_bytes(SSL *s, uint8_t type, uint8_t *recvd_type,
 int DTLS_RECORD_LAYER_new(RECORD_LAYER *rl);
 void DTLS_RECORD_LAYER_free(RECORD_LAYER *rl);
 void DTLS_RECORD_LAYER_clear(RECORD_LAYER *rl);
+int DTLS_RECORD_LAYER_buffered_app_data_pending(const RECORD_LAYER *rl);
 __owur int dtls1_read_bytes(SSL *s, uint8_t type, uint8_t *recvd_type,
     unsigned char *buf, size_t len, int peek,
     size_t *readbytes);
@@ -158,8 +173,9 @@ __owur int dtls1_write_bytes(SSL_CONNECTION *s, uint8_t type, const void *buf,
     size_t len, size_t *written);
 int do_dtls1_write(SSL_CONNECTION *s, uint8_t type, const unsigned char *buf,
     size_t len, size_t *written);
-void dtls1_increment_epoch(SSL_CONNECTION *s, int rw);
-uint16_t dtls1_get_epoch(SSL_CONNECTION *s, int rw);
+int dtls1_increment_epoch(SSL_CONNECTION *s, int rw);
+uint64_t dtls1_get_epoch(SSL_CONNECTION *s, int rw);
+uint64_t dtls1_get_record_sequence_number(SSL_CONNECTION *s);
 int ssl_release_record(SSL_CONNECTION *s, TLS_RECORD *rr, size_t length);
 
 #define HANDLE_RLAYER_READ_RETURN(s, ret) \
@@ -174,9 +190,11 @@ int ossl_tls_handle_rlayer_return(SSL_CONNECTION *s, int writing, int ret,
 int ssl_set_new_record_layer(SSL_CONNECTION *s, int version,
     int direction, int level,
     unsigned char *secret, size_t secretlen,
+    unsigned char *snkey,
     unsigned char *key, size_t keylen,
     unsigned char *iv, size_t ivlen,
     unsigned char *mackey, size_t mackeylen,
+    const EVP_CIPHER *snciph,
     const EVP_CIPHER *ciph, size_t taglen,
     int mactype, const EVP_MD *md,
     const SSL_COMP *comp, const EVP_MD *kdfdigest);
@@ -190,3 +208,28 @@ OSSL_CORE_MAKE_FUNC(void, rlayer_msg_callback, (int write_p, int version, int co
 OSSL_CORE_MAKE_FUNC(int, rlayer_security, (void *cbarg, int op, int bits, int nid, void *other))
 #define OSSL_FUNC_RLAYER_PADDING 4
 OSSL_CORE_MAKE_FUNC(size_t, rlayer_padding, (void *cbarg, int type, size_t len))
+
+/*
+ * Callback for listener-based connections to read data from their receive
+ * queue. Used by DTLS listener connections (and future TLS listener).
+ * Returns 1 on success with data/len set, 0 if no data available.
+ * The caller must call the release callback when done with the data.
+ */
+#define OSSL_FUNC_RLAYER_GET_URXE_PACKET 5
+OSSL_CORE_MAKE_FUNC(int, rlayer_get_urxe_packet, (void *cbarg, unsigned char **data, size_t *len, void **packet_handle))
+#define OSSL_FUNC_RLAYER_RELEASE_URXE_PACKET 6
+OSSL_CORE_MAKE_FUNC(void, rlayer_release_urxe_packet, (void *cbarg, void *packet_handle))
+
+/*
+ * Callback for listener-based connections to wait until their shared socket can
+ * accept a datagram, for a connection which is in blocking mode. Such a
+ * connection cannot block in the socket itself, because the socket is shared
+ * with every other connection and is always non-blocking.
+ *
+ * Returns 1 if the send should be attempted again, or 0 to report the write as
+ * needing a retry in the usual way.
+ */
+#define OSSL_FUNC_RLAYER_BLOCK_FOR_WRITE 7
+OSSL_CORE_MAKE_FUNC(int, rlayer_block_for_write, (void *cbarg))
+
+#endif /* !defined(OSSL_SSL_RECORD_RECORD_H) */

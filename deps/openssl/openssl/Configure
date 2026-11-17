@@ -27,7 +27,7 @@ use OpenSSL::config;
 my $orig_death_handler = $SIG{__DIE__};
 $SIG{__DIE__} = \&death_handler;
 
-my $usage="Usage: Configure [no-<feature> ...] [enable-<feature> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]thread-pool] [[no-]default-thread-pool] [[no-]shared] [[no-]zlib|zlib-dynamic] [no-asm] [no-egd] [sctp] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--config=FILE] os/compiler[:flags]\n";
+my $usage="Usage: Configure [no-<feature> ...] [enable-<feature> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]thread-pool] [[no-]default-thread-pool] [[no-]shared] [[no-]zlib|zlib-dynamic] [no-asm] [no-egd] [sctp] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--config=FILE] [--manpage-format={roff,mdoc}] [--help] os/compiler[:flags]\n";
 
 my $banner = <<"EOF";
 
@@ -96,7 +96,7 @@ EOF
 #               [don't] allow default thread pool functionality
 # [no-]shared   [don't] try to create shared libraries when supported.
 # [no-]pic      [don't] try to build position independent code when supported.
-#               If disabled, it also disables shared and dynamic-engine.
+#               If disabled, it also disables shared.
 # no-asm        do not use assembler
 # no-egd        do not compile support for the entropy-gathering daemon APIs
 # [no-]zlib     [don't] compile support for zlib compression.
@@ -171,16 +171,17 @@ my @gcc_devteam_warn = qw(
     -Wextra
     -Wno-unused-parameter
     -Wno-missing-field-initializers
-    -Wno-unterminated-string-initialization
     -Wswitch
     -Wsign-compare
     -Wshadow
     -Wformat
-    -Wno-type-limits
+    -Wtype-limits
     -Wundef
     -Werror
     -Wmissing-prototypes
     -Wstrict-prototypes
+    -Wpointer-arith
+    -Wfloat-conversion
 );
 
 # These are used in addition to $gcc_devteam_warn when the compiler is clang.
@@ -236,7 +237,8 @@ my $apitable = {
 
 # From 3.0 and on, we internalise the given version number in decimal
 # as MAJOR * 10000 + MINOR * 100 + 0
-my @post30_versions = ([3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5],
+my @post30_versions = ([3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6],
+                       [4, 0], [4, 1],
                        );
 
 # The numbering used changes from 3.0 and on because we updated
@@ -293,6 +295,7 @@ my $dofile = abs2rel(catfile($srcdir, "util/dofile.pl"));
 
 my $local_config_envname = 'OPENSSL_LOCAL_CONFIG_DIR';
 
+$config{manpage_format} = "roff";
 $config{sourcedir} = abs2rel($srcdir, $blddir);
 $config{builddir} = abs2rel($blddir, $blddir);
 # echo -n 'holy hand grenade of antioch' | openssl sha256
@@ -418,66 +421,121 @@ my $auto_threads=1;    # enable threads automatically? true by default
 my $default_ranlib;
 
 # Known TLS and DTLS protocols
-my @tls = qw(ssl3 tls1 tls1_1 tls1_2 tls1_3);
-my @dtls = qw(dtls1 dtls1_2);
+my @tls = qw(tls1 tls1_1 tls1_2 tls1_3);
+my @dtls = qw(dtls1 dtls1_2 dtls1_3);
 
 # Explicitly known options that are possible to disable.  They can
 # be regexps, and will be used like this: /^no-${option}$/
 # For developers: keep it sorted alphabetically
 
-my @disablables = (
-    "acvp-tests",
-    "afalgeng",
-    "apps",
+my @disablables_protocols = (
+  "cmp",
+  "dtls",
+  "http",
+  "ocsp",
+  "ktls",
+  "tls",
+  "tls-deprecated-ec",
+  "quic",
+  "sctp",
+  "srp",
+  "srtp"
+);
+
+foreach my $proto ((@tls, @dtls))
+        {
+        push(@disablables_protocols, $proto);
+        push(@disablables_protocols, "$proto-method") unless $proto eq "tls1_3" || $proto eq "dtls1_3";
+        }
+
+my @disablables_algorithms = (
     "argon2",
     "aria",
-    "asan",
-    "asm",
-    "async",
-    "atexit",
-    "autoalginit",
-    "autoerrinit",
-    "autoload-config",
     "bf",
     "blake2",
     "brotli",
+    "camellia",
+    "cast",
+    "chacha",
+    "cmac",
+    "cms",
+    "comp",
+    "des",
+    "dh",
+    "dsa",
+    "hmac-drbg-kdf",
+    "ec",
+    "ec2m",
+    "ecx",
+    "kbkdf",
+    "krb5kdf",
+    "gost",
+    "idea",
+    "ikev2kdf",
+    "md2",
+    "md4",
+    "md5",
+    "mdc2",
+    "ml-dsa",
+    "ml-kem",
+    "lms",
+    "ocb",
+    "poly1305",
+    "psk",
+    "pvkkdf",
+    "rc2",
+    "rc4",
+    "rc5",
+    "rmd160",
+    "scrypt",
+    "seed",
+    "siphash",
+    "slh-dsa",
+    "siv",
+    "snmpkdf",
+    "sm2",
+    "sm3",
+    "sm4",
+    "srtpkdf",
+    "sshkdf",
+    "sskdf",
+    "x942kdf",
+    "x963kdf",
+    "whirlpool",
+    "zlib",
+    "zstd",
+);
+
+my @disablables_features = (
+    "acvp-tests",
+    "apps",
+    "asan",
+    "asm",
+    "async",
+    "autoalginit",
+    "autoerrinit",
+    "autoload-config",
     "brotli-dynamic",
     "buildtest-c++",
     "bulk",
     "cached-fetch",
-    "camellia",
-    "capieng",
+    "dgram",
     "winstore",
-    "cast",
-    "chacha",
-    "cmac",
-    "cmp",
-    "cms",
-    "comp",
     "crypto-mdebug",
+    "allocfail-tests",
     "ct",
+    "ct-validation",
     "default-thread-pool",
     "demos",
     "h3demo",
     "hqinterop",
     "deprecated",
-    "des",
-    "devcryptoeng",
-    "dgram",
-    "dh",
     "docs",
-    "dsa",
     "dso",
-    "dtls",
-    "dynamic-engine",
-    "ec",
-    "ec2m",
+    "ech",
+    "ec_explicit_curves",
     "ec_nistp_64_gcc_128",
-    "ecdh",
-    "ecdsa",
-    "ecx",
     "egd",
-    "engine",
     "err",
     "external-tests",
     "filenames",
@@ -487,86 +545,48 @@ my @disablables = (
     "fips-jitter",
     "fuzz-afl",
     "fuzz-libfuzzer",
-    "gost",
-    "http",
-    "idea",
     "integrity-only-ciphers",
     "jitter",
-    "ktls",
     "legacy",
-    "loadereng",
     "makedepend",
-    "md2",
-    "md4",
-    "mdc2",
-    "ml-dsa",
-    "ml-kem",
     "module",
     "msan",
     "multiblock",
     "nextprotoneg",
-    "ocb",
-    "ocsp",
-    "padlockeng",
     "pic",
     "pie",
     "pinshared",
-    "poly1305",
     "posix-io",
-    "psk",
-    "quic",
     "unstable-qlog",
-    "rc2",
-    "rc4",
-    "rc5",
     "rdrand",
     "rfc3779",
-    "rmd160",
-    "scrypt",
-    "sctp",
     "secure-memory",
-    "seed",
     "shared",
-    "siphash",
-    "siv",
-    "slh-dsa",
-    "sm2",
     "sm2-precomp",
-    "sm3",
-    "sm4",
     "sock",
-    "srp",
-    "srtp",
     "sse2",
-    "ssl",
     "ssl-trace",
-    "static-engine",
+    "static-vcruntime",
     "stdio",
     "sslkeylog",
     "tests",
     "tfo",
     "thread-pool",
     "threads",
-    "tls",
-    "tls-deprecated-ec",
     "trace",
     "ts",
     "ubsan",
     "ui-console",
     "unit-test",
+    "unit-tests",
     "uplink",
     "weak-ssl-ciphers",
-    "whirlpool",
-    "zlib",
     "zlib-dynamic",
-    "zstd",
     "zstd-dynamic",
-    );
-foreach my $proto ((@tls, @dtls))
-        {
-        push(@disablables, $proto);
-        push(@disablables, "$proto-method") unless $proto eq "tls1_3";
-        }
+
+);
+
+my @disablables = sort (@disablables_protocols,@disablables_algorithms,@disablables_features);
 
 # Internal disablables, for aliasing purposes.  They serve no special
 # purpose here, but allow scripts to get to know them through configdata.pm,
@@ -577,19 +597,31 @@ my @disablables_int = qw(
     );
 
 my %deprecated_disablables = (
+    "atexit" => undef,
+    "engine" => undef,
+    "static-engine" => undef,
+    "dynamic-engine" => undef,
+    "afalgeng" => undef,
+    "capieng" => undef,
+    "devcryptoeng" => undef,
+    "loadereng" => undef,
+    "padlockeng" => undef,
     "ssl2" => undef,
     "buf-freelists" => undef,
-    "crypto-mdebug-backtrace" => undef,
-    "hw" => "hw",               # causes cascade, but no macro
-    "hw-padlock" => "padlockeng",
+    "hw" => undef,
+    "hw-padlock" => undef,
     "ripemd" => "rmd160",
     "ui" => "ui-console",
     "heartbeats" => undef,
+    "ssl" => undef,
+    "ssl3" => undef,
+    "ssl3-method" => undef,
     );
 
 # All of the following are disabled by default:
 
 our %disabled = ( # "what"         => "comment"
+                  "atexit"              => "default",
                   "fips"                => "default",
                   "fips-jitter"         => "default",
                   "asan"                => "default",
@@ -597,30 +629,34 @@ our %disabled = ( # "what"         => "comment"
                   "brotli-dynamic"      => "default",
                   "buildtest-c++"       => "default",
                   "crypto-mdebug"       => "default",
-                  "crypto-mdebug-backtrace" => "default",
+                  "allocfail-tests"     => "default",
+                  "ct-validation"       => "default",
                   "demos"               => "default",
                   "h3demo"              => "default",
                   "hqinterop"           => "default",
-                  "devcryptoeng"        => "default",
+                  "ec_explicit_curves" => "default",
                   "ec_nistp_64_gcc_128" => "default",
                   "egd"                 => "default",
+                  "engine"              => "default",
                   "external-tests"      => "default",
                   "fuzz-afl"            => "default",
                   "fuzz-libfuzzer"      => "default",
                   "pie"                 => "default",
                   "jitter"              => "default",
                   "ktls"                => "default",
+                  "lms"                 => "default",
                   "md2"                 => "default",
                   "msan"                => "default",
                   "rc5"                 => "default",
                   "sctp"                => "default",
-                  "ssl3"                => "default",
-                  "ssl3-method"         => "default",
                   "sslkeylog"           => "default",
+                  "static-vcruntime"    => "default",
                   "tfo"                 => "default",
+                  "tls-deprecated-ec"   => "default",
                   "trace"               => "default",
                   "ubsan"               => "default",
                   "unit-test"           => "default",
+                  "unit-tests"          => "default",
                   "weak-ssl-ciphers"    => "default",
                   "zlib"                => "default",
                   "zlib-dynamic"        => "default",
@@ -632,32 +668,32 @@ our %disabled = ( # "what"         => "comment"
 my @disable_cascades = (
     # "what"            => [ "cascade", ... ]
     "bulk"              => [ "shared", "dso",
-                             "aria", "async", "atexit", "autoload-config",
+                             "argon2", "aria", "async", "autoload-config",
                              "blake2", "bf", "camellia", "cast", "chacha",
                              "cmac", "cms", "cmp", "comp", "ct",
                              "des", "dgram", "dh", "dsa",
-                             "ec", "engine",
-                             "filenames",
-                             "idea", "ktls",
+                             "ec", "ech",
+                             "filenames", "hmac-drbg-kdf",
+                             "idea", "ikev2kdf", "kbkdf", "krb5kdf", "ktls", "lms",
                              "md4", "ml-dsa", "ml-kem", "multiblock",
                              "nextprotoneg", "ocsp", "ocb", "poly1305", "psk",
-                             "rc2", "rc4", "rmd160",
-                             "seed", "siphash", "siv",
-                             "sm3", "sm4", "srp",
-                             "srtp", "ssl3-method", "ssl-trace",
+                             "pvkkdf", "rc2", "rc4", "rmd160",
+                             "scrypt", "seed", "siphash", "siv",
+                             "slh-dsa", "sm3", "sm4", "snmpkdf",
+                             "srp", "srtp", "srtpkdf", "sshkdf", "sskdf",
+                             "ssl-trace",
                              "tfo",
                              "ts", "ui-console", "whirlpool",
+                             "x942kdf", "x963kdf",
                              "fips-securitychecks" ],
     sub { $config{processor} eq "386" }
                         => [ "sse2" ],
-    "ssl"               => [ "ssl3" ],
-    "ssl3-method"       => [ "ssl3" ],
     "zlib"              => [ "zlib-dynamic" ],
     "brotli"            => [ "brotli-dynamic" ],
     "zstd"              => [ "zstd-dynamic" ],
     "des"               => [ "mdc2" ],
     "deprecated"        => [ "tls-deprecated-ec" ],
-    "ec"                => [ qw(ec2m ecdsa ecdh sm2 gost ecx tls-deprecated-ec) ],
+    "ec"                => [ qw(ec2m ec_explicit_curves sm2 gost ecx tls-deprecated-ec) ],
     "dgram"             => [ "dtls", "quic", "sctp" ],
     "sock"              => [ "dgram", "tfo" ],
     "dtls"              => [ @dtls ],
@@ -670,19 +706,12 @@ my @disable_cascades = (
     "tls1_3"            => [ "quic" ],
     "quic"              => [ "unstable-qlog" ],
 
-    "crypto-mdebug"     => [ "crypto-mdebug-backtrace" ],
+    "crypto-mdebug"     => [ "allocfail-tests" ],
 
-    "module"            => [ "dynamic-engine", "fips" ],
+    "module"            => [ "fips" ],
 
-    # Without shared libraries, dynamic engines aren't possible.
-    # This is due to them having to link with libcrypto and register features
-    # using the ENGINE functionality, and since that relies on global tables,
-    # those *have* to be exactly the same as the ones accessed from the app,
-    # which cannot be guaranteed if shared libraries aren't present.
-    # (note that even with shared libraries, both the app and dynamic engines
-    # must be linked with the same library)
-    "shared"            => [ "dynamic-engine", "uplink" ],
-    "dso"               => [ "dynamic-engine", "module" ],
+    "shared"            => [ "uplink" ],
+    "dso"               => [ "module" ],
     # Other modules don't necessarily have to link with libcrypto, so shared
     # libraries do not have to be a condition to produce those.
 
@@ -690,16 +719,14 @@ my @disable_cascades = (
     # or modules.
     "pic"               => [ "shared", "module" ],
 
-    "engine"            => [ "dynamic-engine", grep(/eng$/, @disablables) ],
-    "dynamic-engine"    => [ "loadereng" ],
-    "hw"                => [ "padlockeng" ],
+    "engine"            => [ "static-engine", "dynamic-engine" ],
 
     # no-autoalginit is only useful when building non-shared
     "autoalginit"       => [ "shared", "apps", "fips" ],
 
-    "stdio"             => [ "apps", "capieng", "egd" ],
+    "stdio"             => [ "apps", "egd" ],
     "apps"              => [ "tests" ],
-    "tests"             => [ "external-tests" ],
+    "tests"             => [ "external-tests", "unit-tests" ],
     "comp"              => [ "zlib", "brotli", "zstd" ],
     "sm3"               => [ "sm2" ],
     sub { !$disabled{"unit-test"} } => [ "heartbeats" ],
@@ -719,7 +746,7 @@ my @disable_cascades = (
 
     "blake2"            => [ "argon2" ],
 
-    "deprecated-3.0"    => [ "engine", "srp" ],
+    "deprecated-3.0"    => [ "srp" ],
 
     "http"              => [ "ocsp" ]
     );
@@ -834,6 +861,11 @@ $config{ex_libs} = [ env('__CNF_LDLIBS') || () ];
 $config{openssl_api_defines}=[];
 $config{openssl_sys_defines}=[];
 $config{openssl_feature_defines}=[];
+
+$config{openssl_disabled_protocols}=[];
+$config{openssl_disabled_algorithms}=[];
+$config{openssl_disabled_features}=[];
+
 $config{options}="";
 $config{build_type} = "release";
 my $target="";
@@ -894,6 +926,14 @@ while (@argvcopy)
                         $unsupported_options{$_} = 1;
                         next;
                         }
+
+                # Do not allow users to enable removed features
+                if (/^enable-(.+)$/ && exists $deprecated_disablables{$word}
+                        && $deprecated_disablables{$word} eq undef)
+                        {
+                        $unsupported_options{$_} = 1;
+                        next;
+                        }
                 }
         if (/^no-(.+)$/ || /^disable-(.+)$/)
                 {
@@ -913,11 +953,6 @@ while (@argvcopy)
                                 }
                         $disabled{"dtls"} = "option(dtls)";
                         }
-                elsif ($1 eq "ssl")
-                        {
-                        # Last one of its kind
-                        $disabled{"ssl3"} = "option(ssl)";
-                        }
                 elsif ($1 eq "tls")
                         {
                         # XXX: Tests will fail if all SSL/TLS
@@ -926,14 +961,6 @@ while (@argvcopy)
                                 {
                                 $disabled{$proto} = "option(tls)";
                                 }
-                        }
-                elsif ($1 eq "static-engine")
-                        {
-                        delete $disabled{"dynamic-engine"};
-                        }
-                elsif ($1 eq "dynamic-engine")
-                        {
-                        $disabled{"dynamic-engine"} = "option";
                         }
                 elsif (exists $deprecated_disablables{$1})
                         {
@@ -956,15 +983,7 @@ while (@argvcopy)
                 }
         elsif (/^enable-(.+)$/)
                 {
-                if ($1 eq "static-engine")
-                        {
-                        $disabled{"dynamic-engine"} = "option";
-                        }
-                elsif ($1 eq "dynamic-engine")
-                        {
-                        delete $disabled{"dynamic-engine"};
-                        }
-                elsif ($1 eq "zlib-dynamic")
+                if ($1 eq "zlib-dynamic")
                         {
                         delete $disabled{"zlib"};
                         }
@@ -984,6 +1003,10 @@ while (@argvcopy)
                         {
                         delete $disabled{"fips"};
                         delete $disabled{"jitter"};
+                        }
+                elsif (exists $deprecated_disablables{$1})
+                        {
+                        $deprecated_options{$_} = 1;
                         }
                 my $algo = $1;
                 delete $disabled{$algo};
@@ -1021,6 +1044,14 @@ while (@argvcopy)
         elsif (/^--release$/)
                 {
                 $config{build_type} = "release";
+                }
+        elsif (/^--manpage-format=(mdoc|roff)$/)
+		{
+		$config{manpage_format}="$1";
+		}
+        elsif (/^--pgo$/)
+                {
+                $config{build_type} = "pgo";
                 }
         elsif (/^386$/)
                 { $config{processor}=386; }
@@ -1091,6 +1122,22 @@ while (@argvcopy)
                         {
                         $withargs{fuzzer_include}=$1;
                         }
+                elsif (/^--with-cmocka-lib=(.*)$/)
+                        {
+                        $withargs{cmocka_lib}=$1;
+                        }
+                elsif (/^--with-cmocka-include=(.*)$/)
+                        {
+                        $withargs{cmocka_include}=$1;
+                        }
+                elsif (/^--with-detours-lib=(.*)$/)
+                        {
+                        $withargs{detours_lib}=$1;
+                        }
+                elsif (/^--with-detours-include=(.*)$/)
+                        {
+                        $withargs{detours_include}=$1;
+                        }
                 elsif (/^--with-rand-seed=(.*)$/)
                         {
                         foreach my $x (split(m|,|, $1))
@@ -1158,6 +1205,10 @@ while (@argvcopy)
                         {
                         push @{$useradd{CPPFLAGS}}, $1;
                         }
+                elsif (/^--help$/)
+                        {
+                        &usage;
+                        }
                 else    # common if (/^[-+]/), just pass down...
                         {
                         # Treat %xx as an ASCII code (e.g. replace %20 by a space character).
@@ -1166,6 +1217,15 @@ while (@argvcopy)
                         $_ =~ s/%([0-9a-f]{1,2})/chr(hex($1))/gei;
                         push @{$useradd{CFLAGS}}, $_;
                         push @{$useradd{CXXFLAGS}}, $_;
+                        if (/^--(no|with|without|enable|disable)-(\S+)/)
+                                {
+                                # Ideally this would also cover cascades, but I lack Perl-fu.
+                                if (grep ($_ eq $2, @disablables) or exists $deprecated_disablables{$2})
+                                        {
+                                        print STDERR "NOTE: Flag --$1-$2 will be passed to the compiler.  It looks similar to a Configure\n";
+                                        print STDERR "      option, though.  If the latter is what you meant to do, drop the leading '--'.\n";
+                                        }
+                                }
                         }
                 }
         elsif (m|^/|)
@@ -1358,11 +1418,11 @@ application.
 
 Instead of manually seeding, a different random generator can be set
 at runtime in openssl.cnf or configured at build time with
--DOPENSSL_DEFAULT_SEED_SRC.
+-DOPENSSL_DEFAULT_SEED_SRC.  The property query used to fetch it can
+be set with -DOPENSSL_DEFAULT_SEED_PROPQ if needed.
 
 Please read the 'Note on random number generation' section in the
-INSTALL.md instructions and the RAND_DRBG(7) manual page for more
-details.
+INSTALL.md instructions for more details.
 ============================== WARNING ===============================
 
 _____
@@ -1591,12 +1651,12 @@ unless ($disabled{threads}) {
     }
 }
 
-# Find out if clang's sanitizers have been enabled with -fsanitize
-# flags and ensure that the corresponding %disabled elements area
-# removed to reflect that the sanitizers are indeed enabled.
+# Find out if clang's sanitizers have been enabled with -fsanitize (or
+# /fsanitize for VC targets) flags and ensure that the corresponding %disabled
+# elements area removed to reflect that the sanitizers are indeed enabled.
 my %detected_sanitizers = ();
-foreach (grep /^-fsanitize=/, @{$config{CFLAGS} || []}) {
-    (my $checks = $_) =~ s/^-fsanitize=//;
+foreach (grep { /^[-\/]fsanitize=/ } @{$config{CFLAGS} || []}) {
+    (my $checks = $_) =~ s|^[-/]fsanitize=||;
     foreach (split /,/, $checks) {
         my $d = { address       => 'asan',
                   undefined     => 'ubsan',
@@ -1626,22 +1686,22 @@ my $no_shared_warn=0;
 if (($target{shared_target} // '') eq "")
         {
         $no_shared_warn = 1
-            if (!$disabled{shared} || !$disabled{"dynamic-engine"});
+            if (!$disabled{shared});
         disable('no-shared-target', 'pic');
         }
 
-if ($disabled{"dynamic-engine"}) {
-        $config{dynamic_engines} = 0;
-} else {
-        $config{dynamic_engines} = 1;
+unless ($disabled{asan} || defined $detected_sanitizers{asan}) {
+    push @{$config{cflags}},
+        $config{target} =~ /^VC-/ ? "/fsanitize=address" : "-fsanitize=address";
 }
 
-unless ($disabled{asan} || defined $detected_sanitizers{asan}) {
-    push @{$config{cflags}}, "-fsanitize=address";
-}
+my %predefined_C = compiler_predefined($config{CROSS_COMPILE}.$config{CC});
 
 unless ($disabled{ubsan} || defined $detected_sanitizers{ubsan}) {
     push @{$config{cflags}}, "-fsanitize=undefined", "-fno-sanitize-recover=all", "-DPEDANTIC";
+    if ($predefined_C{__clang__}) {
+        push @{$config{cflags}}, "-fno-sanitize=function";
+    }
 }
 
 unless ($disabled{msan} || defined $detected_sanitizers{msan}) {
@@ -1650,8 +1710,50 @@ unless ($disabled{msan} || defined $detected_sanitizers{msan}) {
 
 unless ($disabled{"fuzz-libfuzzer"} && $disabled{"fuzz-afl"}
         && $disabled{asan} && $disabled{ubsan} && $disabled{msan}) {
-    push @{$config{cflags}}, "-fno-omit-frame-pointer", "-g";
-    push @{$config{cxxflags}}, "-fno-omit-frame-pointer", "-g" if $config{CXX};
+    unless ($config{target} =~ /^VC-/) {
+        push @{$config{cflags}}, "-fno-omit-frame-pointer", "-g";
+        push @{$config{cxxflags}}, "-fno-omit-frame-pointer", "-g" if $config{CXX};
+    }
+}
+
+# Valgrind-based constant-time validation: marks secret data as "undefined"
+# to Valgrind's memcheck tool, so that any control flow or memory indexing
+# that depends on secret data is flagged as an error.  Requires valgrind
+# headers at build time and running the tests under valgrind at test time.
+# Use |make TESTS="test_internal_ml_kem test_internal_ml_dsa" test| under
+# valgrind after building with this option.
+#
+# Package names for the required valgrind headers:
+#   Debian/Ubuntu  : valgrind          (headers bundled in the main package)
+#   Fedora/RHEL    : valgrind-devel
+#   Alpine         : valgrind-dev
+#   Arch Linux     : valgrind
+unless ($disabled{"ct-validation"}) {
+    # Probe for <valgrind/memcheck.h> so that we give a clear error here
+    # rather than a cryptic compile failure inside constant_time.h later.
+    my $cc = ($config{CROSS_COMPILE} // "").$config{CC};
+    my $probe_src = "ct_valgrind_probe_$$.c";
+    my $probe_obj = "ct_valgrind_probe_$$.o";
+    open(my $fh, ">", $probe_src)
+        or die "Cannot write probe file '$probe_src': $!";
+    print $fh "#include <valgrind/memcheck.h>\n";
+    close($fh);
+    my $probe_ok = (system("$cc -c -o $probe_obj $probe_src 2>/dev/null") == 0);
+    unlink($probe_src, $probe_obj);
+    if (!$probe_ok) {
+        die <<EOT;
+
+***** enable-ct-validation requires <valgrind/memcheck.h> at build time,
+***** but the header was not found by '$cc'.
+*****
+***** Install the appropriate package and re-run Configure:
+*****   Debian/Ubuntu : sudo apt-get install valgrind
+*****   Fedora/RHEL   : sudo dnf install valgrind-devel
+*****   Alpine        : sudo apk add valgrind-dev
+*****   Arch Linux    : sudo pacman -S valgrind
+EOT
+    }
+    push @{$config{openssl_feature_defines}}, "OPENSSL_CONSTANT_TIME_VALIDATION";
 }
 #
 # Platform fix-ups
@@ -1679,7 +1781,6 @@ if ($target{sys_id} ne "")
         push @{$config{openssl_sys_defines}}, "OPENSSL_SYS_$target{sys_id}";
         }
 
-my %predefined_C = compiler_predefined($config{CROSS_COMPILE}.$config{CC});
 my %predefined_CXX = $config{CXX}
     ? compiler_predefined($config{CROSS_COMPILE}.$config{CXX})
     : ();
@@ -1814,30 +1915,6 @@ $config{CFLAGS} = [ map { $_ eq '--ossl-strict-warnings'
                               : ( $_ ) }
                     @{$config{CFLAGS}} ];
 
-unless ($disabled{afalgeng}) {
-    $config{afalgeng}="";
-    if (grep { $_ eq 'afalgeng' } @{$target{enable}}) {
-        push @{$config{engdirs}}, "afalg";
-    } else {
-        disable('not-linux', 'afalgeng');
-    }
-}
-
-unless ($disabled{devcryptoeng}) {
-    if ($target =~ m/^BSD/) {
-        my $maxver = 5*100 + 7;
-        my $sysstr = `uname -s`;
-        my $verstr = `uname -r`;
-        $sysstr =~ s|\R$||;
-        $verstr =~ s|\R$||;
-        my ($ma, $mi, @rest) = split m|\.|, $verstr;
-        my $ver = $ma*100 + $mi;
-        if ($sysstr eq 'OpenBSD' && $ver >= $maxver) {
-            disable('too-new-kernel', 'devcryptoeng');
-        }
-    }
-}
-
 unless ($disabled{ktls}) {
     $config{ktls}="";
     my $cc = $config{CROSS_COMPILE}.$config{CC};
@@ -1863,6 +1940,29 @@ unless ($disabled{winstore}) {
 }
 
 push @{$config{openssl_other_defines}}, "OPENSSL_NO_KTLS" if ($disabled{ktls});
+
+# Keywords accepted in a build.info UNIT_TEST[] link set.
+my @unit_test_keywords = qw(cmocka detours);
+
+unless ($disabled{"unit-tests"}) {
+    if ($target =~ /^linux/ || $target =~ /^BSD/) {
+        $config{cmocka_includes} =
+            $withargs{cmocka_include} ? [$withargs{cmocka_include}] : [];
+        $config{cmocka_libs} = $withargs{cmocka_lib}
+            ? "-L$withargs{cmocka_lib} -lcmocka" : "-lcmocka";
+    } elsif ($target =~ /^VC-/) {
+        $config{cmocka_includes} =
+            $withargs{cmocka_include} ? [$withargs{cmocka_include}] : [];
+        $config{cmocka_libs} = $withargs{cmocka_lib}
+            ? "/LIBPATH:$withargs{cmocka_lib} cmocka.lib" : "cmocka.lib";
+        $config{detours_includes} =
+            $withargs{detours_include} ? [$withargs{detours_include}] : [];
+        $config{detours_libs} = $withargs{detours_lib}
+            ? "/LIBPATH:$withargs{detours_lib} detours.lib" : "detours.lib";
+    } else {
+        disable('no-unit-test-support', 'unit-tests');
+    }
+}
 
 # Get the extra flags used when building shared libraries and modules.  We
 # do this late because some of them depend on %disabled.
@@ -1932,7 +2032,7 @@ foreach my $what (sort keys %disabled) {
     $config{options} .= " no-$what";
 
     if (!grep { $what eq $_ } ( 'buildtest-c++', 'fips', 'threads', 'shared',
-                                'module', 'pic', 'dynamic-engine', 'makedepend',
+                                'module', 'pic', 'makedepend',
                                 'sse2', 'legacy' )) {
         (my $WHAT = uc $what) =~ s|-|_|g;
         my $skipdir = $what;
@@ -1944,16 +2044,26 @@ foreach my $what (sort keys %disabled) {
         my $macro = $disabled_info{$what}->{macro} = "OPENSSL_NO_$WHAT";
         push @{$config{openssl_feature_defines}}, $macro;
 
-        $skipdir{engines} = $what if $what eq 'engine';
-        $skipdir{"crypto/$skipdir"} = $what
-            unless $what eq 'async' || $what eq 'err' || $what eq 'dso' || $what eq 'http';
-    }
-}
+        my @rules = (
+            [ \@disablables_protocols,  'openssl_disabled_protocols'  ],
+            [ \@disablables_algorithms, 'openssl_disabled_algorithms' ],
+            [ \@disablables_features,   'openssl_disabled_features'   ],
+        );
 
-if ($disabled{"dynamic-engine"}) {
-    push @{$config{openssl_feature_defines}}, "OPENSSL_NO_DYNAMIC_ENGINE";
-} else {
-    push @{$config{openssl_feature_defines}}, "OPENSSL_NO_STATIC_ENGINE";
+        for my $r (@rules) {
+            my ($list, $target) = @$r;
+
+            if (grep { $what eq $_ } @$list) {
+              push @{$config{$target}}, uc $what;
+            }
+        }
+
+        # siphash is used internally by libcrypto (X509 processing), so
+        # no-siphash only removes the provider algorithm.
+        $skipdir{"crypto/$skipdir"} = $what
+            unless $what eq 'async' || $what eq 'err' || $what eq 'dso'
+                || $what eq 'http' || $what eq 'siphash';
+    }
 }
 
 # If we use the unified build, collect information from build.info files
@@ -2081,6 +2191,8 @@ if ($builder eq "unified") {
         my %includes = ();
         my %defines = ();
         my %depends = ();
+        my %unit_tests = ();
+        my %wraps = ();
         my %generate = ();
         my %imagedocs = ();
         my %htmldocs = ();
@@ -2336,6 +2448,16 @@ if ($builder eq "unified") {
                                 \$attributes{depends}, $+{ATTRIBS},
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
+            qr/^\s* UNIT_TEST ${index_re} \s* = \s* ${value_re} \s* $/x
+            => sub { $push_to->(\%unit_tests, $expand_variables->($+{INDEX}),
+                                undef, undef,
+                                tokenize($expand_variables->($+{VALUE})))
+                         if !@skip || $skip[$#skip] > 0; },
+            qr/^\s* WRAP ${index_re} \s* = \s* ${value_re} \s* $/x
+            => sub { $push_to->(\%wraps, $expand_variables->($+{INDEX}),
+                                undef, undef,
+                                tokenize($expand_variables->($+{VALUE})))
+                         if !@skip || $skip[$#skip] > 0; },
             qr/^\s* GENERATE ${index_re} ${attribs_re} \s* = \s* ${value_re} \s* $/x
             => sub { $push_to->(\%generate, $expand_variables->($+{INDEX}),
                                 \$attributes{generate}, $+{ATTRIBS},
@@ -2356,14 +2478,6 @@ if ($builder eq "unified") {
             },
             );
         die "runaway IF?" if (@skip);
-
-        if (grep { defined $attributes{modules}->{$_}->{engine} } keys %attributes
-                and !$config{dynamic_engines}) {
-            die <<"EOF"
-ENGINES can only be used if configured with 'dynamic-engine'.
-This is usually a fault in a build.info file.
-EOF
-        }
 
         {
             my %infos = ( programs  => [ @programs  ],
@@ -2628,6 +2742,27 @@ EOF
                     push @{$config{defines}}, $v;
                 }
             }
+        }
+
+        foreach my $dest (keys %wraps) {
+            my $ddest = cleanfile($buildd, $dest, $blddir);
+            foreach my $fn (@{$wraps{$dest}}) {
+                push @{$unified_info{wraps}->{$ddest}}, $fn;
+            }
+        }
+
+        foreach my $dest (keys %unit_tests) {
+            my $ddest = cleanfile($buildd, $dest, $blddir);
+            foreach my $kw (@{$unit_tests{$dest}}) {
+                die "***** Unknown keyword '$kw' in UNIT_TEST[$dest] at $sourced/$f\n"
+                    unless grep { $_ eq $kw } @unit_test_keywords;
+            }
+            $unified_info{unit_tests}->{$ddest} =
+                [ @{$unit_tests{$dest}} ];
+        }
+        # WRAP implies cmocka unless an explicit UNIT_TEST set was given
+        foreach my $dest (keys %{$unified_info{wraps} // {}}) {
+            $unified_info{unit_tests}->{$dest} //= [ "cmocka" ];
         }
 
         foreach my $section (keys %imagedocs) {
@@ -2962,6 +3097,28 @@ EOF
     }
 }
 
+# Attach cmocka (and, on Windows, Detours) include paths to unit tests,
+# based on each test's UNIT_TEST[] link set.
+if (!$disabled{"unit-tests"}) {
+    while (my ($dest, $libs) = each %{$unified_info{unit_tests} // {}}) {
+        my %want = map { $_ => 1 } @$libs;
+        push @{$unified_info{includes}->{$dest}}, @{$config{cmocka_includes}}
+            if $want{cmocka} && @{$config{cmocka_includes} // []};
+        push @{$unified_info{includes}->{$dest}}, @{$config{detours_includes}}
+            if $want{detours} && @{$config{detours_includes} // []};
+    }
+}
+
+if (!$disabled{"unit-tests"}) {
+    foreach my $dest (sort keys %{$unified_info{unit_tests} // {}}) {
+        my %want = map { $_ => 1 } @{$unified_info{unit_tests}->{$dest}};
+        my @resolved;
+        push @resolved, '$(CMOCKA_LIBS)'  if $want{cmocka}  && $config{cmocka_libs};
+        push @resolved, '$(DETOURS_LIBS)' if $want{detours} && $config{detours_libs};
+        $unified_info{unit_test_libs}->{$dest} = join(' ', @resolved);
+    }
+}
+
 # For the schemes that need it, we provide the old *_obj configs
 # from the *_asm_obj ones
 foreach (grep /_(asm|aux)_src$/, keys %target) {
@@ -3031,9 +3188,9 @@ EOF
 
 print <<"EOF" if ($no_shared_warn);
 
-The options 'shared', 'pic' and 'dynamic-engine' aren't supported on this
+The options 'shared' and 'pic' aren't supported on this
 platform, so we will pretend you gave the option 'no-pic', which also disables
-'shared' and 'dynamic-engine'.  If you know how to implement shared libraries
+'shared'.  If you know how to implement shared libraries
 or position independent code, please let us know (but please first make sure
 you have tried with a current version of OpenSSL).
 EOF
@@ -3362,33 +3519,74 @@ sub usage
         {
         print STDERR $usage;
         print STDERR "\npick os/compiler from:\n";
-        my $j=0;
         my $i;
         my $k=0;
+        print STDERR "  ";
         foreach $i (sort keys %table)
                 {
                 next if $table{$i}->{template};
                 next if $i =~ /^debug/;
-                $k += length($i) + 1;
+                $k += length($i);
                 if ($k > 78)
                         {
-                        print STDERR "\n";
-                        $k=length($i);
+                        print STDERR "\n  ";
+                        $k=length($i) + 2;
                         }
+                $k += 1;
                 print STDERR $i . " ";
                 }
         foreach $i (sort keys %table)
                 {
                 next if $table{$i}->{template};
                 next if $i !~ /^debug/;
-                $k += length($i) + 1;
+                $k += length($i);
                 if ($k > 78)
                         {
-                        print STDERR "\n";
-                        $k=length($i);
+                        print STDERR "\n  ";
+                        $k=length($i) + 2;
                         }
+                $k += 1;
                 print STDERR $i . " ";
                 }
+        print STDERR "\n";
+
+        disable();
+
+        # Do some color wizardry.  Ideally, this would be done by a library and
+        # would use proper termcap/terminfo, but we would rather avoid external
+        # dependencies.  It's disabled by default unless you define CLICOLOR in
+        # your env.  (We approximate ls(1)'s behavior in BSD in this regard.)
+        my $en_color="";
+        my $dis_color="";
+        my $reset_color="";
+        my $this_color;
+        if ( defined $ENV{'CLICOLOR'} and (defined $ENV{'CLICOLOR_FORCE'} or -t 2) )
+                {
+                $en_color="\e[1;32m";  # bold green
+                $dis_color="\e[3;2m";  # dim italic
+                $reset_color="\e[0;0m";
+                }
+
+        print STDERR "The following ${en_color}ENABLED${reset_color} and ${dis_color}disabled${reset_color} flags are available:\n  ";
+        $k = 2;
+        foreach $i (sort @disablables)
+                {
+                $this_color=$dis_color;
+                $k += length($i);
+                if (not exists $disabled{$i})
+                        {
+                        $this_color=$en_color;
+                        $i = uc $i;
+                        }
+                if ($k > 78)
+                        {
+                        print STDERR "\n  ";
+                        $k=length($i) + 2;
+                        }
+                $k += 1;
+                print STDERR "${this_color}${i}${reset_color} ";
+                }
+        print STDERR "\n";
         exit(1);
         }
 

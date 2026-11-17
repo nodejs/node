@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -347,13 +347,29 @@ int X509v3_asid_is_canonical(ASIdentifiers *asid)
 
 /*
  * Whack an ASIdentifierChoice into canonical form.
+ *
+ * After the initial sort, the merge runs as a single linear sweep
+ * over the list using a write index.  Each entry is examined once;
+ * adjacent / mergeable entries extend the previous output's upper
+ * bound in O(1) and the consumed source slot is recorded as NULL.
+ * Total cost is O(N log N) sort + O(N) merge, with no stack deletes
+ * inside the loop.
+ *
+ * The NULL slots are closed up by a single compaction pass at the end,
+ * which runs whether the sweep succeeded or failed.  This guarantees
+ * the live stack is always left hole-free, with every occupied slot
+ * non-NULL, so on error the caller may safely inspect, print, encode,
+ * free, or retry canonize on the object.  The sort comparator
+ * dereferences every slot with no NULL guard, and is_canonical's call
+ * to extract_min_max would hit its ossl_assert(aor != NULL) on a hole.
  */
 static int ASIdentifierChoice_canonize(ASIdentifierChoice *choice)
 {
     ASN1_INTEGER *a_max_plus_one = NULL;
     ASN1_INTEGER *orig;
     BIGNUM *bn = NULL;
-    int i, ret = 0;
+    int read, write = 0, n;
+    int ret = 0;
 
     /*
      * Nothing to do for empty element or inheritance.
@@ -370,112 +386,157 @@ static int ASIdentifierChoice_canonize(ASIdentifierChoice *choice)
     }
 
     /*
-     * We have a non-empty list.  Sort it.
+     * Sort the list, then merge in a single sweep using a write index.
      */
     sk_ASIdOrRange_sort(choice->u.asIdsOrRanges);
+    n = sk_ASIdOrRange_num(choice->u.asIdsOrRanges);
 
-    /*
-     * Now check for errors and suboptimal encoding, rejecting the
-     * former and fixing the latter.
-     */
-    for (i = 0; i < sk_ASIdOrRange_num(choice->u.asIdsOrRanges) - 1; i++) {
-        ASIdOrRange *a = sk_ASIdOrRange_value(choice->u.asIdsOrRanges, i);
-        ASIdOrRange *b = sk_ASIdOrRange_value(choice->u.asIdsOrRanges, i + 1);
-        ASN1_INTEGER *a_min = NULL, *a_max = NULL, *b_min = NULL, *b_max = NULL;
+    for (read = 0; read < n; read++) {
+        ASIdOrRange *cur = sk_ASIdOrRange_value(choice->u.asIdsOrRanges, read);
+        ASN1_INTEGER *c_min = NULL, *c_max = NULL;
 
-        if (!extract_min_max(a, &a_min, &a_max)
-            || !extract_min_max(b, &b_min, &b_max))
+        if (!extract_min_max(cur, &c_min, &c_max))
             goto done;
 
         /*
-         * Make sure we're properly sorted (paranoia).
+         * Punt inverted range.
          */
-        if (!ossl_assert(ASN1_INTEGER_cmp(a_min, b_min) <= 0))
+        if (ASN1_INTEGER_cmp(c_min, c_max) > 0)
             goto done;
 
-        /*
-         * Punt inverted ranges.
-         */
-        if (ASN1_INTEGER_cmp(a_min, a_max) > 0 || ASN1_INTEGER_cmp(b_min, b_max) > 0)
-            goto done;
+        if (write > 0) {
+            ASIdOrRange *prev = sk_ASIdOrRange_value(choice->u.asIdsOrRanges,
+                write - 1);
+            ASN1_INTEGER *p_min = NULL, *p_max = NULL;
 
-        /*
-         * Check for overlaps.
-         */
-        if (ASN1_INTEGER_cmp(a_max, b_min) >= 0) {
-            ERR_raise(ERR_LIB_X509V3, X509V3_R_EXTENSION_VALUE_ERROR);
-            goto done;
-        }
-
-        /*
-         * Calculate a_max + 1 to check for adjacency.
-         */
-        if ((bn == NULL && (bn = BN_new()) == NULL) || ASN1_INTEGER_to_BN(a_max, bn) == NULL || !BN_add_word(bn, 1)) {
-            ERR_raise(ERR_LIB_X509V3, ERR_R_BN_LIB);
-            goto done;
-        }
-
-        if ((a_max_plus_one = BN_to_ASN1_INTEGER(bn, orig = a_max_plus_one)) == NULL) {
-            a_max_plus_one = orig;
-            ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
-            goto done;
-        }
-
-        /*
-         * If a and b are adjacent, merge them.
-         */
-        if (ASN1_INTEGER_cmp(a_max_plus_one, b_min) == 0) {
-            ASRange *r;
-            switch (a->type) {
-            case ASIdOrRange_id:
-                if ((r = OPENSSL_malloc(sizeof(*r))) == NULL)
-                    goto done;
-                r->min = a_min;
-                r->max = b_max;
-                a->type = ASIdOrRange_range;
-                a->u.range = r;
-                break;
-            case ASIdOrRange_range:
-                ASN1_INTEGER_free(a->u.range->max);
-                a->u.range->max = b_max;
-                break;
-            }
-            switch (b->type) {
-            case ASIdOrRange_id:
-                b->u.id = NULL;
-                break;
-            case ASIdOrRange_range:
-                b->u.range->max = NULL;
-                break;
-            }
-            ASIdOrRange_free(b);
-            (void)sk_ASIdOrRange_delete(choice->u.asIdsOrRanges, i + 1);
-            i--;
-            continue;
-        }
-    }
-
-    /*
-     * Check for final inverted range.
-     */
-    i = sk_ASIdOrRange_num(choice->u.asIdsOrRanges) - 1;
-    {
-        ASIdOrRange *a = sk_ASIdOrRange_value(choice->u.asIdsOrRanges, i);
-        ASN1_INTEGER *a_min, *a_max;
-        if (a != NULL && a->type == ASIdOrRange_range) {
-            if (!extract_min_max(a, &a_min, &a_max)
-                || ASN1_INTEGER_cmp(a_min, a_max) > 0)
+            if (!extract_min_max(prev, &p_min, &p_max))
                 goto done;
-        }
-    }
 
-    /* Paranoia */
-    if (!ossl_assert(ASIdentifierChoice_is_canonical(choice)))
-        goto done;
+            /*
+             * Make sure we're properly sorted (paranoia).
+             */
+            if (!ossl_assert(ASN1_INTEGER_cmp(p_min, c_min) <= 0))
+                goto done;
+
+            /*
+             * Reject overlap with the previous accepted entry.
+             */
+            if (ASN1_INTEGER_cmp(p_max, c_min) >= 0) {
+                ERR_raise(ERR_LIB_X509V3, X509V3_R_EXTENSION_VALUE_ERROR);
+                goto done;
+            }
+
+            /*
+             * Calculate p_max + 1 to check for adjacency.
+             */
+            if ((bn == NULL && (bn = BN_new()) == NULL)
+                || ASN1_INTEGER_to_BN(p_max, bn) == NULL
+                || !BN_add_word(bn, 1)) {
+                ERR_raise(ERR_LIB_X509V3, ERR_R_BN_LIB);
+                goto done;
+            }
+            if ((a_max_plus_one = BN_to_ASN1_INTEGER(bn,
+                     orig = a_max_plus_one))
+                == NULL) {
+                a_max_plus_one = orig;
+                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+                goto done;
+            }
+
+            /*
+             * If prev and cur are adjacent, fold cur into prev.
+             */
+            if (ASN1_INTEGER_cmp(a_max_plus_one, c_min) == 0) {
+                ASRange *r;
+
+                switch (prev->type) {
+                case ASIdOrRange_id:
+                    if ((r = OPENSSL_malloc(sizeof(*r))) == NULL)
+                        goto done;
+                    r->min = p_min;
+                    r->max = c_max;
+                    prev->type = ASIdOrRange_range;
+                    prev->u.range = r;
+                    break;
+                case ASIdOrRange_range:
+                    ASN1_INTEGER_free(prev->u.range->max);
+                    prev->u.range->max = c_max;
+                    break;
+                }
+                /*
+                 * Detach c_max from cur so freeing cur does not free
+                 * the value we just transferred to prev.
+                 */
+                switch (cur->type) {
+                case ASIdOrRange_id:
+                    cur->u.id = NULL;
+                    break;
+                case ASIdOrRange_range:
+                    cur->u.range->max = NULL;
+                    break;
+                }
+                ASIdOrRange_free(cur);
+                /*
+                 * Record the consumed source slot as NULL; the epilogue
+                 * compacts NULLs out of the live stack so it is left
+                 * hole-free whether we succeed or fail.  We do not
+                 * advance `write`.
+                 */
+                (void)sk_ASIdOrRange_set(choice->u.asIdsOrRanges, read, NULL);
+                continue;
+            }
+        }
+
+        /*
+         * Keep cur.  Slide it forward into the write slot if we have
+         * fallen behind, and NULL the source slot to avoid duplicate
+         * ownership.
+         */
+        if (write != read) {
+            (void)sk_ASIdOrRange_set(choice->u.asIdsOrRanges, write, cur);
+            (void)sk_ASIdOrRange_set(choice->u.asIdsOrRanges, read, NULL);
+        }
+        write++;
+    }
 
     ret = 1;
 
 done:
+    /*
+     * The sweep above NULLs source slots as it folds entries.  Whether
+     * we succeeded or bailed out on an error, the stack must be left
+     * hole-free, with every occupied slot non-NULL, so that the caller
+     * may inspect, print, encode, free, or even retry canonize on the
+     * object without dereferencing NULL (the sort comparator in
+     * particular has no NULL guard).  Slide every non-NULL slot forward
+     * to close the holes, then pop the vacated tail.  On success this
+     * collapses [write..n-1] (all NULL) to length `write`; on error it
+     * removes the possibly empty contiguous run of NULL slots in
+     * [write, read), preserving the processed output in [0, write) and
+     * the untouched original entries in [read, n).
+     */
+    {
+        int w = 0, r;
+
+        for (r = 0; r < sk_ASIdOrRange_num(choice->u.asIdsOrRanges); r++) {
+            ASIdOrRange *v = sk_ASIdOrRange_value(choice->u.asIdsOrRanges, r);
+
+            if (v != NULL) {
+                if (w != r)
+                    (void)sk_ASIdOrRange_set(choice->u.asIdsOrRanges, w, v);
+                w++;
+            }
+        }
+        while (sk_ASIdOrRange_num(choice->u.asIdsOrRanges) > w)
+            (void)sk_ASIdOrRange_pop(choice->u.asIdsOrRanges);
+    }
+
+    if (ret) {
+        /* Paranoia */
+        if (!ossl_assert(ASIdentifierChoice_is_canonical(choice)))
+            ret = 0;
+    }
+
     ASN1_INTEGER_free(a_max_plus_one);
     BN_free(bn);
     return ret;
@@ -541,20 +602,20 @@ static void *v2i_ASIdentifiers(const struct v3_ext_method *method,
         /*
          * Number, range, or mistake, pick it apart and figure out which.
          */
-        i1 = strspn(val->value, "0123456789");
+        i1 = (int)strspn(val->value, "0123456789");
         if (val->value[i1] == '\0') {
             is_range = 0;
         } else {
             is_range = 1;
-            i2 = i1 + strspn(val->value + i1, " \t");
+            i2 = i1 + (int)strspn(val->value + i1, " \t");
             if (val->value[i2] != '-') {
                 ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_ASNUMBER);
                 X509V3_conf_add_error_name_value(val);
                 goto err;
             }
             i2++;
-            i2 = i2 + strspn(val->value + i2, " \t");
-            i3 = i2 + strspn(val->value + i2, "0123456789");
+            i2 = i2 + (int)strspn(val->value + i2, " \t");
+            i3 = i2 + (int)strspn(val->value + i2, "0123456789");
             if (val->value[i3] != '\0') {
                 ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_ASRANGE);
                 X509V3_conf_add_error_name_value(val);
@@ -717,7 +778,7 @@ int X509v3_asid_subset(ASIdentifiers *a, ASIdentifiers *b)
  * Core code for RFC 3779 3.3 path validation.
  */
 static int asid_validate_path_internal(X509_STORE_CTX *ctx,
-    STACK_OF(X509) *chain,
+    const STACK_OF(X509) *chain,
     ASIdentifiers *ext)
 {
     ASIdOrRanges *child_as = NULL, *child_rdi = NULL;
@@ -856,7 +917,7 @@ int X509v3_asid_validate_path(X509_STORE_CTX *ctx)
  * RFC 3779 3.3 path validation of an extension.
  * Test whether chain covers extension.
  */
-int X509v3_asid_validate_resource_set(STACK_OF(X509) *chain,
+int X509v3_asid_validate_resource_set(const STACK_OF(X509) *chain,
     ASIdentifiers *ext, int allow_inheritance)
 {
     if (ext == NULL)

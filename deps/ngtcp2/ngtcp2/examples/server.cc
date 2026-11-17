@@ -31,6 +31,8 @@
 #include <memory>
 #include <fstream>
 #include <iomanip>
+#include <limits>
+#include <utility>
 
 #include <unistd.h>
 #include <getopt.h>
@@ -216,6 +218,11 @@ Stream::open_file(const std::filesystem::path &path) {
     close(fd);
   } else {
     fe.fd = fd;
+    // A file larger than the address space cannot be mapped.
+    if (std::cmp_greater(st.st_size, std::numeric_limits<size_t>::max())) {
+      close(fd);
+      return std::unexpected{Error::INTEGER_OVERFLOW};
+    }
     fe.len = static_cast<size_t>(st.st_size);
     if (fe.len) {
       fe.map = mmap(nullptr, fe.len, PROT_READ, MAP_SHARED, fd, 0);
@@ -321,9 +328,7 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   }
 
   if (auto rv = h->handle_expiry(); !rv) {
-    if (rv.error() == Error::CLOSE_WAIT) {
-      ev_timer_stop(loop, w);
-    } else {
+    if (rv.error() != Error::CLOSE_WAIT) {
       s->remove(h);
     }
 
@@ -773,6 +778,7 @@ Handler::init(const Endpoint &ep, const Address &local_addr,
   settings.handshake_timeout = config.handshake_timeout;
   settings.no_pmtud = config.no_pmtud;
   settings.ack_thresh = config.ack_thresh;
+  settings.write_stream_data_thresh = config.write_stream_data_thresh;
   if (config.max_udp_payload_size) {
     settings.max_tx_udp_payload_size = config.max_udp_payload_size;
     settings.no_tx_udp_payload_size_shaping = 1;
@@ -1705,7 +1711,9 @@ void Server::on_read(const Endpoint &ep) {
           stderr,
           "Received packet: local={} remote={} if={} ecn={:#x} {} bytes",
           util::straddr(*local_addr), util::straddr(remote_addr),
-          if_indextoname(local_addr->ifindex, ifname.data()), pi.ecn, datalen);
+          if_indextoname(local_addr->ifindex, ifname.data()) ? ifname.data()
+                                                             : "(unknown)",
+          pi.ecn, datalen);
       }
 
       // Packets less than 21 bytes never be a valid QUIC packet.
@@ -1735,6 +1743,11 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
                                                   NGTCP2_SV_SCIDLEN);
           rv) {
   case 0:
+    if ((data[0] & 0x80U) && vc.version == 0) {
+      // Version Negotiation packet was received.
+      return;
+    }
+
     break;
   case NGTCP2_ERR_VERSION_NEGOTIATION:
     (void)send_version_negotiation(vc.version, {vc.scid, vc.scidlen},
@@ -2658,6 +2671,15 @@ Options:
               to send  per an event  loop in a single  connection.  It
               defaults  to 0,  which means  it is  not limited  by the
               configuration.
+  --write-stream-data-thresh=<SIZE>
+              The  threshold for  the length  of STREAM  frame payload
+              that the  local endpoint sends.   If there is  data more
+              than this value  to send, and the flow  control does not
+              allow sending  more than  this length,  the data  is not
+              sent,  waiting for  the  window update  from the  remote
+              endpoint.
+              Default: )"
+            << config.write_stream_data_thresh << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -2732,6 +2754,7 @@ int main(int argc, char **argv) {
       {"no-gso", no_argument, &flag, 35},
       {"show-stat", no_argument, &flag, 36},
       {"gso-burst", required_argument, &flag, 37},
+      {"write-stream-data-thresh", required_argument, &flag, 38},
       {},
     };
 
@@ -3160,6 +3183,25 @@ int main(int argc, char **argv) {
         }
 
         config.gso_burst = static_cast<size_t>(*n);
+
+        break;
+      }
+      case 38: {
+        // --write-stream-data-thresh
+        auto n = util::parse_uint_iec(optarg);
+        if (!n) {
+          std::println(stderr, "write-stream-data-thresh: invalid argument");
+          exit(EXIT_FAILURE);
+        }
+
+        if (auto max = std::numeric_limits<size_t>::max(); *n > max) {
+          std::println(
+            stderr,
+            "write-stream-data-thresh: must be less than or equal to {}", max);
+          exit(EXIT_FAILURE);
+        }
+
+        config.write_stream_data_thresh = static_cast<size_t>(*n);
 
         break;
       }

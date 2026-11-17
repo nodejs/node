@@ -2177,6 +2177,11 @@ class ConstantPoolPointerForwarder {
     }
   }
 
+  bool HasScopeInfoToUpdate(Tagged<ScopeInfo> scope_info) const {
+    return scope_infos_to_update_.find(scope_info->UniqueIdInScript()) !=
+           scope_infos_to_update_.end();
+  }
+
   void UpdateStandaloneScopeInfo(Tagged<ScopeInfo> scope_info) {
     if (!scope_info->HasOuterScopeInfo()) return;
 
@@ -2354,6 +2359,23 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
   //   * All constant pool SFI entries point to an SFI referring to the old
   //     script (i.e. references were updated correctly).
   std::unordered_map<int, Tagged<ScopeInfo>> scope_infos;
+  auto verify_scope_info = [&](Tagged<ScopeInfo> scope_info) {
+    while (true) {
+      auto it = scope_infos.find(scope_info->UniqueIdInScript());
+      if (it != scope_infos.end()) {
+        if (it->second != scope_info) {
+          isolate->PushParamsAndDie("duplicate scope info unique id",
+                                    reinterpret_cast<void*>(it->second.ptr()),
+                                    reinterpret_cast<void*>(scope_info.ptr()));
+          UNREACHABLE();
+        }
+        break;
+      }
+      scope_infos[scope_info->UniqueIdInScript()] = scope_info;
+      if (!scope_info->HasOuterScopeInfo()) break;
+      scope_info = scope_info->OuterScopeInfo();
+    }
+  };
   uint32_t script_infos_len = script->infos()->ulength().value();
   for (uint32_t info_idx = 0; info_idx < script_infos_len; info_idx++) {
     Tagged<ScopeInfo> scope_info;
@@ -2377,6 +2399,8 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
             int id = inner_sfi->function_literal_id(kRelaxedLoad);
             CHECK_EQ(MakeWeak(inner_sfi), script->infos()->get(id));
             CHECK_EQ(inner_sfi->script(), *script);
+          } else if (Is<ScopeInfo>(entry)) {
+            verify_scope_info(Cast<ScopeInfo>(entry));
           }
         }
       }
@@ -2391,21 +2415,7 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
     } else {
       scope_info = Cast<ScopeInfo>(info);
     }
-    while (true) {
-      auto it = scope_infos.find(scope_info->UniqueIdInScript());
-      if (it != scope_infos.end()) {
-        if (it->second != scope_info) {
-          isolate->PushParamsAndDie("duplicate scope info unique id",
-                                    reinterpret_cast<void*>(it->second.ptr()),
-                                    reinterpret_cast<void*>(scope_info.ptr()));
-          UNREACHABLE();
-        }
-        break;
-      }
-      scope_infos[scope_info->UniqueIdInScript()] = scope_info;
-      if (!scope_info->HasOuterScopeInfo()) break;
-      scope_info = scope_info->OuterScopeInfo();
-    }
+    verify_scope_info(scope_info);
   }
 }
 }  // namespace
@@ -2553,6 +2563,9 @@ void BackgroundMergeTask::BeginMergeInBackground(
     for (DirectHandle<SharedFunctionInfo> new_sfi : used_new_sfis_) {
       forwarder.UpdateScopeInfo(*new_sfi);
     }
+    for (DirectHandle<ScopeInfo> new_scope : used_new_scope_infos_) {
+      forwarder.UpdateStandaloneScopeInfo(*new_scope);
+    }
     for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
       // It's possible that new_compiled_data.cached_sfi had
       // scope_info()->IsEmpty() while an inner function has scope info if the
@@ -2659,6 +2672,14 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
         compiled_data_it++;
       }
     } else if (!maybe_old_info.IsWeak()) {
+      // Standalone eval ScopeInfos are only recorded for scopes within their
+      // owning closure, so if the slot in old_script was cleared, the ScopeInfo
+      // itself cannot still be alive in old_script.
+      DCHECK_IMPLIES(
+          maybe_new_info.IsWeak() &&
+              Is<ScopeInfo>(maybe_new_info.GetHeapObjectAssumeWeak()),
+          !forwarder.HasScopeInfoToUpdate(
+              Cast<ScopeInfo>(maybe_new_info.GetHeapObjectAssumeWeak())));
       old_script->infos()->set(i, maybe_new_info, kReleaseStore);
     }
   }
@@ -2852,8 +2873,8 @@ void BackgroundDeserializeTask::Run() {
   LocalHandleScope handle_scope(&isolate);
 
   DirectHandle<SharedFunctionInfo> inner_result;
-  off_thread_data_ =
-      CodeSerializer::StartDeserializeOffThread(&isolate, &cached_data_);
+  CodeSerializer::StartDeserializeOffThread(&isolate, &cached_data_,
+                                            &off_thread_data_);
   if (v8_flags.enable_slow_asserts && off_thread_data_.HasResult()) {
 #ifdef ENABLE_SLOW_DCHECKS
     MergeAssumptionChecker checker(&isolate, false);
@@ -2866,6 +2887,11 @@ void BackgroundDeserializeTask::SourceTextAvailable(
     Isolate* isolate, Handle<String> source_text,
     const ScriptDetails& script_details) {
   DCHECK_EQ(isolate, isolate_for_local_isolate_);
+  if (!CodeSerializer::NotifySourceTextAvailable(isolate, &off_thread_data_,
+                                                 &cached_data_, source_text,
+                                                 script_details)) {
+    return;
+  }
   LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
   background_merge_task_.SetUpOnMainThread(isolate, source_text, script_details,
                                            language_mode);
@@ -3315,7 +3341,8 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
     DirectHandle<SharedFunctionInfo> outer_info, DirectHandle<Context> context,
     LanguageMode language_mode, ParseRestriction restriction,
     int parameters_end_pos, int eval_position,
-    ParsingWhileDebugging parsing_while_debugging) {
+    ParsingWhileDebugging parsing_while_debugging,
+    bool private_name_lookup_skips_outer_class) {
   // The cache lookup key needs to be aware of the separation between the
   // parameters and the body to prevent this valid invocation:
   //   Function("", "function anonymous(\n/**/) {\n}");
@@ -3371,6 +3398,8 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
         v8_flags.lazy_eval);
     flags.set_is_eval(true);
     flags.set_parsing_while_debugging(parsing_while_debugging);
+    flags.set_private_name_lookup_skips_outer_class(
+        private_name_lookup_skips_outer_class);
     DCHECK(!flags.is_module());
     flags.set_parse_restriction(restriction);
 

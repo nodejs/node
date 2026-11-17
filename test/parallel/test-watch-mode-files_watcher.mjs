@@ -37,6 +37,9 @@ describe('watch mode file watcher', () => {
   afterEach(() => watcher.clear());
 
   let counter = 0;
+  // A newly created watcher might not report changes right away (e.g. on
+  // macOS the FSEvents stream is started asynchronously), so a single write
+  // can be missed. Keep writing until a change is reported.
   function writeAndWaitForChanges(watcher, file) {
     return new Promise((resolve) => {
       const interval = setInterval(() => writeFileSync(file, `write ${counter++}`), 100);
@@ -93,19 +96,29 @@ describe('watch mode file watcher', () => {
                         ['--watch', file1],
                         { stdio: ['ignore', 'pipe', 'ignore'] });
     let completeCount = 0;
+    let appendInterval;
     for await (const line of createInterface(child.stdout)) {
       if (!line.startsWith('Completed running')) {
         continue;
       }
       completeCount++;
       if (completeCount === 1) {
+        // The watcher of the child might not report changes yet, so keep
+        // changing the file until it is reloaded. The interval is longer than
+        // the default debounce of watch mode so the restart is not deferred.
         appendFileSync(file1, '\n // append 1');
+        appendInterval = setInterval(() => appendFileSync(file1, '\n // append'),
+                                     common.platformTimeout(1000));
       }
       // The file is reloaded due to file watching
       if (completeCount === 2) {
+        clearInterval(appendInterval);
         child.kill();
       }
     }
+    // The child might have exited before the reload.
+    clearInterval(appendInterval);
+    assert.strictEqual(completeCount, 2);
   });
 
   it('should debounce changes', async () => {
@@ -135,6 +148,7 @@ describe('watch mode file watcher', () => {
       watcher.filterFile(file);
       files.push(file);
     }
+    await writeAndWaitForChanges(watcher, files[0]);
 
     files.forEach((file) => writeFileSync(file, '1'));
     files.forEach((file) => writeFileSync(file, '2'));
@@ -175,6 +189,26 @@ describe('watch mode file watcher', () => {
     assert.strictEqual(changesCount, 1);
   });
 
+  it('should unfilter every dependency of an unfiltered owner', async () => {
+    const owner = tmpdir.resolve('owner.js');
+    const dependency1 = tmpdir.resolve('owner-dependency-1.js');
+    const dependency2 = tmpdir.resolve('owner-dependency-2.js');
+    for (const file of [owner, dependency1, dependency2]) {
+      writeFileSync(file, 'written');
+    }
+
+    watcher.filterFile(owner);
+    watcher.filterFile(dependency1, owner);
+    watcher.filterFile(dependency2, owner);
+    watcher.unfilterFilesOwnedBy([owner]);
+
+    watcher.on('changed', common.mustNotCall());
+    writeFileSync(dependency1, '1');
+    writeFileSync(dependency2, '2');
+    // Wait for this long to make sure changes are not triggered
+    await setTimeout(1000);
+  });
+
   it('should watch all files in watched path when in "all" mode',
      { skip: !supportsRecursiveWatching }, async () => {
        watcher = new FilesWatcher({ debounce: 100, mode: 'all' });
@@ -183,10 +217,7 @@ describe('watch mode file watcher', () => {
        const file = tmpdir.resolve('file5');
        watcher.watchPath(tmpdir.path);
 
-       const changed = once(watcher, 'changed');
-       await setTimeout(common.platformTimeout(100)); // avoid throttling
-       writeFileSync(file, 'changed');
-       await changed;
+       await writeAndWaitForChanges(watcher, file);
        assert.strictEqual(changesCount, 1);
      });
 

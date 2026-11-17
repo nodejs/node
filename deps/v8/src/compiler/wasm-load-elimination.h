@@ -138,7 +138,9 @@ class V8_EXPORT_PRIVATE WasmLoadElimination final
   AbstractState const* ComputeLoopState(Node* node,
                                         AbstractState const* state) const;
   // Returns the replacement value and effect for a load given an initial value
-  // node, after optional {TypeGuard}ing and i8/i16 adaptation to i32.
+  // node, after optional {TypeGuard}ing and i8/i16 adaptation to i32. Returns
+  // {dead(), dead()} if the types prove the load is unreachable, or
+  // {nullptr, nullptr} if replacement must be skipped.
   std::tuple<Node*, Node*> TruncateAndExtendOrType(Node* value, Node* effect,
                                                    Node* control,
                                                    wasm::ValueType field_type,

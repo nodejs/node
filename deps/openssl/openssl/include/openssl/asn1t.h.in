@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -747,6 +747,7 @@ typedef struct ASN1_STREAM_ARG_st {
 #define ASN1_OP_DUP_POST 15
 #define ASN1_OP_GET0_LIBCTX 16
 #define ASN1_OP_GET0_PROPQ 17
+#define ASN1_OP_GET0_STREAM_CONTENT 18
 
 /* Macro to implement a primitive type */
 #define IMPLEMENT_ASN1_TYPE(stname) IMPLEMENT_ASN1_TYPE_ex(stname, stname, 0)

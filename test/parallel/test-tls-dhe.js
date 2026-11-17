@@ -43,7 +43,7 @@ const {
 // are available by default. Different OpenSSL versions have different
 // default security levels and we use this value to adjust what a test
 // expects based on the security level. You can read more in
-// https://docs.openssl.org/1.1.1/man3/SSL_CTX_set_security_level/#default-callback-behaviour
+// https://docs.openssl.org/3.0/man3/SSL_CTX_set_security_level/#default-callback-behaviour
 const secLevel = require('internal/crypto/util').getOpenSSLSecLevel();
 
 if (!opensslCli) {
@@ -67,7 +67,7 @@ const ciphers = `${dheCipher}:${ecdheCipher}`;
 
 if (secLevel < 2 && !hasFIPS(3)) {
   // Test will emit a warning because the DH parameter size is < 2048 bits
-  // when the test is run on versions lower than OpenSSL32
+  // when the test is run on OpenSSL versions earlier than 3.2
   common.expectWarning('SecurityWarning',
                        'DH parameter is less than 2048 bits');
 }

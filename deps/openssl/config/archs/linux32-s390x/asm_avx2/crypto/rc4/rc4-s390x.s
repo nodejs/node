@@ -185,7 +185,7 @@ RC4:
 	lm	%r6,%r11,6*4(%r15)
 	br	%r14
 .size	RC4,.-RC4
-.string	"RC4 for s390x, CRYPTOGAMS by <appro@openssl.org>"
+.string	"RC4 for s390x, CRYPTOGAMS by <https://github.com/dot-asm>"
 
 .globl	RC4_set_key
 .type	RC4_set_key,@function

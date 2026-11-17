@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.22.4](https://github.com/nodejs/gyp-next/compare/v0.22.3...v0.22.4) (2026-10-20)
+
+
+### Bug Fixes
+
+* avoid deprecated os.path.commonprefix() in RelativePath ([#365](https://github.com/nodejs/gyp-next/issues/365)) ([428343e](https://github.com/nodejs/gyp-next/commit/428343ee58c05e7b817d3603688fe7cdb7a10846)), closes [#364](https://github.com/nodejs/gyp-next/issues/364)
+* build precompiled headers after generated inputs ([#360](https://github.com/nodejs/gyp-next/issues/360)) ([d8888e9](https://github.com/nodejs/gyp-next/commit/d8888e932040eae90604b77ec6030a25714f0077))
+* include the prefix header itself in assembly sources ([#360](https://github.com/nodejs/gyp-next/issues/360)) ([d8888e9](https://github.com/nodejs/gyp-next/commit/d8888e932040eae90604b77ec6030a25714f0077))
+* **make:** compile the C prefix header with CFLAGS ([#360](https://github.com/nodejs/gyp-next/issues/360)) ([d8888e9](https://github.com/nodejs/gyp-next/commit/d8888e932040eae90604b77ec6030a25714f0077))
+
 ## [0.22.3](https://github.com/nodejs/gyp-next/compare/v0.22.2...v0.22.3) (2026-09-29)
 
 

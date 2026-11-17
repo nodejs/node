@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -33,7 +33,8 @@ __owur int ossl_slh_dsa_key_equal(const SLH_DSA_KEY *key1, const SLH_DSA_KEY *ke
     int selection);
 __owur int ossl_slh_dsa_key_has(const SLH_DSA_KEY *key, int selection);
 __owur int ossl_slh_dsa_key_pairwise_check(const SLH_DSA_KEY *key);
-__owur int ossl_slh_dsa_key_fromdata(SLH_DSA_KEY *key, const OSSL_PARAM *params,
+__owur int ossl_slh_dsa_key_fromdata(SLH_DSA_KEY *key, const OSSL_PARAM *pub,
+    const OSSL_PARAM *param_priv,
     int include_private);
 __owur int ossl_slh_dsa_generate_key(SLH_DSA_HASH_CTX *ctx, SLH_DSA_KEY *out,
     OSSL_LIB_CTX *libctx,
@@ -48,6 +49,7 @@ __owur int ossl_slh_dsa_set_pub(SLH_DSA_KEY *key, const uint8_t *pub,
     size_t pub_len);
 __owur size_t ossl_slh_dsa_key_get_priv_len(const SLH_DSA_KEY *key);
 __owur size_t ossl_slh_dsa_key_get_n(const SLH_DSA_KEY *key);
+__owur int ossl_slh_dsa_key_get_security_category(const SLH_DSA_KEY *key);
 __owur size_t ossl_slh_dsa_key_get_sig_len(const SLH_DSA_KEY *key);
 __owur const char *ossl_slh_dsa_key_get_name(const SLH_DSA_KEY *key);
 __owur int ossl_slh_dsa_key_get_type(const SLH_DSA_KEY *key);
@@ -55,6 +57,8 @@ __owur int ossl_slh_dsa_key_type_matches(const SLH_DSA_KEY *key, const char *alg
 __owur SLH_DSA_HASH_CTX *ossl_slh_dsa_hash_ctx_new(const SLH_DSA_KEY *key);
 void ossl_slh_dsa_hash_ctx_free(SLH_DSA_HASH_CTX *ctx);
 __owur SLH_DSA_HASH_CTX *ossl_slh_dsa_hash_ctx_dup(const SLH_DSA_HASH_CTX *src);
+__owur int ossl_slh_dsa_hash_ctx_prehash_pk_seed(SLH_DSA_HASH_CTX *ctx,
+    const uint8_t *pkseed, size_t n);
 
 __owur int ossl_slh_dsa_sign(SLH_DSA_HASH_CTX *slh_ctx,
     const uint8_t *msg, size_t msg_len,

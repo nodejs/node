@@ -12,6 +12,7 @@
 #include <openssl/objects.h>
 #include <openssl/buffer.h>
 #include "crypto/asn1.h"
+#include "crypto/asn1/asn1_local.h"
 
 ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o)
 {
@@ -23,7 +24,7 @@ ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o)
     if (!(o->flags & ASN1_OBJECT_FLAG_DYNAMIC))
         return (ASN1_OBJECT *)o;
 
-    r = ASN1_OBJECT_new();
+    r = ossl_asn1_object_new();
     if (r == NULL) {
         ERR_raise(ERR_LIB_OBJ, ERR_R_ASN1_LIB);
         return NULL;

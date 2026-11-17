@@ -40,10 +40,8 @@
 #include "crypto/crypto_hash.h"
 #include "crypto/crypto_hkdf.h"
 #include "crypto/crypto_hmac.h"
-#if OPENSSL_WITH_KEM
 #include "crypto/crypto_kem.h"
-#endif
-#if OPENSSL_WITH_EVP_MAC
+#if !NCRYPTO_USE_BORINGSSL
 #include "crypto/crypto_kmac.h"
 #endif
 #include "crypto/crypto_keygen.h"
@@ -61,6 +59,7 @@
 #include "crypto/crypto_turboshake.h"
 #include "crypto/crypto_util.h"
 #include "crypto/crypto_x509.h"
+#include "crypto/crypto_x509_gen.h"
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

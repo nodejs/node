@@ -194,17 +194,21 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
     size_t len        = 256;
     channel->ndomains = 0; /* default to none */
 
-    hostname = ares_malloc(len);
+    hostname = ares_malloc_zero(len);
     if (!hostname) {
       rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
       goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
+    /* POSIX leaves it unspecified whether gethostname() NUL terminates when the
+     * host name doesn't fit, so force the last byte to a terminator afterwards.
+     */
     if (gethostname(hostname, (GETHOSTNAME_TYPE_ARG2)len) != 0) {
       /* Lets not treat a gethostname failure as critical, since we
        * are ok if gethostname doesn't even exist */
       *hostname = '\0';
     }
+    hostname[len - 1] = '\0';
 
     dot = strchr(hostname, '.');
     if (dot) {
@@ -479,7 +483,8 @@ int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
   *dest = NULL; /* in case of failure return NULL explicitly */
 
   /* First get the options supported by the old ares_save_options() function,
-     which is most of them */
+   * which is most of them.  ares_save_options() takes the src channel lock
+   * itself.  No lock is held across ares_init_options(). */
   rc = (ares_status_t)ares_save_options(src, &opts, &optmask);
   if (rc != ARES_SUCCESS) {
     ares_destroy_options(&opts);
@@ -504,15 +509,24 @@ int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
   (*dest)->sock_config_cb               = src->sock_config_cb;
   (*dest)->sock_config_cb_data          = src->sock_config_cb_data;
   memcpy(&(*dest)->sock_funcs, &(src->sock_funcs), sizeof((*dest)->sock_funcs));
-  (*dest)->sock_func_cb_data            = src->sock_func_cb_data;
-  (*dest)->legacy_sock_funcs            = src->legacy_sock_funcs;
-  (*dest)->legacy_sock_funcs_cb_data    = src->legacy_sock_funcs_cb_data;
-  (*dest)->server_state_cb              = src->server_state_cb;
-  (*dest)->server_state_cb_data         = src->server_state_cb_data;
-  (*dest)->notify_pending_write_cb      = src->notify_pending_write_cb;
-  (*dest)->notify_pending_write_cb_data = src->notify_pending_write_cb_data;
-  (*dest)->query_enqueue_cb             = src->query_enqueue_cb;
-  (*dest)->query_enqueue_cb_data        = src->query_enqueue_cb_data;
+  (*dest)->sock_func_cb_data = src->sock_func_cb_data;
+  /* Socket callbacks given the channel itself as user data (as the
+   * ares_set_socket_functions() wrappers are) must get the new channel */
+  if (src->sock_func_cb_data == src) {
+    (*dest)->sock_func_cb_data = *dest;
+  }
+  (*dest)->legacy_sock_funcs         = src->legacy_sock_funcs;
+  (*dest)->legacy_sock_funcs_cb_data = src->legacy_sock_funcs_cb_data;
+  (*dest)->server_state_cb           = src->server_state_cb;
+  (*dest)->server_state_cb_data      = src->server_state_cb_data;
+  /* With an event thread these callbacks belong to the source's event
+   * thread; the new channel already has its own */
+  if (!(src->optmask & ARES_OPT_EVENT_THREAD)) {
+    (*dest)->notify_pending_write_cb      = src->notify_pending_write_cb;
+    (*dest)->notify_pending_write_cb_data = src->notify_pending_write_cb_data;
+    (*dest)->query_enqueue_cb             = src->query_enqueue_cb;
+    (*dest)->query_enqueue_cb_data        = src->query_enqueue_cb_data;
+  }
 
   ares_strcpy((*dest)->local_dev_name, src->local_dev_name,
               sizeof((*dest)->local_dev_name));

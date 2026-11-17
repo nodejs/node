@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2010-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -49,9 +49,6 @@
 #error "Your compiler doesn't appear to support 128-bit integer types"
 #endif
 
-typedef uint8_t u8;
-typedef uint64_t u64;
-
 /******************************************************************************/
 /*-
  * INTERNAL REPRESENTATION OF FIELD ELEMENTS
@@ -84,7 +81,7 @@ typedef widelimb widefelem[7];
  * group order size for the elliptic curve, and we also use this type for
  * scalars for point multiplication.
  */
-typedef u8 felem_bytearray[28];
+typedef uint8_t felem_bytearray[28];
 
 static const felem_bytearray nistp224_curve_params[5] = {
     { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, /* p */
@@ -307,7 +304,7 @@ const EC_METHOD *EC_GFp_nistp224_method(void)
 /*
  * Helper functions to convert field elements to/from internal representation
  */
-static void bin28_to_felem(felem out, const u8 in[28])
+static void bin28_to_felem(felem out, const uint8_t in[28])
 {
     out[0] = *((const limb *)(in)) & 0x00ffffffffffffff;
     out[1] = (*((const limb_aX *)(in + 7))) & 0x00ffffffffffffff;
@@ -315,7 +312,7 @@ static void bin28_to_felem(felem out, const u8 in[28])
     out[3] = (*((const limb_aX *)(in + 20))) >> 8;
 }
 
-static void felem_to_bin28(u8 out[28], const felem in)
+static void felem_to_bin28(uint8_t out[28], const felem in)
 {
     unsigned i;
     for (i = 0; i < 7; ++i) {
@@ -1087,7 +1084,7 @@ static void point_add(felem x3, felem y3, felem z3,
  * copies it to out.
  * The pre_comp array argument should be size of |size| argument
  */
-static void select_point(const u64 idx, unsigned int size,
+static void select_point(const uint64_t idx, unsigned int size,
     const felem pre_comp[][3], felem out[3])
 {
     unsigned i, j;
@@ -1096,7 +1093,7 @@ static void select_point(const u64 idx, unsigned int size,
     memset(out, 0, sizeof(*out) * 3);
     for (i = 0; i < size; i++) {
         const limb *inlimbs = &pre_comp[i][0][0];
-        u64 mask = i ^ idx;
+        uint64_t mask = i ^ idx;
         mask |= mask >> 4;
         mask |= mask >> 2;
         mask |= mask >> 1;
@@ -1124,7 +1121,7 @@ static char get_bit(const felem_bytearray in, unsigned i)
  */
 static void batch_mul(felem x_out, felem y_out, felem z_out,
     const felem_bytearray scalars[],
-    const unsigned num_points, const u8 *g_scalar,
+    const unsigned num_points, const uint8_t *g_scalar,
     const int mixed, const felem pre_comp[][17][3],
     const felem g_pre_comp[2][16][3])
 {
@@ -1132,8 +1129,8 @@ static void batch_mul(felem x_out, felem y_out, felem z_out,
     unsigned num;
     unsigned gen_mul = (g_scalar != NULL);
     felem nq[3], tmp[4];
-    u64 bits;
-    u8 sign, digit;
+    uint64_t bits;
+    uint8_t sign, digit;
 
     /* set nq to the point at infinity */
     memset(nq, 0, sizeof(nq));
@@ -1237,8 +1234,8 @@ static NISTP224_PRE_COMP *nistp224_pre_comp_new(void)
 NISTP224_PRE_COMP *EC_nistp224_pre_comp_dup(NISTP224_PRE_COMP *p)
 {
     int i;
-    if (p != NULL)
-        CRYPTO_UP_REF(&p->references, &i);
+    if (p == NULL || !CRYPTO_UP_REF(&p->references, &i))
+        return NULL;
     return p;
 }
 
@@ -1458,10 +1455,10 @@ int ossl_ec_GFp_nistp224_points_mul(const EC_GROUP *group, EC_POINT *r,
              */
             mixed = 1;
         }
-        secrets = OPENSSL_zalloc(sizeof(*secrets) * num_points);
-        pre_comp = OPENSSL_zalloc(sizeof(*pre_comp) * num_points);
+        secrets = OPENSSL_calloc(num_points, sizeof(*secrets));
+        pre_comp = OPENSSL_calloc(num_points, sizeof(*pre_comp));
         if (mixed)
-            tmp_felems = OPENSSL_malloc(sizeof(felem) * (num_points * 17 + 1));
+            tmp_felems = OPENSSL_malloc_array(num_points * 17 + 1, sizeof(felem));
         if ((secrets == NULL) || (pre_comp == NULL)
             || (mixed && (tmp_felems == NULL)))
             goto err;

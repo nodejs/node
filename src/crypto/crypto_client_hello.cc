@@ -7,19 +7,23 @@ namespace node::crypto {
 SSL* ClientHelloContext::ssl() const {
 #ifdef OPENSSL_IS_BORINGSSL
   return handle_->ssl;
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
   return handle_;
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
 std::span<const uint8_t> ClientHelloContext::session_id() const {
 #ifdef OPENSSL_IS_BORINGSSL
   return {handle_->session_id, handle_->session_id_len};
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
   const uint8_t* id = nullptr;
   size_t len = SSL_client_hello_get0_session_id(handle_, &id);
   if (id == nullptr) return {};
   return {id, len};
+#else
+#error "Unsupported crypto backend"
 #endif
 }
 
@@ -66,10 +70,12 @@ std::optional<std::span<const uint8_t>> ClientHelloContext::extension(
   if (!SSL_early_callback_ctx_extension_get(handle_, type, &data, &len)) {
     return std::nullopt;
   }
-#else
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
   if (SSL_client_hello_get0_ext(handle_, type, &data, &len) != 1) {
     return std::nullopt;
   }
+#else
+#error "Unsupported crypto backend"
 #endif
   return std::span<const uint8_t>(data, len);
 }

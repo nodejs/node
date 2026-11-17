@@ -29,6 +29,8 @@
 #include "quic/quic_local.h"
 #include <openssl/ct.h>
 
+#define MAX_SIGALGS 128
+
 static const SIGALG_LOOKUP *find_sig_alg(SSL_CONNECTION *s, X509 *x, EVP_PKEY *pkey);
 static int tls12_sigalg_allowed(const SSL_CONNECTION *s, int op, const SIGALG_LOOKUP *lu);
 
@@ -194,6 +196,10 @@ static const struct {
 };
 
 static const unsigned char ecformats_default[] = {
+    TLSEXT_ECPOINTFORMAT_uncompressed
+};
+
+static const unsigned char ecformats_all[] = {
     TLSEXT_ECPOINTFORMAT_uncompressed,
     TLSEXT_ECPOINTFORMAT_ansiX962_compressed_prime,
     TLSEXT_ECPOINTFORMAT_ansiX962_compressed_char2
@@ -201,8 +207,12 @@ static const unsigned char ecformats_default[] = {
 
 /* Group list string of the built-in pseudo group DEFAULT */
 #define DEFAULT_GROUP_NAME "DEFAULT"
-#define TLS_DEFAULT_GROUP_LIST \
-    "?*X25519MLKEM768 / ?*X25519:?secp256r1 / ?X448:?secp384r1:?secp521r1 / ?ffdhe2048:?ffdhe3072"
+#define TLS_DEFAULT_GROUP_LIST                                 \
+    "?*X25519MLKEM768:?SecP256r1MLKEM768:?curveSM2MLKEM768 / " \
+    "?*X25519:?secp256r1 / "                                   \
+    "?X448:?secp384r1:?secp521r1 / "                           \
+    "?curveSM2 / "                                             \
+    "?ffdhe2048:?ffdhe3072"
 
 static const uint16_t suiteb_curves[] = {
     OSSL_TLS_GROUP_ID_secp256r1,
@@ -235,13 +245,13 @@ static int add_provider_groups(const OSSL_PARAM params[], void *data)
         TLS_GROUP_INFO *tmp = NULL;
 
         if (ctx->group_list_max_len == 0)
-            tmp = OPENSSL_malloc(sizeof(TLS_GROUP_INFO)
-                * TLS_GROUP_LIST_MALLOC_BLOCK_SIZE);
+            tmp = OPENSSL_malloc_array(TLS_GROUP_LIST_MALLOC_BLOCK_SIZE,
+                sizeof(TLS_GROUP_INFO));
         else
-            tmp = OPENSSL_realloc(ctx->group_list,
-                (ctx->group_list_max_len
-                    + TLS_GROUP_LIST_MALLOC_BLOCK_SIZE)
-                    * sizeof(TLS_GROUP_INFO));
+            tmp = OPENSSL_realloc_array(ctx->group_list,
+                ctx->group_list_max_len
+                    + TLS_GROUP_LIST_MALLOC_BLOCK_SIZE,
+                sizeof(TLS_GROUP_INFO));
         if (tmp == NULL)
             return 0;
         ctx->group_list = tmp;
@@ -323,6 +333,15 @@ static int add_provider_groups(const OSSL_PARAM params[], void *data)
         ERR_raise(ERR_LIB_SSL, ERR_R_PASSED_INVALID_ARGUMENT);
         goto err;
     }
+
+    if (ginf->group_id >= OSSL_TLS_GROUP_ID_ffdhe2048
+        && ginf->group_id <= OSSL_TLS_GROUP_ID_ffdhe8192) {
+        if (ginf->mintls > TLS1_2_VERSION)
+            ginf->mintls = TLS1_VERSION;
+        if (DTLS_VERSION_GT(ginf->mindtls, DTLS1_2_VERSION))
+            ginf->mindtls = DTLS1_VERSION;
+    }
+
     /*
      * Now check that the algorithm is actually usable for our property query
      * string. Regardless of the result we still return success because we have
@@ -394,13 +413,13 @@ static int add_provider_sigalgs(const OSSL_PARAM params[], void *data)
         TLS_SIGALG_INFO *tmp = NULL;
 
         if (ctx->sigalg_list_max_len == 0)
-            tmp = OPENSSL_malloc(sizeof(TLS_SIGALG_INFO)
-                * TLS_SIGALG_LIST_MALLOC_BLOCK_SIZE);
+            tmp = OPENSSL_malloc_array(TLS_SIGALG_LIST_MALLOC_BLOCK_SIZE,
+                sizeof(TLS_SIGALG_INFO));
         else
-            tmp = OPENSSL_realloc(ctx->sigalg_list,
-                (ctx->sigalg_list_max_len
-                    + TLS_SIGALG_LIST_MALLOC_BLOCK_SIZE)
-                    * sizeof(TLS_SIGALG_INFO));
+            tmp = OPENSSL_realloc_array(ctx->sigalg_list,
+                ctx->sigalg_list_max_len
+                    + TLS_SIGALG_LIST_MALLOC_BLOCK_SIZE,
+                sizeof(TLS_SIGALG_INFO));
         if (tmp == NULL)
             return 0;
         ctx->sigalg_list = tmp;
@@ -551,8 +570,6 @@ static int add_provider_sigalgs(const OSSL_PARAM params[], void *data)
         ERR_raise(ERR_LIB_SSL, ERR_R_PASSED_INVALID_ARGUMENT);
         goto err;
     }
-    /* No provider sigalgs are supported in DTLS, reset after checking. */
-    sinf->mindtls = sinf->maxdtls = -1;
 
     /* The remaining parameters below are mandatory again */
     p = OSSL_PARAM_locate_const(params, OSSL_CAPABILITY_TLS_SIGALG_MIN_TLS);
@@ -565,13 +582,20 @@ static int add_provider_sigalgs(const OSSL_PARAM params[], void *data)
         ERR_raise(ERR_LIB_SSL, ERR_R_PASSED_INVALID_ARGUMENT);
         goto err;
     }
-    if ((sinf->maxtls != 0) && (sinf->maxtls != -1) && ((sinf->maxtls < sinf->mintls))) {
+    /*
+     * There are no discrepancies for signature algs between comparable
+     * versions of tls and dtls. Hence we check tls versions only.
+     */
+    if ((sinf->maxtls != 0) && (sinf->maxtls != -1)
+        && ((sinf->maxtls < sinf->mintls))) {
         ERR_raise(ERR_LIB_SSL, ERR_R_PASSED_INVALID_ARGUMENT);
         goto err;
     }
-    if ((sinf->mintls != 0) && (sinf->mintls != -1) && ((sinf->mintls > TLS1_3_VERSION)))
+    if ((sinf->mintls != 0) && (sinf->mintls != -1)
+        && ((sinf->mintls > TLS1_3_VERSION)))
         sinf->mintls = sinf->maxtls = -1;
-    if ((sinf->maxtls != 0) && (sinf->maxtls != -1) && ((sinf->maxtls < TLS1_3_VERSION)))
+    if ((sinf->maxtls != 0) && (sinf->maxtls != -1)
+        && ((sinf->maxtls < TLS1_3_VERSION)))
         sinf->mintls = sinf->maxtls = -1;
 
     /* Ignore unusable sigalgs */
@@ -684,7 +708,7 @@ int ssl_load_sigalgs(SSL_CTX *ctx)
     /* now populate ctx->ssl_cert_info */
     if (ctx->sigalg_list_len > 0) {
         OPENSSL_free(ctx->ssl_cert_info);
-        ctx->ssl_cert_info = OPENSSL_zalloc(sizeof(lu) * ctx->sigalg_list_len);
+        ctx->ssl_cert_info = OPENSSL_calloc(ctx->sigalg_list_len, sizeof(lu));
         if (ctx->ssl_cert_info == NULL)
             return 0;
         for (i = 0; i < ctx->sigalg_list_len; i++) {
@@ -853,25 +877,26 @@ void tls1_get_group_tuples(SSL_CONNECTION *s, const size_t **ptuples,
 }
 
 int tls_valid_group(SSL_CONNECTION *s, uint16_t group_id,
-    int minversion, int maxversion,
-    int isec, int *okfortls13)
+    int minversion, int maxversion, int *okfortls13,
+    const TLS_GROUP_INFO **giptr)
 {
     const TLS_GROUP_INFO *ginfo = tls1_group_id_lookup(SSL_CONNECTION_GET_CTX(s),
         group_id);
-    int ret;
+    int ret = 0;
     int group_minversion, group_maxversion;
+    const int version1_3 = SSL_CONNECTION_IS_DTLS(s) ? DTLS1_3_VERSION : TLS1_3_VERSION;
 
     if (okfortls13 != NULL)
         *okfortls13 = 0;
 
     if (ginfo == NULL)
-        return 0;
+        goto end;
 
     group_minversion = SSL_CONNECTION_IS_DTLS(s) ? ginfo->mindtls : ginfo->mintls;
     group_maxversion = SSL_CONNECTION_IS_DTLS(s) ? ginfo->maxdtls : ginfo->maxtls;
 
     if (group_minversion < 0 || group_maxversion < 0)
-        return 0;
+        goto end;
     if (group_maxversion == 0)
         ret = 1;
     else
@@ -879,16 +904,12 @@ int tls_valid_group(SSL_CONNECTION *s, uint16_t group_id,
     if (group_minversion > 0)
         ret &= (ssl_version_cmp(s, maxversion, group_minversion) >= 0);
 
-    if (!SSL_CONNECTION_IS_DTLS(s)) {
-        if (ret && okfortls13 != NULL && maxversion == TLS1_3_VERSION)
-            *okfortls13 = (group_maxversion == 0)
-                || (group_maxversion >= TLS1_3_VERSION);
-    }
-    ret &= !isec
-        || strcmp(ginfo->algorithm, "EC") == 0
-        || strcmp(ginfo->algorithm, "X25519") == 0
-        || strcmp(ginfo->algorithm, "X448") == 0;
-
+    if (ret && okfortls13 != NULL && maxversion == version1_3)
+        *okfortls13 = (group_maxversion == 0)
+            || (ssl_version_cmp(s, group_maxversion, maxversion) >= 0);
+end:
+    if (giptr != NULL)
+        *giptr = ginfo;
     return ret;
 }
 
@@ -953,13 +974,13 @@ int tls1_get0_implemented_groups(int min_proto_version, int max_proto_version,
     TLS_GROUP_IX *gix;
     uint16_t id = 0;
     int ret = 0;
-    size_t ix;
+    int ix;
 
-    if (grps == NULL || out == NULL)
+    if (grps == NULL || out == NULL || num > INT_MAX)
         return 0;
     if ((collect = sk_TLS_GROUP_IX_new(tls_group_ix_cmp)) == NULL)
         return 0;
-    for (ix = 0; ix < num; ++ix, ++grps) {
+    for (ix = 0; ix < (int)num; ++ix, ++grps) {
         if (grps->mintls > 0 && max_proto_version > 0
             && grps->mintls > max_proto_version)
             continue;
@@ -979,7 +1000,7 @@ int tls1_get0_implemented_groups(int min_proto_version, int max_proto_version,
 
     sk_TLS_GROUP_IX_sort(collect);
     num = sk_TLS_GROUP_IX_num(collect);
-    for (ix = 0; ix < num; ++ix) {
+    for (ix = 0; ix < (int)num; ++ix) {
         gix = sk_TLS_GROUP_IX_value(collect, ix);
         if (!all && gix->grp->group_id == id)
             continue;
@@ -997,11 +1018,18 @@ end:
 /*-
  * For nmatch >= 0, return the id of the |nmatch|th shared group or 0
  * if there is no match.
- * For nmatch == -1, return number of matches
- * For nmatch == -2, return the id of the group to use for
- * a tmp key, or 0 if there is no match.
+ * For nmatch == TLS1_GROUPS_RETURN_NUMBER, return number of matches
+ * For nmatch == TLS1_GROUPS_RETURN_TMP_ID, return the id of the group to use
+ * for a tmp key, or 0 if there is no match.
+ * If groups == TLS1_GROUPS_FFDHE_GROUPS, only shared groups that are FFDHE
+ * groups (i.e., between OSSL_TLS_GROUP_ID_FFDHE_START and
+ * OSSL_TLS_GROUP_ID_FFDHE_END, inclusive) will be included in the search.
+ * If groups == TLS1_GROUPS_NON_FFDHE_GROUPS, only shared groups that are not
+ * FFDHE groups will be included in the search.
+ * If groups == TLS1_GROUPS_ALL_GROUPS, all groups will be included in the
+ * search.
  */
-uint16_t tls1_shared_group(SSL_CONNECTION *s, int nmatch)
+uint16_t tls1_shared_group(SSL_CONNECTION *s, int nmatch, int groups)
 {
     const uint16_t *pref, *supp;
     size_t num_pref, num_supp, i;
@@ -1011,8 +1039,8 @@ uint16_t tls1_shared_group(SSL_CONNECTION *s, int nmatch)
     /* Can't do anything on client side */
     if (s->server == 0)
         return 0;
-    if (nmatch == -2) {
-        if (tls1_suiteb(s)) {
+    if (nmatch == TLS1_GROUPS_RETURN_TMP_ID) {
+        if (groups != TLS1_GROUPS_FFDHE_GROUPS && tls1_suiteb(s)) {
             /*
              * For Suite B ciphersuite determines curve: we already know
              * these are acceptable due to previous checks.
@@ -1033,7 +1061,7 @@ uint16_t tls1_shared_group(SSL_CONNECTION *s, int nmatch)
      * If server preference set, our groups are the preference order
      * otherwise peer decides.
      */
-    if (s->options & SSL_OP_CIPHER_SERVER_PREFERENCE) {
+    if (s->options & SSL_OP_SERVER_PREFERENCE) {
         tls1_get_supported_groups(s, &pref, &num_pref);
         tls1_get_peer_groups(s, &supp, &num_supp);
     } else {
@@ -1047,6 +1075,8 @@ uint16_t tls1_shared_group(SSL_CONNECTION *s, int nmatch)
         int minversion, maxversion;
 
         if (!tls1_in_list(id, supp, num_supp)
+            || (groups == TLS1_GROUPS_NON_FFDHE_GROUPS && is_ffdhe_group(id))
+            || (groups == TLS1_GROUPS_FFDHE_GROUPS && !is_ffdhe_group(id))
             || !tls_group_allowed(s, id, SSL_SECOP_CURVE_SHARED))
             continue;
         inf = tls1_group_id_lookup(ctx, id);
@@ -1070,7 +1100,7 @@ uint16_t tls1_shared_group(SSL_CONNECTION *s, int nmatch)
             return id;
         k++;
     }
-    if (nmatch == -1)
+    if (nmatch == TLS1_GROUPS_RETURN_NUMBER)
         return k;
     /* Out of range (nmatch > k). */
     return 0;
@@ -1096,11 +1126,11 @@ int tls1_set_groups(uint16_t **grpext, size_t *grpextlen,
         ERR_raise(ERR_LIB_SSL, SSL_R_BAD_LENGTH);
         return 0;
     }
-    if ((glist = OPENSSL_malloc(ngroups * sizeof(*glist))) == NULL)
+    if ((glist = OPENSSL_malloc_array(ngroups, sizeof(*glist))) == NULL)
         goto err;
-    if ((kslist = OPENSSL_malloc(1 * sizeof(*kslist))) == NULL)
+    if ((kslist = OPENSSL_malloc_array(1, sizeof(*kslist))) == NULL)
         goto err;
-    if ((tpllist = OPENSSL_malloc(1 * sizeof(*tpllist))) == NULL)
+    if ((tpllist = OPENSSL_malloc_array(1, sizeof(*tpllist))) == NULL)
         goto err;
     for (i = 0; i < ngroups; i++) {
         unsigned long idmask;
@@ -1229,6 +1259,17 @@ static const char prefixes[] = { TUPLE_DELIMITER_CHARACTER,
  * Those callback functions are (indirectly) called by CONF_parse_list with
  * different separators (nominally ':' or '/'), a variable based on gid_cb_st
  * is used to keep track of the parsing results between the various calls
+ *
+ * Bookkeeping invariants maintained throughout parsing (see gid_cb_st below):
+ *  - gid_arr[0..gidcnt) is the flat list of groups, partitioned into tuples in
+ *    order: tuple t occupies a contiguous run of tuplcnt_arr[t] entries.
+ *  - The per-tuple counts therefore sum to the group count:
+ *        sum(tuplcnt_arr[0..tplcnt]) == gidcnt
+ *    (indices 0..tplcnt-1 are closed tuples, index tplcnt is the active one).
+ *  - ksid_arr[0..ksidcnt) holds keyshare group IDs; each is one of the groups
+ *    in gid_arr and they appear in the same relative order as their groups.
+ * Every add/remove path must preserve these; an OOB read in the remove path
+ * (GitHub #31315) was a symptom of the first invariant being violated.
  */
 
 typedef struct {
@@ -1249,6 +1290,7 @@ typedef struct {
     size_t ksidcnt; /* Number of key shares */
     uint16_t *ksid_arr; /* The IDs of the key share groups (flat list) */
     /* Variable to keep state between execution of callback or helper functions */
+    int want_keyshare; /* If positive, pending keyshare from unrecognised group */
     int inner; /* Are we expanding a DEFAULT list */
     int first; /* First tuple of possibly nested expansion? */
 } gid_cb_st;
@@ -1342,7 +1384,7 @@ static int gid_cb(const char *elem, int len, void *arg)
                      * First, we restore any keyshare prefix in a new zero-terminated string
                      * (if not already present)
                      */
-                    restored_default_group_string = OPENSSL_malloc((1 /* max prefix length */ + strlen(default_group_strings[i].group_string) + 1 /* \0 */) * sizeof(char));
+                    restored_default_group_string = OPENSSL_malloc(1 /* max prefix length */ + strlen(default_group_strings[i].group_string) + 1 /* \0 */);
                     if (restored_default_group_string == NULL)
                         return 0;
                     if (add_keyshare
@@ -1387,8 +1429,9 @@ static int gid_cb(const char *elem, int len, void *arg)
 
     /* Memory management in case more groups are present compared to initial allocation */
     if (garg->gidcnt == garg->gidmax) {
-        uint16_t *tmp = OPENSSL_realloc(garg->gid_arr,
-            (garg->gidmax + GROUPLIST_INCREMENT) * sizeof(*garg->gid_arr));
+        uint16_t *tmp = OPENSSL_realloc_array(garg->gid_arr,
+            garg->gidmax + GROUPLIST_INCREMENT,
+            sizeof(*garg->gid_arr));
 
         if (tmp == NULL)
             return 0;
@@ -1398,8 +1441,9 @@ static int gid_cb(const char *elem, int len, void *arg)
     }
     /* Memory management for key share groups */
     if (garg->ksidcnt == garg->ksidmax) {
-        uint16_t *tmp = OPENSSL_realloc(garg->ksid_arr,
-            (garg->ksidmax + GROUPLIST_INCREMENT) * sizeof(*garg->ksid_arr));
+        uint16_t *tmp = OPENSSL_realloc_array(garg->ksid_arr,
+            garg->ksidmax + GROUPLIST_INCREMENT,
+            sizeof(*garg->ksid_arr));
 
         if (tmp == NULL)
             return 0;
@@ -1434,6 +1478,9 @@ static int gid_cb(const char *elem, int len, void *arg)
             }
         }
         if (gid == 0) { /* still not found */
+            /* If unknown, next known tuple element gets a keyshare */
+            if (add_keyshare && !remove_group && garg->want_keyshare == 0)
+                garg->want_keyshare = 1;
             /* Unknown group - ignore if ignore_unknown; trigger error otherwise */
             retval = ignore_unknown;
             goto done;
@@ -1453,56 +1500,114 @@ static int gid_cb(const char *elem, int len, void *arg)
      * ignore_unknown; trigger error otherwise
      */
     if (found_group == 0) {
+        /* If unknown, next known tuple element gets a keyshare */
+        if (add_keyshare && !remove_group && garg->want_keyshare == 0)
+            garg->want_keyshare = 1;
         retval = ignore_unknown;
         goto done;
     }
     /* Remove group (and keyshare) from anywhere in the list if present, ignore if not present */
     if (remove_group) {
-        /* Is the current group specified anywhere in the entire list so far? */
-        found_group = 0;
-        for (i = 0; i < garg->gidcnt; i++)
-            if (garg->gid_arr[i] == gid) {
-                found_group = 1;
+        size_t n = 0; /* tuple size */
+        size_t tpl_start_idx = 0; /* Index of 1st group in tuple of removed group */
+        size_t ks_check_idx = 0; /* Index after last known retained keyshare */
+
+        j = 0; /* tuple index */
+        k = 0; /* keyshare index */
+        n = garg->tuplcnt_arr[j];
+
+        for (i = 0; i < garg->gidcnt; ++i) {
+            if (garg->gid_arr[i] == gid)
                 break;
+            /* Skip keyshare slots associated with groups prior to that removed */
+            if (k < garg->ksidcnt && garg->gid_arr[i] == garg->ksid_arr[k]) {
+                ++k;
+                /* Skip each retained keyshare as we go */
+                ks_check_idx = i + 1;
             }
-        /* The group to remove is at position i in the list of (zero indexed) groups */
-        if (found_group) {
-            /* We remove that group from its position (which is at i)... */
-            for (j = i; j < (garg->gidcnt - 1); j++)
-                garg->gid_arr[j] = garg->gid_arr[j + 1]; /* ...shift remaining groups left ... */
-            garg->gidcnt--; /* ..and update the book keeping for the number of groups */
+            if (--n == 0) {
+                if (j < garg->tplcnt)
+                    n = garg->tuplcnt_arr[++j];
+                tpl_start_idx = i + 1;
+            }
+        }
+
+        /* Nothing to remove? */
+        if (i >= garg->gidcnt)
+            goto done;
+
+        garg->gidcnt--;
+        garg->tuplcnt_arr[j]--;
+        memmove(garg->gid_arr + i, garg->gid_arr + i + 1,
+            (garg->gidcnt - i) * sizeof(gid));
+
+        /* Handle keyshare removal */
+        if (k < garg->ksidcnt && garg->ksid_arr[k] == gid) {
+            int drop_ks;
 
             /*
-             * We also must update the number of groups either in a previous tuple (which we
-             * must identify and check whether it becomes empty due to the deletion) or in
-             * the current tuple, pending where the deleted group resides
+             * Simply drop the group's keyshare unless it is the last one in a
+             * still non-empty tuple.
+             *
+             * If `ks_check_idx` is larger than the tuple start index at least
+             * one keyshare belonging to the tuple is retained, so we drop this
+             * one.  Also if the tuple is the current one (isn't closed yet),
+             * floating is handled at tuple close time.
+             *
+             * Otherwise, iterate through the tuple check whether any keyshares
+             * remain *after* the index of the group we're removing.  The first
+             * of these, if any, is at index `k+1` in the keyshare list, which
+             * is the only slot we need to check.
+             *
+             * If the removal emptied the tuple (tuplcnt_arr[j] == 0 after the
+             * decrement above) there is no remaining group to float onto:
+             * gid_arr[tpl_start_idx] would now name a group belonging to the
+             * next tuple (or be past gid_arr entirely).  Drop the keyshare in
+             * that case too.
              */
-            k = 0;
-            for (j = 0; j < garg->tplcnt; j++) {
-                k += garg->tuplcnt_arr[j];
-                /* Remark: i is zero-indexed, k is one-indexed */
-                if (k > i) { /* remove from one of the previous tuples */
-                    garg->tuplcnt_arr[j]--;
-                    break; /* We took care not to have group duplicates, hence we can stop here */
-                }
-            }
-            if (k <= i) /* remove from current tuple */
-                garg->tuplcnt_arr[j]--;
+            drop_ks = ks_check_idx > tpl_start_idx || j >= garg->tplcnt
+                || garg->tuplcnt_arr[j] == 0;
 
-            /* We also remove the group from the list of keyshares (if present) */
-            found_group = 0;
-            for (i = 0; i < garg->ksidcnt; i++)
-                if (garg->ksid_arr[i] == gid) {
-                    found_group = 1;
-                    break;
+            if (!drop_ks) {
+                size_t end; /* End index of affected tuple */
+
+                /* Removing the first keyshare of an already completed tuple */
+                for (end = tpl_start_idx + garg->tuplcnt_arr[j]; i < end; ++i) {
+                    /* Any other keyshares for the same tuple? */
+                    if (k + 1 < garg->ksidcnt
+                        && garg->gid_arr[i] == garg->ksid_arr[k + 1])
+                        break;
                 }
-            if (found_group) {
-                /* Found, hence we remove that keyshare from its position (which is at i)... */
-                for (j = i; j < (garg->ksidcnt - 1); j++)
-                    garg->ksid_arr[j] = garg->ksid_arr[j + 1]; /* shift remaining key shares */
-                /* ... and update the book keeping */
-                garg->ksidcnt--;
+                /* Float keyshare to first group when no others found */
+                if (i >= end)
+                    garg->ksid_arr[k] = garg->gid_arr[tpl_start_idx];
+                else
+                    drop_ks = 1;
             }
+            if (drop_ks) {
+                garg->ksidcnt--;
+                memmove(garg->ksid_arr + k, garg->ksid_arr + k + 1,
+                    (garg->ksidcnt - k) * sizeof(gid));
+            }
+        }
+
+        /*
+         * Adjust closed or current tuple's group count, if a closed tuple
+         * count reaches zero excise the resulting empty tuple.  The current
+         * (not yet closed) tuple at the end of the list stays even if empty.
+         *
+         * The active tuple lives at index tplcnt, so the slots in use are
+         * tuplcnt_arr[0..tplcnt] (tplcnt + 1 entries).  Excising closed tuple
+         * j must therefore shift the closed tuples j+1..tplcnt-1 *and* the
+         * active tuple at index tplcnt down by one, i.e. (tplcnt - j) entries
+         * counted with the pre-decrement tplcnt.  Decrement tplcnt only after
+         * the move so the active-tuple slot is not left behind (which would
+         * inflate the per-tuple counts and desynchronise them from gid_arr).
+         */
+        if (garg->tuplcnt_arr[j] == 0 && j < garg->tplcnt) {
+            memmove(garg->tuplcnt_arr + j, garg->tuplcnt_arr + j + 1,
+                (garg->tplcnt - j) * sizeof(size_t));
+            garg->tplcnt--;
         }
     } else { /* Processing addition of a single new group */
 
@@ -1519,8 +1624,10 @@ static int gid_cb(const char *elem, int len, void *arg)
         garg->tuplcnt_arr[garg->tplcnt]++;
 
         /* We want to add a key share for the current group */
-        if (add_keyshare)
+        if (add_keyshare) {
             garg->ksid_arr[garg->ksidcnt++] = gid;
+            garg->want_keyshare = -1;
+        }
     }
 
 done:
@@ -1534,22 +1641,18 @@ done:
  */
 static int grow_tuples(gid_cb_st *garg)
 {
-    static size_t max_tplcnt = (~(size_t)0) / sizeof(size_t);
-
     /*
-     * Ensure we have room for at least one additional tuple.
-     * (tplcnt + 1 are in active use).
+     * tplcnt + 1 is the index close_tuple() will write to after incrementing;
+     * reallocate before it would reach the end of the allocated array.
      */
-    if (garg->tplcnt + 1 == garg->tplmax) {
-        size_t newcnt = garg->tplmax + GROUPLIST_INCREMENT;
-        size_t newsz = newcnt * sizeof(size_t);
-        size_t *tmp;
+    if (garg->tplcnt + 1 >= garg->tplmax) {
+        size_t *tmp = OPENSSL_realloc_array(garg->tuplcnt_arr,
+            garg->tplmax + GROUPLIST_INCREMENT,
+            sizeof(*garg->tuplcnt_arr));
 
-        if (newsz > max_tplcnt
-            || (tmp = OPENSSL_realloc(garg->tuplcnt_arr, newsz)) == NULL)
+        if (tmp == NULL)
             return 0;
-
-        garg->tplmax = newcnt;
+        garg->tplmax += GROUPLIST_INCREMENT;
         garg->tuplcnt_arr = tmp;
     }
     return 1;
@@ -1565,6 +1668,18 @@ static int grow_tuples(gid_cb_st *garg)
 static int close_tuple(gid_cb_st *garg)
 {
     size_t gidcnt = garg->tuplcnt_arr[garg->tplcnt];
+
+    if (gidcnt > 0 && garg->want_keyshare > 0) {
+        uint16_t gid = garg->gid_arr[garg->gidcnt - gidcnt];
+
+        /*
+         * All groups in the tuple that were marked for keyshare prediction
+         * were unknown (unrecognised); select the first known group instead.
+         */
+        garg->ksid_arr[garg->ksidcnt++] = gid;
+    }
+    /* Reset keyshare state for the next tuple */
+    garg->want_keyshare = 0;
 
     if (gidcnt == 0)
         return 1; /* Discard empty tuple; no need to open a new slot */
@@ -1596,7 +1711,7 @@ static int tuple_cb(const char *tuple, int len, void *arg)
     garg->first = 0;
 
     /* Convert to \0-terminated string */
-    restored_tuple_string = OPENSSL_malloc((len + 1 /* \0 */) * sizeof(char));
+    restored_tuple_string = OPENSSL_malloc(len + 1 /* \0 */);
     if (restored_tuple_string == NULL)
         return 0;
     memcpy(restored_tuple_string, tuple, len);
@@ -1646,14 +1761,14 @@ int tls1_set_groups_list(SSL_CTX *ctx,
     gcb.ctx = ctx;
 
     /* Prepare initial chunks of memory for groups, tuples and keyshares groupIDs */
-    gcb.gid_arr = OPENSSL_malloc(gcb.gidmax * sizeof(*gcb.gid_arr));
+    gcb.gid_arr = OPENSSL_malloc_array(gcb.gidmax, sizeof(*gcb.gid_arr));
     if (gcb.gid_arr == NULL)
         goto end;
-    gcb.tuplcnt_arr = OPENSSL_malloc(gcb.tplmax * sizeof(*gcb.tuplcnt_arr));
+    gcb.tuplcnt_arr = OPENSSL_malloc_array(gcb.tplmax, sizeof(*gcb.tuplcnt_arr));
     if (gcb.tuplcnt_arr == NULL)
         goto end;
     gcb.tuplcnt_arr[0] = 0;
-    gcb.ksid_arr = OPENSSL_malloc(gcb.ksidmax * sizeof(*gcb.ksid_arr));
+    gcb.ksid_arr = OPENSSL_malloc_array(gcb.ksidmax, sizeof(*gcb.ksid_arr));
     if (gcb.ksid_arr == NULL)
         goto end;
 
@@ -1801,19 +1916,16 @@ int tls1_check_group_id(SSL_CONNECTION *s, uint16_t group_id,
 void tls1_get_formatlist(SSL_CONNECTION *s, const unsigned char **pformats,
     size_t *num_formats)
 {
-    /*
-     * If we have a custom point format list use it otherwise use default
-     */
-    if (s->ext.ecpointformats) {
-        *pformats = s->ext.ecpointformats;
-        *num_formats = s->ext.ecpointformats_len;
-    } else {
-        *pformats = ecformats_default;
+    if ((s->options & SSL_OP_LEGACY_EC_POINT_FORMATS) != 0) {
+        *pformats = ecformats_all;
         /* For Suite B we don't support char2 fields */
         if (tls1_suiteb(s))
-            *num_formats = sizeof(ecformats_default) - 1;
+            *num_formats = sizeof(ecformats_all) - 1;
         else
-            *num_formats = sizeof(ecformats_default);
+            *num_formats = sizeof(ecformats_all);
+    } else {
+        *pformats = ecformats_default;
+        *num_formats = sizeof(ecformats_default);
     }
 }
 
@@ -1829,7 +1941,7 @@ static uint16_t tls1_get_group_id(EVP_PKEY *pkey)
 
 /*
  * Check cert parameters compatible with extensions: currently just checks EC
- * certificates have compatible curves and compression.
+ * certificates have compatible curves.
  */
 static int tls1_check_cert_param(SSL_CONNECTION *s, X509 *x, int check_ee_md)
 {
@@ -1873,6 +1985,46 @@ static int tls1_check_cert_param(SSL_CONNECTION *s, X509 *x, int check_ee_md)
 }
 
 /*
+ * tls1_check_ffdhe_tmp_key - Check FFDHE temporary key compatibility
+ * @s: SSL connection
+ * @cid: Cipher ID we're considering using
+ *
+ * Checks that the kDHE cipher suite we're considering using
+ * is compatible with the client extensions.
+ *
+ * Returns 0 when the cipher can't be used or 1 when it can.
+ */
+int tls1_check_ffdhe_tmp_key(SSL_CONNECTION *s, unsigned long cid)
+{
+    const uint16_t *peer_groups;
+    size_t num_peer_groups;
+
+    /* If we have a shared FFDHE group, we can certainly use it. */
+    if (tls1_shared_group(s, 0, TLS1_GROUPS_FFDHE_GROUPS) != 0)
+        return 1;
+
+    /*
+     * Otherwise, we follow RFC 7919:
+     *     If a compatible TLS server receives a Supported Groups extension from
+     *     a client that includes any FFDHE group (i.e., any codepoint between
+     *     256 and 511, inclusive, even if unknown to the server), and if none
+     *     of the client-proposed FFDHE groups are known and acceptable to the
+     *     server, then the server MUST NOT select an FFDHE cipher suite.
+     */
+    tls1_get_peer_groups(s, &peer_groups, &num_peer_groups);
+    for (size_t i = 0; i < num_peer_groups; i++) {
+        if (is_ffdhe_group(peer_groups[i]))
+            return 0;
+    }
+
+    /*
+     * The client did not send any FFDHE groups, so we can use this ciphersuite
+     * using any group we like.
+     */
+    return 1;
+}
+
+/*
  * tls1_check_ec_tmp_key - Check EC temporary key compatibility
  * @s: SSL connection
  * @cid: Cipher ID we're considering using
@@ -1886,7 +2038,7 @@ int tls1_check_ec_tmp_key(SSL_CONNECTION *s, unsigned long cid)
 {
     /* If not Suite B just need a shared group */
     if (!tls1_suiteb(s))
-        return tls1_shared_group(s, 0) != 0;
+        return tls1_shared_group(s, 0, TLS1_GROUPS_NON_FFDHE_GROUPS) != 0;
     /*
      * If Suite B, AES128 MUST use P-256 and AES256 MUST use P-384, no other
      * curves permitted.
@@ -1995,19 +2147,19 @@ static const SIGALG_LOOKUP sigalg_lookup_tbl[] = {
         TLSEXT_SIGALG_ecdsa_brainpoolP256r1_sha256,
         NID_sha256, SSL_MD_SHA256_IDX, EVP_PKEY_EC, SSL_PKEY_ECC,
         NID_ecdsa_with_SHA256, NID_brainpoolP256r1, 1, 0,
-        TLS1_3_VERSION, 0, -1, -1 },
+        TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
     { TLSEXT_SIGALG_ecdsa_brainpoolP384r1_sha384_name,
         TLSEXT_SIGALG_ecdsa_brainpoolP384r1_sha384_alias,
         TLSEXT_SIGALG_ecdsa_brainpoolP384r1_sha384,
         NID_sha384, SSL_MD_SHA384_IDX, EVP_PKEY_EC, SSL_PKEY_ECC,
         NID_ecdsa_with_SHA384, NID_brainpoolP384r1, 1, 0,
-        TLS1_3_VERSION, 0, -1, -1 },
+        TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
     { TLSEXT_SIGALG_ecdsa_brainpoolP512r1_sha512_name,
         TLSEXT_SIGALG_ecdsa_brainpoolP512r1_sha512_alias,
         TLSEXT_SIGALG_ecdsa_brainpoolP512r1_sha512,
         NID_sha512, SSL_MD_SHA512_IDX, EVP_PKEY_EC, SSL_PKEY_ECC,
         NID_ecdsa_with_SHA512, NID_brainpoolP512r1, 1, 0,
-        TLS1_3_VERSION, 0, -1, -1 },
+        TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
 
     { TLSEXT_SIGALG_rsa_pss_rsae_sha256_name,
         "PSS+SHA256", TLSEXT_SIGALG_rsa_pss_rsae_sha256,
@@ -2095,16 +2247,14 @@ static const SIGALG_LOOKUP sigalg_lookup_tbl[] = {
         TLS1_2_VERSION, TLS1_2_VERSION, DTLS1_2_VERSION, DTLS1_2_VERSION },
 
 #ifndef OPENSSL_NO_GOST
-    { TLSEXT_SIGALG_gostr34102012_256_intrinsic_alias, /* RFC9189 */
-        TLSEXT_SIGALG_gostr34102012_256_intrinsic_name,
-        TLSEXT_SIGALG_gostr34102012_256_intrinsic,
+    { TLSEXT_SIGALG_gostr34102012_256_intrinsic_name, /* RFC9189 */
+        NULL, TLSEXT_SIGALG_gostr34102012_256_intrinsic,
         NID_id_GostR3411_2012_256, SSL_MD_GOST12_256_IDX,
         NID_id_GostR3410_2012_256, SSL_PKEY_GOST12_256,
         NID_undef, NID_undef, 1, 0,
         TLS1_2_VERSION, TLS1_2_VERSION, DTLS1_2_VERSION, DTLS1_2_VERSION },
-    { TLSEXT_SIGALG_gostr34102012_256_intrinsic_alias, /* RFC9189 */
-        TLSEXT_SIGALG_gostr34102012_256_intrinsic_name,
-        TLSEXT_SIGALG_gostr34102012_512_intrinsic,
+    { TLSEXT_SIGALG_gostr34102012_512_intrinsic_name, /* RFC9189 */
+        NULL, TLSEXT_SIGALG_gostr34102012_512_intrinsic,
         NID_id_GostR3411_2012_512, SSL_MD_GOST12_512_IDX,
         NID_id_GostR3410_2012_512, SSL_PKEY_GOST12_512,
         NID_undef, NID_undef, 1, 0,
@@ -2162,21 +2312,18 @@ int ssl_setup_sigalgs(SSL_CTX *ctx)
     SIGALG_LOOKUP *cache = NULL;
     uint16_t *tls12_sigalgs_list = NULL;
     EVP_PKEY *tmpkey = EVP_PKEY_new();
-    int istls;
     int ret = 0;
 
     if (ctx == NULL)
         goto err;
 
-    istls = !SSL_CTX_IS_DTLS(ctx);
-
     sigalgs_len = OSSL_NELEM(sigalg_lookup_tbl) + ctx->sigalg_list_len;
 
-    cache = OPENSSL_zalloc(sizeof(const SIGALG_LOOKUP) * sigalgs_len);
+    cache = OPENSSL_calloc(sigalgs_len, sizeof(const SIGALG_LOOKUP));
     if (cache == NULL || tmpkey == NULL)
         goto err;
 
-    tls12_sigalgs_list = OPENSSL_zalloc(sizeof(uint16_t) * sigalgs_len);
+    tls12_sigalgs_list = OPENSSL_calloc(sigalgs_len, sizeof(uint16_t));
     if (tls12_sigalgs_list == NULL)
         goto err;
 
@@ -2224,15 +2371,15 @@ int ssl_setup_sigalgs(SSL_CTX *ctx)
         cache[cache_idx].hash = si.hash_name ? OBJ_txt2nid(si.hash_name) : NID_undef;
         cache[cache_idx].hash_idx = ssl_get_md_idx(cache[cache_idx].hash);
         cache[cache_idx].sig = OBJ_txt2nid(si.sigalg_name);
-        cache[cache_idx].sig_idx = i + SSL_PKEY_NUM;
+        cache[cache_idx].sig_idx = (int)(i + SSL_PKEY_NUM);
         cache[cache_idx].sigandhash = OBJ_txt2nid(si.sigalg_name);
         cache[cache_idx].curve = NID_undef;
         cache[cache_idx].mintls = TLS1_3_VERSION;
         cache[cache_idx].maxtls = TLS1_3_VERSION;
-        cache[cache_idx].mindtls = -1;
-        cache[cache_idx].maxdtls = -1;
+        cache[cache_idx].mindtls = DTLS1_3_VERSION;
+        cache[cache_idx].maxdtls = DTLS1_3_VERSION;
         /* Compatibility with TLS 1.3 is checked on load */
-        cache[cache_idx].available = istls;
+        cache[cache_idx].available = 1;
         cache[cache_idx].advertise = 0;
         cache_idx++;
     }
@@ -2353,21 +2500,25 @@ char *SSL_get1_builtin_sigalgs(OSSL_LIB_CTX *libctx)
     return retval;
 }
 
-/* Lookup TLS signature algorithm */
+/* Find known TLS signature algorithm */
+static const SIGALG_LOOKUP *tls1_find_sigalg(const SSL_CTX *ctx,
+    uint16_t sigalg)
+{
+    const SIGALG_LOOKUP *lu = ctx->sigalg_lookup_cache;
+
+    for (size_t i = 0; i < ctx->sigalg_lookup_cache_len; lu++, i++)
+        if (lu->sigalg == sigalg)
+            return lu;
+    return NULL;
+}
+
+/* Look up available TLS signature algorithm */
 static const SIGALG_LOOKUP *tls1_lookup_sigalg(const SSL_CTX *ctx,
     uint16_t sigalg)
 {
-    size_t i;
-    const SIGALG_LOOKUP *lu = ctx->sigalg_lookup_cache;
+    const SIGALG_LOOKUP *lu = tls1_find_sigalg(ctx, sigalg);
 
-    for (i = 0; i < ctx->sigalg_lookup_cache_len; lu++, i++) {
-        if (lu->sigalg == sigalg) {
-            if (!lu->available)
-                return NULL;
-            return lu;
-        }
-    }
-    return NULL;
+    return (lu != NULL && lu->available) ? lu : NULL;
 }
 
 /* Lookup hash: return 0 if invalid or not enabled */
@@ -2436,7 +2587,7 @@ static const SIGALG_LOOKUP *tls1_get_legacy_sigalg(const SSL_CONNECTION *s,
                 if (clu == NULL)
                     continue;
                 if (clu->amask & s->s3.tmp.new_cipher->algorithm_auth) {
-                    idx = i;
+                    idx = (int)i;
                     break;
                 }
             }
@@ -2471,7 +2622,7 @@ static const SIGALG_LOOKUP *tls1_get_legacy_sigalg(const SSL_CONNECTION *s,
                 }
             }
         } else {
-            idx = s->cert->key - s->cert->pkeys;
+            idx = (int)(s->cert->key - s->cert->pkeys);
         }
     }
     if (idx < 0 || idx >= (int)OSSL_NELEM(tls_default_sigalg))
@@ -2501,7 +2652,7 @@ int tls1_set_peer_legacy_sigalg(SSL_CONNECTION *s, const EVP_PKEY *pkey)
 
     if (ssl_cert_lookup_by_pkey(pkey, &idx, SSL_CONNECTION_GET_CTX(s)) == NULL)
         return 0;
-    lu = tls1_get_legacy_sigalg(s, idx);
+    lu = tls1_get_legacy_sigalg(s, (int)idx);
     if (lu == NULL)
         return 0;
     s->s3.tmp.peer_sigalg = lu;
@@ -2681,13 +2832,13 @@ int tls12_check_peer_sigalg(SSL_CONNECTION *s, uint16_t sig, EVP_PKEY *pkey)
 
     pkeyid = EVP_PKEY_get_id(pkey);
 
-    if (SSL_CONNECTION_IS_TLS13(s)) {
-        /* Disallow DSA for TLS 1.3 */
+    if (SSL_CONNECTION_IS_VERSION13(s)) {
+        /* Disallow DSA for (D)TLS 1.3 */
         if (pkeyid == EVP_PKEY_DSA) {
             SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_R_WRONG_SIGNATURE_TYPE);
             return 0;
         }
-        /* Only allow PSS for TLS 1.3 */
+        /* Only allow PSS for (D)TLS 1.3 */
         if (pkeyid == EVP_PKEY_RSA)
             pkeyid = EVP_PKEY_RSA_PSS;
     }
@@ -2717,10 +2868,10 @@ int tls12_check_peer_sigalg(SSL_CONNECTION *s, uint16_t sig, EVP_PKEY *pkey)
     }
 
     /*
-     * Check sigalgs is known. Disallow SHA1/SHA224 with TLS 1.3. Check key type
+     * Check sigalgs is known. Disallow SHA1/SHA224 with (D)TLS 1.3. Check key type
      * is consistent with signature: RSA keys can be used for RSA-PSS
      */
-    if ((SSL_CONNECTION_IS_TLS13(s)
+    if ((SSL_CONNECTION_IS_VERSION13(s)
             && (lu->hash == NID_sha1 || lu->hash == NID_sha224))
         || (pkeyid != lu->sig
             && (lu->sig != EVP_PKEY_RSA_PSS || pkeyid != EVP_PKEY_RSA))) {
@@ -2737,9 +2888,14 @@ int tls12_check_peer_sigalg(SSL_CONNECTION *s, uint16_t sig, EVP_PKEY *pkey)
     }
 
     if (pkeyid == EVP_PKEY_EC) {
+        /*
+         * No point-format check on either the peer's or own cert.
+         * We accept any form we can decode, and send the cert we
+         * have.
+         */
 
-        /* For TLS 1.3 or Suite B check curve matches signature algorithm */
-        if (SSL_CONNECTION_IS_TLS13(s) || tls1_suiteb(s)) {
+        /* For (D)TLS 1.3 or Suite B check curve matches signature algorithm */
+        if (SSL_CONNECTION_IS_VERSION13(s) || tls1_suiteb(s)) {
             int curve = ssl_get_EC_curve_nid(pkey);
 
             if (lu->curve != NID_undef && curve != lu->curve) {
@@ -2747,7 +2903,7 @@ int tls12_check_peer_sigalg(SSL_CONNECTION *s, uint16_t sig, EVP_PKEY *pkey)
                 return 0;
             }
         }
-        if (!SSL_CONNECTION_IS_TLS13(s)) {
+        if (!SSL_CONNECTION_IS_VERSION13(s)) {
             /* Check curve matches extensions */
             if (!tls1_check_group_id(s, tls1_get_group_id(pkey), 1)) {
                 SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_R_WRONG_CURVE);
@@ -2865,12 +3021,11 @@ int ssl_set_client_disabled(SSL_CONNECTION *s)
  * @s: SSL connection that you want to use the cipher on
  * @c: cipher to check
  * @op: Security check that you want to do
- * @ecdhe: If set to 1 then TLSv1 ECDHE ciphers are also allowed in SSLv3
  *
  * Returns 1 when it's disabled, 0 when enabled.
  */
 int ssl_cipher_disabled(const SSL_CONNECTION *s, const SSL_CIPHER *c,
-    int op, int ecdhe)
+    int op)
 {
     int minversion = SSL_CONNECTION_IS_DTLS(s) ? c->min_dtls : c->min_tls;
     int maxversion = SSL_CONNECTION_IS_DTLS(s) ? c->max_dtls : c->max_tls;
@@ -2891,15 +3046,6 @@ int ssl_cipher_disabled(const SSL_CONNECTION *s, const SSL_CIPHER *c,
         default:
             return 1;
         }
-
-    /*
-     * For historical reasons we will allow ECHDE to be selected by a server
-     * in SSLv3 if we are a client
-     */
-    if (minversion == TLS1_VERSION
-        && ecdhe
-        && (c->algorithm_mkey & (SSL_kECDHE | SSL_kECDHEPSK)) != 0)
-        minversion = SSL3_VERSION;
 
     if (ssl_version_cmp(s, minversion, s->s3.tmp.max_ver) > 0
         || ssl_version_cmp(s, maxversion, s->s3.tmp.min_ver) < 0)
@@ -2928,9 +3074,11 @@ int tls1_set_server_sigalgs(SSL_CONNECTION *s)
     if (s->s3.tmp.valid_flags)
         memset(s->s3.tmp.valid_flags, 0, s->ssl_pkey_num * sizeof(uint32_t));
     else
-        s->s3.tmp.valid_flags = OPENSSL_zalloc(s->ssl_pkey_num * sizeof(uint32_t));
-    if (s->s3.tmp.valid_flags == NULL)
+        s->s3.tmp.valid_flags = OPENSSL_calloc(s->ssl_pkey_num, sizeof(uint32_t));
+    if (s->s3.tmp.valid_flags == NULL) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         return 0;
+    }
     /*
      * If peer sent no signature algorithms check to see if we support
      * the default algorithm for each certificate type
@@ -2941,7 +3089,7 @@ int tls1_set_server_sigalgs(SSL_CONNECTION *s)
         size_t sent_sigslen = tls12_get_psigalgs(s, 1, &sent_sigs);
 
         for (i = 0; i < s->ssl_pkey_num; i++) {
-            const SIGALG_LOOKUP *lu = tls1_get_legacy_sigalg(s, i);
+            const SIGALG_LOOKUP *lu = tls1_get_legacy_sigalg(s, (int)i);
             size_t j;
 
             if (lu == NULL)
@@ -2988,7 +3136,7 @@ SSL_TICKET_STATUS tls_get_ticket_from_client(SSL_CONNECTION *s,
     s->ext.ticket_expected = 0;
 
     /*
-     * If tickets disabled or not supported by the protocol version
+     * If tickets are disabled or not supported by the protocol version
      * (e.g. TLSv1.3) behave as if no ticket present to permit stateful
      * resumption.
      */
@@ -3041,7 +3189,7 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL_CONNECTION *s,
     SSL_TICKET_STATUS ret = SSL_TICKET_FATAL_ERR_OTHER;
     size_t mlen;
     unsigned char tick_hmac[EVP_MAX_MD_SIZE];
-    SSL_HMAC *hctx = NULL;
+    SSL_HMAC hctx, *constructed_hctx = NULL;
     EVP_CIPHER_CTX *ctx = NULL;
     SSL_CTX *tctx = s->session_ctx;
     SSL_CTX *sctx = SSL_CONNECTION_GET_CTX(s);
@@ -3054,7 +3202,7 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL_CONNECTION *s,
         ret = SSL_TICKET_EMPTY;
         goto end;
     }
-    if (!SSL_CONNECTION_IS_TLS13(s) && s->ext.session_secret_cb) {
+    if (!SSL_CONNECTION_IS_VERSION13(s) && s->ext.session_secret_cb) {
         /*
          * Indicate that the ticket couldn't be decrypted rather than
          * generating the session from ticket now, trigger
@@ -3072,8 +3220,8 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL_CONNECTION *s,
     }
 
     /* Initialize session ticket encryption and HMAC contexts */
-    hctx = ssl_hmac_new(tctx);
-    if (hctx == NULL) {
+
+    if ((constructed_hctx = ssl_hmac_construct(tctx, &hctx)) == NULL) {
         ret = SSL_TICKET_FATAL_ERR_MALLOC;
         goto end;
     }
@@ -3096,14 +3244,14 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL_CONNECTION *s,
                 nctick,
                 nctick + TLSEXT_KEYNAME_LENGTH,
                 ctx,
-                ssl_hmac_get0_EVP_MAC_CTX(hctx),
+                ssl_hmac_get0_EVP_MAC_CTX(&hctx),
                 0);
 #ifndef OPENSSL_NO_DEPRECATED_3_0
         else if (tctx->ext.ticket_key_cb != NULL)
             /* if 0 is returned, write an empty ticket */
             rv = tctx->ext.ticket_key_cb(SSL_CONNECTION_GET_USER_SSL(s), nctick,
                 nctick + TLSEXT_KEYNAME_LENGTH,
-                ctx, ssl_hmac_get0_HMAC_CTX(hctx), 0);
+                ctx, ssl_hmac_get0_HMAC_CTX(&hctx), 0);
 #endif
         if (rv < 0) {
             ret = SSL_TICKET_FATAL_ERR_OTHER;
@@ -3116,8 +3264,6 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL_CONNECTION *s,
         if (rv == 2)
             renew_ticket = 1;
     } else {
-        EVP_CIPHER *aes256cbc = NULL;
-
         /* Check key name matches */
         if (memcmp(etick, tctx->ext.tick_key_name,
                 TLSEXT_KEYNAME_LENGTH)
@@ -3126,30 +3272,24 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL_CONNECTION *s,
             goto end;
         }
 
-        aes256cbc = EVP_CIPHER_fetch(sctx->libctx, "AES-256-CBC",
-            sctx->propq);
-        if (aes256cbc == NULL
-            || ssl_hmac_init(hctx, tctx->ext.secure->tick_hmac_key,
-                   sizeof(tctx->ext.secure->tick_hmac_key),
-                   "SHA256")
+        if (ssl_hmac_init(&hctx, tctx->ext.secure->tick_hmac_key,
+                sizeof(tctx->ext.secure->tick_hmac_key), "SHA256")
                 <= 0
-            || EVP_DecryptInit_ex(ctx, aes256cbc, NULL,
+            || EVP_DecryptInit_ex(ctx, tctx->tktenc, NULL,
                    tctx->ext.secure->tick_aes_key,
                    etick + TLSEXT_KEYNAME_LENGTH)
                 <= 0) {
-            EVP_CIPHER_free(aes256cbc);
             ret = SSL_TICKET_FATAL_ERR_OTHER;
             goto end;
         }
-        EVP_CIPHER_free(aes256cbc);
-        if (SSL_CONNECTION_IS_TLS13(s))
+        if (SSL_CONNECTION_IS_VERSION13(s))
             renew_ticket = 1;
     }
     /*
      * Attempt to process session ticket, first conduct sanity and integrity
      * checks on ticket.
      */
-    mlen = ssl_hmac_size(hctx);
+    mlen = ssl_hmac_size(&hctx);
     if (mlen == 0) {
         ret = SSL_TICKET_FATAL_ERR_OTHER;
         goto end;
@@ -3168,8 +3308,8 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL_CONNECTION *s,
     }
     eticklen -= mlen;
     /* Check HMAC of encrypted ticket */
-    if (ssl_hmac_update(hctx, etick, eticklen) <= 0
-        || ssl_hmac_final(hctx, tick_hmac, NULL, sizeof(tick_hmac)) <= 0) {
+    if (ssl_hmac_update(&hctx, etick, eticklen) <= 0
+        || ssl_hmac_final(&hctx, tick_hmac, NULL, sizeof(tick_hmac)) <= 0) {
         ret = SSL_TICKET_FATAL_ERR_OTHER;
         goto end;
     }
@@ -3197,7 +3337,7 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL_CONNECTION *s,
     p = sdec;
 
     sess = d2i_SSL_SESSION_ex(NULL, &p, slen, sctx->libctx, sctx->propq);
-    slen -= p - sdec;
+    slen -= (int)(p - sdec);
     OPENSSL_free(sdec);
     if (sess) {
         /* Some additional consistency checks */
@@ -3231,7 +3371,7 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL_CONNECTION *s,
 
 end:
     EVP_CIPHER_CTX_free(ctx);
-    ssl_hmac_free(hctx);
+    ssl_hmac_destruct(constructed_hctx);
 
     /*
      * If set, the decrypt_ticket_cb() is called unless a fatal error was
@@ -3287,7 +3427,7 @@ end:
         }
     }
 
-    if (s->ext.session_secret_cb == NULL || SSL_CONNECTION_IS_TLS13(s)) {
+    if (s->ext.session_secret_cb == NULL || SSL_CONNECTION_IS_VERSION13(s)) {
         switch (ret) {
         case SSL_TICKET_NO_DECRYPT:
         case SSL_TICKET_SUCCESS_RENEW:
@@ -3307,18 +3447,20 @@ static int tls12_sigalg_allowed(const SSL_CONNECTION *s, int op,
 {
     unsigned char sigalgstr[2];
     int secbits;
+    const int version1_3 = SSL_CONNECTION_IS_DTLS(s) ? DTLS1_3_VERSION
+                                                     : TLS1_3_VERSION;
 
     if (lu == NULL || !lu->available)
         return 0;
-    /* DSA is not allowed in TLS 1.3 */
-    if (SSL_CONNECTION_IS_TLS13(s) && lu->sig == EVP_PKEY_DSA)
+    /* DSA is not allowed in (D)TLSv1.3 */
+    if (SSL_CONNECTION_IS_VERSION13(s) && lu->sig == EVP_PKEY_DSA)
         return 0;
     /*
-     * At some point we should fully axe DSA/etc. in ClientHello as per TLS 1.3
+     * At some point we should fully axe DSA/etc. in ClientHello as per (D)TLSv1.3
      * spec
      */
-    if (!s->server && !SSL_CONNECTION_IS_DTLS(s)
-        && s->s3.tmp.min_ver >= TLS1_3_VERSION
+    if (!s->server && s->s3.tmp.min_ver != 0
+        && ssl_version_cmp(s, s->s3.tmp.min_ver, version1_3) >= 0
         && (lu->sig == EVP_PKEY_DSA || lu->hash_idx == SSL_MD_SHA1_IDX
             || lu->hash_idx == SSL_MD_MD5_IDX
             || lu->hash_idx == SSL_MD_SHA224_IDX))
@@ -3331,22 +3473,26 @@ static int tls12_sigalg_allowed(const SSL_CONNECTION *s, int op,
     if (lu->sig == NID_id_GostR3410_2012_256
         || lu->sig == NID_id_GostR3410_2012_512
         || lu->sig == NID_id_GostR3410_2001) {
-        /* We never allow GOST sig algs on the server with TLSv1.3 */
-        if (s->server && SSL_CONNECTION_IS_TLS13(s))
+        int any_version = SSL_CONNECTION_IS_DTLS(s) ? DTLS_ANY_VERSION : TLS_ANY_VERSION;
+
+        /* We never allow GOST sig algs on the server with (D)TLSv1.3 */
+        if (s->server && SSL_CONNECTION_IS_VERSION13(s))
             return 0;
         if (!s->server
-            && SSL_CONNECTION_GET_SSL(s)->method->version == TLS_ANY_VERSION
-            && s->s3.tmp.max_ver >= TLS1_3_VERSION) {
+            && SSL_CONNECTION_GET_SSL(s)->method->version == any_version
+            && s->s3.tmp.max_ver != 0
+            && ssl_version_cmp(s, s->s3.tmp.max_ver, version1_3) >= 0) {
             int i, num;
             STACK_OF(SSL_CIPHER) *sk;
 
             /*
-             * We're a client that could negotiate TLSv1.3. We only allow GOST
-             * sig algs if we could negotiate TLSv1.2 or below and we have GOST
+             * We're a client that could negotiate (D)TLSv1.3. We only allow GOST
+             * sig algs if we could negotiate (D)TLSv1.2 or below and we have GOST
              * ciphersuites enabled.
              */
 
-            if (s->s3.tmp.min_ver >= TLS1_3_VERSION)
+            if (s->s3.tmp.min_ver != 0
+                && ssl_version_cmp(s, s->s3.tmp.min_ver, version1_3) >= 0)
                 return 0;
 
             sk = SSL_get_ciphers(SSL_CONNECTION_GET_SSL(s));
@@ -3356,7 +3502,7 @@ static int tls12_sigalg_allowed(const SSL_CONNECTION *s, int op,
 
                 c = sk_SSL_CIPHER_value(sk, i);
                 /* Skip disabled ciphers */
-                if (ssl_cipher_disabled(s, c, SSL_SECOP_CIPHER_SUPPORTED, 0))
+                if (ssl_cipher_disabled(s, c, SSL_SECOP_CIPHER_SUPPORTED))
                     continue;
 
                 if ((c->algorithm_mkey & (SSL_kGOST | SSL_kGOST18)) != 0)
@@ -3427,7 +3573,7 @@ int tls12_copy_sigalgs(SSL_CONNECTION *s, WPACKET *pkt,
          * If TLS 1.3 must have at least one valid TLS 1.3 message
          * signing algorithm: i.e. neither RSA nor SHA1/SHA224
          */
-        if (rv == 0 && (!SSL_CONNECTION_IS_TLS13(s) || (lu->sig != EVP_PKEY_RSA && lu->hash != NID_sha1 && lu->hash != NID_sha224)))
+        if (rv == 0 && (!SSL_CONNECTION_IS_VERSION13(s) || (lu->sig != EVP_PKEY_RSA && lu->hash != NID_sha1 && lu->hash != NID_sha224)))
             rv = 1;
     }
     if (rv == 0)
@@ -3484,7 +3630,7 @@ static int tls1_set_shared_sigalgs(SSL_CONNECTION *s)
         conflen = c->conf_sigalgslen;
     } else
         conflen = tls12_get_psigalgs(s, 0, &conf);
-    if (s->options & SSL_OP_CIPHER_SERVER_PREFERENCE || is_suiteb) {
+    if (s->options & SSL_OP_SERVER_PREFERENCE || is_suiteb) {
         pref = conf;
         preflen = conflen;
         allow = s->s3.tmp.peer_sigalgs;
@@ -3497,7 +3643,7 @@ static int tls1_set_shared_sigalgs(SSL_CONNECTION *s)
     }
     nmatch = tls12_shared_sigalgs(s, NULL, pref, preflen, allow, allowlen);
     if (nmatch) {
-        if ((salgs = OPENSSL_malloc(nmatch * sizeof(*salgs))) == NULL)
+        if ((salgs = OPENSSL_malloc_array(nmatch, sizeof(*salgs))) == NULL)
             return 0;
         nmatch = tls12_shared_sigalgs(s, salgs, pref, preflen, allow, allowlen);
     } else {
@@ -3508,7 +3654,7 @@ static int tls1_set_shared_sigalgs(SSL_CONNECTION *s)
     return 1;
 }
 
-int tls1_save_u16(PACKET *pkt, uint16_t **pdest, size_t *pdestlen)
+int tls1_save_u16(PACKET *pkt, uint16_t **pdest, size_t *pdestlen, size_t maxnum)
 {
     unsigned int stmp;
     size_t size, i;
@@ -3522,7 +3668,14 @@ int tls1_save_u16(PACKET *pkt, uint16_t **pdest, size_t *pdestlen)
 
     size >>= 1;
 
-    if ((buf = OPENSSL_malloc(size * sizeof(*buf))) == NULL)
+    /*
+     * We ignore any entries in the list larger than the maximum number we
+     * will accept.
+     */
+    if (size > maxnum)
+        size = maxnum;
+
+    if ((buf = OPENSSL_malloc_array(size, sizeof(*buf))) == NULL)
         return 0;
     for (i = 0; i < size && PACKET_get_net_2(pkt, &stmp); i++)
         buf[i] = stmp;
@@ -3548,12 +3701,16 @@ int tls1_save_sigalgs(SSL_CONNECTION *s, PACKET *pkt, int cert)
     if (s->cert == NULL)
         return 0;
 
+    /*
+     * We restrict the number of signature algorithms we are willing to process
+     * to 128. Any beyond this number are simply ignored.
+     */
     if (cert)
         return tls1_save_u16(pkt, &s->s3.tmp.peer_cert_sigalgs,
-            &s->s3.tmp.peer_cert_sigalgslen);
+            &s->s3.tmp.peer_cert_sigalgslen, MAX_SIGALGS);
     else
         return tls1_save_u16(pkt, &s->s3.tmp.peer_sigalgs,
-            &s->s3.tmp.peer_sigalgslen);
+            &s->s3.tmp.peer_sigalgslen, MAX_SIGALGS);
 }
 
 /* Set preferred digest for each key type */
@@ -3574,7 +3731,7 @@ int tls1_process_sigalgs(SSL_CONNECTION *s)
         int idx = sigptr->sig_idx;
 
         /* Ignore PKCS1 based sig algs in TLSv1.3 */
-        if (SSL_CONNECTION_IS_TLS13(s) && sigptr->sig == EVP_PKEY_RSA)
+        if (SSL_CONNECTION_IS_VERSION13(s) && sigptr->sig == EVP_PKEY_RSA)
             continue;
         /* If not disabled indicate we can explicitly sign */
         if (pvalid[idx] == 0
@@ -3589,22 +3746,20 @@ int SSL_get_sigalgs(SSL *s, int idx,
     unsigned char *rsig, unsigned char *rhash)
 {
     uint16_t *psig;
-    size_t numsigalgs;
+    int numsigalgs;
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
 
     if (sc == NULL)
         return 0;
 
-    psig = sc->s3.tmp.peer_sigalgs;
-    numsigalgs = sc->s3.tmp.peer_sigalgslen;
-
-    if (psig == NULL || numsigalgs > INT_MAX)
+    /* A TLS peer can't propose more sigalgs than would fit in an int. */
+    numsigalgs = (int)sc->s3.tmp.peer_sigalgslen;
+    if (idx >= numsigalgs || (psig = sc->s3.tmp.peer_sigalgs) == NULL)
         return 0;
+
     if (idx >= 0) {
         const SIGALG_LOOKUP *lu;
 
-        if (idx >= (int)numsigalgs)
-            return 0;
         psig += idx;
         if (rhash != NULL)
             *rhash = (unsigned char)((*psig >> 8) & 0xff);
@@ -3648,6 +3803,57 @@ int SSL_get_shared_sigalgs(SSL *s, int idx,
     if (rhash != NULL)
         *rhash = (unsigned char)((shsigalgs->sigalg >> 8) & 0xff);
     return (int)sc->shared_sigalgslen;
+}
+
+int SSL_get0_sigalg(SSL *s, int idx, unsigned int *codepoint,
+    const char **name)
+{
+    SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
+    const SIGALG_LOOKUP *lu;
+    uint16_t *psig;
+    int numsigalgs;
+
+    if (sc == NULL)
+        return 0;
+
+    /* A TLS peer can't propose more sigalgs than would fit in an int. */
+    numsigalgs = (int)sc->s3.tmp.peer_sigalgslen;
+    if (idx >= numsigalgs || (psig = sc->s3.tmp.peer_sigalgs) == NULL)
+        return 0;
+
+    if (idx >= 0) {
+        if (codepoint != NULL)
+            *codepoint = psig[idx];
+        lu = tls1_find_sigalg(SSL_CONNECTION_GET_CTX(sc), psig[idx]);
+        if (name != NULL)
+            *name = lu == NULL ? NULL : lu->name;
+    }
+    return numsigalgs;
+}
+
+int SSL_get0_shared_sigalg(SSL *s, int idx, unsigned int *codepoint,
+    const char **name)
+{
+    SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
+    const SIGALG_LOOKUP *lu;
+    int numsigalgs;
+
+    if (sc == NULL)
+        return 0;
+
+    /* A TLS peer can't propose more sigalgs than would fit in an int. */
+    numsigalgs = (int)sc->shared_sigalgslen;
+    if (idx >= numsigalgs || sc->shared_sigalgs == NULL)
+        return 0;
+
+    if (idx >= 0) {
+        lu = sc->shared_sigalgs[idx];
+        if (codepoint != NULL)
+            *codepoint = lu->sigalg;
+        if (name != NULL)
+            *name = lu->name;
+    }
+    return numsigalgs;
 }
 
 /* Maximum possible number of unique entries in sigalgs array */
@@ -3812,7 +4018,7 @@ int tls1_set_raw_sigalgs(CERT *c, const uint16_t *psigs, size_t salglen,
 {
     uint16_t *sigalgs;
 
-    if ((sigalgs = OPENSSL_malloc(salglen * sizeof(*sigalgs))) == NULL)
+    if ((sigalgs = OPENSSL_malloc_array(salglen, sizeof(*sigalgs))) == NULL)
         return 0;
     memcpy(sigalgs, psigs, salglen * sizeof(*sigalgs));
 
@@ -3836,7 +4042,7 @@ int tls1_set_sigalgs(CERT *c, const int *psig_nids, size_t salglen, int client)
 
     if (salglen & 1)
         return 0;
-    if ((sigalgs = OPENSSL_malloc((salglen / 2) * sizeof(*sigalgs))) == NULL)
+    if ((sigalgs = OPENSSL_malloc_array(salglen / 2, sizeof(*sigalgs))) == NULL)
         return 0;
     for (i = 0, sptr = sigalgs; i < salglen; i += 2) {
         size_t j;
@@ -3881,7 +4087,7 @@ static int tls1_check_sig_alg(SSL_CONNECTION *s, X509 *x, int default_nid)
     size_t sigalgslen;
 
     /*-
-     * RFC 8446, section 4.2.3:
+     * RFC 9846, section 4.3.3:
      *
      * The signatures on certificates that are self-signed or certificates
      * that are trust anchors are not validated, since they begin a
@@ -3896,7 +4102,7 @@ static int tls1_check_sig_alg(SSL_CONNECTION *s, X509 *x, int default_nid)
     if (default_nid)
         return sig_nid == default_nid ? 1 : 0;
 
-    if (SSL_CONNECTION_IS_TLS13(s) && s->s3.tmp.peer_cert_sigalgs != NULL) {
+    if (SSL_CONNECTION_IS_VERSION13(s) && s->s3.tmp.peer_cert_sigalgs != NULL) {
         /*
          * If we're in TLSv1.3 then we only get here if we're checking the
          * chain. If the peer has specified peer_cert_sigalgs then we use them
@@ -4016,7 +4222,7 @@ int tls1_check_chain(SSL_CONNECTION *s, X509 *x, EVP_PKEY *pk,
                 SSL_CONNECTION_GET_CTX(s))
             == NULL)
             return 0;
-        idx = certidx;
+        idx = (int)certidx;
         pvalid = s->s3.tmp.valid_flags + idx;
 
         if (c->cert_flags & SSL_CERT_FLAGS_CHECK_TLS_STRICT)
@@ -4108,7 +4314,7 @@ int tls1_check_chain(SSL_CONNECTION *s, X509 *x, EVP_PKEY *pk,
             }
         }
         /* Check signature algorithm of each cert in chain */
-        if (SSL_CONNECTION_IS_TLS13(s)) {
+        if (SSL_CONNECTION_IS_VERSION13(s)) {
             /*
              * We only get here if the application has called SSL_check_chain(),
              * so check_flags is always set.
@@ -4599,7 +4805,7 @@ int tls_choose_sigalg(SSL_CONNECTION *s, int fatalerrs)
     s->s3.tmp.cert = NULL;
     s->s3.tmp.sigalg = NULL;
 
-    if (SSL_CONNECTION_IS_TLS13(s)) {
+    if (SSL_CONNECTION_IS_VERSION13(s)) {
         lu = find_sig_alg(s, NULL, NULL);
         if (lu == NULL) {
             if (!fatalerrs)
@@ -4612,7 +4818,7 @@ int tls_choose_sigalg(SSL_CONNECTION *s, int fatalerrs)
         /* If ciphersuite doesn't require a cert nothing to do */
         if (!(s->s3.tmp.new_cipher->algorithm_auth & SSL_aCERT))
             return 1;
-        if (!s->server && !ssl_has_cert(s, s->cert->key - s->cert->pkeys))
+        if (!s->server && !ssl_has_cert(s, (int)(s->cert->key - s->cert->pkeys)))
             return 1;
 
         if (SSL_USE_SIGALGS(s)) {
@@ -4639,7 +4845,7 @@ int tls_choose_sigalg(SSL_CONNECTION *s, int fatalerrs)
                         if ((sig_idx = tls12_get_cert_sigalg_idx(s, lu)) == -1)
                             continue;
                     } else {
-                        int cc_idx = s->cert->key - s->cert->pkeys;
+                        int cc_idx = (int)(s->cert->key - s->cert->pkeys);
 
                         sig_idx = lu->sig_idx;
                         if (cc_idx != sig_idx)
@@ -4739,7 +4945,7 @@ int SSL_CTX_set_tlsext_max_fragment_length(SSL_CTX *ctx, uint8_t mode)
 {
     if (mode != TLSEXT_max_fragment_length_DISABLED
         && !IS_MAX_FRAGMENT_LENGTH_EXT_VALID(mode)) {
-        ERR_raise(ERR_LIB_SSL, SSL_R_SSL3_EXT_INVALID_MAX_FRAGMENT_LENGTH);
+        ERR_raise(ERR_LIB_SSL, SSL_R_TLS_EXT_INVALID_MAX_FRAGMENT_LENGTH);
         return 0;
     }
 
@@ -4757,7 +4963,7 @@ int SSL_set_tlsext_max_fragment_length(SSL *ssl, uint8_t mode)
 
     if (mode != TLSEXT_max_fragment_length_DISABLED
         && !IS_MAX_FRAGMENT_LENGTH_EXT_VALID(mode)) {
-        ERR_raise(ERR_LIB_SSL, SSL_R_SSL3_EXT_INVALID_MAX_FRAGMENT_LENGTH);
+        ERR_raise(ERR_LIB_SSL, SSL_R_TLS_EXT_INVALID_MAX_FRAGMENT_LENGTH);
         return 0;
     }
 
@@ -4775,41 +4981,28 @@ uint8_t SSL_SESSION_get_max_fragment_length(const SSL_SESSION *session)
 /*
  * Helper functions for HMAC access with legacy support included.
  */
-SSL_HMAC *ssl_hmac_new(const SSL_CTX *ctx)
+SSL_HMAC *ssl_hmac_construct(const SSL_CTX *ctx, SSL_HMAC *hctx)
 {
-    SSL_HMAC *ret = OPENSSL_zalloc(sizeof(*ret));
-    EVP_MAC *mac = NULL;
-
-    if (ret == NULL)
+    if (hctx == NULL)
         return NULL;
+    hctx->ctx = NULL;
 #ifndef OPENSSL_NO_DEPRECATED_3_0
+    hctx->old_ctx = NULL;
     if (ctx->ext.ticket_key_evp_cb == NULL
-        && ctx->ext.ticket_key_cb != NULL) {
-        if (!ssl_hmac_old_new(ret))
-            goto err;
-        return ret;
-    }
+        && ctx->ext.ticket_key_cb != NULL)
+        return ssl_hmac_old_construct(hctx);
 #endif
-    mac = EVP_MAC_fetch(ctx->libctx, "HMAC", ctx->propq);
-    if (mac == NULL || (ret->ctx = EVP_MAC_CTX_new(mac)) == NULL)
-        goto err;
-    EVP_MAC_free(mac);
-    return ret;
-err:
-    EVP_MAC_CTX_free(ret->ctx);
-    EVP_MAC_free(mac);
-    OPENSSL_free(ret);
-    return NULL;
+    hctx->ctx = EVP_MAC_CTX_new(ctx->hmac);
+    return hctx->ctx != NULL ? hctx : NULL;
 }
 
-void ssl_hmac_free(SSL_HMAC *ctx)
+void ssl_hmac_destruct(SSL_HMAC *ctx)
 {
     if (ctx != NULL) {
         EVP_MAC_CTX_free(ctx->ctx);
 #ifndef OPENSSL_NO_DEPRECATED_3_0
-        ssl_hmac_old_free(ctx);
+        ssl_hmac_old_destruct(ctx);
 #endif
-        OPENSSL_free(ctx);
     }
 }
 

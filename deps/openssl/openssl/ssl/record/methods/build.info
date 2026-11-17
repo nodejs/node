@@ -4,7 +4,7 @@ IF[{- !$disabled{ktls} -}]
 ENDIF
 
 SOURCE[../../../libssl]=\
-        tls_common.c ssl3_meth.c tls1_meth.c tls13_meth.c tlsany_meth.c \
+        tls_common.c tls1_meth.c tls13_meth.c tlsany_meth.c \
         dtls_meth.c tls_multib.c $KTLSSRC
 
 # For shared builds we need to include the sources needed in providers

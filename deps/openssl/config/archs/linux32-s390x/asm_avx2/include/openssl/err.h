@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -49,25 +49,6 @@ extern "C" {
 
 #define ERR_TXT_MALLOCED 0x01
 #define ERR_TXT_STRING 0x02
-
-#if !defined(OPENSSL_NO_DEPRECATED_3_0) || defined(OSSL_FORCE_ERR_STATE)
-#define ERR_FLAG_MARK 0x01
-#define ERR_FLAG_CLEAR 0x02
-
-#define ERR_NUM_ERRORS 16
-struct err_state_st {
-    int err_flags[ERR_NUM_ERRORS];
-    int err_marks[ERR_NUM_ERRORS];
-    unsigned long err_buffer[ERR_NUM_ERRORS];
-    char *err_data[ERR_NUM_ERRORS];
-    size_t err_data_size[ERR_NUM_ERRORS];
-    int err_data_flags[ERR_NUM_ERRORS];
-    char *err_file[ERR_NUM_ERRORS];
-    int err_line[ERR_NUM_ERRORS];
-    char *err_func[ERR_NUM_ERRORS];
-    int top, bottom;
-};
-#endif
 
 /* library */
 #define ERR_LIB_NONE 1
@@ -280,34 +261,6 @@ static ossl_unused ossl_inline int ERR_COMMON_ERROR(unsigned long errcode)
 #define ERR_PACK(lib, func, reason) \
     ((((unsigned long)(lib) & ERR_LIB_MASK) << ERR_LIB_OFFSET) | (((unsigned long)(reason) & ERR_REASON_MASK)))
 
-#ifndef OPENSSL_NO_DEPRECATED_3_0
-#define SYS_F_FOPEN 0
-#define SYS_F_CONNECT 0
-#define SYS_F_GETSERVBYNAME 0
-#define SYS_F_SOCKET 0
-#define SYS_F_IOCTLSOCKET 0
-#define SYS_F_BIND 0
-#define SYS_F_LISTEN 0
-#define SYS_F_ACCEPT 0
-#define SYS_F_WSASTARTUP 0
-#define SYS_F_OPENDIR 0
-#define SYS_F_FREAD 0
-#define SYS_F_GETADDRINFO 0
-#define SYS_F_GETNAMEINFO 0
-#define SYS_F_SETSOCKOPT 0
-#define SYS_F_GETSOCKOPT 0
-#define SYS_F_GETSOCKNAME 0
-#define SYS_F_GETHOSTBYNAME 0
-#define SYS_F_FFLUSH 0
-#define SYS_F_OPEN 0
-#define SYS_F_CLOSE 0
-#define SYS_F_IOCTL 0
-#define SYS_F_STAT 0
-#define SYS_F_FCNTL 0
-#define SYS_F_FSTAT 0
-#define SYS_F_SENDFILE 0
-#endif
-
 /*
  * All ERR_R_ codes must be combined with ERR_RFLAG_COMMON.
  */
@@ -485,15 +438,6 @@ int ERR_unload_strings(int lib, ERR_STRING_DATA *str);
 #define ERR_free_strings() \
     while (0)              \
     continue
-#endif
-#ifndef OPENSSL_NO_DEPRECATED_1_1_0
-OSSL_DEPRECATEDIN_1_1_0 void ERR_remove_thread_state(void *);
-#endif
-#ifndef OPENSSL_NO_DEPRECATED_1_0_0
-OSSL_DEPRECATEDIN_1_0_0 void ERR_remove_state(unsigned long pid);
-#endif
-#ifndef OPENSSL_NO_DEPRECATED_3_0
-OSSL_DEPRECATEDIN_3_0 ERR_STATE *ERR_get_state(void);
 #endif
 
 int ERR_get_next_error_library(void);

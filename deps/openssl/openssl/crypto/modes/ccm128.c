@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,9 +13,9 @@
 
 #ifndef STRICT_ALIGNMENT
 #ifdef __GNUC__
-typedef u64 u64_a1 __attribute((__aligned__(1)));
+typedef uint64_t u64_a1 __attribute((__aligned__(1)));
 #else
-typedef u64 u64_a1;
+typedef uint64_t u64_a1;
 #endif
 #endif
 
@@ -28,7 +28,7 @@ void CRYPTO_ccm128_init(CCM128_CONTEXT *ctx,
     block128_f block)
 {
     memset(ctx->nonce.c, 0, sizeof(ctx->nonce.c));
-    ctx->nonce.c[0] = ((u8)(L - 1) & 7) | (u8)(((M - 2) / 2) & 7) << 3;
+    ctx->nonce.c[0] = ((uint8_t)(L - 1) & 7) | (uint8_t)(((M - 2) / 2) & 7) << 3;
     ctx->blocks = 0;
     ctx->block = block;
     ctx->key = key;
@@ -46,17 +46,17 @@ int CRYPTO_ccm128_setiv(CCM128_CONTEXT *ctx,
         return -1; /* nonce is too short */
 
     if (sizeof(mlen) == 8 && L >= 3) {
-        ctx->nonce.c[8] = (u8)(mlen >> (56 % (sizeof(mlen) * 8)));
-        ctx->nonce.c[9] = (u8)(mlen >> (48 % (sizeof(mlen) * 8)));
-        ctx->nonce.c[10] = (u8)(mlen >> (40 % (sizeof(mlen) * 8)));
-        ctx->nonce.c[11] = (u8)(mlen >> (32 % (sizeof(mlen) * 8)));
+        ctx->nonce.c[8] = (uint8_t)(mlen >> (56 % (sizeof(mlen) * 8)));
+        ctx->nonce.c[9] = (uint8_t)(mlen >> (48 % (sizeof(mlen) * 8)));
+        ctx->nonce.c[10] = (uint8_t)(mlen >> (40 % (sizeof(mlen) * 8)));
+        ctx->nonce.c[11] = (uint8_t)(mlen >> (32 % (sizeof(mlen) * 8)));
     } else
         ctx->nonce.u[1] = 0;
 
-    ctx->nonce.c[12] = (u8)(mlen >> 24);
-    ctx->nonce.c[13] = (u8)(mlen >> 16);
-    ctx->nonce.c[14] = (u8)(mlen >> 8);
-    ctx->nonce.c[15] = (u8)mlen;
+    ctx->nonce.c[12] = (uint8_t)(mlen >> 24);
+    ctx->nonce.c[13] = (uint8_t)(mlen >> 16);
+    ctx->nonce.c[14] = (uint8_t)(mlen >> 8);
+    ctx->nonce.c[15] = (uint8_t)mlen;
 
     ctx->nonce.c[0] &= ~0x40; /* clear Adata flag */
     memcpy(&ctx->nonce.c[1], nonce, 14 - L);
@@ -78,29 +78,29 @@ void CRYPTO_ccm128_aad(CCM128_CONTEXT *ctx,
     (*block)(ctx->nonce.c, ctx->cmac.c, ctx->key), ctx->blocks++;
 
     if (alen < (0x10000 - 0x100)) {
-        ctx->cmac.c[0] ^= (u8)(alen >> 8);
-        ctx->cmac.c[1] ^= (u8)alen;
+        ctx->cmac.c[0] ^= (uint8_t)(alen >> 8);
+        ctx->cmac.c[1] ^= (uint8_t)alen;
         i = 2;
     } else if (sizeof(alen) == 8
         && alen >= (size_t)1 << (32 % (sizeof(alen) * 8))) {
         ctx->cmac.c[0] ^= 0xFF;
         ctx->cmac.c[1] ^= 0xFF;
-        ctx->cmac.c[2] ^= (u8)(alen >> (56 % (sizeof(alen) * 8)));
-        ctx->cmac.c[3] ^= (u8)(alen >> (48 % (sizeof(alen) * 8)));
-        ctx->cmac.c[4] ^= (u8)(alen >> (40 % (sizeof(alen) * 8)));
-        ctx->cmac.c[5] ^= (u8)(alen >> (32 % (sizeof(alen) * 8)));
-        ctx->cmac.c[6] ^= (u8)(alen >> 24);
-        ctx->cmac.c[7] ^= (u8)(alen >> 16);
-        ctx->cmac.c[8] ^= (u8)(alen >> 8);
-        ctx->cmac.c[9] ^= (u8)alen;
+        ctx->cmac.c[2] ^= (uint8_t)(alen >> (56 % (sizeof(alen) * 8)));
+        ctx->cmac.c[3] ^= (uint8_t)(alen >> (48 % (sizeof(alen) * 8)));
+        ctx->cmac.c[4] ^= (uint8_t)(alen >> (40 % (sizeof(alen) * 8)));
+        ctx->cmac.c[5] ^= (uint8_t)(alen >> (32 % (sizeof(alen) * 8)));
+        ctx->cmac.c[6] ^= (uint8_t)(alen >> 24);
+        ctx->cmac.c[7] ^= (uint8_t)(alen >> 16);
+        ctx->cmac.c[8] ^= (uint8_t)(alen >> 8);
+        ctx->cmac.c[9] ^= (uint8_t)alen;
         i = 10;
     } else {
         ctx->cmac.c[0] ^= 0xFF;
         ctx->cmac.c[1] ^= 0xFE;
-        ctx->cmac.c[2] ^= (u8)(alen >> 24);
-        ctx->cmac.c[3] ^= (u8)(alen >> 16);
-        ctx->cmac.c[4] ^= (u8)(alen >> 8);
-        ctx->cmac.c[5] ^= (u8)alen;
+        ctx->cmac.c[2] ^= (uint8_t)(alen >> 24);
+        ctx->cmac.c[3] ^= (uint8_t)(alen >> 16);
+        ctx->cmac.c[4] ^= (uint8_t)(alen >> 8);
+        ctx->cmac.c[5] ^= (uint8_t)alen;
         i = 6;
     }
 
@@ -121,7 +121,7 @@ void CRYPTO_ccm128_aad(CCM128_CONTEXT *ctx,
 static void ctr64_inc(unsigned char *counter)
 {
     unsigned int n = 8;
-    u8 c;
+    uint8_t c;
 
     counter += 8;
     do {
@@ -144,8 +144,8 @@ int CRYPTO_ccm128_encrypt(CCM128_CONTEXT *ctx,
     block128_f block = ctx->block;
     void *key = ctx->key;
     union {
-        u64 u[2];
-        u8 c[16];
+        uint64_t u[2];
+        uint8_t c[16];
     } scratch;
 
     if (!(flags0 & 0x40))
@@ -170,8 +170,8 @@ int CRYPTO_ccm128_encrypt(CCM128_CONTEXT *ctx,
     while (len >= 16) {
 #if defined(STRICT_ALIGNMENT)
         union {
-            u64 u[2];
-            u8 c[16];
+            uint64_t u[2];
+            uint8_t c[16];
         } temp;
 
         memcpy(temp.c, inp, 16);
@@ -228,8 +228,8 @@ int CRYPTO_ccm128_decrypt(CCM128_CONTEXT *ctx,
     block128_f block = ctx->block;
     void *key = ctx->key;
     union {
-        u64 u[2];
-        u8 c[16];
+        uint64_t u[2];
+        uint8_t c[16];
     } scratch;
 
     if (!(flags0 & 0x40))
@@ -250,8 +250,8 @@ int CRYPTO_ccm128_decrypt(CCM128_CONTEXT *ctx,
     while (len >= 16) {
 #if defined(STRICT_ALIGNMENT)
         union {
-            u64 u[2];
-            u8 c[16];
+            uint64_t u[2];
+            uint8_t c[16];
         } temp;
 #endif
         (*block)(ctx->nonce.c, scratch.c, key);
@@ -317,8 +317,8 @@ int CRYPTO_ccm128_encrypt_ccm64(CCM128_CONTEXT *ctx,
     block128_f block = ctx->block;
     void *key = ctx->key;
     union {
-        u64 u[2];
-        u8 c[16];
+        uint64_t u[2];
+        uint8_t c[16];
     } scratch;
 
     if (!(flags0 & 0x40))
@@ -381,8 +381,8 @@ int CRYPTO_ccm128_decrypt_ccm64(CCM128_CONTEXT *ctx,
     block128_f block = ctx->block;
     void *key = ctx->key;
     union {
-        u64 u[2];
-        u8 c[16];
+        uint64_t u[2];
+        uint8_t c[16];
     } scratch;
 
     if (!(flags0 & 0x40))

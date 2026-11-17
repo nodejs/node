@@ -44,7 +44,7 @@ const { spawnSync } = require('node:child_process');
   );
 
   assert.strictEqual(status, 1, stderr.toString());
-  assert.match(stderr.toString(), /Error: Access to this API has been restricted/);
+  assert.match(stderr.toString(), /Error(?: \[ERR_ACCESS_DENIED\])?: Access to this API has been restricted/);
 }
 
 {
@@ -78,5 +78,5 @@ const { spawnSync } = require('node:child_process');
   );
 
   assert.strictEqual(status, 1, stderr.toString());
-  assert.match(stderr.toString(), /Error: Access to this API has been restricted/);
+  assert.match(stderr.toString(), /Error(?: \[ERR_ACCESS_DENIED\])?: Access to this API has been restricted/);
 }

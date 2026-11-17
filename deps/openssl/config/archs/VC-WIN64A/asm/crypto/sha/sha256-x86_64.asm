@@ -20,22 +20,21 @@ $L$SEH_begin_sha256_block_data_order:
 
 
 
-	lea	r11,[OPENSSL_ia32cap_P]
-	mov	r9d,DWORD[r11]
-	mov	r10d,DWORD[4+r11]
-	mov	r11d,DWORD[8+r11]
+	lea	r10,[OPENSSL_ia32cap_P]
+	mov	r9,QWORD[r10]
+	mov	r11d,DWORD[8+r10]
 	test	r11d,536870912
 	jnz	NEAR _shaext_shortcut
 	and	r11d,296
 	cmp	r11d,296
 	je	NEAR $L$avx2_shortcut
-	and	r9d,1073741824
-	and	r10d,268435968
-	or	r10d,r9d
-	cmp	r10d,1342177792
+$L$avx_dispatch:
+	mov	r11,1152923704703844352
+	and	r9,r11
+	cmp	r9,r11
 	je	NEAR $L$avx_shortcut
-	test	r10d,512
-	jnz	NEAR $L$ssse3_shortcut
+	bt	r9,41
+	jc	NEAR $L$ssse3_shortcut
 	mov	rax,rsp
 
 	push	rbx
@@ -1790,8 +1789,8 @@ K256:
 DB	83,72,65,50,53,54,32,98,108,111,99,107,32,116,114,97
 DB	110,115,102,111,114,109,32,102,111,114,32,120,56,54,95,54
 DB	52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121
-DB	32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46
-DB	111,114,103,62,0
+DB	32,60,104,116,116,112,115,58,47,47,103,105,116,104,117,98
+DB	46,99,111,109,47,100,111,116,45,97,115,109,62,0
 section .text
 
 ALIGN	64

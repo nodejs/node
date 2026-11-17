@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
+const os = require('os');
 
 // The SEA VFS never shadows the real file system: the assets are mounted at
 // a reserved mount point and the main script runs from inside the mount, so
@@ -13,6 +14,10 @@ assert.notStrictEqual(__filename, process.execPath);
 assert.strictEqual(path.basename(__filename), 'sea.js');
 assert.strictEqual(require.main, module);
 console.log('main script runs from', __filename);
+
+// Like an archive, the assets are mounted at the mount point reserved for
+// --vfs-load.
+assert.strictEqual(__dirname, path.join(os.devNull, 'vfs', '0'));
 
 // The main script itself is readable through fs.
 assert.strictEqual(fs.existsSync(__filename), true);
@@ -103,4 +108,22 @@ const exportsPkg = require('test-exports-pkg');
 assert.strictEqual(exportsPkg.fromExports, true, 'exports-only package should resolve');
 console.log('exports-only package lookup test passed');
 
-console.log('All SEA VFS tests passed!');
+// A worker started from a script among the assets can load it, and the
+// assets next to it, from the same mount point as the main thread.
+const { Worker } = require('worker_threads');
+
+// --vfs-load cannot be used in a SEA, so neither can a worker.
+assert.throws(() => new Worker(path.join(__dirname, 'worker.js'), {
+  execArgv: ['--experimental-vfs', `--vfs-load=${__dirname}`],
+}), { code: 'ERR_WORKER_INVALID_EXEC_ARGV' });
+
+const worker = new Worker(path.join(__dirname, 'worker.js'));
+worker.once('message', (message) => {
+  assert.deepStrictEqual(message, {
+    dirname: __dirname,
+    greeting: 'Hello from SEA VFS!',
+    sum: 5,
+  });
+  console.log('worker test passed');
+  console.log('All SEA VFS tests passed!');
+});

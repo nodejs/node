@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,6 +23,7 @@
 #include "crypto/asn1.h"
 #include "crypto/evp.h"
 #include "crypto/rsa.h"
+#include "crypto/rsa_params.h"
 #include "rsa_local.h"
 
 /* Set any parameters associated with pkey */
@@ -653,6 +654,10 @@ static int rsa_item_sign(EVP_MD_CTX *ctx, const ASN1_ITEM *it, const void *asn,
     int pad_mode;
     EVP_PKEY_CTX *pkctx = EVP_MD_CTX_get_pkey_ctx(ctx);
 
+    if (pkctx == NULL) {
+        ERR_raise(ERR_LIB_RSA, ERR_R_INTERNAL_ERROR);
+        return 0;
+    }
     if (EVP_PKEY_CTX_get_rsa_padding(pkctx, &pad_mode) <= 0)
         return 0;
     if (pad_mode == RSA_PKCS1_PADDING)
@@ -704,13 +709,13 @@ static int rsa_item_sign(EVP_MD_CTX *ctx, const ASN1_ITEM *it, const void *asn,
         if (alg1 != NULL) {
             const unsigned char *pp = aid;
 
-            if (d2i_X509_ALGOR(&alg1, &pp, aid_len) == NULL)
+            if (d2i_X509_ALGOR(&alg1, &pp, (long)aid_len) == NULL)
                 return 0;
         }
         if (alg2 != NULL) {
             const unsigned char *pp = aid;
 
-            if (d2i_X509_ALGOR(&alg2, &pp, aid_len) == NULL)
+            if (d2i_X509_ALGOR(&alg2, &pp, (long)aid_len) == NULL)
                 return 0;
         }
 
@@ -846,10 +851,8 @@ err:
     return rv;
 }
 
-static int rsa_int_import_from(const OSSL_PARAM params[], void *vpctx,
-    int rsa_type)
+static int rsa_int_import_from(const RSA_PARAMS *p, EVP_PKEY_CTX *pctx, int rsa_type)
 {
-    EVP_PKEY_CTX *pctx = vpctx;
     EVP_PKEY *pkey = EVP_PKEY_CTX_get0_pkey(pctx);
     RSA *rsa = ossl_rsa_new_with_ctx(pctx->libctx);
     RSA_PSS_PARAMS_30 rsa_pss_params = {
@@ -866,8 +869,9 @@ static int rsa_int_import_from(const OSSL_PARAM params[], void *vpctx,
     RSA_clear_flags(rsa, RSA_FLAG_TYPE_MASK);
     RSA_set_flags(rsa, rsa_type);
 
-    if (!ossl_rsa_pss_params_30_fromdata(&rsa_pss_params, &pss_defaults_set,
-            params, pctx->libctx))
+    if (!ossl_rsa_pss_params_30_fromdata_parsed(&rsa_pss_params,
+            &pss_defaults_set,
+            p, pctx->libctx))
         goto err;
 
     switch (rsa_type) {
@@ -903,7 +907,7 @@ static int rsa_int_import_from(const OSSL_PARAM params[], void *vpctx,
         goto err;
     }
 
-    if (!ossl_rsa_fromdata(rsa, params, 1))
+    if (!ossl_rsa_fromdata_parsed(rsa, p, 1))
         goto err;
 
     switch (rsa_type) {
@@ -939,12 +943,22 @@ static int rsa_pss_pkey_export_to(const EVP_PKEY *from, void *to_keydata,
 
 static int rsa_pkey_import_from(const OSSL_PARAM params[], void *vpctx)
 {
-    return rsa_int_import_from(params, vpctx, RSA_FLAG_TYPE_RSA);
+    EVP_PKEY_CTX *pctx = vpctx;
+    RSA_PARAMS p;
+
+    if (pctx == NULL || !rsa_pkey_import_from_decoder(params, &p))
+        return 0;
+    return rsa_int_import_from(&p, pctx, RSA_FLAG_TYPE_RSA);
 }
 
 static int rsa_pss_pkey_import_from(const OSSL_PARAM params[], void *vpctx)
 {
-    return rsa_int_import_from(params, vpctx, RSA_FLAG_TYPE_RSASSAPSS);
+    EVP_PKEY_CTX *pctx = vpctx;
+    RSA_PARAMS p;
+
+    if (pctx == NULL || !rsa_pss_pkey_import_from_decoder(params, &p))
+        return 0;
+    return rsa_int_import_from(&p, pctx, RSA_FLAG_TYPE_RSASSAPSS);
 }
 
 static int rsa_pkey_copy(EVP_PKEY *to, EVP_PKEY *from)

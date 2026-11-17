@@ -32,7 +32,8 @@ function handler(err, folder) {
   // affect the way the callback function is handled.
   fs.mkdtemp(tmpdir.resolve('bar.'), {}, common.mustCall(handler));
 
-  const warningMsg = 'mkdtemp() templates ending with X are not portable. ' +
+  const warningMsg = 'mkdtemp() and mkstemp() templates ending with X are ' +
+                     'not portable. ' +
                      'For details see: https://nodejs.org/api/fs.html';
   common.expectWarning('Warning', warningMsg);
   fs.mkdtemp(tmpdir.resolve('bar.X'), common.mustCall(handler));

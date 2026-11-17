@@ -48,9 +48,6 @@ struct rand_meth_st {
 
 OSSL_DEPRECATEDIN_3_0 int RAND_set_rand_method(const RAND_METHOD *meth);
 OSSL_DEPRECATEDIN_3_0 const RAND_METHOD *RAND_get_rand_method(void);
-#ifndef OPENSSL_NO_ENGINE
-OSSL_DEPRECATEDIN_3_0 int RAND_set_rand_engine(ENGINE *engine);
-#endif
 
 OSSL_DEPRECATEDIN_3_0 RAND_METHOD *RAND_OpenSSL(void);
 #endif /* OPENSSL_NO_DEPRECATED_3_0 */

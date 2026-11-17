@@ -109,7 +109,7 @@ ares_status_t ares_append_ai_node(int aftype, unsigned short port,
   node->ai_addr    = sa;
   node->ai_family  = aftype;
   node->ai_addrlen = salen;
-  node->ai_ttl     = (int)ttl;
+  node->ai_ttl     = ares_dns_ttl_as_int(ttl);
 
   return ARES_SUCCESS;
 }

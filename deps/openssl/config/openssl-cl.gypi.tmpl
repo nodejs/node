@@ -40,6 +40,7 @@ foreach $src (@libapps_srcs) {
   'defines': ['<@(openssl_defines_%%-$arch-%%)'],
   'include_dirs': [
     './include',
+    './apps/include',
   ],
 %%- if (!$is_win) {
   $OUT = "  'cflags' : ['<@(openssl_cflags_$arch)'],

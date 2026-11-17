@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 
 # March 2015
@@ -67,7 +67,7 @@ $n0="x4";	# const BN_ULONG *n0,
 $num="x5";	# int num);
 
 $code.=<<___;
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 #ifndef	__KERNEL__
 .extern OPENSSL_armv8_rsa_neonized
 .hidden OPENSSL_armv8_rsa_neonized
@@ -587,7 +587,7 @@ $code.=<<___;
 
 	st1	{$temp.s}[0], [$toutptr],#4	// top-most bit
 	sub	$nptr,$nptr,$num,lsl#2		// rewind $nptr
-	subs	$aptr,sp,#0			// clear carry flag
+	subs	$aptr,sp,#0			// set carry flag
 	add	$bptr,sp,$num,lsl#2
 
 .LNEON_sub:
@@ -780,7 +780,7 @@ __bn_sqr8x_mont:
 	umulh	$t2,$a4,$a0
 	stp	$acc0,$acc1,[$tp],#8*2	// t[0..1]
 	adc	$acc0,xzr,xzr		// t[8]
-	adds	$acc2,$acc2,$t3		// t[2]+lo(a[1]*a[0])
+	adds	$acc2,$acc2,$t3		// t[2]+hi(a[1]*a[0])
 	umulh	$t3,$a5,$a0
 	adcs	$acc3,$acc3,$t0
 	umulh	$t0,$a6,$a0
@@ -1901,7 +1901,7 @@ ___
 }
 $code.=<<___;
 .rodata
-.asciz	"Montgomery Multiplication for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz	"Montgomery Multiplication for ARMv8, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	4
 ___
 

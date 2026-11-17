@@ -16,8 +16,10 @@ MINOR=1.1
 
 SHLIB_VERSION_NUMBER=1.1
 
-GENERATED_MANDATORY=crypto/params_idx.c include/crypto/bn_conf.h include/crypto/dso_conf.h include/internal/param_names.h include/openssl/asn1.h include/openssl/asn1t.h include/openssl/bio.h include/openssl/cmp.h include/openssl/comp.h include/openssl/cms.h include/openssl/conf.h include/openssl/configuration.h include/openssl/core_names.h include/openssl/crmf.h include/openssl/crypto.h include/openssl/ct.h include/openssl/err.h include/openssl/ess.h include/openssl/fipskey.h include/openssl/lhash.h include/openssl/ocsp.h include/openssl/opensslv.h include/openssl/pkcs12.h include/openssl/pkcs7.h include/openssl/safestack.h include/openssl/srp.h include/openssl/ssl.h include/openssl/ui.h include/openssl/x509.h include/openssl/x509_acert.h include/openssl/x509_vfy.h include/openssl/x509v3.h providers/common/include/prov/der_digests.h providers/common/include/prov/der_dsa.h providers/common/include/prov/der_ec.h providers/common/include/prov/der_ecx.h providers/common/include/prov/der_ml_dsa.h providers/common/include/prov/der_rsa.h providers/common/include/prov/der_slh_dsa.h providers/common/include/prov/der_sm2.h providers/common/include/prov/der_wrap.h
-GENERATED=crypto/buildinf.h apps/progs.h crypto/params_idx.c providers/common/der/der_digests_gen.c providers/common/der/der_dsa_gen.c providers/common/der/der_ec_gen.c providers/common/der/der_ecx_gen.c providers/common/der/der_rsa_gen.c providers/common/der/der_sm2_gen.c providers/common/der/der_wrap_gen.c apps/progs.c providers/common/der/der_digests_gen.c providers/common/der/der_dsa_gen.c providers/common/der/der_ec_gen.c providers/common/der/der_ecx_gen.c providers/common/der/der_ml_dsa_gen.c providers/common/der/der_rsa_gen.c providers/common/der/der_slh_dsa_gen.c providers/common/der/der_sm2_gen.c providers/common/der/der_wrap_gen.c
+GENERATED_MANDATORY=include/crypto/dso_conf.h include/openssl/asn1.h include/openssl/asn1t.h include/openssl/bio.h include/openssl/cmp.h include/openssl/comp.h include/openssl/cms.h include/openssl/conf.h include/openssl/configuration.h include/openssl/core_names.h include/openssl/crmf.h include/openssl/crypto.h include/openssl/ct.h include/openssl/err.h include/openssl/ess.h include/openssl/fipskey.h include/openssl/lhash.h include/openssl/ocsp.h include/openssl/opensslv.h include/openssl/pkcs12.h include/openssl/pkcs7.h include/openssl/safestack.h include/openssl/srp.h include/openssl/ssl.h include/openssl/ui.h include/openssl/x509.h include/openssl/x509_acert.h include/openssl/x509_vfy.h include/openssl/x509v3.h providers/common/include/prov/der_digests.h providers/common/include/prov/der_dsa.h providers/common/include/prov/der_ec.h providers/common/include/prov/der_ecx.h providers/common/include/prov/der_ml_dsa.h providers/common/include/prov/der_rsa.h providers/common/include/prov/der_slh_dsa.h providers/common/include/prov/der_sm2.h providers/common/include/prov/der_wrap.h
+GENERATED=crypto/buildinf.h apps/progs.h providers/common/der/der_digests_gen.c providers/common/der/der_dsa_gen.c providers/common/der/der_ec_gen.c providers/common/der/der_ecx_gen.c providers/common/der/der_rsa_gen.c providers/common/der/der_sm2_gen.c providers/common/der/der_wrap_gen.c apps/progs.c providers/common/der/der_digests_gen.c providers/common/der/der_dsa_gen.c providers/common/der/der_ec_gen.c providers/common/der/der_ecx_gen.c providers/common/der/der_ml_dsa_gen.c providers/common/der/der_rsa_gen.c providers/common/der/der_slh_dsa_gen.c providers/common/der/der_sm2_gen.c providers/common/der/der_wrap_gen.c
+
+include node-generated.mk
 
 INSTALL_LIBS="libcrypto.lib" "libssl.lib"
 INSTALL_SHLIBS="libcrypto-1_1-arm64.dll" "libssl-1_1-arm64.dll"
@@ -138,19 +140,11 @@ apps/progs.h: apps/progs.c
 apps/progs.c:
 	"$(PERL)" "apps/progs.pl" "-C" $(APPS_OPENSSL) > $@
 
-crypto/params_idx.c: crypto/params_idx.c.in configdata.pm util/perl/OpenSSL/paramnames.pm
-	"$(PERL)" "-I." "-Iutil/perl" "-Mconfigdata" "-MOpenSSL::paramnames" "util/dofile.pl" "-omakefile" crypto/params_idx.c.in > $@
 
-include/crypto/bn_conf.h:
-	"$(PERL)" "-I$(BLDDIR)" -Mconfigdata "util/dofile.pl" \
-	    "-omakefile" "include/crypto/bn_conf.h.in" > $@
 include/crypto/dso_conf.h:
 	"$(PERL)" "-I$(BLDDIR)" -Mconfigdata "util/dofile.pl" \
 	    "-omakefile" "include/crypto/dso_conf.h.in" > $@
 
-include/internal/param_names.h: include/internal/param_names.h.in configdata.pm
-	"$(PERL)" "-I$(BLDDIR)" -Mconfigdata "util/dofile.pl" \
-	    "-omakefile" "include/internal/param_names.h.in" > $@
 
 include/openssl/asn1.h: include/openssl/asn1.h.in configdata.pm
 	"$(PERL)" "-I$(BLDDIR)" -Mconfigdata "util/dofile.pl" \
@@ -184,7 +178,7 @@ include/openssl/configuration.h: include/openssl/configuration.h.in configdata.p
 	    "-omakefile" "include/openssl/configuration.h.in" > $@
 include/openssl/core_names.h: include/openssl/core_names.h.in configdata.pm
 	"$(PERL)" "-I$(BLDDIR)" -Mconfigdata "util/dofile.pl" \
-	    "-omakefile" "include/openssl/core_names.h.in" > $@
+	    "-oMakefile" "include/openssl/core_names.h.in" > $@
 include/openssl/crmf.h: include/openssl/crmf.h.in configdata.pm
 	"$(PERL)" "-I$(BLDDIR)" -Mconfigdata "util/dofile.pl" \
 	    "-omakefile" "include/openssl/crmf.h.in" > $@

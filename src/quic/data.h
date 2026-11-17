@@ -260,12 +260,15 @@ class QuicError final : public MemoryRetainer {
   operator const ngtcp2_ccerr&() const;
   operator const ngtcp2_ccerr*() const;
 
+  ngtcp2_ccerr ToNgtcp2ConnectionCloseError() const;
+
   // Crypto errors are a subset of transport errors. The error code includes
   // the TLS alert code embedded within it.
   bool is_crypto_error() const;
   std::optional<int> get_crypto_error() const;
 
-  // Returns a human-readable name for this error if known, or nullptr
+  // Returns a human-readable name for a recognized transport error, including
+  // a decoded TLS alert for CRYPTO_ERROR, or nullptr if the name is unknown.
   const char* name() const;
 
   // Note that since application errors are application-specific and we
@@ -282,11 +285,12 @@ class QuicError final : public MemoryRetainer {
 
   std::string ToString() const;
 
-  // Returns an array containing [type, code, reason], where type is a string
-  // representation of the error type, code is a bigint representation of the
-  // error code, and reason is a string representation of the error reason, or
-  // undefined if the reason is the empty string. This is expected to be used
-  // to construct a JS error object from the information in JS.
+  // Returns an array containing [type, code, reason, error_name], where type
+  // is a string representation of the error type, code is a bigint
+  // representation of the error code, and reason is a string representation
+  // of the error reason, or undefined if the reason is empty. error_name is
+  // the symbolic name of a recognized transport error, or undefined. This is
+  // expected to be used to construct a JS error object.
   v8::MaybeLocal<v8::Value> ToV8Value(Environment* env) const;
   inline v8::MaybeLocal<v8::Value> ToV8Value(Realm* realm) const {
     return ToV8Value(realm->env());

@@ -138,10 +138,13 @@ const tests = [
     cert: { subject: { CN: '*.a.com' } },
     error: 'Host: ba.com. is not cert\'s CN: *.a.com'
   },
+  // A hostname containing a forbidden host code point (here a line feed) is
+  // rejected instead of being silently normalized and matched: domainToASCII()
+  // would drop the control character, producing a host that was never asked for.
   {
     host: '\n.b.com',
     cert: { subject: { CN: '*n.b.com' } },
-    error: 'Host: \n.b.com. is not cert\'s CN: *n.b.com'
+    error: 'Host contains a forbidden host code point'
   },
   { host: 'b.a.com',
     cert: {
@@ -394,6 +397,66 @@ const tests = [
     },
     error: 'IP: 127.0.0.1 is not in the cert\'s list: '
   },
+  // Non-canonical IP addresses are rejected instead of being matched against
+  // an address produced by domainToASCII().
+  ...[
+    ['0127.0.0.1', '87.0.0.1'],
+    ['0177.0.0.1', '127.0.0.1'],
+    ['0x7f.0.0.1', '127.0.0.1'],
+    ['2130706433', '127.0.0.1'],
+    ['127.1', '127.0.0.1'],
+    ['\uFF11\uFF12\uFF17.0.0.1', '127.0.0.1'], // Fullwidth digits.
+    ['127\u30020.0.1', '127.0.0.1'], // Ideographic full stop.
+  ].map(([host, normalized]) => ({
+    host,
+    cert: {
+      subjectaltname: `DNS:${normalized}`,
+      subject: {},
+    },
+    error: 'Host is a non-canonical IP address',
+  })),
+  {
+    host: '0127.0.0.1', cert: {
+      subjectaltname: 'IP Address:87.0.0.1',
+      subject: { CN: '87.0.0.1' },
+    },
+    error: 'Host is a non-canonical IP address',
+  },
+  {
+    host: '0127.0.0.1', cert: {
+      subjectaltname: 'IP Address:87.0.0.1',
+      subject: { CN: 'Example Operator' },
+    },
+    error: 'Host is a non-canonical IP address',
+  },
+  {
+    host: '1.2.3.example', cert: {
+      subjectaltname: 'DNS:1.2.3.example',
+      subject: {},
+    },
+  },
+  // domainToASCII() is implemented on top of the URL host parser, which stops at
+  // path/query/fragment delimiters and percent-decodes. Reject hostnames that
+  // would be silently truncated or otherwise transformed, so the certificate is
+  // never validated against a host the application did not ask for (e.g.
+  // "agent1/.bank.example" must not be verified as "agent1").
+  ...[
+    ['agent1/.bank.example'],
+    ['agent1?.bank.example'],
+    ['agent1#.bank.example'],
+    ['agent1\\.bank.example'],
+    ['ag%65nt1'],
+    ['ag@ent1'],
+    ['ag:ent1'],
+    ['ag ent1'],
+  ].map(([host]) => ({
+    host,
+    cert: {
+      subjectaltname: 'DNS:agent1',
+      subject: {},
+    },
+    error: 'Host contains a forbidden host code point',
+  })),
   {
     host: 'localhost', cert: {
       subjectaltname: 'DNS:a.com',

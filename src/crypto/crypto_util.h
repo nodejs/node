@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#if OPENSSL_VERSION_NUMBER >= 0x30200000L && !defined(OPENSSL_NO_COMP_ALG)
+#if defined(TLSEXT_comp_cert_limit) && !defined(OPENSSL_NO_COMP_ALG)
 #define NODE_OPENSSL_HAS_CERT_COMP 1
 #endif
 
@@ -57,6 +57,7 @@ constexpr size_t kSizeOf_EVP_PKEY_CTX = 80;
 constexpr size_t kSizeOf_HMAC_CTX = 32;
 constexpr size_t kSizeOf_SSL_CTX = 240;
 constexpr size_t kSizeOf_X509 = 128;
+constexpr size_t kSizeOf_X509_REQ = 128;
 
 template <typename T>
 constexpr T NumBitsToBytes(T bits) {
@@ -112,14 +113,16 @@ void Decode(const v8::FunctionCallbackInfo<v8::Value>& args,
   V(DERIVING_BITS_FAILED, "Deriving bits failed")                              \
   V(ECDH_FAILED, "ECDH key agreement failed")                                  \
   V(ENCAPSULATION_FAILED, "Encapsulation failed")                              \
-  V(ENGINE_NOT_FOUND, "Engine \"%s\" was not found")                           \
   V(HKDF_FAILED, "HKDF derivation failed")                                     \
   V(INVALID_KEY_TYPE, "Invalid key type")                                      \
   V(KEY_GENERATION_JOB_FAILED, "Key generation job failed")                    \
   V(KMAC_FAILED, "KMAC derivation failed")                                     \
   V(OK, "Ok")                                                                  \
   V(PBKDF2_FAILED, "PBKDF2 derivation failed")                                 \
-  V(SCRYPT_FAILED, "scrypt derivation failed")
+  V(SCRYPT_FAILED, "scrypt derivation failed")                                 \
+  V(X509_GENERATION_FAILED, "X.509 certificate generation failed")             \
+  V(X509_REQUEST_VERIFICATION_FAILED,                                          \
+    "Certificate request signature verification failed")
 
 enum class NodeCryptoError {
 #define V(CODE, DESCRIPTION) CODE,

@@ -382,16 +382,24 @@ static int srtm_remove_from_rev(QUIC_SRTM *srtm, SRTM_ITEM *item)
     return 1;
 }
 
-int ossl_quic_srtm_remove(QUIC_SRTM *srtm, void *opaque, uint64_t seq_num)
+int ossl_quic_srtm_remove(QUIC_SRTM *srtm, void *opaque, uint64_t seq_num,
+    uint8_t *match)
 {
     SRTM_ITEM *item, *prev = NULL;
+    uint8_t match_sink;
+
+    if (match == NULL)
+        match = &match_sink;
+    *match = 0;
 
     if (srtm->alloc_failed)
         return 0;
 
     if ((item = srtm_find(srtm, opaque, seq_num, NULL, &prev)) == NULL)
         /* No match */
-        return 0;
+        return 1;
+
+    *match = 1;
 
     /* Remove from forward mapping. */
     if (prev == NULL) {

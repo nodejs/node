@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,6 +19,37 @@
 /* ASN1 public key method structure */
 
 #include <openssl/core.h>
+
+#define ASN1_STRING_FLAG_BITS_LEFT 0x08 /* Set if 0x07 has bits left value */
+/*
+ * This indicates that the ASN1_STRING is not a real value but just a place
+ * holder for the location where indefinite length constructed data should be
+ * inserted in the memory buffer
+ */
+#define ASN1_STRING_FLAG_NDEF 0x010
+/*
+ * This flag is used by ASN1 code to indicate an ASN1_STRING is an MSTRING
+ * type.
+ */
+#define ASN1_STRING_FLAG_MSTRING 0x040
+/* String is embedded and only content should be freed */
+#define ASN1_STRING_FLAG_EMBED 0x080
+
+/* Data is static and should not be freed. */
+#define ASN1_STRING_FLAG_DATA_NOT_OWNED 0x100
+
+/* This is the base type that holds just about everything :-) */
+struct asn1_string_st {
+    int length;
+    int type;
+    unsigned char *data OPENSSL_NONSTRING;
+    /*
+     * The value of the following field depends on the type being held.  It
+     * is mostly being used for BIT_STRING so if the input data has a
+     * non-zero 'unused bits' value, it will be handled correctly
+     */
+    long flags;
+};
 
 struct evp_pkey_asn1_method_st {
     int pkey_id;
@@ -147,11 +178,39 @@ EVP_PKEY *ossl_d2i_PrivateKey_legacy(int keytype, EVP_PKEY **a,
     OSSL_LIB_CTX *libctx, const char *propq);
 X509_ALGOR *ossl_X509_ALGOR_from_nid(int nid, int ptype, void *pval);
 
-void ossl_asn1_string_set_bits_left(ASN1_STRING *str, unsigned int num);
+void ossl_asn1_bit_string_clear_unused_bits(ASN1_STRING *str);
+void ossl_asn1_bit_string_set_unused_bits(ASN1_STRING *str, unsigned int num);
+
+/**
+ * @brief Set str's data as ASN1_STRING_set1_data() does, and NUL-terminate it.
+ * The terminator is not counted in str->length.
+ * @param str the string to set
+ * @param data the bytes to copy, or NULL to allocate len bytes unset
+ * @param len the number of bytes at data
+ * @returns 1 on success, 0 on failure
+ * @see ASN1_STRING_set1_data(3)
+ */
+int ossl_asn1_string_set1_data(ASN1_STRING *str, const uint8_t *data,
+    size_t len);
+
+/**
+ * @brief Set str's data as ASN1_STRING_set1_string() does, and NUL-terminate it.
+ * The terminator is not counted in str->length.
+ * @param str the string to set
+ * @param c_string the NUL-terminated string to copy
+ * @returns 1 on success, 0 on failure
+ * @see ASN1_STRING_set1_string(3)
+ */
+int ossl_asn1_string_set1_string(ASN1_STRING *str, const char *c_string);
 
 int asn1_item_embed_d2i(ASN1_VALUE **pval, const unsigned char **in,
     long len, const ASN1_ITEM *it, int tag, int aclass,
     char opt, ASN1_TLC *ctx, int depth,
     OSSL_LIB_CTX *libctx, const char *propq);
+
+ASN1_TIME *ossl_asn1_time_from_tm(ASN1_TIME *s, struct tm *ts, int type);
+
+int ossl_utf8_getc_internal(const unsigned char *str, int len, uint32_t *val);
+int ossl_utf8_putc_internal(unsigned char *str, int len, uint32_t value);
 
 #endif /* ndef OSSL_CRYPTO_ASN1_H */

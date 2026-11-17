@@ -5,13 +5,13 @@ $THREADS_ARCH=\
       arch/thread_win.c arch/thread_posix.c arch/thread_none.c
 
 IF[{- !$disabled{'thread-pool'} -}]
-  IF[{- !$disabled{quic} -}]
+  IF[{- !$disabled{quic} || !$disabled{dtls} -}]
     SHARED_SOURCE[../../libssl]=$THREADS_ARCH
   ENDIF
   $THREADS=\
         api.c internal.c $THREADS_ARCH
 ELSE
-  IF[{- !$disabled{quic} -}]
+  IF[{- !$disabled{quic} || !$disabled{dtls} -}]
     SOURCE[../../libssl]=$THREADS_ARCH
   ENDIF
   $THREADS=api.c arch/thread_win.c

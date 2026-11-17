@@ -63,7 +63,7 @@ ___
 ################################################################################
 # ossl_hwsm3_block_data_order_zvksh(SM3_CTX *c, const void *p, size_t num);
 {
-my ($CTX, $INPUT, $NUM) = ("a0", "a1", "a2");
+my ($CTX, $INPUT, $NUM, $EVENNUM , $TMPADDR) = ("a0", "a1", "a2", "a6", "t0");
 my ($V0, $V1, $V2, $V3, $V4, $V5, $V6, $V7,
     $V8, $V9, $V10, $V11, $V12, $V13, $V14, $V15,
     $V16, $V17, $V18, $V19, $V20, $V21, $V22, $V23,
@@ -76,8 +76,178 @@ $code .= <<___;
 .globl ossl_hwsm3_block_data_order_zvksh
 .type ossl_hwsm3_block_data_order_zvksh,\@function
 ossl_hwsm3_block_data_order_zvksh:
+    # Obtain VLEN and select the corresponding branch
+    csrr t0, vlenb
+    srl t1, t0, 5
+    beqz t1, ossl_hwsm3_block_data_order_zvksh_zvl128
+    srl t1, t0, 6
+    beqz t1, ossl_hwsm3_block_data_order_zvksh_zvl256
+ossl_hwsm3_block_data_order_zvksh_zvl512:
+    @{[vsetivli "zero", 8, "e32", "m1", "tu", "mu"]}
+    @{[vle32_v $V26, $CTX]}
+    @{[vrev8_v $V26, $V26]}
+    @{[vsetivli "zero", 16, "e32", "m1", "ta", "ma"]}
+    la $TMPADDR, ORDER_BY_ZVL512_DATA
+    @{[vle32_v $V30, $TMPADDR]}
+    addi $TMPADDR, $TMPADDR, 64
+    @{[vle32_v $V31, $TMPADDR]}
+    la $TMPADDR, ORDER_BY_ZVL512_EXP
+    @{[vle32_v $V29, $TMPADDR]}
+    addi $TMPADDR, $TMPADDR, 64
+    @{[vle32_v $V28, $TMPADDR]}
+    srli $EVENNUM , $NUM, 1
+    andi $NUM, $NUM, 1
+    beqz $EVENNUM , ossl_hwsm3_block_data_order_zvksh_zvl256
+L_sm3_loop_zvl512:
+    # Use indexed loads (ORDER_BY_RVV512_DATA) to load two blocks in the
+    # word order expected by the later vrgather/vsm3c stages.
+    @{[vluxei32_v $V0, $INPUT, $V30]}
+    @{[vluxei32_v $V1, $INPUT, $V31]}
+    @{[vrgather_vv $V9, $V0, $V29]}
+    @{[vrgather_vv $V10, $V9, $V29]}
+    @{[vrgather_vv $V11, $V1, $V28]}
+    @{[vor_vv $V10, $V10, $V11]}
+    @{[vrgather_vv $V11, $V10, $V29]}
+    @{[vrgather_vv $V12, $V1, $V29]}
+    @{[vrgather_vv $V13, $V12, $V29]}
+    @{[vsm3me_vv $V2, $V1, $V0]}
+    @{[vrgather_vv $V14, $V2, $V28]}
+    @{[vor_vv $V13, $V13, $V14]}
+    @{[vrgather_vv $V14, $V13, $V29]}
+    @{[vrgather_vv $V15, $V2, $V29]}
+    @{[vrgather_vv $V16, $V15, $V29]}
+    @{[vsm3me_vv $V3, $V2, $V1]}
+    @{[vrgather_vv $V17, $V3, $V28]}
+    @{[vor_vv $V16, $V16, $V17]}
+    @{[vrgather_vv $V17, $V16, $V29]}
+    @{[vrgather_vv $V18, $V3, $V29]}
+    @{[vrgather_vv $V19, $V18, $V29]}
+    @{[vsm3me_vv $V4, $V3, $V2]}
+    @{[vrgather_vv $V20, $V4, $V28]}
+    @{[vor_vv $V19, $V19, $V20]}
+    @{[vrgather_vv $V20, $V19, $V29]}
+    @{[vrgather_vv $V21, $V4, $V29]}
+    @{[vrgather_vv $V22, $V21, $V29]}
+    @{[vsm3me_vv $V5, $V4, $V3]}
+    @{[vrgather_vv $V23, $V5, $V28]}
+    @{[vor_vv $V22, $V22, $V23]}
+    @{[vrgather_vv $V23, $V22, $V29]}
+    @{[vrgather_vv $V24, $V5, $V29]}
+    @{[vrgather_vv $V25, $V24, $V29]}
+    @{[vsm3me_vv $V6, $V5, $V4]}
+    @{[vrgather_vv $V27, $V6, $V28]}
+    @{[vor_vv $V25, $V25, $V27]}
+    @{[vsm3me_vv $V7, $V6, $V5]}
+    @{[vsm3me_vv $V8, $V7, $V6]}
+    @{[vmv_v_v $V27, $V26]}
+    @{[vsetivli "zero", 8, "e32", "m1", "tu", "mu"]}
+    @{[vsm3c_vi $V26, $V0, 0]}
+    @{[vsm3c_vi $V26, $V9, 1]}
+    @{[vsm3c_vi $V26, $V10, 2]}
+    @{[vsm3c_vi $V26, $V11, 3]}
+    @{[vsm3c_vi $V26, $V1, 4]}
+    @{[vsm3c_vi $V26, $V12, 5]}
+    @{[vsm3c_vi $V26, $V13, 6]}
+    @{[vsm3c_vi $V26, $V14, 7]}
+    @{[vsm3c_vi $V26, $V2, 8]}
+    @{[vsm3c_vi $V26, $V15, 9]}
+    @{[vsm3c_vi $V26, $V16, 10]}
+    @{[vsm3c_vi $V26, $V17, 11]}
+    @{[vsm3c_vi $V26, $V3, 12]}
+    @{[vsm3c_vi $V26, $V18, 13]}
+    @{[vsm3c_vi $V26, $V19, 14]}
+    @{[vsm3c_vi $V26, $V20, 15]}
+    @{[vsm3c_vi $V26, $V4, 16]}
+    @{[vsm3c_vi $V26, $V21, 17]}
+    @{[vsm3c_vi $V26, $V22, 18]}
+    @{[vsm3c_vi $V26, $V23, 19]}
+    @{[vsm3c_vi $V26, $V5, 20]}
+    @{[vsm3c_vi $V26, $V24, 21]}
+    @{[vsm3c_vi $V26, $V25, 22]}
+    @{[vrgather_vv $V9, $V25, $V29]}
+    @{[vrgather_vv $V10, $V6, $V29]}
+    @{[vrgather_vv $V11, $V10, $V29]}
+    @{[vrgather_vv $V12, $V7, $V28]}
+    @{[vor_vv $V11, $V11, $V12]}
+    @{[vrgather_vv $V12, $V11, $V29]}
+    @{[vrgather_vv $V13, $V7, $V29]}
+    @{[vrgather_vv $V14, $V13, $V29]}
+    @{[vrgather_vv $V15, $V8, $V28]}
+    @{[vor_vv $V14, $V14, $V15]}
+    @{[vrgather_vv $V15, $V14, $V29]}
+    @{[vsm3c_vi $V26, $V9, 23]}
+    @{[vsm3c_vi $V26, $V6, 24]}
+    @{[vsm3c_vi $V26, $V10, 25]}
+    @{[vsm3c_vi $V26, $V11, 26]}
+    @{[vsm3c_vi $V26, $V12, 27]}
+    @{[vsm3c_vi $V26, $V7, 28]}
+    @{[vsm3c_vi $V26, $V13, 29]}
+    @{[vsm3c_vi $V26, $V14, 30]}
+    @{[vsm3c_vi $V26, $V15, 31]}
+    @{[vsetivli "zero", 16, "e32", "m1", "ta", "ma"]}
+    @{[vxor_vv $V26, $V26, $V27]}
+    @{[vslideup_vi $V27, $V26, 8]}
+    @{[vmv_v_v $V26, $V27]}
+    @{[vsm3c_vi $V26, $V0, 0]}
+    @{[vsm3c_vi $V26, $V9, 1]}
+    @{[vsm3c_vi $V26, $V10, 2]}
+    @{[vsm3c_vi $V26, $V11, 3]}
+    @{[vsm3c_vi $V26, $V1, 4]}
+    @{[vsm3c_vi $V26, $V12, 5]}
+    @{[vsm3c_vi $V26, $V13, 6]}
+    @{[vsm3c_vi $V26, $V14, 7]}
+    @{[vsm3c_vi $V26, $V2, 8]}
+    @{[vsm3c_vi $V26, $V15, 9]}
+    @{[vsm3c_vi $V26, $V16, 10]}
+    @{[vsm3c_vi $V26, $V17, 11]}
+    @{[vsm3c_vi $V26, $V3, 12]}
+    @{[vsm3c_vi $V26, $V18, 13]}
+    @{[vsm3c_vi $V26, $V19, 14]}
+    @{[vsm3c_vi $V26, $V20, 15]}
+    @{[vsm3c_vi $V26, $V4, 16]}
+    @{[vsm3c_vi $V26, $V21, 17]}
+    @{[vsm3c_vi $V26, $V22, 18]}
+    @{[vsm3c_vi $V26, $V23, 19]}
+    @{[vsm3c_vi $V26, $V5, 20]}
+    @{[vsm3c_vi $V26, $V24, 21]}
+    @{[vsm3c_vi $V26, $V25, 22]}
+    @{[vrgather_vv $V9, $V25, $V29]}
+    @{[vrgather_vv $V10, $V6, $V29]}
+    @{[vrgather_vv $V11, $V10, $V29]}
+    @{[vrgather_vv $V12, $V7, $V28]}
+    @{[vor_vv $V11, $V11, $V12]}
+    @{[vrgather_vv $V12, $V11, $V29]}
+    @{[vrgather_vv $V13, $V7, $V29]}
+    @{[vrgather_vv $V14, $V13, $V29]}
+    @{[vrgather_vv $V15, $V8, $V28]}
+    @{[vor_vv $V14, $V14, $V15]}
+    @{[vrgather_vv $V15, $V14, $V29]}
+    @{[vsm3c_vi $V26, $V9, 23]}
+    @{[vsm3c_vi $V26, $V6, 24]}
+    @{[vsm3c_vi $V26, $V10, 25]}
+    @{[vsm3c_vi $V26, $V11, 26]}
+    @{[vsm3c_vi $V26, $V12, 27]}
+    @{[vsm3c_vi $V26, $V7, 28]}
+    @{[vsm3c_vi $V26, $V13, 29]}
+    @{[vsm3c_vi $V26, $V14, 30]}
+    @{[vsm3c_vi $V26, $V15, 31]}
+    @{[vxor_vv $V26, $V26, $V27]}
+    @{[vslidedown_vi $V27, $V26, 8]}
+    @{[vmv_v_v $V26, $V27]}
+    addi $EVENNUM , $EVENNUM , -1
+    addi $INPUT, $INPUT, 128
+    bnez $EVENNUM , L_sm3_loop_zvl512
+    @{[vsetivli "zero", 8, "e32", "m1", "ta", "ma"]}
+    @{[vrev8_v $V26, $V26]}
+    @{[vse32_v $V26, $CTX]}
+    bnez $NUM, ossl_hwsm3_block_data_order_zvksh_zvl256
+    ret
+ossl_hwsm3_block_data_order_zvksh_zvl256:
+    @{[vsetivli "zero", 8, "e32", "m1", "ta", "ma"]}
+    j ossl_hwsm3_block_data_order_zvksh_single
+ossl_hwsm3_block_data_order_zvksh_zvl128:
     @{[vsetivli "zero", 8, "e32", "m2", "ta", "ma"]}
-
+ossl_hwsm3_block_data_order_zvksh_single:
     # Load initial state of hash context (c->A-H).
     @{[vle32_v $V0, $CTX]}
     @{[vrev8_v $V0, $V0]}
@@ -220,6 +390,19 @@ L_sm3_end:
     ret
 
 .size ossl_hwsm3_block_data_order_zvksh,.-ossl_hwsm3_block_data_order_zvksh
+
+.section .rodata
+.p2align 3
+.type ORDER_BY_ZVL512_DATA,\@object
+ORDER_BY_ZVL512_DATA:
+    .word 0, 4, 8, 12, 16, 20, 24, 28, 64, 68, 72, 76, 80, 84, 88, 92, 32, 36, 40, 44, 48, 52, 56, 60, 96, 100, 104, 108, 112, 116, 120, 124
+.size ORDER_BY_ZVL512_DATA, .-ORDER_BY_ZVL512_DATA
+
+.p2align 3
+.type ORDER_BY_ZVL512_EXP,\@object
+ORDER_BY_ZVL512_EXP:
+    .word 2, 3, 4, 5, 6, 7, 255, 255, 10, 11, 12, 13, 14, 15, 255, 255, 255, 255, 255, 255, 0, 1, 2, 3, 255, 255, 255, 255, 8, 9, 10, 11
+.size ORDER_BY_ZVL512_EXP, .-ORDER_BY_ZVL512_EXP
 ___
 }
 

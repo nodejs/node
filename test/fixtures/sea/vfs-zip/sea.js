@@ -74,7 +74,7 @@ assert.notStrictEqual(a, b);
 a[0] = 0;
 assert.strictEqual(b.toString('utf8'), 'Hello from SEA VFS!');
 
-// The mount point is taken by the archive, so a worker cannot --vfs-load.
+// --vfs-load cannot be used in a SEA, so neither can a worker.
 assert.throws(() => new Worker(__filename, {
   execArgv: ['--experimental-vfs', `--vfs-load=${__dirname}`],
 }), { code: 'ERR_WORKER_INVALID_EXEC_ARGV' });

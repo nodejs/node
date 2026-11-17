@@ -40,6 +40,7 @@ Key behaviors:
   version for that package.
 * You can still publish packages normally while you have staged packages
   pending.
+* Staged publishing will allow you to create a new package if it does not exist.
 * You can stage multiple versions of the same package.
 * `npm stage publish` has parity with `npm publish` and will respect
   `"private": true` in `package.json`, refusing to stage the package.
@@ -50,8 +51,6 @@ Before using `npm stage` commands, ensure the following requirements are met:
 
 * **Write permissions on the package:** You must have write access to the
   package you're configuring.
-* **Package must exist:** The package you're configuring must already exist
-  on the npm registry.
 * **2FA enabled on your account:** Commands that require 2FA will prompt you
   to authenticate. If you don't already have 2FA enabled on your account,
   you must enable it before using these commands.

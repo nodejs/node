@@ -47,7 +47,7 @@ static const char *lookup(int val, const STRINT_PAIR *list, const char *def)
 
 int verify_callback(int ok, X509_STORE_CTX *ctx)
 {
-    X509 *err_cert;
+    const X509 *err_cert;
     int err, depth;
 
     err_cert = X509_STORE_CTX_get_current_cert(ctx);
@@ -89,22 +89,26 @@ int verify_callback(int ok, X509_STORE_CTX *ctx)
     case X509_V_ERR_CERT_NOT_YET_VALID:
     case X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
         if (err_cert != NULL) {
-            BIO_printf(bio_err, "notBefore=");
+            BIO_puts(bio_err, "notBefore=");
             ASN1_TIME_print(bio_err, X509_get0_notBefore(err_cert));
-            BIO_printf(bio_err, "\n");
+            BIO_puts(bio_err, "\n");
         }
         break;
     case X509_V_ERR_CERT_HAS_EXPIRED:
     case X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
         if (err_cert != NULL) {
-            BIO_printf(bio_err, "notAfter=");
+            BIO_puts(bio_err, "notAfter=");
             ASN1_TIME_print(bio_err, X509_get0_notAfter(err_cert));
-            BIO_printf(bio_err, "\n");
+            BIO_puts(bio_err, "\n");
         }
         break;
     case X509_V_ERR_NO_EXPLICIT_POLICY:
         if (!verify_args.quiet)
             policies_print(ctx);
+        break;
+    case X509_V_ERR_OCSP_NO_RESPONSE:
+        if (!verify_args.quiet)
+            BIO_printf(bio_err, "no OCSP response(s) for certificate(s) found.\n");
         break;
     }
     if (err == X509_V_OK && ok == 2 && !verify_args.quiet)
@@ -144,7 +148,7 @@ int set_cert_stuff(SSL_CTX *ctx, char *cert_file, char *key_file)
          * context
          */
         if (!SSL_CTX_check_private_key(ctx)) {
-            BIO_printf(bio_err,
+            BIO_puts(bio_err,
                 "Private key does not match the certificate public key\n");
             return 0;
         }
@@ -160,13 +164,13 @@ int set_cert_key_stuff(SSL_CTX *ctx, X509 *cert, EVP_PKEY *key,
     if (cert == NULL)
         return 1;
     if (SSL_CTX_use_certificate(ctx, cert) <= 0) {
-        BIO_printf(bio_err, "error setting certificate\n");
+        BIO_puts(bio_err, "error setting certificate\n");
         ERR_print_errors(bio_err);
         return 0;
     }
 
     if (SSL_CTX_use_PrivateKey(ctx, key) <= 0) {
-        BIO_printf(bio_err, "error setting private key\n");
+        BIO_puts(bio_err, "error setting private key\n");
         ERR_print_errors(bio_err);
         return 0;
     }
@@ -175,17 +179,17 @@ int set_cert_key_stuff(SSL_CTX *ctx, X509 *cert, EVP_PKEY *key,
      * Now we know that a key and cert have been set against the SSL context
      */
     if (!SSL_CTX_check_private_key(ctx)) {
-        BIO_printf(bio_err,
+        BIO_puts(bio_err,
             "Private key does not match the certificate public key\n");
         return 0;
     }
     if (chain && !SSL_CTX_set1_chain(ctx, chain)) {
-        BIO_printf(bio_err, "error setting certificate chain\n");
+        BIO_puts(bio_err, "error setting certificate chain\n");
         ERR_print_errors(bio_err);
         return 0;
     }
     if (build_chain && !SSL_CTX_build_cert_chain(ctx, chflags)) {
-        BIO_printf(bio_err, "error building certificate chain\n");
+        BIO_puts(bio_err, "error building certificate chain\n");
         ERR_print_errors(bio_err);
         return 0;
     }
@@ -270,9 +274,9 @@ static int do_print_sigalgs(BIO *out, SSL *s, int shared)
 
     client = SSL_is_server(s) ? 0 : 1;
     if (shared)
-        nsig = SSL_get_shared_sigalgs(s, 0, NULL, NULL, NULL, NULL, NULL);
+        nsig = SSL_get0_shared_sigalg(s, -1, NULL, NULL);
     else
-        nsig = SSL_get_sigalgs(s, -1, NULL, NULL, NULL, NULL, NULL);
+        nsig = SSL_get0_sigalg(s, -1, NULL, NULL);
     if (nsig == 0)
         return 1;
 
@@ -283,45 +287,19 @@ static int do_print_sigalgs(BIO *out, SSL *s, int shared)
         BIO_puts(out, "Requested ");
     BIO_puts(out, "Signature Algorithms: ");
     for (i = 0; i < nsig; i++) {
-        int hash_nid, sign_nid;
-        unsigned char rhash, rsign;
-        const char *sstr = NULL;
+        const char *name = NULL;
+        unsigned int codepoint;
+
         if (shared)
-            SSL_get_shared_sigalgs(s, i, &sign_nid, &hash_nid, NULL,
-                &rsign, &rhash);
+            SSL_get0_shared_sigalg(s, i, &codepoint, &name);
         else
-            SSL_get_sigalgs(s, i, &sign_nid, &hash_nid, NULL, &rsign, &rhash);
-        if (i)
+            SSL_get0_sigalg(s, i, &codepoint, &name);
+        if (i > 0)
             BIO_puts(out, ":");
-        switch (rsign | rhash << 8) {
-        case 0x0809:
-            BIO_puts(out, "rsa_pss_pss_sha256");
-            continue;
-        case 0x080a:
-            BIO_puts(out, "rsa_pss_pss_sha384");
-            continue;
-        case 0x080b:
-            BIO_puts(out, "rsa_pss_pss_sha512");
-            continue;
-        case 0x081a:
-            BIO_puts(out, "ecdsa_brainpoolP256r1_sha256");
-            continue;
-        case 0x081b:
-            BIO_puts(out, "ecdsa_brainpoolP384r1_sha384");
-            continue;
-        case 0x081c:
-            BIO_puts(out, "ecdsa_brainpoolP512r1_sha512");
-            continue;
-        }
-        sstr = get_sigtype(sign_nid);
-        if (sstr)
-            BIO_printf(out, "%s", sstr);
+        if (name != NULL)
+            BIO_puts(out, name);
         else
-            BIO_printf(out, "0x%02X", (int)rsign);
-        if (hash_nid != NID_undef)
-            BIO_printf(out, "+%s", OBJ_nid2sn(hash_nid));
-        else if (sstr == NULL)
-            BIO_printf(out, "+0x%02X", (int)rhash);
+            BIO_printf(out, "0x%04X", codepoint);
     }
     BIO_puts(out, "\n");
     return 1;
@@ -387,7 +365,7 @@ int ssl_print_groups(BIO *out, SSL *s, int noshared)
     ngroups = SSL_get1_groups(s, NULL);
     if (ngroups <= 0)
         return 1;
-    groups = app_malloc(ngroups * sizeof(int), "groups to print");
+    groups = app_malloc_array(ngroups, sizeof(*groups), "groups to print");
     SSL_get1_groups(s, groups);
 
     BIO_puts(out, "Supported groups: ");
@@ -395,7 +373,11 @@ int ssl_print_groups(BIO *out, SSL *s, int noshared)
         if (i)
             BIO_puts(out, ":");
         nid = groups[i];
-        BIO_printf(out, "%s", SSL_group_to_name(s, nid));
+        const char *name = SSL_group_to_name(s, nid);
+        if (name == NULL)
+            BIO_printf(out, "NID %d", nid);
+        else
+            BIO_puts(out, name);
     }
     OPENSSL_free(groups);
     if (noshared) {
@@ -408,7 +390,11 @@ int ssl_print_groups(BIO *out, SSL *s, int noshared)
         if (i)
             BIO_puts(out, ":");
         nid = SSL_get_shared_group(s, i);
-        BIO_printf(out, "%s", SSL_group_to_name(s, nid));
+        const char *name = SSL_group_to_name(s, nid);
+        if (name == NULL)
+            BIO_printf(out, "%d", nid);
+        else
+            BIO_puts(out, name);
     }
     if (ngroups == 0)
         BIO_puts(out, "NONE");
@@ -423,9 +409,15 @@ int ssl_print_tmp_key(BIO *out, SSL *s)
     EVP_PKEY *key;
 
     if (!SSL_get_peer_tmp_key(s, &key)) {
-        if (SSL_version(s) == TLS1_3_VERSION)
-            BIO_printf(out, "Negotiated TLS1.3 group: %s\n",
-                SSL_group_to_name(s, SSL_get_negotiated_group(s)));
+        if (SSL_version(s) == TLS1_3_VERSION) {
+            int nid = SSL_get_negotiated_group(s);
+            const char *name = SSL_group_to_name(s, nid);
+
+            if (name == NULL)
+                BIO_printf(out, "Negotiated TLS1.3 group NID: %d\n", nid);
+            else
+                BIO_printf(out, "Negotiated TLS1.3 group: %s\n", name);
+        }
         return 1;
     }
 
@@ -467,7 +459,7 @@ long bio_dump_callback(BIO *bio, int cmd, const char *argp, size_t len,
     int argi, long argl, int ret, size_t *processed)
 {
     BIO *out;
-    BIO_MMSG_CB_ARGS *mmsgargs;
+    const BIO_MMSG_CB_ARGS *mmsgargs;
     size_t i;
 
     out = (BIO *)BIO_get_callback_arg(bio);
@@ -498,42 +490,44 @@ long bio_dump_callback(BIO *bio, int cmd, const char *argp, size_t len,
         break;
 
     case (BIO_CB_RECVMMSG | BIO_CB_RETURN):
-        mmsgargs = (BIO_MMSG_CB_ARGS *)argp;
+        mmsgargs = (const BIO_MMSG_CB_ARGS *)argp;
         if (ret > 0) {
             for (i = 0; i < *(mmsgargs->msgs_processed); i++) {
                 BIO_MSG *msg = (BIO_MSG *)((char *)mmsgargs->msg
                     + (i * mmsgargs->stride));
 
                 BIO_printf(out, "read from %p [%p] (%zu bytes => %zu (0x%zX))\n",
-                    (void *)bio, (void *)msg->data, msg->data_len,
+                    (void *)bio, msg->data, msg->data_len,
                     msg->data_len, msg->data_len);
-                BIO_dump(out, msg->data, msg->data_len);
+                if (msg->data_len <= INT_MAX)
+                    BIO_dump(out, msg->data, (int)msg->data_len);
             }
         } else if (mmsgargs->num_msg > 0) {
             BIO_MSG *msg = mmsgargs->msg;
 
             BIO_printf(out, "read from %p [%p] (%zu bytes => %d)\n",
-                (void *)bio, (void *)msg->data, msg->data_len, ret);
+                (void *)bio, msg->data, msg->data_len, ret);
         }
         break;
 
     case (BIO_CB_SENDMMSG | BIO_CB_RETURN):
-        mmsgargs = (BIO_MMSG_CB_ARGS *)argp;
+        mmsgargs = (const BIO_MMSG_CB_ARGS *)argp;
         if (ret > 0) {
             for (i = 0; i < *(mmsgargs->msgs_processed); i++) {
                 BIO_MSG *msg = (BIO_MSG *)((char *)mmsgargs->msg
                     + (i * mmsgargs->stride));
 
                 BIO_printf(out, "write to %p [%p] (%zu bytes => %zu (0x%zX))\n",
-                    (void *)bio, (void *)msg->data, msg->data_len,
+                    (void *)bio, msg->data, msg->data_len,
                     msg->data_len, msg->data_len);
-                BIO_dump(out, msg->data, msg->data_len);
+                if (msg->data_len <= INT_MAX)
+                    BIO_dump(out, msg->data, (int)msg->data_len);
             }
         } else if (mmsgargs->num_msg > 0) {
             BIO_MSG *msg = mmsgargs->msg;
 
             BIO_printf(out, "write to %p [%p] (%zu bytes => %d)\n",
-                (void *)bio, (void *)msg->data, msg->data_len, ret);
+                (void *)bio, msg->data, msg->data_len, ret);
         }
         break;
 
@@ -577,12 +571,13 @@ void apps_ssl_info_callback(const SSL *s, int where, int ret)
 }
 
 static STRINT_PAIR ssl_versions[] = {
-    { "SSL 3.0", SSL3_VERSION },
     { "TLS 1.0", TLS1_VERSION },
     { "TLS 1.1", TLS1_1_VERSION },
     { "TLS 1.2", TLS1_2_VERSION },
     { "TLS 1.3", TLS1_3_VERSION },
     { "DTLS 1.0", DTLS1_VERSION },
+    { "DTLS 1.2", DTLS1_2_VERSION },
+    { "DTLS 1.3", DTLS1_3_VERSION },
     { "DTLS 1.0 (bad)", DTLS1_BAD_VER },
     { NULL }
 };
@@ -660,12 +655,16 @@ void msg_cb(int write_p, int version, int content_type, const void *buf,
     const char *str_version, *str_content_type = "", *str_details1 = "", *str_details2 = "";
     const unsigned char *bp = buf;
 
-    if (version == SSL3_VERSION || version == TLS1_VERSION || version == TLS1_1_VERSION || version == TLS1_2_VERSION || version == TLS1_3_VERSION || version == DTLS1_VERSION || version == DTLS1_BAD_VER) {
+    if (version == TLS1_VERSION || version == TLS1_1_VERSION
+        || version == TLS1_2_VERSION || version == TLS1_3_VERSION
+        || version == DTLS1_VERSION || version == DTLS1_2_VERSION
+        || version == DTLS1_3_VERSION || version == DTLS1_BAD_VER) {
         str_version = lookup(version, ssl_versions, "???");
         switch (content_type) {
         case SSL3_RT_CHANGE_CIPHER_SPEC:
             /* type 20 */
-            str_content_type = ", ChangeCipherSpec";
+            if (version != DTLS1_3_VERSION)
+                str_content_type = ", ChangeCipherSpec";
             break;
         case SSL3_RT_ALERT:
             /* type 21 */
@@ -694,6 +693,11 @@ void msg_cb(int write_p, int version, int content_type, const void *buf,
             /* type 23 */
             str_content_type = ", ApplicationData";
             break;
+        case SSL3_RT_ACK:
+            /* type 26 */
+            if (version == DTLS1_3_VERSION)
+                str_content_type = ", ACK";
+            break;
         case SSL3_RT_HEADER:
             /* type 256 */
             str_content_type = ", RecordHeader";
@@ -703,31 +707,35 @@ void msg_cb(int write_p, int version, int content_type, const void *buf,
             str_content_type = ", InnerContent";
             break;
         default:
-            BIO_snprintf(tmpbuf, sizeof(tmpbuf) - 1, ", Unknown (content_type=%d)", content_type);
+            break;
+        }
+
+        if (str_content_type[0] == '\0') {
+            snprintf(tmpbuf, sizeof(tmpbuf) - 1, ", Unknown (content_type=%d)", content_type);
             str_content_type = tmpbuf;
         }
     } else {
-        BIO_snprintf(tmpbuf, sizeof(tmpbuf) - 1, "Not TLS data or unknown version (version=%d, content_type=%d)", version, content_type);
+        snprintf(tmpbuf, sizeof(tmpbuf) - 1, "Not TLS data or unknown version (version=%d, content_type=%d)", version, content_type);
         str_version = tmpbuf;
     }
 
-    BIO_printf(bio, "%s %s%s [length %04lx]%s%s\n", str_write_p, str_version,
-        str_content_type, (unsigned long)len, str_details1,
+    BIO_printf(bio, "%s %s%s [length %04zx]%s%s\n", str_write_p, str_version,
+        str_content_type, len, str_details1,
         str_details2);
 
     if (len > 0) {
         size_t num, i;
 
-        BIO_printf(bio, "   ");
+        BIO_puts(bio, "   ");
         num = len;
         for (i = 0; i < num; i++) {
             if (i % 16 == 0 && i > 0)
-                BIO_printf(bio, "\n   ");
+                BIO_puts(bio, "\n   ");
             BIO_printf(bio, " %02x", ((const unsigned char *)buf)[i]);
         }
         if (i < len)
-            BIO_printf(bio, " ...");
-        BIO_printf(bio, "\n");
+            BIO_puts(bio, " ...");
+        BIO_puts(bio, "\n");
     }
     (void)BIO_flush(bio);
 }
@@ -775,11 +783,15 @@ static const STRINT_PAIR tlsext_types[] = {
     { "certificate authorities", TLSEXT_TYPE_certificate_authorities },
     { "post handshake auth", TLSEXT_TYPE_post_handshake_auth },
     { "early_data", TLSEXT_TYPE_early_data },
+#ifndef OPENSSL_NO_ECH
+    { "encrypted ClientHello (draft-13)", TLSEXT_TYPE_ech },
+    { "outer exts", TLSEXT_TYPE_outer_extensions },
+#endif
     { NULL }
 };
 
-/* from rfc8446 4.2.3. + gost (https://tools.ietf.org/id/draft-smyshlyaev-tls12-gost-suites-04.html) */
 static STRINT_PAIR signature_tls13_scheme_list[] = {
+    /* RFC 8446 4.2.3 */
     { "rsa_pkcs1_sha1", 0x0201 /* TLSEXT_SIGALG_rsa_pkcs1_sha1 */ },
     { "ecdsa_sha1", 0x0203 /* TLSEXT_SIGALG_ecdsa_sha1 */ },
     /*  {"rsa_pkcs1_sha224",       0x0301    TLSEXT_SIGALG_rsa_pkcs1_sha224}, not in rfc8446 */
@@ -798,9 +810,59 @@ static STRINT_PAIR signature_tls13_scheme_list[] = {
     { "rsa_pss_pss_sha256", 0x0809 /* TLSEXT_SIGALG_rsa_pss_pss_sha256 */ },
     { "rsa_pss_pss_sha384", 0x080a /* TLSEXT_SIGALG_rsa_pss_pss_sha384 */ },
     { "rsa_pss_pss_sha512", 0x080b /* TLSEXT_SIGALG_rsa_pss_pss_sha512 */ },
+
+    /* RFC 8734 */
+    { "ecdsa_brainpoolP256r1tls13_sha256", 0x81a },
+    { "ecdsa_brainpoolP256r1tls13_sha384", 0x81b },
+    { "ecdsa_brainpoolP256r1tls13_sha512", 0x81c },
+
+    /* RFC 8998 */
+    { "sm2sig_sm3", 0x0708 /* TLSEXT_SIGALG_sm2sig_sm3 */ },
+
+    /* RFC 9367 */
+    { "gostr34102012_256a", 0x709 },
+    { "gostr34102012_256b", 0x70a },
+    { "gostr34102012_256c", 0x70b },
+    { "gostr34102012_256d", 0x70c },
+    { "gostr34102012_512a", 0x70d },
+    { "gostr34102012_512b", 0x70e },
+    { "gostr34102012_512c", 0x70f },
+
+    /* RFC 9963 */
+    { "rsa_pkcs1_sha256_legacy", 0x0420 },
+    { "rsa_pkcs1_sha384_legacy", 0x0520 },
+    { "rsa_pkcs1_sha512_legacy", 0x0620 },
+
+    /* IBS (https://datatracker.ietf.org/doc/html/draft-wang-tls-raw-public-key-with-ibc-02) */
+    { "eccsi_sha256", 0x0704 },
+    { "iso_ibs1", 0x0705 },
+    { "iso_ibs2", 0x0706 },
+    { "iso_chinese_ibs", 0x0707 },
+
+    /* ML-DSA (https://datatracker.ietf.org/doc/html/draft-ietf-tls-mldsa-00) */
+    { "mldsa44", 0x0904 },
+    { "mldsa65", 0x0905 },
+    { "mldsa87", 0x0906 },
+
+    /* SLH-DSA (https://datatracker.ietf.org/doc/html/draft-reddy-tls-slhdsa-01) */
+    { "slhdsa_sha2_128s", 0x0911 },
+    { "slhdsa_sha2_128f", 0x0912 },
+    { "slhdsa_sha2_192s", 0x0913 },
+    { "slhdsa_sha2_192f", 0x0914 },
+    { "slhdsa_sha2_256s", 0x0915 },
+    { "slhdsa_sha2_256f", 0x0916 },
+    { "slhdsa_shake_128s", 0x0917 },
+    { "slhdsa_shake_128f", 0x0918 },
+    { "slhdsa_shake_192s", 0x0919 },
+    { "slhdsa_shake_192f", 0x091a },
+    { "slhdsa_shake_256s", 0x091b },
+    { "slhdsa_shake_256f", 0x091c },
+
+    /* GOST (https://tools.ietf.org/id/draft-smyshlyaev-tls12-gost-suites-04.html) */
     { "gostr34102001", 0xeded /* TLSEXT_SIGALG_gostr34102001_gostr3411 */ },
     { "gostr34102012_256", 0xeeee /* TLSEXT_SIGALG_gostr34102012_256_gostr34112012_256 */ },
     { "gostr34102012_512", 0xefef /* TLSEXT_SIGALG_gostr34102012_512_gostr34112012_512 */ },
+
     { NULL }
 };
 
@@ -850,7 +912,7 @@ int generate_stateless_cookie_callback(SSL *ssl, unsigned char *cookie,
     /* Initialize a random secret */
     if (!cookie_initialized) {
         if (RAND_bytes(cookie_secret, COOKIE_SECRET_LENGTH) <= 0) {
-            BIO_printf(bio_err, "error setting random cookie secret\n");
+            BIO_puts(bio_err, "error setting random cookie secret\n");
             return 0;
         }
         cookie_initialized = 1;
@@ -859,7 +921,7 @@ int generate_stateless_cookie_callback(SSL *ssl, unsigned char *cookie,
     if (SSL_is_dtls(ssl)) {
         lpeer = peer = BIO_ADDR_new();
         if (peer == NULL) {
-            BIO_printf(bio_err, "memory full\n");
+            BIO_puts(bio_err, "memory full\n");
             return 0;
         }
 
@@ -871,7 +933,7 @@ int generate_stateless_cookie_callback(SSL *ssl, unsigned char *cookie,
 
     /* Create buffer with peer's address and port */
     if (!BIO_ADDR_rawaddress(peer, NULL, &length)) {
-        BIO_printf(bio_err, "Failed getting peer address\n");
+        BIO_puts(bio_err, "Failed getting peer address\n");
         BIO_ADDR_free(lpeer);
         return 0;
     }
@@ -888,7 +950,7 @@ int generate_stateless_cookie_callback(SSL *ssl, unsigned char *cookie,
             cookie_secret, COOKIE_SECRET_LENGTH, buffer, length,
             cookie, DTLS1_COOKIE_LENGTH, cookie_len)
         == NULL) {
-        BIO_printf(bio_err,
+        BIO_puts(bio_err,
             "Error calculating HMAC-SHA1 of buffer with secret\n");
         goto end;
     }
@@ -978,11 +1040,11 @@ static void print_chain_flags(SSL *s, int flags)
         BIO_printf(bio_err, "\t%s: %s\n",
             pp->name,
             (flags & pp->retval) ? "OK" : "NOT OK");
-    BIO_printf(bio_err, "\tSuite B: ");
+    BIO_puts(bio_err, "\tSuite B: ");
     if (SSL_set_cert_flags(s, 0) & SSL_CERT_FLAG_SUITEB_128_LOS)
         BIO_puts(bio_err, flags & CERT_PKEY_SUITEB ? "OK\n" : "NOT OK\n");
     else
-        BIO_printf(bio_err, "not tested\n");
+        BIO_puts(bio_err, "not tested\n");
 }
 
 /*
@@ -1104,7 +1166,7 @@ int load_excert(SSL_EXCERT **pexc)
     }
     for (; exc; exc = exc->next) {
         if (exc->certfile == NULL) {
-            BIO_printf(bio_err, "Missing filename\n");
+            BIO_puts(bio_err, "Missing filename\n");
             return 0;
         }
         exc->cert = load_cert(exc->certfile, exc->certform,
@@ -1113,10 +1175,10 @@ int load_excert(SSL_EXCERT **pexc)
             return 0;
         if (exc->keyfile != NULL) {
             exc->key = load_key(exc->keyfile, exc->keyform,
-                0, NULL, NULL, "server key");
+                0, NULL, "server key");
         } else {
             exc->key = load_key(exc->certfile, exc->certform,
-                0, NULL, NULL, "server key");
+                0, NULL, "server key");
         }
         if (exc->key == NULL)
             return 0;
@@ -1259,7 +1321,7 @@ void print_verify_detail(SSL *s, BIO *bio)
     if (verify_err == X509_V_OK) {
         const char *peername = SSL_get0_peername(s);
 
-        BIO_printf(bio, "Verification: OK\n");
+        BIO_puts(bio, "Verification: OK\n");
         if (peername != NULL)
             BIO_printf(bio, "Verified peername: %s\n", peername);
     } else {
@@ -1297,7 +1359,7 @@ void print_verify_detail(SSL *s, BIO *bio)
                                                             : "matched the EE",
                 mdpth);
         else
-            BIO_printf(bio, "matched the peer raw public key\n");
+            BIO_puts(bio, "matched the peer raw public key\n");
         OPENSSL_free(hexdata);
     }
 }
@@ -1308,6 +1370,7 @@ void print_ssl_summary(SSL *s)
     const SSL_CIPHER *c;
     X509 *peer = SSL_get0_peer_certificate(s);
     EVP_PKEY *peer_rpk = SSL_get0_peer_rpk(s);
+    const char *local_sigalg = NULL;
     int nid;
 
     BIO_printf(bio_err, "Protocol version: %s\n", SSL_get_version(s));
@@ -1315,6 +1378,9 @@ void print_ssl_summary(SSL *s)
     c = SSL_get_current_cipher(s);
     BIO_printf(bio_err, "Ciphersuite: %s\n", SSL_CIPHER_get_name(c));
     do_print_sigalgs(bio_err, s, 0);
+    if (SSL_get0_signature_name(s, &local_sigalg) > 0
+        && local_sigalg != NULL)
+        BIO_printf(bio_err, "Own signature type: %s\n", local_sigalg);
     if (peer != NULL) {
         BIO_puts(bio_err, "Peer certificate: ");
         X509_NAME_print_ex(bio_err, X509_get_subject_name(peer),
@@ -1326,7 +1392,7 @@ void print_ssl_summary(SSL *s)
             BIO_printf(bio_err, "Signature type: %s\n", sigalg);
         print_verify_detail(s, bio_err);
     } else if (peer_rpk != NULL) {
-        BIO_printf(bio_err, "Peer used raw public key\n");
+        BIO_puts(bio_err, "Peer used raw public key\n");
         if (SSL_get0_peer_signature_name(s, &sigalg))
             BIO_printf(bio_err, "Signature type: %s\n", sigalg);
         print_verify_detail(s, bio_err);
@@ -1404,12 +1470,18 @@ int ssl_load_stores(SSL_CTX *ctx,
         vfy = X509_STORE_new();
         if (vfy == NULL)
             goto err;
-        if (vfyCAfile != NULL && !X509_STORE_load_file(vfy, vfyCAfile))
+        if (vfyCAfile != NULL && !X509_STORE_load_file(vfy, vfyCAfile)) {
+            BIO_printf(bio_err, "Error loading trusted peer verification cert file %s\n", vfyCAfile);
             goto err;
-        if (vfyCApath != NULL && !X509_STORE_load_path(vfy, vfyCApath))
+        }
+        if (vfyCApath != NULL && !X509_STORE_load_path(vfy, vfyCApath)) {
+            BIO_printf(bio_err, "Error adding trusted peer verification certs directory %s\n", vfyCApath);
             goto err;
-        if (vfyCAstore != NULL && !X509_STORE_load_store(vfy, vfyCAstore))
+        }
+        if (vfyCAstore != NULL && !X509_STORE_load_store(vfy, vfyCAstore)) {
+            BIO_printf(bio_err, "Error adding trusted peer verification cert store file %s\n", vfyCAstore);
             goto err;
+        }
         add_crls_store(vfy, crls);
         if (SSL_CTX_set1_verify_cert_store(ctx, vfy) == 0)
             goto err;
@@ -1420,12 +1492,18 @@ int ssl_load_stores(SSL_CTX *ctx,
         ch = X509_STORE_new();
         if (ch == NULL)
             goto err;
-        if (chCAfile != NULL && !X509_STORE_load_file(ch, chCAfile))
+        if (chCAfile != NULL && !X509_STORE_load_file(ch, chCAfile)) {
+            BIO_printf(bio_err, "Error loading trusted chain building cert file %s\n", chCAfile);
             goto err;
-        if (chCApath != NULL && !X509_STORE_load_path(ch, chCApath))
+        }
+        if (chCApath != NULL && !X509_STORE_load_path(ch, chCApath)) {
+            BIO_printf(bio_err, "Error adddng trusted chain building cert directory %s\n", chCApath);
             goto err;
-        if (chCAstore != NULL && !X509_STORE_load_store(ch, chCAstore))
+        }
+        if (chCAstore != NULL && !X509_STORE_load_store(ch, chCAstore)) {
+            BIO_printf(bio_err, "Error adddng trusted chain building cert store file %s\n", chCAstore);
             goto err;
+        }
         if (SSL_CTX_set1_chain_cert_store(ctx, ch) == 0)
             goto err;
     }
@@ -1533,12 +1611,9 @@ static int security_callback_debug(const SSL *s, const SSL_CTX *ctx,
             if (pkey == NULL) {
                 BIO_printf(sdb->out, "Public key missing");
             } else {
-                const char *algname = "";
-
-                EVP_PKEY_asn1_get0_info(NULL, NULL, NULL, NULL,
-                    &algname, EVP_PKEY_get0_asn1(pkey));
                 BIO_printf(sdb->out, "%s, bits=%d",
-                    algname, EVP_PKEY_get_bits(pkey));
+                    EVP_PKEY_get0_type_name(pkey),
+                    EVP_PKEY_get_bits(pkey));
             }
         }
         break;
@@ -1591,7 +1666,7 @@ void ssl_ctx_security_debug(SSL_CTX *ctx, int verbose)
 static void keylog_callback(const SSL *ssl, const char *line)
 {
     if (bio_keylog == NULL) {
-        BIO_printf(bio_err, "Keylog callback is invoked without valid file!\n");
+        BIO_puts(bio_err, "Keylog callback is invoked without valid file!\n");
         return;
     }
 
@@ -1660,7 +1735,7 @@ void ssl_print_secure_renegotiation_notes(BIO *bio, SSL *s)
         BIO_printf(bio, "Secure Renegotiation IS%s supported\n",
             SSL_get_secure_renegotiation_support(s) ? "" : " NOT");
     } else {
-        BIO_printf(bio, "This TLS version forbids renegotiation.\n");
+        BIO_puts(bio, "This TLS version forbids renegotiation.\n");
     }
 }
 

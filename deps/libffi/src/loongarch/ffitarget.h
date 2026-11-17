@@ -83,6 +83,7 @@ typedef enum ffi_abi
 #endif /* LIBFFI_ASM */
 
 #define FFI_TARGET_HAS_INT128
+#define FFI_TARGET_HAS_COMPLEX_TYPE
 
 /* ---- Definitions for closures ----------------------------------------- */
 

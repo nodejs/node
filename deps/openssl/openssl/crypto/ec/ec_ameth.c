@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -21,6 +21,7 @@
 #include <openssl/asn1t.h>
 #include "crypto/asn1.h"
 #include "crypto/evp.h"
+#include "crypto/ec_params.h"
 #include "crypto/x509.h"
 #include <openssl/core_names.h>
 #include <openssl/param_build.h>
@@ -214,19 +215,7 @@ static int ec_bits(const EVP_PKEY *pkey)
 
 static int ec_security_bits(const EVP_PKEY *pkey)
 {
-    int ecbits = ec_bits(pkey);
-
-    if (ecbits >= 512)
-        return 256;
-    if (ecbits >= 384)
-        return 192;
-    if (ecbits >= 256)
-        return 128;
-    if (ecbits >= 224)
-        return 112;
-    if (ecbits >= 160)
-        return 80;
-    return ecbits / 2;
+    return EC_GROUP_security_bits(EC_KEY_get0_group(pkey->pkey.ec));
 }
 
 static int ec_missing_parameters(const EVP_PKEY *pkey)
@@ -413,7 +402,7 @@ static int ec_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
         return EC_KEY_oct2key(evp_pkey_get0_EC_KEY_int(pkey), arg2, arg1, NULL);
 
     case ASN1_PKEY_CTRL_GET1_TLS_ENCPT:
-        return EC_KEY_key2buf(EVP_PKEY_get0_EC_KEY(pkey),
+        return (int)EC_KEY_key2buf(EVP_PKEY_get0_EC_KEY(pkey),
             POINT_CONVERSION_UNCOMPRESSED, arg2, NULL);
 
     default:
@@ -610,15 +599,20 @@ static int ec_pkey_import_from(const OSSL_PARAM params[], void *vpctx)
     EVP_PKEY_CTX *pctx = vpctx;
     EVP_PKEY *pkey = EVP_PKEY_CTX_get0_pkey(pctx);
     EC_KEY *ec = EC_KEY_new_ex(pctx->libctx, pctx->propquery);
+    EC_PARAMS p;
 
     if (ec == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
         return 0;
     }
+    if (!ec_pkey_import_from_decoder(params, &p)) {
+        EC_KEY_free(ec);
+        return 0;
+    }
 
-    if (!ossl_ec_group_fromdata(ec, params)
-        || !ossl_ec_key_otherparams_fromdata(ec, params)
-        || !ossl_ec_key_fromdata(ec, params, 1)
+    if (!ossl_ec_group_fromdata_parsed(ec, &p)
+        || !ossl_ec_key_otherparams_fromdata_parsed(ec, &p)
+        || !ossl_ec_key_fromdata_parsed(ec, &p, 1)
         || !EVP_PKEY_assign_EC_KEY(pkey, ec)) {
         EC_KEY_free(ec);
         return 0;

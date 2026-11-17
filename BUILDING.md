@@ -205,15 +205,13 @@ on your Linux distribution.
 
 #### OpenSSL asm support
 
-OpenSSL-1.1.1 requires the following assembler version for use of asm
+OpenSSL requires the following assembler version for use of asm
 support on x86\_64 and ia32.
 
 For use of AVX-512,
 
 * gas (GNU assembler) version 2.26 or higher
 * nasm version 2.11.8 or higher in Windows
-
-AVX-512 is disabled for Skylake-X by OpenSSL-1.1.1.
 
 For use of AVX2,
 
@@ -222,7 +220,7 @@ For use of AVX2,
 * llvm version 3.3 or higher
 * nasm version 2.10 or higher in Windows
 
-Please refer to <https://docs.openssl.org/1.1.1/man3/OPENSSL_ia32cap/> for details.
+Please refer to <https://docs.openssl.org/master/man3/OPENSSL_ia32cap/> for details.
 
 If compiling without one of the above, use `configure` with the
 `--openssl-no-asm` flag. Otherwise, `configure` will fail.
@@ -1028,14 +1026,20 @@ using the following configure option:
 
 ## Building Node.js with FIPS-compliant OpenSSL
 
-Node.js supports FIPS when statically or dynamically linked with OpenSSL 3 via
-[OpenSSL's provider model](https://docs.openssl.org/3.0/man7/crypto/#OPENSSL-PROVIDERS).
-It is not necessary to rebuild Node.js to enable support for FIPS.
+Node.js can use an OpenSSL FIPS provider via
+[OpenSSL's provider model](https://docs.openssl.org/master/man7/crypto/#openssl-providers),
+whether OpenSSL is linked statically or dynamically. It is not necessary to
+rebuild Node.js to do so; the provider and the OpenSSL configuration that
+activates it are supplied at runtime.
 
-When using OpenSSL 1.1.1, Node.js must be built against a FIPS-capable OpenSSL.
+Node.js does not build a FIPS provider. OpenSSL requires that a FIPS provider
+be built from a release that carries a FIPS certificate, so a provider built
+as part of the Node.js build would have no validation status.
 
-See [FIPS mode](doc/api/crypto.md#fips-mode) for more information on how to
-enable FIPS support in Node.js.
+`./configure --openssl-is-fips` only records that the OpenSSL being linked is
+FIPS capable, and requires `--shared-openssl`.
+
+See [FIPS mode](doc/api/crypto.md#fips-mode) for how to configure it.
 
 ## Building Node.js with Temporal support
 
@@ -1066,6 +1070,12 @@ a warning is printed and Temporal support is disabled.
   remove the Rust toolchain requirement.
 
 Passing both options to `configure.py` is an error.
+
+For non-Windows cross builds with bundled Temporal, set `CARGO_BUILD_TARGET`
+to the Rust target triple when running `configure.py` (for example,
+`aarch64-unknown-linux-gnu`). Otherwise, Temporal support is disabled with a
+warning, or `configure.py` stops with an error when
+`--v8-enable-temporal-support` is passed.
 
 ## Building Node.js with external core modules
 
@@ -1118,6 +1128,10 @@ A number of `configure` options are provided to support this use case.
   (run `./configure --help` to get the complete list). They
   provide the ability to set the path to an external JavaScript file
   for the dependency to be used at runtime.
+
+When building with `--shared-openssl`, Node.js requires OpenSSL 3.0 or later.
+Support for building against OpenSSL 1.x was removed in Node.js 27.0.0, and
+`configure` fails if an older version is detected.
 
 It is the responsibility of any distribution
 shipping with these options to:

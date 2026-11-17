@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -142,6 +142,7 @@ TS_VERIFY_CTX *TS_REQ_to_TS_VERIFY_CTX(TS_REQ *req, TS_VERIFY_CTX *ctx)
     X509_ALGOR *md_alg;
     ASN1_OCTET_STRING *msg;
     const ASN1_INTEGER *nonce;
+    size_t tmp;
 
     OPENSSL_assert(req != NULL);
     if (ret)
@@ -162,8 +163,11 @@ TS_VERIFY_CTX *TS_REQ_to_TS_VERIFY_CTX(TS_REQ *req, TS_VERIFY_CTX *ctx)
     if ((ret->md_alg = X509_ALGOR_dup(md_alg)) == NULL)
         goto err;
     msg = imprint->hashed_msg;
-    ret->imprint_len = ASN1_STRING_length(msg);
-    if (ret->imprint_len <= 0)
+    tmp = ASN1_STRING_get_length(msg);
+    if (tmp > INT_MAX)
+        goto err;
+    ret->imprint_len = (unsigned int)tmp;
+    if (ret->imprint_len == 0)
         goto err;
     if ((ret->imprint = OPENSSL_malloc(ret->imprint_len)) == NULL)
         goto err;

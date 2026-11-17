@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2012-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # SHA512 for C64x+.
@@ -429,7 +429,7 @@ K512:
 	.uword	0x3c9ebe0a,0x15c9bebc, 0x431d67c4,0x9c100d4c
 	.uword	0x4cc5d4be,0xcb3e42b6, 0x597f299c,0xfc657e2a
 	.uword	0x5fcb6fab,0x3ad6faec, 0x6c44198c,0x4a475817
-	.cstring "SHA512 block transform for C64x+, CRYPTOGAMS by <appro\@openssl.org>"
+	.cstring "SHA512 block transform for C64x+, CRYPTOGAMS by <https://github.com/dot-asm>"
 	.align	4
 ___
 

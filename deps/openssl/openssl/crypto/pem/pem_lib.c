@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,8 +7,10 @@
  * https://www.openssl.org/source/license.html
  */
 
-/* We need to use some engine deprecated APIs */
-#define OPENSSL_SUPPRESS_DEPRECATED
+/*
+ * We need to use some EVP_PKEY_asn1 deprecated APIs
+ */
+#include "internal/deprecated.h"
 
 #include <stdio.h>
 #include "crypto/ctype.h"
@@ -23,7 +25,7 @@
 #include <openssl/pkcs12.h>
 #include "crypto/asn1.h"
 #include <openssl/des.h>
-#include <openssl/engine.h>
+#include "crypto/evp.h"
 
 #define MIN_LENGTH 4
 
@@ -38,7 +40,7 @@ int PEM_def_callback(char *buf, int num, int rwflag, void *userdata)
 
     /* We assume that the user passes a default password as userdata */
     if (userdata) {
-        i = strlen(userdata);
+        i = (int)strlen(userdata);
         i = (i > num) ? num : i;
         memcpy(buf, userdata, i);
         return i;
@@ -63,7 +65,7 @@ int PEM_def_callback(char *buf, int num, int rwflag, void *userdata)
         memset(buf, 0, (unsigned int)num);
         return -1;
     }
-    return strlen(buf);
+    return (int)strlen(buf);
 }
 
 void PEM_proc_type(char *buf, int type)
@@ -80,22 +82,22 @@ void PEM_proc_type(char *buf, int type)
     else
         str = "BAD-TYPE";
 
-    BIO_snprintf(p, PEM_BUFSIZE - (size_t)(p - buf), "Proc-Type: 4,%s\n", str);
+    snprintf(p, PEM_BUFSIZE - (size_t)(p - buf), "Proc-Type: 4,%s\n", str);
 }
 
 void PEM_dek_info(char *buf, const char *type, int len, const char *str)
 {
     long i;
     char *p = buf + strlen(buf);
-    int j = PEM_BUFSIZE - (size_t)(p - buf), n;
+    int j = PEM_BUFSIZE - (int)(p - buf), n;
 
-    n = BIO_snprintf(p, j, "DEK-Info: %s,", type);
-    if (n > 0) {
+    n = snprintf(p, j, "DEK-Info: %s,", type);
+    if (n > 0 && n < j) {
         j -= n;
         p += n;
         for (i = 0; i < len; i++) {
-            n = BIO_snprintf(p, j, "%02X", 0xff & str[i]);
-            if (n <= 0)
+            n = snprintf(p, j, "%02X", 0xff & str[i]);
+            if (n <= 0 || n >= j)
                 return;
             j -= n;
             p += n;
@@ -144,7 +146,7 @@ static int check_pem(const char *nm, const char *name)
              * NB: ENGINE implementations won't contain a deprecated old
              * private key decode function so don't look for them.
              */
-            ameth = EVP_PKEY_asn1_find_str(NULL, nm, slen);
+            ameth = evp_pkey_asn1_find_str(nm, slen);
             if (ameth && ameth->old_priv_decode)
                 return 1;
         }
@@ -156,17 +158,13 @@ static int check_pem(const char *nm, const char *name)
         const EVP_PKEY_ASN1_METHOD *ameth;
         slen = ossl_pem_check_suffix(nm, "PARAMETERS");
         if (slen > 0) {
-            ENGINE *e;
-            ameth = EVP_PKEY_asn1_find_str(&e, nm, slen);
+            ameth = evp_pkey_asn1_find_str(nm, slen);
             if (ameth) {
                 int r;
                 if (ameth->param_decode)
                     r = 1;
                 else
                     r = 0;
-#ifndef OPENSSL_NO_ENGINE
-                ENGINE_finish(e);
-#endif
                 return r;
             }
         }
@@ -645,14 +643,14 @@ int PEM_write_bio(BIO *bp, const char *name, const char *header,
     }
 
     EVP_EncodeInit(ctx);
-    nlen = strlen(name);
+    nlen = (int)strlen(name);
 
     if ((BIO_write(bp, "-----BEGIN ", 11) != 11) || (BIO_write(bp, name, nlen) != nlen) || (BIO_write(bp, "-----\n", 6) != 6)) {
         reason = ERR_R_BIO_LIB;
         goto err;
     }
 
-    i = header != NULL ? strlen(header) : 0;
+    i = header != NULL ? (int)strlen(header) : 0;
     if (i > 0) {
         if ((BIO_write(bp, header, i) != i) || (BIO_write(bp, "\n", 1) != 1)) {
             reason = ERR_R_BIO_LIB;
@@ -660,7 +658,7 @@ int PEM_write_bio(BIO *bp, const char *name, const char *header,
         }
     }
 
-    buf = OPENSSL_malloc(PEM_BUFSIZE * 8);
+    buf = OPENSSL_malloc_array(PEM_BUFSIZE, 8);
     if (buf == NULL)
         goto err;
 
@@ -972,7 +970,11 @@ int PEM_read_bio_ex(BIO *bp, char **name_out, char **header,
         goto end;
 
     BIO_get_mem_ptr(dataB, &buf_mem);
-    len = buf_mem->length;
+    if (buf_mem->length > INT_MAX) {
+        ERR_raise(ERR_LIB_PEM, PEM_R_BAD_BASE64_DECODE);
+        goto end;
+    }
+    len = (int)buf_mem->length;
 
     /* There was no data in the PEM file */
     if (len == 0)
@@ -1040,9 +1042,10 @@ int PEM_read_bio(BIO *bp, char **name, char **header, unsigned char **data,
 
 int ossl_pem_check_suffix(const char *pem_str, const char *suffix)
 {
-    int pem_len = strlen(pem_str);
-    int suffix_len = strlen(suffix);
+    int pem_len = (int)strlen(pem_str);
+    int suffix_len = (int)strlen(suffix);
     const char *p;
+
     if (suffix_len + 1 >= pem_len)
         return 0;
     p = pem_str + pem_len - suffix_len;
@@ -1051,5 +1054,5 @@ int ossl_pem_check_suffix(const char *pem_str, const char *suffix)
     p--;
     if (*p != ' ')
         return 0;
-    return p - pem_str;
+    return (int)(p - pem_str);
 }

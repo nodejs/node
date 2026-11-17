@@ -85,6 +85,7 @@ Maybe<void> ScryptTraits::AdditionalConfig(
   params->length = args[offset + 6].As<Int32>()->Value();
   CHECK_GE(params->length, 0);
 
+  ncrypto::MarkPopErrorOnReturn mark_pop_error_on_return;
   if (!ncrypto::checkScryptParams(
           params->N, params->r, params->p, params->maxmem)) {
     // Do not use CryptoErrorStore or ThrowCryptoError here in order to maintain

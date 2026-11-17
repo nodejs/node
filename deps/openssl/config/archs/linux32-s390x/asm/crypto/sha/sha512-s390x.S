@@ -1,4 +1,4 @@
-#include "s390x_arch.h"
+#include "arch/s390x_arch.h"
 
 .text
 .align	64
@@ -1263,4 +1263,4 @@ sha512_block_data_order:
 	lm	%r6,%r15,248(%r15)
 	br	%r14
 .size	sha512_block_data_order,.-sha512_block_data_order
-.string	"SHA512 block transform for s390x, CRYPTOGAMS by <appro@openssl.org>"
+.string	"SHA512 block transform for s390x, CRYPTOGAMS by <https://github.com/dot-asm>"

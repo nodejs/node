@@ -349,7 +349,7 @@ TRACE_PROCESSOR_SHELL_DEPS = deps/perfetto/VERSION
 endif
 
 $(TRACE_PROCESSOR_SHELL_PATH): $(TRACE_PROCESSOR_SHELL_DEPS)
-	@tools/perfetto/get_trace_processor $@
+	@$(PYTHON) tools/perfetto/get_trace_processor.py $@
 
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
@@ -402,12 +402,7 @@ ifeq ($(OSTYPE),os400)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
-DOC_KIT ?= tools/doc/node_modules/@doc-kit/cli/bin/cli.mjs
-ifeq ($(V),1)
-DOC_KIT_LOG_LEVEL ?= debug
-else
-DOC_KIT_LOG_LEVEL ?= info
-endif
+DOC_KIT ?= tools/doc/node_modules/@node-core/doc-kit/bin/cli.mjs
 
 node_use_openssl_and_icu = $(call available-node,"-p" \
 			 "process.versions.openssl != undefined && process.versions.icu != undefined")
@@ -876,7 +871,7 @@ VERSION=v$(RAWVER)
 
 .PHONY: doc-only
 .NOTPARALLEL: doc-only
-doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.json out/doc/llms.txt out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
+doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/llms.txt out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation with the new binary.
@@ -913,10 +908,15 @@ $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(a
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			--log-level $(DOC_KIT_LOG_LEVEL) \
-			--config-file tools/doc/web.doc-kit.config.mjs \
+			-t legacy-html-all \
+			-t legacy-json-all \
+			-i doc/api/*.md \
+			--ignore $(skip_apidoc_files) \
+			-o out/doc/api \
+			-c ./CHANGELOG.md \
 			-v $(VERSION) \
-			$(if $(JOBS),-p $(JOBS)) \
+			--index doc/api/index.md \
+			--type-map doc/type-map.json \
 		) \
 	fi
 endif
@@ -927,11 +927,13 @@ out/doc/llms.txt: $(apidoc_sources) tools/doc/node_modules | out/doc
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			--log-level $(DOC_KIT_LOG_LEVEL) \
-			--config-file tools/doc/web.doc-kit.config.mjs \
 			-t llms-txt \
+			-i doc/api/*.md \
+			--ignore $(skip_apidoc_files) \
 			-o $(@D) \
+			-c ./CHANGELOG.md \
 			-v $(VERSION) \
+			--type-map doc/type-map.json \
 		) \
 	fi
 
@@ -941,10 +943,12 @@ out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			--log-level $(DOC_KIT_LOG_LEVEL) \
-			--config-file tools/doc/api-links.doc-kit.config.mjs \
+			-t api-links \
+			-i lib/*.js \
 			-o $(@D) \
+			-c ./CHANGELOG.md \
 			-v $(VERSION) \
+			--type-map doc/type-map.json \
 		) \
 	fi
 
@@ -958,7 +962,6 @@ node.1: doc/api/cli.md tools/doc/node_modules
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			--log-level $(DOC_KIT_LOG_LEVEL) \
 			-v $(VERSION) \
 			--config-file tools/doc/man-page.doc-kit.config.mjs \
 			-o doc \
@@ -989,7 +992,7 @@ ifndef DISTTYPE
 DISTTYPE=release
 endif
 ifeq ($(DISTTYPE),release)
-FULLVERSION=$(VERSION)
+FULLVERSION=v$(shell $(PYTHON) tools/getnodeversion.py --full)
 else # ifeq ($(DISTTYPE),release)
 ifeq ($(DISTTYPE),custom)
 ifndef CUSTOMTAG
@@ -1244,7 +1247,7 @@ $(PKG): release-only
 		--resources $(MACOSOUTDIR)/installer/productbuild/Resources \
 		--package-path $(MACOSOUTDIR)/pkgs ./$(PKG)
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" sh tools/osx-productsign.sh
-	sh tools/osx-notarize.sh $(FULLVERSION)
+	sh tools/osx-notarize.sh $(PKG)
 
 .PHONY: pkg
 pkg: $(PKG) ## Build the macOS installer for releases.
@@ -1336,8 +1339,8 @@ endif
 	$(RM) -r $(TARNAME)/tools/eslint/node_modules
 	$(RM) -r $(TARNAME)/tools/osx-*
 	$(RM) -r $(TARNAME)/tools/osx-pkg.pmdoc
-	find $(TARNAME)/deps/v8/test/* -type d ! -regex '.*/test/torque$$' | xargs $(RM) -r
-	find $(TARNAME)/deps/v8/test -type f ! -regex '.*/test/torque/.*' | xargs $(RM)
+	find $(TARNAME)/deps/v8/test/* -type d ! -regex '.*/test/torque$$' ! -regex '.*/test/mkgrokdump$$' | xargs $(RM) -r
+	find $(TARNAME)/deps/v8/test -type f ! -regex '.*/test/torque/.*' ! -regex '.*/test/mkgrokdump/.*' | xargs $(RM)
 	find $(TARNAME)/deps/zlib/contrib/* -type d ! -regex '.*/contrib/optimizations$$' | xargs $(RM) -r
 	find $(TARNAME)/ -name "eslint.config*" -maxdepth 2 | xargs $(RM)
 	find $(TARNAME)/ -type l | xargs $(RM)
@@ -1430,6 +1433,7 @@ else
 endif
 ifeq ($(OSTYPE),darwin)
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(BINARYNAME)" sh tools/osx-codesign.sh
+	sh tools/osx-notarize.sh $(BINARYNAME)/bin/node
 endif
 	tar -cf $(BINARYNAME).tar $(BINARYNAME)
 	$(RM) -r $(BINARYNAME)
@@ -1472,10 +1476,11 @@ bench-addons-clean:
 	$(RM) -r benchmark/napi/*/build
 	$(RM) benchmark/napi/.buildstamp
 
-ifeq ("$(wildcard tools/.mdlintstamp)","")
-LINT_MD_NEWER =
-else
+# Recheck all Markdown when the lint dependencies change.
+ifeq ($(shell test tools/.mdlintstamp -nt tools/lint-md/package-lock.json && echo 1),1)
 LINT_MD_NEWER = -newer tools/.mdlintstamp
+else
+LINT_MD_NEWER =
 endif
 
 LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(filter-out CLAUDE.md,$(wildcard *.md))
@@ -1485,7 +1490,7 @@ LINT_MD_FILES = $(shell $(FIND) $(LINT_MD_TARGETS) -type f \
 run-lint-md = tools/lint-md/lint-md.mjs $(LINT_MD_FILES)
 
 # Check for a specific file, as (empty) directories are persisted in git.
-tools/lint-md/node_modules/remark-parse/package.json:
+tools/lint-md/node_modules/remark-parse/package.json: tools/lint-md/package-lock.json
 	-cd tools/lint-md && $(call available-node,$(run-npm-ci))
 
 # Lint all changed markdown files maintained by us
@@ -1502,7 +1507,6 @@ tools/.manpagelintstamp: doc/node.1 doc/api/cli.md tools/doc/node_modules
 		$(RM) -r tools/doc/.manpagecheck && \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			--log-level $(DOC_KIT_LOG_LEVEL) \
 			-v $(VERSION) \
 			--config-file tools/doc/man-page.doc-kit.config.mjs \
 		) \
@@ -1712,15 +1716,17 @@ endif
 # python -m pip install yamllint
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-yaml-build: ## Build resources needed to lint YAML files.
+ifeq ($(YAMLLINT), tools/pip/site-packages/bin/yamllint)
 	$(info Pip installing yamllint on $(shell $(PYTHON) --version)...)
 	$(PYTHON) -m pip install --upgrade -t tools/pip/site-packages yamllint || \
 		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages yamllint
+endif
 
 .PHONY: lint-yaml
 ifneq ("","$(wildcard $(YAMLLINT))")
 lint-yaml: ## Lint the YAML files with yamllint.
 	$(info Running YAML linter...)
-	PYTHONPATH=tools/pip $(YAMLLINT) .
+	PYTHONPATH=tools/pip $(YAMLLINT) --strict .
 else
 lint-yaml:
 	$(warning YAML linting with yamllint is not available)

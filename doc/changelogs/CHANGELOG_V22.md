@@ -9,6 +9,8 @@
 </tr>
 <tr>
 <td>
+<a href="#22.23.5">22.23.5</a><br/>
+<a href="#22.23.4">22.23.4</a><br/>
 <a href="#22.23.3">22.23.3</a><br/>
 <a href="#22.23.2">22.23.2</a><br/>
 <a href="#22.23.1">22.23.1</a><br/>
@@ -52,6 +54,7 @@
 </table>
 
 * Other Versions
+  * [27.x](CHANGELOG_V27.md)
   * [26.x](CHANGELOG_V26.md)
   * [25.x](CHANGELOG_V25.md)
   * [24.x](CHANGELOG_V24.md)
@@ -78,6 +81,104 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.23.5"></a>
+
+## 2026-11-11, Version 22.23.5 'Jod' (LTS), @aduh95
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2026-123863) http2: release headers when a stream is removed (Matteo Collina) – High
+* (CVE-2026-123864) tls,http: prevent nested parser execution from empty writes (Matteo Collina) – High
+* (CVE-2026-123865) http2: detect streams abandoned by nghttp2 (Matteo Collina) – High
+* (CVE-2026-123866) http2: retain buffers until socket writes finish (Matteo Collina) – High
+* (CVE-2026-123872) tls: disable resumption for mTLS with no session id context (Tim Perry) – High
+* (CVE-2026-123872) tls: don't allow renegotiation or HRR to change SNI (Tim Perry) – High
+* (CVE-2026-123872) tls: don't allow TLS resumption to change SNI (Tim Perry) – High
+* (CVE-2026-123874) http2: retain streams during pending writes (Matteo Collina) – High
+* (CVE-2026-123828) http2: avoid overflowing ALTSVC buffers (Matteo Collina) – Medium
+* (CVE-2026-123867) tls: apply the CA of SNI contexts without a certificate (Matteo Collina) – Medium
+* (CVE-2026-123868) http2: charge inbound DATA retained by streams to maxSessionMemory (Matteo Collina) – Medium
+* (CVE-2026-123871) http: redact proxy credentials in invalid proxy URL errors (Matteo Collina) – Medium
+* (CVE-2026-123875) http2: guard against null write request on cancelled stream (Matteo Collina) – Medium
+* (CVE-2026-123877) https: isolate Agent TLS policy keys (Matteo Collina) – Medium
+* (CVE-2026-123829) permission: do not leak denied descendants in recursive fs.watch (RafaelGSS) – Low
+* (CVE-2026-123862) zlib: handle params callback after destroy (Matteo Collina) – Low
+* (CVE-2026-123873) permission: check heap snapshot destination (RafaelGSS) – Low
+* deps: update llhttp to 9.4.4 (Antoine du Hamel)
+* deps: update sqlite to 3.54.1 (Node.js GitHub Bot)
+
+### Commits
+
+* \[[`554fff40f0`](https://github.com/nodejs/node/commit/554fff40f0)] - **deps**: update llhttp to 9.4.4 (Antoine du Hamel) [nodejs-private/node-private#1038](https://github.com/nodejs-private/node-private/pull/1038)
+* \[[`6577cbf231`](https://github.com/nodejs/node/commit/6577cbf231)] - **deps**: update sqlite to 3.54.1 (Node.js GitHub Bot) [#66816](https://github.com/nodejs/node/pull/66816)
+* \[[`61d93c6086`](https://github.com/nodejs/node/commit/61d93c6086)] - **deps**: update sqlite to 3.54.0 (Node.js GitHub Bot) [#66663](https://github.com/nodejs/node/pull/66663)
+* \[[`cd18f6bdff`](https://github.com/nodejs/node/commit/cd18f6bdff)] - **http**: redact proxy credentials in invalid proxy URL errors (Matteo Collina) [nodejs-private/node-private#1001](https://github.com/nodejs-private/node-private/pull/1001)
+* \[[`6cd7e80d68`](https://github.com/nodejs/node/commit/6cd7e80d68)] - **http2**: retain buffers until socket writes finish (Matteo Collina) [nodejs-private/node-private#1017](https://github.com/nodejs-private/node-private/pull/1017)
+* \[[`9bce421783`](https://github.com/nodejs/node/commit/9bce421783)] - **http2**: release headers when a stream is removed (Matteo Collina) [nodejs-private/node-private#1026](https://github.com/nodejs-private/node-private/pull/1026)
+* \[[`30fd852c0d`](https://github.com/nodejs/node/commit/30fd852c0d)] - **http2**: detect streams abandoned by nghttp2 (Matteo Collina) [#66641](https://github.com/nodejs/node/pull/66641)
+* \[[`21fb5d0348`](https://github.com/nodejs/node/commit/21fb5d0348)] - **http2**: guard against null write request on cancelled stream (Matteo Collina) [#67252](https://github.com/nodejs/node/pull/67252)
+* \[[`af6fbb6564`](https://github.com/nodejs/node/commit/af6fbb6564)] - **https**: isolate Agent TLS policy keys (Matteo Collina) [nodejs-private/node-private#1036](https://github.com/nodejs-private/node-private/pull/1036)
+* \[[`5c9eed3b1e`](https://github.com/nodejs/node/commit/5c9eed3b1e)] - **permission**: do not leak denied descendants in recursive fs.watch (RafaelGSS) [nodejs-private/node-private#967](https://github.com/nodejs-private/node-private/pull/967)
+* \[[`5e497aec89`](https://github.com/nodejs/node/commit/5e497aec89)] - **src**: fix the fs permission tree node on wildcard nodes (James M Snell) [nodejs-private/node-private#986](https://github.com/nodejs-private/node-private/pull/986)
+* \[[`06af164d09`](https://github.com/nodejs/node/commit/06af164d09)] - **tls**: disable resumption for mTLS with no session id context (Tim Perry) [nodejs-private/node-private#1030](https://github.com/nodejs-private/node-private/pull/1030)
+* \[[`209c7e4d83`](https://github.com/nodejs/node/commit/209c7e4d83)] - **tls**: don't allow renegotiation or HRR to change SNI (Tim Perry) [nodejs-private/node-private#1030](https://github.com/nodejs-private/node-private/pull/1030)
+* \[[`05e452f075`](https://github.com/nodejs/node/commit/05e452f075)] - **tls**: don't allow TLS resumption to change SNI (Tim Perry) [nodejs-private/node-private#1030](https://github.com/nodejs-private/node-private/pull/1030)
+* \[[`67da864a89`](https://github.com/nodejs/node/commit/67da864a89)] - **tls**: apply the CA of SNI contexts without a certificate (Matteo Collina) [nodejs-private/node-private#1020](https://github.com/nodejs-private/node-private/pull/1020)
+* \[[`c841c6c7f1`](https://github.com/nodejs/node/commit/c841c6c7f1)] - **tls,http**: prevent nested parser execution from empty writes (Matteo Collina) [nodejs-private/node-private#1021](https://github.com/nodejs-private/node-private/pull/1021)
+* \[[`ea159e84dd`](https://github.com/nodejs/node/commit/ea159e84dd)] - **zlib**: handle params callback after destroy (Matteo Collina) [nodejs-private/node-private#1037](https://github.com/nodejs-private/node-private/pull/1037)
+
+<a id="22.23.4"></a>
+
+## 2026-10-21, Version 22.23.4 'Jod' (LTS), @aduh95
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2026-105481) http: ensure agent data guard works without I/O (James M Snell)
+* (CVE-2026-105482) dns: validate resolve inputs for null bytes (James M Snell)
+* (CVE-2026-106069, CVE-2026-106072) tls: reject non-canonical IP addresses (Matteo Collina)
+* (CVE-2026-106073) permission: check permission model in realpathSync (RafaelGSS)
+* (CVE-2026-106074) crypto: reset random caches across snapshots (Filip Skokan)
+* (CVE-2026-111497) src: expose `BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH` (Antoine du Hamel)
+* (CVE-2026-111497) deps: brotli: cherry-pick 0ed4268a4401abcb44720963 (Evgenii Kliuchnikov)
+* crypto: update root certificates to NSS 3.131.1 (Antoine du Hamel)
+* deps: update c-ares to 1.34.9 (Node.js GitHub Bot)
+* deps: update timezone to 2026e (Node.js GitHub Bot)
+* deps: upgrade openssl sources to openssl-3.5.9 (Node.js GitHub Bot)
+* deps: update sqlite to 3.53.4 (Node.js GitHub Bot)
+* deps: update undici to 6.29.1 (Node.js GitHub Bot)
+
+### Commits
+
+* \[[`68fa0df6d6`](https://github.com/nodejs/node/commit/68fa0df6d6)] - **crypto**: update root certificates to NSS 3.131.1 (Antoine du Hamel) [#66877](https://github.com/nodejs/node/pull/66877)
+* \[[`dd6b47573b`](https://github.com/nodejs/node/commit/dd6b47573b)] - **crypto**: reset random caches across snapshots (Filip Skokan) [nodejs-private/node-private#987](https://github.com/nodejs-private/node-private/pull/987)
+* \[[`a62b7d5362`](https://github.com/nodejs/node/commit/a62b7d5362)] - **crypto**: harden X.509 conversion and formatting (Filip Skokan) [nodejs-private/node-private#966](https://github.com/nodejs-private/node-private/pull/966)
+* \[[`ec9e5e4a3e`](https://github.com/nodejs/node/commit/ec9e5e4a3e)] - **crypto**: update root certificates to NSS 3.129 (Node.js GitHub Bot) [#66496](https://github.com/nodejs/node/pull/66496)
+* \[[`a538a9515d`](https://github.com/nodejs/node/commit/a538a9515d)] - **deps**: update c-ares to 1.34.9 (Node.js GitHub Bot) [#66868](https://github.com/nodejs/node/pull/66868)
+* \[[`67d294739f`](https://github.com/nodejs/node/commit/67d294739f)] - **deps**: brotli: cherry-pick 0ed4268a4401abcb44720963 (Evgenii Kliuchnikov) [nodejs-private/node-private#1002](https://github.com/nodejs-private/node-private/pull/1002)
+* \[[`1ab9db8a74`](https://github.com/nodejs/node/commit/1ab9db8a74)] - **deps**: update timezone to 2026e (Node.js GitHub Bot) [#66419](https://github.com/nodejs/node/pull/66419)
+* \[[`52b4bcab03`](https://github.com/nodejs/node/commit/52b4bcab03)] - **deps**: update timezone to 2026d (Node.js GitHub Bot) [#66333](https://github.com/nodejs/node/pull/66333)
+* \[[`60f4833d41`](https://github.com/nodejs/node/commit/60f4833d41)] - **deps**: update archs files for openssl-3.5.9 (Node.js GitHub Bot) [#66396](https://github.com/nodejs/node/pull/66396)
+* \[[`05470dc308`](https://github.com/nodejs/node/commit/05470dc308)] - **deps**: upgrade openssl sources to openssl-3.5.9 (Node.js GitHub Bot) [#66396](https://github.com/nodejs/node/pull/66396)
+* \[[`47333fe4f4`](https://github.com/nodejs/node/commit/47333fe4f4)] - **deps**: update sqlite to 3.53.4 (Node.js GitHub Bot) [#64745](https://github.com/nodejs/node/pull/64745)
+* \[[`98258b855f`](https://github.com/nodejs/node/commit/98258b855f)] - **deps**: update sqlite to 3.53.3 (Node.js GitHub Bot) [#64180](https://github.com/nodejs/node/pull/64180)
+* \[[`a8349b6408`](https://github.com/nodejs/node/commit/a8349b6408)] - **deps**: update sqlite to 3.53.2 (Node.js GitHub Bot) [#63774](https://github.com/nodejs/node/pull/63774)
+* \[[`e9e295bcc1`](https://github.com/nodejs/node/commit/e9e295bcc1)] - **deps**: cherry-pick e807d4e379 from SQLite (Junsu Han) [#63525](https://github.com/nodejs/node/pull/63525)
+* \[[`512a9b61f0`](https://github.com/nodejs/node/commit/512a9b61f0)] - **deps**: update sqlite to 3.53.1 (Node.js GitHub Bot) [#63217](https://github.com/nodejs/node/pull/63217)
+* \[[`e708247254`](https://github.com/nodejs/node/commit/e708247254)] - **deps**: update sqlite to 3.53.0 (Node.js GitHub Bot) [#62699](https://github.com/nodejs/node/pull/62699)
+* \[[`857be5afa3`](https://github.com/nodejs/node/commit/857be5afa3)] - **deps**: update undici to 6.29.1 (Node.js GitHub Bot) [#66765](https://github.com/nodejs/node/pull/66765)
+* \[[`19c5056002`](https://github.com/nodejs/node/commit/19c5056002)] - **dns**: validate resolve inputs for null bytes (James M Snell) [nodejs-private/node-private#984](https://github.com/nodejs-private/node-private/pull/984)
+* \[[`e7b2985d59`](https://github.com/nodejs/node/commit/e7b2985d59)] - **http**: ensure agent data guard works without I/O (James M Snell) [nodejs-private/node-private#983](https://github.com/nodejs-private/node-private/pull/983)
+* \[[`50ab804edc`](https://github.com/nodejs/node/commit/50ab804edc)] - **permission**: check permission model in realpathSync (RafaelGSS) [nodejs-private/node-private#973](https://github.com/nodejs-private/node-private/pull/973)
+* \[[`a18ec92752`](https://github.com/nodejs/node/commit/a18ec92752)] - **src**: expose `BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH` (Antoine du Hamel) [nodejs-private/node-private#1002](https://github.com/nodejs-private/node-private/pull/1002)
+* \[[`4342503fd8`](https://github.com/nodejs/node/commit/4342503fd8)] - **tls**: reject chains containing blocked public keys (Ulises Gascon) [#66871](https://github.com/nodejs/node/pull/66871)
+* \[[`d7663560ac`](https://github.com/nodejs/node/commit/d7663560ac)] - **tls**: reject non-canonical IP addresses (Matteo Collina) [nodejs-private/node-private#982](https://github.com/nodejs-private/node-private/pull/982)
+* \[[`beb4cd4cd3`](https://github.com/nodejs/node/commit/beb4cd4cd3)] - **tls**: match IPv6 hosts against IP-Address SANs (Pascal Garber) [#64145](https://github.com/nodejs/node/pull/64145)
+* \[[`4b42e56aaf`](https://github.com/nodejs/node/commit/4b42e56aaf)] - **tools**: retry Gatekeeper check and stapling after notarization (Ryan Aslett) [#66855](https://github.com/nodejs/node/pull/66855)
 
 <a id="22.23.3"></a>
 

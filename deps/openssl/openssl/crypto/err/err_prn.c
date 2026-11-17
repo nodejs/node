@@ -1,13 +1,11 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
-
-#define OSSL_FORCE_ERR_STATE
 
 #include <stdio.h>
 #include "internal/cryptlib.h"
@@ -34,11 +32,11 @@ void ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
             data = "";
 
         hex = ossl_buf2hexstr_sep((const unsigned char *)&tid, sizeof(tid), '\0');
-        BIO_snprintf(buf, sizeof(buf), "%s:", hex == NULL ? "<null>" : hex);
-        offset = strlen(buf);
+        snprintf(buf, sizeof(buf), "%s:", hex == NULL ? "<null>" : hex);
+        offset = (int)strlen(buf);
         ossl_err_string_int(l, func, buf + offset, sizeof(buf) - offset);
-        offset += strlen(buf + offset);
-        BIO_snprintf(buf + offset, sizeof(buf) - offset, ":%s:%d:%s\n",
+        offset += (int)strlen(buf + offset);
+        snprintf(buf + offset, sizeof(buf) - offset, ":%s:%d:%s\n",
             file, line, data);
         OPENSSL_free(hex);
         if (cb(buf, strlen(buf), u) <= 0)
@@ -165,7 +163,7 @@ void ERR_add_error_mem_bio(const char *separator, BIO *bio)
 
 static int print_bio(const char *str, size_t len, void *bp)
 {
-    return BIO_write((BIO *)bp, str, len);
+    return BIO_write((BIO *)bp, str, (int)len);
 }
 
 void ERR_print_errors(BIO *bp)
