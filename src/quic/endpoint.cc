@@ -2013,6 +2013,8 @@ void Endpoint::EmitNewSession(const BaseObjectPtr<Session>& session) {
   // ClientHello, which is the only output that can predate this callback.
   if (!session->is_destroyed()) {
     session->FlushPendingQlog();
+    // JS has had its chance to start a session; without one, this closes it.
+    session->RequireApplication();
   }
 }
 

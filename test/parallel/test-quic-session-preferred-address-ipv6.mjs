@@ -85,7 +85,7 @@ const clientSession = await connect(serverEndpoint.address, {
   }, 4),
   onpathvalidation: mustCall((result, newLocal, newRemote, oldLocal, oldRemote, preferred) => {
     assert.strictEqual(result, 'success');
-    assertEqualAddress(newLocal, clientSession.endpoint.address);
+    assertEqualAddress(newLocal, clientSession.connection.endpoint.address);
     assertEqualAddress(newRemote, preferredEndpoint.address);
     assert.strictEqual(oldLocal, null);
     assert.strictEqual(oldRemote, null);

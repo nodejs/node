@@ -35,11 +35,11 @@ clientSession.destroy();
 assert.strictEqual(clientSession.destroyed, true);
 
 // Properties should return null/undefined gracefully.
-assert.strictEqual(clientSession.endpoint, null);
-assert.strictEqual(clientSession.path, undefined);
-assert.strictEqual(clientSession.certificate, undefined);
-assert.strictEqual(clientSession.peerCertificate, undefined);
-assert.strictEqual(clientSession.ephemeralKeyInfo, undefined);
+assert.strictEqual(clientSession.connection.endpoint, null);
+assert.strictEqual(clientSession.connection.path, undefined);
+assert.strictEqual(clientSession.connection.certificate, undefined);
+assert.strictEqual(clientSession.connection.peerCertificate, undefined);
+assert.strictEqual(clientSession.connection.ephemeralKeyInfo, undefined);
 
 // destroy() again is idempotent.
 clientSession.destroy();

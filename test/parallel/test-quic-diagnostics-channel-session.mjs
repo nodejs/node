@@ -38,7 +38,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Trigger a key update to fire a key update event.
-clientSession.updateKey();
+clientSession.connection.updateKey();
 
 await clientSession.closed;
 await serverEndpoint.close();

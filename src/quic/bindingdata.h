@@ -77,6 +77,7 @@ struct QuicAllocState;
   V(allow, "allow")                                                            \
   V(application, "application")                                                \
   V(authoritative, "authoritative")                                            \
+  V(auto_start, "autoStart")                                                   \
   V(bbr, "bbr")                                                                \
   V(ca, "ca")                                                                  \
   V(cc_algorithm, "cc")                                                        \

@@ -36,6 +36,7 @@ const decoder = new TextDecoder();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     // Allow 5 header pairs: 4 pseudo-headers + 1 custom.
     application: { maxHeaderPairs: 5 },
@@ -56,6 +57,7 @@ const decoder = new TextDecoder();
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
   });
@@ -98,6 +100,7 @@ const decoder = new TextDecoder();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     // Limit total header bytes. The 4 pseudo-headers fit within 100
     // bytes, but adding x-long (6 + 200 = 206 bytes) exceeds it.
@@ -115,6 +118,7 @@ const decoder = new TextDecoder();
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
   });
@@ -146,12 +150,18 @@ const decoder = new TextDecoder();
   const serverDone = Promise.withResolvers();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
+    ss.onsettings = mustCall((appopt) => {
+      assert.strictEqual(appopt.enableDatagrams, true);
+      assert.strictEqual(appopt.enableConnectProtocol, false);
+      // Must be false, as this is only sent from server side
+    });
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       ss.close();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     application: { enableConnectProtocol: true, enableDatagrams: true },
     onheaders: mustCall(function(headers) {
@@ -159,19 +169,15 @@ const decoder = new TextDecoder();
       this.writer.writeSync(encoder.encode('settings-ok'));
       this.writer.endSync();
     }),
-    onapplication: mustCall((appopt) => {
-      assert.strictEqual(appopt.enableDatagrams, true);
-      assert.strictEqual(appopt.enableConnectProtocol, false);
-      // Must be false, as this is only sent from server side
-    })
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     application: { enableConnectProtocol: true, enableDatagrams: true },
   });
-  clientSession.onapplication = mustCall((appopt) => {
+  clientSession.onsettings = mustCall((appopt) => {
     assert.strictEqual(appopt.enableConnectProtocol, true);
     assert.strictEqual(appopt.enableDatagrams, true);
   });

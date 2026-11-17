@@ -110,7 +110,7 @@ const decoder = new TextDecoder();
   const info = await cs.opened;
   assert.strictEqual(info.protocol, 'quic-test');
   // Validate the HRR happened: we fell back to 2nd group
-  assert.strictEqual(cs.ephemeralKeyInfo.name, 'secp521r1');
+  assert.strictEqual(cs.connection.ephemeralKeyInfo.name, 'secp521r1');
 
   await serverDone.promise;
   cs.close();

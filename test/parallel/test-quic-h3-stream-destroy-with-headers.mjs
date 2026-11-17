@@ -26,10 +26,12 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
   await ss.closed;
   serverDone.resolve();
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
 });
 
 const clientSession = await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
 });

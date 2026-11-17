@@ -15,7 +15,7 @@ const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
 const cert = fixtures.readKey('agent1-cert.pem');
 
 // Test h3 ALPN negotiation with Http3ApplicationImpl.
-// Both server and client use the default ALPN (h3).
+// Both server and client use the h3 ALPN.
 
 const serverOpened = Promise.withResolvers();
 
@@ -25,12 +25,14 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   serverOpened.resolve();
   serverSession.close();
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
 });
 
 assert.notStrictEqual(serverEndpoint.address, undefined);
 
 const clientSession = await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
 });

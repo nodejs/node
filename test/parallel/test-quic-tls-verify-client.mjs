@@ -27,7 +27,7 @@ const clientCert = fixtures.readKey('agent2-cert.pem');
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     await serverSession.opened;
     // The server should see the client's certificate.
-    assert.ok(serverSession.peerCertificate);
+    assert.ok(serverSession.connection.peerCertificate);
     await serverSession.close();
   }), {
     sni: { '*': { keys: [serverKey], certs: [serverCert] } },

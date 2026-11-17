@@ -39,6 +39,7 @@ async function getTicket(endpointOptions) {
       ss.close();
     });
   }), {
+    alpn: ['h3'],
     sni,
     ...endpointOptions,
     onheaders: mustCall(function(headers) {
@@ -49,6 +50,7 @@ async function getTicket(endpointOptions) {
   });
 
   const cs = await connect(ep.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     ...endpointOptions,
@@ -94,11 +96,13 @@ async function attemptRejected0RTT(endpointOptions, ticket, token) {
   const ep = await listen(mustCall(async (ss) => {
     await ss.closed;
   }), {
+    alpn: ['h3'],
     sni,
     ...endpointOptions,
   });
 
   const cs = await connect(ep.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     ...endpointOptions,

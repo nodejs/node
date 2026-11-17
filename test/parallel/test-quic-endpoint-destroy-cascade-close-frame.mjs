@@ -49,7 +49,7 @@ const serverError = new Error('cascade close frame test');
 // (which is the regression this test is designed to catch).
 const serverHandshake = Promise.withResolvers();
 const onsession = mustCall((serverSession) => {
-  serverSession.onhandshake = mustCall(() => {
+  serverSession.connection.onhandshake = mustCall(() => {
     serverHandshake.resolve();
   });
 });

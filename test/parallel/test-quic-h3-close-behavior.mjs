@@ -31,6 +31,7 @@ const decoder = new TextDecoder();
     serverSession = ss;
     ss.onstream = mustCall(2);
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall((headers, stream) => {
       stream.sendHeaders({ ':status': '200' });
@@ -49,6 +50,7 @@ const decoder = new TextDecoder();
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
   });

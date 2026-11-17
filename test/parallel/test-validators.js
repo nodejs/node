@@ -5,6 +5,7 @@ require('../common');
 const assert = require('assert');
 const {
   validateArray,
+  validateBigIntOrInt,
   validateBoolean,
   validateInteger,
   validateNumber,
@@ -47,6 +48,23 @@ const invalidArgValueError = {
   // validateInteger() works with unsafe integers.
   validateInteger(MAX_SAFE_INTEGER + 1, 'foo', 0, MAX_SAFE_INTEGER + 1);
   validateInteger(MIN_SAFE_INTEGER - 1, 'foo', MIN_SAFE_INTEGER - 1);
+
+  // validateBigIntOrInt() accepts bigints and integer numbers within the
+  // bigint range, returning a bigint.
+  assert.strictEqual(validateBigIntOrInt(0n, 'foo', 0n, 10n), 0n);
+  assert.strictEqual(validateBigIntOrInt(10, 'foo', 0n, 10n), 10n);
+  assert.strictEqual(validateBigIntOrInt(-5, 'foo', -10n, 10n), -5n);
+  assert.strictEqual(
+    validateBigIntOrInt(2n ** 64n - 1n, 'foo', 0n, 2n ** 64n - 1n),
+    2n ** 64n - 1n);
+  [
+    Symbol(), {}, [], false, true, undefined, null, () => {}, '', '1',
+  ].forEach((val) => assert.throws(
+    () => validateBigIntOrInt(val, 'foo', 0n, 10n), invalidArgTypeError));
+  [
+    -1, 11, -1n, 11n, 1.5, NaN, Infinity,
+  ].forEach((val) => assert.throws(
+    () => validateBigIntOrInt(val, 'foo', 0n, 10n), outOfRangeError));
 
   // validateInt32() and validateUint32()
   [
