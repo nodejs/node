@@ -904,7 +904,8 @@ void TLSSession::Initialize(
 
   switch (ctx.side()) {
     case Side::SERVER: {
-      if (!ossl_context_.ConfigureServer(options.enable_early_data)) [[unlikely]] {
+      if (!ossl_context_.ConfigureServer(options.enable_early_data))
+          [[unlikely]] {
         validation_error_ = "Failed to configure server session";
         ossl_context_.reset();
         return;
