@@ -676,7 +676,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #if defined(GTEST_OS_WINDOWS_MOBILE) || defined(GTEST_OS_WINDOWS_PHONE) || \
     defined(GTEST_OS_WINDOWS_RT) || defined(GTEST_OS_WINDOWS_GAMES) ||     \
     defined(GTEST_OS_ESP8266) || defined(GTEST_OS_XTENSA) ||               \
-    defined(GTEST_OS_QURT) || !GTEST_HAS_FILE_SYSTEM
+    defined(GTEST_OS_QURT) || defined(__wasi__) || !GTEST_HAS_FILE_SYSTEM
 #define GTEST_HAS_STREAM_REDIRECTION 0
 #else
 #define GTEST_HAS_STREAM_REDIRECTION 1
@@ -706,8 +706,9 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 // Created by default when Death tests are supported, but other platforms can
 // use the Premature exit file without Death test support (e.g. for detecting
 // crashes).
-#if GTEST_HAS_DEATH_TEST || \
-    (defined(GTEST_OS_EMSCRIPTEN) && GTEST_HAS_FILE_SYSTEM)
+#if GTEST_HAS_DEATH_TEST ||                                     \
+    ((defined(GTEST_OS_EMSCRIPTEN) || defined(GTEST_OS_IOS)) && \
+     GTEST_HAS_FILE_SYSTEM)
 #define GTEST_INTERNAL_HAS_PREMATURE_EXIT_FILE 1
 #endif
 
