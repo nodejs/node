@@ -1618,6 +1618,7 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
   }
 
   for (std::pair<Call*, Scope*> call : eval_calls_) {
+    DCHECK_EQ(call.second->GetClosureScope(), closure_scope());
     Tagged<ScopeInfo> current;
     int index = call.first->eval_scope_info_index();
     if (script->infos()
@@ -6171,11 +6172,16 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
   builder()->StoreAccumulatorInRegister(input).CallRuntime(
       Runtime::kInlineGeneratorGetResumeMode, generator_object());
 
-  // Now dispatch on resume mode.
-  static_assert(JSGeneratorObject::kNext + 1 == JSGeneratorObject::kReturn);
+  // Now dispatch on resume mode. kNextAllocSkipped is never observed here;
+  // every resume path overwrites resume_mode_ first.
+  static_assert(JSGeneratorObject::kNext + 1 ==
+                JSGeneratorObject::kNextTrySkipAlloc);
+  static_assert(JSGeneratorObject::kNextTrySkipAlloc + 1 ==
+                JSGeneratorObject::kReturn);
   static_assert(JSGeneratorObject::kReturn + 1 == JSGeneratorObject::kThrow);
+  static_assert(JSGeneratorObject::kThrow + 1 == JSGeneratorObject::kRethrow);
   BytecodeJumpTable* jump_table =
-      builder()->AllocateJumpTable(is_async ? 3 : 2, JSGeneratorObject::kNext);
+      builder()->AllocateJumpTable(is_async ? 4 : 3, JSGeneratorObject::kNext);
 
   builder()->SwitchOnSmiNoFeedback(jump_table);
 
@@ -6213,6 +6219,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
   {
     // Resume with next.
     builder()->Bind(jump_table, JSGeneratorObject::kNext);
+    builder()->Bind(jump_table, JSGeneratorObject::kNextTrySkipAlloc);
     BuildIncrementBlockCoverageCounterIfEnabled(expr,
                                                 SourceRangeKind::kContinuation);
     builder()->LoadAccumulatorWithRegister(input);
@@ -6322,8 +6329,10 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
 
       {
         BytecodeLabels after_switch(zone());
+        // The table is based at kReturn, so every mode below it (the whole
+        // kNext family) falls through to the default case below.
         BytecodeJumpTable* switch_jump_table =
-            builder()->AllocateJumpTable(2, 1);
+            builder()->AllocateJumpTable(2, JSGeneratorObject::kReturn);
 
         builder()
             ->LoadAccumulatorWithRegister(resume_mode)
@@ -6331,8 +6340,11 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
 
         // Fallthrough to default case.
         // TODO(ignition): Add debug code to check that {resume_mode} really is
-        // {JSGeneratorObject::kNext} in this case.
-        static_assert(JSGeneratorObject::kNext == 0);
+        // {JSGeneratorObject::kNext} or
+        // {JSGeneratorObject::kNextTrySkipAlloc} in this case.
+        static_assert(JSGeneratorObject::kNext < JSGeneratorObject::kReturn);
+        static_assert(JSGeneratorObject::kNextTrySkipAlloc <
+                      JSGeneratorObject::kReturn);
         {
           FeedbackSlot slot = feedback_spec()->AddCallICSlot();
           builder()->CallProperty(iterator.next(), iterator_and_input,
@@ -6340,7 +6352,8 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
           builder()->Jump(after_switch.New());
         }
 
-        static_assert(JSGeneratorObject::kReturn == 1);
+        static_assert(JSGeneratorObject::kReturn + 1 ==
+                      JSGeneratorObject::kThrow);
         builder()->Bind(switch_jump_table, JSGeneratorObject::kReturn);
         {
           const AstRawString* return_string =
@@ -6361,7 +6374,6 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
           }
         }
 
-        static_assert(JSGeneratorObject::kThrow == 2);
         builder()->Bind(switch_jump_table, JSGeneratorObject::kThrow);
         {
           const AstRawString* throw_string =
@@ -6491,7 +6503,8 @@ void BytecodeGenerator::BuildAwait(int position) {
   Register input = register_allocator()->NewRegister();
   Register resume_mode = register_allocator()->NewRegister();
 
-  // Now dispatch on resume mode.
+  // Now dispatch on resume mode. The skip-allocation handshake is only set on
+  // JS_GENERATOR_OBJECT_TYPE receivers, which never await.
   BytecodeLabel resume_next;
   builder()
       ->StoreAccumulatorInRegister(input)
@@ -7073,7 +7086,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       private_name_lookup_skips_outer_class =
           scope_with_context->AsClassScope()->IsParsingHeritage();
     }
-    if (scope_with_context) {
+    if (scope_with_context &&
+        scope_with_context->IsOuterScopeUpToClosureScopeOf(current_scope())) {
       eval_calls_.emplace_back(expr, scope_with_context);
     }
     int eval_flags = ResolveEvalFlags::Encode(

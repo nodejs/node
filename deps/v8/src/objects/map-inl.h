@@ -959,6 +959,7 @@ void Map::clear_padding() {
 }
 
 void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
+  DCHECK(AllowJSObjectModification::IsAllowed(isolate));
   Tagged<DescriptorArray> descriptors = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);

@@ -19,8 +19,6 @@ transitioning javascript builtin GeneratorPrototypeNextLazyDeoptContinuation(
     js-implicit context: NativeContext, receiver: JSAny)(generator: JSAny,
     exception: JSAny|TheHole, result: JSAny): JSAny {
   const gen = UnsafeCast<JSGeneratorObject>(generator);
-  const yieldedValue = gen.yielded_value;
-  gen.yielded_value = Undefined;
 
   // Exception path: close the generator and rethrow.
   typeswitch (exception) {
@@ -36,15 +34,13 @@ transitioning javascript builtin GeneratorPrototypeNextLazyDeoptContinuation(
   // continuation is now kGeneratorExecuting; close it and wrap the result.
   // Otherwise (yielded), return the result as-is.
   if (gen.continuation == SmiConstant(kGeneratorExecuting)) {
-    dcheck(result != TheHole);
     gen.continuation = SmiConstant(kGeneratorClosed);
     return AllocateJSIteratorResult(result, True);
   }
 
   // Allocating the iterator result object was skipped; allocate it here.
-  if (result == TheHole) {
-    const val = (yieldedValue == TheHole) ? Undefined : yieldedValue;
-    return AllocateJSIteratorResult(val, False);
+  if (gen.resume_mode == SmiConstant(kGeneratorResumeModeNextAllocSkipped)) {
+    return AllocateJSIteratorResult(result, False);
   }
 
   return result;

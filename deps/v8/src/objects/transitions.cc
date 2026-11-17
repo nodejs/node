@@ -413,6 +413,7 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
                                                  DirectHandle<Map> map,
                                                  DirectHandle<Object> prototype,
                                                  DirectHandle<Map> target_map) {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate));
   DCHECK(IsUndefined(map->GetBackPointer()));
   DCHECK_NE(map->prototype(), *prototype);
   DCHECK(IsMap(Cast<HeapObject>(*prototype)->map()));

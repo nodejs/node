@@ -1167,9 +1167,12 @@ struct SimplifiedOperatorGlobalCache final {
   DEOPTIMIZE_REASON_LIST(CHECK_IF)
 #undef CHECK_IF
 
+  // Looking up a string key can internalize it in place into a ThinString,
+  // so Operator::kNoWrite (and thus Operator::kEliminatable) does not hold.
   struct FindOrderedHashMapEntryOperator final : public Operator {
     FindOrderedHashMapEntryOperator()
-        : Operator(IrOpcode::kFindOrderedHashMapEntry, Operator::kEliminatable,
+        : Operator(IrOpcode::kFindOrderedHashMapEntry,
+                   Operator::kNoThrow | Operator::kNoDeopt,
                    "FindOrderedHashMapEntry", 2, 1, 1, 1, 1, 0) {}
   };
   FindOrderedHashMapEntryOperator kFindOrderedHashMapEntry;
@@ -1183,9 +1186,12 @@ struct SimplifiedOperatorGlobalCache final {
   FindOrderedHashMapEntryForInt32KeyOperator
       kFindOrderedHashMapEntryForInt32Key;
 
+  // Looking up a string key can internalize it in place into a ThinString,
+  // so Operator::kNoWrite (and thus Operator::kEliminatable) does not hold.
   struct FindOrderedHashSetEntryOperator final : public Operator {
     FindOrderedHashSetEntryOperator()
-        : Operator(IrOpcode::kFindOrderedHashSetEntry, Operator::kEliminatable,
+        : Operator(IrOpcode::kFindOrderedHashSetEntry,
+                   Operator::kNoThrow | Operator::kNoDeopt,
                    "FindOrderedHashSetEntry", 2, 1, 1, 1, 1, 0) {}
   };
   FindOrderedHashSetEntryOperator kFindOrderedHashSetEntry;
