@@ -5,6 +5,11 @@ const { once } = require('events');
 const dc = require('diagnostics_channel');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 
+// Only the main thread publishes registry updates; allow the test's own workers.
+if (!isMainThread && workerData !== 'parent' && workerData !== 'child') {
+  common.skip('This test must be started on the main thread');
+}
+
 const channelName = 'worker_threads.main.registry';
 
 if (isMainThread) {
@@ -27,7 +32,7 @@ if (isMainThread) {
   }, 4));
 
   async function test() {
-    const worker = new Worker(__filename);
+    const worker = new Worker(__filename, { workerData: 'parent' });
     const threadId = worker.threadId;
 
     // The child ID and its registry update arrive on independent channels.
