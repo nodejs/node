@@ -13,8 +13,10 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 // The deadline is measured from the start of the process, so on a slow machine
-// it can expire before the fixture has reached the state under test, which the
-// fixture signals by creating a file. If it did not get that far and did not
+// it can expire before the fixture has reached the state under test. Unless the
+// main thread is blocked or exiting by then, it handles the timeout and prints
+// what it was doing. A fixture that expects it to do so signals that it got far
+// enough by creating a file. If the fixture did not get that far and did not
 // print the expected message, run it again with a longer timeout.
 function runUntilReady(fixture, expected, args = []) {
   for (let timeout = common.platformTimeout(1000); ; timeout *= 2) {
@@ -30,7 +32,9 @@ function runUntilReady(fixture, expected, args = []) {
     ], { encoding: 'utf8' });
     const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
 
-    if (!expected.test(child.stderr) && !fs.existsSync(marker) &&
+    if (!expected.test(child.stderr) &&
+        /^Main thread was/m.test(child.stderr) &&
+        !fs.existsSync(marker) &&
         timeout < common.platformTimeout(16000)) {
       continue;
     }
