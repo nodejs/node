@@ -1,9 +1,10 @@
 #!/bin/sh
-# Get modification time of a file or directory and pretty-print it.
+# Get modification time of a file or directory, or value of
+# $SOURCE_DATE_EPOCH, and pretty-print it, formatted like 1 January 2000.
 
-scriptversion=2018-03-07.03; # UTC
+scriptversion=2025-06-25.21; # UTC
 
-# Copyright (C) 1995-2021 Free Software Foundation, Inc.
+# Copyright (C) 1995-2025 Free Software Foundation, Inc.
 # written by Ulrich Drepper <drepper@gnu.ai.mit.edu>, June 1995
 #
 # This program is free software; you can redistribute it and/or modify
@@ -50,14 +51,21 @@ Pretty-print the modification day of FILE, in the format:
 1 January 1970
 
 Report bugs to <bug-automake@gnu.org>.
+GNU Automake home page: <https://www.gnu.org/software/automake/>.
+General help using GNU software: <https://www.gnu.org/gethelp/>.
 EOF
     exit $?
     ;;
   -v | --v*)
-    echo "mdate-sh $scriptversion"
+    echo "mdate-sh (GNU Automake) $scriptversion"
     exit $?
     ;;
 esac
+
+# Warn if more than one file given.
+if test $# -ne 1; then
+  echo "$0: warning: multiple files given, using first: $*" >&2
+fi
 
 error ()
 {
@@ -65,6 +73,24 @@ error ()
   exit 1
 }
 
+# set $month ("January") and $nummonth (1) given arg MON ("Jan").
+mon_to_month ()
+{
+  case $1 in
+    Jan) month=January; nummonth=1;;
+    Feb) month=February; nummonth=2;;
+    Mar) month=March; nummonth=3;;
+    Apr) month=April; nummonth=4;;
+    May) month=May; nummonth=5;;
+    Jun) month=June; nummonth=6;;
+    Jul) month=July; nummonth=7;;
+    Aug) month=August; nummonth=8;;
+    Sep) month=September; nummonth=9;;
+    Oct) month=October; nummonth=10;;
+    Nov) month=November; nummonth=11;;
+    Dec) month=December; nummonth=12;;
+  esac
+}
 
 # Prevent date giving response in another language.
 LANG=C
@@ -78,6 +104,7 @@ export LC_TIME
 TZ=UTC0
 export TZ
 
+# 
 # GNU ls changes its time format in response to the TIME_STYLE
 # variable.  Since we cannot assume 'unset' works, revert this
 # variable to its documented default.
@@ -123,20 +150,7 @@ do
   shift
   # Add another shift to the command.
   command="$command shift;"
-  case $1 in
-    Jan) month=January; nummonth=1;;
-    Feb) month=February; nummonth=2;;
-    Mar) month=March; nummonth=3;;
-    Apr) month=April; nummonth=4;;
-    May) month=May; nummonth=5;;
-    Jun) month=June; nummonth=6;;
-    Jul) month=July; nummonth=7;;
-    Aug) month=August; nummonth=8;;
-    Sep) month=September; nummonth=9;;
-    Oct) month=October; nummonth=10;;
-    Nov) month=November; nummonth=11;;
-    Dec) month=December; nummonth=12;;
-  esac
+  mon_to_month $1
 done
 
 test -n "$month" || error "failed parsing '$ls_command /' output"
@@ -150,7 +164,6 @@ eval $command
 # Because of the dummy argument above, month is in $2.
 #
 # On a POSIX system, we should have
-#
 # $# = 5
 # $1 = file size
 # $2 = month
@@ -159,7 +172,6 @@ eval $command
 # $5 = filename
 #
 # On Darwin 7.7.0 and 7.6.0, we have
-#
 # $# = 4
 # $1 = day
 # $2 = month
@@ -167,20 +179,7 @@ eval $command
 # $4 = filename
 
 # Get the month.
-case $2 in
-  Jan) month=January; nummonth=1;;
-  Feb) month=February; nummonth=2;;
-  Mar) month=March; nummonth=3;;
-  Apr) month=April; nummonth=4;;
-  May) month=May; nummonth=5;;
-  Jun) month=June; nummonth=6;;
-  Jul) month=July; nummonth=7;;
-  Aug) month=August; nummonth=8;;
-  Sep) month=September; nummonth=9;;
-  Oct) month=October; nummonth=10;;
-  Nov) month=November; nummonth=11;;
-  Dec) month=December; nummonth=12;;
-esac
+mon_to_month $2
 
 case $3 in
   ???*) day=$1;;
@@ -205,9 +204,9 @@ case $3 in
 	 Nov) nummonthtod=11;;
 	 Dec) nummonthtod=12;;
        esac
-       # For the first six month of the year the time notation can also
+       # For the first six months of the year the time notation can also
        # be used for files modified in the last year.
-       if (expr $nummonth \> $nummonthtod) > /dev/null;
+       if (expr $nummonth \> $nummonthtod) >/dev/null;
        then
 	 year=`expr $year - 1`
        fi;;
@@ -220,9 +219,9 @@ echo $day $month $year
 # Local Variables:
 # mode: shell-script
 # sh-indentation: 2
-# eval: (add-hook 'before-save-hook 'time-stamp)
+# eval: (add-hook 'before-save-hook 'time-stamp nil t)
 # time-stamp-start: "scriptversion="
-# time-stamp-format: "%:y-%02m-%02d.%02H"
+# time-stamp-format: "%Y-%02m-%02d.%02H"
 # time-stamp-time-zone: "UTC0"
 # time-stamp-end: "; # UTC"
 # End:

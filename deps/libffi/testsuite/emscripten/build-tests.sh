@@ -18,7 +18,6 @@ export LDFLAGS=" \
     -sMODULARIZE \
     -sMAIN_MODULE \
     -sNO_DISABLE_EXCEPTION_CATCHING \
-    -sWASM_BIGINT \
     $EXTRA_LD_FLAGS \
 "
 

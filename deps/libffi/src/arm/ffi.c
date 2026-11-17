@@ -309,8 +309,20 @@ ffi_prep_cif_machdep (ffi_cif *cif)
 	flags = ARM_TYPE_INT;
       else
 	{
+	  /* The address of the return value goes in r0, ahead of the
+	     arguments, which can then need more padding than cif->bytes
+	     includes.  Lay them out again behind it.  */
+	  unsigned i;
+
 	  flags = ARM_TYPE_STRUCT;
-	  bytes += 4;
+	  bytes = 4;
+	  for (i = 0; i < cif->nargs; i++)
+	    {
+	      ffi_type *ty = cif->arg_types[i];
+
+	      bytes = (size_t) ffi_align (ty, (void *) bytes);
+	      bytes += FFI_ALIGN (ty->size, 4);
+	    }
 	}
       break;
 
@@ -467,6 +479,11 @@ ffi_prep_incoming_args_SYSV (ffi_cif *cif, void *rvalue,
       size_t z = ty->size;
 
       argp = ffi_align (ty, argp);
+#ifdef __ARMEB__
+      if (z < 4 && ty->type != FFI_TYPE_STRUCT && ty->type != FFI_TYPE_COMPLEX)
+	avalue[i] = (void *) (argp + 4 - z);
+      else
+#endif
       avalue[i] = (void *) argp;
       argp += z;
     }
@@ -515,6 +532,11 @@ ffi_prep_incoming_args_VFP (ffi_cif *cif, void *rvalue, char *stack,
 	  if (tregp + z <= eo_regp || !stack_used)
 	    {
 	      /* Because we're little endian, this is what it turns into.  */
+#ifdef __ARMEB__
+	      if (z < 4 && ty->type != FFI_TYPE_STRUCT && ty->type != FFI_TYPE_COMPLEX)
+		avalue[i] = (void *) (tregp + 4 - z);
+	      else
+#endif
 	      avalue[i] = (void *) tregp;
 	      regp = tregp + z;
 
@@ -537,6 +559,11 @@ ffi_prep_incoming_args_VFP (ffi_cif *cif, void *rvalue, char *stack,
 
       stack_used = 1;
       argp = ffi_align (ty, argp);
+#ifdef __ARMEB__
+      if (z < 4 && ty->type != FFI_TYPE_STRUCT && ty->type != FFI_TYPE_COMPLEX)
+	avalue[i] = (void *) (argp + 4 - z);
+      else
+#endif
       avalue[i] = (void *) argp;
       argp += z;
     }

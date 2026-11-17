@@ -71,10 +71,10 @@
 /* Define if you support more than one size of the long double type */
 #undef HAVE_LONG_DOUBLE_VARIANT
 
-/* Define to 1 if you have the `memcpy' function. */
+/* Define to 1 if you have the 'memcpy' function. */
 #undef HAVE_MEMCPY
 
-/* Define to 1 if you have the `memfd_create' function. */
+/* Define to 1 if you have the 'memfd_create' function. */
 #undef HAVE_MEMFD_CREATE
 
 /* Define if .eh_frame sections should be read-only. */
@@ -134,16 +134,16 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* The size of `double', as computed by sizeof. */
+/* The size of 'double', as computed by sizeof. */
 #undef SIZEOF_DOUBLE
 
-/* The size of `long double', as computed by sizeof. */
+/* The size of 'long double', as computed by sizeof. */
 #undef SIZEOF_LONG_DOUBLE
 
-/* The size of `size_t', as computed by sizeof. */
+/* The size of 'size_t', as computed by sizeof. */
 #undef SIZEOF_SIZE_T
 
-/* Define to 1 if all of the C90 standard headers exist (not just the ones
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #undef STDC_HEADERS

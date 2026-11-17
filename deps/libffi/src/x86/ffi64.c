@@ -442,6 +442,41 @@ examine_argument (ffi_type *type, enum x86_64_reg_class classes[MAX_CLASSES],
   return n;
 }
 
+/* Recursively test whether TY is, or contains, a short vector whose x86-64
+   System V calling convention is undefined, so that libffi must refuse it
+   rather than marshal it the wrong way.
+
+   The psABI only defines the convention for vectors that map to __m64/__m128
+   (8 and 16 bytes).  Narrower vectors (<1 x float>, <4 x uint8>, ...) are
+   unspecified, and GCC and Clang disagree on them.  Among the 8-byte vectors
+   the two also disagree on the single-element <1 x double>: GCC returns and
+   passes it in memory, Clang in %xmm0.  libffi cannot tell which convention
+   the target function was compiled for, so it accepts only the shapes both
+   compilers agree on and this port implements: 16-byte vectors, and 8-byte
+   vectors other than <1 x double>.  Everything else is FFI_BAD_TYPEDEF.  */
+
+static int
+vector_type_unsupported (ffi_type *ty)
+{
+  ffi_type **p;
+
+  if (ty == NULL)
+    return 0;
+  if (ty->type == FFI_TYPE_VECTOR)
+    {
+      if (ty->size == 16)
+	return 0;
+      if (ty->size == 8 && ty->elements[0]->type != FFI_TYPE_DOUBLE)
+	return 0;
+      return 1;
+    }
+  if (ty->type == FFI_TYPE_STRUCT && ty->elements != NULL)
+    for (p = ty->elements; *p != NULL; p++)
+      if (vector_type_unsupported (*p))
+	return 1;
+  return 0;
+}
+
 /* Perform machine dependent cif processing.  */
 
 #ifndef __ILP32__
@@ -469,6 +504,18 @@ ffi_prep_cif_machdep (ffi_cif *cif)
 
   rtype = cif->rtype;
   rtype_size = rtype->size;
+
+  /* Reject return and argument types that are, or contain, a vector whose
+     x86-64 System V convention is undefined (see vector_type_unsupported).
+     Doing it here, before any classification, keeps libffi from silently
+     marshalling such a value the wrong way -- which for <1 x double> turns a
+     caller's integer argument into the store address of the result.  */
+  if (vector_type_unsupported (rtype))
+    return FFI_BAD_TYPEDEF;
+  for (i = 0, avn = cif->nargs; i < avn; i++)
+    if (vector_type_unsupported (cif->arg_types[i]))
+      return FFI_BAD_TYPEDEF;
+
   switch (rtype->type)
     {
     case FFI_TYPE_VOID:
@@ -533,7 +580,9 @@ ffi_prep_cif_machdep (ffi_cif *cif)
 	{
 	  _Bool sse0 = SSE_CLASS_P (classes[0]);
 
-	  if (rtype_size == 4 && sse0)
+	  if (classes[0] == X86_64_X87_CLASS)
+	    flags = UNIX64_RET_X87;
+	  else if (rtype_size == 4 && sse0)
 	    flags = UNIX64_RET_XMM32;
 	  else if (rtype_size == 8)
 	    flags = sse0 ? UNIX64_RET_XMM64 : UNIX64_RET_INT64;
@@ -553,8 +602,9 @@ ffi_prep_cif_machdep (ffi_cif *cif)
 	}
       break;
     case FFI_TYPE_VECTOR:
-      /* An 8-byte vector returns in the low half of %xmm0; a 16-byte vector
-	 fills %xmm0 (SSE + SSEUP).  Wider vectors are unsupported here.  */
+      /* Only supported vectors reach here (vector_type_unsupported rejected
+	 the rest above): an 8-byte vector returns in the low half of %xmm0,
+	 a 16-byte vector fills %xmm0 (SSE + SSEUP).  */
       if (rtype_size == 8)
 	flags = UNIX64_RET_XMM64;
       else if (rtype_size == 16)
@@ -605,15 +655,6 @@ ffi_prep_cif_machdep (ffi_cif *cif)
     default:
       return FFI_BAD_TYPEDEF;
     }
-
-  /* Reject vectors wider than 16 bytes as arguments: correct %ymm/%zmm
-     passing needs unix64.S register-save changes that are out of scope for
-     this port, and classify_argument would otherwise silently treat them as
-     an in-memory aggregate.  */
-  for (i = 0, avn = cif->nargs; i < avn; i++)
-    if (cif->arg_types[i]->type == FFI_TYPE_VECTOR
-	&& cif->arg_types[i]->size > 16)
-      return FFI_BAD_TYPEDEF;
 
   /* Go over all arguments and determine the way they should be passed.
      If it's in a register and there is space for it, let that be so. If
@@ -934,8 +975,14 @@ build_plan (ffi_cif *cif)
 	  switch (classes[j])
 	    {
 	    case X86_64_NO_CLASS:
-	    case X86_64_SSEUP_CLASS:
 	      continue;			/* nothing placed for this 8-byte */
+	    case X86_64_SSEUP_CLASS:
+	      /* Upper half of the preceding SSE class's %xmm slot.  */
+	      m.dst_off = (unsigned) (offsetof (struct register_args, sse)
+				      + (ssecount - 1)
+					* sizeof (union big_int_union) + 8);
+	      m.op = FFI_MOVE_SSE64;
+	      break;
 	    case X86_64_INTEGER_CLASS:
 	    case X86_64_INTEGERSI_CLASS:
 	      m.dst_off = gprcount * 8;	/* offsetof(register_args,gpr) == 0 */

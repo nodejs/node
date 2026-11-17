@@ -61,6 +61,17 @@ ffi_prep_types_linux64 (ffi_abi abi)
       ffi_type_longdouble.size = 16;
       ffi_type_longdouble.alignment = 16;
     }
+#ifdef FFI_TARGET_HAS_COMPLEX_TYPE
+  /* _Complex long double is two halves of whatever long double just became.
+     Its size comes from sizeof(_Complex long double) at build time, which is
+     only right for the ABI libffi itself was built for, so keep it in step.
+     Leaving it behind makes the type disagree with its own element: a caller
+     that asks for the other long double width would get a return value copied
+     at cif->rtype->size (wrong by 16 bytes either way) and structs containing
+     the type laid out to the build-time size.  */
+  ffi_type_complex_longdouble.size = 2 * ffi_type_longdouble.size;
+  ffi_type_complex_longdouble.alignment = ffi_type_longdouble.alignment;
+#endif
 }
 #endif
 
@@ -393,6 +404,12 @@ homogeneous:
 	     under ELFv2, and is what differentiates _Complex from a
 	     same-sized struct{T;T;} which uses fewer GPR shadow slots.  */
 	  elt = (*ptr)->elements[0]->type;
+#if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
+	  /* A 64-bit long double is passed exactly like a double.  */
+	  if (elt == FFI_TYPE_LONGDOUBLE
+	      && (cif->abi & FFI_LINUX_LONG_DOUBLE_128) == 0)
+	    elt = FFI_TYPE_DOUBLE;
+#endif
 	  switch (elt)
 	    {
 	    case FFI_TYPE_FLOAT:
@@ -776,6 +793,10 @@ ffi_prep_args64 (extended_cif *ecif, unsigned long *const stack)
 	case FFI_TYPE_COMPLEX:
 	  elt = (*ptr)->elements[0]->type;
 #if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
+	  /* A 64-bit long double is passed exactly like a double.  */
+	  if (elt == FFI_TYPE_LONGDOUBLE
+	      && (ecif->cif->abi & FFI_LINUX_LONG_DOUBLE_128) == 0)
+	    elt = FFI_TYPE_DOUBLE;
 	  if (elt == FFI_TYPE_LONGDOUBLE
 	      && (ecif->cif->abi & FFI_LINUX_LONG_DOUBLE_IEEE128) != 0)
 	    {
@@ -1398,6 +1419,10 @@ ffi_closure_helper_LINUX64 (ffi_cif *cif,
 	    unsigned int j;
 	    elt = arg_types[i]->elements[0]->type;
 #if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
+	    /* A 64-bit long double arrives exactly like a double.  */
+	    if (elt == FFI_TYPE_LONGDOUBLE
+		&& (cif->abi & FFI_LINUX_LONG_DOUBLE_128) == 0)
+	      elt = FFI_TYPE_DOUBLE;
 	    if (elt == FFI_TYPE_LONGDOUBLE
 		&& (cif->abi & FFI_LINUX_LONG_DOUBLE_IEEE128) != 0)
 	      {
@@ -1624,13 +1649,13 @@ ffi_closure_helper_LINUX64 (ffi_cif *cif,
 		case 0:
 		  return PPC_LD_NONE;
 		case 1:
-		  return PPC_LD_U8;
+		  return PPC64_LD_STRUCT_1;
 		case 2:
-		  return PPC_LD_U16;
+		  return PPC64_LD_STRUCT_2;
 		case 3:
 		  return PPC64_LD_STRUCT_3;
 		case 4:
-		  return PPC_LD_U32;
+		  return PPC64_LD_STRUCT_4;
 		case 5:
 		  return PPC64_LD_STRUCT_5;
 		case 6:

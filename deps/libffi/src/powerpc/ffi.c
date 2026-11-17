@@ -114,7 +114,7 @@ ffi_call_int (ffi_cif *cif,
   if (rvalue && ecif.rvalue == smst_buffer)
     {
       unsigned int rsize = cif->rtype->size;
-#ifdef FFI_TARGET_HAS_COMPLEX_TYPE
+#if defined (FFI_TARGET_HAS_COMPLEX_TYPE) && defined (POWERPC64)
       /* Integer-typed _Complex: the .Lsmall_struct return path stored
 	 r3 at buffer offset 0 and r4 at offset 8.  Extract one inner-
 	 sized half from each slot — right-justified on BE, low-address
