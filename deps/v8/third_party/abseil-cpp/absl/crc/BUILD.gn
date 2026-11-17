@@ -86,6 +86,9 @@ absl_test("crc_memcpy_test") {
   sources = [ "internal/crc_memcpy_test.cc" ]
   deps = [
     ":crc32c",
+    ":crc_internal",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/random",
     "//third_party/abseil-cpp/absl/random:distributions",

@@ -88,6 +88,8 @@ class FrameTranslationBuilder {
   void StoreSimd128StackSlot(int index);
   void StoreHoleyDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
+  void StoreDoubleLiteral(Float64 value);
+  void StoreHoleyDoubleLiteral(Float64 value);
   void StoreOptimizedOut();
   void StoreJSFrameFunction();
 

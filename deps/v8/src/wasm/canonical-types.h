@@ -145,6 +145,7 @@ class TypeCanonicalizer {
 
   SharedFlag IsShared(CanonicalTypeIndex index) const;
   bool has_descriptor(CanonicalTypeIndex index) const;
+  bool is_descriptor(CanonicalTypeIndex index) const;
 
   // TODO(manoskouk): Implement a fast version of this if we have evidence that
   // it is needed.
@@ -158,7 +159,8 @@ class TypeCanonicalizer {
     return depth;
   }
 
-  bool IsHeapSubtype(CanonicalTypeIndex sub, CanonicalTypeIndex super) const;
+  V8_EXPORT_PRIVATE bool IsHeapSubtype(CanonicalTypeIndex sub,
+                                       CanonicalTypeIndex super) const;
   bool IsCanonicalSubtype_Locked(CanonicalTypeIndex sub_index,
                                  CanonicalTypeIndex super_index) const;
 

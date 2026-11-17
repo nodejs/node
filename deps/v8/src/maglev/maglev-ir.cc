@@ -533,9 +533,6 @@ DeoptInfo::DeoptInfo(Zone* zone, DeoptFrame* top_frame,
     : top_frame_(top_frame), feedback_to_update_(feedback_to_update) {}
 
 bool LazyDeoptInfo::IsResultRegister(interpreter::Register reg) const {
-  if (top_frame().type() == DeoptFrame::FrameType::kConstructInvokeStubFrame) {
-    return reg == interpreter::Register::virtual_accumulator();
-  }
   if (V8_LIKELY(result_size() == 1)) {
     return reg == result_location_;
   }
@@ -555,6 +552,14 @@ bool LazyDeoptInfo::InReturnValues(interpreter::Register reg,
   }
   return base::IsInRange(reg.index(), result_location.index(),
                          result_location.index() + result_size - 1);
+}
+
+int BuiltinContinuationDeoptFrame::translation_height() const {
+  // parameters() in JS Continuation only holds the stack params as the JS
+  // trampoline's register ones are appended during translation.
+  return parameters().length() +
+         (is_javascript() ? JSTrampolineDescriptor::GetRegisterParameterCount()
+                          : 0);
 }
 
 int InterpretedDeoptFrame::ComputeReturnOffset(
@@ -1171,17 +1176,12 @@ DirectHandle<Object> IntPtrConstant::DoReify(LocalIsolate* isolate) const {
 }
 
 DirectHandle<Object> Float64Constant::DoReify(LocalIsolate* isolate) const {
-  return isolate->factory()->NewNumber<AllocationType::kOld>(
-      value_.get_scalar());
+  UNREACHABLE();
 }
 
 DirectHandle<Object> HoleyFloat64Constant::DoReify(
     LocalIsolate* isolate) const {
-  if (value_.is_undefined_or_hole_nan()) {
-    return isolate->factory()->undefined_value();
-  }
-  return isolate->factory()->NewNumber<AllocationType::kOld>(
-      value_.get_scalar());
+  UNREACHABLE();
 }
 
 DirectHandle<Object> HeapConstant::DoReify(LocalIsolate* isolate) const {
@@ -1256,6 +1256,21 @@ void ValueNode::LoadToRegister(MaglevAssembler* masm,
 #undef V
     default:
       UNREACHABLE();
+  }
+}
+
+bool ValueNode::MaterializesToZero() const {
+  switch (opcode()) {
+    case Opcode::kSmiConstant:
+      return Cast<SmiConstant>()->value() == Smi::zero();
+    case Opcode::kInt32Constant:
+      return Cast<Int32Constant>()->value() == 0;
+    case Opcode::kUint32Constant:
+      return Cast<Uint32Constant>()->value() == 0;
+    case Opcode::kIntPtrConstant:
+      return Cast<IntPtrConstant>()->value() == 0;
+    default:
+      return false;
   }
 }
 
@@ -4972,10 +4987,7 @@ void AllocationBlock::GenerateCode(MaglevAssembler* masm,
 }
 
 int CreateClosure::MaxCallStackArgs() const {
-  DCHECK_EQ(Runtime::FunctionForId(pretenured() ? Runtime::kNewClosure_Tenured
-                                                : Runtime::kNewClosure)
-                ->nargs,
-            2);
+  DCHECK_EQ(Runtime::FunctionForId(Runtime::kNewClosure)->nargs, 2);
   return 2;
 }
 void CreateClosure::SetValueLocationConstraints() {
@@ -4984,10 +4996,8 @@ void CreateClosure::SetValueLocationConstraints() {
 }
 void CreateClosure::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
-  Runtime::FunctionId function_id =
-      pretenured() ? Runtime::kNewClosure_Tenured : Runtime::kNewClosure;
   __ Push(shared_function_info().object(), feedback_cell().object());
-  __ CallRuntime(function_id);
+  __ CallRuntime(Runtime::kNewClosure);
 }
 
 int FastCreateClosure::MaxCallStackArgs() const {
@@ -5371,10 +5381,16 @@ void SetNamedGeneric::GenerateCode(MaglevAssembler* masm,
 
 int DefineNamedOwnGeneric::MaxCallStackArgs() const {
   using D = CallInterfaceDescriptorFor<Builtin::kDefineNamedOwnIC>::type;
+  static_assert(
+      std::is_same_v<D, CallInterfaceDescriptorFor<
+                            Builtin::kDefineNamedOwnInLiteralIC>::type>);
   return D::GetStackParameterCount();
 }
 void DefineNamedOwnGeneric::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kDefineNamedOwnIC>::type;
+  static_assert(
+      std::is_same_v<D, CallInterfaceDescriptorFor<
+                            Builtin::kDefineNamedOwnInLiteralIC>::type>);
   UseFixed(ContextInput(), kContextRegister);
   UseFixed(ObjectInput(), D::GetRegisterParameter(D::kReceiver));
   UseFixed(ValueInput(), D::GetRegisterParameter(D::kValue));
@@ -5382,14 +5398,25 @@ void DefineNamedOwnGeneric::SetValueLocationConstraints() {
 }
 void DefineNamedOwnGeneric::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  __ CallBuiltin<Builtin::kDefineNamedOwnIC>(
-      ContextInput(),                               // context
-      ObjectInput(),                                // receiver
-      name().object(),                              // name
-      ValueInput(),                                 // value
-      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
-      feedback().vector                             // feedback vector
-  );
+  if (in_literal()) {
+    __ CallBuiltin<Builtin::kDefineNamedOwnInLiteralIC>(
+        ContextInput(),                               // context
+        ObjectInput(),                                // receiver
+        name().object(),                              // name
+        ValueInput(),                                 // value
+        TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+        feedback().vector                             // feedback vector
+    );
+  } else {
+    __ CallBuiltin<Builtin::kDefineNamedOwnIC>(
+        ContextInput(),                               // context
+        ObjectInput(),                                // receiver
+        name().object(),                              // name
+        ValueInput(),                                 // value
+        TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+        feedback().vector                             // feedback vector
+    );
+  }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -8600,6 +8627,25 @@ void BranchIfInt32ToBooleanTrue::GenerateCode(MaglevAssembler* masm,
                            if_true(), if_false(), state.next_block());
 }
 
+void BranchIfInt32BitwiseAndNonZero::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+}
+void BranchIfInt32BitwiseAndNonZero::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register value = ToRegister(ValueInput());
+  BasicBlock* next_block = state.next_block();
+  if (if_true() == next_block) {
+    // The true target is the fallthrough: branch to the false target when no
+    // masked bit is set, i.e. when (value & mask) == 0.
+    __ TestInt32AndJumpIfAllClear(value, mask_, if_false()->label());
+  } else {
+    __ TestInt32AndJumpIfAnySet(value, mask_, if_true()->label());
+    if (if_false() != next_block) {
+      __ Jump(if_false()->label());
+    }
+  }
+}
+
 void BranchIfIntPtrToBooleanTrue::SetValueLocationConstraints() {
   // TODO(victorgomes): consider using any input instead.
   UseRegister(ConditionInput());
@@ -9077,11 +9123,7 @@ void FastCreateClosure::PrintParams(std::ostream& os) const {
 
 void CreateClosure::PrintParams(std::ostream& os) const {
   os << "(" << *shared_function_info().object() << ", "
-     << feedback_cell().object();
-  if (pretenured()) {
-    os << " [pretenured]";
-  }
-  os << ")";
+     << feedback_cell().object() << ")";
 }
 
 void AllocationBlock::PrintParams(std::ostream& os) const {
@@ -9376,7 +9418,7 @@ void SetNamedGeneric::PrintParams(std::ostream& os) const {
 }
 
 void DefineNamedOwnGeneric::PrintParams(std::ostream& os) const {
-  os << "(" << *name_.object() << ")";
+  os << "(" << *name_.object() << ", in_literal:" << in_literal() << ")";
 }
 
 void GapMove::PrintParams(std::ostream& os) const {
@@ -9537,6 +9579,10 @@ void BranchIfFloat64Compare::PrintParams(std::ostream& os) const {
 
 void BranchIfInt32Compare::PrintParams(std::ostream& os) const {
   os << "(" << operation_ << ")";
+}
+
+void BranchIfInt32BitwiseAndNonZero::PrintParams(std::ostream& os) const {
+  os << "(0x" << std::hex << static_cast<uint32_t>(mask_) << std::dec << ")";
 }
 
 void BranchIfUint32Compare::PrintParams(std::ostream& os) const {

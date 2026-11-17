@@ -72,6 +72,7 @@ class MaybeObjectSize final {
   V(Foreign)                                                                   \
   V(FunctionTemplateInfo)                                                      \
   V(HeapNumber)                                                                \
+  V(UninitializedHeapNumber)                                                   \
   V(HashSeedWrapper)                                                           \
   V(InterceptorInfo)                                                           \
   V(Hole)                                                                      \
@@ -141,7 +142,6 @@ class MaybeObjectSize final {
   V(JSGlobalProxy)                          \
   V(JSObject)                               \
   V(JSRegExp)                               \
-  V(JSSynchronizationPrimitive)             \
   V(JSTypedArray)                           \
   V(JSWeakCollection)                       \
   V(JSWeakRef)                              \

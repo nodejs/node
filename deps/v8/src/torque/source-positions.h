@@ -65,6 +65,10 @@ struct SourcePosition {
     return pos;
   }
 
+  bool IsValid() const {
+    return source.IsValid() && start.offset >= 0 && end.offset >= 0;
+  }
+
   bool CompareStartIgnoreColumn(const SourcePosition& pos) const {
     return start.line == pos.start.line && source == pos.source;
   }

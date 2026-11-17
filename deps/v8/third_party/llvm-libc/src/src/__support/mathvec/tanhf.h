@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the implemenation for single-precision SIMD tanh.
+/// This file contains the implementation for single-precision SIMD tanh.
 ///
 //===----------------------------------------------------------------------===//
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATHVEC_TANHF_H

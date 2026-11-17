@@ -133,9 +133,10 @@ var assertException;
 // The exception is checked against the second argument using assertEquals.
 var assertThrowsEquals;
 
-// Assert that the passed promise does not resolve, but eventually throws an
-// exception. The optional second argument is an exception constructor that the
-// thrown exception is checked against with "instanceof".
+// Assert that the passed promise (or function returning a promise) does not
+// resolve, but eventually throws an exception. The optional second argument is
+// an exception constructor that the thrown exception is checked against with
+// "instanceof".
 // The optional third argument is a message type string or RegExp object that is
 // compared to the message of the thrown exception.
 var assertThrowsAsync;
@@ -181,8 +182,6 @@ var assertMatches;
 //             callback is set, the error is propagated out of the promise
 //             chain.
 var assertPromiseResult;
-
-var promiseTestChain;
 
 // These bits must be in sync with bits defined in Runtime_GetOptimizationStatus
 var V8OptimizationStatus = {
@@ -638,15 +637,17 @@ var prettyPrinted;
 
   assertThrowsAsync = function assertThrowsAsync(promise, type_opt, cause_opt) {
     if (arguments.length > 1 && type_opt === undefined) {
-      failWithMessage('invalid use of assertThrows, unknown type_opt given');
+      failWithMessage(
+          'invalid use of assertThrowsAsync, unknown type_opt given');
     }
     if (type_opt !== undefined && typeof type_opt !== 'function') {
       failWithMessage(
-          'invalid use of assertThrows, maybe you want assertThrowsEquals');
+          'invalid use of assertThrowsAsync, maybe you want assertThrowsEquals');
     }
     let msg = 'Promise did not throw exception';
     if (type_opt !== undefined && type_opt.name !== undefined)
       msg += ', expected ' + type_opt.name;
+    if (typeof promise === 'function') promise = promise();
     return assertPromiseResult(
         promise,
         // Use setTimeout to throw the error again to get out of the promise
@@ -740,7 +741,7 @@ var prettyPrinted;
     assertInstanceof(promise, Promise);
     const stack = (new Error()).stack;
 
-    var test_promise = promise.then(
+    return promise.then(
         result => {
           try {
             if (success !== undefined) success(result);
@@ -764,9 +765,6 @@ var prettyPrinted;
             }, 0);
           }
         });
-
-    if (!promiseTestChain) promiseTestChain = Promise.resolve();
-    return promiseTestChain.then(test_promise);
   };
 
   var OptimizationStatusImpl = undefined;

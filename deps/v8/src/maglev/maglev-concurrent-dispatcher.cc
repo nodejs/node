@@ -4,7 +4,6 @@
 
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 
-#include "src/base/fpu.h"
 #include "src/codegen/compiler.h"
 #include "src/common/synchronization-point-support.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -179,28 +178,26 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
         CachedTieringDecision::kNormal);
   }
   info()->set_code(code);
-  GlobalHandleVector<Map> maps = CollectRetainedMaps(isolate, code);
-  RegisterWeakObjectsInOptimizedCode(
-      isolate, info()->broker()->target_native_context().object(), code,
-      std::move(maps));
+  if (v8_flags.maglev_build_code_on_background) {
+    RegisterWeakObjectsInOptimizedCode(
+        isolate, info()->broker()->target_native_context().object(), code,
+        info()->code_generator()->retained_maps());
+  } else {
+    RetainedMaps maps = OptimizedCompilationJob::CollectRetainedMaps(
+        code, info()->DetachCanonicalHandles());
+    RegisterWeakObjectsInOptimizedCode(
+        isolate, info()->broker()->target_native_context().object(), code,
+        base::VectorOf(maps));
+  }
   EndPhaseKind();
   return CompilationJob::SUCCEEDED;
 }
 
-GlobalHandleVector<Map> MaglevCompilationJob::CollectRetainedMaps(
-    Isolate* isolate, DirectHandle<Code> code) {
-  if (v8_flags.maglev_build_code_on_background) {
-    return info()->code_generator()->RetainedMaps(isolate);
-  }
-  return OptimizedCompilationJob::CollectRetainedMaps(isolate, code);
-}
-
 void MaglevCompilationJob::DisposeOnMainThread(Isolate* isolate) {
-  // Drop canonical handles on the main thread, to avoid (in the case of
-  // background job destruction) needing to unpark the local isolate on the
-  // background thread for unregistering the identity map's strong roots.
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-  info()->DetachCanonicalHandles()->Clear();
+  if (auto canonical_handles = info()->DetachCanonicalHandles()) {
+    canonical_handles->Clear();
+  }
 }
 
 MaybeIndirectHandle<Code> MaglevCompilationJob::code() const {
@@ -287,8 +284,6 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       return;
     }
     TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevTask");
-    base::FlushDenormalsScope flush_denormals_scope(
-        isolate()->flush_denormals());
     LocalIsolate local_isolate(isolate(), ThreadKind::kBackground);
     DCHECK(local_isolate.heap()->IsParked());
 
@@ -320,7 +315,6 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
         TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                     "V8.MaglevDestructBackground",
                     perfetto::TerminatingFlow::ProcessScoped(job->trace_id()));
-        UnparkedScope unparked_scope(&local_isolate);
         job.reset();
       } else {
         break;

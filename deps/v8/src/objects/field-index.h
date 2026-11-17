@@ -117,6 +117,14 @@ class FieldIndex final {
   static constexpr int kOffsetBitsSize =
       (kDescriptorIndexBitCount + 1 + kTaggedSizeLog2);
 
+ public:
+  // Maximum byte offset (inclusive of a kTaggedSize access) encodable in a
+  // FieldIndex.
+  static constexpr int kMaxOffset = 1 << kOffsetBitsSize;
+  static_assert(kMaxOffset ==
+                (PropertyDetails::OffsetInWordsField::kMax + 1) * kTaggedSize);
+
+ private:
   static constexpr int kPropertyArrayDataStartBitCount = 2 + kTaggedSizeLog2;
 
   // Index from beginning of object.

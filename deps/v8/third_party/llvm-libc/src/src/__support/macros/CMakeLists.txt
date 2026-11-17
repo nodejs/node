@@ -60,4 +60,3 @@ add_header_library(
   HDRS
     hardening.h
 )
-

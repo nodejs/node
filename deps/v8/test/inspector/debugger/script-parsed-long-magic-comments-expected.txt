@@ -1,0 +1,13 @@
+Tests long magic comment values in Debugger.scriptParsed
+Debugger.scriptParsed with:
+url: full value
+hasSourceURL: true
+sourceMapURL: full value
+buildId: full value
+
+Debugger.scriptParsed with:
+url: full value
+hasSourceURL: true
+sourceMapURL: full value
+buildId: full value
+

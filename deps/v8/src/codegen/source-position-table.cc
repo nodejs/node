@@ -6,6 +6,7 @@
 
 #include "src/base/export-template.h"
 #include "src/base/logging.h"
+#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
@@ -229,18 +230,18 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<TrustedByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
         LocalIsolate* isolate);
 
-base::OwnedVector<uint8_t>
+base::UniqueArray<uint8_t>
 SourcePositionTableBuilder::ToSourcePositionTableVector() {
-  if (bytes_.empty()) return base::OwnedVector<uint8_t>();
+  if (bytes_.empty()) return base::UniqueArray<uint8_t>();
   DCHECK(!Omit());
 
-  base::OwnedVector<uint8_t> table = base::OwnedCopyOf(bytes_);
+  base::UniqueArray<uint8_t> table = base::UniqueCopyOf(bytes_);
 
 #ifdef ENABLE_SLOW_DCHECKS
   // Brute force testing: Record all positions and decode
   // the entire table to verify they are identical.
   SourcePositionTableIterator it(
-      table.as_vector(), SourcePositionTableIterator::kAll,
+      table.as_span(), SourcePositionTableIterator::kAll,
       SourcePositionTableIterator::kDontSkipFunctionEntry);
   CheckTableEquals(raw_entries_, &it);
   // No additional source positions after creating the table.

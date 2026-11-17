@@ -196,6 +196,7 @@
 
 /* Symbols added by crc32_simd.c */
 #define crc32_sse42_simd_ Cr_z_crc32_sse42_simd_
+#define crc32_avx512_simd_ Cr_z_crc32_avx512_simd_
 
 /* Symbols added by armv8_crc32 */
 #define arm_cpu_enable_crc32 Cr_z_arm_cpu_enable_crc32

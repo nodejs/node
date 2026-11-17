@@ -330,9 +330,9 @@ TEST(GenericPrinterTest, Map) {
 TEST(GenericPrinterTest, StreamAdapter) {
   std::stringstream ss;
   static_assert(
-      std::is_same<std::remove_reference_t<decltype(ss << GenericPrint())>,
-                   internal_generic_printer::GenericPrintStreamAdapter::Impl<
-                       std::stringstream>>::value,
+      std::is_same_v<std::remove_reference_t<decltype(ss << GenericPrint())>,
+                     internal_generic_printer::GenericPrintStreamAdapter::Impl<
+                         std::stringstream>>,
       "expected ostream << GenericPrint() to yield adapter impl");
 
   ss << GenericPrint() << "again, " << "back-up, " << "cue, "

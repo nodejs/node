@@ -244,11 +244,17 @@ Response V8InspectorSessionImpl::findInjectedScript(
   return Response::Success();
 }
 
+uint64_t V8InspectorSessionImpl::isolateId() const {
+  return m_clientTrustLevel == V8Inspector::kFullyTrusted
+             ? m_inspector->isolateId()
+             : 0;
+}
+
 Response V8InspectorSessionImpl::findInjectedScript(
     RemoteObjectIdBase* objectId,
     std::shared_ptr<InjectedScript>& injectedScript,
     std::shared_ptr<InspectedContext>* inspectedContext) {
-  if (objectId->isolateId() != m_inspector->isolateId()) {
+  if (objectId->isolateId() != isolateId()) {
     return Response::ServerError("Cannot find context with specified id");
   }
   return findInjectedScript(objectId->contextId(), injectedScript,
@@ -330,10 +336,15 @@ V8InspectorSessionImpl::wrapObject(v8::Local<v8::Context> context,
                      &inspectedContext);
   if (!injectedScript) return nullptr;
   std::unique_ptr<protocol::Runtime::RemoteObject> result;
-  injectedScript->wrapObject(value, groupName,
-                             generatePreview ? WrapOptions({WrapMode::kPreview})
-                                             : WrapOptions({WrapMode::kIdOnly}),
-                             &result);
+  Response response = injectedScript->wrapObject(
+      value, groupName,
+      generatePreview ? WrapOptions({WrapMode::kPreview})
+                      : WrapOptions({WrapMode::kIdOnly}),
+      &result);
+  // Wrapping can fail after the remote object was partially built, e.g. when a
+  // custom formatter terminated execution. Don't return the partial result in
+  // that case, so that callers don't continue to call into V8.
+  if (!response.IsSuccess()) return nullptr;
   return result;
 }
 
@@ -515,7 +526,7 @@ void V8InspectorSessionImpl::resume(bool terminateOnResume) {
   m_debuggerAgent->resume(terminateOnResume);
 }
 
-void V8InspectorSessionImpl::stepOver() { m_debuggerAgent->stepOver({}); }
+void V8InspectorSessionImpl::stepOver() { m_debuggerAgent->stepOver({}, {}); }
 
 std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>>
 V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,

@@ -23,10 +23,15 @@ namespace internal {
 // s6: roots in Javascript code s7: context register
 // s11: PtrComprCageBaseRegister
 // t3 t5 : scratch register used in scratch_register_list (in the assembler).
-// t6 : call reg.
+// t6 : call reg / kMaglevFlagsRegister. t6 is not allocatable, so it can be
+// used as an extra scratch register: the default scratch list only holds two
+// registers ({t3, t5}), so add t6 when a third one is needed.
 // t0 t1 t2 t4:caller saved scratch register can be used in macroassembler and
 // t2: kMaglevExtraScratchRegister
 // builtin-riscv64
+// Note: t4 is allocatable in Maglev, so macro-assembler helpers must not use it
+// as an implicit scratch register. Add t6 instead, so that t4 is never
+// clobbered.
 #define ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V)  \
              V(a0)  V(a1)  V(a2)  V(a3) \
              V(a4)  V(a5)  V(a6)  V(a7)  V(s1) V(s2)  \

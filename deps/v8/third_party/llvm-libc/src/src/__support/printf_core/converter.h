@@ -29,22 +29,22 @@ namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
 
 #ifndef LIBC_COPT_PRINTF_DISABLE_FLOAT
-LIBC_PRINTF_MODULE((template <OverflowMode mode>
-                    int convert_float(Writer<mode> *writer,
-                                      const FormatSection &to_conv)),
+LIBC_PRINTF_MODULE((template <OverflowMode mode, typename CharT>
+                    int convert_float(Writer<mode, CharT> *writer,
+                                      const FormatSection<CharT> &to_conv)),
                    {
                      switch (to_conv.conv_name) {
-                     case 'f':
-                     case 'F':
+                     case CharT{'f'}:
+                     case CharT{'F'}:
                        return convert_float_decimal(writer, to_conv);
-                     case 'e':
-                     case 'E':
+                     case CharT{'e'}:
+                     case CharT{'E'}:
                        return convert_float_dec_exp(writer, to_conv);
-                     case 'a':
-                     case 'A':
+                     case CharT{'a'}:
+                     case CharT{'A'}:
                        return convert_float_hex_exp(writer, to_conv);
-                     case 'g':
-                     case 'G':
+                     case CharT{'g'}:
+                     case CharT{'G'}:
                        return convert_float_dec_auto(writer, to_conv);
                      }
                      __builtin_unreachable();
@@ -53,17 +53,28 @@ LIBC_PRINTF_MODULE((template <OverflowMode mode>
 
 #ifdef LIBC_PRINTF_DEFINE_MODULES
 #define HANDLE_OVERFLOW_MODE(MODE)                                             \
-  template int convert_float<OverflowMode::MODE>(                              \
-      Writer<OverflowMode::MODE> * writer, const FormatSection &to_conv);
+  template int convert_float<OverflowMode::MODE, char>(                        \
+      Writer<OverflowMode::MODE, char> * writer,                               \
+      const FormatSection<char> &to_conv);
 #include "src/__support/printf_core/overflow_modes.def"
 #undef HANDLE_OVERFLOW_MODE
+
+#if !defined(LIBC_COPT_PRINTF_DISABLE_WIDE)
+#define HANDLE_OVERFLOW_MODE(MODE)                                             \
+  template int convert_float<OverflowMode::MODE, wchar_t>(                     \
+      Writer<OverflowMode::MODE, wchar_t> * writer,                            \
+      const FormatSection<wchar_t> &to_conv);
+#include "src/__support/printf_core/overflow_modes.def"
+#undef HANDLE_OVERFLOW_MODE
+#endif // !LIBC_COPT_PRINTF_DISABLE_WIDE
+
 #endif // LIBC_PRINTF_DEFINE_MODULES
 
 // convert will call a conversion function to convert the FormatSection into
 // its string representation, and then that will write the result to the
 // writer.
-template <OverflowMode mode>
-int convert(Writer<mode> *writer, const FormatSection &to_conv) {
+template <OverflowMode mode, typename CharT>
+int convert(Writer<mode, CharT> *writer, const FormatSection<CharT> &to_conv) {
   if (!to_conv.has_conv)
     return writer->write(to_conv.raw_string);
 
@@ -71,12 +82,12 @@ int convert(Writer<mode> *writer, const FormatSection &to_conv) {
     defined(LIBC_COPT_PRINTF_HEX_LONG_DOUBLE)
   if (to_conv.length_modifier == LengthModifier::L) {
     switch (to_conv.conv_name) {
-    case 'f':
-    case 'F':
-    case 'e':
-    case 'E':
-    case 'g':
-    case 'G':
+    case CharT{'f'}:
+    case CharT{'F'}:
+    case CharT{'e'}:
+    case CharT{'E'}:
+    case CharT{'g'}:
+    case CharT{'G'}:
       return convert_float_hex_exp(writer, to_conv);
     default:
       break;
@@ -85,48 +96,49 @@ int convert(Writer<mode> *writer, const FormatSection &to_conv) {
 #endif // LIBC_COPT_PRINTF_DISABLE_FLOAT
 
   switch (to_conv.conv_name) {
-  case '%':
-    return writer->write("%");
-  case 'c':
-    return convert_char(writer, to_conv);
-  case 's':
+  case CharT{'%'}:
+    return writer->write(CharT{'%'});
+  case CharT{'c'}:
+    return convert_character(writer, to_conv);
+  case CharT{'s'}:
     return convert_string(writer, to_conv);
-  case 'd':
-  case 'i':
-  case 'u':
-  case 'o':
-  case 'x':
-  case 'X':
-  case 'b':
-  case 'B':
+  case CharT{'d'}:
+  case CharT{'i'}:
+  case CharT{'u'}:
+  case CharT{'o'}:
+  case CharT{'x'}:
+  case CharT{'X'}:
+  case CharT{'b'}:
+  case CharT{'B'}:
     return convert_int(writer, to_conv);
 #ifndef LIBC_COPT_PRINTF_DISABLE_FLOAT
-  case 'f':
-  case 'F':
-  case 'e':
-  case 'E':
-  case 'a':
-  case 'A':
-  case 'g':
-  case 'G':
+  case CharT{'f'}:
+  case CharT{'F'}:
+  case CharT{'e'}:
+  case CharT{'E'}:
+  case CharT{'a'}:
+  case CharT{'A'}:
+  case CharT{'g'}:
+  case CharT{'G'}:
     return convert_float(writer, to_conv);
 #endif // LIBC_COPT_PRINTF_DISABLE_FLOAT
 #ifdef LIBC_INTERNAL_PRINTF_HAS_FIXED_POINT
-  case 'r':
-  case 'R':
-  case 'k':
-  case 'K':
+  case CharT{'r'}:
+  case CharT{'R'}:
+  case CharT{'k'}:
+  case CharT{'K'}:
     return convert_fixed(writer, to_conv);
 #endif // LIBC_INTERNAL_PRINTF_HAS_FIXED_POINT
 #ifndef LIBC_COPT_PRINTF_DISABLE_STRERROR
-  case 'm':
+  case CharT{'m'}:
     return convert_strerror(writer, to_conv);
 #endif // LIBC_COPT_PRINTF_DISABLE_STRERROR
 #ifndef LIBC_COPT_PRINTF_DISABLE_WRITE_INT
-  case 'n':
-    return convert_write_int(writer, to_conv);
+  case CharT{'n'}:
+    return convert_write_int(writer->get_chars_written(),
+                             to_conv.length_modifier, to_conv.conv_val_ptr);
 #endif // LIBC_COPT_PRINTF_DISABLE_WRITE_INT
-  case 'p':
+  case CharT{'p'}:
     return convert_pointer(writer, to_conv);
   default:
     return writer->write(to_conv.raw_string);

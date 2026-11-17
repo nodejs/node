@@ -17,20 +17,19 @@
 namespace v8 {
 namespace internal {
 
-DirectHandle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
+template <typename IsolateT>
+DirectHandle<Object> DeoptimizationLiteral::Reify(IsolateT* isolate) const {
   Validate();
   switch (kind_) {
     case DeoptimizationLiteralKind::kObject:
       return object_;
     case DeoptimizationLiteralKind::kNumber:
-      return isolate->factory()->NewNumber(number_);
+      return isolate->factory()->template NewNumber<AllocationType::kOld>(
+          number_);
     case DeoptimizationLiteralKind::kSignedBigInt64:
-      return BigInt::FromInt64(isolate, int64_);
+      return BigInt::FromInt64(isolate, int64_, AllocationType::kOld);
     case DeoptimizationLiteralKind::kUnsignedBigInt64:
-      return BigInt::FromUint64(isolate, uint64_);
-    case DeoptimizationLiteralKind::kHoleNaN:
-      // Hole NaNs that made it to here represent the undefined value.
-      return isolate->factory()->undefined_value();
+      return BigInt::FromUint64(isolate, uint64_, AllocationType::kOld);
     case DeoptimizationLiteralKind::kWasmI31Ref:
     case DeoptimizationLiteralKind::kWasmInt32:
     case DeoptimizationLiteralKind::kWasmFloat32:
@@ -40,6 +39,10 @@ DirectHandle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
   }
   UNREACHABLE();
 }
+template DirectHandle<Object> DeoptimizationLiteral::Reify(
+    Isolate* isolate) const;
+template DirectHandle<Object> DeoptimizationLiteral::Reify(
+    LocalIsolate* isolate) const;
 
 size_t DeoptimizationLiteral::SerializationSize() const {
   static constexpr size_t kSizeOfKind = 1;
@@ -47,7 +50,6 @@ size_t DeoptimizationLiteral::SerializationSize() const {
     case DeoptimizationLiteralKind::kInvalid:
     case DeoptimizationLiteralKind::kObject:
     case DeoptimizationLiteralKind::kNumber:
-    case DeoptimizationLiteralKind::kHoleNaN:
       break;
     case DeoptimizationLiteralKind::kSignedBigInt64:
       return kSizeOfKind + sizeof(int64_);
@@ -82,7 +84,6 @@ size_t DeoptimizationLiteral::Write(base::Vector<uint8_t> buffer) const {
     case DeoptimizationLiteralKind::kInvalid:
     case DeoptimizationLiteralKind::kObject:
     case DeoptimizationLiteralKind::kNumber:
-    case DeoptimizationLiteralKind::kHoleNaN:
       break;
     case DeoptimizationLiteralKind::kSignedBigInt64:
       return WriteValue(int64_);
@@ -131,7 +132,6 @@ size_t DeoptimizationLiteral::Read(base::Vector<const uint8_t> buffer,
     case DeoptimizationLiteralKind::kInvalid:
     case DeoptimizationLiteralKind::kObject:
     case DeoptimizationLiteralKind::kNumber:
-    case DeoptimizationLiteralKind::kHoleNaN:
       break;
     case DeoptimizationLiteralKind::kSignedBigInt64:
       return Read.operator()<int64_t>(buffer, out);

@@ -37,7 +37,7 @@ transitioning javascript builtin ProxyRevocable(
     // 8. Return result.
     return NewJSProxyRevocableResult(proxy, revoke);
   } label ThrowProxyNonObject deferred {
-    ThrowTypeError(MessageTemplate::kProxyNonObject, 'Proxy.revocable');
+    ThrowTypeError(MessageTemplate::kProxyNonObject);
   }
 }
 }

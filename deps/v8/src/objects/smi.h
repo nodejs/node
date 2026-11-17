@@ -27,11 +27,6 @@ class Smi : public AllStatic {
   static constexpr int kMinValue = kSmiMinValue;
   static constexpr int kMaxValue = kSmiMaxValue;
 
-  static inline constexpr Tagged<Smi> ToUint32Smi(Tagged<Smi> smi) {
-    if (smi.value() <= 0) return Smi::FromInt(0);
-    return Smi::FromInt(static_cast<uint32_t>(smi.value()));
-  }
-
   // Convert a Smi object to an int.
   static inline constexpr int ToInt(const Tagged<Object> object) {
     return Tagged<Smi>(object.ptr()).value();

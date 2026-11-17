@@ -19,6 +19,7 @@ if (v8_enable_google_benchmark) {
     testonly = true
 
     configs = [
+      "//build/config/compiler:no_exit_time_destructors",
       "../../../..:external_config",
       "../../../..:internal_config_base",
       "../../../..:cppgc_base_config",
@@ -30,7 +31,11 @@ if (v8_enable_google_benchmark) {
       "benchmark_utils.cc",
       "benchmark_utils.h",
     ]
-    public_deps = [ "//third_party/google_benchmark_chrome:google_benchmark" ]
+    if (build_with_chromium) {
+      public_deps = [ "//third_party/google_benchmark" ]
+    } else {
+      public_deps = [ "//third_party/google_benchmark_chrome:google_benchmark" ]
+    }
     if (cppgc_is_standalone) {
       deps = [ "../../../..:cppgc_for_testing" ]
     } else {
@@ -42,6 +47,7 @@ if (v8_enable_google_benchmark) {
     testonly = true
 
     configs = [
+      "//build/config/compiler:no_exit_time_destructors",
       "../../../..:external_config",
       "../../../..:internal_config_base",
       "../../../..:cppgc_base_config",
@@ -62,6 +68,7 @@ if (v8_enable_google_benchmark) {
     testonly = true
 
     configs = [
+      "//build/config/compiler:no_exit_time_destructors",
       "../../../..:external_config",
       "../../../..:internal_config_base",
       "../../../..:cppgc_base_config",

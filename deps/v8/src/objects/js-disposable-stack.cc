@@ -289,6 +289,10 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
       isolate->clear_internal_exception();
       isolate->clear_pending_message();
       JSPromise::Reject(outer_promise, exception);
+      if (isolate->debug()->IsRestartFrameScheduled()) {
+        isolate->TerminateExecution();
+        return Nothing<bool>();
+      }
     }
   } while (!done);
 

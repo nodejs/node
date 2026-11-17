@@ -424,9 +424,6 @@ struct FloatOperationTyper {
 
   static type_t Set(std::vector<float_t> elements, uint32_t special_values,
                     Zone* zone) {
-    base::sort(elements);
-    elements.erase(std::unique(elements.begin(), elements.end()),
-                   elements.end());
     if (base::erase_if(elements, [](float_t v) { return std::isnan(v); }) > 0) {
       special_values |= type_t::kNaN;
     }
@@ -434,9 +431,15 @@ struct FloatOperationTyper {
         0) {
       special_values |= type_t::kMinusZero;
     }
+    base::sort(elements);
+    elements.erase(std::unique(elements.begin(), elements.end()),
+                   elements.end());
     if (elements.empty()) {
       DCHECK_NE(0, special_values);
       return type_t::OnlySpecialValues(special_values);
+    }
+    if (elements.size() > type_t::kMaxSetSize) {
+      return Range(elements.front(), elements.back(), special_values, zone);
     }
     return type_t::Set(elements, special_values, zone);
   }

@@ -506,7 +506,7 @@ void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
   Bind(&check_symbol_key);
   GotoIfNot(IsSymbolInstanceType(instance_type), if_cannot_be_held_weakly);
   TNode<Uint32T> flags = LoadSymbolFlags(CAST(obj));
-  Branch(Word32And(flags, Symbol::IsInPublicSymbolTableBit::kMask),
+  Branch(Word32And(flags, Symbol::Flags::IsInPublicSymbolTableBit::kMask),
          if_cannot_be_held_weakly, &end);
 
   Bind(&end);
@@ -2750,9 +2750,9 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::GetHash(
   Goto(&return_result);
   Bind(&if_symbol);
   CSA_DCHECK(this, IsSymbol(key));
-  CSA_DCHECK(this, Word32BinaryNot(
-                       Word32And(LoadSymbolFlags(CAST(key)),
-                                 Symbol::IsInPublicSymbolTableBit::kMask)));
+  CSA_DCHECK(this, Word32BinaryNot(Word32And(
+                       LoadSymbolFlags(CAST(key)),
+                       Symbol::Flags::IsInPublicSymbolTableBit::kMask)));
   var_hash = Signed(ChangeUint32ToWord(LoadNameHashAssumeComputed(CAST(key))));
   Goto(&return_result);
   Bind(&return_result);
@@ -3213,7 +3213,7 @@ TF_BUILTIN(WeakMapPrototypeSet, WeakCollectionsBuiltinsAssembler) {
       CallBuiltin(Builtin::kWeakCollectionSet, context, receiver, key, value));
 
   BIND(&throw_invalid_key);
-  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey, key);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey);
 }
 
 TF_BUILTIN(WeakMapPrototypeGetOrInsert, WeakCollectionsBuiltinsAssembler) {
@@ -3241,7 +3241,7 @@ TF_BUILTIN(WeakMapPrototypeGetOrInsert, WeakCollectionsBuiltinsAssembler) {
   Return(value.value());
 
   BIND(&throw_invalid_key);
-  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey, key);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey);
 }
 
 TF_BUILTIN(WeakMapPrototypeGetOrInsertComputed,
@@ -3276,7 +3276,7 @@ TF_BUILTIN(WeakMapPrototypeGetOrInsertComputed,
   Return(value);
 
   BIND(&throw_invalid_key);
-  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey, key);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey);
 }
 
 TF_BUILTIN(WeakSetPrototypeAdd, WeakCollectionsBuiltinsAssembler) {
@@ -3294,7 +3294,7 @@ TF_BUILTIN(WeakSetPrototypeAdd, WeakCollectionsBuiltinsAssembler) {
                      TrueConstant()));
 
   BIND(&throw_invalid_value);
-  ThrowTypeError(context, MessageTemplate::kInvalidWeakSetValue, value);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakSetValue);
 }
 
 TF_BUILTIN(WeakSetPrototypeDelete, CodeStubAssembler) {

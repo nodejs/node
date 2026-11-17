@@ -61,6 +61,7 @@ void GapResolver::Resolve(ParallelMove* moves) {
     if (!move->IsEliminated()) PerformMove(moves, move);
   }
   assembler_->PopTempStackSlots();
+  DCHECK_EQ(assembler_->temp_slots_, 0);
 }
 
 // Check if a 2-move cycle is a swap. This is not always the case, for instance:
@@ -70,12 +71,16 @@ void GapResolver::Resolve(ParallelMove* moves) {
 //
 // The two stack operands conflict but start at a different stack offset, so a
 // swap would be incorrect.
-// In general, swapping is allowed if the conflicting operands:
-// - Have the same representation, and
-// - Are the same register, or are stack slots with the same index
+// In general, swapping is allowed if:
+// - The conflicting operands have the same representation and are the same
+//   register, or are stack slots with the same index, and
+// - The two swapped locations have the same representation (otherwise swapping
+//   a wider register with a narrower stack slot would access past the slot).
 bool IsSwap(MoveOperands* move1, MoveOperands* move2) {
   return move1->source() == move2->destination() &&
-         move2->source() == move1->destination();
+         move2->source() == move1->destination() &&
+         LocationOperand::cast(move1->source()).representation() ==
+             LocationOperand::cast(move1->destination()).representation();
 }
 
 void GapResolver::PerformCycle(const std::vector<MoveOperands*>& cycle) {
@@ -109,8 +114,18 @@ void GapResolver::PerformCycle(const std::vector<MoveOperands*>& cycle) {
   // register used during the move cycle, the platform implements
   // {SetPendingMove}, which marks the registers needed for the given moves.
   // {MoveToTempLocation} will then choose the location accordingly.
-  MachineRepresentation rep =
+  MachineRepresentation src_rep =
+      LocationOperand::cast(move1->source()).representation();
+  MachineRepresentation dst_rep =
       LocationOperand::cast(move1->destination()).representation();
+  // Floating-point moves may have mixed representations (e.g. from same-as-
+  // input SIMD splat/extract instructions or identity moves). Size the
+  // temporary by the source representation so that Push and Pop agree on the
+  // number of stack slots and wider sources preserve upper lanes in registers.
+  // General-purpose moves keep the destination representation because 32-bit
+  // sources may hold 64-bit values due to virtual register renaming.
+  MachineRepresentation rep = IsFloatingPoint(src_rep) ? src_rep : dst_rep;
+  DCHECK_EQ(ElementSizeInPointers(src_rep), ElementSizeInPointers(rep));
   for (size_t i = 0; i < cycle.size() - 1; ++i) {
     assembler_->SetPendingMove(cycle[i]);
   }

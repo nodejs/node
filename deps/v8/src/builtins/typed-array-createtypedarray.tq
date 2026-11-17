@@ -22,6 +22,8 @@ extern runtime GrowableSharedArrayBufferByteLength(
 
 const kFloat16ArrayFeature: constexpr UseCounterFeature
     generates 'v8::Isolate::kFloat16Array';
+const kBigIntFeature: constexpr UseCounterFeature
+    generates 'v8::Isolate::kBigInt';
 
 extern macro TypedArrayBuiltinsAssembler::IsTrackArrayBufferViewsEnabled():
     bool;
@@ -108,6 +110,8 @@ transitioning macro AllocateTypedArray(
   if (typedArray.elements_kind == ElementsKind::FLOAT16_ELEMENTS ||
       typedArray.elements_kind == ElementsKind::RAB_GSAB_FLOAT16_ELEMENTS) {
     IncrementUseCounter(context, SmiConstant(kFloat16ArrayFeature));
+  } else if (IsBigInt64ElementsKind(typedArray.elements_kind)) {
+    IncrementUseCounter(context, SmiConstant(kBigIntFeature));
   }
   return typedArray;
 }

@@ -130,6 +130,12 @@
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################
+['arch in [ppc64, s390x] or sandbox_hardware_support', {
+  # Wasm code coverage is not supported yet.
+  'regress/wasm/regress-576981470': [SKIP],
+}],  # arch in [ppc64, s390x] or sandbox_hardware_support
+
+##############################################################################
 # Tests requiring Sparkplug.
 ['arch not in (x64, arm64, ia32, arm, mips64el, loong64)', {
   'regress/regress-crbug-1199681': [SKIP],

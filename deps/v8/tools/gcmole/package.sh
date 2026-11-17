@@ -57,7 +57,7 @@ echo $(readlink -f "${PACKAGE_FILE}")
 echo
 echo Upload the update package to the chrome infra:
 echo
-echo 'gsutil.py cp tools/gcmole/gcmole-tools.tar.gz gs://chrome-v8-gcmole/$(cat tools/gcmole/gcmole-tools.tar.gz.sha1)'
+echo 'gcloud storage cp tools/gcmole/gcmole-tools.tar.gz gs://chrome-v8-gcmole/$(cat tools/gcmole/gcmole-tools.tar.gz.sha1)'
 echo
 echo Run bootstrap.sh in chroot if glibc versions mismatch with bots:
 echo '# Create chroot'

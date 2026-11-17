@@ -119,6 +119,7 @@
 !/third_party/llvm-libc/src/src
 /third_party/llvm-libc/src/src/*
 !/third_party/llvm-libc/src/src/__support
+!/third_party/llvm-libc/src/src/string
 !/third_party/rapidhash-v8
 !/third_party/re2
 /third_party/re2/src

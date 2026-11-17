@@ -4,6 +4,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/common/message-template.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/elements.h"
@@ -73,7 +74,10 @@ RUNTIME_FUNCTION(Runtime_GrowableSharedArrayBufferByteLength) {
 
   CHECK_EQ(0, array_buffer->byte_length_unchecked());
   size_t byte_length = array_buffer->GetBackingStore()->byte_length();
-  return *isolate->factory()->NewNumberFromSize(byte_length);
+  DirectHandle<Number> result =
+      isolate->factory()->NewNumberFromSize(byte_length);
+  SYNCHRONIZATION_POINT("GrowableSharedArrayBufferByteLength");
+  return *result;
 }
 
 namespace {

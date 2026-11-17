@@ -37,6 +37,7 @@
 
 #include <stdio.h>
 
+#include <array>
 #include <fstream>
 #include <memory>
 #include <set>
@@ -74,9 +75,9 @@ class DebugFile : public std::ofstream {
 #define DEBUG_PRINTF(...) /*                                  force 80 cols */ \
   if (V8_UNLIKELY(v8_flags.riscv_debug)) {                                     \
     if (v8_flags.riscv_debug_file_path) {                                      \
-      base::EmbeddedVector<char, 1024> chars;                                  \
-      SNPrintF(chars, __VA_ARGS__);                                            \
-      DebugFile::GetDebugFile() << chars.begin();                              \
+      std::array<char, 1024> chars;                                            \
+      base::SNPrintF(chars, __VA_ARGS__);                                      \
+      DebugFile::GetDebugFile() << chars.data();                               \
     } else {                                                                   \
       PrintF(__VA_ARGS__);                                                     \
     }                                                                          \

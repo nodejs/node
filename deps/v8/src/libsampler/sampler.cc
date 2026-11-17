@@ -23,11 +23,7 @@
 #include <sys/syscall.h>
 #endif
 
-#if V8_OS_AIX || V8_TARGET_ARCH_S390X
-
-#include "src/base/platform/time.h"
-
-#elif V8_OS_DARWIN
+#if V8_OS_DARWIN
 #include <mach/mach.h>
 // OpenBSD doesn't have <ucontext.h>. ucontext_t lives in <signal.h>
 // and is a typedef for struct sigcontext. There is no uc_mcontext.
@@ -68,6 +64,7 @@ using zx_thread_state_general_regs_t = zx_arm64_general_regs_t;
 #include <algorithm>
 #include <vector>
 
+#include "absl/base/internal/sysinfo.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
@@ -361,12 +358,15 @@ class SignalHandler {
   static void Restore() {
     if (signal_handler_installed_) {
       signal_handler_installed_ = false;
-#if V8_OS_AIX || V8_TARGET_ARCH_S390X
-      // On Aix, IBMi & zLinux SIGPROF can sometimes arrive after the
-      // default signal handler is restored, resulting in intermittent test
-      // failure when profiling is enabled (https://crbug.com/v8/12952)
-      base::OS::Sleep(base::TimeDelta::FromMicroseconds(10));
-#endif
+      // Setting SIG_IGN discards any pending SIGPROF signals on all threads in
+      // the process (POSIX.1) before restoring the previous disposition, which
+      // may be SIG_DFL and would otherwise terminate the process if a signal
+      // sent by DoSample() is still pending.
+      struct sigaction sa;
+      sa.sa_handler = SIG_IGN;
+      sigemptyset(&sa.sa_mask);
+      sa.sa_flags = 0;
+      sigaction(SIGPROF, &sa, nullptr);
       sigaction(SIGPROF, &old_signal_handler_, nullptr);
     }
   }
@@ -579,6 +579,13 @@ Sampler::Sampler(Isolate* isolate)
   // Abseil's deadlock detection uses locks. If we end up taking a sample absl
   // internally holds this lock, we can end up deadlocking.
   SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
+  // Abseil's Mutex contention path lazily calibrates the nominal CPU frequency
+  // on first contention using a 1ms nanosleep loop. If SIGPROF signals arrive
+  // at high frequency during that calibration, Linux's timer slack on relative
+  // nanosleep restarts can cause the remaining sleep time to grow on every
+  // EINTR, livelocking the thread. Trigger the one-time initialization before
+  // sampling starts.
+  absl::base_internal::NominalCPUFrequency();
 }
 
 Sampler::~Sampler() { DCHECK(!IsActive()); }

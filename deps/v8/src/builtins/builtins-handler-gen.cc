@@ -69,6 +69,8 @@ void Builtins::Generate_StoreIC_NoFeedback(
   StoreICNoFeedbackGenerator::Generate(state);
 }
 
+// For the "no feedback" case, we don't need to distinguish between "in literal"
+// and "not in literal".
 void Builtins::Generate_DefineNamedOwnIC_NoFeedback(
     compiler::CodeAssemblerState* state) {
   DefineNamedOwnICNoFeedbackGenerator::Generate(state);

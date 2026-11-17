@@ -65,30 +65,6 @@ function BuildPrototypeChain(base_obj) {
   assertTrue(BuildPrototypeChain(sa) instanceof SharedArray);
 })();
 
-(function TestAtomicsMutexHasInstance() {
-  let lock = new Atomics.Mutex();
-  // Returns true for the original constructor.
-  assertTrue(lock instanceof Atomics.Mutex);
-  // Returns false for a different object.
-  assertFalse(other_obj instanceof Atomics.Mutex);
-  // Returns false for a different constructor.
-  assertFalse(lock instanceof OtherConstructor);
-  // Returns true if the mutex is in the prototype chain.
-  assertTrue(BuildPrototypeChain(lock) instanceof Atomics.Mutex);
-})();
-
-(function TestAtomicsConditionHasInstance() {
-  let conditon = new Atomics.Condition();
-  // Returns true for the original constructor.
-  assertTrue(conditon instanceof Atomics.Condition);
-  // Returns false for a different object.
-  assertFalse(other_obj instanceof Atomics.Condition);
-  // Returns false for a different constructor.
-  assertFalse(conditon instanceof OtherConstructor);
-  // Returns true if the condition is in the prototype chain.
-  assertTrue(BuildPrototypeChain(conditon) instanceof Atomics.Condition);
-})();
-
 (function TestCallStaticHasInstance() {
   let s1 = new S1();
   // Returns true when calling with the correct constructor as the receiver.

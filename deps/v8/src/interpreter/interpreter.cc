@@ -7,9 +7,9 @@
 #include <fstream>
 #include <memory>
 
-#include "builtins-generated/bytecodes-builtins-list.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
+#include "src/builtins/bytecodes-builtins-list.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/unoptimized-compilation-info.h"
 #include "src/common/globals.h"
@@ -145,8 +145,7 @@ bool ShouldPrintBytecode(DirectHandle<SharedFunctionInfo> shared) {
 
   // Checks whether function passed the filter.
   if (shared->is_toplevel()) {
-    base::Vector<const char> filter =
-        base::CStrVector(v8_flags.print_bytecode_filter);
+    std::string_view filter(v8_flags.print_bytecode_filter);
     return filter.empty() || (filter.length() == 1 && filter[0] == '*');
   } else {
     return shared->PassesFilter(v8_flags.print_bytecode_filter);

@@ -170,8 +170,8 @@ void BytecodeArrayWriter::WriteJumpLoop(BytecodeNode* node,
 void BytecodeArrayWriter::WriteSwitch(BytecodeNode* node,
                                       BytecodeJumpTable* jump_table) {
   DCHECK(Bytecodes::IsSwitch(node->bytecode()));
+  CHECK(!exit_seen_in_block_);
 
-  if (exit_seen_in_block_) return;  // Don't emit dead code.
   UpdateExitSeenInBlock(node->bytecode());
   MaybeElideLastBytecode(node->bytecode(), node->source_info().is_valid());
 

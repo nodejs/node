@@ -89,7 +89,7 @@ V8_OBJECT class JSProxy : public JSReceiver {
 
   enum AccessKind { kGet, kSet };
 
-  static MaybeHandle<JSAny> CheckGetSetTrapResult(
+  static MaybeDirectHandle<JSAny> CheckGetSetTrapResult(
       Isolate* isolate, DirectHandle<Name> name,
       DirectHandle<JSReceiver> target, DirectHandle<Object> trap_result,
       AccessKind access_kind);

@@ -55,11 +55,17 @@ SourceId SourceFileMap::GetSourceId(const std::string& path) {
 
 // static
 std::vector<SourceId> SourceFileMap::AllSources() {
+  // The layout loader registers C++ headers to locate Torque snippets in
+  // V8_TQ_* annotation arguments, such as type overrides, array extents, and
+  // tail sections. They provide diagnostic positions, not Torque compilation
+  // units, and must not produce per-source generated files.
   SourceFileMap& self = Get();
   std::vector<SourceId> result;
   result.reserve(static_cast<int>(self.sources_.size()));
   for (int i = 0; i < static_cast<int>(self.sources_.size()); ++i) {
-    result.push_back(SourceId(i));
+    if (StringEndsWith(self.sources_[i], ".tq")) {
+      result.push_back(SourceId(i));
+    }
   }
   return result;
 }

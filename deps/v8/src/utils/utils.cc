@@ -229,8 +229,7 @@ uintptr_t GetCurrentStackPosition() {
 //   "name"   only the function "name"
 //   "name*"  only functions starting with "name"
 //   "~"      none; the tilde is not an identifier
-bool PassesFilter(base::Vector<const char> name,
-                  base::Vector<const char> filter) {
+bool PassesFilter(std::string_view name, std::string_view filter) {
   if (filter.empty()) return name.empty();
   auto filter_it = filter.begin();
   bool positive_filter = true;

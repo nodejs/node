@@ -30,8 +30,7 @@ DirectHandle<Code> BuildWithTurboshaftAssemblerImpl(
   compiler::ZoneStats zone_stats(isolate->allocator());
   ZoneWithName<kBuiltinCompilationZoneName> zone(&zone_stats,
                                                  kBuiltinCompilationZoneName);
-  OptimizedCompilationInfo info(base::CStrVector(name), zone, code_kind,
-                                builtin);
+  OptimizedCompilationInfo info(name, zone, code_kind, builtin);
   compiler::CallDescriptor* call_descriptor = call_descriptor_builder(zone);
 
   PipelineData data(&zone_stats, TurboshaftPipelineKind::kTSABuiltin, isolate,

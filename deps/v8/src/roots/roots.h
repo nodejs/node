@@ -196,6 +196,7 @@ class RootVisitor;
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \
   V(Map, embedder_data_array_map, EmbedderDataArrayMap)                        \
   V(Map, weak_cell_map, WeakCellMap)                                           \
+  V(Map, uninitialized_heap_number_map, UninitializedHeapNumberMap)            \
   TRUSTED_OBJECT_MAP_ROOT_LIST(V)                                              \
   /* String maps */                                                            \
   V(Map, seq_two_byte_string_map, SeqTwoByteStringMap)                         \
@@ -235,8 +236,6 @@ class RootVisitor;
   V(Map, hole_map, HoleMap)                                                    \
   /* Shared space object maps */                                               \
   V(Map, js_shared_array_map, JSSharedArrayMap)                                \
-  V(Map, js_atomics_mutex_map, JSAtomicsMutexMap)                              \
-  V(Map, js_atomics_condition_map, JSAtomicsConditionMap)                      \
   V(Map, descriptor_array_map, DescriptorArrayMap)                             \
   V(Map, on_heap_basic_block_profiler_data_map,                                \
     OnHeapBasicBlockProfilerDataMap)                                           \
@@ -452,6 +451,8 @@ class RootVisitor;
   V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)           \
   V(Object, functions_marked_for_manual_optimization,                       \
     FunctionsMarkedForManualOptimization)                                   \
+  V(Object, functions_marked_for_disabled_eager_inlining,                   \
+    FunctionsMarkedForDisabledEagerInlining)                                \
   V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)         \
   V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)                \
   /* EphemeronHashTable for debug scopes (local debug evaluate) */          \
@@ -655,9 +656,9 @@ static_assert(RootIndex::kFirstSerializableTrustedObjectMap <=
 SERIALIZABLE_TRUSTED_OBJECT_MAP_ROOT_LIST(FOR_SERIALIZABLE_TRUSTED_MAP_CHECK)
 #undef FOR_SERIALIZABLE_TRUSTED_MAP_CHECK
 
-#define ROOT_TYPE_FWD_DECL(Type, name, CamelName) class Type;
-ROOT_LIST(ROOT_TYPE_FWD_DECL)
-#undef ROOT_TYPE_FWD_DECL
+#define DEF_STRUCT_FWD_DECLARATION(NAME, Name, name) class Name;
+STRUCT_LIST(DEF_STRUCT_FWD_DECLARATION)
+#undef DEF_STRUCT_FWD_DECLARATION
 
 // Represents a storage of V8 heap roots.
 class RootsTable {
@@ -678,11 +679,16 @@ class RootsTable {
   IndirectHandle<HeapNumber> FindHeapNumber(double value);
 
 #define ROOT_ACCESSOR(Type, name, CamelName) \
-  V8_INLINE IndirectHandle<Type> name();
-  ROOT_LIST(ROOT_ACCESSOR)
+  V8_NODISCARD V8_INLINE IndirectHandle<ReadOnly<Type>> name();
+  READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #ifndef V8_ENABLE_TDZ_HOLE
   ROOT_ACCESSOR(TdzHole, tdz_hole_value, TdzHoleValue)
 #endif
+#undef ROOT_ACCESSOR
+
+#define ROOT_ACCESSOR(Type, name, CamelName) \
+  V8_NODISCARD V8_INLINE IndirectHandle<Type> name();
+  MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
   V8_INLINE IndirectHandle<Object> handle_at(RootIndex root_index);
@@ -841,9 +847,10 @@ class ReadOnlyRoots {
   // map-word instead of a tagged heap pointer.
   MapWord one_pointer_filler_map_word();
 
-#define ROOT_ACCESSOR(Type, name, CamelName)       \
-  V8_RO_CONST V8_INLINE Tagged<Type> name() const; \
-  V8_RO_CONST V8_INLINE Tagged<Type> unchecked_##name() const;
+#define ROOT_ACCESSOR(Type, name, CamelName)                                   \
+  V8_NODISCARD V8_RO_CONST V8_INLINE Tagged<ReadOnly<Type>> name() const;      \
+  V8_NODISCARD V8_RO_CONST V8_INLINE Tagged<ReadOnly<Type>> unchecked_##name() \
+      const;
 
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #ifndef V8_ENABLE_TDZ_HOLE
@@ -858,9 +865,11 @@ class ReadOnlyRoots {
   void VerifyTypes();
 #endif
 
-  V8_RO_CONST V8_INLINE Tagged<Boolean> boolean_value(bool value) const;
+  V8_RO_CONST V8_INLINE
+      Tagged<ReadOnly<Boolean>> boolean_value(bool value) const;
 
-  V8_RO_CONST V8_INLINE Tagged<String> single_character_string(int code) const;
+  V8_RO_CONST V8_INLINE Tagged<ReadOnly<String>> single_character_string(
+      int code) const;
 
   V8_RO_CONST V8_INLINE Address address_at(RootIndex root_index) const;
   V8_RO_CONST V8_INLINE Tagged<Object> object_at(RootIndex root_index) const;

@@ -104,7 +104,7 @@ bytecodes: [
                 B(PushContext), R(0),
   /*   42 S> */ B(LdaSmi), I8(1),
   /*   42 E> */ B(StaCurrentContextSlotNoCell), C8(2),
-  /*   45 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   45 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
   /*   75 S> */ B(LdaCurrentContextSlotNoCell), C8(2),
                 B(BitwiseOrSmi), I8(24), EmbeddedFeedback(),
   /*   77 E> */ B(StaCurrentContextSlotNoCell), C8(2),

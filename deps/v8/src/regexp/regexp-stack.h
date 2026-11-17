@@ -13,6 +13,15 @@ namespace v8 {
 namespace internal {
 namespace regexp {
 
+class RegExpMacroAssemblerARM;
+class RegExpMacroAssemblerARM64;
+class RegExpMacroAssemblerIA32;
+class RegExpMacroAssemblerLOONG64;
+class RegExpMacroAssemblerMIPS;
+class RegExpMacroAssemblerPPC;
+class RegExpMacroAssemblerRISCV;
+class RegExpMacroAssemblerS390;
+class RegExpMacroAssemblerX64;
 class Stack;
 
 // Maintains a per-v8thread stack area that can be used by irregexp
@@ -72,13 +81,6 @@ class Stack final {
   }
 
   size_t memory_size() const { return thread_local_.memory_size_; }
-
-  // If the stack pointer gets below the limit, we should react and
-  // either grow the stack or report an out-of-stack exception.
-  // There is only a limited number of locations below the stack limit,
-  // so users of the stack should check the stack limit during any
-  // sequence of pushes longer that this.
-  Address* limit_address_address() { return &thread_local_.limit_; }
 
   // Ensures that there is a memory area with at least the specified size.
   // If passing zero, the default/minimum size buffer is allocated.
@@ -158,12 +160,19 @@ class Stack final {
   };
   static constexpr size_t kThreadLocalSize = sizeof(ThreadLocal);
 
-  Address memory_top_address_address() {
-    return reinterpret_cast<Address>(&thread_local_.memory_top_);
-  }
+  // Generated code reaches the fields of the thread-local block through
+  // these offsets from its address.
+  static constexpr int kMemoryTopOffset = offsetof(ThreadLocal, memory_top_);
+  static constexpr int kStackPointerOffset =
+      offsetof(ThreadLocal, stack_pointer_);
+  // If the stack pointer gets below the limit, the code must grow the stack
+  // or report an out-of-stack exception. There is only a limited number of
+  // locations below the limit, so the code checks it during any sequence of
+  // pushes longer than that.
+  static constexpr int kLimitOffset = offsetof(ThreadLocal, limit_);
 
-  Address stack_pointer_address() {
-    return reinterpret_cast<Address>(&thread_local_.stack_pointer_);
+  Address thread_local_address() {
+    return reinterpret_cast<Address>(&thread_local_);
   }
 
   // A position-independent representation of the stack pointer.
@@ -186,6 +195,16 @@ class Stack final {
 
   friend class internal::ExternalReference;
   friend class StackScope;
+  // The regexp macro assemblers use the ThreadLocal offsets above.
+  friend class RegExpMacroAssemblerARM;
+  friend class RegExpMacroAssemblerARM64;
+  friend class RegExpMacroAssemblerIA32;
+  friend class RegExpMacroAssemblerLOONG64;
+  friend class RegExpMacroAssemblerMIPS;
+  friend class RegExpMacroAssemblerPPC;
+  friend class RegExpMacroAssemblerRISCV;
+  friend class RegExpMacroAssemblerS390;
+  friend class RegExpMacroAssemblerX64;
 };
 
 }  // namespace regexp

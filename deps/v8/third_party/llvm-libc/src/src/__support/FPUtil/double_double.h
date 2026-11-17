@@ -71,19 +71,21 @@ LIBC_INLINE constexpr NumberPair<T> exact_add(T a, T b) {
 // If `lsb(a.hi) >= ulp(b.hi)`, then the errors:
 //   err = (a.hi + a.lo + b.hi + b.lo) - (r.hi - r.lo) is bounded by:
 //   |err| < 2^(-2p) * ufp(r.hi) + 2^(-p + 2) * ufp(a.lo + b.lo).
-template <typename T>
+template <bool FAST2SUM = true, typename T>
 LIBC_INLINE constexpr NumberPair<T> add(const NumberPair<T> &a,
                                         const NumberPair<T> &b) {
-  NumberPair<T> r = exact_add(a.hi, b.hi);
+  NumberPair<T> r = exact_add<FAST2SUM>(a.hi, b.hi);
   T lo = a.lo + b.lo;
-  return exact_add(r.hi, r.lo + lo);
+  T r_lo = r.lo + lo;
+  return exact_add<FAST2SUM>(r.hi, r_lo);
 }
 
-// Assumption: |a.hi| >= |b|
-template <typename T>
+// Assumption: when FAST2SUM = true, |a.hi| >= |b|
+template <bool FAST2SUM = true, typename T>
 LIBC_INLINE constexpr NumberPair<T> add(const NumberPair<T> &a, T b) {
-  NumberPair<T> r = exact_add<false>(a.hi, b);
-  return exact_add(r.hi, r.lo + a.lo);
+  NumberPair<T> r = exact_add<FAST2SUM>(a.hi, b);
+  T r_lo = r.lo + a.lo;
+  return exact_add<FAST2SUM>(r.hi, r_lo);
 }
 
 // Veltkamp's Splitting for double precision.

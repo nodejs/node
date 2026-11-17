@@ -1838,10 +1838,9 @@ TEST_F(DebugScopeInfoTest, FindInnermostScopeStartsAtClosureScope) {
   ParsedScript parsed = ParseAndSerialize(source);
   DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
 
-  DebugScriptScope script_scope = DebugScriptScope::FromIndex(info, 0);
-  DebugScriptScope foo =
-      FindInnermostScope(script_scope, PositionOf(source, "let a") + 1);
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 3);
   ASSERT_TRUE(foo.is_function_scope());
+  ASSERT_EQ(foo.start_position(), PositionOf(source, "() {"));
 
   DebugScriptScope found =
       FindInnermostScope(foo, PositionOf(source, "let b") + 1);
@@ -1904,18 +1903,49 @@ TEST_F(DebugScopeInfoTest, FindInnermostScopeClassScope) {
   EXPECT_EQ(found.scope_index(), class_scope->scope_index());
 }
 
-TEST_F(DebugScopeInfoTest, FindInnermostScopeNestedArrowFunctions) {
+TEST_F(DebugScopeInfoTest, FindInnermostScopeSkipsFunctionScopes) {
   HandleScope scope(isolate());
-  // Both arrow functions end at the same position, so the tightest fit is
-  // decided by the start position.
-  const char* source = "const f = a => b => a + b;";
+  const char* source = "const f = a => b => { let c = a + b; return c; };";
   ParsedScript parsed = ParseAndSerialize(source);
   DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
 
   DebugScriptScope script_scope = DebugScriptScope::FromIndex(info, 0);
+  DebugScriptScope outer_arrow = DebugScriptScope::FromIndex(info, 1);
+  DebugScriptScope inner_arrow = DebugScriptScope::FromIndex(info, 2);
+  ASSERT_TRUE(outer_arrow.is_function_scope());
+  ASSERT_TRUE(inner_arrow.is_function_scope());
+
+  const int body_pos = PositionOf(source, "let c") + 1;
+  // Searching from `script_scope` or `outer_arrow` must not descend into child
+  // FUNCTION_SCOPEs.
+  EXPECT_EQ(FindInnermostScope(script_scope, body_pos).scope_index(),
+            script_scope.scope_index());
+  EXPECT_EQ(FindInnermostScope(outer_arrow, body_pos).scope_index(),
+            outer_arrow.scope_index());
+  EXPECT_EQ(FindInnermostScope(inner_arrow, body_pos).scope_index(),
+            inner_arrow.scope_index());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeClassComputedFieldKey) {
+  HandleScope scope(isolate());
+  // The synthetic instance_members_initializer_function FUNCTION_SCOPE spans
+  // from `a = 1` to `b = 3`, straddling `[computed()]`. Searching from `foo`
+  // for a position inside `computed()` must stop at `CLASS_SCOPE` and not
+  // descend into the synthetic initializer FUNCTION_SCOPE.
+  const char* source =
+      "function foo() { class C { a = 1; [computed()] = 2; b = 3; } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  ASSERT_TRUE(foo.is_function_scope());
+  std::optional<DebugScriptScope> class_scope =
+      FindFirstScopeOfType(info, ScopeType::CLASS_SCOPE);
+  ASSERT_TRUE(class_scope.has_value());
+
   DebugScriptScope found =
-      FindInnermostScope(script_scope, PositionOf(source, "a + b") + 1);
-  EXPECT_EQ(found.scope_index(), 2);
+      FindInnermostScope(foo, PositionOf(source, "computed()"));
+  EXPECT_EQ(found.scope_index(), class_scope->scope_index());
 }
 
 TEST_F(DebugScopeInfoTest, FindInnermostScopeOutsideOfClosureScope) {
@@ -1930,6 +1960,164 @@ TEST_F(DebugScopeInfoTest, FindInnermostScopeOutsideOfClosureScope) {
   DebugScriptScope found =
       FindInnermostScope(foo, PositionOf(source, "let b") + 1);
   EXPECT_EQ(found.scope_index(), foo.scope_index());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeSwitchStatement) {
+  HandleScope scope(isolate());
+  // The switch discriminant `tag()` is evaluated outside the switch block
+  // scope, so positions inside `tag()` must resolve to `foo` rather than the
+  // switch's BLOCK_SCOPE.
+  const char* source =
+      "function foo() { switch (tag()) { case 0: let a = 1; break; } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  ASSERT_TRUE(foo.is_function_scope());
+  DebugScriptScope switch_scope = DebugScriptScope::FromIndex(info, 2);
+  ASSERT_TRUE(switch_scope.is_block_scope());
+  EXPECT_EQ(switch_scope.start_position(), PositionOf(source, "{ case"));
+
+  EXPECT_EQ(FindInnermostScope(foo, PositionOf(source, "tag()")).scope_index(),
+            foo.scope_index());
+  EXPECT_EQ(FindInnermostScope(foo, PositionOf(source, "let a")).scope_index(),
+            switch_scope.scope_index());
+}
+
+TEST_F(DebugScopeInfoTest, FindEvalOuterScopeNestedBlocks) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "function outer(param) {\n"
+      "  let a = 1;\n"
+      "  {\n"
+      "    let b = 2;\n"
+      "    {\n"
+      "      let c = 3;\n"
+      "      return eval('() => param');\n"
+      "    }\n"
+      "  }\n"
+      "}\n"
+      "outer(10);");
+  DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
+                                   isolate());
+  isolate()->debug()->ClearScriptScopeInfos();
+
+  std::optional<DebugScriptScope> block_c =
+      FindEvalOuterScope(isolate(), eval_script);
+  ASSERT_TRUE(block_c.has_value());
+  EXPECT_TRUE(block_c->is_block_scope());
+  ASSERT_EQ(block_c->variable_count(), 1);
+  EXPECT_TRUE(block_c->variable(0).name->IsEqualTo("c"));
+
+  DirectHandle<Script> outer_script(
+      Cast<Script>(eval_script->eval_from_shared()->script()), isolate());
+  EXPECT_EQ(*block_c->info(),
+            *EnsureDebugScriptScopeInfo(isolate(), outer_script));
+
+  std::optional<DebugScriptScope> block_b = block_c->parent();
+  ASSERT_TRUE(block_b.has_value());
+  EXPECT_TRUE(block_b->is_block_scope());
+  ASSERT_EQ(block_b->variable_count(), 1);
+  EXPECT_TRUE(block_b->variable(0).name->IsEqualTo("b"));
+
+  std::optional<DebugScriptScope> fn_outer = block_b->parent();
+  ASSERT_TRUE(fn_outer.has_value());
+  EXPECT_TRUE(fn_outer->is_function_scope());
+  EXPECT_EQ(fn_outer->start_position(), 14);
+
+  std::optional<DebugScriptScope> script_scope = fn_outer->parent();
+  ASSERT_TRUE(script_scope.has_value());
+  EXPECT_TRUE(script_scope->is_script_scope());
+  EXPECT_FALSE(script_scope->parent().has_value());
+}
+
+TEST_F(DebugScopeInfoTest, FindEvalOuterScopeChainedDirectEval) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "function outer() {\n"
+      "  let a = 1;\n"
+      "  {\n"
+      "    let b = 2;\n"
+      "    return eval(\"let c = 3; { let d = 4; eval('() => a'); }\");\n"
+      "  }\n"
+      "}\n"
+      "outer();");
+  DirectHandle<Script> inner_eval_script(
+      Cast<Script>(inner->shared()->script()), isolate());
+  isolate()->debug()->ClearScriptScopeInfos();
+
+  std::optional<DebugScriptScope> block_d =
+      FindEvalOuterScope(isolate(), inner_eval_script);
+  ASSERT_TRUE(block_d.has_value());
+  EXPECT_TRUE(block_d->is_block_scope());
+  ASSERT_EQ(block_d->variable_count(), 1);
+  EXPECT_TRUE(block_d->variable(0).name->IsEqualTo("d"));
+
+  std::optional<DebugScriptScope> mid_eval_scope = block_d->parent();
+  ASSERT_TRUE(mid_eval_scope.has_value());
+  EXPECT_TRUE(mid_eval_scope->is_eval_scope());
+  EXPECT_FALSE(mid_eval_scope->parent().has_value());
+
+  DirectHandle<Script> mid_eval_script(
+      Cast<Script>(inner_eval_script->eval_from_shared()->script()), isolate());
+  std::optional<DebugScriptScope> block_b =
+      FindEvalOuterScope(isolate(), mid_eval_script);
+  ASSERT_TRUE(block_b.has_value());
+  EXPECT_TRUE(block_b->is_block_scope());
+  ASSERT_EQ(block_b->variable_count(), 1);
+  EXPECT_TRUE(block_b->variable(0).name->IsEqualTo("b"));
+
+  std::optional<DebugScriptScope> fn_outer = block_b->parent();
+  ASSERT_TRUE(fn_outer.has_value());
+  EXPECT_TRUE(fn_outer->is_function_scope());
+  EXPECT_EQ(fn_outer->start_position(), 14);
+}
+
+TEST_F(DebugScopeInfoTest, FindEvalOuterScopeTopLevelScript) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "let top_a = 1;\n"
+      "let result;\n"
+      "{\n"
+      "  let top_b = 2;\n"
+      "  result = eval('() => top_a');\n"
+      "}\n"
+      "result;");
+  DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
+                                   isolate());
+  isolate()->debug()->ClearScriptScopeInfos();
+
+  std::optional<DebugScriptScope> block_b =
+      FindEvalOuterScope(isolate(), eval_script);
+  ASSERT_TRUE(block_b.has_value());
+  EXPECT_TRUE(block_b->is_block_scope());
+  ASSERT_EQ(block_b->variable_count(), 1);
+  EXPECT_TRUE(block_b->variable(0).name->IsEqualTo("top_b"));
+
+  std::optional<DebugScriptScope> script_scope = block_b->parent();
+  ASSERT_TRUE(script_scope.has_value());
+  EXPECT_TRUE(script_scope->is_script_scope());
+  EXPECT_FALSE(script_scope->parent().has_value());
+}
+
+TEST_F(DebugScopeInfoTest, FindEvalOuterScopeNonDirectEval) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> regular = RunJS<JSFunction>("(() => 1);");
+  DirectHandle<Script> regular_script(Cast<Script>(regular->shared()->script()),
+                                      isolate());
+  EXPECT_FALSE(FindEvalOuterScope(isolate(), regular_script).has_value());
+
+  Handle<JSFunction> indirect_eval =
+      RunJS<JSFunction>("(0, eval)('(() => 1)');");
+  DirectHandle<Script> indirect_eval_script(
+      Cast<Script>(indirect_eval->shared()->script()), isolate());
+  EXPECT_FALSE(FindEvalOuterScope(isolate(), indirect_eval_script).has_value());
+
+  Handle<JSFunction> fn_ctor =
+      RunJS<JSFunction>("new Function('return () => 1;')();");
+  DirectHandle<Script> fn_ctor_script(Cast<Script>(fn_ctor->shared()->script()),
+                                      isolate());
+  EXPECT_FALSE(FindEvalOuterScope(isolate(), fn_ctor_script).has_value());
 }
 
 }  // namespace internal

@@ -345,7 +345,8 @@ void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder,
-    bool feedback_vector_slot, size_t stack_param_slots) {
+    bool feedback_vector_slot, size_t stack_param_slots,
+    size_t stack_return_slots) {
   // The frame_size includes the frame marker and the instance slot. Both are
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
@@ -474,13 +475,6 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
   Branch(ool_label, less, budget, Operand(zero_reg));
 }
 
-Register LiftoffAssembler::LoadOldFramePointer() { return fp; }
-
-void LiftoffAssembler::CheckStackShrink() {
-  // TODO(mips64): 42202153
-  UNIMPLEMENTED();
-}
-
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   switch (value.type().kind()) {
     case kI32:
@@ -512,7 +506,7 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
 }
 
 void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
-                                          int offset, IndirectPointerTag tag) {
+                                          int offset, TrustedPointerTag tag) {
   static_assert(!V8_ENABLE_SANDBOX_BOOL);
   static_assert(!COMPRESS_POINTERS_BOOL);
   Ld(dst, MemOperand{src_addr, offset});
@@ -1239,10 +1233,9 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
-                                            ValueKind kind,
-                                            Register frame_pointer) {
+                                            ValueKind kind) {
   int32_t offset = kSystemPointerSize * (caller_slot_idx + 1);
-  liftoff::Store(this, frame_pointer, offset, src, kind);
+  liftoff::Store(this, fp, offset, src, kind);
 }
 
 void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
@@ -1327,22 +1320,41 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
 void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
-  switch (value.type().kind()) {
-    case kI32: {
-      MacroAssembler::li(kScratchReg, Operand(value.to_i32()));
-      Sw(kScratchReg, dst);
+  ValueKind kind = value.type().kind();
+  switch (kind) {
+    case kI32:
+    case kF32: {
+      int32_t bits32 =
+          kind == kF32 ? static_cast<int32_t>(value.to_f32_boxed().get_bits())
+                       : value.to_i32();
+      if (bits32 == 0) {
+        Sw(zero_reg, dst);
+        break;
+      }
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      MacroAssembler::li(scratch, bits32);
+      Sw(scratch, dst);
       break;
     }
     case kI64:
+    case kF64:
     case kRef:
     case kRefNull: {
-      MacroAssembler::li(kScratchReg, value.to_i64());
-      Sd(kScratchReg, dst);
+      int64_t bits64 =
+          kind == kF64 ? static_cast<int64_t>(value.to_f64_boxed().get_bits())
+                       : value.to_i64();
+      if (bits64 == 0) {
+        Sd(zero_reg, dst);
+        break;
+      }
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      MacroAssembler::li(scratch, bits64);
+      Sd(scratch, dst);
       break;
     }
     default:
-      // kWasmF32 and kWasmF64 are unreachable, since those
-      // constants are not tracked.
       UNREACHABLE();
   }
 }
@@ -4246,7 +4258,8 @@ void LiftoffAssembler::RecordSpillsInSafepoint(
     SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
     LiftoffRegList ref_spills, int spill_offset) {
   LiftoffRegList fp_spills = all_spills & kFpCacheRegList;
-  int spill_space_size = fp_spills.GetNumRegsSet() * kSimd128Size;
+  int spill_space_size = fp_spills.GetNumRegsSet() *
+                         (IsEnabled(MIPS_SIMD) ? kSimd128Size : kStackSlotSize);
   LiftoffRegList gp_spills = all_spills & kGpCacheRegList;
   while (!gp_spills.is_empty()) {
     LiftoffRegister reg = gp_spills.GetFirstRegSet();
@@ -4412,8 +4425,12 @@ void LiftoffStackSlots::Construct(int param_slots) {
       }
       case LiftoffAssembler::VarState::kIntConst: {
         asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
-        asm_->li(kScratchReg, Operand(src.i32_const()));
-        asm_->push(kScratchReg);
+        if (src.i32_const() == 0) {
+          asm_->Push(zero_reg);
+        } else {
+          asm_->li(kScratchReg, Operand(src.i32_const()));
+          asm_->Push(kScratchReg);
+        }
         break;
       }
     }

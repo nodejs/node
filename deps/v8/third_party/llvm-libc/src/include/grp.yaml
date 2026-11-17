@@ -18,6 +18,12 @@ functions:
       - posix
     return_type: struct group *
     arguments: []
+  - name: getgrgid
+    standards:
+      - posix
+    return_type: struct group *
+    arguments:
+      - type: gid_t
   - name: getgrgid_r
     standards:
       - posix
@@ -28,6 +34,12 @@ functions:
       - type: char *
       - type: size_t
       - type: struct group **
+  - name: getgrnam
+    standards:
+      - posix
+    return_type: struct group *
+    arguments:
+      - type: const char *
   - name: getgrnam_r
     standards:
       - posix
@@ -38,8 +50,31 @@ functions:
       - type: char *
       - type: size_t
       - type: struct group **
+  - name: getgrouplist
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: gid_t
+      - type: gid_t *
+      - type: int *
+  - name: initgroups
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: gid_t
   - name: setgrent
     standards:
       - posix
     return_type: void
     arguments: []
+  - name: setgroups
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: size_t
+      - type: const gid_t *

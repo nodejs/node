@@ -28,7 +28,7 @@ class LiftoffVarState {
         kind_(kind),
         i32_const_(i32_const),
         spill_offset_(offset) {
-    DCHECK(kind_ == kI32 || kind_ == kI64);
+    DCHECK(kind_ == kI32 || kind_ == kI64 || kind_ == kF32 || kind_ == kF64);
     DCHECK_LE(0, offset);
   }
 
@@ -45,16 +45,26 @@ class LiftoffVarState {
 
   Location loc() const { return loc_; }
 
-  // The constant as 32-bit value, to be sign-extended if {kind() == kI64}.
+  // The constant as 32-bit value, to be sign-extended if {kind()} is 64-bit.
   int32_t i32_const() const {
     DCHECK_EQ(loc_, kIntConst);
     return i32_const_;
   }
   WasmValue constant() const {
-    DCHECK(kind_ == kI32 || kind_ == kI64);
     DCHECK_EQ(loc_, kIntConst);
-    return kind_ == kI32 ? WasmValue(i32_const_)
-                         : WasmValue(int64_t{i32_const_});
+    switch (kind_) {
+      case kI32:
+        return WasmValue(i32_const_);
+      case kI64:
+        return WasmValue(int64_t{i32_const_});
+      case kF32:
+        return WasmValue(Float32::FromBits(static_cast<uint32_t>(i32_const_)));
+      case kF64:
+        return WasmValue(
+            Float64::FromBits(static_cast<uint64_t>(int64_t{i32_const_})));
+      default:
+        UNREACHABLE();
+    }
   }
 
   int offset() const {
@@ -82,7 +92,7 @@ class LiftoffVarState {
   }
 
   void MakeConstant(int32_t i32_const) {
-    DCHECK(kind_ == kI32 || kind_ == kI64);
+    DCHECK(kind_ == kI32 || kind_ == kI64 || kind_ == kF32 || kind_ == kF64);
     loc_ = kIntConst;
     i32_const_ = i32_const;
   }

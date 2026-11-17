@@ -21,7 +21,7 @@ TEST_F(WasmCapiTest, StartupErrors) {
   WasmFunctionBuilder* start_func = builder()->AddFunction(&sig);
   start_func->EmitCode({WASM_UNREACHABLE, WASM_END});
   builder()->MarkStartFunction(start_func);
-  builder()->AddImport(base::CStrVector("dummy"), &sig);
+  builder()->AddImport("dummy", &sig);
   Compile();
   own<Trap> trap;
 

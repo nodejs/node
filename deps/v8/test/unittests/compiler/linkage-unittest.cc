@@ -50,10 +50,8 @@ static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
 
 // So we can get a real JS function.
 static Handle<JSFunction> Compile(Isolate* isolate, std::string_view source) {
-  Handle<String> source_code = isolate->factory()
-                                   ->NewStringFromUtf8(base::Vector<const char>(
-                                       source.data(), source.length()))
-                                   .ToHandleChecked();
+  Handle<String> source_code =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
   ScriptCompiler::CompilationDetails compilation_details;
   DirectHandle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
@@ -126,8 +124,7 @@ TEST_F(LinkageTest, TestLinkageStubCall) {
   Isolate* isolate_ptr = isolate();
   Zone zone(isolate_ptr->allocator(), ZONE_NAME);
   Callable callable = Builtins::CallableFor(isolate_ptr, Builtin::kToNumber);
-  OptimizedCompilationInfo info(base::ArrayVector("test"), &zone,
-                                CodeKind::FOR_TESTING);
+  OptimizedCompilationInfo info("test", &zone, CodeKind::FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
@@ -148,8 +145,7 @@ TEST_F(LinkageTest, TestFPLinkageStubCall) {
   Zone zone(isolate_ptr->allocator(), ZONE_NAME);
   Callable callable =
       Builtins::CallableFor(isolate_ptr, Builtin::kWasmFloat64ToNumber);
-  OptimizedCompilationInfo info(base::ArrayVector("test"), &zone,
-                                CodeKind::FOR_TESTING);
+  OptimizedCompilationInfo info("test", &zone, CodeKind::FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);

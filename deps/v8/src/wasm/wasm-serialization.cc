@@ -4,11 +4,13 @@
 
 #include "src/wasm/wasm-serialization.h"
 
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/snapshot-data.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/version.h"
 #include "src/wasm/code-space-access.h"
@@ -130,7 +132,7 @@ class Reader {
 
 size_t MeasureHeader(const CompileTimeImports& compile_imports) {
   return 5 * kUInt32Size +  // magic number, version hash, cpu features, flags
-                            // hash, enabled features
+                            // hash, enabled features (incl. trap handler)
          sizeof(typename CompileTimeImportFlags::StorageType) +
          sizeof(uint32_t) +  // length of constants_module.
          compile_imports.constants_module().size();
@@ -143,7 +145,16 @@ void WriteHeader(Writer* writer, WasmEnabledFeatures enabled_features,
   writer->Write(Version::Hash());
   writer->Write(CpuFeatures::SupportedFeatures().ToIntegral());
   writer->Write(FlagList::Hash());
-  writer->Write(enabled_features.ToIntegral());
+  // Code compiled for the trap handler relies on it for bounds and null checks,
+  // and embedders enable the trap handler independently of the flags, so its
+  // state is stored in the most significant bit of the enabled features.
+  constexpr uint32_t kTrapHandlerBit = uint32_t{1} << 31;
+  static_assert(
+      (static_cast<uint32_t>(WasmEnabledFeatures::All().ToIntegral()) &
+       kTrapHandlerBit) == 0);
+  uint32_t features = static_cast<uint32_t>(enabled_features.ToIntegral());
+  if (trap_handler::IsTrapHandlerEnabled()) features |= kTrapHandlerBit;
+  writer->Write(features);
   writer->Write(compile_imports.flags().ToIntegral());
   const std::string& constants_module = compile_imports.constants_module();
   writer->Write(static_cast<uint32_t>(constants_module.size()));
@@ -322,7 +333,7 @@ static_assert(std::is_trivially_destructible_v<ExternalReferenceList>,
 // Translate the signature IDs in the effect handler table from canonical to
 // module-relative or vice-versa.
 template <typename TranslateSigIdCallback>
-base::OwnedVector<uint8_t> TranslateEffectHandlersTable(
+base::UniqueArray<uint8_t> TranslateEffectHandlersTable(
     base::Vector<const uint8_t> effect_handlers,
     TranslateSigIdCallback translate_sig_id) {
   if (effect_handlers.empty()) return {};
@@ -362,7 +373,7 @@ base::OwnedVector<uint8_t> TranslateEffectHandlersTable(
     }
   }
 
-  return base::OwnedVector<uint8_t>::NewByCopying(result.data(), result.size());
+  return base::UniqueArray<uint8_t>::CopiedFrom(result);
 }
 
 }  // namespace
@@ -385,7 +396,7 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   void WriteTieringBudget(Writer* writer);
 
   uint32_t CanonicalSigIdToModuleLocalTypeId(uint32_t canonical_sig_id);
-  base::OwnedVector<uint8_t> TranslateEffectHandlersToModuleRelative(
+  base::UniqueArray<uint8_t> TranslateEffectHandlersToModuleRelative(
       base::Vector<const uint8_t> effect_handlers);
 
   const NativeModule* const native_module_;
@@ -395,7 +406,7 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   std::unordered_map<uint32_t, uint32_t> canonical_sig_ids_to_module_local_ids_;
   // Effect handler tables with canonical signature indices translated to
   // module-relative indices.
-  std::unordered_map<const WasmCode*, base::OwnedVector<uint8_t>>
+  std::unordered_map<const WasmCode*, base::UniqueArray<uint8_t>>
       translated_effect_handlers_;
   bool write_called_ = false;
   size_t total_written_code_ = 0;
@@ -429,7 +440,7 @@ size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) {
     return sizeof(uint8_t);
   }
 
-  base::OwnedVector<uint8_t> effect_handlers =
+  base::UniqueArray<uint8_t> effect_handlers =
       TranslateEffectHandlersToModuleRelative(code->effect_handlers());
   size_t effect_handlers_size = effect_handlers.size();
   translated_effect_handlers_.emplace(code, std::move(effect_handlers));
@@ -463,9 +474,6 @@ size_t NativeModuleSerializer::Measure() {
 
 void NativeModuleSerializer::WriteHeader(Writer* writer,
                                          size_t total_code_size) {
-  // TODO(eholk): We need to properly preserve the flag whether the trap
-  // handler was used or not when serializing.
-
   // Serialize the set of detected features; this contains
   // - all features detected during module decoding,
   // - all features detected during function body decoding, and
@@ -538,7 +546,7 @@ void NativeModuleSerializer::WriteCode(
   // We always call Measure() before serializing the module, so the map should
   // already be filled.
   DCHECK_NE(it, translated_effect_handlers_.end());
-  base::Vector<const uint8_t> effect_handlers = it->second.as_vector();
+  base::Vector<const uint8_t> effect_handlers = it->second.as_span();
   writer->Write(static_cast<uint32_t>(effect_handlers.size()));
   writer->Write(code->kind());
   writer->Write(code->tier());
@@ -680,7 +688,7 @@ uint32_t NativeModuleSerializer::CanonicalSigIdToModuleLocalTypeId(
   return it->second;
 }
 
-base::OwnedVector<uint8_t>
+base::UniqueArray<uint8_t>
 NativeModuleSerializer::TranslateEffectHandlersToModuleRelative(
     base::Vector<const uint8_t> effect_handlers) {
   return TranslateEffectHandlersTable(effect_handlers, [this](uint32_t sig) {
@@ -816,7 +824,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   void CopyAndRelocate(const DeserializationUnit& unit);
   void Publish(std::vector<DeserializationUnit> batch);
 
-  base::OwnedVector<uint8_t> TranslateEffectHandlersToCanonical(
+  base::UniqueArray<uint8_t> TranslateEffectHandlersToCanonical(
       base::Vector<const uint8_t> effect_handlers);
 
   NativeModule* const native_module_;
@@ -1036,7 +1044,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   auto trapping_instructions =
       reader->ReadVector<uint8_t>(trapping_instructions_size);
   auto raw_effect_handlers = reader->ReadVector<uint8_t>(effect_handlers_size);
-  base::OwnedVector<uint8_t> effect_handlers =
+  base::UniqueArray<uint8_t> effect_handlers =
       TranslateEffectHandlersToCanonical(raw_effect_handlers);
 
   base::Vector<uint8_t> instructions =
@@ -1049,12 +1057,12 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
       tagged_parameter_slots, safepoint_table_offset, handler_table_offset,
       constant_pool_offset, code_comment_offset, jump_table_info_offset,
       unpadded_binary_size, trapping_instructions, reloc_info, source_pos,
-      inlining_pos, deopt_data, kind, tier, effect_handlers.as_vector());
+      inlining_pos, deopt_data, kind, tier, effect_handlers.as_span());
   unit.jump_tables = current_jump_tables_;
   return unit;
 }
 
-base::OwnedVector<uint8_t>
+base::UniqueArray<uint8_t>
 NativeModuleDeserializer::TranslateEffectHandlersToCanonical(
     base::Vector<const uint8_t> effect_handlers) {
   return TranslateEffectHandlersTable(effect_handlers, [this](uint32_t sig) {
@@ -1199,15 +1207,14 @@ bool HeaderMatches(base::Vector<const uint8_t> data,
 MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     base::Vector<const uint8_t> data,
-    base::OwnedVector<const uint8_t>& wire_bytes_vec,
-    const CompileTimeImports& compile_imports,
-    base::Vector<const char> source_url) {
+    base::UniqueArray<const uint8_t>& wire_bytes_vec,
+    const CompileTimeImports& compile_imports, std::string_view source_url) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
   if (!HeaderMatches(data, enabled_features, compile_imports)) return {};
 
   WasmDetectedFeatures detected_features;
   ModuleResult decode_result =
-      DecodeWasmModule(isolate, enabled_features, wire_bytes_vec.as_vector(),
+      DecodeWasmModule(isolate, enabled_features, wire_bytes_vec.as_span(),
                        false, DecodingMethod::kDeserialize, &detected_features);
   // The wire bytes were previously considered valid for the same enabled
   // features (checked above).
@@ -1217,7 +1224,7 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
 
   WasmEngine* wasm_engine = GetWasmEngine();
   std::shared_ptr<NativeModule> shared_native_module =
-      wasm_engine->MaybeGetNativeModule(wire_bytes_vec.as_vector(),
+      wasm_engine->MaybeGetNativeModule(wire_bytes_vec.as_span(),
                                         enabled_features, compile_imports);
   if (shared_native_module) {
     // For consistency, take ownership of the passed `wire_bytes_vec` also when
@@ -1261,7 +1268,7 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
   isolate->debug()->OnAfterCompile(script);
 
   // Log the code within the generated module for profiling.
-  shared_native_module->LogWasmCodes(isolate, *script);
+  shared_native_module->LogWasmCodes(isolate, script);
 
   return module_object;
 }

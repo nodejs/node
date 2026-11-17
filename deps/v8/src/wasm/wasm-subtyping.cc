@@ -10,13 +10,14 @@
 
 namespace v8::internal::wasm {
 
-namespace {
-
-V8_INLINE bool EquivalentIndices(ModuleTypeIndex index1, ModuleTypeIndex index2,
-                                 const WasmModule* module) {
+bool EquivalentIndices(ModuleTypeIndex index1, ModuleTypeIndex index2,
+                       const WasmModule* module) {
   if (index1 == index2) return true;
+  if (!index1.valid() || !index2.valid()) return false;
   return module->canonical_type_id(index1) == module->canonical_type_id(index2);
 }
+
+namespace {
 
 bool ValidStructSubtypeDefinition(ModuleTypeIndex subtype_index,
                                   ModuleTypeIndex supertype_index,
@@ -46,7 +47,8 @@ bool ValidStructSubtypeDefinition(ModuleTypeIndex subtype_index,
     // and the supertype's descriptor must be a declared supertype of the
     // subtype's descriptor.
     if (!super_def.descriptor.valid()) return false;
-    if (module->supertype(sub_def.descriptor) != super_def.descriptor) {
+    if (!EquivalentIndices(module->supertype(sub_def.descriptor),
+                           super_def.descriptor, module)) {
       return false;
     }
   } else {
@@ -57,7 +59,8 @@ bool ValidStructSubtypeDefinition(ModuleTypeIndex subtype_index,
     // If a type is a descriptor, its supertype must also be a descriptor, and
     // must describe a declared supertype of the subtype's described type.
     if (!super_def.describes.valid()) return false;
-    if (module->supertype(sub_def.describes) != super_def.describes) {
+    if (!EquivalentIndices(module->supertype(sub_def.describes),
+                           super_def.describes, module)) {
       return false;
     }
   } else {

@@ -114,7 +114,7 @@ class ObjectStartBitmapVerifier final
     return true;
   }
 
-  PlatformAwareObjectStartBitmap* bitmap_ = nullptr;
+  ObjectStartBitmap* bitmap_ = nullptr;
   HeapObjectHeader* prev_ = nullptr;
 };
 
@@ -352,7 +352,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
   constexpr auto kAtomicAccess = AccessMode::kAtomic;
   FinalizationBuilder builder(*page, page_allocator);
 
-  PlatformAwareObjectStartBitmap& bitmap = page->object_start_bitmap();
+  ObjectStartBitmap& bitmap = page->object_start_bitmap();
 
   size_t live_bytes = 0;
 

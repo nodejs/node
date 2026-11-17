@@ -252,7 +252,7 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
   const int64_t sampling_stride_;
 };
 
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE void CordzInfo::MaybeTrackCord(
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline void CordzInfo::MaybeTrackCord(
     InlineData& cord, MethodIdentifier method) {
   auto stride = cordz_should_profile();
   if (ABSL_PREDICT_FALSE(stride > 0)) {
@@ -260,14 +260,14 @@ inline ABSL_ATTRIBUTE_ALWAYS_INLINE void CordzInfo::MaybeTrackCord(
   }
 }
 
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE void CordzInfo::MaybeTrackCord(
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline void CordzInfo::MaybeTrackCord(
     InlineData& cord, const InlineData& src, MethodIdentifier method) {
   if (ABSL_PREDICT_FALSE(InlineData::is_either_profiled(cord, src))) {
     MaybeTrackCordImpl(cord, src, method);
   }
 }
 
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE void CordzInfo::MaybeUntrackCord(
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline void CordzInfo::MaybeUntrackCord(
     CordzInfo* info) {
   if (ABSL_PREDICT_FALSE(info)) {
     info->Untrack();

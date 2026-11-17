@@ -124,6 +124,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":bind_front",
+        "//absl/base:config",
         "//absl/memory",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

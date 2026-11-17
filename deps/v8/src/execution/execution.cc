@@ -40,10 +40,11 @@ struct InvokeParams {
   CPPGC_STACK_ALLOCATED();
 
  public:
-  static InvokeParams SetUpForNew(
-      Isolate* isolate, DirectHandle<Object> constructor,
-      DirectHandle<Object> new_target,
-      base::Vector<const DirectHandle<Object>> args);
+  static InvokeParams SetUpForNew(Isolate* isolate,
+                                  DirectHandle<Object> constructor,
+                                  DirectHandle<Object> new_target,
+                                  base::Vector<const DirectHandle<Object>> args,
+                                  SideEffectType side_effect_type);
 
   static InvokeParams SetUpForCall(
       Isolate* isolate, DirectHandle<Object> callable,
@@ -86,13 +87,15 @@ struct InvokeParams {
 
   bool is_construct;
   Execution::Target execution_target;
+  SideEffectType overrider_side_effect_type = SideEffectType::kHasSideEffect;
 };
 
 // static
 InvokeParams InvokeParams::SetUpForNew(
     Isolate* isolate, DirectHandle<Object> constructor,
     DirectHandle<Object> new_target,
-    base::Vector<const DirectHandle<Object>> args) {
+    base::Vector<const DirectHandle<Object>> args,
+    SideEffectType overrider_side_effect_type) {
   InvokeParams params;
   params.target = constructor;
   params.receiver = isolate->factory()->undefined_value();
@@ -104,6 +107,7 @@ InvokeParams InvokeParams::SetUpForNew(
   params.exception_out = nullptr;
   params.is_construct = true;
   params.execution_target = Execution::Target::kCallable;
+  params.overrider_side_effect_type = overrider_side_effect_type;
   return params;
 }
 
@@ -350,7 +354,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
           function->shared()->api_func_data(), isolate);
       auto value = Builtins::InvokeApiFunction(
           isolate, params.is_construct, fun_data, receiver, params.args,
-          Cast<HeapObject>(params.new_target));
+          Cast<HeapObject>(params.new_target),
+          params.overrider_side_effect_type);
       bool has_exception = value.is_null();
       DCHECK_EQ(has_exception, isolate->has_exception());
       if (has_exception) {
@@ -404,6 +409,12 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   }
   if (!DumpOnJavascriptExecution::IsAllowed(isolate)) {
     V8::GetCurrentPlatform()->DumpWithoutCrashing();
+    if (params.is_construct) {
+      // TODO(crbug.com/576333024): Fix callers to handle empty return values
+      // without a pending exception when DumpOnJavascriptExecution disallows
+      // execution.
+      return isolate->factory()->NewJSObject(isolate->object_function());
+    }
     return isolate->factory()->undefined_value();
   }
   isolate->IncrementJavascriptExecutionCounter();
@@ -616,10 +627,11 @@ MaybeDirectHandle<JSReceiver> Execution::New(
 MaybeDirectHandle<JSReceiver> Execution::New(
     Isolate* isolate, DirectHandle<Object> constructor,
     DirectHandle<Object> new_target,
-    base::Vector<const DirectHandle<Object>> args) {
+    base::Vector<const DirectHandle<Object>> args,
+    SideEffectType overrider_side_effect_type) {
   return Cast<JSReceiver>(Invoke(
-      isolate,
-      InvokeParams::SetUpForNew(isolate, constructor, new_target, args)));
+      isolate, InvokeParams::SetUpForNew(isolate, constructor, new_target, args,
+                                         overrider_side_effect_type)));
 }
 
 // static

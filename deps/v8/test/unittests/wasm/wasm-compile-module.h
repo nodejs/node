@@ -6,6 +6,7 @@
 #define TEST_UNITTESTS_WASM_WASM_COMPILE_MODULE_H_
 
 #include "include/libplatform/libplatform.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
@@ -20,7 +21,7 @@ namespace v8::internal::wasm {
 class WasmCompileHelper : public AllStatic {
  public:
   static void SyncCompile(Isolate* isolate,
-                          base::OwnedVector<const uint8_t> bytes) {
+                          base::UniqueArray<const uint8_t> bytes) {
     ErrorThrower thrower(isolate, "WasmCompileHelper::SyncCompile");
     GetWasmEngine()->SyncCompile(isolate, WasmEnabledFeatures::All(),
                                  CompileTimeImports{}, &thrower,
@@ -29,7 +30,7 @@ class WasmCompileHelper : public AllStatic {
   }
 
   static void AsyncCompile(Isolate* isolate,
-                           base::OwnedVector<const uint8_t> bytes) {
+                           base::UniqueArray<const uint8_t> bytes) {
     std::shared_ptr<TestResolver> resolver = std::make_shared<TestResolver>();
 
     GetWasmEngine()->AsyncCompile(

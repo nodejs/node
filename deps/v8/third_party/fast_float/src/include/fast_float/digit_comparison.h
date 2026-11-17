@@ -330,10 +330,6 @@ parse_mantissa(bigint &result, parsed_number_string_t<UC> &num,
       }
     }
   }
-
-  if (counter != 0) {
-    add_native(result, limb(powers_of_ten_uint64[counter]), value);
-  }
 }
 
 template <typename T>

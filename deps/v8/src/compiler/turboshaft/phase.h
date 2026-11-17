@@ -83,12 +83,11 @@ struct HasProperRunMethod {
 };
 
 template <typename Phase, typename... Args>
-concept TurboshaftPhase =
-    HasProperRunMethod<Phase>::value &&
-    requires(Phase p) { p.kKind == PhaseKind::kTurboshaft; };
+concept TurboshaftPhase = HasProperRunMethod<Phase>::value &&
+                          (Phase::kKind == PhaseKind::kTurboshaft);
 
 template <typename Phase>
-concept TurbofanPhase = requires(Phase p) { p.kKind == PhaseKind::kTurbofan; };
+concept TurbofanPhase = (Phase::kKind == PhaseKind::kTurbofan);
 
 template <typename Phase>
 concept CompilerPhase = TurboshaftPhase<Phase> || TurbofanPhase<Phase>;

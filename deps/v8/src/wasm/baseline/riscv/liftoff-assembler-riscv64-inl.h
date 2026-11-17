@@ -181,9 +181,11 @@ inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
     }
     switch (src.kind()) {
       case kI32:
+      case kF32:
         assm->Sw(src_reg, dst);
         break;
       case kI64:
+      case kF64:
         assm->StoreWord(src_reg, dst);
         break;
       default:
@@ -1129,10 +1131,9 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
-                                            ValueKind kind,
-                                            Register frame_pointer) {
+                                            ValueKind kind) {
   int32_t offset = kSystemPointerSize * (caller_slot_idx + 1);
-  liftoff::Store(this, frame_pointer, offset, src, kind);
+  liftoff::Store(this, fp, offset, src, kind);
 }
 
 void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
@@ -1269,9 +1270,21 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
       Sd(tmp, dst);
       break;
     }
+    case kF32: {
+      UseScratchRegisterScope temps(this);
+      Register tmp = temps.Acquire();
+      MacroAssembler::li(tmp, Operand(value.to_f32_boxed().get_bits()));
+      Sw(tmp, dst);
+      break;
+    }
+    case kF64: {
+      UseScratchRegisterScope temps(this);
+      Register tmp = temps.Acquire();
+      MacroAssembler::li(tmp, Operand(value.to_f64_boxed().get_bits()));
+      Sd(tmp, dst);
+      break;
+    }
     default:
-      // kWasmF32 and kWasmF64 are unreachable, since those
-      // constants are not tracked.
       UNREACHABLE();
   }
 }
@@ -2306,6 +2319,11 @@ void LiftoffStackSlots::Construct(int param_slots) {
         break;
       }
       case LiftoffAssembler::VarState::kIntConst: {
+        // f32 constants and sign-extendable f64 constants are tracked as
+        // integer constants. The sign-extending store below materializes them
+        // correctly (only the low four bytes are relevant for f32).
+        DCHECK(src.kind() == kI32 || src.kind() == kI64 || src.kind() == kF32 ||
+               src.kind() == kF64);
         asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
         asm_->li(kScratchReg, Operand(src.i32_const()));
         asm_->push(kScratchReg);

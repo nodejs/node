@@ -181,6 +181,7 @@ cc_test(
     ],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    shard_count = 4,
     deps = [
         ":clock_interface",
         ":simulated_clock",

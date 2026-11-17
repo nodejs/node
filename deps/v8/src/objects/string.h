@@ -441,6 +441,10 @@ V8_OBJECT class String : public Name {
   template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
   inline bool IsEqualTo(base::Vector<const Char> str) const;
 
+  // Convenience method for the above using std::string_view instead.
+  template <EqualityType kEqType = EqualityType::kWholeString>
+  inline bool IsEqualTo(std::string_view str) const;
+
   // Check if this string matches the given vector of characters, either as a
   // whole string or just a prefix.
   //
@@ -450,8 +454,8 @@ V8_OBJECT class String : public Name {
   inline bool IsEqualTo(base::Vector<const Char> str,
                         LocalIsolate* isolate) const;
 
-  V8_EXPORT_PRIVATE bool HasOneBytePrefix(base::Vector<const char> str);
-  V8_EXPORT_PRIVATE inline bool IsOneByteEqualTo(base::Vector<const char> str);
+  V8_EXPORT_PRIVATE bool HasOneBytePrefix(std::string_view str);
+  V8_EXPORT_PRIVATE inline bool IsOneByteEqualTo(std::string_view str);
 
   // Returns true if the |str| is a valid ECMAScript identifier.
   static bool IsIdentifier(Isolate* isolate, DirectHandle<String> str);
@@ -807,7 +811,7 @@ V8_OBJECT class String : public Name {
                        bool* out_one_byte_content = nullptr);
 
  public:
-  uint32_t length_;
+  V8_TQ_CONST uint32_t length_ V8_TQ_TYPE(int32);
 } V8_OBJECT_END;
 
 template <>
@@ -961,7 +965,8 @@ V8_OBJECT class SeqOneByteString : public SeqString {
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedSeqOneByteStringAsserts;
 
-  FLEXIBLE_ARRAY_MEMBER(Char, chars);
+  V8_TQ_TAIL_LENGTH(length);
+  FLEXIBLE_ARRAY_MEMBER(Char, chars, V8_TQ_CONST V8_TQ_TYPE(char8));
 } V8_OBJECT_END;
 
 template <>
@@ -1036,7 +1041,8 @@ V8_OBJECT class SeqTwoByteString : public SeqString {
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedSeqTwoByteStringAsserts;
 
-  FLEXIBLE_ARRAY_MEMBER(Char, chars);
+  V8_TQ_TAIL_LENGTH(length);
+  FLEXIBLE_ARRAY_MEMBER(Char, chars, V8_TQ_CONST V8_TQ_TYPE(char16));
 } V8_OBJECT_END;
 
 template <>

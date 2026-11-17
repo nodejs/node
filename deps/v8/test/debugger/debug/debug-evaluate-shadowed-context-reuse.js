@@ -329,10 +329,15 @@ listener_delegate = function(exec_state) {
   assertThrows(() => exec_state.frame(0).scope(0).evaluate("c_block_test").value(), ReferenceError);
   assertEquals(21, exec_state.frame(0).scope(0).evaluate("b_block_test").value());
 
-  // In `f` (`scope(1)`), `a_block_test` is shadowed, but `c_block_test` (from the inner block) is not.
+  // The inner block (`scope(1)`) has no context, but still shadows both.
   assertThrows(() => exec_state.frame(0).scope(1).evaluate("a_block_test").value(), ReferenceError);
-  assertEquals('global_c', exec_state.frame(0).scope(1).evaluate("c_block_test").value());
+  assertThrows(() => exec_state.frame(0).scope(1).evaluate("c_block_test").value(), ReferenceError);
   assertEquals(21, exec_state.frame(0).scope(1).evaluate("b_block_test").value());
+
+  // In `f` (`scope(2)`), `a_block_test` is shadowed, but `c_block_test` (from the inner block) is not.
+  assertThrows(() => exec_state.frame(0).scope(2).evaluate("a_block_test").value(), ReferenceError);
+  assertEquals('global_c', exec_state.frame(0).scope(2).evaluate("c_block_test").value());
+  assertEquals(21, exec_state.frame(0).scope(2).evaluate("b_block_test").value());
 };
 break_position = 1;
 (test_inner_block_isolation())();

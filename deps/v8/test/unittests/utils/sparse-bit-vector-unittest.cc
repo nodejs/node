@@ -93,4 +93,41 @@ TEST_F(SparseBitVectorTest, Remove) {
               ElementsAre(6000, 8000));
 }
 
+TEST_F(SparseBitVectorTest, ReuseEmptySegments) {
+  SparseBitVector vec(zone());
+  vec.Add(1000);
+  size_t allocated_with_one_segment = zone()->allocation_size();
+  EXPECT_GT(allocated_with_one_segment, 0u);
+
+  // Removing bit 1000 leaves an empty segment that should be reused for the
+  // next out-of-range bits (both higher and lower).
+  vec.Remove(1000);
+  vec.Add(2000);
+  EXPECT_EQ(allocated_with_one_segment, zone()->allocation_size());
+  vec.Remove(2000);
+  vec.Add(500);
+  EXPECT_EQ(allocated_with_one_segment, zone()->allocation_size());
+  EXPECT_THAT(std::vector<int>(vec.begin(), vec.end()), ElementsAre(500));
+
+  // Allocate a second segment while 500 is still set, then remove 500 and add
+  // 3000; the empty segment for 500 should be reused for 3000.
+  vec.Add(2000);
+  size_t allocated_with_two_segments = zone()->allocation_size();
+  EXPECT_GT(allocated_with_two_segments, allocated_with_one_segment);
+  vec.Remove(500);
+  vec.Add(3000);
+  EXPECT_EQ(allocated_with_two_segments, zone()->allocation_size());
+  EXPECT_THAT(std::vector<int>(vec.begin(), vec.end()),
+              ElementsAre(2000, 3000));
+
+  // If both segments become empty, both are preserved and reused.
+  vec.Remove(2000);
+  vec.Remove(3000);
+  vec.Add(4000);
+  vec.Add(5000);
+  EXPECT_EQ(allocated_with_two_segments, zone()->allocation_size());
+  EXPECT_THAT(std::vector<int>(vec.begin(), vec.end()),
+              ElementsAre(4000, 5000));
+}
+
 }  // namespace v8::internal

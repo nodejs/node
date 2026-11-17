@@ -35,7 +35,7 @@ namespace test_swiss_hash_table {
 // See RuntimeTestRunner for description of public functions.
 class CSATestRunner {
  public:
-  CSATestRunner(Isolate* isolate, int initial_capacity, KeyCache& keys);
+  CSATestRunner(Isolate* isolate, uint32_t initial_capacity, KeyCache& keys);
 
   // TODO(v8:11330): Remove once CSA implementation has a fallback for
   // non-SSSE3/AVX configurations.
@@ -60,8 +60,9 @@ class CSATestRunner {
   void Shrink();
 
   DirectHandle<FixedArray> GetData(InternalIndex entry);
-  void CheckCounts(std::optional<int> capacity, std::optional<int> elements,
-                   std::optional<int> deleted);
+  void CheckCounts(std::optional<uint32_t> capacity,
+                   std::optional<uint32_t> elements,
+                   std::optional<uint32_t> deleted);
   void CheckEnumerationOrder(const std::vector<std::string>& expected_keys);
   void CheckCopy();
   void VerifyHeap();
@@ -116,7 +117,7 @@ class CSATestRunner {
   static constexpr int kCopyParams = 1;       // (table)
 };
 
-CSATestRunner::CSATestRunner(Isolate* isolate, int initial_capacity,
+CSATestRunner::CSATestRunner(Isolate* isolate, uint32_t initial_capacity,
                              KeyCache& keys)
     : isolate_{isolate},
       reference_{isolate_->factory()->NewSwissNameDictionaryWithCapacity(
@@ -145,8 +146,8 @@ void CSATestRunner::Add(DirectHandle<Name> key, DirectHandle<Object> value,
   if (*success == roots.false_value()) {
     // |add_ft_| does not resize and indicates the need to do so by returning
     // false.
-    int capacity = table->Capacity();
-    int used_capacity = table->UsedCapacity();
+    uint32_t capacity = table->Capacity();
+    uint32_t used_capacity = table->UsedCapacity();
     CHECK_GT(used_capacity + 1,
              SwissNameDictionary::MaxUsableCapacity(capacity));
 
@@ -185,9 +186,9 @@ DirectHandle<FixedArray> CSATestRunner::GetData(InternalIndex entry) {
       table, handle(Smi::FromInt(entry.as_int()), isolate_));
 }
 
-void CSATestRunner::CheckCounts(std::optional<int> capacity,
-                                std::optional<int> elements,
-                                std::optional<int> deleted) {
+void CSATestRunner::CheckCounts(std::optional<uint32_t> capacity,
+                                std::optional<uint32_t> elements,
+                                std::optional<uint32_t> deleted) {
   DirectHandle<FixedArray> counts =
       get_counts_ft_.CallChecked<FixedArray>(table);
 

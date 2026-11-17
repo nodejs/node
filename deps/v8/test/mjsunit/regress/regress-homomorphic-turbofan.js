@@ -16,9 +16,11 @@ function createNormalObject() {
     return o.a;
   }
   %PrepareFunctionForOptimization(load);
+  let objects = [];
   for (let i = 0; i < 11; i++) {
     let o = createNormalObject();
     o.a = i;
+    objects.push(o);
     load(o);
   }
   %OptimizeFunctionOnNextCall(load);
@@ -39,9 +41,11 @@ function createNormalObject() {
     return o.a;
   }
   %PrepareFunctionForOptimization(load);
+  let objects = [];
   for (let i = 0; i < 11; i++) {
     let o = createNormalObject();
     o.a = i;
+    objects.push(o);
     load(o);
   }
   %OptimizeFunctionOnNextCall(load);

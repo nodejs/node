@@ -2,28 +2,12 @@ crbug.com/736302
 
 Running test: testThrowException
 {
-    method : Runtime.consoleAPICalled
-    params : {
-        args : [
-            [0] : {
-                type : string
-                value : default: 1
-            }
-        ]
-        executionContextId : <executionContextId>
-        stackTrace : {
-            callFrames : [
-                [0] : {
-                    columnNumber : 12
-                    functionName : 
-                    lineNumber : 1
-                    scriptId : <scriptId>
-                    url : 
-                }
-            ]
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : Thrown from Symbol.toStringTag getter
         }
-        timestamp : <timestamp>
-        type : count
     }
 }
 

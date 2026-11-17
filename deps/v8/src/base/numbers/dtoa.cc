@@ -5,6 +5,7 @@
 #include "src/base/numbers/dtoa.h"
 
 #include <cmath>
+#include <span>
 
 #include "src/base/logging.h"
 #include "src/base/numbers/bignum-dtoa.h"
@@ -29,7 +30,7 @@ static BignumDtoaMode DtoaToBignumDtoaMode(DtoaMode dtoa_mode) {
 }
 
 void DoubleToAscii(double v, DtoaMode mode, int requested_digits,
-                   Vector<char> buffer, int* sign, int* length, int* point) {
+                   std::span<char> buffer, int* sign, int* length, int* point) {
   DCHECK(!Double(v).IsSpecial());
   DCHECK(mode == DTOA_SHORTEST || requested_digits >= 0);
 

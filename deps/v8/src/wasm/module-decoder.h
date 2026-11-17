@@ -11,6 +11,7 @@
 
 #include <memory>
 
+#include "src/base/unique-array.h"
 #include "src/common/globals.h"
 #include "src/logging/metrics.h"
 #include "src/wasm/function-body-decoder.h"
@@ -135,8 +136,8 @@ void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
 // The number of allocated characters will be added to {total_allocated_size}.
 void DecodeCanonicalTypeNames(
     base::Vector<const uint8_t> wire_bytes, const WasmModule* module,
-    std::vector<base::OwnedVector<char>>& typenames,
-    std::map<uint32_t, std::vector<base::OwnedVector<char>>>& fieldnames,
+    std::vector<base::UniqueArray<char>>& typenames,
+    std::map<uint32_t, std::vector<base::UniqueArray<char>>>& fieldnames,
     size_t* total_allocated_size);
 
 // Validate all functions in the module. Return the first validation error

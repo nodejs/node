@@ -1,0 +1,27 @@
+Regression test for crbug.com/572834323.
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                className : LinkError
+                description : LinkError: WebAssembly.Instance(): Import #0 "m" "f": function import requires a callable     at <anonymous>:5:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 4
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : LinkError
+            description : LinkError: WebAssembly.Instance(): Import #0 "m" "f": function import requires a callable     at <anonymous>:5:1
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}

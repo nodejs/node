@@ -1,0 +1,8 @@
+Tests setting a Wasm breakpoint at columnNumber -1.
+{
+    error : {
+        code : -32000
+        message : Could not resolve breakpoint
+    }
+    id : <messageId>
+}

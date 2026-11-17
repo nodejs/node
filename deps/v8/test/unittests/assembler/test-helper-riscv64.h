@@ -14,7 +14,7 @@
 #define PRINT_RES(res, expected_res, in_hex)                         \
   if (in_hex) std::cout << "[hex-form]" << std::hex;                 \
   std::cout << "res = " << (res) << " expected = " << (expected_res) \
-            << std::endl;
+            << std::dec << std::endl;
 
 namespace v8 {
 namespace internal {

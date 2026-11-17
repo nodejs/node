@@ -90,6 +90,8 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   IF_WASM(V, ActiveSuspender, kSystemPointerSize, active_suspender)            \
   V(DateCacheStamp, kInt32Size, date_cache_stamp)                              \
   V(IsDateCacheUsed, kUInt8Size, is_date_cache_used)                           \
+  IF_INTL(V, DefaultLocaleMayRequireSpecialCaseMapping, kUInt8Size,            \
+          default_locale_may_require_special_case_mapping)                     \
   /* This padding aligns next field to kDoubleSize bytes. */                   \
   PADDING_FIELD(kDoubleSize, V, RawArgumentsPadding, raw_arguments_padding)    \
   V(RawArguments, 2 * kDoubleSize, raw_arguments)                              \
@@ -140,6 +142,8 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
     offsetof(ThreadLocalTop, last_entered_context_))                           \
   V(Exception, exception, thread_local_top,                                    \
     offsetof(ThreadLocalTop, exception_))                                      \
+  V(PendingMessage, pending_message, thread_local_top,                         \
+    offsetof(ThreadLocalTop, pending_message_))                                \
   V(TopmostScriptHavingContext, topmost_script_having_context,                 \
     thread_local_top,                                                          \
     offsetof(ThreadLocalTop, topmost_script_having_context_))                  \
@@ -164,6 +168,10 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
     offsetof(ThreadLocalTop, num_frames_above_pending_handler_))               \
   V(IsOnCentralStackFlag, is_on_central_stack_flag, thread_local_top,          \
     offsetof(ThreadLocalTop, is_on_central_stack_flag_))                       \
+  V(CentralStackSP, central_stack_sp, thread_local_top,                        \
+    offsetof(ThreadLocalTop, central_stack_sp_))                               \
+  V(CentralStackLimit, central_stack_limit, thread_local_top,                  \
+    offsetof(ThreadLocalTop, central_stack_limit_))                            \
   V(JSEntrySP, js_entry_sp, thread_local_top,                                  \
     offsetof(ThreadLocalTop, js_entry_sp_))                                    \
                                                                                \

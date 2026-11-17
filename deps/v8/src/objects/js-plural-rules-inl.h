@@ -13,6 +13,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/api/api-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -31,23 +32,12 @@ void JSPluralRules::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));
 }
 
-Tagged<Managed<icu::PluralRules>> JSPluralRules::icu_plural_rules() const {
-  return Cast<Managed<icu::PluralRules>>(icu_plural_rules_.load());
+Tagged<CppGCManaged<PluralRulesInternal>> JSPluralRules::internal() const {
+  return Cast<CppGCManaged<PluralRulesInternal>>(internal_.load());
 }
-void JSPluralRules::set_icu_plural_rules(
-    Tagged<Managed<icu::PluralRules>> value, WriteBarrierMode mode) {
-  icu_plural_rules_.store(this, value, mode);
-}
-
-Tagged<Managed<icu::number::LocalizedNumberFormatter>>
-JSPluralRules::icu_number_formatter() const {
-  return Cast<Managed<icu::number::LocalizedNumberFormatter>>(
-      icu_number_formatter_.load());
-}
-void JSPluralRules::set_icu_number_formatter(
-    Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
-    WriteBarrierMode mode) {
-  icu_number_formatter_.store(this, value, mode);
+void JSPluralRules::set_internal(
+    Tagged<CppGCManaged<PluralRulesInternal>> value, WriteBarrierMode mode) {
+  internal_.store(this, value, mode);
 }
 
 inline void JSPluralRules::set_type(Type type) {

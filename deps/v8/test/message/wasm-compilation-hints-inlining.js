@@ -59,7 +59,7 @@ d8.file.execute('test/mjsunit/mjsunit.js');
   builder.setCompilationPriority(caller.index, 0, 0)
 
   builder.setInstructionFrequencies(
-      intermediate.index, [{offset:10, frequency: 32}])
+      intermediate.index, [{offset:10, frequency: 32}]);
   builder.setCallTargets(
       intermediate.index, [{offset: 10, targets: [
           {function_index: add.index, frequency_percent: 99}]}]);

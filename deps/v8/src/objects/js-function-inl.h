@@ -42,11 +42,11 @@ void JSBoundFunction::set_bound_target_function(Tagged<JSCallable> value,
                                                 WriteBarrierMode mode) {
   bound_target_function_.store(this, value, mode);
 }
-Tagged<Object> JSBoundFunction::bound_this() const {
+Tagged<UnionOf<JSAny, SourceTextModule>> JSBoundFunction::bound_this() const {
   return bound_this_.load();
 }
-void JSBoundFunction::set_bound_this(Tagged<Object> value,
-                                     WriteBarrierMode mode) {
+void JSBoundFunction::set_bound_this(
+    Tagged<UnionOf<JSAny, SourceTextModule>> value, WriteBarrierMode mode) {
   bound_this_.store(this, value, mode);
 }
 Tagged<FixedArray> JSBoundFunction::bound_arguments() const {
@@ -214,7 +214,7 @@ JSDispatchHandle JSFunction::AllocateDispatchHandle(
 void JSFunction::clear_dispatch_handle() { dispatch_handle_.Relaxed_Clear(); }
 void JSFunction::set_dispatch_handle(JSDispatchHandle handle,
                                      WriteBarrierMode mode) {
-  dispatch_handle_.Relaxed_Store(this, handle, mode);
+  dispatch_handle_.Release_Store(this, handle, mode);
 }
 void JSFunction::UpdateDispatchEntry(Isolate* isolate, Tagged<Code> new_code,
                                      WriteBarrierMode mode) {
@@ -584,7 +584,7 @@ bool JSFunction::is_compiled(IsolateForSandbox isolate) const {
 bool JSFunction::NeedsResetDueToFlushedBytecode(Isolate* isolate) {
   // The function is only used sequentially. Concurrent cases need to take care
   // of loading the fields themselves.
-  Tagged<SharedFunctionInfo> sfi = TrustedCast<SharedFunctionInfo>(shared());
+  Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(shared());
   Tagged<Code> code = TrustedCast<Code>(raw_code(isolate));
   return NeedsResetDueToFlushedBytecode(isolate, sfi, code);
 }

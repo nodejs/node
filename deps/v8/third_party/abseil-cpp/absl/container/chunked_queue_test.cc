@@ -346,6 +346,59 @@ TEST(ChunkedQueue, PushAndPop) {
   EXPECT_EQ(0, q.size());
 }
 
+TEST(ChunkedQueue, PushFrontAndPop) {
+  absl::chunked_queue<int64_t> q;
+  EXPECT_TRUE(q.empty());
+  EXPECT_EQ(0, q.size());
+  // Push enough elements to exercise exponential block growth from
+  // `kBlockSizeMin` (1) up to `kBlockSizeMax` (128) across multiple max-sized
+  // head blocks (`1 + 2 + 4 + 8 + 16 + 32 + 64 + 128 = 255`).
+  constexpr int kNumElements = 500;
+  for (int i = 0; i < kNumElements; i++) {
+    q.push_front(i);
+    EXPECT_EQ(q.front(), i) << ": iteration " << i;
+    EXPECT_EQ(q.back(), 0) << ": iteration " << i;
+    EXPECT_FALSE(q.empty());
+    EXPECT_EQ(i + 1, q.size());
+  }
+  for (int i = 0; i < kNumElements; i++) {
+    EXPECT_FALSE(q.empty());
+    EXPECT_EQ(kNumElements - i, q.size());
+    EXPECT_EQ(q.front(), kNumElements - 1 - i);
+    EXPECT_EQ(q.back(), 0);
+    q.pop_front();
+  }
+  EXPECT_TRUE(q.empty());
+  EXPECT_EQ(0, q.size());
+}
+
+TEST(ChunkedQueue, PushFrontAndPushBack) {
+  absl::chunked_queue<int64_t, 4> q;
+  q.push_front(2);
+  q.push_back(3);
+  q.push_front(1);
+  q.push_back(4);
+  q.push_front(0);
+  q.push_back(5);
+  EXPECT_THAT(q, ElementsAre(0, 1, 2, 3, 4, 5));
+  EXPECT_EQ(q.front(), 0);
+  EXPECT_EQ(q.back(), 5);
+
+  q.pop_front();
+  q.push_front(-1);
+  EXPECT_THAT(q, ElementsAre(-1, 1, 2, 3, 4, 5));
+
+  q.clear();
+  EXPECT_TRUE(q.empty());
+  q.push_front(10);
+  EXPECT_THAT(q, ElementsAre(10));
+  EXPECT_EQ(q.front(), 10);
+  EXPECT_EQ(q.back(), 10);
+  q.push_front(9);
+  q.push_back(11);
+  EXPECT_THAT(q, ElementsAre(9, 10, 11));
+}
+
 TEST(ChunkedQueue, Swap) {
   absl::chunked_queue<int64_t> q1;
   absl::chunked_queue<int64_t> q2;
@@ -662,6 +715,28 @@ TEST(ChunkedQueue, Iterator_PushBackInvalidate) {
   EXPECT_EQ(*++i, 2);
 }
 
+// Verifies that `push_front` on a non-empty queue does not invalidate
+// iterators to existing elements, both when prepending into remaining space in
+// the current head block (`1`) and when allocating a new head block (`0`), and
+// that advancing `begin()` across the block boundary reaches the existing
+// iterator `i`.
+TEST(ChunkedQueue, Iterator_PushFrontInvalidate) {
+  absl::chunked_queue<int64_t, 2> q;
+  q.push_front(2);
+  auto i = q.begin();
+  EXPECT_EQ(*i, 2);
+  q.push_front(1);
+  EXPECT_EQ(*i, 2);
+  q.push_front(0);
+  EXPECT_EQ(*i, 2);
+  auto j = q.begin();
+  EXPECT_EQ(*j, 0);
+  EXPECT_EQ(*++j, 1);
+  EXPECT_EQ(*++j, 2);
+  EXPECT_TRUE(j == i);
+  EXPECT_TRUE(++j == q.end());
+}
+
 struct MyType {
   static int constructor_calls;
   static int destructor_calls;
@@ -707,11 +782,54 @@ TEST(ChunkedQueue, MoveObjects) {
   absl::chunked_queue<std::unique_ptr<int>> q;
   q.push_back(std::make_unique<int>(10));
   q.push_back(std::make_unique<int>(11));
+  q.push_front(std::make_unique<int>(9));
 
+  EXPECT_EQ(9, *q.front());
+  q.pop_front();
   EXPECT_EQ(10, *q.front());
   q.pop_front();
   EXPECT_EQ(11, *q.front());
   q.pop_front();
+}
+
+// Verifies that `emplace_front` constructs elements in-place at the front of
+// the queue, returns a reference to the newly inserted element, and preserves
+// existing elements at the back.
+TEST(ChunkedQueue, EmplaceFrontUpdatesFrontAndReturnsReference) {
+  absl::chunked_queue<std::pair<int, int>> q;
+  auto& v1 = q.emplace_front(1, 2);
+  EXPECT_THAT(v1, Pair(1, 2));
+  EXPECT_THAT(q.front(), Pair(1, 2));
+  EXPECT_EQ(&v1, &q.front());
+  EXPECT_EQ(&v1, &q.back());
+
+  auto& v2 = q.emplace_front(3, 4);
+  EXPECT_THAT(v2, Pair(3, 4));
+  EXPECT_THAT(q.front(), Pair(3, 4));
+  EXPECT_THAT(q.back(), Pair(1, 2));
+  EXPECT_EQ(&v2, &q.front());
+  EXPECT_EQ(&v1, &q.back());
+}
+
+// Verifies that `emplace_front` forwards move-only arguments to construct the
+// element in-place.
+TEST(ChunkedQueue, EmplaceFrontMoveOnlyType) {
+  absl::chunked_queue<std::pair<std::unique_ptr<int>, std::string>> q;
+  auto& v = q.emplace_front(std::make_unique<int>(11), "val12");
+  EXPECT_THAT(v, Pair(Pointee(11), "val12"));
+  EXPECT_THAT(q.front(), Pair(Pointee(11), "val12"));
+}
+
+TEST(ChunkedQueue, OveralignmentEmplaceFront) {
+  struct alignas(64) Overaligned {
+    int x;
+    int y;
+  };
+  absl::chunked_queue<Overaligned, 1, 8> q;
+  for (int i = 0; i < 10; ++i) {
+    auto& v = q.emplace_front(Overaligned{i, i});
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(&v) % 64, 0);
+  }
 }
 
 TEST(ChunkedQueue, EmplaceBack1) {
@@ -756,7 +874,6 @@ TEST(ChunkedQueue, StatelessAllocatorDoesntAffectObjectSizes) {
     struct MockIterator {
       void* block;
       void* ptr;
-      void* limit;
     };
     MockIterator head;
     MockIterator tail;
@@ -865,5 +982,112 @@ TEST(ChunkedQueue, StrongExceptionSafetyEmplaceBack) {
   EXPECT_EQ(dtor_count, 2);
 }
 #endif
+
+TEST(ChunkedQueue, StrongExceptionSafetyEmplaceFrontEmptyQueue) {
+#ifndef ABSL_HAVE_EXCEPTIONS
+  GTEST_SKIP() << "Exceptions are not enabled.";
+#else
+  int ctor_count = 0;
+  int dtor_count = 0;
+  absl::chunked_queue<ThrowingCtor> q;
+
+  try {
+    q.emplace_front(5, true, &ctor_count, &dtor_count);
+  } catch (...) {
+  }
+
+  EXPECT_TRUE(q.empty());
+  EXPECT_EQ(ctor_count, 0);
+  EXPECT_EQ(dtor_count, 0);
+#endif
+}
+
+TEST(ChunkedQueue, StrongExceptionSafetyEmplaceFrontNewHeadBlock) {
+#ifndef ABSL_HAVE_EXCEPTIONS
+  GTEST_SKIP() << "Exceptions are not enabled.";
+#else
+  int ctor_count = 0;
+  int dtor_count = 0;
+  absl::chunked_queue<ThrowingCtor> q;
+  q.emplace_front(10, false, &ctor_count, &dtor_count);
+  ASSERT_EQ(q.size(), 1);
+  ASSERT_EQ(ctor_count, 1);
+  ASSERT_EQ(dtor_count, 0);
+
+  // The first block has size 1, so the next emplace_front allocates a new head
+  // block and must delete it if element construction throws.
+  try {
+    q.emplace_front(15, true, &ctor_count, &dtor_count);
+  } catch (...) {
+  }
+
+  EXPECT_EQ(q.size(), 1);
+  EXPECT_EQ(ctor_count, 1);
+  EXPECT_EQ(dtor_count, 0);
+  EXPECT_EQ(q.front().value, 10);
+  EXPECT_EQ(q.back().value, 10);
+
+  q.clear();
+  EXPECT_EQ(q.size(), 0);
+  EXPECT_EQ(dtor_count, 1);
+#endif
+}
+
+TEST(ChunkedQueue, StrongExceptionSafetyEmplaceFrontExistingHeadBlock) {
+#ifndef ABSL_HAVE_EXCEPTIONS
+  GTEST_SKIP() << "Exceptions are not enabled.";
+#else
+  int ctor_count = 0;
+  int dtor_count = 0;
+  absl::chunked_queue<ThrowingCtor, 2> q;
+  q.emplace_front(10, false, &ctor_count, &dtor_count);
+  ASSERT_EQ(q.size(), 1);
+  ASSERT_EQ(ctor_count, 1);
+  ASSERT_EQ(dtor_count, 0);
+
+  // The head block has capacity 2 with 1 element, so the next emplace_front
+  // constructs into the remaining slot in the existing head block.
+  try {
+    q.emplace_front(20, true, &ctor_count, &dtor_count);
+  } catch (...) {
+  }
+
+  EXPECT_EQ(q.size(), 1);
+  EXPECT_EQ(ctor_count, 1);
+  EXPECT_EQ(dtor_count, 0);
+  EXPECT_EQ(q.front().value, 10);
+  EXPECT_EQ(q.back().value, 10);
+
+  q.clear();
+  EXPECT_EQ(q.size(), 0);
+  EXPECT_EQ(dtor_count, 1);
+#endif
+}
+
+TEST(ChunkedQueue, StrongExceptionSafetyEmplaceFrontClearedQueue) {
+#ifndef ABSL_HAVE_EXCEPTIONS
+  GTEST_SKIP() << "Exceptions are not enabled.";
+#else
+  int ctor_count = 0;
+  int dtor_count = 0;
+  absl::chunked_queue<ThrowingCtor> q;
+  q.emplace_front(10, false, &ctor_count, &dtor_count);
+  q.clear();
+  ASSERT_TRUE(q.empty());
+  ASSERT_EQ(ctor_count, 1);
+  ASSERT_EQ(dtor_count, 1);
+
+  // `clear()` leaves one empty block allocated; throwing while constructing
+  // into that retained block must leave the queue empty and valid.
+  try {
+    q.emplace_front(20, true, &ctor_count, &dtor_count);
+  } catch (...) {
+  }
+
+  EXPECT_TRUE(q.empty());
+  EXPECT_EQ(ctor_count, 1);
+  EXPECT_EQ(dtor_count, 1);
+#endif
+}
 
 }  // namespace

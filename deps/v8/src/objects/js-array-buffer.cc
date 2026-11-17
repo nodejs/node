@@ -5,6 +5,7 @@
 #include "src/objects/js-array-buffer.h"
 
 #include "src/api/api-inl.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/execution/protectors-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
@@ -61,7 +62,8 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   };
   clear_padding();
   init_extension();
-  set_views_or_detach_key(views);
+  set_views_or_detach_key(
+      Cast<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>(views));
   set_bit_field(0);
   set_is_shared(shared);
   set_is_resizable_by_js(resizable);
@@ -71,6 +73,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
     SetEmbedderField(i, Smi::zero());
   }
   if (!backing_store) {
+    DCHECK(!resizable);
     set_backing_store(isolate, EmptyBackingStoreBuffer());
     set_byte_length(0);
     set_max_byte_length(0);
@@ -251,7 +254,7 @@ void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
       HandleScope scope(isolate);
       isolate->array_buffer_detach_callback()(
           reinterpret_cast<v8::Isolate*>(isolate),
-          Utils::ToLocal(array_buffer));
+          Utils::ToLocalUnshared(array_buffer));
     }
   }
 }
@@ -338,11 +341,13 @@ ArrayBufferExtension* JSArrayBuffer::CreateExtension(
   // inaccurate. However, a full GC will sweep both lists and promote all to
   // old, so it doesn't matter which list initially holds the extension in this
   // case.
-  const auto age = HeapLayout::InYoungGeneration(Tagged<JSArrayBuffer>(this))
-                       ? ArrayBufferExtension::Age::kYoung
-                       : ArrayBufferExtension::Age::kOld;
+  const auto age =
+      TrustedHeapLayout::InYoungGeneration(Tagged<JSArrayBuffer>(this))
+          ? ArrayBufferExtension::Age::kYoung
+          : ArrayBufferExtension::Age::kOld;
   ArrayBufferExtension* extension = new ArrayBufferExtension(
       std::move(backing_store), age, is_shared(), is_resizable_by_js());
+  SYNCHRONIZATION_POINT_TEST_ONLY("JSArrayBuffer::CreateExtension");
   set_extension(extension);
   isolate->heap()->AppendArrayBufferExtension(extension);
   return extension;

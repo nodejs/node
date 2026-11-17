@@ -73,13 +73,7 @@ constexpr uint32_t kExternalTwoByteStringTag =
 const uint32_t kUncachedExternalStringMask = 1 << 4;
 const uint32_t kUncachedExternalStringTag = 1 << 4;
 
-// For strings, bit 5 indicates that the string is internalized (if not set) or
-// isn't (if set).
-const uint32_t kIsNotInternalizedMask = 1 << 5;
-const uint32_t kNotInternalizedTag = 1 << 5;
-const uint32_t kInternalizedTag = 0;
-
-// For strings, bit 6 indicates that the string is accessible by more than one
+// For strings, bit 5 indicates that the string is accessible by more than one
 // thread. Note that a string that is allocated in the shared heap is not
 // accessible by more than one thread until it is explicitly shared (e.g. by
 // postMessage).
@@ -93,8 +87,18 @@ const uint32_t kInternalizedTag = 0;
 // are either always shared or always not shared depending on
 // v8_flags.shared_string_table. This will be hardcoded once
 // v8_flags.shared_string_table is removed.
-const uint32_t kSharedStringMask = 1 << 6;
-const uint32_t kSharedStringTag = 1 << 6;
+const uint32_t kSharedStringMask = 1 << 5;
+const uint32_t kSharedStringTag = 1 << 5;
+
+// For strings, bit 6 indicates that the string is internalized (if not set) or
+// isn't (if set). It is the highest string bit so that it forms a contiguous
+// run with kIsNotStringMask: the combined "is not an internalized string" mask
+// is then a logical immediate on arm64.
+const uint32_t kIsNotInternalizedMask = 1 << 6;
+const uint32_t kNotInternalizedTag = 1 << 6;
+const uint32_t kInternalizedTag = 0;
+static_assert((kIsNotStringMask | kIsNotInternalizedMask) ==
+              ~(kIsNotInternalizedMask - 1));
 
 constexpr uint32_t kStringRepresentationEncodingAndSharedMask =
     kStringRepresentationAndEncodingMask | kSharedStringMask;
@@ -348,6 +352,8 @@ V8_EXPORT_PRIVATE std::string ToString(InstanceType instance_type);
   V(_, GlobalDictionaryMap, global_dictionary_map, GlobalDictionary)           \
   V(_, GlobalPropertyCellMap, global_property_cell_map, PropertyCell)          \
   V(_, HeapNumberMap, heap_number_map, HeapNumber)                             \
+  V(_, UninitializedHeapNumberMap, uninitialized_heap_number_map,              \
+    UninitializedHeapNumber)                                                   \
   V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)                \
   V(_, WeakHomomorphicFixedArrayMap, weak_homomorphic_fixed_array_map,         \
     WeakHomomorphicFixedArray)                                                 \

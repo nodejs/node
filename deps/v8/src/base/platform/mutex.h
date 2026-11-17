@@ -199,6 +199,14 @@ class V8_NODISCARD LockGuard final {
     // `mutex_` is guaranteed to be non-null here.
     mutex_->Lock();
   }
+  static std::optional<LockGuard> TryLock(Mutex* mutex) {
+    DCHECK_NOT_NULL(mutex);
+    if (!mutex->TryLock()) return {};
+    return LockGuard(mutex, AdoptLock{});
+  }
+  static std::optional<LockGuard> TryLock(Mutex& mutex) {
+    return TryLock(&mutex);
+  }
   LockGuard(const LockGuard&) = delete;
   LockGuard& operator=(const LockGuard&) = delete;
   LockGuard(LockGuard&& other) V8_NOEXCEPT : mutex_(other.mutex_) {
@@ -213,6 +221,12 @@ class V8_NODISCARD LockGuard final {
   }
 
  private:
+  struct AdoptLock {};
+  LockGuard(Mutex* mutex, AdoptLock) : mutex_(mutex) {
+    DCHECK_NOT_NULL(mutex_);
+    mutex_->AssertHeld();
+  }
+
   Mutex* mutex_;
 };
 

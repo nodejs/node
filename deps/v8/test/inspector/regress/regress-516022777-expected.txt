@@ -1,0 +1,9 @@
+Tests that CommandLineAPI evaluation ignores a setter on Array.prototype[0].
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}

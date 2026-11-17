@@ -73,7 +73,7 @@ transitioning javascript builtin ObjectFromEntries(
       ReThrowWithMessage(context, e, message);
     }
   } label Throw deferred {
-    ThrowTypeError(MessageTemplate::kNotIterable);
+    ThrowTypeError(MessageTemplate::kNotIterable, iterable);
   }
 }
 }  // namespace object

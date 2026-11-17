@@ -9,7 +9,7 @@
 #include "src/builtins/accessors.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
-#include "src/heap/factory.h"
+#include "src/heap/factory-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -807,20 +807,14 @@ Handle<ClassBoilerplate> ClassBoilerplate::New(IsolateT* isolate,
   static_desc.Finalize(isolate);
   instance_desc.Finalize(isolate);
 
-  auto result = Cast<ClassBoilerplate>(
-      factory->NewStruct(CLASS_BOILERPLATE_TYPE, allocation));
-
-  result->set_arguments_count(dynamic_argument_index);
-
-  result->set_static_properties_template(*static_desc.properties_template());
-  result->set_static_elements_template(*static_desc.elements_template());
-  result->set_static_computed_properties(*static_desc.computed_properties());
-
-  result->set_instance_properties_template(
-      *instance_desc.properties_template());
-  result->set_instance_elements_template(*instance_desc.elements_template());
-  result->set_instance_computed_properties(
-      *instance_desc.computed_properties());
+  Handle<ClassBoilerplate> result = indirect_handle(
+      factory->template New<ClassBoilerplate>(
+          allocation, dynamic_argument_index, static_desc.properties_template(),
+          static_desc.elements_template(), static_desc.computed_properties(),
+          instance_desc.properties_template(),
+          instance_desc.elements_template(),
+          instance_desc.computed_properties()),
+      isolate);
 
   return scope.CloseAndEscape(result);
 }

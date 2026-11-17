@@ -143,6 +143,9 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":crc32c",
+        ":crc_internal",
+        "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/memory",
         "//absl/random",
         "//absl/random:distributions",

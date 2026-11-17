@@ -383,6 +383,9 @@ Tagged<Object> StackGuard::HandleInterrupts(InterruptLevel level) {
     TRACE_EVENT("v8.execute", "V8.InvokeApiInterruptCallbacks");
     // Callbacks must be invoked outside of ExecutionAccess lock.
     isolate_->InvokeApiInterruptCallbacks();
+    if (isolate_->debug()->IsRestartFrameScheduled()) {
+      return isolate_->TerminateExecution();
+    }
   }
 
 #ifdef V8_RUNTIME_CALL_STATS

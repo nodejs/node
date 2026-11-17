@@ -1015,10 +1015,34 @@ macro TestBitFieldStore(val: TestBitFieldStruct): void {
   TestBitFieldLoad(val, !a, b, c, b == c);
 }
 
+bitfield struct TestOverlappingBitFieldStruct extends uint32 {
+  low: uint32: 4 bit;
+  high: uint32: 4 bit;
+  all: uint32: 8 bit at 0;
+}
+
 @export
 macro TestBitFieldInit(a: bool, b: uint16, c: uint32, d: bool): void {
   const val: TestBitFieldStruct = TestBitFieldStruct{a: a, b: b, c: c, d: d};
   TestBitFieldLoad(val, a, b, c, d);
+  TestBitFieldLoad(
+      TestBitFieldStruct{}, false, FromConstexpr<uint8>(0), 0, false);
+  TestBitFieldLoad(TestBitFieldStruct{d: d, b: b}, false, b, 0, d);
+  TestBitFieldLoad(
+      TestBitFieldStruct{c: c}, false, FromConstexpr<uint8>(0), c, false);
+
+  const low = TestOverlappingBitFieldStruct{low: c};
+  check(low.low == c);
+  check(low.high == 0);
+  check(low.all == c);
+  const high = TestOverlappingBitFieldStruct{high: c};
+  check(high.low == 0);
+  check(high.high == c);
+  check(high.all == (c << 4));
+  const all = TestOverlappingBitFieldStruct{all: c};
+  check(all.low == c);
+  check(all.high == 0);
+  check(all.all == c);
 }
 
 // Some other bitfield structs, to verify getting uintptr values out of word32

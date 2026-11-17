@@ -57,6 +57,12 @@ V8_OBJECT class DataHandler : public Struct {
   inline void set_data5(Tagged<MaybeObject> value,
                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  // Returns true if the IC handlers {a} and {b} are identical or known to
+  // behave the same way. Fast proxy handlers are freshly allocated on every IC
+  // miss and are therefore compared by content.
+  static bool AreEquivalent(const MaybeObjectDirectHandle& a,
+                            const MaybeObjectDirectHandle& b);
+
   DECL_VERIFIER(DataHandler)
   DECL_PRINTER(DataHandler)
 
@@ -65,6 +71,7 @@ V8_OBJECT class DataHandler : public Struct {
  public:
   TaggedMember<UnionOf<Smi, Code>> smi_handler_;
   TaggedMember<UnionOf<Smi, Cell>> validity_cell_;
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, data);
 
  private:

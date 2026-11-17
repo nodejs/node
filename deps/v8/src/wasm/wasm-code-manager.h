@@ -21,6 +21,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/safepoint-table.h"
@@ -470,8 +471,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
     DCHECK_LE(jump_table_info_offset, unpadded_binary_size);
   }
 
-  void TryLoadSourceMap(Isolate* isolate) const;
-
   std::unique_ptr<const uint8_t[]> ConcatenateBytes(
       std::initializer_list<base::Vector<const uint8_t>>);
 
@@ -564,6 +563,7 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind);
 struct UnpublishedWasmCode {
   std::unique_ptr<WasmCode> code;
   std::unique_ptr<AssumptionsJournal> assumptions;
+  bool for_deopt = false;
 
   static constexpr AssumptionsJournal* kNoAssumptions = nullptr;
 };
@@ -767,7 +767,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Log all owned code in the given isolate, using the given script as the
   // containing script. Use this after transferring the module to a new isolate
   // or when enabling a component that needs all code to be logged (profiler).
-  void LogWasmCodes(Isolate*, Tagged<Script>);
+  void LogWasmCodes(Isolate*, DirectHandle<Script>);
 
   CompilationState* compilation_state() const V8_LIFETIME_BOUND {
     return compilation_state_.get();
@@ -785,7 +785,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
   base::Vector<const uint8_t> wire_bytes() const V8_LIFETIME_BOUND {
-    return std::atomic_load(&wire_bytes_)->as_vector();
+    return std::atomic_load(&wire_bytes_)->as_span();
   }
   const WasmModule* module() const V8_LIFETIME_BOUND { return module_.get(); }
   std::shared_ptr<const WasmModule> shared_module() const { return module_; }
@@ -810,7 +810,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     auto wire_bytes = std::atomic_load(&wire_bytes_);
     return wire_bytes && !wire_bytes->empty();
   }
-  void SetWireBytes(base::OwnedVector<const uint8_t> wire_bytes);
+  void SetWireBytes(base::UniqueArray<const uint8_t> wire_bytes);
 
   void AddLiftoffBailout() {
     liftoff_bailout_count_.fetch_add(1, std::memory_order_relaxed);
@@ -979,6 +979,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
                std::shared_ptr<const WasmModule> module,
                std::shared_ptr<NativeModule>* shared_this);
 
+  void TryLoadSourceMap(Isolate* isolate);
+
   std::unique_ptr<WasmCode> AddCodeWithCodeSpace(
       int index, const CodeDesc& desc, int stack_slots, int ool_spill_count,
       uint32_t tagged_parameter_slots,
@@ -1034,12 +1036,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // {NativeModule}. The {AssumptionsJournal} (if provided) will be checked
   // before publishing the code, but should only be deallocated by the caller
   // after releasing the lock, to keep the critical section small.
-  WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>, AssumptionsJournal*);
+  WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>, AssumptionsJournal*,
+                              bool for_deopt = false);
 
   // Transfer owned code from {new_owned_code_} to {owned_code_}.
   void TransferNewOwnedCodeLocked() const;
 
-  bool should_update_code_table(WasmCode* new_code, WasmCode* prior_code) const;
+  bool should_update_code_table(WasmCode* new_code, WasmCode* prior_code,
+                                bool for_deopt) const;
 
   // -- Fields of {NativeModule} start here.
 
@@ -1064,7 +1068,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Wire bytes, held in a shared_ptr so they can be kept alive by the
   // {WireBytesStorage}, held by background compile tasks.
-  std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes_;
+  std::shared_ptr<base::UniqueArray<const uint8_t>> wire_bytes_;
 
   // The first allocated jump table. Always used by external calls (from JS).
   // Wasm calls might use one of the other jump tables stored in

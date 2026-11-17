@@ -39,12 +39,11 @@ class CreateObjectLiteralFlags {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CreateObjectLiteralFlags);
 };
 
-class CreateClosureFlags {
+class V8_EXPORT_PRIVATE CreateClosureFlags {
  public:
-  using PretenuredBit = base::BitField8<bool, 0, 1>;
-  using FastNewClosureBit = PretenuredBit::Next<bool, 1>;
+  using FastNewClosureBit = base::BitField8<bool, 0, 1>;
 
-  static uint8_t Encode(bool pretenure, bool is_function_scope);
+  static uint8_t Encode(bool is_function_scope);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CreateClosureFlags);

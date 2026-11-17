@@ -715,6 +715,11 @@ bool String::IsEqualTo(base::Vector<const Char> str) const {
                                 SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
+template <String::EqualityType kEqType>
+bool String::IsEqualTo(std::string_view str) const {
+  return IsEqualTo<kEqType>(base::Vector<const char>(str.data(), str.size()));
+}
+
 template <String::EqualityType kEqType, typename Char>
 bool String::IsEqualTo(base::Vector<const Char> str,
                        LocalIsolate* isolate) const {
@@ -814,9 +819,7 @@ bool String::IsConsStringEqualToImpl(
   return true;
 }
 
-bool String::IsOneByteEqualTo(base::Vector<const char> str) {
-  return IsEqualTo(str);
-}
+bool String::IsOneByteEqualTo(std::string_view str) { return IsEqualTo(str); }
 
 template <typename Char>
 const Char* String::GetDirectStringChars(
@@ -1541,10 +1544,6 @@ void ExternalOneByteString::update_data_cache(
 void ExternalOneByteString::SetResource(
     Isolate* isolate, const ExternalOneByteString::Resource* resource) {
   set_resource(isolate, resource);
-  size_t new_payload = resource == nullptr ? 0 : resource->length();
-  if (new_payload > 0) {
-    isolate->heap()->UpdateExternalString(this, 0, new_payload);
-  }
 }
 
 void ExternalOneByteString::set_resource(
@@ -1609,10 +1608,6 @@ void ExternalTwoByteString::update_data_cache(
 void ExternalTwoByteString::SetResource(
     Isolate* isolate, const ExternalTwoByteString::Resource* resource) {
   set_resource(isolate, resource);
-  size_t new_payload = resource == nullptr ? 0 : resource->length() * 2;
-  if (new_payload > 0) {
-    isolate->heap()->UpdateExternalString(this, 0, new_payload);
-  }
 }
 
 void ExternalTwoByteString::set_resource(

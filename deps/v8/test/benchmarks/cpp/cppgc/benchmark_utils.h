@@ -5,9 +5,9 @@
 #ifndef TEST_BENCHMARK_CPP_CPPGC_BENCHMARK_UTILS_H_
 #define TEST_BENCHMARK_CPP_CPPGC_BENCHMARK_UTILS_H_
 
+#include "benchmark/benchmark.h"
 #include "include/cppgc/heap.h"
 #include "test/unittests/heap/cppgc/test-platform.h"
-#include "third_party/google_benchmark_chrome/src/include/benchmark/benchmark.h"
 
 namespace cppgc {
 namespace internal {

@@ -47,7 +47,8 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
     Validation validate_callees,
     std::unique_ptr<AssumptionsJournal>* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
-    WasmFunctionCoverageData* coverage_data);
+    WasmFunctionCoverageData* coverage_data,
+    DelayedCounterUpdates* counter_updates);
 
 // Base class for the decoder graph builder interface and for the wrapper
 // builder.

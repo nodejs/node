@@ -1,26 +1,42 @@
-//===--- Implementation of a platform independent file data structure -----===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+///
+/// \file
+/// Implementation of a platform independent file data structure.
+///
+//===----------------------------------------------------------------------===//
 
 #include "file.h"
 
+#include "file_io_result.h"
+#include "file_mode.h"
 #include "hdr/errno_macros.h"
 #include "hdr/func/realloc.h"
+#include "hdr/stdint_proxy.h"
 #include "hdr/stdio_macros.h"
+#include "hdr/types/char32_t.h"
+#include "hdr/types/char8_t.h"
 #include "hdr/types/off_t.h"
+#include "hdr/types/wchar_t.h"
+#include "hdr/types/wint_t.h"
 #include "hdr/wchar_macros.h"
 #include "src/__support/CPP/new.h"
 #include "src/__support/CPP/span.h"
 #include "src/__support/alloc-checker.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
+#include "src/__support/threads/mutex.h"
 #include "src/__support/wchar/character_converter.h"
+#include "src/__support/wchar/mbstate.h"
 #include "src/__support/wchar/wcrtomb.h"
 #include "src/string/memory_utils/inline_memcpy.h"
+
+#include <stddef.h>
 
 namespace LIBC_NAMESPACE_DECL {
 File *File::list_all = nullptr;
@@ -76,7 +92,11 @@ FileIOResult File::write_unlocked_impl(const void *data, size_t len) {
     return {0, EBADF};
   }
 
-  prev_op = FileOp::WRITE;
+  if (prev_op != FileOp::WRITE) {
+    pos = 0;
+    read_limit = 0;
+    prev_op = FileOp::WRITE;
+  }
 
   if (bufmode == _IONBF) { // unbuffered.
     size_t ret_val =
@@ -388,20 +408,20 @@ int File::ungetc_unlocked(int c) {
     bufref[pos] = static_cast<unsigned char>(c);
   }
 
+  prev_op = FileOp::READ;
   eof = false; // There is atleast one character that can be read now.
   err = false; // This operation was a success.
   return c;
 }
 
-ErrorOr<int> File::seek(off_t offset, int whence) {
-  FileLock lock(this);
+ErrorOr<int> File::seek_unlocked(off_t offset, int whence) {
   if (prev_op == FileOp::WRITE && pos > 0) {
-
     FileIOResult buf_result = platform_write(this, buf, pos);
     if (buf_result.has_error() || buf_result.value < pos) {
       err = true;
       return Error(buf_result.error);
     }
+    pos = 0;
   } else if (prev_op == FileOp::READ && whence == SEEK_CUR) {
     // More data could have been read out from the platform file than was
     // required. So, we have to adjust the offset we pass to platform seek
@@ -424,18 +444,41 @@ ErrorOr<int> File::seek(off_t offset, int whence) {
   return 0;
 }
 
-ErrorOr<off_t> File::tell() {
-  FileLock lock(this);
-  auto seek_target = eof ? SEEK_END : SEEK_CUR;
+ErrorOr<off_t> File::tell_unlocked() {
+  int seek_target = (eof || (mode.is_append() && prev_op == FileOp::WRITE))
+                        ? SEEK_END
+                        : SEEK_CUR;
   auto result = platform_seek(this, 0, seek_target);
-  if (!result.has_value() || result.value() < 0)
+  if (!result.has_value())
     return Error(result.error());
-  off_t platform_offset = result.value();
-  if (prev_op == FileOp::READ)
-    return platform_offset - (read_limit - pos);
+  if (result.value() < 0)
+    return Error(EOVERFLOW);
+  const off_t platform_offset = result.value();
   if (prev_op == FileOp::WRITE)
-    return platform_offset + pos;
+    return platform_offset + static_cast<off_t>(pos);
+  if (prev_op == FileOp::READ)
+    return platform_offset - static_cast<off_t>(read_limit - pos);
   return platform_offset;
+}
+
+ErrorOr<File::Position> File::get_pos_unlocked() {
+  auto pos_result = tell_unlocked();
+  if (!pos_result.has_value())
+    return Error(pos_result.error());
+
+  return Position{
+      pos_result.value(),
+      orientation == Orientation::WIDE ? mbstate : internal::mbstate(),
+  };
+}
+
+ErrorOr<int> File::set_pos_unlocked(const Position &fpos) {
+  auto result = seek_unlocked(fpos.offset, SEEK_SET);
+  if (!result.has_value())
+    return Error(result.error());
+
+  mbstate = fpos.state;
+  return 0;
 }
 
 int File::flush_unlocked() {
@@ -457,6 +500,35 @@ int File::flush_unlocked() {
     pos = read_limit = 0;
   }
   return 0;
+}
+
+// Does the following:
+// 1. If in write mode, Write out any data present in the buffer.
+// 2. Call platform_close.
+// platform_close is expected to cleanup the complete file object.
+int File::close() {
+  {
+    FileLock lock(this);
+    if (prev_op == FileOp::WRITE && pos > 0) {
+      auto buf_result = platform_write(this, buf, pos);
+      if (buf_result.has_error() || buf_result.value < pos) {
+        err = true;
+        return buf_result.error;
+      }
+    }
+  }
+
+  // If we own the buffer, delete it before calling the platform close
+  // implementation. The platform close should not need to access the buffer
+  // and we need to clean it up before the entire structure is removed.
+  if (own_buf)
+    delete buf;
+
+  // Platform close is expected to cleanup the file data structure which
+  // includes the file mutex. Hence, we call platform_close after releasing
+  // the file lock. Another thread doing file operations while a thread is
+  // closing the file is undefined behavior as per POSIX.
+  return platform_close(this);
 }
 
 int File::set_buffer(void *buffer, size_t size, int buffer_mode) {
@@ -639,6 +711,7 @@ ErrorOr<wint_t> File::ungetwc_unlocked(wint_t wc) {
     for (size_t i = 0; i < n; ++i)
       buf[pos + i] = static_cast<uint8_t>(mb_buf[i]);
   }
+  prev_op = FileOp::READ;
   eof = false;
   err = false;
   return wc;

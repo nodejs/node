@@ -374,6 +374,7 @@ void ArrayBufferSweeper::Append(ArrayBufferExtension* extension) {
 
 void ArrayBufferSweeper::Resize(ArrayBufferExtension* extension,
                                 int64_t delta) {
+  SYNCHRONIZATION_POINT_TEST_ONLY("ArrayBufferSweeper::Resize");
   FinishIfDone();
 
   const ArrayBufferExtension::AccountingState previous_value =
@@ -489,7 +490,6 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepListFull(
   size_t swept_extensions = 0;
 
   while (current) {
-    current->InitializationBarrier();
     DCHECK_EQ(list.age_, current->age());
     if ((swept_extensions++ & (kYieldCheckInterval - 1)) == 0) {
       if (delegate->ShouldYield()) break;
@@ -535,7 +535,6 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
   size_t swept_extensions = 0;
 
   while (current) {
-    current->InitializationBarrier();
     DCHECK_EQ(ArrayBufferExtension::Age::kYoung, current->age());
     if ((swept_extensions++ & (kYieldCheckInterval - 1)) == 0) {
       if (delegate->ShouldYield()) break;
@@ -567,6 +566,7 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
   state_.young_bytes_accounted_ += (freed_bytes + accounted_bytes);
 
   young_.head_ = current;
+  SYNCHRONIZATION_POINT_TEST_ONLY("SweepArrayBufferYoungFinished");
   return !current;
 }
 

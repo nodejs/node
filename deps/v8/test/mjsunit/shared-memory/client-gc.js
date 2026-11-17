@@ -2,6 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --shared-string-table --allow-natives-syntax --expose-gc
+// Flags: --shared-heap --allow-natives-syntax --expose-gc
 
 gc();

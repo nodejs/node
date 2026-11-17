@@ -205,7 +205,7 @@ V8_OBJECT class JSDateTimeFormat : public JSObject {
   TaggedMember<Foreign> icu_simple_date_format_;
   TaggedMember<Foreign> icu_date_interval_format_;
   TaggedMember<UnionOf<JSFunction, Undefined>> bound_format_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSDateTimeFormatFlags>);
 } V8_OBJECT_END;
 
 inline constexpr int JSDateTimeFormat::kHeaderSize = sizeof(JSDateTimeFormat);

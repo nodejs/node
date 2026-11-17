@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_VALUE_NUMBERING_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_VALUE_NUMBERING_REDUCER_H_
 
+#include <bit>
 #include <iostream>
 #include <limits>
 
@@ -484,8 +485,8 @@ class ValueNumberingReducer : public Next {
   bool is_disabled() { return disabled_scope_.is_active(); }
 
   ZoneVector<Block*> dominator_path_{Asm().phase_zone()};
-  base::Vector<Entry> table_ = Asm().phase_zone()->template NewVector<Entry>(
-      base::bits::RoundUpToPowerOfTwo(
+  base::Vector<Entry> table_ =
+      Asm().phase_zone()->template NewVector<Entry>(std::bit_ceil(
           std::max<size_t>(128, Asm().input_graph().op_id_capacity() / 2)));
   size_t mask_ = table_.size() - 1;
   size_t entry_count_ = 0;

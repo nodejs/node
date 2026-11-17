@@ -41,7 +41,7 @@ builtin GetTemplateObject(
 
 extern transitioning builtin ForInFilter(
     implicit context: Context)(JSAny, HeapObject): JSAny;
-extern enum ForInFeedback extends uint31 { kAny, ...}
+extern enum ForInFeedback extends uint31 { kEnumeratorHolder, kAny, ...}
 extern macro UpdateFeedback(
     SmiTagged<ForInFeedback>, Undefined|FeedbackVector, uintptr,
     constexpr UpdateFeedbackMode): void;
@@ -58,18 +58,44 @@ transitioning macro ForInNextSlow(
   return ForInFilter(key, receiver);
 }
 
+extern macro CheckHolderValidity(JSAnyNotSmi, ForInEnumeratorHolder): bool;
+
 // Note: the untagged {slot} parameter must be in the first couple of args to
 // guarantee it's allocated in a register.
 transitioning builtin ForInNext(
     context: Context, slot: uintptr, receiver: JSAnyNotSmi,
-    cacheArray: FixedArray, cacheType: Object, cacheIndex: Smi,
-    feedbackVector: FeedbackVector): JSAny {
-  // Load the next key from the enumeration array.
-  const key = UnsafeCast<JSAny>(cacheArray.objects[cacheIndex]);
-
-  if (receiver.map == cacheType) {
-    // The enum cache is in use for {receiver}, the {key} is definitely valid.
-    return key;
+    cacheArray: FixedArray|ForInEnumeratorHolder, cacheType: Object,
+    cacheIndex: Smi, feedbackVector: FeedbackVector): JSAny {
+  let key: JSAny;
+  typeswitch (cacheArray) {
+    case (holder: ForInEnumeratorHolder): {
+      const elementsLength = holder.elements_length;
+      if (cacheIndex < elementsLength) {
+        key = NumberToString(cacheIndex);
+      } else {
+        const namedKeys = holder.named_keys;
+        const namedIndex = cacheIndex - elementsLength;
+        key = UnsafeCast<JSAny>(namedKeys.objects[namedIndex]);
+      }
+      if (CheckHolderValidity(receiver, holder)) {
+        // Record feedback in case the FeedbackVector was lazily allocated
+        // inside the loop (after ForInPrepare). This avoids a deopt on OSR
+        // or subsequent optimization, because Maglev assumes
+        // kEnumCacheKeys/kEnumCacheKeysAndIndices when feedback is missing.
+        UpdateFeedback(
+            SmiTag<ForInFeedback>(ForInFeedback::kEnumeratorHolder),
+            feedbackVector, slot, UpdateFeedbackMode::kGuaranteedFeedback);
+        return key;
+      }
+    }
+    case (array: FixedArray): {
+      key = UnsafeCast<JSAny>(array.objects[cacheIndex]);
+      if (receiver.map == cacheType) {
+        // The enum cache is in use for {receiver}, the {key} is definitely
+        // valid.
+        return key;
+      }
+    }
   }
 
   return ForInNextSlow(

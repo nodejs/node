@@ -1339,6 +1339,9 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
     // checks, strings and string wrappers, proxies) are handled in the runtime.
     GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);
     {
+      // Using KeyedStoreGenericAssembler for named stores is a hack (see
+      // DefineNamedOwnICNoFeedbackGenerator::Generate). For the "no feedback"
+      // case, using kDefineNamedOwn is fine below.
       StoreICParameters p = MakeStoreICParameters(
           context, receiver, receiver_map, name, value, std::nullopt, {},
           UndefinedConstant(),

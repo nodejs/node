@@ -174,6 +174,7 @@ absl_cc_library(
     absl::flags_private_handle_accessor
     absl::flat_hash_map
     absl::no_destructor
+    absl::nullability
     absl::string_view
     absl::strings
     absl::synchronization
@@ -454,6 +455,8 @@ absl_cc_test(
     absl::flags_internal
     absl::time
     GTest::gmock_main
+  SHARD_COUNT
+    31
 )
 
 absl_cc_test(

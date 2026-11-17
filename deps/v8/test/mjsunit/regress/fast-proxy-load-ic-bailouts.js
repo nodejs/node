@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --fast-proxy-ic --allow-natives-syntax --turbofan
+// Flags: --fast-proxy-ic --allow-natives-syntax
 
 
 // 1. Operation Type Bailouts
@@ -318,9 +318,10 @@
 // 5. Positive Inlining Test
 (function TestTrapInlining() {
   const target = { a: 42 };
+  let should_deopt = false;
   const handler = {
     get(t, p, r) {
-      %DeoptimizeNow();
+      if (should_deopt) %DeoptimizeNow();
       return t[p] + 1;
     }
   };
@@ -339,8 +340,15 @@
 
   %OptimizeFunctionOnNextCall(load);
   assertEquals(43, load(proxy));
+  const was_maglev =
+      (%GetOptimizationStatus(load) & V8OptimizationStatus.kMaglevved) !== 0;
 
-  // If the trap was successfully inlined into `load`, the `%DeoptimizeNow()`
-  // call inside the trap will deoptimize the `load` function itself.
-  assertUnoptimized(load);
+  should_deopt = true;
+  assertEquals(43, load(proxy));
+
+  // If the trap was successfully inlined into `load` by Maglev, the
+  // `%DeoptimizeNow()` call inside the trap will deoptimize `load` itself.
+  if (was_maglev) {
+    assertUnoptimized(load);
+  }
 })();

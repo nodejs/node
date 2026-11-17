@@ -86,7 +86,11 @@ Tagged<T> HeapVisitor<ConcreteVisitor>::Cast(Tagged<HeapObject> object,
   if constexpr (ConcreteVisitor::ShouldUseUncheckedCast()) {
     return i::UncheckedCast<T>(object);
   }
-  return i::TrustedCast<T>(object);
+  if constexpr (is_subtype_v<T, TrustedObject>) {
+    return i::TrustedCast<T>(object);
+  } else {
+    return i::Cast<T>(object);
+  }
 }
 
 template <typename ConcreteVisitor>
@@ -424,7 +428,11 @@ ConcurrentHeapVisitor<ConcreteVisitor>::ConcurrentHeapVisitor(Isolate* isolate)
 template <typename T>
 struct ConcurrentVisitorCastHelper {
   static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object) {
-    return i::TrustedCast<T>(object);
+    if constexpr (is_subtype_v<T, TrustedObject>) {
+      return i::TrustedCast<T>(object);
+    } else {
+      return i::Cast<T>(object);
+    }
   }
 };
 
@@ -447,7 +455,11 @@ Tagged<T> ConcurrentHeapVisitor<ConcreteVisitor>::Cast(
   if constexpr (ConcreteVisitor::EnableConcurrentVisitation()) {
     return ConcurrentVisitorCastHelper<T>::Cast(object);
   }
-  return i::TrustedCast<T>(object);
+  if constexpr (is_subtype_v<T, TrustedObject>) {
+    return i::TrustedCast<T>(object);
+  } else {
+    return i::Cast<T>(object);
+  }
 }
 
 #define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \

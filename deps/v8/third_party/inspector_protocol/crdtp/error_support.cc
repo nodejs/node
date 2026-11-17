@@ -33,8 +33,7 @@ void ErrorSupport::AddError(const char* error) {
   if (!errors_.empty())
     errors_ += "; ";
   for (size_t ii = 0; ii < stack_.size(); ++ii) {
-    if (ii)
-      errors_ += ".";
+    if (ii) errors_ += '.';
     const Segment& s = stack_[ii];
     switch (s.type) {
       case NAME:

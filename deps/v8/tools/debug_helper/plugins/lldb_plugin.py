@@ -507,11 +507,19 @@ def cmd_v8(debugger, command, result, _internal_dict):
 
     - inspect -- Inspect the heap object at <addr> with the V8 inspector.
 
-      v8 inspect <addr> [--type T] [--depth N] [--array-length N]
+      v8 inspect <addr>|this|[N] [--type T] [--depth N] [--array-length N]
 
+      * this / [N]: inspect the receiver or the Nth argument of the
+        selected JS frame instead of a raw address.
       * --type T: treat the object as if it has type T (e.g. `v8::internal::JSArray`).
       * --depth N: limit recursive inspection depth to N (default: 1).
       * --array-length N: for arrays, inspect up to N elements (default: 16).
+
+    - args -- Print the receiver and the arguments of a JS frame.
+
+      v8 args [frame#]
+
+      * frame#: the frame to show (default: the selected frame).
 
     - isolate -- Print the current Isolate address of the selected thread.
 

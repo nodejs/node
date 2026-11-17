@@ -194,17 +194,6 @@ class MaglevCompilationInfo final {
     return specialize_to_function_context_;
   }
 
-  void InitializeSpecializationContext();
-
-  compiler::OptionalContextRef specialization_context() const {
-    DCHECK(specialization_context_initialized_);
-    return specialization_context_;
-  }
-  size_t specialization_context_distance() const {
-    DCHECK(specialization_context_initialized_);
-    return specialization_context_distance_;
-  }
-
   // Must be called from within a MaglevCompilationHandleScope. Transfers owned
   // handles (e.g. shared_, function_) to the new scope.
   void ReopenAndCanonicalizeHandlesInNewScope(Isolate* isolate);
@@ -292,12 +281,6 @@ class MaglevCompilationInfo final {
   // opportunities, but prevents code sharing between different function
   // contexts.
   const bool specialize_to_function_context_;
-
-  compiler::OptionalContextRef specialization_context_;
-  size_t specialization_context_distance_ = 0;
-#ifdef DEBUG
-  bool specialization_context_initialized_ = false;
-#endif
 
   // 1) PersistentHandles created via PersistentHandlesScope inside of
   //    CompilationHandleScope.

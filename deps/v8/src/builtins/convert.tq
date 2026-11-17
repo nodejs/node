@@ -168,9 +168,9 @@ FromConstexpr<LanguageModeSmi, constexpr LanguageMode>(
     c: constexpr LanguageMode): LanguageModeSmi {
   return %RawDownCast<LanguageModeSmi>(SmiConstant(c));
 }
-FromConstexpr<PromiseState, constexpr PromiseState>(c: constexpr PromiseState):
-    PromiseState {
-  return %RawDownCast<PromiseState>(Int32Constant(c));
+FromConstexpr<PromisePromiseState, constexpr PromisePromiseState>(
+    c: constexpr PromisePromiseState): PromisePromiseState {
+  return %RawDownCast<PromisePromiseState>(Int32Constant(c));
 }
 FromConstexpr<InstanceType, constexpr InstanceType>(c: constexpr InstanceType):
     InstanceType {
@@ -444,8 +444,8 @@ extern macro BIntToSmi(bint): Smi;
 Convert<Smi, bint>(v: bint): Smi {
   return BIntToSmi(v);
 }
-Convert<PromiseState, int32>(s: int32): PromiseState {
-  return %RawDownCast<PromiseState>(s);
+Convert<PromisePromiseState, int32>(s: int32): PromisePromiseState {
+  return %RawDownCast<PromisePromiseState>(s);
 }
 Convert<I8X16, Simd128>(s: Simd128): I8X16 {
   return %RawDownCast<I8X16>(s);
