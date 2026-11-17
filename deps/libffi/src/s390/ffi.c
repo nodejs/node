@@ -546,9 +546,16 @@ ffi_closure_helper_SYSV (ffi_cif *cif,
 #endif
 
       /* Check how a structure type is passed.  */
-      if (type == FFI_TYPE_STRUCT || type == FFI_TYPE_COMPLEX)
+      if (type == FFI_TYPE_STRUCT || type == FFI_TYPE_COMPLEX
+	  || type == FFI_TYPE_SINT128 || type == FFI_TYPE_UINT128)
 	{
-	  if (type == FFI_TYPE_COMPLEX)
+	  if (type == FFI_TYPE_COMPLEX
+	      || type == FFI_TYPE_SINT128 || type == FFI_TYPE_UINT128)
+	    /* Complex and 128-bit integer types are passed by reference: one
+	       GPR slot holds a pointer to the value.  The call side already
+	       does this; without it here the closure left avalue[] for such
+	       an argument uninitialised and shifted every later argument
+	       (GHSA-wf8m-qr3x-cch4).  */
 	    type = FFI_TYPE_POINTER;
 	  else
 	    type = ffi_check_struct_type (*ptr);

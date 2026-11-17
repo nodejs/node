@@ -42,18 +42,18 @@
 
 #define EM_JS_MACROS(ret, name, args, body...) EM_JS(ret, name, args, body)
 
-EM_JS_DEPS(libffi, "$getWasmTableEntry,$setWasmTableEntry,$getEmptyTableSlot,$convertJsFunctionToWasm");
+EM_JS_DEPS(libffi, "$getWasmTableEntry,$setWasmTableEntry,$getEmptyTableSlot,$wasmTable,$stackSave,$stackAlloc,$stackRestore");
 
 #define DEREF_U8(addr, offset) HEAPU8[addr + offset]
 #define DEREF_S8(addr, offset) HEAP8[addr + offset]
-#define DEREF_U16(addr, offset) HEAPU16[(addr >> 1) + offset]
-#define DEREF_S16(addr, offset) HEAP16[(addr >> 1) + offset]
-#define DEREF_U32(addr, offset) HEAPU32[(addr >> 2) + offset]
-#define DEREF_S32(addr, offset) HEAP32[(addr >> 2) + offset]
+#define DEREF_U16(addr, offset) HEAPU16[HEAP_INDEX_16(addr) + offset]
+#define DEREF_S16(addr, offset) HEAP16[HEAP_INDEX_16(addr) + offset]
+#define DEREF_U32(addr, offset) HEAPU32[HEAP_INDEX_32(addr) + offset]
+#define DEREF_S32(addr, offset) HEAP32[HEAP_INDEX_32(addr) + offset]
 
-#define DEREF_F32(addr, offset) HEAPF32[(addr >> 2) + offset]
-#define DEREF_F64(addr, offset) HEAPF64[(addr >> 3) + offset]
-#define DEREF_U64(addr, offset) HEAPU64[(addr >> 3) + offset]
+#define DEREF_F32(addr, offset) HEAPF32[HEAP_INDEX_32(addr) + offset]
+#define DEREF_F64(addr, offset) HEAPF64[HEAP_INDEX_64(addr) + offset]
+#define DEREF_U64(addr, offset) HEAPU64[HEAP_INDEX_64(addr) + offset]
 
 #define CHECK_FIELD_OFFSET(struct, field, offset)                                  \
   _Static_assert(                                                                  \
@@ -64,9 +64,16 @@ EM_JS_DEPS(libffi, "$getWasmTableEntry,$setWasmTableEntry,$getEmptyTableSlot,$co
 
 #define FFI_EMSCRIPTEN_ABI FFI_WASM32_EMSCRIPTEN
 #define PTR_SIG 'i'
+#define PTR_WASM_TYPE 0x7f
 
 #define DEC_PTR(p) p
 #define ENC_PTR(p) p
+
+// Pointers reach JS as signed 32-bit Numbers, so an address at or above 2 GiB
+// is negative and needs an unsigned shift to become a heap view index.
+#define HEAP_INDEX_16(addr) ((addr) >>> 1)
+#define HEAP_INDEX_32(addr) ((addr) >>> 2)
+#define HEAP_INDEX_64(addr) ((addr) >>> 3)
 
 #define DEREF_PTR(addr, offset) DEREF_U32(addr, offset)
 #define DEREF_PTR_NUMBER(addr, offset) DEREF_PTR(addr, offset)
@@ -106,13 +113,20 @@ CHECK_FIELD_OFFSET(ffi_type, elements, 8);
 
 #define FFI_EMSCRIPTEN_ABI FFI_WASM64_EMSCRIPTEN
 #define PTR_SIG 'j'
+#define PTR_WASM_TYPE 0x7e
 
-// DEC_PTR casts a pointer value (comming from Wasm) represented as BigInt (i64) to Number (i53).
+// DEC_PTR casts a pointer value (coming from Wasm) represented as BigInt (i64) to Number (i53).
 // This should be used for a pointer that is expected to be within the i53 range. If the pointer
 // value is outside the Number's range, the value will become NaN.
 #define DEC_PTR(p) bigintToI53Checked(p)
 // ENC_PTR casts a pointer value represented as Number to BigInt (i64)
 #define ENC_PTR(p) BigInt(p)
+
+// JS shifts truncate their operand to 32 bits, so divide to keep addresses
+// at or above 4 GiB intact.
+#define HEAP_INDEX_16(addr) ((addr) / 2)
+#define HEAP_INDEX_32(addr) ((addr) / 4)
+#define HEAP_INDEX_64(addr) ((addr) / 8)
 
 #define DEREF_PTR(addr, offset) DEREF_U64(addr, offset)
 #define DEREF_PTR_NUMBER(addr, offset) DEC_PTR(DEREF_PTR(addr, offset))
@@ -590,6 +604,34 @@ ffi_closure_free(void *closure) {
   return ffi_closure_free_js(closure);
 }
 
+
+
+/**
+ * A closure has to appear to its caller as an ordinary wasm function with the
+ * signature of the cif. In order for it to work with JSPI, the trampoline has
+ * to be implemented in WebAssembly -- otherwise attempting to suspend inside of
+ * the closure will trap with "trying to suspend JS frames".
+ *
+ * It's a bit annoying to do things in generated WebAssembly so we put most of
+ * the logic in JS prelude/epilogue.
+ *
+ *    call prelude(... all closure arguments)
+ *    call_indirect closure->fun(cif, ret_ptr, args_ptr, user_data)
+ *    call epilogue(ret_ptr, orig_stack_ptr)
+ *
+ * prelude() which copies the closure arguments into the appropriate places on
+ * the C stack, builds the argument pointer array, and returns 7 values: The
+ * closure->fun pointer and its four arguments, and the two arguments for epilogue.
+
+ * epilogue() is a JavaScript helper that restores the stack pointer and loads
+ * the return value from ret_ptr. Doing the load in JavaScript rather than in
+ * the trampoline avoids needing to specify the memory size in the imports
+ * section.
+ *
+ * The module bytes are a pure function of the signature string. We cache the
+ * compiled WebAssembly.Module per signature and instantiate it once per closure
+ * with that closure's prelude.
+ */
 EM_JS_MACROS(
 ffi_status,
 ffi_prep_closure_loc_js,
@@ -600,6 +642,35 @@ ffi_prep_closure_loc_js,
   fun = DEC_PTR(fun);
   user_data = DEC_PTR(user_data);
   codeloc = DEC_PTR(codeloc);
+  var { sig, call_info } = ffi_cif_to_call_info(cif);
+
+  LOG_DEBUG("CREATE_CLOSURE", "sig:", sig);
+  try {
+    var instance = new WebAssembly.Instance(
+      ffi_closure_trampoline_module(sig),
+      {
+        e: {
+          p: ffi_closure_prelude(closure, call_info),
+          e: ffi_closure_epilogue(sig),
+          t: wasmTable,
+        },
+      },
+    );
+  } catch (e) {
+    LOG_DEBUG("CREATE_CLOSURE_FAILED", e);
+    return FFI_BAD_TYPEDEF_MACRO;
+  }
+  var wasm_trampoline = instance.exports["f"];
+  setWasmTableEntry(codeloc, wasm_trampoline);
+  CLOSURE__cif(closure) = ENC_PTR(cif);
+  CLOSURE__fun(closure) = ENC_PTR(fun);
+  CLOSURE__user_data(closure) = ENC_PTR(user_data);
+  return FFI_OK_MACRO;
+}
+
+// Walk the CIF and compute the metadata we need for ffi_closure_prelude
+// and ffi_closure_trampoline_module.
+function ffi_cif_to_call_info(cif) {
   var abi = CIF__ABI(cif);
   var nargs = CIF__NARGS(cif);
   var nfixedargs = CIF__NFIXEDARGS(cif);
@@ -696,10 +767,33 @@ ffi_prep_closure_loc_js,
     // extra pointer to varargs stack
     sig += PTR_SIG;
   }
-  LOG_DEBUG("CREATE_CLOSURE", "sig:", sig);
-  function trampoline() {
-    var args = Array.prototype.slice.call(arguments);
-    var size = 0;
+  return {
+    sig,
+    call_info: {
+      nfixedargs,
+      nargs,
+      ret_by_arg,
+      unboxed_arg_type_info_list,
+      unboxed_arg_type_id_list,
+    },
+  };
+}
+
+// The prelude() function is called by the wasm trampoline with the closure's
+// arguments. It marshals them onto the C stack and returns what the trampoline
+// needs to make the onward call.
+function ffi_closure_prelude(
+  closure,
+  {
+    nfixedargs,
+    nargs,
+    ret_by_arg,
+    unboxed_arg_type_info_list,
+    unboxed_arg_type_id_list,
+  },
+) {
+  return function prelude() {
+    var args = arguments;
     var orig_stack_ptr = stackSave();
     var cur_ptr = orig_stack_ptr;
     var ret_ptr;
@@ -707,7 +801,7 @@ ffi_prep_closure_loc_js,
     // Should we return by argument or not? The onwards call returns by argument
     // no matter what. (Warning: ret_by_arg means the opposite in ffi_call)
     if (ret_by_arg) {
-      ret_ptr = args[jsarg_idx++];
+      ret_ptr = DEC_PTR(args[jsarg_idx++]);
     } else {
       // We might return 4 bytes or 8 bytes, allocate 8 just in case.
       STACK_ALLOC(cur_ptr, 8, 8);
@@ -817,37 +911,138 @@ ffi_prep_closure_loc_js,
     stackRestore(cur_ptr);
     stackAlloc(0); // stackAlloc enforces alignment invariants on the stack pointer
     LOG_DEBUG("CALL_CLOSURE", "closure:", closure, "fptr", CLOSURE__fun(closure), "cif", CLOSURE__cif(closure));
-    getWasmTableEntry(CLOSURE__fun(closure))(
-        CLOSURE__cif(closure), ENC_PTR(ret_ptr), ENC_PTR(args_ptr),
-        CLOSURE__user_data(closure)
-    );
-    stackRestore(orig_stack_ptr);
+    // The trampoline now does
+    //    fun(cif, ret_ptr, args_ptr, user_data);
+    //    return epilogue(ret_ptr, orig_stack_ptr);
+    //
+    // We return these arguments in reverse order because stack is LIFO.
+    return [
+      ENC_PTR(ret_ptr),          // epilogue args (in correct order)
+      ENC_PTR(orig_stack_ptr),
 
-    // If we aren't supposed to return by argument, figure out what to return.
-    if (!ret_by_arg) {
-      switch (sig[0]) {
-      case 'i':
-        return DEREF_U32(ret_ptr, 0);
-      case 'j':
-        return DEREF_U64(ret_ptr, 0);
-      case 'd':
-        return DEREF_F64(ret_ptr, 0);
-      case 'f':
-        return DEREF_F32(ret_ptr, 0);
+      CLOSURE__cif(closure),     // call_indirect args (in correct order)
+      ENC_PTR(ret_ptr),
+      ENC_PTR(args_ptr),
+      CLOSURE__user_data(closure),
+
+      CLOSURE__fun(closure),     // ...and the table index for call_indirect
+    ];
+  }
+}
+
+// Returns function which restores the stack pointer and loads the closure's
+// return value from ret_ptr.
+function ffi_closure_epilogue(sig) {
+  var load;
+  switch (sig[0]) {
+  case 'i': load = (ptr) => DEREF_S32(ptr, 0); break;
+  case 'j': load = (ptr) => DEREF_U64(ptr, 0); break;
+  case 'f': load = (ptr) => DEREF_F32(ptr, 0); break;
+  case 'd': load = (ptr) => DEREF_F64(ptr, 0); break;
+  default:  load = (ptr) => undefined; break;
+  }
+  return function epilogue(ret_ptr, orig_stack_ptr) {
+    stackRestore(DEC_PTR(orig_stack_ptr));
+    return load(DEC_PTR(ret_ptr));
+  };
+}
+
+var ffi_closure_trampoline_module_cache = new Map();
+function ffi_closure_trampoline_module(sig) {
+  var cache = ffi_closure_trampoline_module_cache;
+  var module = cache.get(sig);
+  if (module) {
+    return module;
+  }
+
+  function uleb128(n) {
+    var result = [];
+    do {
+      var byte = n & 0x7f;
+      n >>>= 7;
+      if (n) {
+        byte |= 0x80;
       }
-    }
+      result.push(byte);
+    } while (n);
+    return result;
   }
-  try {
-    var wasm_trampoline = convertJsFunctionToWasm(trampoline, sig);
-  } catch(e) {
-    return FFI_BAD_TYPEDEF_MACRO;
+  // A vector of single-byte items
+  function vec(bytes) {
+    return [...uleb128(bytes.length), ...bytes];
   }
-  setWasmTableEntry(codeloc, wasm_trampoline);
-  CLOSURE__cif(closure) = ENC_PTR(cif);
-  CLOSURE__fun(closure) = ENC_PTR(fun);
-  CLOSURE__user_data(closure) = ENC_PTR(user_data);
-  return FFI_OK_MACRO;
-})
+  function section(id, bytes) {
+    return [id, ...vec(bytes)];
+  }
+  function funcType(params, results) {
+    return [0x60, ...vec(params), ...vec(results)];
+  }
+
+  var typeCodes = { 'i': 0x7f, 'j': 0x7e, 'f': 0x7d, 'd': 0x7c };
+  var P = PTR_WASM_TYPE;
+  var params = Array.from(sig.slice(1), (c) => typeCodes[c]);
+  var results = sig[0] === 'v' ? [] : [typeCodes[sig[0]]];
+  var nparams = params.length;
+
+  // Is the function table 64-bit indexed?
+  // -sMEMORY64=2 compiles with 64-bit pointers but uses a 32-bit memory and
+  // table, so we have to i32.wrap_i64 pointers.
+  var idx64 = typeof wasmTable.length === 'bigint';
+  var idxFlag = idx64 ? 0x04 : 0x00;
+  // Pointers are wrapped to i32 to be used as a table index.
+  var wrapPtr = (P === 0x7e && !idx64) ? [0xa7] : []; // i32.wrap_i64
+
+  var typeSection = section(0x01, [
+    ...uleb128(4),
+    ...funcType(params, results),               // type 0: the trampoline itself
+    ...funcType(params, [P, P, P, P, P, P, P]), // type 1: prelude
+    ...funcType([P, P, P, P], []),              // type 2: closure->fun(cif, ret, args, user_data)
+    ...funcType([P, P], results),               // type 3: epilogue(ret_ptr, orig_sp)
+  ]);
+  var importSection = section(0x02, [
+    ...uleb128(3),
+    // prelude: (import "e" "p" (func (type 1)))
+    0x01, 0x65, 0x01, 0x70, 0x00, 0x01,
+    // epilogue: (import "e" "e" (func (type 3)))
+    0x01, 0x65, 0x01, 0x65, 0x00, 0x03,
+    // (import "e" "t" (table 0 funcref))
+    0x01, 0x65, 0x01, 0x74, 0x01, 0x70, 0x00 | idxFlag, 0x00,
+  ]);
+  // One function, of type 0.
+  var functionSection = section(0x03, [0x01, 0x00]);
+  // (export "f" (func 2)) -- funcs 0 and 1 are the imports.
+  var exportSection = section(0x07, [0x01, 0x01, 0x66, 0x00, 0x02]);
+
+  // Function body
+  var body = [0x00]; // no locals
+  for (var i = 0; i < nparams; i++) {
+    body.push(0x20, ...uleb128(i)); // local.get i
+  }
+  body.push(0x10, 0x00); // call prelude
+  // Operand stack is now: ret_ptr, orig_sp, cif, ret_ptr, args_ptr, user_data, fun
+  body.push(...wrapPtr); // fun is used as a table index
+  body.push(0x11, 0x02, 0x00); // call_indirect (type 2) (table 0), consumes the top 5
+  // Operand stack: ret_ptr, orig_sp
+  body.push(0x10, 0x01); // call epilogue, consumes both and leaves the result (if any)
+  body.push(0x0b); // end
+  var codeSection = section(0x0a, [...uleb128(1), ...vec(body)]);
+
+  var bytes = new Uint8Array([
+    0x00, 0x61, 0x73, 0x6d, // magic
+    0x01, 0x00, 0x00, 0x00, // version
+    ...typeSection,
+    ...importSection,
+    ...functionSection,
+    ...exportSection,
+    ...codeSection,
+  ]);
+  LOG_DEBUG("CLOSURE_MODULE", "sig:", sig, "bytes:", bytes);
+  // The module is tiny so compiling synchronously is fine.
+  module = new WebAssembly.Module(bytes);
+  cache.set(sig, module);
+  return module;
+}
+)
 
 // EM_JS does not correctly handle function pointer arguments, so we need a
 // helper

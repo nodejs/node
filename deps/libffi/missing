@@ -1,9 +1,11 @@
 #! /bin/sh
-# Common wrapper for a few potentially missing GNU programs.
+# Common wrapper for a few potentially missing GNU and other programs.
 
-scriptversion=2018-03-07.03; # UTC
+scriptversion=2025-06-18.21; # UTC
 
-# Copyright (C) 1996-2021 Free Software Foundation, Inc.
+# shellcheck disable=SC2006,SC2268 # we must support pre-POSIX shells
+
+# Copyright (C) 1996-2025 Free Software Foundation, Inc.
 # Originally written by Fran,cois Pinard <pinard@iro.umontreal.ca>, 1996.
 
 # This program is free software; you can redistribute it and/or modify
@@ -54,18 +56,20 @@ Options:
   -v, --version   output version information and exit
 
 Supported PROGRAM values:
-  aclocal   autoconf  autoheader   autom4te  automake  makeinfo
-  bison     yacc      flex         lex       help2man
+aclocal autoconf autogen  autoheader autom4te automake autoreconf
+bison   flex     help2man lex        makeinfo perl     yacc
 
 Version suffixes to PROGRAM as well as the prefixes 'gnu-', 'gnu', and
 'g' are ignored when checking the name.
 
-Send bug reports to <bug-automake@gnu.org>."
+Report bugs to <bug-automake@gnu.org>.
+GNU Automake home page: <https://www.gnu.org/software/automake/>.
+General help using GNU software: <https://www.gnu.org/gethelp/>."
     exit $?
     ;;
 
   -v|--v|--ve|--ver|--vers|--versi|--versio|--version)
-    echo "missing $scriptversion (GNU Automake)"
+    echo "missing (GNU Automake) $scriptversion"
     exit $?
     ;;
 
@@ -108,7 +112,7 @@ gnu_software_URL=https://www.gnu.org/software
 program_details ()
 {
   case $1 in
-    aclocal|automake)
+    aclocal|automake|autoreconf)
       echo "The '$1' program is part of the GNU Automake package:"
       echo "<$gnu_software_URL/automake>"
       echo "It also requires GNU Autoconf, GNU m4 and Perl in order to run:"
@@ -122,6 +126,9 @@ program_details ()
       echo "It also requires GNU m4 and Perl in order to run:"
       echo "<$gnu_software_URL/m4/>"
       echo "<$perl_URL>"
+      ;;
+    *)
+      :
       ;;
   esac
 }
@@ -137,41 +144,43 @@ give_advice ()
   printf '%s\n' "'$1' is $msg."
 
   configure_deps="'configure.ac' or m4 files included by 'configure.ac'"
+  autoheader_deps="'acconfig.h'"
+  automake_deps="'Makefile.am'"
+  aclocal_deps="'acinclude.m4'"
   case $normalized_program in
+    aclocal*)
+      echo "You should only need it if you modified $aclocal_deps or"
+      echo "$configure_deps."
+      ;;
     autoconf*)
-      echo "You should only need it if you modified 'configure.ac',"
-      echo "or m4 files included by it."
-      program_details 'autoconf'
+      echo "You should only need it if you modified $configure_deps."
+      ;;
+    autogen*)
+      echo "You should only need it if you modified a '.def' or '.tpl' file."
+      echo "You may want to install the GNU AutoGen package:"
+      echo "<$gnu_software_URL/autogen/>"
       ;;
     autoheader*)
-      echo "You should only need it if you modified 'acconfig.h' or"
+      echo "You should only need it if you modified $autoheader_deps or"
       echo "$configure_deps."
-      program_details 'autoheader'
       ;;
     automake*)
-      echo "You should only need it if you modified 'Makefile.am' or"
+      echo "You should only need it if you modified $automake_deps or"
       echo "$configure_deps."
-      program_details 'automake'
       ;;
-    aclocal*)
-      echo "You should only need it if you modified 'acinclude.m4' or"
-      echo "$configure_deps."
-      program_details 'aclocal'
-      ;;
-   autom4te*)
+    autom4te*)
       echo "You might have modified some maintainer files that require"
       echo "the 'autom4te' program to be rebuilt."
-      program_details 'autom4te'
+      ;;
+    autoreconf*)
+      echo "You should only need it if you modified $aclocal_deps or"
+      echo "$automake_deps or $autoheader_deps or $automake_deps or"
+      echo "$configure_deps."
       ;;
     bison*|yacc*)
       echo "You should only need it if you modified a '.y' file."
       echo "You may want to install the GNU Bison package:"
       echo "<$gnu_software_URL/bison/>"
-      ;;
-    lex*|flex*)
-      echo "You should only need it if you modified a '.l' file."
-      echo "You may want to install the Fast Lexical Analyzer package:"
-      echo "<$flex_URL>"
       ;;
     help2man*)
       echo "You should only need it if you modified a dependency" \
@@ -179,6 +188,11 @@ give_advice ()
       echo "You may want to install the GNU Help2man package:"
       echo "<$gnu_software_URL/help2man/>"
     ;;
+    lex*|flex*)
+      echo "You should only need it if you modified a '.l' file."
+      echo "You may want to install the Fast Lexical Analyzer package:"
+      echo "<$flex_URL>"
+      ;;
     makeinfo*)
       echo "You should only need it if you modified a '.texi' file, or"
       echo "any other file indirectly affecting the aspect of the manual."
@@ -189,6 +203,12 @@ give_advice ()
       echo "want to install GNU make:"
       echo "<$gnu_software_URL/make/>"
       ;;
+    perl*)
+      echo "You should only need it to run GNU Autoconf, GNU Automake, "
+      echo "  assorted other tools, or if you modified a Perl source file."
+      echo "You may want to install the Perl 5 language interpreter:"
+      echo "<$perl_URL>"
+      ;;
     *)
       echo "You might have modified some files without having the proper"
       echo "tools for further handling them.  Check the 'README' file, it"
@@ -197,6 +217,7 @@ give_advice ()
       echo "case some other package contains this missing '$1' program."
       ;;
   esac
+  program_details "$normalized_program"
 }
 
 give_advice "$1" | sed -e '1s/^/WARNING: /' \
@@ -207,9 +228,9 @@ give_advice "$1" | sed -e '1s/^/WARNING: /' \
 exit $st
 
 # Local variables:
-# eval: (add-hook 'before-save-hook 'time-stamp)
+# eval: (add-hook 'before-save-hook 'time-stamp nil t)
 # time-stamp-start: "scriptversion="
-# time-stamp-format: "%:y-%02m-%02d.%02H"
+# time-stamp-format: "%Y-%02m-%02d.%02H"
 # time-stamp-time-zone: "UTC0"
 # time-stamp-end: "; # UTC"
 # End:

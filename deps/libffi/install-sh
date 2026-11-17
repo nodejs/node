@@ -1,7 +1,7 @@
 #!/bin/sh
 # install - install a program, script, or datafile
 
-scriptversion=2020-11-14.01; # UTC
+scriptversion=2025-06-18.21; # UTC
 
 # This originates from X11R5 (mit/util/scripts/install.sh), which was
 # later released in X11R6 (xc/config/util/install.sh) with the
@@ -124,9 +124,9 @@ it's up to you to specify -f if you want it.
 
 If -S is not specified, no backups are attempted.
 
-Email bug reports to bug-automake@gnu.org.
-Automake home page: https://www.gnu.org/software/automake/
-"
+Report bugs to <bug-automake@gnu.org>.
+GNU Automake home page: <https://www.gnu.org/software/automake/>.
+General help using GNU software: <https://www.gnu.org/gethelp/>."
 
 while test $# -ne 0; do
   case $1 in
@@ -170,7 +170,7 @@ while test $# -ne 0; do
 
     -T) is_target_a_directory=never;;
 
-    --version) echo "$0 $scriptversion"; exit $?;;
+    --version) echo "$0 (GNU Automake) $scriptversion"; exit $?;;
 
     --) shift
         break;;
@@ -345,7 +345,7 @@ do
 	' 0
 
 	# Because "mkdir -p" follows existing symlinks and we likely work
-	# directly in world-writeable /tmp, make sure that the '$tmpdir'
+	# directly in world-writable /tmp, make sure that the '$tmpdir'
 	# directory is successfully created first before we actually test
 	# 'mkdir -p'.
 	if (umask $mkdir_umask &&
@@ -353,7 +353,7 @@ do
 	    exec $mkdirprog $mkdir_mode -p -- "$tmpdir/a/b") >/dev/null 2>&1
 	then
 	  if test -z "$dir_arg" || {
-	       # Check for POSIX incompatibilities with -m.
+	       # Check for POSIX incompatibility with -m.
 	       # HP-UX 11.23 and IRIX 6.5 mkdir -m -p sets group- or
 	       # other-writable bit of parent directory when it shouldn't.
 	       # FreeBSD 6.1 mkdir -m -p sets mode of existing directory.
@@ -533,9 +533,9 @@ do
 done
 
 # Local variables:
-# eval: (add-hook 'before-save-hook 'time-stamp)
+# eval: (add-hook 'before-save-hook 'time-stamp nil t)
 # time-stamp-start: "scriptversion="
-# time-stamp-format: "%:y-%02m-%02d.%02H"
+# time-stamp-format: "%Y-%02m-%02d.%02H"
 # time-stamp-time-zone: "UTC0"
 # time-stamp-end: "; # UTC"
 # End:

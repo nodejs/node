@@ -105,249 +105,137 @@ intlog2 (int n)
   return level;
 }
 
-/* A subroutine of is_vfp_type.  Given a structure type, return the type code
-   of the first non-structure element.  Recurse for structure elements.
-   Return -1 if the structure is in fact empty, i.e. no nested elements.  */
+/* A subroutine of is_vfp_type.  Recursively flatten the (possibly nested)
+   aggregate TY and verify it is homogeneous: every leaf must be the same
+   fundamental type, as AAPCS64 requires of an HFA or HVA.  Two short
+   vectors are the same fundamental type when they have the same size (the
+   lane type is irrelevant: an integer and a floating-point 16-byte vector
+   both occupy one Q register).  A _Complex counts as two members of its
+   element type.
+
+   *KIND carries the common leaf type found so far: 0 before the first leaf,
+   a positive FFI_TYPE_{FLOAT,DOUBLE,LONGDOUBLE} for a floating-point HFA, or
+   the negated vector size for an HVA.  Returns the number of leaf elements,
+   or -1 if TY is empty or not homogeneous.  */
 
 static int
-is_hfa0 (const ffi_type *ty)
-{
-  ffi_type **elements = ty->elements;
-  int i, ret = -1;
-
-  if (elements != NULL)
-    for (i = 0; elements[i]; ++i)
-      {
-        ret = elements[i]->type;
-        if (ret == FFI_TYPE_STRUCT || ret == FFI_TYPE_VECTOR
-	    || ret == FFI_TYPE_COMPLEX)
-          {
-            ret = is_hfa0 (elements[i]);
-            if (ret < 0)
-              continue;
-          }
-        break;
-      }
-
-  return ret;
-}
-
-/* A subroutine of is_vfp_type.  Return the size in bytes of the vector (SIMD)
-   member of TY, i.e. the width of a single Neon register slot, or 0 if TY
-   neither is nor contains a vector.  For a bare vector this is its whole size;
-   for a homogeneous vector aggregate it is the size of one lane vector.  */
-
-static size_t
-is_simd (const ffi_type *ty)
+hfa_flatten (const ffi_type *ty, int *kind)
 {
   ffi_type **elements;
-  int i;
+  int i, total, n, k;
 
-  if (ty->type == FFI_TYPE_VECTOR)
-    return ty->size;
+  switch (ty->type)
+    {
+    case FFI_TYPE_FLOAT:
+    case FFI_TYPE_DOUBLE:
+    case FFI_TYPE_LONGDOUBLE:
+      k = (int) ty->type;
+      if (*kind == 0)
+        *kind = k;
+      else if (*kind != k)
+        return -1;
+      return 1;
 
-  elements = ty->elements;
-  if (elements != NULL)
-    for (i = 0; elements[i]; ++i)
-      {
-        int t = elements[i]->type;
-        if (t == FFI_TYPE_STRUCT || t == FFI_TYPE_COMPLEX
-	    || t == FFI_TYPE_VECTOR)
-          return is_simd (elements[i]);
-      }
+    case FFI_TYPE_VECTOR:
+      /* Only 4-, 8- and 16-byte short vectors have a register class here.  */
+      if (ty->size != 4 && ty->size != 8 && ty->size != 16)
+        return -1;
+      k = -(int) ty->size;
+      if (*kind == 0)
+        *kind = k;
+      else if (*kind != k)
+        return -1;
+      return 1;
 
-  return 0;
+    case FFI_TYPE_COMPLEX:
+      k = ty->elements[0]->type;
+      if (k != FFI_TYPE_FLOAT && k != FFI_TYPE_DOUBLE && k != FFI_TYPE_LONGDOUBLE)
+        return -1;
+      if (*kind == 0)
+        *kind = k;
+      else if (*kind != k)
+        return -1;
+      return 2;
+
+    case FFI_TYPE_STRUCT:
+      elements = ty->elements;
+      if (elements == NULL)
+        return -1;
+      total = 0;
+      for (i = 0; elements[i]; ++i)
+        {
+          n = hfa_flatten (elements[i], kind);
+          if (n < 0)
+            return -1;
+          total += n;
+        }
+      return total == 0 ? -1 : total;
+
+    default:
+      return -1;
+    }
 }
 
-/* A subroutine of is_vfp_type.  Given a structure type, return true if all
-   of the non-structure elements are the same as CANDIDATE.  */
+/* Determine if TY may be allocated to the FP/SIMD registers.  This is an fp
+   scalar or short vector, or a homogeneous aggregate (HFA or HVA) of 1 to 4
+   members all of the same fundamental type.
 
-static int
-is_hfa1 (const ffi_type *ty, int candidate)
-{
-  ffi_type **elements = ty->elements;
-  int i;
-
-  if (elements != NULL)
-    for (i = 0; elements[i]; ++i)
-      {
-        int t = elements[i]->type;
-        if (t == FFI_TYPE_STRUCT || t == FFI_TYPE_VECTOR
-	    || t == FFI_TYPE_COMPLEX)
-          {
-            if (!is_hfa1 (elements[i], candidate))
-              return 0;
-          }
-        else if (t != candidate)
-          return 0;
-      }
-
-  return 1;
-}
-
-/* Determine if TY may be allocated to the FP registers.  This is both an
-   fp scalar type as well as an homogenous floating point aggregate (HFA).
-   That is, a structure consisting of 1 to 4 members of all the same type,
-   where that type is an fp scalar.
-
-   Returns non-zero iff TY is an HFA.  The result is the AARCH64_RET_*
-   constant for the type.  */
+   Returns non-zero iff TY is such a type.  The result is the AARCH64_RET_*
+   constant for it.  */
 
 static int
 is_vfp_type (const ffi_type *ty)
 {
-  ffi_type **elements;
-  int candidate, i;
-  size_t size, ele_count, simd_size;
+  int candidate, count, kind;
+  size_t size;
 
   /* Quickest tests first.  */
-  candidate = ty->type;
-  switch (candidate)
+  switch (ty->type)
     {
     default:
       return 0;
     case FFI_TYPE_FLOAT:
     case FFI_TYPE_DOUBLE:
     case FFI_TYPE_LONGDOUBLE:
-      ele_count = 1;
-      goto done;
+      return (int) ty->type * 4 + (4 - 1);
     case FFI_TYPE_COMPLEX:
       candidate = ty->elements[0]->type;
       switch (candidate)
-	{
-	case FFI_TYPE_FLOAT:
-	case FFI_TYPE_DOUBLE:
-	case FFI_TYPE_LONGDOUBLE:
-	  ele_count = 2;
-	  goto done;
-	}
+        {
+        case FFI_TYPE_FLOAT:
+        case FFI_TYPE_DOUBLE:
+        case FFI_TYPE_LONGDOUBLE:
+          return candidate * 4 + (4 - 2);
+        }
       return 0;
     case FFI_TYPE_STRUCT:
     case FFI_TYPE_VECTOR:
       break;
     }
 
-  /* No HFA/HVA types are smaller than 4 bytes, or larger than 64 bytes.  */
+  /* No HFA/HVA is smaller than 4 bytes or larger than 64 bytes (4 Q regs).  */
   size = ty->size;
   if (size < 4 || size > 64)
     return 0;
 
-  /* Determine the width of the vector (SIMD) member, if any: 0 for a plain
-     floating-point HFA, else the size in bytes of one Neon register slot.  */
-  simd_size = is_simd (ty);
-
-  /* Find the type of the first non-aggregate member.  */
-  elements = ty->elements;
-  candidate = elements[0]->type;
-  if (candidate == FFI_TYPE_STRUCT || candidate == FFI_TYPE_VECTOR
-      || candidate == FFI_TYPE_COMPLEX)
-    {
-      for (i = 0; ; ++i)
-        {
-          candidate = is_hfa0 (elements[i]);
-          if (candidate >= 0)
-            break;
-        }
-    }
-
-  if (simd_size)
-    {
-      /* Vector or homogeneous vector aggregate (HVA).  A single Neon slot is
-	 at most 16 bytes (a Q register).  A bare vector wider than 16 bytes
-	 (e.g. a 32-byte double4) has no short-vector register class under
-	 AAPCS64, so bail and let the generic composite path pass it by
-	 reference / return it in memory -- matching what current compilers do.
-	 The scalar lane type does not affect register selection (an integer
-	 and a floating-point 16-byte vector both occupy one Q register), so,
-	 unlike the floating-point HFA path below, CANDIDATE is used only to
-	 confirm the lanes are homogeneous.  */
-      size_t reg_size = simd_size;
-      int num_registers;
-      int first_level_element_type;
-
-      /* A Neon register slot is an S (4B), D (8B) or Q (16B).  A lane narrower
-	 than 4 bytes has no short-vector register class under AAPCS64 and would
-	 map below AARCH64_RET_S4, making extend_hfa_type() branch before its
-	 jump table; reject it and let the generic aggregate path handle it.  */
-      if (reg_size < 4 || reg_size > 16 || size % reg_size != 0)
-	return 0;
-      num_registers = (int) (size / reg_size);
-      if (num_registers > 4)
-	return 0;
-
-      /* For an aggregate, every member must itself be a vector (or nested
-	 vector aggregate) of the same register width: this rejects a struct
-	 that mixes a bare scalar with a vector even when the scalar's type
-	 matches the vector's lane type.  A bare vector needs no such check --
-	 its lanes were validated when its layout was computed.  */
-      if (ty->type != FFI_TYPE_VECTOR)
-	for (i = 0; elements[i]; ++i)
-	  if (is_simd (elements[i]) != reg_size)
-	    return 0;
-
-      /* Every lane must be the identical scalar type across the whole HVA
-	 (this rejects, e.g., an aggregate mixing float and integer vectors).  */
-      for (i = 0; elements[i]; ++i)
-	{
-	  int t = elements[i]->type;
-	  if (t == FFI_TYPE_STRUCT || t == FFI_TYPE_VECTOR
-	      || t == FFI_TYPE_COMPLEX)
-	    {
-	      if (!is_hfa1 (elements[i], candidate))
-		return 0;
-	    }
-	  else if (t != candidate)
-	    return 0;
-	}
-
-      /* Reuse the AARCH64_RET_{S,D,Q}* codes, which are laid out as
-	 (type * 4) + (4 - count) with FLOAT->S(4B), DOUBLE->D(8B),
-	 LONGDOUBLE->Q(16B).  Map the register width onto that type axis.  */
-      first_level_element_type = FFI_TYPE_FLOAT + intlog2 ((int) reg_size) - 2;
-      return first_level_element_type * 4 + (4 - num_registers);
-    }
-
-  /* If the first member is not a floating point type, it's not an HFA.
-     Also quickly re-check the size of the structure.  */
-  switch (candidate)
-    {
-    case FFI_TYPE_FLOAT:
-      ele_count = size / sizeof(float);
-      if (size != ele_count * sizeof(float))
-        return 0;
-      break;
-    case FFI_TYPE_DOUBLE:
-      ele_count = size / sizeof(double);
-      if (size != ele_count * sizeof(double))
-        return 0;
-      break;
-    case FFI_TYPE_LONGDOUBLE:
-      ele_count = size / sizeof(long double);
-      if (size != ele_count * sizeof(long double))
-        return 0;
-      break;
-    default:
-      return 0;
-    }
-  if (ele_count > 4)
+  /* Flatten the aggregate; every leaf must share one fundamental type, and
+     there must be 1 to 4 of them.  */
+  kind = 0;
+  count = hfa_flatten (ty, &kind);
+  if (count < 1 || count > 4)
     return 0;
 
-  /* Finally, make sure that all scalar elements are the same type.  */
-  for (i = 0; elements[i]; ++i)
+  if (kind < 0)
     {
-      int t = elements[i]->type;
-      if (t == FFI_TYPE_STRUCT || t == FFI_TYPE_COMPLEX)
-        {
-          if (!is_hfa1 (elements[i], candidate))
-            return 0;
-        }
-      else if (t != candidate)
-        return 0;
+      /* HVA: KIND is the negated vector register width (4, 8 or 16 bytes).
+         Map it onto the S/D/Q axis of the AARCH64_RET_* encoding.  */
+      candidate = FFI_TYPE_FLOAT + intlog2 (-kind) - 2;
     }
+  else
+    /* Floating-point HFA: KIND is the common scalar type.  */
+    candidate = kind;
 
-  /* All tests succeeded.  Encode the result.  */
- done:
-  return candidate * 4 + (4 - (int)ele_count);
+  return candidate * 4 + (4 - count);
 }
 
 /* Representation of the procedure call argument marshalling
@@ -406,6 +294,28 @@ allocate_to_stack (struct arg_state *state, void *stack,
   state->nsaa = nsaa + size;
 
   return (char *)stack + nsaa;
+}
+
+/* Darwin packs only scalars to their natural alignment; a non-HFA
+   composite of up to 16 bytes still takes whole register-sized slots.  */
+static void *
+allocate_composite_to_stack (struct arg_state *state, void *stack,
+			     const ffi_type *ty)
+{
+  size_t alignment = ty->alignment;
+  size_t size = ty->size;
+
+/* Apple's ABI gives these composites full pointer-sized slots.  The
+   experimental GCC Darwin port instead packs them to their natural size;
+   match the compiler ABI used to build libffi so calls and closures remain
+   self-consistent.  */
+#if defined (__APPLE__) \
+    && (!defined (__GNUC__) || defined (__clang__))
+  alignment = FFI_ALIGN (alignment, sizeof (void *));
+  size = FFI_ALIGN (size, sizeof (void *));
+#endif
+
+  return allocate_to_stack (state, stack, alignment, size);
 }
 
 /* Allocate and copy a structure that is passed by value on the stack and
@@ -564,13 +474,9 @@ compress_hfa_type (void *dest, void *reg, int h)
     {
     case AARCH64_RET_S1:
       if (dest == reg)
-	{
-#ifdef __AARCH64EB__
-	  dest += 12;
-#endif
-	}
+	return (char *)dest + BE (12);
       else
-	*(float *)dest = *(float *)reg;
+	*(float *)dest = *(float *)((char *)reg + BE (12));
       break;
     case AARCH64_RET_S2:
       __asm__ ("ldp q16, q17, [%1]\n\t"
@@ -592,13 +498,9 @@ compress_hfa_type (void *dest, void *reg, int h)
 
     case AARCH64_RET_D1:
       if (dest == reg)
-	{
-#ifdef __AARCH64EB__
-	  dest += 8;
-#endif
-	}
+	return (char *)dest + BE (8);
       else
-	*(double *)dest = *(double *)reg;
+	*(double *)dest = *(double *)((char *)reg + BE (8));
       break;
     case AARCH64_RET_D2:
       __asm__ ("ldp q16, q17, [%1]\n\t"
@@ -637,10 +539,11 @@ allocate_int_to_reg_or_stack (struct call_context *context,
 			      void *stack, size_t size)
 {
   if (state->ngrn < N_X_ARG_REG)
-    return &context->x[state->ngrn++];
+    return (char *)&context->x[state->ngrn++] + BE (sizeof (UINT64) - size);
 
   state->ngrn = N_X_ARG_REG;
-  return allocate_to_stack (state, stack, size, size);
+  return (char *)allocate_to_stack (state, stack, size, size)
+	 + BE (sizeof (UINT64) - size);
 }
 
 static void *
@@ -937,7 +840,8 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *orig_rvalue,
                   break;
                 }
                 state.nsrn = N_V_ARG_REG;
-                dest = allocate_to_stack (&state, stack, ty->alignment, s);
+                dest = (char *)allocate_to_stack (&state, stack, ty->alignment, s)
+                       + (t == FFI_TYPE_FLOAT ? BE (sizeof (UINT64) - s) : 0);
               }
 	      }
 	    else if (s > 16)
@@ -951,6 +855,13 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *orig_rvalue,
 		a = &dest;
 		t = FFI_TYPE_POINTER;
 		s = sizeof (void *);
+		/* The argument is now the pointer, which takes a plain 8-byte,
+		   8-aligned stack slot (AAPCS64 B.4).  Re-point `ty' so
+		   do_pointer aligns the slot by 8 and not by the composite's
+		   own alignment (up to 16), which would place the pointer at
+		   the wrong offset -- where the callee, and libffi's own
+		   closure path, do not look (GHSA-h52h-3759-xqm4).  */
+		ty = &ffi_type_pointer;
 		goto do_pointer;
 	      }
 	    else
@@ -972,7 +883,7 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *orig_rvalue,
 		       adjusted and the argument is copied to memory at the
 		       adjusted NSAA.  */
 		    state.ngrn = N_X_ARG_REG;
-		    dest = allocate_to_stack (&state, stack, ty->alignment, s);
+		    dest = allocate_composite_to_stack (&state, stack, ty);
 		  }
 		}
 	      memcpy (dest, a, s);
@@ -1222,8 +1133,9 @@ ffi_closure_SYSV_inner (ffi_cif *cif,
                     {
                       state.ngrn = N_X_ARG_REG;
                       state.nsrn = N_V_ARG_REG;
-                      avalue[i] = allocate_to_stack(&state, stack,
-                             ty->alignment, s);
+                      avalue[i] = (char *)allocate_to_stack (&state, stack,
+                                                             ty->alignment, s)
+                                  + (t == FFI_TYPE_FLOAT ? BE (sizeof (UINT64) - s) : 0);
                     }
                 }
               else
@@ -1237,8 +1149,9 @@ ffi_closure_SYSV_inner (ffi_cif *cif,
                   else
                     {
                       state.nsrn = N_V_ARG_REG;
-                      avalue[i] = allocate_to_stack(&state, stack,
-                                                   ty->alignment, s);
+                      avalue[i] = (char *)allocate_to_stack (&state, stack,
+                                                             ty->alignment, s)
+                                  + (t == FFI_TYPE_FLOAT ? BE (sizeof (UINT64) - s) : 0);
                     }
                 }
             }
@@ -1270,8 +1183,7 @@ ffi_closure_SYSV_inner (ffi_cif *cif,
               else
                 {
                   state.ngrn = N_X_ARG_REG;
-                  avalue[i] = allocate_to_stack(&state, stack,
-                                           ty->alignment, s);
+                  avalue[i] = allocate_composite_to_stack (&state, stack, ty);
                 }
             }
           break;

@@ -1,3 +1,2049 @@
+commit de7afe7aa9e8ab7ac36429428a7222caae1e7988
+Merge: 63cfe02c 8d6f5bf5
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Nov 14 08:15:07 2026 -0500
+
+    Merge pull request #1082 from libffi/release/3.8.1
+    
+    Release 3.8.1
+
+commit 8d6f5bf587f642c53b62bde916d7ec60da925cf3
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Nov 14 08:10:58 2026 -0500
+
+    Release 3.8.1
+    
+    Bump the version from 3.8.0 to 3.8.1 and finalize the changelog:
+    
+      * configure.ac: AC_INIT 3.8.0 -> 3.8.1 (propagates to FFI_VERSION,
+        libffi.pc, and the manual's @value{VERSION}).
+      * libtool-version: 13:0:5 -> 13:1:5.  The source changed but no exported
+        interface was added, removed, or changed since 3.8.0, so only revision
+        is incremented.
+      * doc/version.texi, README.md: set the version and the release date.
+    
+    Also fix three latent release-tooling bugs that "make distcheck" exposes
+    (plain "make dist" hides them because it does not make the source tree
+    read-only or verify a clean distclean):
+    
+      * Makefile.am dist-hook rewrote $(distdir)/README.md, which automake had
+        already copied read-only, so the redirect failed with "Permission
+        denied".  Remove it first.
+      * configure.ac: the X86_64 unwind-section test linked conftest without
+        -o, leaving an a.out that distcleancheck flagged.  Link to a conftest
+        file and clean up.
+      * Makefile.am: add the generated libffi.map (and libffi.map-sun) to
+        DISTCLEANFILES so distclean removes them.
+    
+    make distcheck now passes end to end: builds from the tarball, runs the
+    full testsuite, installs, uninstalls, and distcleans with nothing left.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 63cfe02cc95a0ad97a38586bb5aaf87fcc7e69b4
+Merge: fd2cdac5 f3dd79a0
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Nov 14 07:34:25 2026 -0500
+
+    Merge pull request #1081 from libffi/testsuite/dist-missing-tests
+    
+    testsuite: add new tests to EXTRA_DIST so they ship in the release
+
+commit f3dd79a0662142fca361835ebabea06727c634eb
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Nov 14 07:22:22 2026 -0500
+
+    testsuite: add the new tests to EXTRA_DIST so they ship in the release
+    
+    The dejagnu .exp drivers glob *.c at run time, so these tests ran in-tree,
+    but testsuite/Makefile.am's EXTRA_DIST is a hand-maintained list and `make
+    dist` ships only what it names.  The tests added this cycle were missing, so
+    a `make check` from the release tarball would silently skip them -- dropping
+    the regression coverage for several of the security fixes:
+    
+      libffi.call/closure_raw.c                 (GHSA-w6j9-w53f-2857)
+      libffi.closures/closure_int128.c          (GHSA-wf8m-qr3x-cch4)
+      libffi.closures/closure_mmap_failure.c    (#1055)
+      libffi.closures/closure_trampoline_table.c (GHSA-23hx-9rxv-9qfp)
+      libffi.vector/vector_unsupported_abi.c    (GHSA-5pc3-hr6f-q3mm)
+    
+    Also add libffi.configure/libdir.sh (the --libdir test run from CI) so it
+    ships too.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit fd2cdac5e82b6c357775ff968ff58149f8f44245
+Merge: 297a80c4 852244d3
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Nov 14 07:19:30 2026 -0500
+
+    Merge pull request #1080 from libffi/readme/tighten-tbd
+    
+    README: tighten the TBD changelog and fold in the security fixes
+
+commit 852244d378e908d846439a7a02d2b33c8b00a965
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Nov 14 07:18:18 2026 -0500
+
+    README: tighten the TBD changelog and fold in the security fixes
+    
+    Group the pending changes by architecture and theme instead of a flat
+    list plus a separate "Security fixes" block, so related entries (including
+    the six advisories) sit together.  Drop the CWE codes and the long
+    mechanism descriptions -- the referenced issues and advisories carry that
+    detail -- while keeping every #issue and GHSA reference.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 297a80c4b02ef00010e985675c4c34dbc7bb2181
+Merge: 21a49087 46203c53
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Nov 14 07:12:43 2026 -0500
+
+    Merge pull request #1079 from libffi/ci/green-emscripten-pytest
+    
+    ci(emscripten): get the browser test job green (pytest 9.x + closure_mmap_failure)
+
+commit 46203c534e0a5d57729d838cc59d42103dd7cf62
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Nov 14 06:21:33 2026 -0500
+
+    testsuite: guard closure_mmap_failure for non-glibc harnesses
+    
+    The Emscripten browser harness (testsuite/emscripten/build-tests.sh) compiles
+    every testcase and ignores the dg-do "target x86_64-*-linux-gnu*" directive.
+    closure_mmap_failure interposes mmap via dlsym(RTLD_NEXT, "mmap"), which aborts
+    on wasm:
+    
+      Aborted(Assertion failed: Tried to dlsym() from an unopened handle: -1)
+    
+    (188 passed, 1 failed in the browser run.)  Guard the body on __GLIBC__ so it
+    is a no-op wherever the RTLD_NEXT mmap-interposition technique isn't available;
+    ffitest.h pulls in <stdlib.h>, so __GLIBC__ is defined on the x86_64-linux-gnu
+    dejagnu runs that actually exercise this test, leaving them unchanged.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 4abb340542b4a7f6af328bf5e8c16d2bd631b30e
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Nov 14 06:08:19 2026 -0500
+
+    ci(emscripten): bump pytest-pyodide 0.59.2 -> 0.59.4 for pytest 9.x
+    
+    The browser `test` job crashed during pytest collection:
+    
+      INTERNALERROR> AttributeError: 'FixtureManager' object has no
+      attribute '_arg2fixturedefs'
+    
+    pytest-pyodide 0.59.2's set_runtime_fixture_params() reads the private
+    pytest internal `_fixturemanager._arg2fixturedefs`, which pytest removed.
+    The workflow installs an unpinned pytest (currently 9.2.0), so collection
+    aborted before any test ran.  (It was masked until now because the build
+    job failed first; fixing closure_raw.c let the test job finally run.)
+    
+    0.59.4 handles this with a version shim (uses getfixturedefs() on
+    pytest >= 9.2), so just bump the pin.  Pinning pytest down instead is a
+    dead end: pytest-asyncio 1.5.0 (a pytest-pyodide dep) requires pytest>=8.4,
+    which already lacks _arg2fixturedefs.
+    
+    Verified locally that collection of testsuite/emscripten/test_libffi.py
+    succeeds with pytest 9.2.0 + pytest-pyodide 0.59.4 (the crash is gone);
+    the browser run itself is validated by CI.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 21a490876ea8046f544fbbf93a594ccf63685e9a
+Merge: 997aee20 6aff44d2
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Nov 14 05:41:38 2026 -0500
+
+    Merge pull request #1078 from libffi/ci/green-emscripten-raw
+    
+    testsuite: guard closure_raw on !FFI_NO_RAW_API (fix Emscripten CI)
+
+commit 6aff44d25cc7ba8ed4d3a1f64a7e931544545a41
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Nov 14 05:18:38 2026 -0500
+
+    testsuite: guard closure_raw on !FFI_NO_RAW_API (fix Emscripten CI)
+    
+    The Emscripten build configures libffi with --disable-raw-api, which sets
+    FFI_NO_RAW_API and compiles raw_api.c (and the native raw entries) to
+    nothing -- so ffi_prep_raw_closure_loc is absent from the wasm library.
+    closure_raw.c referenced it unconditionally under only #if FFI_CLOSURES, so
+    every wasm target failed to link:
+    
+      wasm-ld: error: undefined symbol: ffi_prep_raw_closure_loc
+    
+    Match raw_api.c's own guard: compile the raw-closure test only when
+    FFI_CLOSURES && !FFI_NO_RAW_API, falling back to the no-op main otherwise.
+    ffitest.h already includes fficonfig.h, so FFI_NO_RAW_API is visible to the
+    test.  No change on targets where the raw API is enabled.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 997aee20b30d93c4526473d66fec6a37168f550a
+Merge: 4098fd38 7632e27b
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Nov 14 00:41:50 2026 -0500
+
+    Merge pull request #1077 from libffi/ci/green-android-macos
+    
+    ci: xfail x86_64 Android ld-struct return; drop dead macos-14 runner
+
+commit 7632e27b5894c78b0511a4aef8ef0cf0c325880c
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 22:06:45 2026 -0500
+
+    ci: xfail x86_64 Android ld-struct return; drop dead macos-14 runner
+    
+    Two independent CI-green fixes:
+    
+    testsuite: cls_struct_ld_return.c fails only on x86_64-pc-linux-android
+    (NDK clang, static, run natively), while x86_64-pc-linux-gnu passes the
+    identical test.  The generic x86-64 struct-return path is therefore sound;
+    the Android-specific divergence (possibly a binary128 vs 80-bit long double
+    difference feeding classify_argument) is unconfirmed and can't be reproduced
+    without the NDK.  xfail it on x86_64-*-linux-android* and track the real fix
+    in libffi #1076 rather than guess at ffi64.c and risk the cases that pass.
+    
+    build.yml: the macos-14 runners (both compiler jobs and the Rosetta job that
+    pins macos-14) have been lost on every recent run -- scheduled, then killed
+    ~2 min in with no steps, conclusion "cancelled" -- while macos-15 runs fine.
+    Drop macos-14 from the matrix and move the Rosetta x86_64 job to macos-15,
+    which is also Apple Silicon and supports Rosetta 2, so x86_64 macOS coverage
+    is preserved.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 4098fd38a167f492e0f9c774298f6754c8ec20d1
+Merge: 89a976d5 24c817af
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 19:38:54 2026 -0500
+
+    Merge pull request #1075 from libffi/ci/green-android-win32
+    
+    CI: make dist PDF best-effort (Android) and xfail closure_raw on i686 MSVC
+
+commit 24c817af9aac5e1fb286ce7219d2e08ffd38c113
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 19:38:36 2026 -0500
+
+    testsuite: xfail closure_raw on i686 MSVC (libffi #1074)
+    
+    The raw-API closure test passes everywhere except 32-bit MSVC
+    (i686-pc-cygwin), where it compiles but fails at execution in the i386
+    native raw-closure path.  It passes on Windows 64-bit gcc/clang and all
+    Linux/macOS targets, and the GHSA-w6j9 change there is static-trampoline
+    gated (off on Windows), so this is a pre-existing gap the new test
+    exposed.  xfail it on i686-pc-cygwin, tracked by issue #1074.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 9967918609a581dad639b388e03b6d5679e7340b
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 19:38:36 2026 -0500
+
+    build: make the dist-hook PDF manual truly best-effort
+    
+    The previous guard checked for texi2pdf, but texi2pdf ships with texinfo
+    even when no TeX engine is installed (e.g. the Android CI container), so
+    'make pdf' still ran texi2dvi --pdf and failed 'make dist'.  Attempt the
+    PDF build and copy, and if any part fails, skip it with a message; the
+    .info manual is still shipped and release builds (with texlive) still get
+    the PDF.  Verified: 'make dist' with the TeX engine forced to fail still
+    succeeds.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 89a976d5b37fb16fc7881d5a0b9d4138418bd221
+Merge: 48d7a47e d9208dee
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 19:06:30 2026 -0500
+
+    Merge pull request #1073 from libffi/ci/fix-ci-regressions
+    
+    CI: fix regressions from new tests + complete the dist-hook docs guard
+
+commit d9208dee3bd27888e23512327820c1e869413cb4
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 18:19:50 2026 -0500
+
+    testsuite: xfail more mips N64 complex/fp-return tests (libffi #1071)
+    
+    The full matrix surfaced two more failures in the same mips N64 ABI
+    cluster: complex_regs_double fails on little-endian (it passes on
+    big-endian hardware), and cls_struct_ld_return (long-double struct return)
+    fails at -O2.  xfail both on mips64*-*-* alongside the others, tracked by
+    issue #1071.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit ecb977826207ce0ebf99272c2be2d34da8216dfd
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 18:19:50 2026 -0500
+
+    build: only build the PDF manual in dist-hook when texi2pdf is present
+    
+    The dist-hook BUILD_DOCS guard still ran 'make pdf' whenever makeinfo was
+    available, so environments with texinfo but no TeX (e.g. the Android CI
+    container) failed 'make dist' at the PDF step.  Build and copy the PDF
+    only when texi2pdf exists; the .info manual is still shipped, and release
+    builds (which install texlive) still get the PDF.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit b81760d079fb5ba84c70965eaf6b82de2d8a4fe4
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 18:19:50 2026 -0500
+
+    testsuite: fix closure_raw user_data cast for LLP64 (Windows)
+    
+    closure_raw.c read its void* user_data back as (long), which truncates a
+    64-bit pointer on LLP64 (Windows x64), tripping -Wall as an excess error
+    and failing the test's compile on the mingw/MSVC CI jobs.  Use intptr_t.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 48d7a47ef94a9b229f7591b6aadd31542556b3f5
+Merge: 693dcbac e431830b
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 16:15:36 2026 -0500
+
+    Merge pull request #1072 from libffi/readme-changelog-consolidate
+    
+    README: complete and consolidate the TBD changelog
+
+commit 693dcbac9f1eb63c68e13fbdec767201b8ec1ff5
+Merge: af169894 1436c4a9
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 16:15:31 2026 -0500
+
+    Merge pull request #1070 from libffi/ci/dist-docs-and-test-portability
+    
+    CI: fix make dist doc build and closure_mmap_failure on Android
+
+commit e431830b996633d67f41dd43db448fa5f364e789
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 16:14:00 2026 -0500
+
+    README: complete and consolidate the TBD changelog for the release
+    
+    Add user-facing changes that had landed since 3.8.0 but were missing from
+    the notes: the x86-64 single-long-double struct return (#1058), the x86-64
+    16-byte vector call-plan upper-half fix, the RISC-V void-call return-buffer
+    fix, the wasm >=2 GiB heap and stack-switching-closure fixes (#1062), the
+    bounded executable-mmap retry (#1055), keeping bundled dlmalloc symbols
+    static, the mips N32/N64 CFI unwinding (#1063), and the build/packaging
+    fixes (--enable-docs, --libdir, CCASFLAGS; #1060).
+    
+    Consolidate the six security fixes under one Security fixes heading with a
+    concise entry each (keeping the GHSA/CWE ids), fold GHSA-vg77 into the
+    aarch64 entry it duplicates, and merge the NetBSD closure-allocation
+    fallback into the page-size-lookup entry.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 1436c4a967441a4fb10be43d98d0fb9dfce60743
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 16:09:31 2026 -0500
+
+    testsuite: xfail mips N64 complex/fp-return tests (libffi #1071)
+    
+    complex_regs_float, complex_regs_longdouble and cls_struct_fp_return fail
+    on mips64 N64 due to real, pre-existing ABI bugs in libffi's N64
+    complex-float/longdouble argument passing and fp-struct returns (confirmed
+    on real mips64 hardware, not a QEMU artifact).  Mark them xfail on
+    mips64*-*-* with a pointer to the tracking issue so CI reflects the known
+    limitation while the ABI fix is developed; they are not whitelisted in
+    rlgl-policy, since the sim is not at fault.
+    
+    See https://github.com/libffi/libffi/issues/1071.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit a5cf1f76582fc8d669c6e8ed5415571068099017
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 15:12:26 2026 -0500
+
+    testsuite: restrict closure_mmap_failure to glibc Linux
+    
+    The test interposes mmap with a defined symbol plus dlsym(RTLD_NEXT,
+    "mmap") and -Wl,--export-dynamic, which is a glibc technique.  Its
+    target guard was x86_64-*-linux*, which also matches x86_64-linux-android,
+    so the Android x86_64 CI job tried to build it and failed to compile
+    ("test for excess errors").  Tighten the guard to x86_64-*-linux-gnu* so
+    it runs on glibc Linux (where it is designed to work and still passes) and
+    is skipped on Android and musl.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 591109062b61d5f8b8bc45253d288ab3445e4280
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 15:09:49 2026 -0500
+
+    build: only build docs in dist-hook when docs are enabled
+    
+    The dist-hook unconditionally ran "cd doc; make pdf", so "make dist"
+    tried to build the PDF (and the .info it depends on) even when configured
+    --disable-docs or when makeinfo/TeX is absent.  That failed the dist step
+    on runners without texinfo/texlive (e.g. the macOS and Android CI jobs:
+    libffi.info Error 127, libffi.pdf Error 1).
+    
+    Guard the doc-building line of dist-hook with the BUILD_DOCS automake
+    conditional, leaving the ChangeLog and README generation unconditional.
+    Verified: with --disable-docs the generated rule comments out the pdf
+    build and "make dist" completes (produces the tarball); with
+    --enable-docs the pdf build still runs.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit af169894df2091141cbf3c2c562f1802decd2b14
+Merge: c19aeb48 2cb14fc0
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 14:45:49 2026 -0500
+
+    Merge pull request #1060 from 7thplanetyt/codex/fix-890-ccasflags
+    
+    configure: keep assembler defaults in sync with final CFLAGS
+
+commit c19aeb480f8fe4c7f0bf1bfcf9d2d6b7bee4e4b9
+Merge: 113cdf63 1c7d90af
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 14:45:44 2026 -0500
+
+    Merge pull request #1063 from vhankala/mips-n32-cfi
+    
+    mips: Use CFI directives in N32/N64 assembly
+
+commit 113cdf6313bce9a1cdb8ed7e8c96e6c60cc169a2
+Merge: f64ed0fa 6a1bdb5d
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 14:45:40 2026 -0500
+
+    Merge pull request #1062 from agriyakhetarpal/wasm-unsigned-heap-index
+    
+    Fix WASM heap view indexing at 2 GiB and above
+
+commit f64ed0faee0fe947c8e47012ec088d3617da072a
+Merge: 5b8dbbd8 a80fe939
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 14:45:35 2026 -0500
+
+    Merge pull request #1058 from shalseth/x86-64-struct-ld-return
+    
+    x86-64: return a struct with one long double member in %st0
+
+commit 5b8dbbd85f5cdaf296ceb1226c9533f51a5e0a22
+Merge: 8da7a153 12e1b740
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 14:30:20 2026 -0500
+
+    Merge pull request #1069 from libffi/fix/ghsa-w6j9-raw-closure
+    
+    Fix raw-API closures under static trampolines (GHSA-w6j9-w53f-2857)
+
+commit 12e1b740ebe7861a9d0a7dc23003e3498645e8f2
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 14:28:11 2026 -0500
+
+    x86: support static trampolines in the i386 native raw closure path
+    
+    ffi_prep_raw_closure_loc for the i386 native raw API wrote a dynamic
+    trampoline straight into closure->tramp with no ffi_tramp_is_present()
+    guard, unlike ffi_prep_closure_loc.  With FFI_EXEC_STATIC_TRAMP (the
+    default) that write lands on the ftramp pointer ffi_closure_alloc stored
+    at offset 0, so ffi_closure_free later calls ffi_tramp_free() on a
+    corrupted pointer; and the static trampoline returned in *code was never
+    given its parameters, so invoking the closure jumped through an unset
+    (NULL or stale) slot.  The documented ffi_closure_alloc +
+    ffi_prep_raw_closure_loc pattern therefore crashed (GHSA-w6j9-w53f-2857
+    part B).
+    
+    Mirror ffi_prep_closure_loc: when a static trampoline is present, set its
+    parameters (via the closure's ftramp, read through ffi_closure as
+    ffi_closure_alloc does) and point it at new _alt entry points instead of
+    writing the dynamic trampoline.  Add ffi_closure_raw_SYSV_alt and
+    ffi_closure_raw_THISCALL_alt, which load the closure pointer the static
+    trampoline passes into %eax and fall through to the normal bodies, just
+    like ffi_closure_i386_alt.  No struct layout changes.
+    
+    Verified on real i386 (GCC compile farm, cfarm26, native i686): the
+    raw-closure test crashed before and passes after, and the call and
+    closure suites pass (1472).  This completes GHSA-w6j9-w53f-2857 together
+    with the generic-path fix; the closure_raw.c test now exercises both the
+    generic (x86-64) and native (i386) raw closure paths.
+    
+    Advisory: GHSA-w6j9-w53f-2857
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 8f13de89965408bd1186c873ec87ad8f0a9170af
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 14:11:13 2026 -0500
+
+    raw API: pass the closure, not codeloc, as the translate-args user_data
+    
+    ffi_prep_raw_closure_loc and ffi_prep_java_raw_closure_loc installed their
+    generic trampoline handler (ffi_translate_args / ffi_java_translate_args)
+    with codeloc as both the user_data and the code location. The handler then
+    cast that user_data back to the ffi_raw_closure and read cl->fun and
+    cl->user_data from it.
+    
+    That worked only because, before static trampolines, codeloc aliased the
+    closure's own data. With FFI_EXEC_STATIC_TRAMP (the default on Linux)
+    codeloc points into the read-only trampoline code table instead, so the
+    handler read cl->fun from unrelated memory and made a wild indirect call.
+    The documented ffi_closure_alloc + ffi_prep_raw_closure_loc pattern
+    therefore crashed.
+    
+    Pass the closure itself as the user_data so the handler always reads the
+    real cl->fun/cl->user_data, regardless of where the code lives.
+    
+    Add testsuite/libffi.call/closure_raw.c, the first test to exercise
+    ffi_prep_raw_closure_loc; verified on x86-64 (static trampolines on) that
+    the documented pattern crashed before and returns the correct value after.
+    
+    This is part A of GHSA-w6j9-w53f-2857. Part B (the i386 native raw API not
+    checking ffi_tramp_is_present) is handled separately where it can be run on
+    a 32-bit target.
+    
+    Reported-by: karimabisaad (https://github.com/karimabisaad)
+    Advisory: GHSA-w6j9-w53f-2857
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 8da7a153ff8e5a10b9c1e57b186fd31ae8c01c51
+Merge: 748934db d544f904
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 14:07:10 2026 -0500
+
+    Merge pull request #1068 from libffi/fix/ghsa-wf8m-s390x-int128
+    
+    s390x: pass 128-bit integer arguments to closures by reference (GHSA-wf8m-qr3x-cch4)
+
+commit d544f90452eac771560e6c1032acd25f586e216a
+Merge: cdc4a549 748934db
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 14:07:03 2026 -0500
+
+    Merge remote-tracking branch 'origin/master' into wf8m-merge
+    
+    # Conflicts:
+    #       README.md
+
+commit 748934dbfa1c99da2f1d1839c97cf22f05ebafab
+Merge: 39fd231e 6383099a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 14:06:38 2026 -0500
+
+    Merge pull request #1067 from libffi/fix/ghsa-h52h-aarch64-abi
+    
+    aarch64: fix large-struct pointer offset and HFA/HVA detection (GHSA-h52h-3759-xqm4)
+
+commit 6383099aae8ed4cfc314430a22315e261acafd5c
+Merge: fa9a7093 39fd231e
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 14:06:32 2026 -0500
+
+    Merge remote-tracking branch 'origin/master' into h52h-merge
+    
+    # Conflicts:
+    #       README.md
+
+commit 39fd231e4b54d1519143da4eadbf33ff786ddaa9
+Merge: 70a894ae ee3d6126
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 14:04:39 2026 -0500
+
+    Merge pull request #1066 from libffi/fix/ghsa-fq46-69xf-x5gf-tramp-path
+    
+    Harden static-trampoline code-table lookup against path attacks (GHSA-fq46-69xf-x5gf)
+
+commit cdc4a549fe7305cb6956f17b7f57db3dc7c8e2f5
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 13:56:36 2026 -0500
+
+    s390x: pass 128-bit integer arguments to closures by reference
+    
+    The s390x call path passes __int128 (and complex and long double) by
+    reference: one GPR slot holds a pointer to the value.  The closure helper
+    ffi_closure_helper_SYSV handled complex and long double this way but had
+    no SINT128/UINT128 case, so those fell into the switch default
+    (FFI_ASSERT(0), a no-op in release builds).  The avalue[] entry for the
+    argument was left uninitialised, so the handler received a stale stack
+    pointer and dereferenced it (a 16-byte out-of-bounds read); and because
+    no GPR slot was consumed, every following argument was decoded from a
+    shifted slot.
+    
+    Group SINT128/UINT128 with COMPLEX in the by-reference handling, so one
+    GPR slot is consumed and the pointer is dereferenced into avalue[],
+    mirroring the call side.
+    
+    Add a closures regression test (closure_int128.c) that passes a 128-bit
+    integer, and an argument after it, through a closure.  Verified on s390x
+    (GCC compile farm): before the fix the handler returned a garbage value,
+    after it returns the correct one, and the call/closure/complex suites
+    pass (1088).
+    
+    Reported-by: zerovulnlabs (https://github.com/zerovulnlabs)
+    Advisory: GHSA-wf8m-qr3x-cch4
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit fa9a709309d8961b43dea0bdb3bb144ff9428ca5
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 13:39:00 2026 -0500
+
+    aarch64: fix homogeneous-aggregate detection (HFA/HVA)
+    
+    is_vfp_type decided whether an aggregate is a homogeneous floating-point
+    or vector aggregate using helpers that were too strict in one way and
+    not recursive enough in another:
+    
+      * It required every vector lane in an HVA to have the same scalar type.
+        AAPCS64 (and GCC and Clang) treat two short vectors as the same
+        fundamental type when they are the same size; the lane type does not
+        matter.  So { float32x4_t, int32x4_t } was rejected and sent down the
+        >16-byte memory path, while a native callee passed/returned it in
+        q0/q1.  As a closure return that meant the handler wrote through a
+        stale x8; as an argument it shifted every later argument by a
+        register.
+    
+      * The vector-width and lane checks ran only on the outermost members
+        and is_simd() looked only at the first nested aggregate, so a nested
+        aggregate that mixes a vector with scalars (e.g.
+        struct { struct { float32x4_t v; float a,b,c,d; }; }) was wrongly
+        accepted as a two-register HVA and passed in v0/v1, where both
+        compilers pass it by reference in x0.
+    
+    Replace is_hfa0/is_simd/is_hfa1 with a single recursive hfa_flatten()
+    that flattens the aggregate and requires every leaf to share one
+    fundamental type -- a floating-point scalar, or a short vector matched by
+    size (lane type ignored) -- with 1 to 4 leaves.  The AARCH64_RET_*
+    encoding is unchanged.
+    
+    Verified on aarch64 (cfarm185) against native GCC callees: the two
+    mismatching cases now agree with the native ABI, and the full testsuite
+    passes (1788).
+    
+    Reported-by: karimabisaad (https://github.com/karimabisaad)
+    Advisory: GHSA-h52h-3759-xqm4
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit da4db395c00c77e3615f44554fb44bb986dbc592
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 13:25:15 2026 -0500
+
+    aarch64: place spilled large-struct pointer at an 8-byte-aligned slot
+    
+    When ffi_call passes a non-HFA composite larger than 16 bytes by value,
+    AAPCS64 B.4 replaces it with a pointer that occupies a plain 8-byte,
+    8-aligned stack slot.  ffi_call_int copied the payload and jumped to
+    do_pointer with the pointer in hand, but left `ty' pointing at the
+    composite, so allocate_to_stack used the composite's alignment (16, or 4
+    on Darwin) for the pointer slot instead of 8.
+    
+    With the x registers exhausted and NSAA not 16-aligned (for example nine
+    sint64 arguments followed by a 32-byte, 16-aligned struct), the pointer
+    was written 8 bytes higher than where the callee reads it.  libffi's own
+    closure path uses sizeof(void*) for the same slot, so ffi_call and
+    closures disagreed even without any compiler involved; the callee
+    dereferenced uninitialised stack as the struct address.
+    
+    Re-point `ty' at ffi_type_pointer before the jump so the slot is aligned
+    by 8.  Confirmed on aarch64 (cfarm185): a native GCC callee taking nine
+    int64s and a 32-byte struct crashed before and returns the correct value
+    after; the call and closure suites pass (954).
+    
+    Reported-by: karimabisaad (https://github.com/karimabisaad)
+    Advisory: GHSA-h52h-3759-xqm4
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit ee3d61264a180953293914aedb37c520f1253a1f
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 13:11:24 2026 -0500
+
+    Harden static-trampoline code-table lookup against path attacks
+    
+    On Linux, ffi_tramp_get_libffi() located the file backing the static
+    trampoline code table by parsing /proc/self/maps, then reopened the path
+    it read and mapped it PROT_READ | PROT_EXEC.  Two problems let that file
+    be attacker-controlled:
+    
+      1. The path was read with sscanf("%s"), which stops at the first
+         whitespace.  /proc/self/maps does not escape spaces in the name
+         field, so a libffi or executable path containing a space was
+         truncated and libffi opened the truncated path.
+      2. The parsed device and inode were never used, so nothing checked
+         that the reopened file was the one the mapping was backed by.  The
+         path could be replaced or symlinked between the read and the open.
+    
+    Either way the bytes of an attacker-supplied file could become the
+    executable trampoline code table, and every closure allocated from it
+    would run attacker code (GHSA-fq46-69xf-x5gf, CWE-59/CWE-367/CWE-706).
+    
+    Read the whole path (the rest of the maps line, which keeps embedded
+    spaces) rather than a whitespace-delimited token, and after opening it
+    fstat the descriptor and require its inode to match the mapping's inode,
+    falling back to the temp-file trampoline otherwise.  Only the inode is
+    compared: the /proc/self/maps device field does not equal stat(2)'s
+    st_dev on btrfs, overlayfs and some other filesystems, so comparing
+    st_dev would reject the real file there (and /proc/self/map_files, which
+    would avoid the path entirely, is capability-gated and returns EPERM for
+    a process's own mappings on common kernels).
+    
+    Verified on x86-64: a closure built under a path containing a space now
+    opens the full path and runs correctly while ignoring a file planted at
+    the truncated path; the libffi.closures suite still passes (610).
+    
+    Reported-by: zerovulnlabs (https://github.com/zerovulnlabs)
+    Advisory: GHSA-fq46-69xf-x5gf
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 70a894ae395756653d08f65e411220fd3ee61efc
+Merge: dc84815c 7b13cee9
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 12:33:12 2026 -0500
+
+    Merge pull request #1065 from libffi/fix/ghsa-23hx-9rxv-9qfp-trampoline-uaf
+    
+    Fix heap use-after-free in Darwin trampoline-table closure allocator (GHSA-23hx-9rxv-9qfp)
+
+commit 7b13cee9c321d58d1f2226c49190c04eec4c7aac
+Merge: 13888a72 dc84815c
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 12:33:00 2026 -0500
+
+    Merge remote-tracking branch 'origin/master' into fix/ghsa-23hx-9rxv-9qfp-trampoline-uaf
+    
+    # Conflicts:
+    #       README.md
+
+commit dc84815c9177de730d27d7ed87486cc42566859d
+Merge: d02afc25 d06f515a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 12:32:27 2026 -0500
+
+    Merge pull request #1064 from libffi/fix/ghsa-5pc3-hr6f-q3mm-vector-abi
+    
+    Reject x86-64 vector types with an undefined calling convention (GHSA-5pc3-hr6f-q3mm)
+
+commit d06f515abea2964969d720ac7ded3eb475bc4476
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Nov 13 12:15:49 2026 -0500
+
+    Reject x86-64 vector types with an undefined calling convention
+    
+    On x86-64 System V the psABI only defines how 8- and 16-byte vectors
+    (the __m64/__m128 shapes) are passed and returned.  Narrower vectors and
+    the single-element <1 x double> are unspecified, and GCC and Clang
+    disagree on them: for <1 x double> GCC uses memory/sret while Clang uses
+    %xmm0, and for <1 x float> GCC uses memory while Clang returns it in an
+    integer register.
+    
+    ffi_prep_cif_machdep classified every 8-byte vector as SSE, so for
+    <1 x double> f(long x) against a GCC-built target libffi passed no sret
+    pointer and left x in %rdi; the callee then stored its result through
+    %rdi -- i.e. through the caller's integer argument, an attacker-
+    influenced out-of-bounds write (CWE-843 type confusion -> CWE-787).
+    
+    libffi cannot tell which compiler built the target, and the two
+    conventions genuinely diverge, so there is no classification that is
+    correct for both.  Reject the undefined shapes instead: a type that is,
+    or recursively contains, a vector is now FFI_BAD_TYPEDEF unless the
+    vector is 16 bytes, or 8 bytes and not <1 x double> -- the shapes both
+    compilers agree on and this port implements.  Multi-lane 8- and 16-byte
+    vectors keep working.
+    
+    Add a vector regression test asserting FFI_BAD_TYPEDEF for the undefined
+    shapes (including a struct that contains one) and FFI_OK for the agreed
+    ones, and note the change in the README history.
+    
+    Reported-by: karimabisaad (https://github.com/karimabisaad)
+    Advisory: GHSA-5pc3-hr6f-q3mm
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 13888a72978e222cfedcaa376c0bdd5ad88365c4
+Author: Anthony Green <green@moxielogic.com>
+Date:   Thu Nov 12 08:46:02 2026 -0500
+
+    Fix heap use-after-free in Darwin trampoline-table closure allocator
+    
+    ffi_closure_free() bumped a non-head trampoline table to the front of
+    ffi_trampoline_tables without first unlinking it from its old position.
+    The old neighbours kept pointing at the moved table, turning the
+    doubly-linked list into a cycle with stale prev/next links.  A later
+    ffi_trampoline_table_free() then unlinked through those stale links,
+    writing a pointer into freed heap memory (CWE-416), and called
+    vm_deallocate() from inside a corrupted list.
+    
+    This affects only the FFI_EXEC_TRAMPOLINE_TABLE + __MACH__ allocator
+    (aarch64-apple-* and *arm*-apple-*, where it is the default) once a
+    process spans more than one trampoline table, i.e. more than 1024 live
+    closures.  The trigger is an ordinary sequence of ffi_closure_alloc and
+    ffi_closure_free calls, so script-driven FFI runtimes that create
+    callbacks dynamically can reach it.
+    
+    Fix it by unlinking the table from its current position before pushing
+    it to the head of the list.  Add a closures regression test that churns
+    many live closures across several trampoline tables, and note the fix
+    in the README history.
+    
+    Reported-by: karimabisaad (https://github.com/karimabisaad)
+    Advisory: GHSA-23hx-9rxv-9qfp
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+commit 6a1bdb5d0ad16dc66169b23cf94ef1c4458650f5
+Author: Agriya Khetarpal <74401230+agriyakhetarpal@users.noreply.github.com>
+Date:   Thu Nov 12 14:31:08 2026 +0530
+
+    Fix WASM heap view indexing at 2 GiB and above
+
+commit 1c7d90afa7524085764ab5177f1f5cff0befdbb8
+Author: Visa Hankala <visa@hankala.org>
+Date:   Tue Nov 10 15:23:41 2026 +0000
+
+    mips: Use CFI directives in N32/N64 assembly
+    
+    Use CFI directives in N32/N64 assembly when the assembler
+    supports them.
+    
+    This fixes build on OpenBSD/mips64 with LLVM LLD. The manually
+    constructed .eh_frame generates R_MIPS_64 relocations against local
+    symbols that LLD does not handle. With CFI directives the assembler
+    produces PC-relative relocations that LLD accepts.
+
+commit 2cb14fc08a7c74ec4114ef5d0086c0862f495d47
+Author: 7thplanetyt <221369153+7thplanetyt@users.noreply.github.com>
+Date:   Fri Nov 6 21:33:18 2026 -0600
+
+    configure: keep assembler defaults in sync with final CFLAGS
+    
+    Supply a make-time CFLAGS default before AM_PROG_AS when CCASFLAGS is unset.
+    Preserve explicit environment and configure-argument values, including empty
+    ones. Add six configure regression cases and one native Linux CI step.
+    
+    Implements Peter Bergner's late-bound default suggestion from issue #890.
+    Prepared and independently reviewed with Codex AI assistance.
+
+commit a80fe93964cc67bdcf1cd7b82ce6205d44fb6311
+Author: Stian Halseth <stian@itx.no>
+Date:   Fri Nov 6 12:14:36 2026 +0100
+
+    x86-64: return a struct with one long double member in %st0
+    
+    The psABI classifies a struct whose only member is an x87 long double
+    as X87/X87UP, and returns it in %st0 like a plain long double.
+    ffi_prep_cif_machdep() sent it down the RAX/RDX struct path instead.
+    ffi_call() then stores garbage, and leaves the callee's value on the
+    x87 register stack, so after a few calls later long double arithmetic
+    in the caller gives NaN. A closure returning such a struct leaves %st0
+    empty, and its caller reads NaN.
+    
+    Add cls_struct_ld_return to check the return through ffi_call and a
+    closure.
+    
+    Signed-off-by: Stian Halseth <stian@itx.no>
+
+commit d02afc25e8ea3aac9e78e227748e1fd7c9f14c82
+Merge: 5f667d18 e71a504b
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Oct 28 14:49:52 2026 -0400
+
+    Merge pull request #1055 from libffi/fix/issue-1032-bounded-dlmmap
+    
+    Fix unbounded executable mmap retries
+
+commit e71a504b6448b32e0afeff75126a6f26407f3811
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Oct 28 12:52:02 2026 -0400
+
+    Fix unbounded executable mmap retries
+
+commit 5f667d1863b3b4473972b8c75dfcf8abc1c200a6
+Merge: eb894dff a5ddf9f8
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Oct 28 10:27:06 2026 -0400
+
+    Merge pull request #1054 from libffi/codex/pr-1028-rebased
+    
+    configure: honor explicit --enable-docs
+
+commit a5ddf9f8e3583eb60a54bebae42b3b758e130ab9
+Author: fhgffy <102001626+fhgffy@users.noreply.github.com>
+Date:   Tue Oct 6 07:12:33 2026 +0800
+
+    configure: honor explicit --enable-docs
+    
+    Preserve Autoconf's parsed docs value instead of unconditionally disabling
+    documentation whenever either option polarity is supplied. Add a five-case
+    configuration regression and run it in the native Linux CI job.
+
+commit eb894dff6927f92cd47011c9a18326745ec86b94
+Merge: 595c3930 fc0cd5d2
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Oct 28 09:55:18 2026 -0400
+
+    Merge pull request #1031 from dannf/dlmalloc-static-decls
+    
+    closures: keep the dlmalloc 2.8.6 additions static
+
+commit 595c3930a3d6f72d4d5ae2ed85390dab17e7f1d1
+Merge: a8c5a70e 1ae71737
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Oct 28 09:49:28 2026 -0400
+
+    Merge pull request #1027 from NotAFlightRisk/plan-vector-upper-half
+    
+    x86-64: copy the upper half of 16-byte vector arguments in call plans
+
+commit a8c5a70e18288a36a9119b74f59456fcf86c6bca
+Merge: daec8db4 5fdd801e
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Oct 28 08:59:44 2026 -0400
+
+    Merge pull request #1026 from HNO3Miracle/fix/riscv-void-return
+    
+    riscv: ignore return buffer for void calls
+
+commit daec8db406d7dec17b72008f7450a88d8109afe5
+Merge: c38051bf e1aac2a7
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Oct 28 07:54:08 2026 -0400
+
+    Merge pull request #1045 from mohd-akram/fix-x64-cfi
+    
+    x86-64: fix build with missing CFI
+
+commit c38051bf796c1ad7948db75dd2a55f3a78b78a8c
+Merge: a6d36760 d8127bda
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Oct 28 07:41:37 2026 -0400
+
+    Merge pull request #1044 from libffi/fix-pr1022-complete
+    
+    configure: respect every explicit libdir spelling
+
+commit a6d367602ad2552ac58f4a840932ebbd8c76f151
+Merge: 61a20c6c 0762e0da
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Oct 28 07:17:07 2026 -0400
+
+    Merge pull request #1053 from libffi/fix-mips64-complex-abi
+    
+    mips: bound small complex return stores
+
+commit 0762e0daeea915d1890c93c2dde69efc85ee2c2f
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Oct 28 07:14:59 2026 -0400
+
+    mips: bound small complex return stores
+    
+    The N32/N64 assembly writes complex GPR returns in 8-byte chunks. Bounce values smaller than 16 bytes through an aligned temporary buffer so callers' result objects are not overrun, and account for big-endian right justification. Do the matching right justification for closure returns smaller than one register.\n\nReported-by: Daniel Golle <daniel@makrotopia.org>
+
+commit 61a20c6c9ad62a3650921b811e82ac87e3652340
+Merge: 871815cb 8a1db735
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Oct 28 06:43:31 2026 -0400
+
+    Merge pull request #1052 from libffi/fix-mips-o32-complex-reg-exhaustion
+    
+    mips: fix O32 complex call and closure returns
+
+commit 8a1db7350d1037671747fbf135204c8976fb60fd
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Oct 28 06:23:32 2026 -0400
+
+    mips: fix O32 complex call and closure returns
+    
+    Handle all integer-complex sizes in the O32 call path and return soft-float complex values through the ABI-defined GPR set. Restore hard-float closure results from the FP save area, preserve the argument flags, and pass the complex result size back to assembly explicitly.
+    
+    Reported-by: Daniel Golle <daniel@makrotopia.org>
+
+commit 871815cbc2553e6871a1d51b2e8abebf2f75cd9a
+Merge: 83944b00 94eb0e5b
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 21:45:43 2026 -0400
+
+    Merge pull request #1051 from libffi/fix-qemu-binfmt-comment
+    
+    ci: name the QEMU binfmt package correctly
+
+commit 94eb0e5b8cf5d7671e31391fb32cd227e67cab97
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 21:42:01 2026 -0400
+
+    ci: name the QEMU binfmt package correctly
+
+commit 83944b006a6bda260bbe24e4013851168aba5b2b
+Merge: fc345b31 3365ad8b
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 21:20:00 2026 -0400
+
+    Merge pull request #1050 from libffi/fix-aarch64-darwin-stack-slots
+    
+    aarch64: fix small composite stack slots on Darwin
+
+commit 3365ad8b968a9b742922b6f1188462fe6ce142ec
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 20:44:21 2026 -0400
+
+    aarch64: match Darwin stack slots to compiler ABI
+
+commit 8c8b07941c73f23eb2c87023d9b9add2ec174708
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Tue Oct 27 17:25:24 2026 +0000
+
+    testsuite: check a small struct passed on the stack
+    
+    A struct smaller than a register that goes to the stack once the
+    argument registers are exhausted, followed by another scalar, checks
+    that the struct occupies the slot the ABI assigns and that the argument
+    behind it is found at the right offset.  Nothing in the testsuite passes
+    a struct in that position through ffi_call; complex_int_small covers the
+    complex counterpart.
+    
+    Add struct_stack_small, which passes eight ints, a struct of two chars
+    and a short through ffi_call and a closure.
+    
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit 2472245a3430b9d24f085b7654e896e074bceb82
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Tue Oct 27 17:25:24 2026 +0000
+
+    aarch64: give small composites full stack slots on Darwin
+    
+    Darwin packs scalar arguments on the stack to their natural alignment,
+    and libffi applies the same rule to composites of up to 16 bytes that
+    are not HFAs.  Apple's compilers coerce such composites, structs and
+    complex types alike, to an array of register-sized words, so each takes
+    a pointer-aligned slot whose size is a multiple of the pointer size.  A
+    struct of two chars or a _Complex char after the eighth integer
+    argument therefore lands at the wrong offset, as does every argument
+    behind it, in ffi_call and in closures (cf. issue #750).
+    
+    Round the alignment and the occupied size of such a composite up to the
+    pointer size on Apple targets.  The generic cif->bytes accounting
+    already reserves a full slot per argument, so the stack frame stays
+    large enough.
+    
+    Fixes: 4330fdcd92e6 ("Darwin/aarch64: Respect iOS ABI re: stack argument alignment")
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit fc345b3124c9a0d9024cad6a12b4cd9e184eaa05
+Merge: 2e9e98b9 8c9efed8
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 20:17:57 2026 -0400
+
+    Merge pull request #1049 from libffi/fix-sparc64-small-complex-abi
+    
+    sparc64: fix small integer complex ABI handling
+
+commit 8c9efed896188e360e1ba8ae1fb41b590cb8979e
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 15:48:42 2026 -0400
+
+    sparc64: fix small integer complex ABI handling
+
+commit 2e9e98b9c9300881b43580f7877c038f7b0aa746
+Merge: 4d78f2dc 22f21a37
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 18:58:25 2026 -0400
+
+    Merge pull request #1046 from libffi/fix-ci-cross-qemu-provisioning
+    
+    ci: fix QEMU package provisioning on Ubuntu 26.04
+
+commit 22f21a378930791a977ee312ed154feab6690953
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 14:30:52 2026 -0400
+
+    ci: keep MIPS64EL cross build on Ubuntu 24.04
+
+commit dadb494441d4d5fc4ea12ec3e8389c8822226317
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 14:11:52 2026 -0400
+
+    ci: fix qemu package provisioning on Ubuntu 26.04
+
+commit e1aac2a712e30164970d9e7b61c7b36ade9e9ff1
+Author: Mohamed Akram <mohd.akram@outlook.com>
+Date:   Tue Oct 27 19:13:52 2026 +0400
+
+    x86-64: fix build with missing CFI
+
+commit d8127bda2811496d5606c56c5ea73b3c2e695fc1
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 11:00:34 2026 -0400
+
+    configure: respect every explicit libdir spelling
+    
+    Detect all libdir option forms accepted by Autoconf before applying GCC's multi-OS directory adjustment. Add configure-level coverage for full, abbreviated, single-dash, equals, and separate-value forms.
+    
+    Co-authored-by: huangwenbin <huangwenbin@kylinos.cn>
+
+commit 4d78f2dc2e6b67b52f59a99391f25c80158543dd
+Merge: 8a59aed1 4106e56a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 10:34:01 2026 -0400
+
+    Merge pull request #1025 from hilbert149/handle_sysconf_failure
+    
+    NetBSD: handle sysconf failure in ffi_closure_alloc
+
+commit 8a59aed1127bf8228e3098f5419068e30c1e13ec
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 08:39:45 2026 -0400
+
+    README: note cross-architecture ABI improvements
+
+commit db3c27ff7567c7caf591e9843bb895ddaf68e475
+Merge: 9c143241 807644a1
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 08:20:07 2026 -0400
+
+    Merge pull request #1033 from dangowrt/arm-complex
+    
+    arm: fix struct return argument space and small complex values
+
+commit 807644a16854a435bedba7a1b15bdd7c4c2e9655
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Wed Oct 21 01:24:08 2026 +0000
+
+    arm: pass sub-word complex arguments to big-endian closures in place
+    
+    On big-endian ARM, an integer argument narrower than 4 bytes is in the
+    low-order end of its register or stack slot, at offset 4 - size, which
+    the closure argument code now takes into account for everything except
+    structs.  Complex values are composite types like structs, though, and
+    are passed as if loaded from memory with LDR, at offset 0: GCC passes a
+    _Complex char in the upper half of r0.
+    
+    Exclude complex types from the adjustment as well.
+    
+    complex_int_small failed on ixp4xx (xscale, big-endian) under qemu-user
+    when a closure read a _Complex signed char argument.
+    
+    Fixes: 2b53369681cc ("arm: fix big-endian sub-word argument offsets in closures")
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit ca494a1fc657acdaf4945e4a7dde7adf1e7ac535
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Wed Oct 21 01:24:00 2026 +0000
+
+    arm: lay out the arguments behind the hidden struct return pointer
+    
+    A function that returns a struct or complex value of more than 4 bytes
+    takes the address of the return value in r0, ahead of its arguments.
+    ffi_prep_cif_machdep() accounts for that by adding 4 bytes to the
+    argument size computed by ffi_prep_cif_core(), but that size was
+    computed without the pointer.  Moving the arguments up by 4 bytes can
+    add up to 4 bytes of padding in front of the first 8-byte aligned one,
+    which ffi_prep_args_SYSV() then writes past the end of the argument
+    area, into the call frame that follows it.
+    
+    Compute the size again with the pointer in front of the arguments,
+    using the same alignment as ffi_prep_args_SYSV().
+    
+    With soft float, a call returning float _Complex after seven doubles
+    and before an int (complex_regs_float) passed garbage for the int and
+    returned garbage on mxs (arm926ej-s) and ixp4xx (xscale, big-endian)
+    under qemu-user.  The same happens for any struct returned in memory
+    whenever the pointer adds such padding.
+    
+    Fixes: 6fa617dabc3d ("arm: Add argument space for the hidden struct return pointer")
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit 9c1432412bcb6777f4cd74a33f28222cd231cd6a
+Merge: c2042b26 e3640d03
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 08:17:11 2026 -0400
+
+    Merge pull request #1042 from dangowrt/loongarch-complex
+    
+    loongarch: add support for complex types
+
+commit e3640d035f23802b42a4f1d329c9148a07176e95
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Tue Oct 20 22:59:41 2026 +0000
+
+    loongarch: add support for complex types
+    
+    The LoongArch psABI passes a complex floating-point number, and a struct
+    containing just one, as though it were a struct of two floating-point
+    reals.  That is exactly the rule libffi already implements for structs
+    in struct_passed_as_elements(): two floats go in two FPRs if two are
+    free, otherwise the value follows the integer convention, in up to two
+    GPRs or by reference if larger than 2*GRLEN.
+    
+    Flatten an FFI_TYPE_COMPLEX into two elements of its base type, let the
+    float struct handling in marshal(), unmarshal() and passed_by_ref()
+    accept complex types, and define FFI_TARGET_HAS_COMPLEX_TYPE.  Everything
+    else follows from the existing struct code:
+    
+      - float and double _Complex use $f0/$f1 when two FPRs are left, and
+        one or two GPRs otherwise, never one FPR and one GPR;
+      - variadic complex arguments use the integer convention;
+      - long double _Complex (32 bytes) is passed by reference and returned
+        through a hidden pointer;
+      - integer complex types are packed into GPRs like a small struct;
+      - a struct holding a single complex value flattens to the same two
+        reals and is passed the same way.
+    
+    This matches GCC's code generation for lp64d.  On the single-float and
+    soft-float ABIs the parts that are not IS_FLOAT fall back to the integer
+    convention, again as the psABI requires.
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit c2042b260affb0b9dfe6d9ea35221c06551c53e4
+Merge: b8d8667d 53b49e1b
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 08:10:53 2026 -0400
+
+    Merge pull request #1041 from dangowrt/riscv-complex
+    
+    riscv: add support for complex types
+
+commit 53b49e1bb8302fa8e5eb9ccdbe4e0e9823a104ff
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Tue Oct 20 22:57:49 2026 +0000
+
+    riscv: add support for complex types
+    
+    The RISC-V psABI passes a complex floating-point number, and a struct
+    containing just one, as though it were a struct of two floating-point
+    reals.  That is exactly the rule libffi already implements for structs
+    in struct_passed_as_elements(): two floats go in two FPRs if two are
+    free, otherwise the value follows the integer convention, in up to two
+    GPRs or by reference if larger than 2*XLEN.
+    
+    Flatten an FFI_TYPE_COMPLEX into two elements of its base type, let the
+    float struct handling in marshal(), unmarshal() and passed_by_ref()
+    accept complex types, and define FFI_TARGET_HAS_COMPLEX_TYPE.  Everything
+    else follows from the existing struct code:
+    
+      - float and double _Complex use fa0/fa1 when two FPRs are left, and
+        one or two GPRs otherwise, never one FPR and one GPR;
+      - variadic complex arguments use the integer convention;
+      - long double _Complex (32 bytes) is passed by reference and returned
+        through a hidden pointer;
+      - integer complex types are packed into GPRs like a small struct;
+      - a struct holding a single complex value flattens to the same two
+        reals and is passed the same way.
+    
+    This matches GCC's code generation for lp64d.  On FLEN=32 and soft-float
+    ABIs the double and soft-float parts are not IS_FLOAT and fall back to the
+    integer convention, again as the psABI requires.
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit b8d8667d7284a92aa6cf1a384e2f863c759ada26
+Merge: b271ecd9 abec7eac
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 08:01:13 2026 -0400
+
+    Merge pull request #1037 from dangowrt/mips-n64-soft-fp-structs
+    
+    mips: fix N32/N64 soft-float returns of floating-point structs
+
+commit b271ecd9d42ecca232a2e35965857f39a463ff37
+Merge: 89d70eda 0074d8a1
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 07:58:14 2026 -0400
+
+    Merge pull request #1036 from dangowrt/mips-n64-be-closure-ints
+    
+    mips: fix big-endian N32/N64 closure returns of small integers
+
+commit 89d70eda19c9456c25fb380754ec4fb43cf7de2e
+Merge: cca77404 5e9f34d6
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 07:56:35 2026 -0400
+
+    Merge pull request #1034 from dangowrt/powerpc32-complex
+    
+    powerpc: add complex type support for 32-bit SYSV
+
+commit 5e9f34d6e75fb538ae039bd5117b5d6f24ed30e0
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Tue Oct 20 23:08:27 2026 +0000
+
+    powerpc: add complex type support for 32-bit SYSV
+    
+    The 32-bit SYSV ABI passes and returns complex values in GPRs, never in
+    FPRs, even with hard float.  GCC does not split them for this ABI but
+    treats each one as a single item of as many words as it needs, and
+    those items follow the same rules as integers of the same size:
+    
+      - one word (_Complex char and short) like an int, right-justified;
+      - two words (float and int _Complex) like long long: in an even/odd
+        GPR pair (r3:r4, r5:r6, r7:r8, r9:r10), otherwise 8-byte aligned on
+        the stack, and the remaining GPRs count as used;
+      - more words (double and long long _Complex, four words) in
+        consecutive GPRs with no pair alignment if they all fit, otherwise
+        4-byte aligned on the stack, and every later argument goes to the
+        stack too;
+      - returned in r3, r3:r4 or r3-r6.
+    
+    All of these already exist for soft-float long double (FFI_TYPE_UINT128)
+    and long long, so map complex types onto them by size in a new
+    translate_type(), used everywhere translate_float() was.
+    
+    With a 128-bit long double, long double _Complex takes eight words: it
+    goes in r3-r10 when it is the first argument and on the stack otherwise,
+    and is returned in r3-r10.  Handle it as an internal FFI_TYPE_UINT256,
+    passed like FFI_TYPE_UINT128 with eight words, with a new
+    FLAG_RETURNS_256BITS that makes ffi_call_SYSV also store r7-r10, and a
+    PPC32_LD_R3R10 closure return entry.  The closure's return value area
+    is exactly 32 bytes.
+    
+    A _Complex char is returned right-justified in r3, so ffi_call uses the
+    small struct bounce buffer for it and the closure helper shifts it into
+    place.  The ELFv2 handling of that bounce buffer for integer complex
+    types is now limited to powerpc64.
+    
+    ffi_prep_types_sysv() resizes ffi_type_longdouble according to the abi;
+    keep ffi_type_complex_longdouble in step with it, as ffi_linux64.c does.
+    
+    This matches GCC's code generation for 8548 (soft-float) and 464fp
+    (hard-float), with 64-bit long double (musl) and with
+    -mlong-double-128.
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit cca77404fe0571afb049a7a50455f41270915816
+Merge: d857d416 ba994921
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 07:54:52 2026 -0400
+
+    Merge pull request #1043 from dangowrt/powerpc-small-struct-closures
+    
+    powerpc: fix big-endian closure returns of small structs
+
+commit d857d4168da77e7757d6e83b2efa62682ba42059
+Merge: 610e1f00 198b8ef4
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 07:51:28 2026 -0400
+
+    Merge pull request #1039 from dangowrt/x86-complex-small
+    
+    x86: pass complex arguments of up to 4 bytes like structs on i386
+
+commit 610e1f007f2ac2a075b1cec071aad4e67b7474e5
+Merge: bc553867 a68cd578
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 07:47:12 2026 -0400
+
+    Merge pull request #1040 from dangowrt/complex-tests
+    
+    testsuite: complex arguments near register exhaustion, small integer complex
+
+commit abec7eacd17eae31961b0b63c476eb80cab1a5e5
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 07:45:22 2026 -0400
+
+    testsuite: use register-sized struct return storage
+
+commit 198b8ef4c94942166ba747b45ec66619c79e828a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 07:45:22 2026 -0400
+
+    x86: leave complex arguments out of native raw calls
+
+commit a68cd578c6bb42841506719f5f372ebfdebc575f
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Oct 27 07:45:22 2026 -0400
+
+    testsuite: use register-sized complex return storage
+
+commit 0074d8a10c332b61d5d88c3b2bd840490be1ffb9
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Wed Oct 21 01:24:10 2026 +0000
+
+    mips: fix big-endian N32/N64 closure returns of small integers
+    
+    Closures store an integer return value narrower than ffi_arg widened to
+    an ffi_arg, as the documentation requires and the testsuite does.  When
+    the return value handling moved to returning the exact type, the jump
+    table in ffi_closure_N32 started to load these values with lw, lh, lhu,
+    lb or lbu from the start of the ffi_arg, which on big-endian holds the
+    upper bits.  Every closure returning a char, short or int there now
+    returned 0 or garbage.
+    
+    Load them from the end of the ffi_arg on big-endian.  Two values share
+    the 32-bit integer path without being widened by the closure: a float
+    with soft float, and a pointer on N32.  Widen those in
+    ffi_closure_mips_inner_N32() first, as ffi_call() already reads a
+    soft-float float return value from the end of the doubleword.
+    
+    This fixes cls_uchar, cls_sshort, cls_uint, cls_multi_*, closure_fn*,
+    closure_simple, the *_va closure tests and most of
+    libffi.bhaible/test-callback on malta (mips64r2) and octeon (octeon+),
+    both big-endian n64 soft-float, under qemu-user.  N32 is compile-tested
+    only.
+    
+    Fixes: 04f6fa310dde ("mips: Fix N32 ABI return value handling (#813)")
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit ba994921506147dfeb2f38ad4d2874a5bd6e4f09
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Tue Oct 20 23:37:11 2026 +0000
+
+    powerpc: fix big-endian SVR4 closure returns of 1- and 2-byte structs
+    
+    With FFI_SYSV_STRUCT_RET a struct of up to 8 bytes is returned in r3/r4,
+    right-justified if smaller than 4 bytes.  The closure function stores it
+    at the start of the return value area, but closures returning a 1- or
+    2-byte struct use the PPC_LD_U8 and PPC_LD_U16 jump table entries, which
+    on big-endian load from offset 3 and 2, where an integer widened to
+    ffi_arg is.
+    
+    Before the closure return handling moved from assembly to C, these
+    structs were loaded from offset 0.  Add PPC32_SYSV_LD_STRUCT_1 and
+    PPC32_SYSV_LD_STRUCT_2 entries that do so again on big-endian, and alias
+    them to the integer entries on little-endian.  PPC32_SYSV_LD_STRUCT_7
+    now branches to .Lstruct567 instead of falling through into it, so that
+    the new entries follow it in the table.
+    
+    FFI_SYSV_STRUCT_RET is not the default on Linux, so the testsuite does
+    not cover it.  Verified by building cls_1_1byte, cls_2byte and the other
+    small struct closure tests with -msvr4-struct-return -D__SVR4_STRUCT_RETURN
+    for 8548 and 464fp under qemu-user: cls_1_1byte and cls_2byte abort
+    without this change and pass with it, the others pass either way.
+    
+    Fixes: 840add3b6a1c ("Add conditional target support for __int128 (#951)")
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit 4686b25129cb5ee205b28329daa5d4a34ecbb8b1
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Wed Oct 21 01:24:14 2026 +0000
+
+    mips: fix N32/N64 soft-float returns of floating-point structs
+    
+    With soft float, GCC returns a struct of one or two float or double
+    fields with the first field in v0 and the second in a0, each like a
+    scalar of its type, i.e. a float in the low 32 bits.  libffi got this
+    partly wrong:
+    
+      - ffi_call_N32 took the second field of a struct of two floats or of
+        a double and a float from v1; 2e825e219fa0 ("MIPS: fix some N32
+        test failure (#701)") had changed the other two cases to a0.
+      - ffi_closure_N32 had no soft-float struct cases at all and returned
+        these structs like any small struct, as the first 16 bytes of the
+        return value in v0 and v1.  That puts the second field in the wrong
+        register, and on big-endian a single float in the upper half of v0.
+    
+    Store the second field from a0 in ffi_call_N32, and return soft-float
+    structs of one or two floating-point fields from the closure in v0 and
+    a0.  Like the soft-float cases in ffi_call_N32, the new closure cases
+    are outside the hard-float #ifdef, so a library built for hard float
+    also handles cifs for the soft-float ABIs.
+    
+    This fixes cls_struct_fp_return on malta (mips64r2, both endians) and
+    octeon (octeon+), n64 soft-float, under qemu-user, and the remaining
+    failure of libffi.bhaible/test-callback on big-endian, a closure
+    returning struct { float x; }.  This code predates the git history.
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit 63213836c52800a255985a3f222a239020bcbce9
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Wed Oct 21 03:44:34 2026 +0000
+
+    x86: pass complex arguments of up to 4 bytes like structs on i386
+    
+    ffi_call_int() passes an argument of up to 4 bytes that is not a struct
+    as an integer widened by extend_basic_type(), which aborts on anything
+    but the basic integer and float types.  A _Complex char or _Complex
+    short is such an argument, so ffi_call() aborted for them.  GCC passes
+    these values like small structs, as their memory image in a 4-byte
+    stack slot, and ffi_closure_inner() would have taken them from a
+    register with FFI_FASTCALL or FFI_THISCALL.
+    
+    Handle complex types like structs in ffi_call_int(), ffi_closure_inner()
+    and ffi_raw_call().
+    
+    complex_int_small aborted on x86 (pentium4, musl) and passes now.  For
+    FFI_FASTCALL and FFI_THISCALL this follows what libffi does for small
+    structs, which has not been checked against GCC.
+    
+    Fixes: 198f469e9107 ("x86: Add support for Complex")
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit 93ab6af85e78bb98e331692875193145645c58fd
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Tue Oct 20 23:37:11 2026 +0000
+
+    powerpc64: fix big-endian ELFv2 closure returns of 1- to 4-byte structs
+    
+    ELFv2 returns a struct of up to 8 bytes right-justified in r3.  The
+    closure function stores it at the start of the return value area, in
+    its normal memory layout, so on big-endian the closure assembly has to
+    load the struct from offset 0 and shift it right.  That is what
+    PPC64_LD_STRUCT_5/6/7 do, but structs of 1, 2 and 4 bytes use the jump
+    table entries for integer return values, which load from the end of the
+    doubleword where an integer widened to ffi_arg is.  PPC64_LD_STRUCT_3
+    loads from offset 4 and shifts by the contents of r8.
+    
+    The integer entries were introduced for structs when the closure return
+    handling moved from assembly to C, replacing the old shift of the first
+    doubleword by 8 - size bytes.  Restore that behaviour with entries for
+    1-, 2- and 4-byte structs on big-endian, which alias the integer entries
+    on little-endian as before, and make PPC64_LD_STRUCT_3 load and shift
+    the doubleword like the others.
+    
+    This fixes cls_1_1byte, cls_2byte, cls_3_1byte, cls_3byte1, cls_3byte2,
+    cls_4_1byte, cls_4byte, single_entry_structs1 and single_entry_structs3,
+    and the struct-returning callbacks in libffi.bhaible/test-callback, on
+    big-endian ELFv2 (musl powerpc64, e5500 under qemu-user).
+    
+    Fixes: 840add3b6a1c ("Add conditional target support for __int128 (#951)")
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit 463ae02e66f4ea6be45a9e2bb2f646fa3da7d62a
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Wed Oct 21 01:24:14 2026 +0000
+
+    testsuite: check return values of structs with one or two floating-point fields
+    
+    Many ABIs return a struct of one or two float or double fields
+    differently from other small structs, in floating-point registers, or
+    with soft float in other GPRs than an integer struct of the same size.
+    Only a few of these combinations are covered, mostly through ffi_call.
+    
+    Add cls_struct_fp_return, which returns structs of float, double, two
+    floats, two doubles, float and double, and double and float, both
+    through ffi_call and through closures.
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit 6452020c205cb88eca00a1865619e64860da5ed0
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Tue Oct 20 23:48:34 2026 +0000
+
+    testsuite: check integer complex types smaller than a register
+    
+    complex_int.c defines a _Complex unsigned char type but only uses
+    _Complex int, so nothing tests complex values that fit into a single
+    register or stack slot.  Several targets pass and return those
+    differently from the larger complex types, e.g. right-justified within
+    the register.
+    
+    Add complex_int_small, which passes and returns _Complex signed char and
+    _Complex short through ffi_call and through closures, both in registers
+    and, after eight ints, on the stack.
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit dff6b142cef03fbba747344496abeb5941e1fe6b
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Tue Oct 20 22:57:49 2026 +0000
+
+    testsuite: check complex arguments when argument registers run low
+    
+    The complex tests pass at most a few complex values in a row, so they never
+    reach the argument-passing rules that apply once registers start to run
+    out.  Those rules differ from the plain cases on several targets:
+    
+      - On RISC-V and LoongArch a complex float is passed like a struct of two
+        reals: in two FPRs if two are free, otherwise in integer registers as a
+        whole.  It is never split between an FPR and a GPR.
+      - On 32-bit PowerPC SysV a two-word complex value takes an even/odd GPR
+        pair like long long, and a larger one either fits completely into the
+        remaining GPRs or goes to the stack, which also moves every later
+        argument to the stack.
+    
+    Add complex_regs_{float,double,longdouble}, which pass a complex value
+    after seven doubles, after five ints, and after eight doubles and eight
+    ints, followed by an int, and check the result both through ffi_call and
+    through a closure.
+    Assisted-by: LLM
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+
+commit fc0cd5d231506d0e211e006334b30b4b571d73ed
+Author: dann frazier <dann.frazier@chainguard.dev>
+Date:   Fri Oct 23 15:38:01 2026 -0600
+
+    testsuite: check closures.o keeps dlmalloc symbols private
+    
+    Add a "make check" step.  It fails when closures.o defines any dl*
+    symbol as external.
+    
+    closures.c keeps a static list of dlmalloc functions.  Someone has
+    to update that list by hand when dlmalloc.c gains a function.  The
+    2.8.6 update missed five.  The new check names each function that a
+    later update misses.
+    
+    testsuite/check-dlmalloc-static.sh reads the objects that
+    src/closures.lo points to.  It runs $(NM) on them.  It skips when NM
+    is dumpbin.
+    
+    Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+    Signed-off-by: dann frazier <dann.frazier@chainguard.dev>
+
+commit 3a05fc20fc219cdb005e81bdd8c7969a59c1a008
+Author: dann frazier <dann.frazier@chainguard.dev>
+Date:   Fri Oct 23 15:37:53 2026 -0600
+
+    closures: keep the dlmalloc 2.8.6 additions static
+    
+    closures.c includes dlmalloc.c after declaring each dl* function
+    static.  This keeps the bundled allocator private to libffi.  The
+    update to dlmalloc 2.8.6 (2a0b4b52) added five functions that are not
+    in that list: dlrealloc_in_place, dlposix_memalign,
+    dlmalloc_footprint_limit, dlmalloc_set_footprint_limit and
+    dlbulk_free.  They now get dlmalloc's default extern linkage.
+    
+    libffi.so hides them through its version script.  libffi.a has no
+    such script.  A shared object that links libffi.a exports all five
+    whenever the link pulls in closures.o.  On aarch64 every link does,
+    because ffi_prep_closure_loc in ffi.o calls ffi_data_to_code_pointer.
+    cffi's test_no_unknown_exported_symbols fails on such a build.
+    
+    Declare the five functions static along with the rest.
+    
+    Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+    Signed-off-by: dann frazier <dann.frazier@chainguard.dev>
+
+commit 1ae717371e00e29f52a36fd70465ee9d3c22bf93
+Author: Iain <iain1970@protonmail.com>
+Date:   Fri Oct 2 20:47:13 2026 +0100
+
+    x86-64: copy the upper half of 16-byte vector arguments in call plans
+
+commit 5fdd801e466a1ac28106e4ce9a3cb596c267d73d
+Author: HNO3Miracle <xiangao.or@isrc.iscas.ac.cn>
+Date:   Tue Sep 29 14:23:17 2026 +0800
+
+    riscv: ignore return buffer for void calls
+    
+    ffi_call documents that rvalue is ignored for FFI_TYPE_VOID. The RISC-V
+    backend instead unmarshals the return whenever rvalue is non-null. Since
+    ffi_type_void has size 1, this copies one byte to the supplied pointer.
+    Miri passes the dangling data pointer of an empty return buffer, causing
+    its native-library tests to receive SIGSEGV on riscv64.
+    
+    Skip return unmarshalling for FFI_TYPE_VOID. Add a regression test that
+    checks a non-null return buffer remains unchanged, verifies that the
+    function runs with both non-null and null buffers, and include the test
+    in the distribution manifest.
+    
+    Related: https://github.com/rust-lang/miri/issues/5356
+    
+    Signed-off-by: HNO3Miracle <xiangao.or@isrc.iscas.ac.cn>
+
+commit 4106e56a75c7f3558518829cba0861495c80a9bd
+Author: panzhe <panzhe@kylinos.cn>
+Date:   Sun Sep 27 13:11:05 2026 +0800
+
+    NetBSD: handle sysconf failure in ffi_closure_alloc
+
+commit bc553867367246d140cd156f060bd0409f57f157
+Merge: ecdfe588 09884002
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Sep 21 06:20:38 2026 -0400
+
+    Merge pull request #1023 from hilbert149/check_calloc_in_ffi_trampoline_table_alloc
+    
+    closures: check calloc return values in ffi_trampoline_table_alloc
+
+commit ecdfe5886d1778a47dadf65dbff32a15bc25c88f
+Merge: be99c823 9b1cbb63
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Sep 21 06:19:45 2026 -0400
+
+    Merge pull request #1024 from hilbert149/fix_typos_preceding
+    
+    Fix typos
+
+commit 9b1cbb631be1c9f065131276ad0f2de247847f43
+Author: panzhe <panzhe@kylinos.cn>
+Date:   Mon Sep 21 16:48:57 2026 +0800
+
+    Fix typos
+
+commit 09884002533a8c806940d274d0f80062eb64795c
+Author: panzhe <panzhe@kylinos.cn>
+Date:   Mon Sep 21 16:36:06 2026 +0800
+
+    closures: check calloc return values in ffi_trampoline_table_alloc
+
+commit be99c823432142b771a765b82ebddc6ba281107a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Sep 18 06:41:25 2026 -0400
+
+    README: note the ppc64 complex long double, closure, wasm and Apple fixes
+    
+    The TBD section had only the aarch64/arm big-endian closure entry.  Four
+    more fixes have landed since: the powerpc64 _Complex long double size and
+    alignment now tracking the abi's long double, graceful failure when the
+    runtime page size lookup fails (#1015), the wasm EM_JS_DEPS declaration
+    that unbreaks the build on newer Emscripten (#1019), and
+    subsections_via_symbols on Apple platforms so the linker can dead-strip
+    unused code (#1017).
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+commit 5cad43c09f09c24fe94b41298afb3b20495d4576
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Sep 16 06:15:21 2026 -0400
+
+    powerpc64: keep _Complex long double in step with the abi's long double
+    
+    ffi_prep_types_linux64() rewrites ffi_type_longdouble to 8 or 16 bytes
+    according to the FFI_LINUX_LONG_DOUBLE_128 bit of the abi it is handed.  That
+    hook, and the fact that ffi_type_longdouble is one of only two non-const
+    ffi_type objects on this target, exist so that a single libffi can describe
+    calls into libraries built with either long double width.
+    
+    ffi_type_complex_longdouble is the other non-const one, for the same reason,
+    but was never updated: its size and alignment stayed frozen at whatever
+    sizeof(_Complex long double) was when libffi itself was compiled.  A caller
+    asking for the other width therefore got a type that disagreed with its own
+    element -- an element of 8 bytes inside an aggregate still claiming 32 -- which
+    matters twice over:
+    
+      - ffi_call_int() completes a floating-point small-struct return with
+        memcpy (rvalue, smst_buffer, cif->rtype->size), so the return value is
+        copied at the build-time size.  On a 128-bit build handed the 64-bit abi
+        that writes 32 bytes into a 16-byte value; the other way around it
+        truncates the imaginary half.
+    
+      - initialize_aggregate() sizes and aligns struct members from ->size and
+        ->alignment, so any struct containing a _Complex long double comes out the
+        build-time size and ffi_get_struct_offsets() reports wrong offsets.
+    
+    Derive both fields from ffi_type_longdouble, which the same function has just
+    set.  No test reached this because the testsuite only ever passes
+    FFI_DEFAULT_ABI, where the frozen size happens to be correct, so add one that
+    checks the types agree at each width the hook distinguishes and that a struct
+    built from the complex type matches.  Verified on ppc64le under emulation: the
+    new test aborts against a library without this change and passes with it, on
+    both a 128-bit and a -mlong-double-64 build, and it is unsupported off
+    powerpc64.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+commit 1cdc1a8085b9968c00eee325483864568709442b
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 15 10:12:56 2026 -0400
+
+    testsuite: pin -mlong-double-128 by compiler, not by target triplet
+    
+    cls_longdouble.c, cls_align_longdouble_split.c, cls_align_longdouble_split2.c
+    and huge_struct.c force -mlong-double-128 on every powerpc64*-*-linux-gnu*
+    target.  That only works when libffi itself was built with a 128-bit long
+    double: the powerpc linker refuses to merge objects that disagree about the
+    long double ABI, so against a -mlong-double-64 library each of these fails to
+    link with
+    
+      ld: libffi.a(ffi_linux64.o) uses 64-bit long double, foo.o uses 128-bit
+          long double
+    
+    The triplet is the wrong thing to test -- what matters is what the compiler
+    does.  Add a check_effective_target_ppc64_longdouble128 probe (via the existing
+    libffi_feature_test facility) and select on that instead.  Where long double is
+    already 128 bits the option is applied exactly as before; where it is 64 bits
+    the option is dropped and the tests exercise the 64-bit long double, which is
+    the ABI the library was built for.
+    
+    Verified on ppc64le under emulation: with a 128-bit long double all four tests
+    still get the flag and still pass, and with CC="gcc -mlong-double-64" all four
+    now pass instead of failing to link.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+commit a2c1286984fb36e0fd95b5c1554bf621d4d91c17
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 15 07:34:00 2026 -0400
+
+    CI: test ppc64le with a 64-bit long double
+    
+    Nothing in CI covered a powerpc64 target whose long double is 64 bits while
+    FFI_TYPE_LONGDOUBLE stays distinct from FFI_TYPE_DOUBLE, which is how musl
+    configures ppc64le -- that gap is why the _Complex long double breakage of
+    issue #1013 shipped unnoticed.
+    
+    Add a second ppc64le entry to the QEMU matrix that builds with
+    CC="gcc -mlong-double-64", reproducing musl's choice inside the existing glibc
+    container without needing a musl toolchain.  The flag belongs in CC rather than
+    CFLAGS because configure copies CC into CC_FOR_TARGET in local.exp, so the
+    testsuite then compiles the tests with it as well; a CFLAGS-only build would
+    test a 64-bit-long-double library against 128-bit-long-double tests.
+    
+    CXX is deliberately not overridden.  The image installs gcc but not gcc-c++,
+    and while an unset CXX leaves configure to skip the C++ tests -- as it already
+    does for the existing ppc64le job -- an explicitly set one makes configure fail
+    its C++ preprocessor sanity check outright.
+    
+    build_foreign_linux forwards CC/CXX into the container only when non-empty, so
+    the other matrix entries keep configure's own compiler detection.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+commit c043378d261d0a32e966fb5622ff36fbf9eaed95
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 15 07:34:00 2026 -0400
+
+    powerpc64: fix _Complex long double when long double is 64 bits
+    
+    PR #1003 added _Complex long double support for the IBM-128 and IEEE-128
+    formats, but it read "not IEEE-128" as "IBM-128" and so assumed
+    sizeof(long double) == 16 wherever FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE.
+    On powerpc that condition says nothing about the width: HAVE_LONG_DOUBLE_VARIANT
+    forces HAVE_LONG_DOUBLE on, and the actual width comes from the
+    FFI_LINUX_LONG_DOUBLE_128 bit of the ABI at runtime.
+    
+    Targets with a distinct but 64-bit long double -- musl ppc64le, or any build
+    with -mlong-double-64 -- therefore counted 4 FPRs and 4 GPR shadow slots for
+    each _Complex long double argument and read four doubles out of a 16-byte
+    value, crashing complex_longdouble, return_complex1_longdouble,
+    return_complex2_longdouble and cls_complex_va_longdouble.
+    
+    Normalize the complex element type to FFI_TYPE_DOUBLE when the ABI says long
+    double is 64 bits, as discover_homogeneous_aggregate and both _Complex return
+    paths already do, letting the existing double code handle those values.  The
+    three argument paths fixed here were the only ones that hardcoded the IBM-128
+    width; the rest are driven by rtype->size or by the element count from
+    discover_homogeneous_aggregate and were already correct.
+    
+    Reported and diagnosed by Janis Gertulla, who also proposed a fix.
+    
+    Fixes #1013
+    
+    Co-authored-by: Janis Gertulla <coffeeimpliescode@proton.me>
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+commit 98962d38dbb4e634878592117c30e6a61e245b21
+Merge: 5aff6a0b 9e807970
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 15 06:24:49 2026 -0400
+
+    Merge pull request #1020 from hoodmane/emscripten-jspi
+    
+    Emscripten: Make closures work with wasm stack switching
+
+commit 9e807970afa7e0cf34215ca4f2bdbca69005c10c
+Author: Hood Chatham <roberthoodchatham@gmail.com>
+Date:   Sun Sep 13 11:19:28 2026 -0700
+
+    Emscripten: Make closures work with wasm stack switching
+    
+    WebAssembly stack switching (more specifically JavaScript Promise Integration,
+    abbreviated JSPI) allows webassembly code to call a function that appears to be
+    synchronous that suspends until a JavaScript Promise is resolved. This comes
+    with the restriction that there can be no JavaScript frames on the stack when
+    this happens.
+    
+    In order to work well with this, the closure that `ffi_prep_closure_loc_js()`
+    makes should not put a JavaScript frame on the stack when making the onward
+    call. It can still use JavaScript helpers as the prelude and epilogue, but the
+    closure itself needs to be implemented in WebAssembly.
+    
+    This reworks `ffi_prep_closure_loc_js` to satisfy these constraints. This
+    does not change `ffi_call_js` so it still doesn't work with stack switching. It
+    will need a similar transform to make it work with JSPI, but I figured it was
+    better to do them separately to keep the PRs smaller.
+    
+    I also factored ffi_prep_closure_loc_js into smaller functions to try to
+    improve readability.
+
+commit 5aff6a0b6832baee81087c860050ecc6b38c45d0
+Merge: fb6495c6 c575818c
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Sep 14 07:18:48 2026 -0400
+
+    Merge pull request #1018 from 1234binpig/fix/check-linker-family
+    
+    build: check linker family before GNU ld version
+
+commit fb6495c6ec4ee03a261e897d0792fdfaee060ea0
+Merge: e044ec8d bf480c39
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Sep 14 07:16:13 2026 -0400
+
+    Merge pull request #1019 from hoodmane/emscripten-version-bump
+    
+    CI: Update Emscripten, Node version, and pytest-pyodide to most recent versions
+
+commit bf480c3967ea9199764a346e07c64704cd414f44
+Author: Hood Chatham <roberthoodchatham@gmail.com>
+Date:   Sat Sep 12 17:47:07 2026 -0700
+
+    CI: Update Emscripten, Node version, and pytest-pyodide to most recent versions
+    
+    And fix misleading comment in CI config
+
+commit c575818ce67cb471467c580a01ae8f7b6538a6e2
+Author: huangwenbin <huangwenbin@kylinos.cn>
+Date:   Fri Sep 11 16:32:50 2026 +0800
+
+    build: check linker family before GNU ld version
+    
+    Known GNU-compatible linkers such as gold, LLD, and mold are detected
+    separately, but the symbol-versioning check previously compared the
+    parsed GNU ld version first.
+    
+    For mold and LLD, that parsed value is not meaningful and can make the
+    linker appear to be an old GNU BFD ld before its linker-family check is
+    reached.
+    
+    Check the known linker families first, and only apply the minimum GNU
+    ld version check afterward.
+    
+    Signed-off-by: huangwenbin <huangwenbin@kylinos.cn>
+
+commit e044ec8d00631edb77fa072187f2d9c02fb8950d
+Merge: 57d48c93 1877747a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Sep 4 09:12:22 2026 -0400
+
+    Merge pull request #1015 from 1234binpig/fix-closure-pagesize-check
+    
+    closures: handle page size lookup failure
+
+commit 57d48c93044c8c4f1615b0069cae29b213e88a51
+Merge: 33cfefc7 8ec82287
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Sep 4 09:10:07 2026 -0400
+
+    Merge pull request #1014 from 1234binpig/fix-tsan-thread-failure
+    
+    testsuite: propagate tsan worker failures
+
+commit 33cfefc7d93deba08084557e05728c721b276ade
+Merge: 71ce128d 07a2a9a3
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Sep 4 07:33:48 2026 -0400
+
+    Merge pull request #1017 from dmaclach/patch-1
+    
+    Added `subsections_via_symbols` for Apple platforms
+
+commit 07a2a9a370565fad046f955942866883383218b3
+Author: Dave MacLachlan <dmaclach@gmail.com>
+Date:   Thu Sep 3 13:50:36 2026 -0700
+
+    Added `subsections_via_symbols` for Apple platforms
+    
+    `.subsections_via_symbols` is an assembler directive for Apple/Mach-O targets that tells the linker that a section can be safely split into independent, fine-grained subsections. This is on for x86_64 targets but was missing for arm64. Handcrafted assembly files must explicitly include .subsections_via_symbols at the end of the file to enable dead-stripping.
+
+commit 1877747a8966a9466802b8f807f4dec9141f9a48
+Author: huangwenbin <huangwenbin@kylinos.cn>
+Date:   Mon Aug 31 17:29:27 2026 +0800
+
+    closures: handle page size lookup failure
+    
+    allocate_space() uses the value returned by sysconf(_SC_PAGESIZE)
+    as the size of a local buffer without checking for failure.
+    
+    Return early when the page size lookup fails or produces an invalid
+    value, avoiding creation of an invalid variable-length array.
+    
+    Signed-off-by: huangwenbin <huangwenbin@kylinos.cn>
+
+commit 8ec82287e13ee539bf07bd349b89f9a4375c2611
+Author: huangwenbin <huangwenbin@kylinos.cn>
+Date:   Mon Aug 31 17:11:24 2026 +0800
+
+    testsuite: propagate tsan worker failures
+    
+    The tsan worker returned NULL both on success and on setup failures,
+    while main ignored the result from pthread_join().
+    
+    This allowed failures in ffi_prep_cif() or ffi_prep_closure_loc() to be
+    reported as a successful test run.
+    
+    Return a distinct failure value from worker threads and check both
+    pthread_join() and the joined thread result.
+    
+    Signed-off-by: huangwenbin <huangwenbin@kylinos.cn>
+
+commit 71ce128d7acf4ef4c2c675c0751e2e37661dd868
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Aug 18 22:13:46 2026 -0400
+
+    README: start TBD notes with aarch64/arm big-endian fix
+    
+    Add a TBD History section for the merged #1012, which fixes big-endian
+    sub-word argument and return offsets on aarch64 and arm (closes #1011
+    and #675).
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 72e44aa8e60f8295f1c881ded8a69faa868e5c6e
+Merge: 303a0031 2b533696
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Aug 18 22:10:18 2026 -0400
+
+    Merge pull request #1012 from CoffeeImpliesCode/big-endian-closures
+    
+    aarch64, arm: fix big-endian sub-word argument/return offsets
+
+commit 2b53369681cc85094e936efe18e27bff2d63f4c0
+Author: Janis Gertulla <coffeeimpliescode@proton.me>
+Date:   Tue Aug 18 06:46:29 2026 +0200
+
+    arm: fix big-endian sub-word argument offsets in closures
+    
+    Sub-4-byte integer args passed in 32-bit registers or on the stack sit
+    in the LSB of the 4-byte slot, which on big-endian ARM is at offset
+    4 - size. Previously assumed little-endian (offset 0). Adjust in
+    ffi_prep_incoming_args_SYSV and ffi_prep_incoming_args_VFP.
+
+commit b5f729755e888f4babff0d923b55f8848943059c
+Author: Janis Gertulla <coffeeimpliescode@proton.me>
+Date:   Tue Aug 18 06:46:20 2026 +0200
+
+    aarch64: fix big-endian argument and return offsets in closures
+    
+    Sub-64-bit integer and scalar-float arguments passed in registers or
+    stack slots sit in the LSB of a 64-bit slot, which on big-endian is at
+    the high-address end. Add a BE() helper and offset the extracted
+    argument/return pointers by BE(sizeof(UINT64) - size) in
+    allocate_int_to_reg_or_stack, ffi_call_int and ffi_closure_SYSV_inner,
+    and by the register offset in compress_hfa_type.
+    
+    Fixes the big-endian closure failures (cf. issue #675).
+
+commit 303a0031a58a43c403ffa464e292183680ae0bd1
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Aug 9 06:05:36 2026 -0400
+
+    release: verify README Status line matches the tag
+    
+    The top-of-README status line is a manual edit that was missed in the
+    3.8.0 release. Fail the release (like the existing configure.ac check)
+    when it does not match the tag version.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 6e8371bcf314f154af9e252897803f024bb5ace9
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Aug 9 06:04:39 2026 -0400
+
+    README: update Status line to 3.8.0
+    
+    The top-of-README status line still named 3.7.1 after the 3.8.0 release.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
 commit 12ffd1f9dc56fcea79d2f742f424301ae668d663
 Author: Anthony Green <green@moxielogic.com>
 Date:   Sat Aug 8 18:08:29 2026 -0400
