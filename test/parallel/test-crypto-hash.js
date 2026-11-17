@@ -6,13 +6,6 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-common.expectWarning({
-  DeprecationWarning: [
-    ['crypto.Hash constructor is deprecated.',
-     'DEP0179'],
-  ]
-});
-
 const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -183,13 +176,6 @@ assert.throws(
   }
 );
 
-{
-  const Hash = crypto.Hash;
-  const instance = crypto.Hash('sha256');
-  assert(instance instanceof Hash, 'Hash is expected to return a new instance' +
-                                   ' when called without `new`');
-}
-
 // Test XOF hash functions and the outputLength option.
 if (!isBoringSSL) {
   const invalidXofLength = {
@@ -300,8 +286,4 @@ if (!isBoringSSL) {
   const d = crypto.createHash('sha512').update('abcdef');
   assert.strictEqual(a.digest('hex'), b.digest('hex'));
   assert.strictEqual(c.digest('hex'), d.digest('hex'));
-}
-
-{
-  crypto.Hash('sha256');
 }

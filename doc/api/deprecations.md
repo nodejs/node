@@ -4031,6 +4031,9 @@ npx codemod@latest @nodejs/dirent-path-to-parent-path
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67490
+    description: End-of-Life.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51880
     description: Runtime deprecation.
@@ -4041,11 +4044,13 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Calling `Hash` class directly with `Hash()` or `new Hash()` is
-deprecated due to being internals, not intended for public use.
-Please use the [`crypto.createHash()`][] method to create Hash instances.
+Calling `Hash` class directly with `Hash()` or `new Hash()` throws an
+`ERR_ILLEGAL_CONSTRUCTOR` error. The constructor is internal and not intended
+for public use. Use the [`crypto.createHash()`][] method to create Hash
+instances. The class remains exported, so `instanceof crypto.Hash` checks
+continue to work.
 
 ### DEP0180: `fs.Stats` constructor
 
@@ -4068,6 +4073,9 @@ deprecated due to being internals, not intended for public use.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67490
+    description: End-of-Life.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52071
     description: Runtime deprecation.
@@ -4076,11 +4084,13 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Calling `Hmac` class directly with `Hmac()` or `new Hmac()` is
-deprecated due to being internals, not intended for public use.
-Please use the [`crypto.createHmac()`][] method to create Hmac instances.
+Calling `Hmac` class directly with `Hmac()` or `new Hmac()` throws an
+`ERR_ILLEGAL_CONSTRUCTOR` error. The constructor is internal and not intended
+for public use. Use the [`crypto.createHmac()`][] method to create Hmac
+instances. The class remains exported, so `instanceof crypto.Hmac` checks
+continue to work.
 
 ### DEP0182: Short GCM authentication tags without explicit `authTagLength`
 
