@@ -433,6 +433,7 @@ void LookupIterator::InternalUpdateProtector(
 }
 
 void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate_));
   DCHECK(state_ == DATA || state_ == ACCESSOR);
   DCHECK(HolderIsReceiverOrHiddenPrototype());
   DCHECK(!IsWasmObject(*receiver_));
@@ -565,6 +566,7 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
 
 void LookupIterator::ReconfigureDataProperty(DirectHandle<Object> value,
                                              PropertyAttributes attributes) {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate_));
   DCHECK(state_ == DATA || state_ == ACCESSOR);
   DCHECK(HolderIsReceiverOrHiddenPrototype());
 
@@ -733,6 +735,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
 Maybe<bool> LookupIterator::ApplyTransitionToDataProperty(
     DirectHandle<JSTransitionableReceiver> receiver,
     Maybe<ShouldThrow> should_throw) {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate_));
   DCHECK_EQ(TRANSITION, state_);
 
   DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
@@ -827,6 +830,7 @@ Maybe<bool> LookupIterator::ApplyTransitionToDataProperty(
 }
 
 void LookupIterator::Delete() {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate_));
   DirectHandle<JSReceiver> holder = Cast<JSReceiver>(holder_);
   if (IsElement(*holder)) {
     DirectHandle<JSObject> object = Cast<JSObject>(holder);

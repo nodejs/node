@@ -709,6 +709,7 @@ Map::FieldCounts Map::GetFieldCounts() const {
 }
 
 void Map::DeprecateTransitionTree(Isolate* isolate) {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate));
   DCHECK(CanBeDeprecated());
   return DeprecateTransitionTreeImpl(isolate);
 }
@@ -736,6 +737,7 @@ void Map::DeprecateTransitionTreeImpl(Isolate* isolate) {
 // proper sharing of descriptor arrays.
 void Map::ReplaceDescriptors(Isolate* isolate,
                              Tagged<DescriptorArray> new_descriptors) {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate));
   // Don't overwrite the empty descriptor array or initial map's descriptors.
   if (NumberOfOwnDescriptors() == 0 || IsUndefined(GetBackPointer())) {
     return;
@@ -912,6 +914,7 @@ DirectHandle<Map> Map::Update(Isolate* isolate, DirectHandle<Map> map) {
 
 void Map::EnsureDescriptorSlack(Isolate* isolate, DirectHandle<Map> map,
                                 int slack) {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate));
   // Only supports adding slack to owned descriptors.
   CHECK(map->owns_descriptors());
 
@@ -1628,6 +1631,7 @@ void Map::ConnectTransition(Isolate* isolate, DirectHandle<Map> parent,
                             DirectHandle<Map> child, DirectHandle<Name> name,
                             TransitionKindFlag transition_kind,
                             bool force_connect) {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate));
   DCHECK_EQ(parent->map(), child->map());
   DCHECK_IMPLIES(name->IsInteresting(isolate),
                  child->may_have_interesting_properties());

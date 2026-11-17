@@ -1928,6 +1928,21 @@ class SubgraphBase {
     // NOLINTNEXTLINE(runtime/explicit)
     Label(const LabelForTrackingInterpreterFrameState& label);
 
+    Label(const Label&) = delete;
+    Label(Label&&) = delete;
+    Label& operator=(const Label&) = delete;
+    Label& operator=(Label&&) = delete;
+
+    ~Label() {
+      // If variable_merge_state_ is non-null, at least one finalized BasicBlock
+      // in the graph has a control node whose BasicBlockRef is linked into
+      // `ref_` (in kRefList state) waiting for Bind() to resolve it to a target
+      // BasicBlock*. Destroying an unbound Label with live predecessors would
+      // leave dangling BasicBlockRef* pointers in the graph.
+      CHECK_NULL(variable_merge_state_);
+      DCHECK_NULL(merge_state_);
+    }
+
     BasicBlockRef* ref() { return &ref_; }
     int predecessor_count() const { return predecessor_count_; }
     bool ShouldTrackInterpreterFrameState() const {

@@ -1268,6 +1268,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
                                  PropertyConstness new_constness,
                                  Representation new_representation,
                                  DirectHandle<FieldType> new_type) {
+  CHECK(AllowJSObjectModification::IsAllowed(isolate));
   // We store raw pointers in the queue, so no allocations are allowed.
   DisallowGarbageCollection no_gc;
   PropertyDetails details = map->instance_descriptors()->GetDetails(descriptor);

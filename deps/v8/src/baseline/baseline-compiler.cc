@@ -1882,27 +1882,25 @@ void BaselineCompiler::VisitIntrinsicAsyncFunctionResolve(
 
 void BaselineCompiler::VisitIntrinsicGeneratorYieldResult(
     interpreter::RegisterList args) {
-  Register value = WriteBarrierDescriptor::ValueRegister();
   Register generator = WriteBarrierDescriptor::ObjectRegister();
-  DCHECK(!AreAliased(value, generator, kInterpreterAccumulatorRegister));
+  DCHECK(!AreAliased(generator, kInterpreterAccumulatorRegister));
 
   Label allocate, done;
 
   __ LoadRegister(generator, args[1]);  // generator
 
-  // Check whether the generator user asked to skip result allocation
-  // (yielded_value_ == TheHole).
+  // Check whether the caller asked to skip result allocation
+  // (resume_mode_ == kNextTrySkipAlloc).
   __ LoadTaggedField(kInterpreterAccumulatorRegister, generator,
-                     offsetof(JSGeneratorObject, yielded_value_));
-  __ JumpIfNotRoot(kInterpreterAccumulatorRegister, RootIndex::kTheHoleValue,
-                   &allocate);
+                     offsetof(JSGeneratorObject, resume_mode_));
+  __ JumpIfSmi(kNotEqual, kInterpreterAccumulatorRegister,
+               Smi::FromInt(JSGeneratorObject::kNextTrySkipAlloc), &allocate);
 
-  // Skip allocation: store value into yielded_value_.
-  __ LoadRegister(value, args[0]);  // value
-  __ StoreTaggedFieldWithWriteBarrier(
-      generator, offsetof(JSGeneratorObject, yielded_value_), value);
-
-  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTheHoleValue);
+  // Skip allocation: ack handshake and return bare value.
+  __ StoreTaggedSignedField(generator,
+                            offsetof(JSGeneratorObject, resume_mode_),
+                            Smi::FromInt(JSGeneratorObject::kNextAllocSkipped));
+  __ LoadRegister(kInterpreterAccumulatorRegister, args[0]);  // value
   __ Jump(&done);
 
   __ Bind(&allocate);

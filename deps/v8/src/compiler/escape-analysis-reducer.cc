@@ -309,6 +309,7 @@ void EscapeAnalysisReducer::Finalize() {
               NodeProperties::SetType(load, Type::None());
               NodeProperties::SetType(dead_value, Type::None());
               NodeProperties::ReplaceUses(load, dead_value, load);
+              NodeProperties::ReplaceValueInput(dead_value, load, 0);
               continue;
             }
 
