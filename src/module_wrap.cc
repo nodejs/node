@@ -28,6 +28,7 @@ using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
 using v8::Data;
+using v8::DictionaryTemplate;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::FixedArray;
@@ -598,6 +599,21 @@ static Local<Array> createModuleRequestsContainer(
   Local<Context> context = realm->context();
   LocalVector<Value> requests(isolate, raw_requests->Length());
 
+  // v8::Object::New() with names and values always creates the object in
+  // dictionary mode. Use a DictionaryTemplate instead so that the requests,
+  // which the loader reads for every import while linking, get a fast map.
+  Environment* env = realm->env();
+  Local<DictionaryTemplate> tmpl = env->module_request_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "specifier",
+        "attributes",
+        "phase",
+    };
+    tmpl = DictionaryTemplate::New(isolate, names);
+    env->set_module_request_template(tmpl);
+  }
+
   for (int i = 0; i < raw_requests->Length(); i++) {
     DCHECK(raw_requests->Get(i)->IsModuleRequest());
     Local<ModuleRequest> module_request =
@@ -612,20 +628,14 @@ static Local<Array> createModuleRequestsContainer(
         createImportAttributesContainer(realm, isolate, raw_attributes, 3);
     ModuleImportPhase phase = module_request->GetPhase();
 
-    Local<Name> names[] = {
-        realm->isolate_data()->specifier_string(),
-        realm->isolate_data()->attributes_string(),
-        realm->isolate_data()->phase_string(),
-    };
-    Local<Value> values[] = {
+    MaybeLocal<Value> values[] = {
         specifier,
         attributes,
         Integer::New(isolate, to_phase_constant(phase)),
     };
-    DCHECK_EQ(arraysize(names), arraysize(values));
 
     Local<Object> request =
-        Object::New(isolate, Null(isolate), names, values, arraysize(names));
+        NewDictionaryInstanceNullProto(context, tmpl, values).ToLocalChecked();
     request->SetIntegrityLevel(context, v8::IntegrityLevel::kFrozen).Check();
 
     requests[i] = request;
