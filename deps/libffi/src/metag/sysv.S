@@ -65,7 +65,7 @@
 	setl	[A0StP++], D0Ar2, D1Ar1
 .endm
 
-! Save retrun, frame pointer and other regs
+! Save return, frame pointer and other regs
 .macro SAVE_REGS regs=
 	.text
 	.balign 4

@@ -8,6 +8,8 @@
 
 #define NUM_THREADS 20
 
+static char thread_failure;
+
 #if defined(_POSIX_BARRIERS) && _POSIX_BARRIERS > 0
 pthread_barrier_t barrier;
 #endif
@@ -30,14 +32,14 @@ void *thread_func(void *arg) {
 
     if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, 2, &ffi_type_float, args) != FFI_OK) {
         fprintf(stderr, "ffi_prep_cif failed\n");
-        return NULL;
+        return &thread_failure;
     }
 
     ffi_closure *closure = ffi_closure_alloc(sizeof(ffi_closure), (void **)&arg);
 
     if (ffi_prep_closure_loc(closure, &cif, callback, NULL, arg) != FFI_OK) {
         fprintf(stderr, "ffi_prep_closure_loc failed\n");
-        return NULL;
+        return &thread_failure;
     }
 
     callback_fn fn = (callback_fn)arg;
@@ -62,7 +64,13 @@ int main() {
     }
 
     for (int i = 0; i < NUM_THREADS; ++i) {
-        pthread_join(threads[i], NULL);
+        void *result;
+        if (pthread_join(threads[i], &result) != 0) {
+            fprintf(stderr, "pthread_join failed\n");
+            exit(EXIT_FAILURE);
+        }
+        if (result == &thread_failure)
+            exit(EXIT_FAILURE);
     }
 
 #if defined(_POSIX_BARRIERS) && _POSIX_BARRIERS > 0

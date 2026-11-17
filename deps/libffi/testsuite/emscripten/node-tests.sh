@@ -7,8 +7,8 @@ fi
 
 # Common compiler flags
 export CFLAGS="-fPIC $EXTRA_CFLAGS"
-export CXXFLAGS="$CFLAGS -sNO_DISABLE_EXCEPTION_CATCHING $EXTRA_CXXFLAGS"
-export LDFLAGS="-sEXPORTED_FUNCTIONS=_main,_malloc,_free -sALLOW_TABLE_GROWTH -sASSERTIONS -sNO_DISABLE_EXCEPTION_CATCHING -sWASM_BIGINT -Wno-main"
+export CXXFLAGS="$CFLAGS -fexceptions $EXTRA_CXXFLAGS"
+export LDFLAGS="-sEXPORTED_FUNCTIONS=_main,_malloc,_free -sALLOW_TABLE_GROWTH -sASSERTIONS -Wno-main"
 
 # Specific variables for cross-compilation
 export CHOST="${TARGET_HOST}-unknown-linux" # wasm32-unknown-emscripten

@@ -155,8 +155,15 @@ typedef enum ffi_abi {
    ELFv2, float/double _Complex are passed and returned as a 2-element
    homogeneous floating-point aggregate, but each scalar half consumes a
    GPR shadow slot of its own — i.e. the same way the underlying C ABI
-   handles them, which is what GCC's split_complex_arg emits.  */
-#if defined(POWERPC64) && _CALL_ELF == 2
+   handles them, which is what GCC's split_complex_arg emits.
+
+   They are also supported on 32-bit SYSV, where complex values are passed
+   and returned in GPRs like integers of the same size.  */
+#if defined(POWERPC64)
+# if _CALL_ELF == 2
+#  define FFI_TARGET_HAS_COMPLEX_TYPE
+# endif
+#elif defined (POWERPC) || defined (POWERPC_FREEBSD)
 # define FFI_TARGET_HAS_COMPLEX_TYPE
 #endif
 

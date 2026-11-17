@@ -92,6 +92,9 @@ typedef struct float_struct_info
   char type2;
 } float_struct_info;
 
+#define IS_AGGREGATE(type) \
+  ((type) == FFI_TYPE_STRUCT || (type) == FFI_TYPE_COMPLEX)
+
 #if ABI_FRLEN >= 64
 # define IS_FLOAT(type) ((type) >= FFI_TYPE_FLOAT && (type) <= FFI_TYPE_DOUBLE)
 #else
@@ -105,7 +108,15 @@ flatten_struct (ffi_type *in, ffi_type **out, ffi_type **out_end)
 
   if (out == out_end)
     return out;
-  if (in->type != FFI_TYPE_STRUCT)
+  if (in->type == FFI_TYPE_COMPLEX)
+    {
+      /* The psABI passes a complex number like a struct of two reals.  */
+      *(out++) = in->elements[0];
+      if (out == out_end)
+	return out;
+      *(out++) = in->elements[0];
+    }
+  else if (in->type != FFI_TYPE_STRUCT)
     *(out++) = in;
   else
     for (i = 0; in->elements[i]; i++)
@@ -113,9 +124,9 @@ flatten_struct (ffi_type *in, ffi_type **out, ffi_type **out_end)
   return out;
 }
 
-/* Structs with at most two fields after flattening, one of which is of
-   floating point type, are passed in multiple registers if sufficient
-   registers are available.  */
+/* Structs and complex numbers with at most two fields after flattening,
+   one of which is of floating point type, are passed in multiple registers
+   if sufficient registers are available.  */
 static float_struct_info
 struct_passed_as_elements (call_builder *cb, ffi_type *top)
 {
@@ -278,7 +289,7 @@ marshal (call_builder *cb, ffi_type *type, int var, void *data)
   size_t realign[2];
 
 #if ABI_FRLEN
-  if (!var && type->type == FFI_TYPE_STRUCT)
+  if (!var && IS_AGGREGATE (type->type))
     {
       float_struct_info fsi = struct_passed_as_elements (cb, type);
       if (fsi.as_elements)
@@ -347,7 +358,7 @@ unmarshal (call_builder *cb, ffi_type *type, int var, void *data)
   void *pointer;
 
 #if ABI_FRLEN
-  if (!var && type->type == FFI_TYPE_STRUCT)
+  if (!var && IS_AGGREGATE (type->type))
     {
       float_struct_info fsi = struct_passed_as_elements (cb, type);
       if (fsi.as_elements)
@@ -413,7 +424,7 @@ static int
 passed_by_ref (call_builder *cb, ffi_type *type, int var)
 {
 #if ABI_FRLEN
-  if (!var && type->type == FFI_TYPE_STRUCT)
+  if (!var && IS_AGGREGATE (type->type))
     {
       float_struct_info fsi = struct_passed_as_elements (cb, type);
       if (fsi.as_elements)

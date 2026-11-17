@@ -135,12 +135,18 @@ ffi_struct_float_merge (int size_mask, void *vi, void *vf)
 /* Similar, but place the data into VD in the end.  */
 
 void FFI_HIDDEN
-ffi_struct_float_copy (int size_mask, void *vd, void *vi, void *vf)
+ffi_struct_float_copy (int flags, void *vd, void *vi, void *vf)
 {
+  int size_mask = flags >> SPARC_SIZEMASK_SHIFT;
   int size = size_mask & 0xff;
   int mask = size_mask >> 8;
   int n = size >> 2;
 
+  if (flags & SP_V9_FLAG_RET_COMPLEX_SMALL)
+    {
+      FFI_ASSERT (mask == 0 && size < 8);
+      vi = (char *) vi + 8 - size;
+    }
   if (mask == 0)
     ;
   else if (mask == (1 << n) - 1)
@@ -198,6 +204,9 @@ ffi_prep_cif_machdep_core(ffi_cif *cif)
 	  int fp_mask = size_mask >> 8;
 
 	  flags = (size_mask << SPARC_SIZEMASK_SHIFT) | SPARC_RET_STRUCT;
+
+	  if (rtt == FFI_TYPE_COMPLEX && rtype->size < 8 && fp_mask == 0)
+	    flags |= SP_V9_FLAG_RET_COMPLEX_SMALL;
 
 	  /* For special cases of all-int or all-fp, we can return
 	     the value directly without popping through a struct copy.  */
@@ -398,8 +407,17 @@ ffi_prep_args_v9(ffi_cif *cif, unsigned long *argp, void *rvalue, void **avalue)
 	  *argp++ = *(UINT64 *)a;
 	  break;
 
-	case FFI_TYPE_LONGDOUBLE:
 	case FFI_TYPE_COMPLEX:
+	  z = ty->size;
+	  if (z < 8)
+	    {
+	      *argp = 0;
+	      memcpy ((char *) argp + 8 - z, a, z);
+	      argp++;
+	      break;
+	    }
+	  /* FALLTHRU */
+	case FFI_TYPE_LONGDOUBLE:
 	case FFI_TYPE_STRUCT:
 	  z = ty->size;
 	  if (z > 16)
@@ -573,6 +591,11 @@ ffi_closure_sparc_inner_v9(ffi_cif *cif,
 	case FFI_TYPE_COMPLEX:
 	case FFI_TYPE_STRUCT:
 	  z = ty->size;
+	  if (ty->type == FFI_TYPE_COMPLEX && z < 8)
+	    {
+	      a = (char *) a + 8 - z;
+	      break;
+	    }
 	  if (z > 16)
 	    a = *(void **)a;
 	  else

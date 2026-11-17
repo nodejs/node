@@ -27,6 +27,7 @@
 #define LIBFFI_ASM	
 #include <fficonfig.h>
 #include <ffi.h>
+#include <ffi_cfi.h>
 
 /* Only build this code if we are compiling for n32 */	
 
@@ -56,6 +57,7 @@
 	.ent	ffi_call_N32
 ffi_call_N32:	
 .LFB0:
+	cfi_startproc
 	.frame	$fp, SIZEOF_FRAME, ra
 	.mask	0xc0000000,-FFI_SIZEOF_ARG
 	.fmask	0x00000000,0
@@ -63,11 +65,15 @@ ffi_call_N32:
 	# Prologue
 	SUBU	$sp, SIZEOF_FRAME			# Frame size
 .LCFI00:
+	cfi_def_cfa_offset(SIZEOF_FRAME)
 	REG_S	$fp, SIZEOF_FRAME - 2*FFI_SIZEOF_ARG($sp)	# Save frame pointer
 	REG_S	ra, SIZEOF_FRAME - 1*FFI_SIZEOF_ARG($sp)	# Save return address
 .LCFI01:
+	cfi_offset($fp, -2*FFI_SIZEOF_ARG)
+	cfi_offset(ra, -1*FFI_SIZEOF_ARG)
 	move	$fp, $sp
 .LCFI02:
+	cfi_def_cfa_register($fp)
 	move	t9, callback	# callback function pointer
 	REG_S	bytes, 2*FFI_SIZEOF_ARG($fp) # bytes
 	REG_S	flags, 3*FFI_SIZEOF_ARG($fp) # flags
@@ -396,7 +402,7 @@ retstruct_f_f_soft:
 	jal	t9
 	REG_L	t4, 4*FFI_SIZEOF_ARG($fp)
 	sw	v0, 0(t4)
-	sw	v1, 4(t4)
+	sw	a0, 4(t4)
 	b	epilogue
 	
 retstruct_d_f_soft:	
@@ -404,7 +410,7 @@ retstruct_d_f_soft:
 	jal	t9
 	REG_L	t4, 4*FFI_SIZEOF_ARG($fp)
 	sd	v0, 0(t4)
-	sw	v1, 8(t4)
+	sw	a0, 8(t4)
 	b	epilogue
 	
 retstruct_f_d_soft:	
@@ -466,6 +472,7 @@ epilogue:
 	j	ra
 
 .LFE0:
+	cfi_endproc
 	.end	ffi_call_N32
 
 /* ffi_closure_N32. Expects address of the passed-in ffi_closure in t0
@@ -521,6 +528,14 @@ epilogue:
 #define V1_OFF2		(3  * FFI_SIZEOF_ARG)
 #define V0_OFF2		(2  * FFI_SIZEOF_ARG)
 
+/* Integer return values narrower than ffi_arg are stored widened to an
+   ffi_arg, so on big-endian their bytes are at its end.  */
+#if defined(__MIPSEB__) || defined(_MIPSEB)
+#define V0_OFF2_N(n)	(V0_OFF2 + FFI_SIZEOF_ARG - (n))
+#else
+#define V0_OFF2_N(n)	V0_OFF2
+#endif
+
 #define RA_OFF2		(1  * FFI_SIZEOF_ARG)
 #define GP_OFF2		(0  * FFI_SIZEOF_ARG)
 
@@ -529,14 +544,18 @@ epilogue:
 	.ent	ffi_go_closure_N32
 ffi_go_closure_N32:
 .LFB1:
+	cfi_startproc
 	.frame	$sp, SIZEOF_FRAME2, ra
 	.mask	0x90000000,-(SIZEOF_FRAME2 - RA_OFF2)
 	.fmask	0x00000000,0
 	SUBU	$sp, SIZEOF_FRAME2
 .LCFI10:
+	cfi_def_cfa_offset(SIZEOF_FRAME2)
 	.cpsetup t9, GP_OFF2, ffi_go_closure_N32
 	REG_S	ra, RA_OFF2($sp)	# Save return address
 .LCFI11:
+	cfi_offset($gp, GP_OFF2 - SIZEOF_FRAME2)
+	cfi_offset(ra, RA_OFF2 - SIZEOF_FRAME2)
 
 	REG_S	a0, A0_OFF2($sp)
 	REG_S	a1, A1_OFF2($sp)
@@ -562,6 +581,7 @@ ffi_go_closure_N32:
 	b	$do_closure
 
 .LFE1:	
+	cfi_endproc
 	.end	ffi_go_closure_N32
 
 	.align	2
@@ -569,14 +589,18 @@ ffi_go_closure_N32:
 	.ent	ffi_closure_N32
 ffi_closure_N32:
 .LFB2:
+	cfi_startproc
 	.frame	$sp, SIZEOF_FRAME2, ra
 	.mask	0x90000000,-(SIZEOF_FRAME2 - RA_OFF2)
 	.fmask	0x00000000,0
 	SUBU	$sp, SIZEOF_FRAME2
 .LCFI20:
+	cfi_def_cfa_offset(SIZEOF_FRAME2)
 	.cpsetup t9, GP_OFF2, ffi_closure_N32
 	REG_S	ra, RA_OFF2($sp)	# Save return address
 .LCFI21:
+	cfi_offset($gp, GP_OFF2 - SIZEOF_FRAME2)
+	cfi_offset(ra, RA_OFF2 - SIZEOF_FRAME2)
 	REG_S	a0, A0_OFF2($sp)
 	REG_S	a1, A1_OFF2($sp)
 	REG_S	a2, A2_OFF2($sp)
@@ -628,27 +652,27 @@ cls_retuint64:
 
 cls_retsint32:
 	bne     v0, FFI_TYPE_SINT32, cls_retsint16
-	lw	v0, V0_OFF2($sp)
+	lw	v0, V0_OFF2_N(4)($sp)
 	b	cls_epilogue
 
 cls_retsint16:
 	bne     v0, FFI_TYPE_SINT16, cls_retuint16
-	lh	v0, V0_OFF2($sp)
+	lh	v0, V0_OFF2_N(2)($sp)
 	b	cls_epilogue
 
 cls_retuint16:
 	bne     v0, FFI_TYPE_UINT16, cls_retsint8
-	lhu	v0, V0_OFF2($sp)
+	lhu	v0, V0_OFF2_N(2)($sp)
 	b	cls_epilogue
 
 cls_retsint8:
 	bne     v0, FFI_TYPE_SINT8, cls_retuint8
-	lb	v0, V0_OFF2($sp)
+	lb	v0, V0_OFF2_N(1)($sp)
 	b	cls_epilogue
 
 cls_retuint8:
 	bne     v0, FFI_TYPE_UINT8, cls_retfloat
-	lbu	v0, V0_OFF2($sp)
+	lbu	v0, V0_OFF2_N(1)($sp)
 	b	cls_epilogue
 
 cls_retfloat:
@@ -703,17 +727,54 @@ cls_retstruct_d_f:
 	b	cls_epilogue
 	
 cls_retstruct_f_d:	
-	bne	v0, FFI_TYPE_STRUCT_FD, cls_retcomplex_ld_ld
+	bne	v0, FFI_TYPE_STRUCT_FD, cls_retstruct_f_soft
 	l.s	$f0, V0_OFF2($sp)
 	l.d	$f2, V1_OFF2($sp)
 	b	cls_epilogue
 #else
 cls_longdouble_soft:
-	bne	v0, FFI_TYPE_LONGDOUBLE, cls_retcomplex_ld_ld
+	bne	v0, FFI_TYPE_LONGDOUBLE, cls_retstruct_f_soft
 	REG_L	v0, V0_OFF2($sp)
 	REG_L	a0, V1_OFF2($sp) # not typo, it is a0, I have no idea, gcc does do it
 	b	cls_epilogue
 #endif
+
+	# With soft float, a struct of one or two floating-point fields is
+	# returned with the first field in v0 and the second in a0, each
+	# like a scalar of its type.
+cls_retstruct_f_soft:
+	bne	v0, FFI_TYPE_STRUCT_F_SOFT, cls_retstruct_d_soft
+	lw	v0, V0_OFF2($sp)
+	b	cls_epilogue
+
+cls_retstruct_d_soft:
+	bne	v0, FFI_TYPE_STRUCT_D_SOFT, cls_retstruct_f_f_soft
+	ld	v0, V0_OFF2($sp)
+	b	cls_epilogue
+
+cls_retstruct_f_f_soft:
+	bne	v0, FFI_TYPE_STRUCT_FF_SOFT, cls_retstruct_d_d_soft
+	lw	v0, V0_OFF2($sp)
+	lw	a0, (V0_OFF2+4)($sp)
+	b	cls_epilogue
+
+cls_retstruct_d_d_soft:
+	bne	v0, FFI_TYPE_STRUCT_DD_SOFT, cls_retstruct_f_d_soft
+	ld	v0, V0_OFF2($sp)
+	ld	a0, (V0_OFF2+8)($sp)
+	b	cls_epilogue
+
+cls_retstruct_f_d_soft:
+	bne	v0, FFI_TYPE_STRUCT_FD_SOFT, cls_retstruct_d_f_soft
+	lw	v0, V0_OFF2($sp)
+	ld	a0, (V0_OFF2+8)($sp)
+	b	cls_epilogue
+
+cls_retstruct_d_f_soft:
+	bne	v0, FFI_TYPE_STRUCT_DF_SOFT, cls_retcomplex_ld_ld
+	ld	v0, V0_OFF2($sp)
+	lw	a0, (V0_OFF2+8)($sp)
+	b	cls_epilogue
 
 cls_retcomplex_ld_ld:
 	bne	v0, FFI_TYPE_COMPLEX_LDLD, cls_retstruct_small2
@@ -739,9 +800,10 @@ cls_epilogue:
 	ADDU	$sp, SIZEOF_FRAME2
 	j	ra
 .LFE2:	
+	cfi_endproc
 	.end	ffi_closure_N32
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(HAVE_AS_CFI_PSEUDO_OP)
         .section        .eh_frame,EH_FRAME_FLAGS,@progbits
 .Lframe1:
         .4byte  .LECIE1-.LSCIE1		# length
@@ -818,7 +880,7 @@ cls_epilogue:
 	.uleb128 (SIZEOF_FRAME2 - RA_OFF2)/4
 	.align	EH_FRAME_ALIGN
 .LEFDE2:
-#endif /* __GNUC__ */	
+#endif /* __GNUC__ && !HAVE_AS_CFI_PSEUDO_OP */
 	
 #endif
 

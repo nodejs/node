@@ -232,10 +232,15 @@ ffi_prep_raw_closure_loc (ffi_raw_closure* cl,
 {
   ffi_status status;
 
+  /* Pass the closure itself as the user_data that ffi_translate_args
+     receives, not codeloc.  The two aliased before static trampolines, but
+     with FFI_EXEC_STATIC_TRAMP codeloc points into the read-only trampoline
+     code table, so reading cl->fun/cl->user_data through it would load
+     garbage and make a wild indirect call (GHSA-w6j9-w53f-2857).  */
   status = ffi_prep_closure_loc ((ffi_closure*) cl,
 				 cif,
 				 &ffi_translate_args,
-				 codeloc,
+				 cl,
 				 codeloc);
   if (status == FFI_OK)
     {

@@ -1,4 +1,4 @@
-This is libffi.info, produced by makeinfo version 7.1 from libffi.texi.
+This is libffi.info, produced by makeinfo version 7.2 from libffi.texi.
 
 This manual is for libffi, a portable foreign function interface
 library.
@@ -514,6 +514,12 @@ array.
    Note that arrays cannot be passed or returned by value in C -
 structure types created like this should only be used to refer to
 members of real ‘FFI_TYPE_STRUCT’ objects.
+
+   Some ABIs classify array fields differently from structurally
+identical structure fields.  Because ‘ffi_type’ has no separate array
+tag, this emulation cannot express that distinction.  On those targets,
+passing or returning an enclosing structure containing an emulated array
+by value is not supported.
 
    However, a phony array type like this will not cause any errors from
 ‘libffi’ if you use it as an argument or return type.  This may be
@@ -1052,7 +1058,6 @@ A trivial example that creates a new ‘puts’ by binding ‘fputs’ with
        return 0;
      }
 
-
 
 File: libffi.info,  Node: Thread Safety,  Prev: Closure Example,  Up: Using libffi
 
@@ -1208,7 +1213,6 @@ Index
 * void <3>:                              The Closure API.     (line  19)
 * void <4>:                              The Closure API.     (line  26)
 
-
 
 Tag Table:
 Node: Top1387
@@ -1221,18 +1225,18 @@ Node: Primitive Types12967
 Node: Structures15284
 Node: Size and Alignment16395
 Node: Arrays Unions Enums18666
-Node: Type Example21643
-Node: Complex22949
-Node: Complex Type Example24463
-Node: Vector Types27536
-Node: Multiple ABIs31575
-Node: Reusable Call Plans31962
-Node: The Closure API34155
-Node: Closure Example38497
-Node: Thread Safety40141
-Node: Memory Usage40974
-Node: Missing Features42249
-Node: Index42626
+Node: Type Example21955
+Node: Complex23261
+Node: Complex Type Example24775
+Node: Vector Types27848
+Node: Multiple ABIs31887
+Node: Reusable Call Plans32274
+Node: The Closure API34467
+Node: Closure Example38809
+Node: Thread Safety40452
+Node: Memory Usage41285
+Node: Missing Features42560
+Node: Index42937
 
 End Tag Table
 

@@ -29,6 +29,20 @@ proc check_effective_target_gccbug { } {
     return $has_gccbug
 }
 
+# True when this is a powerpc64 linux target whose compiler makes long double
+# 128 bits wide.  A few tests pin -mlong-double-128 to exercise the IBM-128
+# paths, but they may only do so when the library they link against was built
+# the same way: the powerpc linker refuses to merge objects that disagree about
+# the long double ABI.  Probe the compiler rather than the target triplet, so a
+# -mlong-double-64 build (musl's choice on ppc64le) drops the option and tests
+# the 64-bit long double instead.
+proc check_effective_target_ppc64_longdouble128 { } {
+    if { ![istarget powerpc64*-*-linux-gnu*] } {
+        return 0
+    }
+    return [libffi_feature_test "#if defined(__LONG_DOUBLE_128__)"]
+}
+
 # Return 1 if the target matches the effective target 'arg', 0 otherwise.
 # This can be used with any check_* proc that takes no argument and
 # returns only 1 or 0.  It could be used with check_* procs that take
@@ -432,6 +446,8 @@ proc libffi_target_compile { source dest type options } {
                 }
             } elseif { [string match "*android*" $target_triplet] } {
                 lappend options "libs= -lc++"
+            } elseif { [string match "wasm*-*" $target_triplet] } {
+                lappend options "additional_flags=-fexceptions"
             }
         }
 
@@ -447,8 +463,37 @@ proc libffi_target_compile { source dest type options } {
         lappend options "libs= -lpthread"
     }
 
+    # Newer clang warns about file-scope variables that are assigned
+    # but never read.  Several tests do this deliberately.
+    if { [libffi_compiler_accepts_flag "-Wno-unused-but-set-global"] } {
+        lappend options "additional_flags=-Wno-unused-but-set-global"
+    }
+
     verbose "options: $options"
     return [target_compile $source $dest $type $options]
+}
+
+# Returns true if the compiler accepts FLAG without complaint.  The
+# result is cached, so the probe only runs once per flag.
+proc libffi_compiler_accepts_flag { flag } {
+    global libffi_accepted_flags
+
+    if { [info exists libffi_accepted_flags($flag)] } {
+        return $libffi_accepted_flags($flag)
+    }
+
+    set src "ffiflag[pid].c"
+    set f [open $src "w"]
+    puts $f "int main() {return 0;}"
+    close $f
+
+    set lines [target_compile $src $src.i preprocess "additional_flags=$flag"]
+    file delete $src
+    file delete $src.i
+
+    set libffi_accepted_flags($flag) [string match "" $lines]
+    verbose "compiler accepts $flag: $libffi_accepted_flags($flag)"
+    return $libffi_accepted_flags($flag)
 }
 
 # TEST should be a preprocessor condition.  Returns true if it holds.

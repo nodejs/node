@@ -27,7 +27,8 @@ main (void)
   void *values[2];
   f32x4 a = { 1, 2, 3, 4 };
   f32x4 b = { 10, 20, 30, 40 };
-  f32x4 r, ref;
+  f32x4 r, rp, ref;
+  ffi_call_plan *plan;
   int i;
 
   make_vector_type (&vec_type, vec_elems, &ffi_type_float, 4);
@@ -43,11 +44,17 @@ main (void)
 
   ffi_call (&cif, FFI_FN (add_f32x4), &r, values);
 
+  plan = ffi_call_plan_alloc (&cif);
+  CHECK (plan != NULL);
+  ffi_call_plan_invoke (plan, FFI_FN (add_f32x4), &rp, values);
+  ffi_call_plan_free (plan);
+
   ref = add_f32x4 (a, b);
   for (i = 0; i < 4; i++)
     {
       printf ("r[%d] = %g (want %g)\n", i, (double) r[i], (double) ref[i]);
       CHECK (r[i] == ref[i]);
+      CHECK (rp[i] == ref[i]);
     }
 
   exit (0);
