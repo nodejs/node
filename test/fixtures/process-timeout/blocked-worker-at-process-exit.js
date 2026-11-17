@@ -1,7 +1,7 @@
 'use strict';
 // Exits the process while a Worker is blocked in a synchronous native call, so
-// that exiting the process waits for the Worker. The first argument is a path
-// at which a file is created once the process is exiting. The second argument
+// that exiting the process waits for the Worker. The child process creates a
+// file named after the first argument once it has started. The second argument
 // is how the process exits: 'exit' calls process.exit(), 'throw' throws an
 // uncaught exception, and 'reject' leaves a promise rejection unhandled.
 const fs = require('fs');
@@ -27,5 +27,3 @@ const interval = setInterval(() => {
   if (mode === 'reject') return Promise.reject(new Error('boom'));
   process.exit(0);
 }, 10);
-
-process.on('exit', () => fs.writeFileSync(marker, ''));
