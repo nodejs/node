@@ -1,5 +1,5 @@
 /* zlib.h -- interface of the 'zlib' general purpose compression library
-  version 1.3.2.1, February xxth, 2026
+  version 1.4, November 4th, 2026
 
   Copyright (C) 1995-2026 Jean-loup Gailly and Mark Adler
 
@@ -41,12 +41,12 @@
 extern "C" {
 #endif
 
-#define ZLIB_VERSION "1.3.2.1-motley"
-#define ZLIB_VERNUM 0x1321
+#define ZLIB_VERSION "1.4"
+#define ZLIB_VERNUM 0x1400
 #define ZLIB_VER_MAJOR 1
-#define ZLIB_VER_MINOR 3
-#define ZLIB_VER_REVISION 2
-#define ZLIB_VER_SUBREVISION 1
+#define ZLIB_VER_MINOR 4
+#define ZLIB_VER_REVISION 0
+#define ZLIB_VER_SUBREVISION 0
 
 /*
     The 'zlib' compression library provides in-memory compression and
@@ -695,7 +695,9 @@ ZEXTERN int ZEXPORT deflateCopy(z_streamp dest,
      deflateCopy returns Z_OK if success, Z_MEM_ERROR if there was not
    enough memory, Z_STREAM_ERROR if the source stream state was inconsistent
    (such as zalloc being Z_NULL).  msg is left unchanged in both source and
-   destination.
+   destination.  If deflateCopy fails and dest is not Z_NULL, then dest->state
+   is set to Z_NULL with dest otherwise unchanged, so that deflateEnd(dest) can
+   be called safely, though dest is not a usable stream.
 */
 
 ZEXTERN int ZEXPORT deflateReset(z_streamp strm);
@@ -768,17 +770,17 @@ ZEXTERN uLong ZEXPORT deflateBound(z_streamp strm, uLong sourceLen);
 ZEXTERN z_size_t ZEXPORT deflateBound_z(z_streamp strm, z_size_t sourceLen);
 /*
      deflateBound() returns an upper bound on the compressed size after
-   deflation of sourceLen bytes.  It must be called after deflateInit() or
-   deflateInit2(), and after deflateSetHeader(), if used.  This would be used
-   to allocate an output buffer for deflation in a single pass, and so would be
-   called before deflate().  If that first deflate() call is provided the
-   sourceLen input bytes, an output buffer allocated to the size returned by
-   deflateBound(), and the flush value Z_FINISH, then deflate() is guaranteed
-   to return Z_STREAM_END.  Note that it is possible for the compressed size to
-   be larger than the value returned by deflateBound() if flush options other
-   than Z_FINISH or Z_NO_FLUSH are used.
+  deflation of sourceLen bytes.  It must be called after deflateInit() or
+  deflateInit2(), and after deflateSetHeader() or deflateSetDictionary(), if
+  used.  This would be used to allocate an output buffer for deflation in a
+  single pass, and so would be called before deflate().  If that first
+  deflate() call is provided the sourceLen input bytes, an output buffer
+  allocated to the size returned by deflateBound(), and the flush value
+  Z_FINISH, then deflate() is guaranteed to return Z_STREAM_END.  Note that it
+  is possible for the compressed size to be larger than the value returned by
+  deflateBound() if flush options other than Z_FINISH or Z_NO_FLUSH are used.
 
-     delfateBound_z() is the same, but takes and returns a size_t length.  Note
+     deflateBound_z() is the same, but takes and returns a size_t length.  Note
    that a long is 32 bits on Windows.
 */
 
@@ -788,7 +790,7 @@ ZEXTERN int ZEXPORT deflatePending(z_streamp strm,
 /*
      deflatePending() returns the number of bytes and bits of output that have
    been generated, but not yet provided in the available output.  The bytes not
-   provided would be due to the available output space having being consumed.
+   provided would be due to the available output space having been consumed.
    The number of bits of output not provided are between 0 and 7, where they
    await more bits to join them in order to fill out a full byte.  If pending
    or bits are Z_NULL, then those values are not set.
@@ -868,8 +870,7 @@ ZEXTERN int ZEXPORT inflateInit2(z_streamp strm,
    instead.  windowBits must be greater than or equal to the windowBits value
    provided to deflateInit2() while compressing, or it must be equal to 15 if
    deflateInit2() was not used.  If a compressed stream with a larger window
-   size is given as input, inflate() will return with the error code
-   Z_DATA_ERROR instead of trying to allocate a larger window.
+   size is given as input, inflate() may return with a Z_DATA_ERROR.
 
      windowBits can also be zero to request that inflate use the window size in
    the zlib header of the compressed stream.
@@ -979,7 +980,9 @@ ZEXTERN int ZEXPORT inflateCopy(z_streamp dest,
      inflateCopy returns Z_OK if success, Z_MEM_ERROR if there was not
    enough memory, Z_STREAM_ERROR if the source stream state was inconsistent
    (such as zalloc being Z_NULL).  msg is left unchanged in both source and
-   destination.
+   destination.  If inflateCopy fails and dest is not Z_NULL, then dest->state
+   is set to Z_NULL with dest otherwise unchanged, so that inflateEnd(dest) can
+   be called safely, though dest is not a usable stream.
 */
 
 ZEXTERN int ZEXPORT inflateReset(z_streamp strm);
@@ -1094,9 +1097,10 @@ ZEXTERN int ZEXPORT inflateGetHeader(z_streamp strm,
    a terminating zero.  If any of extra, name, or comment are not present in
    the header, then that field's pointer is set to Z_NULL.  This allows the use
    of deflateSetHeader() with the returned structure to duplicate the header.
-   Note that if those fields initially pointed to allocated memory, then the
-   application will need to save them elsewhere so that they can be eventually
-   freed.
+   Though take care that none of the fields were truncated before so using it,
+   lest havoc ensue.  Note that if those fields initially pointed to allocated
+   memory, then the application will need to save them elsewhere so that they
+   can be eventually freed.
 
      If inflateGetHeader is not used, then the header information is simply
    discarded.  The header is always checked for validity, including the header
@@ -1393,8 +1397,8 @@ ZEXTERN gzFile ZEXPORT gzopen(const char *path, const char *mode);
    errno can be checked to determine if the reason gzopen failed was that the
    file could not be opened. Note that if 'N' is in mode for non-blocking, the
    open() itself can fail in order to not block. In that case gzopen() will
-   return NULL and errno will be EAGAIN or ENONBLOCK. The call to gzopen() can
-   then be re-tried. If the application would like to block on opening the
+   return NULL and errno will be EAGAIN or EWOULDBLOCK. The call to gzopen()
+   can then be re-tried. If the application would like to block on opening the
    file, then it can use open() without O_NONBLOCK, and then gzdopen() with the
    resulting file descriptor and 'N' in the mode, which will set it to non-
    blocking.
@@ -1500,9 +1504,12 @@ ZEXTERN z_size_t ZEXPORT gzfread(voidp buf, z_size_t size, z_size_t nitems,
      gzfread() returns the number of full items read of size size, or zero if
    the end of the file was reached and a full item could not be read, or if
    there was an error.  gzerror() must be consulted if zero is returned in
-   order to determine if there was an error.  If the multiplication of size and
-   nitems overflows, i.e. the product does not fit in a z_size_t, then nothing
-   is read, zero is returned, and the error state is set to Z_STREAM_ERROR.
+   order to determine if there was an error.  If some data was read before an
+   error, then that data is returned until exhausted, after which the next call
+   will return zero and gzerror() will report the error.  If the multiplication
+   of size and nitems overflows, i.e. the product does not fit in a z_size_t,
+   then nothing is read, zero is returned, and the error state is set to
+   Z_STREAM_ERROR.
 
      In the event that the end of file is reached and only a partial item is
    available at the end, i.e. the remaining uncompressed data length is not a
@@ -1568,7 +1575,7 @@ ZEXTERN int ZEXPORTVA gzprintf();
    these possibilities can be determined using zlibCompileFlags().
 
      If a Z_BUF_ERROR is returned, then nothing was written due to a stall on
-   the non-blocking write destination.
+   the non-blocking write destination. The operation can be retried.
 */
 
 ZEXTERN int ZEXPORT gzputs(gzFile file, const char *s);
@@ -1676,7 +1683,9 @@ ZEXTERN z_off_t ZEXPORT gzseek(gzFile file,
      gzseek returns the resulting offset location as measured in bytes from
    the beginning of the uncompressed stream, or -1 in case of error, in
    particular if the file is opened for writing and the new starting position
-   would be before the current position.
+   would be before the current position, or if the resulting position would
+   not be representable in the offset type. If gzseek returns -1, the stream
+   position is unchanged.
 */
 
 ZEXTERN int ZEXPORT gzrewind(gzFile file);
@@ -1777,7 +1786,8 @@ ZEXTERN const char * ZEXPORT gzerror(gzFile file, int *errnum);
    If errnum is not NULL, *errnum is set to zlib error number.  If an error
    occurred in the file system and not in the compression library, *errnum is
    set to Z_ERRNO and the application may consult errno to get the exact error
-   code.
+   code.  The error is reported by gzerror() as soon as it is detected, which
+   may be before all of the data read prior to the error has been returned.
 
      The application must not modify the returned string.  Future calls to
    this function may invalidate the previously returned string.  If file is
@@ -1976,7 +1986,8 @@ ZEXTERN int ZEXPORT gzgetc_(gzFile file);       /* backward compatibility */
  * change the regular functions to 64 bits if _FILE_OFFSET_BITS is 64 (if
  * both are true, the application gets the *64 functions, and the regular
  * functions are changed to 64 bits) -- in case these are set on systems
- * without large file support, _LFS64_LARGEFILE must also be true
+ * without large file support, _LFS64_LARGEFILE must also be true, except on
+ * native Windows, where 64-bit offsets are always available
  */
 #ifdef Z_LARGE64
    ZEXTERN gzFile ZEXPORT gzopen64(const char *, const char *);
@@ -2058,7 +2069,7 @@ ZEXTERN int ZEXPORT gzgetc_(gzFile file);       /* backward compatibility */
 
 #endif /* !Z_SOLO */
 
-/* undocumented functions */
+/* undocumented functions (not part of the zlib API) */
 ZEXTERN const char   * ZEXPORT zError(int);
 ZEXTERN int            ZEXPORT inflateSyncPoint(z_streamp);
 ZEXTERN const z_crc_t FAR * ZEXPORT get_crc_table(void);

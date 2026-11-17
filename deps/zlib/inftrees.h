@@ -46,8 +46,14 @@ typedef struct {
    inflate_table() calls in inflate.c and infback.c.  If the root table size is
    changed, then these maximum sizes would be need to be recalculated and
    updated. */
-#define ENOUGH_LENS 1332
-#define ENOUGH_DISTS 592
+#ifndef PKZIP_BUG_WORKAROUND
+#  define ENOUGH_LENS 1332
+#  define ENOUGH_DISTS 592
+#else
+/* That workaround permits 288 literal/length codes and 32 distance codes. */
+#  define ENOUGH_LENS 1334
+#  define ENOUGH_DISTS 594
+#endif
 #define ENOUGH (ENOUGH_LENS+ENOUGH_DISTS)
 
 /* Type of code to build for inflate_table() */

@@ -37,6 +37,9 @@
 #ifdef USE_MMAP
 #  include <sys/types.h>
 #  include <sys/mman.h>
+#  ifndef MAP_FAILED
+#    define MAP_FAILED ((void *)-1)
+#  endif
 #  include <sys/stat.h>
 #endif
 
@@ -337,7 +340,7 @@ static int gz_compress_mmap(FILE *in, gzFile out) {
     int len;
     int err;
     int ifd = fileno(in);
-    caddr_t buf;    /* mmap'ed buffer for the entire input file */
+    void *buf;      /* mmap'ed buffer for the entire input file */
     off_t buf_len;  /* length of the input file */
     struct stat sb;
 
@@ -347,8 +350,8 @@ static int gz_compress_mmap(FILE *in, gzFile out) {
     if (buf_len <= 0) return Z_ERRNO;
 
     /* Now do the actual mmap: */
-    buf = mmap((caddr_t) 0, buf_len, PROT_READ, MAP_SHARED, ifd, (off_t)0);
-    if (buf == (caddr_t)(-1)) return Z_ERRNO;
+    buf = mmap(NULL, buf_len, PROT_READ, MAP_SHARED, ifd, (off_t)0);
+    if (buf == MAP_FAILED) return Z_ERRNO;
 
     /* Compress the whole file at once: */
     len = gzwrite(out, (char *)buf, (unsigned)buf_len);
