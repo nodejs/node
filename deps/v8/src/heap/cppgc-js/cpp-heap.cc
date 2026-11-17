@@ -556,33 +556,42 @@ namespace {
 
 class SweepingOnMutatorThreadForGlobalHandlesScope final {
  public:
-  explicit SweepingOnMutatorThreadForGlobalHandlesScope(
-      TracedHandles& traced_handles)
-      : traced_handles_(traced_handles) {
-    traced_handles_.SetIsSweepingOnMutatorThread(true);
+  explicit SweepingOnMutatorThreadForGlobalHandlesScope(Isolate& isolate)
+      : isolate_(isolate),
+        no_js_(&isolate),
+        no_js_object_modification_(&isolate) {
+    isolate_.traced_handles()->SetIsSweepingOnMutatorThread(true);
   }
   ~SweepingOnMutatorThreadForGlobalHandlesScope() {
-    traced_handles_.SetIsSweepingOnMutatorThread(false);
+    isolate_.traced_handles()->SetIsSweepingOnMutatorThread(false);
   }
 
-  TracedHandles& traced_handles_;
+ private:
+  Isolate& isolate_;
+  // Mutator-thread sweeping runs CppHeap pre-finalizers and C++ destructors
+  // (both during the atomic pause and outside it via incremental sweep tasks or
+  // lazy sweeping on Oilpan allocation). Disallow JS execution and JSObject
+  // modification during these embedder finalizers.
+  DisallowJavascriptExecution no_js_;
+  DisallowJSObjectModification no_js_object_modification_;
 };
 
 class SweepingOnMutatorThreadForGlobalHandlesObserver final
     : public cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver {
  public:
   SweepingOnMutatorThreadForGlobalHandlesObserver(CppHeap& cpp_heap,
-                                                  TracedHandles& traced_handles)
+                                                  Isolate& isolate)
       : cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver(
             cpp_heap.sweeper()),
-        traced_handles_(traced_handles) {}
+        isolate_(isolate) {}
 
-  void Start() override { traced_handles_.SetIsSweepingOnMutatorThread(true); }
+  void Start() override { scope_.emplace(isolate_); }
 
-  void End() override { traced_handles_.SetIsSweepingOnMutatorThread(false); }
+  void End() override { scope_.reset(); }
 
  private:
-  TracedHandles& traced_handles_;
+  Isolate& isolate_;
+  std::optional<SweepingOnMutatorThreadForGlobalHandlesScope> scope_;
 };
 
 class MoveListenerImpl final : public HeapProfilerNativeMoveListener,
@@ -644,7 +653,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   UpdateGCCapabilitiesFromFlags();
   sweeping_on_mutator_thread_observer_ =
       std::make_unique<SweepingOnMutatorThreadForGlobalHandlesObserver>(
-          *this, *isolate_->traced_handles());
+          *this, *isolate_);
   no_gc_scope_--;
 
   // Propagate overridden stack state to the attached heap, if necessary.
@@ -994,6 +1003,10 @@ void CppHeap::FinishMarkingAndProcessWeakness() {
 
   {
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
+    if (isolate_) {
+      DCHECK(!AllowJavascriptExecution::IsAllowed(isolate_));
+      DCHECK(!AllowJSObjectModification::IsAllowed(isolate_));
+    }
     marker_->LeaveAtomicPause();
   }
   marker_.reset();
@@ -1031,7 +1044,7 @@ void CppHeap::CompactAndSweep() {
     std::optional<SweepingOnMutatorThreadForGlobalHandlesScope>
         global_handles_scope;
     if (isolate_) {
-      global_handles_scope.emplace(*isolate_->traced_handles());
+      global_handles_scope.emplace(*isolate_);
     }
     bytes_allocated_in_prefinalizers = ExecutePreFinalizers();
   }
@@ -1058,7 +1071,7 @@ void CppHeap::CompactAndSweep() {
       std::optional<SweepingOnMutatorThreadForGlobalHandlesScope>
           global_handles_scope;
       if (isolate_) {
-        global_handles_scope.emplace(*isolate_->traced_handles());
+        global_handles_scope.emplace(*isolate_);
       }
       compactable_space_handling = compactor_.CompactSpacesIfEnabled();
     }

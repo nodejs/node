@@ -544,6 +544,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(bool, deoptimization_assert, true)                                      \
   V(bool, compilation_assert, true)                                         \
   V(bool, no_exception_assert, true)                                        \
+  V(bool, js_object_modification_assert, true)                              \
   V(uint32_t, wasm_switch_to_the_central_stack_counter, 0)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                         \

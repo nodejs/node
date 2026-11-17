@@ -1419,6 +1419,7 @@ namespace {
 template <typename Callback>
 void InvokeExternalCallbacks(Isolate* isolate, Callback callback) {
   DCHECK(!AllowJavascriptExecution::IsAllowed(isolate));
+  DCHECK(!AllowJSObjectModification::IsAllowed(isolate));
   AllowGarbageCollection allow_gc;
   // Temporary override any embedder stack state as callbacks may create
   // their own state on the stack and recursively trigger GC.
@@ -1466,8 +1467,14 @@ void Heap::CollectGarbage(
   // collection is triggered. Note that these callbacks may trigger another
   // garbage collection since they may allocate.
 
-  // JS execution is not allowed in any of the callbacks.
+  // JS execution and object modifications are not allowed during GC or in any
+  // of the embedder callbacks triggered below: first-pass weak callbacks
+  // (GlobalHandles::InvokeFirstPassWeakCallbacks), second-pass phantom
+  // callbacks (PostGarbageCollectionProcessing), GC prologue and epilogue
+  // callbacks (v8::Isolate::GCCallback), and CppHeap pre-finalizers and object
+  // finalizers (C++ destructors).
   DisallowJavascriptExecution no_js(isolate());
+  DisallowJSObjectModification no_js_object_modification(isolate());
 
   // Some custom flushing (currently: FlushBytecodeFromSFI) can create
   // fresh TrustedPointerTableEntries during GC. These must not be affected
@@ -1828,6 +1835,13 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
     // guarantee.
     return;
   }
+
+  // Completing sweeping below may trigger embedder CppHeap object finalizers
+  // (C++ destructors, via FinishSweepingIfRunning / FinishSweepingIfOutOfWork),
+  // and incremental_marking()->Start() triggers embedder GC prologue and
+  // epilogue callbacks.
+  DisallowJavascriptExecution no_js(isolate());
+  DisallowJSObjectModification no_js_object_modification(isolate());
 
   TRACE_EVENT(
       "v8",

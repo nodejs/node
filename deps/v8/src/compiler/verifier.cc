@@ -303,6 +303,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       UNREACHABLE();
     case IrOpcode::kDeadValue:
       CheckValueInputIs(node, 0, Type::None());
+      CHECK_NE(NodeProperties::GetValueInput(node, 0), node);
       CheckTypeIs(node, Type::None());
       break;
     case IrOpcode::kUnreachable:

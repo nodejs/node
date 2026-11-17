@@ -4,8 +4,9 @@
 
 // Flags: --allow-natives-syntax --maglev
 
-// Test that we do not leak TheHole (which signals to skip IteratorResult
-// allocation) when a generator suspends via yield*.
+// Test that a generator suspending via yield* does not skip result allocation.
+// The body suspends inside the delegated iterator and never hits
+// %GeneratorYieldResult.
 
 function* inner() {
   yield 2;
@@ -29,10 +30,6 @@ test(generatorObject); // yields 1
 %OptimizeMaglevOnNextCall(test);
 test(generatorObject); // yields 2 (delegated to inner)
 
-// At this point, yielded_value_ should be cleared.
-// If it wasn't, the next call (unoptimized) will incorrectly see TheHole,
-// skip allocating the IteratorResult, and return TheHole to JS space.
-// This would then cause a crash when the JS code tries to access res.value.
 let res = generatorObject.next();
 assertEquals(3, res.value);
 assertEquals(false, res.done);
