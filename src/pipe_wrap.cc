@@ -299,8 +299,7 @@ void PipeWrap::GetPeerName(const FunctionCallbackInfo<Value>& args) {
   // An unbound peer has an empty name, which leaves the address unset.
   if (err == 0 && size > 0) {
     Local<String> name;
-    if (!String::NewFromUtf8(
-             env->isolate(), *buf, NewStringType::kNormal, size)
+    if (!String::NewFromUtf8(env->isolate(), *buf, NewStringType::kNormal, size)
              .ToLocal(&name) ||
         args[0]
             .As<Object>()
