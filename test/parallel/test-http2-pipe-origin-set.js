@@ -29,7 +29,7 @@ function test(path) {
     });
     client.on('connect', common.mustCall(() => {
       assert.strictEqual(client.socket.servername, false);
-      assert.deepStrictEqual(client.originSet, ['https://undefined']);
+      assert.deepStrictEqual(client.originSet, ['https://localhost']);
       const req = client.request();
       req.resume();
       req.on('close', common.mustCall(() => {
