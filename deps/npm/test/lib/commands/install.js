@@ -16,6 +16,7 @@ const {
   loadNpmWithRegistry: loadMockNpm,
   workspaceMock,
 } = require('../../fixtures/mock-npm')
+const orphanFixture = require('../../fixtures/allow-scripts-orphan.js')
 
 // tspawk calls preventUnmatched which assures that no scripts run if we don't mock any
 const spawk = tspawk(t)
@@ -594,6 +595,132 @@ t.test('completion', async t => {
     const { install } = await mockComp(t)
     const res = await install.completion({ partialWord: '/' })
     t.strictSame(res, [])
+  })
+})
+
+t.test('install with an extraneous local link', async t => {
+  const setup = (t, config = {}) => loadMockNpm(t, {
+    config: { audit: false, fund: false, 'package-lock': false, ...config },
+    prefixDir: {
+      'package.json': JSON.stringify({ name: 'host', version: '1.0.0' }),
+      foo: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.0.0',
+          scripts: { install: 'echo linked-install' },
+        }),
+      },
+      node_modules: { foo: t.fixture('symlink', '../foo') },
+    },
+  })
+
+  await t.test('strict mode rejects a retained link target', async t => {
+    const { npm, assert } = await setup(t, { 'strict-allow-scripts': true })
+    await t.rejects(npm.exec('install', []), {
+      code: 'ESTRICTALLOWSCRIPTS',
+      message: /foo@1\.0\.0/,
+    })
+    assert.fileShouldExist('node_modules/foo/package.json')
+  })
+
+  await t.test('normal mode keeps the blocked-script warning', async t => {
+    const { npm, logs } = await setup(t)
+    await npm.exec('install', [])
+    const warnings = logs.warn.byTitle('install-scripts').join('\n')
+    t.match(warnings, /1 package had install scripts blocked/)
+    t.match(warnings, /foo@1\.0\.0/)
+  })
+
+  await t.test('JSON keeps the blocked-script entry', async t => {
+    const { npm, joinedOutput } = await setup(t, { json: true })
+    await npm.exec('install', [])
+    t.strictSame(JSON.parse(joinedOutput()).unreviewedScripts, [{
+      name: 'foo',
+      version: '1.0.0',
+      path: path.join(npm.prefix, 'foo'),
+      scripts: { install: 'echo linked-install' },
+    }])
+  })
+
+  await t.test('the bypass still rebuilds the retained link', async t => {
+    const { npm } = await setup(t, {
+      'strict-allow-scripts': true,
+      'dangerously-allow-all-scripts': true,
+    })
+    let calls = 0
+    spawk.spawn(/.*/, args => {
+      calls++
+      return args.includes('echo linked-install')
+    })
+    await npm.exec('install', [])
+    t.equal(calls, 1, 'ran the linked package install script')
+  })
+
+  await t.test('pruning the link does not reject or warn about its detached target', async t => {
+    const { npm, logs, assert } = await setup(t, {
+      'strict-allow-scripts': true,
+      'package-lock': true,
+    })
+    await npm.exec('install', [])
+    assert.fileShouldNotExist('node_modules/foo')
+    assert.fileShouldExist('foo/package.json')
+    t.strictSame(logs.warn.byTitle('install-scripts'), [])
+  })
+})
+
+t.test('install with lockfile-only orphans', async t => {
+  const testOrphan = async (t, {
+    workspace = true,
+    allowScripts,
+    strict = true,
+    json = false,
+  } = {}) => {
+    const { npm, registry, assert, logs, clearOutput, joinedOutput } = await loadMockNpm(t, {
+      config: { audit: false, fund: false, 'strict-allow-scripts': strict, json },
+      prefixDir: orphanFixture(t, { workspace, allowScripts }),
+    })
+    const manifest = registry.manifest({ name: 'abbrev' })
+    await registry.tarball({
+      manifest: manifest.versions['1.0.0'],
+      tarball: path.join(npm.prefix, 'tarballs/abbrev@1.0.0'),
+    })
+
+    await npm.exec('install', [])
+
+    assert.packageInstalled('node_modules/abbrev@1.0.0')
+    assert.fileShouldNotExist('app/node_modules/abbrev/node_modules/orphan')
+    t.strictSame(logs.warn.byTitle('install-scripts'), [], 'no orphan warning')
+    if (json) {
+      t.notOk(Object.hasOwn(JSON.parse(joinedOutput()), 'unreviewedScripts'), 'no orphan entry')
+    } else {
+      clearOutput()
+      await npm.exec('install-scripts', ['ls'])
+      t.match(joinedOutput(), /No packages with unreviewed install scripts/)
+    }
+  }
+
+  for (const workspace of [true, false]) {
+    for (const allowScripts of [undefined, { orphan: false }]) {
+      const source = workspace ? 'workspace' : 'file link'
+      const policy = allowScripts ? 'denied' : 'unreviewed'
+      for (const strict of [false, true]) {
+        await t.test(`${source}, ${policy} orphan, strict=${strict}`,
+          t => testOrphan(t, { workspace, allowScripts, strict }))
+      }
+    }
+  }
+
+  await t.test('JSON excludes the orphan', t => testOrphan(t, { json: true }))
+
+  await t.test('still rejects a required unreviewed package', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: { audit: false, 'strict-allow-scripts': true },
+      prefixDir: orphanFixture(t, { requiredScripts: true }),
+    })
+    await t.rejects(npm.exec('install', []), {
+      code: 'ESTRICTALLOWSCRIPTS',
+      message: /1 package\(s\) have install scripts not covered by allowScripts:\n {2}abbrev@1\.0\.0/,
+    })
   })
 })
 

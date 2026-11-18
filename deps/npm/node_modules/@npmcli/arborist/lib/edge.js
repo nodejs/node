@@ -108,15 +108,15 @@ class Edge {
       return false
     }
 
+    // If there's no override we just use the spec.
+    if (!this.overrides?.keySpec) {
+      return depValid(node, this.spec, this.#accept, this.#from)
+    }
+
     // NOTE: this condition means we explicitly do not support overriding
     // bundled dependencies
     if (node.inDepBundle) {
       return depValid(node, this.rawSpec, this.#accept, this.#from)
-    }
-
-    // If there's no override we just use the spec.
-    if (!this.overrides?.keySpec) {
-      return depValid(node, this.spec, this.#accept, this.#from)
     }
     // There's some override. If the target node satisfies the overriding spec
     // then it's okay.
