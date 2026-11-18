@@ -60,7 +60,7 @@ rm -rf node_modules
 mv ./* "$DEPS_DIR/amaro"
 
 # update version information in src/undici_version.h
-cat > "$ROOT/src/amaro_version.h" <<EOF
+cat > "$BASE_DIR/src/amaro_version.h" <<EOF
 // This is an auto generated file, please do not edit.
 // Refer to tools/dep_updaters/update-amaro.sh
 #ifndef SRC_AMARO_VERSION_H_
