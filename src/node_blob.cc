@@ -19,6 +19,7 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::ArrayBufferBase;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
@@ -77,7 +78,7 @@ void Concat(const FunctionCallbackInfo<Value>& args) {
     } else {
       CHECK(val->IsArrayBufferView());
       auto view = val.As<ArrayBufferView>();
-      views.push_back(View{view->Buffer()->GetBackingStore(),
+      views.push_back(View{view->GetBuffer()->GetBackingStore(),
                            view->ByteLength(),
                            view->ByteOffset()});
       total += view->ByteLength();
@@ -206,13 +207,13 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
     Local<Value> entry = sources[i].Get(isolate);
 
     auto entryFromArrayBuffer =
-        [isolate](Local<ArrayBuffer> buf,
+        [isolate](Local<ArrayBufferBase> buf,
                   size_t byte_length,
                   size_t byte_offset =
                       0) mutable -> std::unique_ptr<DataQueue::Entry> {
       if (buf->IsDetachable()) {
         std::shared_ptr<BackingStore> store = buf->GetBackingStore();
-        if (buf->Detach(Local<Value>()).IsNothing()) {
+        if (buf.As<ArrayBuffer>()->Detach(Local<Value>()).IsNothing()) {
           return nullptr;
         }
         return DataQueue::CreateInMemoryEntryFromBackingStore(
@@ -245,7 +246,7 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
     } else if (entry->IsArrayBufferView()) {
       Local<ArrayBufferView> view = entry.As<ArrayBufferView>();
       auto ret = entryFromArrayBuffer(
-          view->Buffer(), view->ByteLength(), view->ByteOffset());
+          view->GetBuffer(), view->ByteLength(), view->ByteOffset());
       if (!ret) return;
       entries[i] = std::move(ret);
     } else if (Blob::HasInstance(env, entry)) {

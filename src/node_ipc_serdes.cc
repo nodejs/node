@@ -20,6 +20,7 @@
 namespace node {
 
 using v8::ArrayBuffer;
+using v8::ArrayBufferBase;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BigInt64Array;
@@ -240,7 +241,7 @@ class IPCSerializerDelegate : public ValueSerializer::Delegate {
 
 class IPCDeserializerDelegate : public ValueDeserializer::Delegate {
  public:
-  IPCDeserializerDelegate(Environment* env, Local<ArrayBuffer> ab)
+  IPCDeserializerDelegate(Environment* env, Local<ArrayBufferBase> ab)
       : env_(env), ab_(ab) {}
 
   void set_deserializer(ValueDeserializer* deserializer) {
@@ -286,8 +287,9 @@ class IPCDeserializerDelegate : public ValueDeserializer::Delegate {
     // Reuse the backing ArrayBuffer when the data is suitably aligned,
     // otherwise copy into a fresh aligned buffer. Mirrors _readHostObject()
     // in lib/v8.js.
-    if (offset_in_ab % bytes_per_element == 0) {
-      return MakeView(env_, type_index, ab_, offset_in_ab, byte_length);
+    if (ab_->IsArrayBuffer() && offset_in_ab % bytes_per_element == 0) {
+      return MakeView(
+          env_, type_index, ab_.As<ArrayBuffer>(), offset_in_ab, byte_length);
     }
     std::shared_ptr<BackingStore> store =
         ArrayBuffer::NewBackingStore(isolate, byte_length);
@@ -298,7 +300,7 @@ class IPCDeserializerDelegate : public ValueDeserializer::Delegate {
 
  private:
   Environment* env_;
-  Local<ArrayBuffer> ab_;
+  Local<ArrayBufferBase> ab_;
   ValueDeserializer* deserializer_ = nullptr;
 };
 
@@ -346,7 +348,7 @@ static void Deserialize(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsArrayBufferView());
   Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
-  Local<ArrayBuffer> ab = view->Buffer();
+  Local<ArrayBufferBase> ab = view->GetBuffer();
   const size_t byte_offset = view->ByteOffset();
   const size_t byte_length = view->ByteLength();
   const uint8_t* data = static_cast<const uint8_t*>(ab->Data()) + byte_offset;

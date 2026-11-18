@@ -40,7 +40,7 @@ namespace node {
 namespace os {
 
 using v8::Array;
-using v8::ArrayBuffer;
+using v8::ArrayBufferBase;
 using v8::Boolean;
 using v8::Context;
 using v8::Float64Array;
@@ -186,7 +186,7 @@ static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsFloat64Array());
   Local<Float64Array> array = args[0].As<Float64Array>();
   CHECK_EQ(array->Length(), 3);
-  Local<ArrayBuffer> ab = array->Buffer();
+  Local<ArrayBufferBase> ab = array->GetBuffer();
   double* loadavg = static_cast<double*>(ab->Data());
   uv_loadavg(loadavg);
 }

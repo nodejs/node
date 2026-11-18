@@ -11,7 +11,7 @@ inline void CompressBytes(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto byte_offset = view->ByteOffset();
   auto byte_length = view->ByteLength();
   assert(view->HasBuffer());
-  auto buffer = view->Buffer();
+  auto buffer = view->GetBuffer();
   auto contents = buffer->GetBackingStore();
   auto data = static_cast<unsigned char*>(contents->Data()) + byte_offset;
 

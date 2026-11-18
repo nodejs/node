@@ -56,6 +56,7 @@ namespace node {
 namespace Buffer {
 
 using v8::ArrayBuffer;
+using v8::ArrayBufferBase;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
@@ -257,7 +258,7 @@ bool HasInstance(Local<Object> obj) {
 char* Data(Local<Value> val) {
   CHECK(val->IsArrayBufferView());
   Local<ArrayBufferView> ui = val.As<ArrayBufferView>();
-  return static_cast<char*>(ui->Buffer()->Data()) + ui->ByteOffset();
+  return static_cast<char*>(ui->GetBuffer()->Data()) + ui->ByteOffset();
 }
 
 
@@ -584,7 +585,7 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   size_t length = end - start;
 
   std::unique_ptr<char[]> data_copy;
-  if (view->Buffer()->IsSharedArrayBuffer()) {
+  if (view->GetBuffer()->IsSharedArrayBuffer()) {
     data_copy = std::make_unique_for_overwrite<char[]>(length);
     memcpy(data_copy.get(), data_ptr + start, length);
     data_ptr = data_copy.get();
@@ -609,8 +610,8 @@ size_t CopyImpl(Local<Value> source_obj,
   Local<ArrayBufferView> source = source_obj.As<ArrayBufferView>();
   Local<ArrayBufferView> target = target_obj.As<ArrayBufferView>();
 
-  Local<ArrayBuffer> source_ab = source->Buffer();
-  Local<ArrayBuffer> target_ab = target->Buffer();
+  Local<ArrayBufferBase> source_ab = source->GetBuffer();
+  Local<ArrayBufferBase> target_ab = target->GetBuffer();
 
   const size_t source_offset = source->ByteOffset() + source_start;
   const size_t target_offset = target->ByteOffset() + target_start;
@@ -1502,7 +1503,7 @@ static bool MaskArgs(Local<Value> source_obj,
                      uint32_t mask) {
   CHECK(destination_obj->IsArrayBufferView());
   Local<ArrayBufferView> destination = destination_obj.As<ArrayBufferView>();
-  Local<ArrayBuffer> destination_ab = destination->Buffer();
+  Local<ArrayBufferBase> destination_ab = destination->GetBuffer();
   if (destination_ab->IsImmutable()) return false;
   if (length == 0) return true;
   const size_t destination_length = destination->ByteLength();

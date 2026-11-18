@@ -3960,7 +3960,7 @@ class WriteFileJob final : public AsyncWrap, public ThreadPoolWork {
     // detached or collected meanwhile; a resizable buffer can still have its
     // pages decommitted by a shrink, so its contents are copied instead.
     length_ = view->ByteLength();
-    backing_store_ = view->Buffer()->GetBackingStore();
+    backing_store_ = view->GetBuffer()->GetBackingStore();
     if (backing_store_->IsResizableByUserJavaScript()) {
       copy_.reset(new char[length_]);
       memcpy(copy_.get(),

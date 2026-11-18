@@ -97,7 +97,7 @@ inline void AliasedBufferBase<NativeT, V8T>::Deserialize(
   // be removed when we expand the snapshot support.
   DCHECK_EQ(count_, arr->Length());
   DCHECK_EQ(byte_offset_, arr->ByteOffset());
-  uint8_t* raw = static_cast<uint8_t*>(arr->Buffer()->Data());
+  uint8_t* raw = static_cast<uint8_t*>(arr->GetBuffer()->Data());
   buffer_ = reinterpret_cast<NativeT*>(raw + byte_offset_);
   js_array_.Reset(isolate_, arr);
   index_ = nullptr;
@@ -146,7 +146,7 @@ template <typename NativeT, typename V8T>
   requires std::is_scalar_v<NativeT>
 v8::Local<v8::ArrayBuffer> AliasedBufferBase<NativeT, V8T>::GetArrayBuffer()
     const {
-  return GetJSArray()->Buffer();
+  return GetJSArray()->GetBuffer().template As<v8::ArrayBuffer>();
 }
 
 template <typename NativeT, typename V8T>

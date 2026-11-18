@@ -125,7 +125,7 @@ uintptr_t PointerFromValue(v8::Local<v8::Value> value) {
   // ArrayBuffer and SharedArrayBuffer point at the start of their store.
   if (value->IsArrayBufferView()) {
     v8::Local<v8::ArrayBufferView> view = value.As<v8::ArrayBufferView>();
-    void* data = view->Buffer()->Data();
+    void* data = view->GetBuffer()->Data();
     return reinterpret_cast<uintptr_t>(static_cast<char*>(data) +
                                        view->ByteOffset());
   }
@@ -247,7 +247,7 @@ extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
   constexpr uintptr_t kInvalidBuffer = std::numeric_limits<uintptr_t>::max();
   // The trampoline always passes the FastApiCallbackOptions declared in the
   // CFunctionInfo. No HandleScope is active during a Fast API call, and both
-  // ArrayBufferView::Buffer() and the error paths below create handles, so
+  // ArrayBufferView::GetBuffer() and the error paths below create handles, so
   // open one for the whole helper. Otherwise every call leaks handles into
   // the caller's scope.
   v8::Isolate* isolate = options->isolate;
@@ -259,7 +259,7 @@ extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
   // lifetimes match the generic path.
   if (value->IsArrayBufferView()) {
     v8::Local<v8::ArrayBufferView> view = value.As<v8::ArrayBufferView>();
-    if (view->Buffer()->WasDetached()) {
+    if (view->GetBuffer()->WasDetached()) {
       THROW_ERR_INVALID_ARG_VALUE(
           isolate,
           "Argument %u is an ArrayBufferView backed by a detached "

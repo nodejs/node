@@ -1879,7 +1879,7 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
     size_t byteOffset = buffer->ByteOffset();
     size_t byteLength = buffer->ByteLength();
     auto data =
-        static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
+        static_cast<const uint8_t*>(buffer->GetBuffer()->Data()) + byteOffset;
     if (std::find(data, data + byteLength, 0) == data + byteLength) {
       return std::string(reinterpret_cast<const char*>(data), byteLength);
     }

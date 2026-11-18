@@ -3,7 +3,7 @@
 #include <assert.h>
 
 using v8::Array;
-using v8::ArrayBuffer;
+using v8::ArrayBufferBase;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::Context;
@@ -104,7 +104,7 @@ void CallWithTypedarray(const FunctionCallbackInfo<Value>& args) {
     const size_t byte_length = view->ByteLength();
     assert(byte_length > 0);
     assert(view->HasBuffer());
-    Local<ArrayBuffer> buffer = view->Buffer();
+    Local<ArrayBufferBase> buffer = view->GetBuffer();
     std::shared_ptr<BackingStore> bs = buffer->GetBackingStore();
     const uint32_t* data = reinterpret_cast<uint32_t*>(
         static_cast<uint8_t*>(bs->Data()) + byte_offset);

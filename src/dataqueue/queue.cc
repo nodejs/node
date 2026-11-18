@@ -20,6 +20,8 @@
 
 namespace node {
 
+using v8::ArrayBuffer;
+using v8::ArrayBufferBase;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::Local;
@@ -1163,13 +1165,14 @@ std::unique_ptr<DataQueue::Entry> DataQueue::CreateInMemoryEntryFromView(
   // the underlying buffer, something else could modify the buffer while we're
   // holding the reference, which means we cannot guarantee that reads will be
   // idempotent.
-  if (!view->Buffer()->IsDetachable()) {
+  Local<ArrayBufferBase> buffer = view->GetBuffer();
+  if (!buffer->IsDetachable()) {
     return nullptr;
   }
-  auto store = view->Buffer()->GetBackingStore();
+  auto store = buffer->GetBackingStore();
   auto offset = view->ByteOffset();
   auto length = view->ByteLength();
-  USE(view->Buffer()->Detach(Local<Value>()));
+  USE(buffer.As<ArrayBuffer>()->Detach(Local<Value>()));
   return CreateInMemoryEntryFromBackingStore(std::move(store), offset, length);
 }
 
