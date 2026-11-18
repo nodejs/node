@@ -419,3 +419,47 @@ TEST_F(LinkedBindingTest, ManyBindingsTest) {
   CHECK_EQ(strcmp(*utf8val, "world"), 0);
   CHECK_EQ(calls, 5);
 }
+
+void InitializeThrowingBinding(v8::Local<v8::Object> exports,
+                               v8::Local<v8::Value> module,
+                               v8::Local<v8::Context> context,
+                               void* priv) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  isolate->ThrowException(v8::Exception::Error(
+      v8::String::NewFromUtf8Literal(isolate, "init failed")));
+}
+
+TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingThrowsTest) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env test_env{handle_scope, argv};
+
+  AddLinkedBinding(
+      *test_env, "local_linked_throws", InitializeThrowingBinding, nullptr);
+
+  const char* run_script =
+      "try { process._linkedBinding('local_linked_throws'); 'not thrown'; }"
+      " catch (err) { err.message; }";
+  CHECK_EQ(RunScript(isolate_, run_script), "init failed");
+}
+
+napi_value InitializeThrowingNapiBinding(napi_env env, napi_value exports) {
+  CHECK_EQ(napi_throw_error(env, nullptr, "init failed"), napi_ok);
+  return nullptr;
+}
+
+TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiThrowsTest) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env test_env{handle_scope, argv};
+
+  AddLinkedBinding(*test_env,
+                   "local_linked_napi_throws",
+                   InitializeThrowingNapiBinding,
+                   NAPI_VERSION);
+
+  const char* run_script =
+      "try { process._linkedBinding('local_linked_napi_throws');"
+      " 'not thrown'; } catch (err) { err.message; }";
+  CHECK_EQ(RunScript(isolate_, run_script), "init failed");
+}

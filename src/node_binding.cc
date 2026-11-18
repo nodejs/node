@@ -281,6 +281,7 @@ using v8::Local;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
+using v8::TryCatch;
 using v8::Value;
 
 // Globals per process
@@ -1080,14 +1081,26 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (mod->nm_context_register_func != nullptr) {
-    mod->nm_context_register_func(
-        exports, module, env->context(), mod->nm_priv);
-  } else if (mod->nm_register_func != nullptr) {
-    mod->nm_register_func(exports, module, mod->nm_priv);
-  } else {
+  if (mod->nm_context_register_func == nullptr &&
+      mod->nm_register_func == nullptr) {
     return THROW_ERR_INVALID_MODULE(
         env, "Linked binding has no declared entry point.");
+  }
+
+  {
+    TryCatch try_catch(env->isolate());
+    if (mod->nm_context_register_func != nullptr) {
+      mod->nm_context_register_func(
+          exports, module, env->context(), mod->nm_priv);
+    } else {
+      mod->nm_register_func(exports, module, mod->nm_priv);
+    }
+    // Reading module.exports below would clear an exception thrown by the
+    // binding's initializer, so rethrow it to the caller here.
+    if (try_catch.HasCaught()) {
+      if (!try_catch.HasTerminated()) try_catch.ReThrow();
+      return;
+    }
   }
 
   Local<Value> effective_exports;
