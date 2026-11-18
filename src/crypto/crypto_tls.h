@@ -238,6 +238,8 @@ class TLSWrap : public AsyncWrap,
   static void CertCbDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ClientHelloDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DestroySSL(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DisableRenegotiation(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableCertCb(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableALPNCb(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableKeylogCallback(
@@ -358,6 +360,9 @@ class TLSWrap : public AsyncWrap,
     bool has_active_write_issued_by_prev_listener : 1;
     bool alpn_callback_enabled : 1;
     bool servername_pinned : 1;
+    // The handshake in progress is the peer's attempt to renegotiate, which
+    // the TLS library is refusing.
+    bool renegotiation_refused : 1;
   };
   Flags flags_{};
 
