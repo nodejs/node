@@ -6,6 +6,8 @@ const {
   loadNpmWithRegistry: loadMockNpm,
   workspaceMock,
 } = require('../../fixtures/mock-npm')
+const orphanFixture = require('../../fixtures/allow-scripts-orphan.js')
+const tspawk = require('../../fixtures/tspawk.js')
 
 // t.cleanSnapshot = str => str.replace(/ in [0-9ms]+/g, ' in {TIME}')
 
@@ -411,6 +413,69 @@ t.test('should throw error when ideal inventory mismatches virtual', async t => 
   )
   const nmTestFile = path.join(npm.prefix, 'node_modules', 'test-file')
   t.equal(fs.existsSync(nmTestFile), true, 'does not remove node_modules')
+})
+
+t.test('ci with lockfile-only orphans', async t => {
+  tspawk(t)
+  const testOrphan = async (t, {
+    workspace = true,
+    allowScripts,
+    strict = true,
+    json = false,
+  } = {}) => {
+    const prefixDir = orphanFixture(t, { workspace, allowScripts })
+    const { npm, registry, assert, logs, clearOutput, joinedOutput } = await loadMockNpm(t, {
+      config: { audit: false, fund: false, 'strict-allow-scripts': strict, json },
+      prefixDir,
+    })
+    const manifest = registry.manifest({ name: 'abbrev' })
+    await registry.tarball({
+      manifest: manifest.versions['1.0.0'],
+      tarball: path.join(npm.prefix, 'tarballs/abbrev@1.0.0'),
+    })
+
+    await npm.exec('ci', [])
+
+    assert.packageInstalled('node_modules/abbrev@1.0.0')
+    assert.fileShouldNotExist('app/node_modules/abbrev/node_modules/orphan')
+    t.equal(
+      fs.readFileSync(path.join(npm.prefix, 'package-lock.json'), 'utf8'),
+      prefixDir['package-lock.json'],
+      'does not change the lockfile'
+    )
+    t.strictSame(logs.warn.byTitle('install-scripts'), [], 'no orphan warning')
+    if (json) {
+      t.notOk(Object.hasOwn(JSON.parse(joinedOutput()), 'unreviewedScripts'), 'no orphan entry')
+    } else {
+      clearOutput()
+      await npm.exec('install-scripts', ['ls'])
+      t.match(joinedOutput(), /No packages with unreviewed install scripts/)
+    }
+  }
+
+  for (const workspace of [true, false]) {
+    for (const allowScripts of [undefined, { orphan: false }]) {
+      const source = workspace ? 'workspace' : 'file link'
+      const policy = allowScripts ? 'denied' : 'unreviewed'
+      for (const strict of [false, true]) {
+        await t.test(`${source}, ${policy} orphan, strict=${strict}`,
+          t => testOrphan(t, { workspace, allowScripts, strict }))
+      }
+    }
+  }
+
+  await t.test('JSON excludes the orphan', t => testOrphan(t, { json: true }))
+
+  await t.test('still rejects a required unreviewed package', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: { audit: false, 'strict-allow-scripts': true },
+      prefixDir: orphanFixture(t, { requiredScripts: true }),
+    })
+    await t.rejects(npm.exec('ci', []), {
+      code: 'ESTRICTALLOWSCRIPTS',
+      message: /1 package\(s\) have install scripts not covered by allowScripts:\n {2}abbrev@1\.0\.0/,
+    })
+  })
 })
 
 t.test('should remove dirty node_modules with unhoisted workspace module', async t => {

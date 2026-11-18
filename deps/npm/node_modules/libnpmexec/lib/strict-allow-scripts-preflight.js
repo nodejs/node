@@ -24,6 +24,7 @@ const strictAllowScriptsPreflight = async (arb, opts) => {
     policy: opts.allowScripts || null,
     ignoreScripts: opts.ignoreScripts,
     dangerouslyAllowAllScripts: opts.dangerouslyAllowAllScripts,
+    skipExtraneous: true,
   })
 
   if (unreviewed.length === 0) {

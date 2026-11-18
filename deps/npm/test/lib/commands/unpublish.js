@@ -166,6 +166,49 @@ t.test('unpublish <pkg>@version last version', async t => {
   )
 })
 
+t.test('unpublish <pkg>@version of a packument with no versions', async t => {
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+    },
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  delete manifest.versions
+  await registry.package({ manifest, query: { write: true } })
+
+  await t.rejects(
+    npm.exec('unpublish', ['test-package@1.0.0']),
+    /the registry returned no versions for test-package/
+  )
+})
+
+t.test('unpublish <pkg>@version of a packument with no versions with --force', async t => {
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      force: true,
+      ...auth,
+    },
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  manifest.versions = {}
+  await registry.package({ manifest, query: { write: true } })
+
+  await t.rejects(
+    npm.exec('unpublish', ['test-package@1.0.0']),
+    /the registry returned no versions for test-package/
+  )
+})
+
 t.test('no version found in package.json no force', async t => {
   const { npm } = await loadMockNpm(t, {
     config: {

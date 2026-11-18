@@ -26,7 +26,7 @@ class Unpublish extends BaseCommand {
       query: { write: true },
       _isRoot: true,
     })
-    return Object.keys(packument.versions)
+    return Object.keys(packument.versions || {})
   }
 
   static async completion (args, npm) {
@@ -136,6 +136,9 @@ class Unpublish extends BaseCommand {
     }
 
     const versions = await Unpublish.getKeysOfVersions(spec.name, opts)
+    if (versions.length === 0 && spec.type === 'version') {
+      throw this.usageError(`Refusing to delete ${spec.name}@${spec.rawSpec}: the registry returned no versions for ${spec.name}.`)
+    }
     if (versions.length === 1 && spec.rawSpec === versions[0] && !force) {
       throw this.usageError(LAST_REMAINING_VERSION_ERROR)
     }

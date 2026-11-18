@@ -244,6 +244,33 @@ t.test('emits blocked warning for unreviewed install scripts', async t => {
   )
 })
 
+t.test('strict rebuild rejects extraneous packages on disk', async t => {
+  for (const args of [[], ['canvas']]) {
+    await t.test(args.length ? 'named package' : 'all packages', async t => {
+      const { npm, prefix } = await setupMockNpm(t, {
+        config: { 'strict-allow-scripts': true },
+        prefixDir: {
+          'package.json': JSON.stringify({ name: 'host', version: '1.0.0' }),
+          node_modules: {
+            canvas: {
+              'package.json': JSON.stringify({
+                name: 'canvas',
+                version: '1.0.0',
+                scripts: { install: "node -e \"require('fs').writeFileSync('ran', '')\"" },
+              }),
+            },
+          },
+        },
+      })
+      await t.rejects(npm.exec('rebuild', args), {
+        code: 'ESTRICTALLOWSCRIPTS',
+        message: /canvas@1\.0\.0/,
+      })
+      t.notOk(fs.existsSync(resolve(prefix, 'node_modules/canvas/ran')), 'script did not run')
+    })
+  }
+})
+
 t.test('global advisory warning points at npm config set, not approve-scripts', async t => {
   const { npm, logs } = await setupMockNpm(t, {
     config: {

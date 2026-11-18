@@ -18,6 +18,7 @@ const collectUnreviewedScripts = async ({
   ignoreScripts = false,
   dangerouslyAllowAllScripts = false,
   includeWhenIgnored = false,
+  skipExtraneous = false,
 } = {}) => {
   // With ignore-scripts set, no scripts run, so execution callers bail out
   // here. approve/deny pass includeWhenIgnored so they keep listing
@@ -55,6 +56,10 @@ const collectUnreviewedScripts = async ({
       // os/cpu/libc or engine check, or failed to load). reify drops it
       // before any script runs, so its install scripts never execute and it
       // must not be flagged (npm/cli#9562).
+      continue
+    }
+    if (skipExtraneous && node.extraneous && !node.parent && node.linksIn?.size === 0) {
+      // Reify never installs disconnected extraneous nodes, so their scripts cannot run.
       continue
     }
 
