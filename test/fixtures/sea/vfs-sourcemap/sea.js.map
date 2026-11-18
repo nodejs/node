@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "file": "sea.js",
+  "sources": [
+    "original.js"
+  ],
+  "names": [
+    "boom"
+  ],
+  "mappings": "AAAA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;EACI;FACJ;AACA;AACA;AACA",
+  "sourceRoot": ""
+}

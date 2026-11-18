@@ -357,6 +357,77 @@ against its source, so it is used by the executable whenever the modules are
 loaded from the VFS, and ignored if they changed. The cache is
 platform-specific, like the code cache of the main script.
 
+#### Source maps in the VFS
+
+[Source Map v3][] maps work in a SEA using `"useVfs": true` exactly as they do
+on the real file system, provided the maps are bundled as assets (or inside
+the `"vfsArchive"` archive) and source map support is enabled in the generated
+executable. The `.map` file is read from inside the mount point, and the
+`"sources"` of the map and the original sources are resolved against the mount
+point too. As a result, [`module.findSourceMap()`][], source-mapped stack
+traces, and the source line shown above an uncaught error all resolve against
+the bundled assets rather than the real file system.
+
+Source maps are enabled in a SEA the same way as in a regular Node.js process
+with [`--enable-source-maps`][]. The flag is not consumed when it is
+passed as a command-line argument to the executable: with the default
+`"execArgvExtension": "env"`, command-line arguments are handed to the
+application. Set it in `"execArgv"` (or in [`NODE_OPTIONS`][]) instead:
+
+```json
+{
+  "main": "sea.js",
+  "output": "sea",
+  "useVfs": true,
+  "execArgv": ["--enable-source-maps"],
+  "assets": {
+    "sea.js.map": "dist/sea.js.map",
+    "original.js": "src/original.js"
+  }
+}
+```
+
+The bundled source must end with a `sourceMappingURL` magic comment that points
+at the map. A relative path resolves against the location of the script inside
+the mount, so no mount-point path needs to be hard-coded:
+
+<!-- eslint-disable no-restricted-syntax, @stylistic/js/spaced-comment -->
+
+```cjs
+// sea.js
+'use strict';
+
+function boom() {
+  throw new Error('boom from the original source');
+}
+
+boom();
+//# sourceMappingURL=sea.js.map
+```
+
+If the map embeds `sourcesContent`, the original source lines are taken from
+the map itself. Otherwise the original sources must also be bundled (as
+assets, or as entries in the `"vfsArchive"` archive) so that the error source
+preview can be read back through the VFS, as in the configuration above. With
+`--enable-source-maps` enabled, throwing the error above maps the stack frame
+back to `original.js` and shows the original source line:
+
+```text
+…/vfs/1/original.js:5
+    throw new Error('boom from the original source');
+    ^
+
+Error: boom from the original source
+    at boom (…/vfs/1/original.js:5:5)
+```
+
+The `…` stands in for the reserved mount point, which is chosen at runtime and
+cannot exist on the real file system. When the application is transpiled, the
+bundler typically emits the map next to the bundled file; make sure to bundle
+it with `"assets"` (or include it in the `"vfsArchive"` archive), because the
+VFS never shadows the real file system and the `.map` file must therefore be
+reachable inside the mount.
+
 #### Snapshot limitations
 
 `"useVfs": true` cannot be used together with `"useSnapshot": true`.
@@ -844,11 +915,15 @@ to help us document them.
 [Generating single executable preparation blobs]: #1-generating-single-executable-preparation-blobs
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
+[Source Map v3]: https://tc39.es/ecma426/
 [Using native addons in the injected main script]: #using-native-addons-in-the-injected-main-script
 [VFS documentation]: vfs.md
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
+[`--enable-source-maps`]: cli.md#--enable-source-maps
 [`--vfs-load`]: cli.md#--vfs-loadsource
+[`NODE_OPTIONS`]: cli.md#node_optionsoptions
 [`Worker`]: worker_threads.md#class-worker
+[`module.findSourceMap()`]: module.md#modulefindsourcemappath
 [`node:zlib`]: zlib.md
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid

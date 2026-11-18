@@ -1,0 +1,10 @@
+{
+  "main": "sea.js",
+  "output": "sea-prep.blob",
+  "useVfs": true,
+  "execArgv": ["--enable-source-maps"],
+  "assets": {
+    "sea.js.map": "sea.js.map",
+    "original.js": "original.js"
+  }
+}
