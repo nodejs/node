@@ -50,9 +50,11 @@ fs.exists({}, common.mustCall(function(y) {
 assert(fs.existsSync(f));
 assert(!fs.existsSync(`${f}-NO`));
 
-// fs.existsSync() never throws
-const msg = 'Passing invalid argument types to fs.existsSync is deprecated';
-common.expectWarning('DeprecationWarning', msg, 'DEP0187');
-assert(!fs.existsSync());
-assert(!fs.existsSync({}));
+// fs.existsSync() throws on invalid argument types
+assert.throws(() => fs.existsSync(), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => fs.existsSync({}), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => fs.existsSync(123), { code: 'ERR_INVALID_ARG_TYPE' });
+
+// Other invalid paths still return false instead of throwing
 assert(!fs.existsSync(new URL('https://foo')));
+assert(!fs.existsSync('foo\u0000bar'));

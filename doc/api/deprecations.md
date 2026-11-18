@@ -4207,6 +4207,9 @@ npx codemod@latest @nodejs/repl-classes-with-new
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67494
+    description: End-of-Life.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/55753
     description: Runtime deprecation.
@@ -4218,10 +4221,10 @@ changes:
     description: Documentation-only.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Passing non-supported argument types is deprecated and, instead of returning `false`,
-will throw an error in a future version.
+Passing non-supported argument types to `fs.existsSync()` throws an
+`ERR_INVALID_ARG_TYPE` error instead of returning `false`.
 
 ### DEP0188: `process.features.ipv6` and `process.features.uv`
 

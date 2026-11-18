@@ -6299,6 +6299,10 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67494
+    description: Passing an invalid argument type now throws an
+                 `ERR_INVALID_ARG_TYPE` error instead of returning `false`.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using
@@ -6308,7 +6312,8 @@ changes:
 * `path` {string|Buffer|URL}
 * Returns: {boolean}
 
-Returns `true` if the path exists, `false` otherwise.
+Returns `true` if the path exists, `false` otherwise. Throws an
+`ERR_INVALID_ARG_TYPE` error if `path` is not a string, {Buffer}, or {URL}.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.exists()`][].
