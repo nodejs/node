@@ -13,6 +13,15 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/canonical-types.h"
+#include "src/wasm/struct-types.h"
+#include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-value.h"
+#include "test/common/flag-utils.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8::internal {
 
 template <typename TMixin>
@@ -286,8 +295,8 @@ TEST_F(HeapSnapshotTest, ScopeInfoProperties) {
 }
 
 TEST_F(HeapSnapshotTest, RemovedObjectIsDroppedFromHeapObjectsMapOnGC) {
-  v8_flags.heap_snapshot_on_gc = 0;
-  v8_flags.heap_snapshot_path = "/dev/null";
+  v8_flags.heap_snapshot_on_gc.Set(0);
+  v8_flags.heap_snapshot_path.Set("/dev/null");
 
   HeapProfiler* heap_profiler = i_isolate()->heap()->heap_profiler();
   Factory* factory = i_isolate()->factory();
@@ -348,7 +357,7 @@ TEST_F(HeapSnapshotTest,
 }
 
 TEST_F(HeapSnapshotTest, StringProperties) {
-  v8_flags.heap_snapshot_string_limit = 512;
+  v8_flags.heap_snapshot_string_limit.Set(512);
   // Re-initialize StringsStorage to pick up the new flag value.
   i_isolate()->heap()->heap_profiler()->DeleteAllSnapshots();
 
@@ -432,6 +441,27 @@ TEST_F(HeapSnapshotTest, StringProperties) {
   EXPECT_TRUE(HasNamedEdge(*sliced, "parent"));
 }
 
+TEST_F(HeapSnapshotTest, SlicedStringOffset) {
+  if (!v8_flags.string_slices) return;
+  Factory* factory = i_isolate()->factory();
+  HandleScope scope(i_isolate());
+
+  Handle<String> parent =
+      factory->NewStringFromAsciiChecked("abcdefghijklmnopqrstuvwxyz");
+  Handle<String> sliced = factory->NewProperSubString(parent, 5, 20);
+
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  // The value of a sliced string can be reconstructed from its parent, offset
+  // and length.
+  const HeapEntry* entry = GetEntryFor(i_isolate(), snapshot, *sliced);
+  ASSERT_NE(nullptr, entry);
+  EXPECT_EQ(HeapEntry::kSlicedString, entry->type());
+  EXPECT_TRUE(HasNamedEdge(*entry, "parent"));
+  EXPECT_EQ(5, GetIntEdge(entry, "offset"));
+  EXPECT_EQ(15, GetIntEdge(entry, "length"));
+}
+
 TEST_F(HeapSnapshotTest, ScriptName) {
   v8::HandleScope scope(v8_isolate());
   v8::Local<v8::Context> context = v8_context();
@@ -472,7 +502,7 @@ TEST_F(HeapSnapshotTest, LongScriptName) {
   v8::Local<v8::Context> context = v8_context();
 
   // Set string limit to unlimited to allow very long names.
-  v8_flags.heap_snapshot_string_limit = 0;
+  v8_flags.heap_snapshot_string_limit.Set(0);
   // Re-initialize StringsStorage to pick up the new flag value.
   i_isolate()->heap()->heap_profiler()->DeleteAllSnapshots();
 
@@ -713,7 +743,7 @@ TEST_F(HeapSnapshotTest, ScriptMetadata) {
 
 TEST_F(HeapSnapshotTest, InstructionStreamReferences) {
   if (v8_flags.jitless) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   RunJS(
       "function bar(x) { return x.a + 1; }\n"
       "function foo(obj) { return bar(obj) + 'constant_string'; }\n"
@@ -1037,5 +1067,113 @@ TEST_F(HeapSnapshotTest, ScriptSourceStringsUntruncated) {
   ASSERT_TRUE(regular_truncated.has_value());
   EXPECT_TRUE(regular_truncated.value());
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+TEST_F(HeapSnapshotTest, WasmStructAndCustomMapReferences) {
+  FlagScope<bool> merged_descriptors(&v8_flags.wasm_merged_descriptors, true);
+  HandleScope scope(i_isolate());
+  Factory* factory = i_isolate()->factory();
+
+  wasm::WasmModule module;
+  // Type 0: regular struct (described by Type 1) with an i32 and an externref.
+  wasm::StructType::Builder<wasm::WasmModuleSignatureStorage> struct_builder(
+      &module.signature_storage, 2, false, SharedFlag{false});
+  struct_builder.AddField(wasm::kWasmI32, false);
+  struct_builder.AddField(wasm::kWasmExternRef, false);
+  const wasm::StructType* struct_type = struct_builder.Build();
+  wasm::TypeDefinition struct_def(struct_type, wasm::kNoSuperType, false,
+                                  SharedFlag{false});
+  struct_def.descriptor = wasm::ModuleTypeIndex{1};
+  module.AddTypeForTesting(struct_def);
+
+  // Type 1: descriptor struct (describes Type 0) with an i64 and an externref.
+  wasm::StructType::Builder<wasm::WasmModuleSignatureStorage> desc_builder(
+      &module.signature_storage, 2, true, SharedFlag{false});
+  desc_builder.AddField(wasm::kWasmI64, false);
+  desc_builder.AddField(wasm::kWasmExternRef, false);
+  const wasm::StructType* desc_type = desc_builder.Build();
+  wasm::TypeDefinition desc_def(desc_type, wasm::kNoSuperType, false,
+                                SharedFlag{false});
+  desc_def.describes = wasm::ModuleTypeIndex{0};
+  module.AddTypeForTesting(desc_def);
+
+  wasm::GetTypeCanonicalizer()->AddRecursiveGroup(&module, 2);
+  wasm::CanonicalTypeIndex struct_canon_index =
+      module.canonical_type_id(wasm::ModuleTypeIndex{0});
+  wasm::CanonicalTypeIndex desc_canon_index =
+      module.canonical_type_id(wasm::ModuleTypeIndex{1});
+
+  DirectHandle<Map> struct_map =
+      CreateStructMap(i_isolate(), struct_canon_index, DirectHandle<Map>(), 0,
+                      DirectHandle<NativeContext>());
+  DirectHandle<Map> desc_map =
+      CreateStructMap(i_isolate(), desc_canon_index, DirectHandle<Map>(), 0,
+                      DirectHandle<NativeContext>());
+
+  Handle<JSObject> struct_ref_target = factory->NewJSObjectWithNullProto();
+  Handle<JSObject> desc_ref_target = factory->NewJSObjectWithNullProto();
+
+  Handle<WasmCustomMap> custom_map = factory->NewWasmCustomMapUninitialized(
+      desc_type, struct_canon_index, WasmStruct::Size(struct_type),
+      WASM_STRUCT_TYPE, struct_map, 1, desc_map);
+  {
+    DisallowGarbageCollection no_gc;
+    base::WriteUnalignedValue<int64_t>(
+        custom_map->RawFieldAddress(desc_type->field_offset(0)), 9876543210LL);
+    int ref_offset = WasmCustomMap::kHeaderSize + desc_type->field_offset(1);
+    TaggedField<Object>::store(*custom_map, ref_offset, *desc_ref_target);
+    WriteBarrier::ForValue(*custom_map,
+                           custom_map->RawMaybeWeakField(ref_offset),
+                           *desc_ref_target, UPDATE_WRITE_BARRIER);
+  }
+
+  wasm::WasmValue struct_fields[2] = {
+      wasm::WasmValue(int32_t{42}),
+      wasm::WasmValue(struct_ref_target,
+                      wasm::CanonicalValueType{wasm::kWasmExternRef})};
+  DirectHandle<WasmStruct> wasm_struct =
+      factory->NewWasmStruct(struct_type, struct_fields, custom_map);
+
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  // Verify WasmStruct entry and its field edges.
+  const HeapEntry* struct_entry =
+      GetEntryFor(i_isolate(), snapshot, *wasm_struct);
+  ASSERT_NE(nullptr, struct_entry);
+
+  const HeapGraphEdge* struct_field0 = GetNamedEdge(*struct_entry, "$field0");
+  ASSERT_NE(nullptr, struct_field0);
+  EXPECT_EQ(HeapGraphEdge::kInternal, struct_field0->type());
+  EXPECT_EQ(HeapEntry::kString, struct_field0->to()->type());
+  EXPECT_STREQ("42", struct_field0->to()->name());
+
+  const HeapEntry* struct_ref_entry =
+      GetEntryFor(i_isolate(), snapshot, *struct_ref_target);
+  ASSERT_NE(nullptr, struct_ref_entry);
+  const HeapGraphEdge* struct_field1 = GetNamedEdge(*struct_entry, "$field1");
+  ASSERT_NE(nullptr, struct_field1);
+  EXPECT_EQ(HeapGraphEdge::kProperty, struct_field1->type());
+  EXPECT_EQ(struct_ref_entry, struct_field1->to());
+
+  // Verify WasmCustomMap entry and its field edges.
+  const HeapEntry* custom_map_entry =
+      GetEntryFor(i_isolate(), snapshot, *custom_map);
+  ASSERT_NE(nullptr, custom_map_entry);
+
+  const HeapGraphEdge* desc_field0 = GetNamedEdge(*custom_map_entry, "$field0");
+  ASSERT_NE(nullptr, desc_field0);
+  EXPECT_EQ(HeapGraphEdge::kInternal, desc_field0->type());
+  EXPECT_EQ(HeapEntry::kString, desc_field0->to()->type());
+  EXPECT_STREQ("9876543210", desc_field0->to()->name());
+
+  const HeapEntry* desc_ref_entry =
+      GetEntryFor(i_isolate(), snapshot, *desc_ref_target);
+  ASSERT_NE(nullptr, desc_ref_entry);
+  const HeapGraphEdge* desc_field1 = GetNamedEdge(*custom_map_entry, "$field1");
+  ASSERT_NE(nullptr, desc_field1);
+  EXPECT_EQ(HeapGraphEdge::kProperty, desc_field1->type());
+  EXPECT_EQ(desc_ref_entry, desc_field1->to());
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace v8::internal

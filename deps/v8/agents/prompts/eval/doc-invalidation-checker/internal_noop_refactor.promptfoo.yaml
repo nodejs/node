@@ -1,0 +1,34 @@
+description: >-
+  Verify doc-invalidation-checker makes zero edits to docs/ when a local
+  variable is renamed inside MaglevCompiler::Compile without changing any
+  documented class, pass name, flag, or invariant.
+owner: leszeks@chromium.org
+prompts:
+  - 'file://prompt.md'
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 600
+      skills:
+        - doc-invalidation-checker
+      changes:
+        - apply: >-
+            agents/prompts/eval/doc-invalidation-checker/internal_noop_refactor.patch
+tests:
+  - assert:
+      - type: python
+        value: >-
+          file://../../../skills/doc-invalidation-checker/scripts/eval_doc_checker.py:check_files_unchanged
+        config:
+          files:
+            - docs/
+    metadata:
+      category: negative-no-doc-churn
+      commit_message: |
+        [maglev] Rename local truncate variable in Compile
+
+        Use truncation_processor for the local GraphProcessor variable in
+        MaglevCompiler::Compile.
+      tags:
+        - docs
+        - maglev

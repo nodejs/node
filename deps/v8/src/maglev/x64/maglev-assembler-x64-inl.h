@@ -244,6 +244,7 @@ void MaglevAssembler::PushReverse(T... vals) {
 
 inline void MaglevAssembler::BindJumpTarget(Label* label) {
   MacroAssembler::BindJumpTarget(label);
+  set_reachable(true);
 }
 
 inline void MaglevAssembler::BindBlock(BasicBlock* block) {
@@ -738,7 +739,7 @@ inline void MaglevAssembler::Move(Register dst, uint32_t i) {
   MacroAssembler::Move(dst, i);
 }
 
-inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
+inline void MaglevAssembler::Move(Register dst, TrustedPointerTag i) {
   MacroAssembler::Move(dst, i);
 }
 
@@ -751,6 +752,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
 }
 
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  if (TryLoadRoot(dst, obj)) return;
   MacroAssembler::Move(dst, obj);
 }
 
@@ -857,7 +859,7 @@ inline void MaglevAssembler::ToUint8Clamped(Register result,
   // if value in [0, 255], then round up to the nearest.
   Roundsd(kScratchDoubleReg, value, kRoundToNearest);
   TruncateDoubleToInt32(result, kScratchDoubleReg);
-  jmp(done);
+  Jump(done);
 }
 
 template <typename NodeT>
@@ -1079,12 +1081,14 @@ inline void MaglevAssembler::Jump(Label* target, Label::Distance distance) {
   // Any eager deopts should go through JumpIf to enable us to support the
   // `--deopt-every-n-times` stress mode. See EmitEagerDeoptStress.
   DCHECK(!IsDeoptLabel(target));
-  jmp(target, distance);
+  MacroAssembler::jmp(target, distance);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::JumpToDeopt(Label* target) {
   DCHECK(IsDeoptLabel(target));
-  jmp(target);
+  MacroAssembler::jmp(target);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::EmitEagerDeoptStress(Label* target) {
@@ -1168,8 +1172,7 @@ void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
 }
 
 void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
-  Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-  Subsd(value, kScratchDoubleReg);
+  CanonicalizeNaN(value);
 }
 
 void MaglevAssembler::Float64ExtractHighWord32(Register dst,

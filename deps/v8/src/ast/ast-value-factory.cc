@@ -205,6 +205,8 @@ Handle<String> AstConsString::Allocate(IsolateT* isolate) const {
   Handle<String> tmp = segment_.string->string();
   for (AstConsString::Segment* current = segment_.next; current != nullptr;
        current = current->next) {
+    DCHECK_LE(static_cast<uint64_t>(current->string->length()) + tmp->length(),
+              String::kMaxLength);
     tmp = isolate->factory()
               ->NewConsString(current->string->string(), tmp,
                               AllocationType::kOld)
@@ -227,13 +229,15 @@ Handle<String> AstConsString::AllocateFlat(IsolateT* isolate) const {
     return segment_.string->string();
   }
 
-  int result_length = 0;
+  uint64_t total_length = 0;
   bool is_one_byte = true;
   for (const AstConsString::Segment* current = &segment_; current != nullptr;
        current = current->next) {
-    result_length += current->string->length();
+    total_length += current->string->length();
     is_one_byte = is_one_byte && current->string->is_one_byte();
   }
+  CHECK_LE(total_length, String::kMaxLength);
+  int result_length = static_cast<int>(total_length);
 
   if (is_one_byte) {
     Handle<SeqOneByteString> result =
@@ -304,7 +308,7 @@ AstStringConstants::AstStringConstants(Isolate* isolate,
     : zone_(isolate->allocator(), ZONE_NAME),
       string_table_(),
       hash_seed_(hash_seed) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 #define F(name, str)                                                        \
   {                                                                         \
     static const char data[] = str;                                         \

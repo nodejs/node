@@ -223,13 +223,13 @@ void ProgramOptions::PrintHeader(std::ostream* stream) const {
 
 V8InitializationScope::V8InitializationScope(const char* exec_path)
     : platform_(v8::platform::NewDefaultPlatform()) {
-  i::v8_flags.allow_natives_syntax = true;
-  i::v8_flags.enable_lazy_source_positions = false;
-  i::v8_flags.function_context_cells = false;
+  i::v8_flags.allow_natives_syntax.Set(true);
+  i::v8_flags.enable_lazy_source_positions.Set(false);
+  i::v8_flags.function_context_cells.Set(false);
 
   // The bytecode expectations printer changes flags; this is not security
   // relevant, allow this.
-  i::v8_flags.freeze_flags_after_init = false;
+  i::v8_flags.freeze_flags_after_init.Set(false);
 
   CHECK(v8::V8::InitializeICUDefaultLocation(exec_path));
   v8::V8::InitializeExternalStartupData(exec_path);

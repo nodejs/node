@@ -139,9 +139,20 @@ ValueNode* TruncationProcessor::GetSpeculatedTruncatedInt32Input(
             .AddNewNodeNoInputConversion<TruncateCheckedNumberAsSafeIntToInt32>(
                 {input->input_node(0)});
   } else if (input->is_float64()) {
-    input =
-        reducer_.AddNewNodeNoInputConversion<TruncateFloat64AsSafeIntToInt32>(
-            {input});
+    if (input->can_truncate_to_int32()) {
+      // A Float64 operation that kept `can_truncate_to_int32` had a safe-int
+      // static range before truncation and was already charged its full exact
+      // bound, even if partial truncation shifted its runtime value outside the
+      // [-2^50, 2^50 - 1] feedback range.
+      DCHECK(input->Is<Float64Add>() || input->Is<Float64Subtract>() ||
+             input->Is<Float64Multiply>());
+      input =
+          reducer_.AddNewNodeNoInputConversion<TruncateFloat64ToInt32>({input});
+    } else {
+      input =
+          reducer_.AddNewNodeNoInputConversion<TruncateFloat64AsSafeIntToInt32>(
+              {input});
+    }
   }
   DCHECK(input->is_int32());
   return input;

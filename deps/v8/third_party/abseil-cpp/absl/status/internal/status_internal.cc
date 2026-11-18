@@ -101,9 +101,12 @@ StatusRep::EraseResult StatusRep::ErasePayload(absl::string_view type_url) {
       status_internal::FindPayloadIndexByUrl(payloads_.get(), type_url);
   if (!index.has_value()) return {false, Status::PointerToRep(this)};
   payloads_->erase(payloads_->begin() + index.value());
-  if (payloads_->empty() && message_.empty()) {
+  if (payloads_->empty() && message_.empty() &&
+      code_ != absl::StatusCode::kOk) {
     // Special case: If this can be represented inlined, it MUST be inlined
-    // (== depends on this behavior).
+    // (== depends on this behavior). An out-of-line StatusRep with
+    // StatusCode::kOk originates from Status::MakeNonOkStatusWithOkCode and
+    // must stay out-of-line so it does not become OkStatus().
     EraseResult result = {true, Status::CodeToInlinedRep(code_)};
     Unref();
     return result;

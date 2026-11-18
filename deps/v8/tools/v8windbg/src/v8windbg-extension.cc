@@ -120,8 +120,8 @@ WRL::ComPtr<IDebugHostModule> Extension::GetV8Module(
   // module if it exists. The others might include V8 symbols depending on the
   // build configuration.
   std::vector<const wchar_t*> known_names = {
-      L"v8", L"v8_for_testing", L"cctest_exe", L"chrome",
-      L"d8", L"msedge",         L"node",       L"v8_unittests_exe"};
+      L"v8",     L"v8_for_testing", L"chrome",          L"d8",
+      L"msedge", L"node",           L"v8_unittests_exe"};
   for (const wchar_t* name : known_names) {
     WRL::ComPtr<IDebugHostModule> sp_module;
     if (SUCCEEDED(sp_debug_host_symbols->FindModuleByName(sp_ctx.Get(), name,

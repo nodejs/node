@@ -67,13 +67,6 @@ Tagged<ElementT_> TaggedArrayBase<D, ElementT_, P>::get(uint32_t index,
 }
 
 template <class D, class ElementT_, class P>
-Tagged<ElementT_> TaggedArrayBase<D, ElementT_, P>::get(uint32_t index,
-                                                        SeqCstAccessTag) const {
-  DCHECK(IsInBounds(index));
-  return derived()->objects()[index].SeqCst_Load();
-}
-
-template <class D, class ElementT_, class P>
 void TaggedArrayBase<D, ElementT_, P>::set(uint32_t index,
                                            Tagged<ElementT_> value,
                                            WriteBarrierMode mode) {
@@ -121,42 +114,6 @@ template <typename, typename>
 void TaggedArrayBase<D, ElementT_, P>::set(uint32_t index, Tagged<Smi> value,
                                            ReleaseStoreTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);
-}
-
-template <class D, class ElementT_, class P>
-void TaggedArrayBase<D, ElementT_, P>::set(uint32_t index,
-                                           Tagged<ElementT_> value,
-                                           SeqCstAccessTag tag,
-                                           WriteBarrierMode mode) {
-  DCHECK(!IsCowArray());
-  DCHECK(IsInBounds(index));
-  derived()->objects()[index].SeqCst_Store(derived(), value, mode);
-}
-
-template <class D, class ElementT_, class P>
-template <typename, typename>
-void TaggedArrayBase<D, ElementT_, P>::set(uint32_t index, Tagged<Smi> value,
-                                           SeqCstAccessTag tag) {
-  set(index, value, tag, SKIP_WRITE_BARRIER);
-}
-
-template <class D, class ElementT_, class P>
-Tagged<ElementT_> TaggedArrayBase<D, ElementT_, P>::swap(
-    uint32_t index, Tagged<ElementT_> value, SeqCstAccessTag,
-    WriteBarrierMode mode) {
-  DCHECK(!IsCowArray());
-  DCHECK(IsInBounds(index));
-  return derived()->objects()[index].SeqCst_Swap(derived(), value, mode);
-}
-
-template <class D, class ElementT_, class P>
-Tagged<ElementT_> TaggedArrayBase<D, ElementT_, P>::compare_and_swap(
-    uint32_t index, Tagged<ElementT_> expected, Tagged<ElementT_> value,
-    SeqCstAccessTag, WriteBarrierMode mode) {
-  DCHECK(!IsCowArray());
-  DCHECK(IsInBounds(index));
-  return derived()->objects()[index].SeqCst_CompareAndSwap(derived(), expected,
-                                                           value, mode);
 }
 
 template <class D, class ElementT_, class P>

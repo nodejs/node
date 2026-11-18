@@ -159,6 +159,7 @@ inline Register ToRegister(MaglevAssembler* masm,
                            MaglevAssembler::TemporaryRegisterScope* scratch,
                            Input input) {
   if (input.operand().IsConstant()) {
+    if (input.node()->MaterializesToZero()) return zero_reg;
     Register reg = scratch->AcquireScratch();
     input.node()->LoadToRegister(masm, reg);
     return reg;
@@ -710,6 +711,22 @@ inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
   MacroAssembler::StoreTaggedField(value, FieldMemOperand(object, offset));
 }
 
+inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
+    Register object, int offset, ValueNode* constant) {
+  DCHECK(CanStoreTaggedConstant(constant));
+  DCHECK_EQ(constant->Cast<SmiConstant>()->value(), Smi::zero());
+  MacroAssembler::StoreTaggedField(zero_reg, FieldMemOperand(object, offset));
+}
+
+inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
+    Register object, int offset, Handle<HeapObject> constant) {
+  DCHECK(kSupportsStoreTaggedConstant);
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  MoveTagged(scratch, constant);
+  MacroAssembler::StoreTaggedField(scratch, FieldMemOperand(object, offset));
+}
+
 inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
     Register array, Register index, Register value) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
@@ -897,7 +914,7 @@ inline void MaglevAssembler::Move(Register dst, uint32_t i) {
 inline void MaglevAssembler::Move(Register dst, intptr_t p) {
   li(dst, Operand(p));
 }
-inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
+inline void MaglevAssembler::Move(Register dst, TrustedPointerTag i) {
   li(dst, Operand(i));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
@@ -907,10 +924,18 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
   MacroAssembler::Move(dst, n.get_scalar());
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  if (TryLoadRoot(dst, obj)) return;
   li(dst, Operand(obj));
 }
 void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
 #ifdef V8_COMPRESS_POINTERS
+  RootIndex root_index;
+  if (isolate()->roots_table().IsRootHandle(obj, &root_index) &&
+      CanBeImmediate(root_index)) {
+    li(dst, Operand(static_cast<int32_t>(ReadOnlyRootPtr(root_index)),
+                    RelocInfo::NO_INFO));
+    return;
+  }
   li(dst, Operand(obj, RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
 #else
   li(dst, obj);
@@ -1021,7 +1046,7 @@ inline void MaglevAssembler::ToUint8Clamped(Register result,
   // if value in [0, 255], then round up to the nearest.
   Round_d(scratch, value);
   TruncateDoubleToInt32(result, scratch);
-  jmp(done);
+  Jump(done);
 }
 
 template <typename NodeT>
@@ -1288,7 +1313,7 @@ inline void MaglevAssembler::CompareUInt32AndEmitEagerDeoptIf(
     NodeT* node) {
   Label Deopt, Done;
 
-  MacroAssembler::Branch(&Deopt, cond, reg, Operand(imm), Label::kNear);
+  MacroAssembler::Branch(&Deopt, cond, reg, Operand(imm));
   Jump(&Done, Label::kNear);
   bind(&Deopt);
   EmitEagerDeopt(node, reason);
@@ -1353,7 +1378,7 @@ inline void MaglevAssembler::CompareFloat64AndBranch(
   }
   CompareF64(left, right, cc);
   BranchTrueF(if_true->label());
-  MacroAssembler::Branch(if_false->label());
+  Jump(if_false->label());
 }
 
 inline void MaglevAssembler::PrepareCallCFunction(int num_reg_arguments,
@@ -1374,11 +1399,13 @@ inline void MaglevAssembler::CallSelf() {
 inline void MaglevAssembler::Jump(Label* target, Label::Distance distance) {
   DCHECK(!IsDeoptLabel(target));
   MacroAssembler::Branch(target /*, distance*/);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::JumpToDeopt(Label* target) {
   DCHECK(IsDeoptLabel(target));
   MacroAssembler::Branch(target);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::EmitEagerDeoptStress(Label* target) {
@@ -1640,7 +1667,7 @@ inline void MaglevAssembler::Branch(Register r1, const Operand& r2,
     MacroAssembler::Branch(if_false, NegateCondition(cond), r1, r2);
     // Jump to the true block if it's not the next block.
     if (!fallthrough_when_true) {
-      MacroAssembler::Branch(if_true);
+      Jump(if_true);
     }
   }
 }
@@ -1933,7 +1960,9 @@ inline void MaglevAssembler::MaybeEmitPlaceHolderForDeopt() {
   // Implemented only for x64.
 }
 
-inline void MaglevAssembler::MemoryBarrier(AtomicMemoryOrder order) { dbar(0); }
+inline void MaglevAssembler::MemoryBarrier(AtomicMemoryOrder /*order*/) {
+  dbar(kDbarFull);
+}
 
 }  // namespace maglev
 }  // namespace internal

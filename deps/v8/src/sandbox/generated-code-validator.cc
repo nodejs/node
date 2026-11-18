@@ -7,7 +7,9 @@
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
 
 #include <algorithm>
+#include <queue>
 
+#include "src/codegen/assembler-arch.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/code-kind.h"
 #include "src/sandbox/isolate-inl.h"
@@ -17,6 +19,23 @@ namespace v8::internal {
 namespace {
 bool ShouldValidateCode(Tagged<Code> code) {
   return v8_flags.validate_generated_code && code->has_instruction_stream();
+}
+
+bool IsConstantPoolAt(const uint8_t* pc) {
+#if V8_TARGET_ARCH_ARM64
+  // `Instruction` is an empty, stateless wrapper class that reads the 32-bit
+  // instruction word at `this` via `base::ReadUnalignedValue<Instr>`.
+  return Assembler::IsConstantPoolAt(Instruction::Cast(pc));
+#else
+  return false;
+#endif
+}
+
+int ComputeConstantPoolSkipSize(int pool_size) {
+  CHECK_GT(pool_size, 0);
+  static constexpr int kConstantSize = 4;
+  return kConstantSize *
+         (pool_size + 1);  // +1 to account for the marker or fence instruction
 }
 }  // namespace
 
@@ -64,7 +83,19 @@ void GeneratedCodeValidator::InstructionIteratorSkippingData::Advance(
     int instruction_size) {
   DCHECK(!IsDone());
   DCHECK_GT(instruction_size, 0);
-  current_ += instruction_size;
+  DCHECK(!IsConstantPoolAt(current_));
+  int inline_data_size =
+      disasm_.ConstantPoolSizeAt(const_cast<uint8_t*>(current_));
+  if (inline_data_size > 0) {
+    // On ARM64 simulator builds, `Assembler::debug()` (used by `ASM_LOCATION`)
+    // and `CallPrintf` emit an executable `hlt` instruction followed by inline
+    // data and a fence instruction. `ConstantPoolSizeAt` returns the size (in
+    // 4-byte words) of the `hlt` instruction and inline data, excluding the
+    // trailing fence.
+    current_ += ComputeConstantPoolSkipSize(inline_data_size);
+  } else {
+    current_ += instruction_size;
+  }
   SkipCheck();
 }
 
@@ -100,12 +131,10 @@ void GeneratedCodeValidator::InstructionIteratorSkippingData::SkipCheck() {
       }
     }
 
-    int pool_size = disasm_.ConstantPoolSizeAt(const_cast<uint8_t*>(current_));
-    if (pool_size > 0) {
-      static constexpr int kConstantSize = 4;
-      current_ +=
-          kConstantSize *
-          (pool_size + 1);  // +1 to account for the marker or fence instruction
+    if (IsConstantPoolAt(current_)) {
+      int pool_size =
+          disasm_.ConstantPoolSizeAt(const_cast<uint8_t*>(current_));
+      current_ += ComputeConstantPoolSkipSize(pool_size);
       continue;
     }
 
@@ -256,9 +285,160 @@ bool GeneratedCodeValidator::Utils::IsDeoptCode(const Tagged<Code> code) {
                    code->builtin_id()) != std::end(entry_builtins);
 }
 
-GeneratedCodeValidator::State::State(const Tagged<Code> code)
-    : is_root_reg_valid_(!Utils::IsEntryCode(code)),
-      is_cage_base_reg_valid_(!Utils::IsEntryCode(code)) {}
+// static
+GeneratedCodeValidator::State GeneratedCodeValidator::State::CreateNewState(
+    const Tagged<Code> code) {
+  const BoolValue initial_reg_state =
+      Utils::IsEntryCode(code) ? BoolValue::kFalse : BoolValue::kTrue;
+  return {
+      .is_root_reg_valid_ = initial_reg_state,
+      .is_cage_base_reg_valid_ = initial_reg_state,
+#if V8_TARGET_ARCH_ARM64
+      .root_reg_init_state_ = {},
+#endif  // V8_TARGET_ARCH_ARM64
+  };
+}
+
+#if V8_TARGET_ARCH_ARM64
+// static
+GeneratedCodeValidator::State::RootRegisterInitState
+GeneratedCodeValidator::State::RootRegisterInitState::Merge(
+    const RootRegisterInitState& state1, const RootRegisterInitState& state2) {
+  return {
+      .current_value = state1.current_value & state2.current_value,
+      .in_progress = MergeBoolValues(state1.in_progress, state2.in_progress),
+  };
+}
+#endif  // V8_TARGET_ARCH_ARM64
+
+// static
+GeneratedCodeValidator::State GeneratedCodeValidator::State::Merge(
+    const State& state1, const State& state2) {
+  return {
+      .is_root_reg_valid_ =
+          MergeBoolValues(state1.is_root_reg_valid_, state2.is_root_reg_valid_),
+      .is_cage_base_reg_valid_ = MergeBoolValues(
+          state1.is_cage_base_reg_valid_, state2.is_cage_base_reg_valid_),
+#if V8_TARGET_ARCH_ARM64
+      .root_reg_init_state_ = RootRegisterInitState::Merge(
+          state1.root_reg_init_state_, state2.root_reg_init_state_),
+#endif  // V8_TARGET_ARCH_ARM64
+  };
+}
+
+bool GeneratedCodeValidator::ControlFlowGraphBase::NodeBase::MergeInputState(
+    const State& state) {
+  if (!input_state_.has_value()) {
+    input_state_ = state;
+    return true;
+  }
+  if (*input_state_ == state) {
+    return false;
+  }
+  State merged = State::Merge(*input_state_, state);
+  if (*input_state_ == merged) {
+    return false;
+  }
+  input_state_ = merged;
+  return true;
+}
+
+bool GeneratedCodeValidator::ControlFlowGraphBase::NodeBase::UpdateOutputState(
+    const State& state) {
+  if (output_state_.has_value() && *output_state_ == state) {
+    return false;
+  }
+  output_state_ = state;
+  return true;
+}
+
+GeneratedCodeValidator::ControlFlowGraphBase::ControlFlowGraphBase(
+    Tagged<Code> code)
+    : code_(code),
+      code_start_(reinterpret_cast<const uint8_t*>(code->instruction_start())),
+      code_end_(code_start_ + code->instruction_size()) {
+  recorded_pcs_.reserve(EstimateInstructionCount(code));
+}
+
+void GeneratedCodeValidator::ControlFlowGraphBase::ValidateNodes(
+    base::FunctionRef<State(const NodeBase&)> update_state,
+    base::FunctionRef<void(const NodeBase&)> check_state) {
+  // TODO(523128533): Enable successor checks once tail calls are properly
+  // handled.
+  // #ifdef DEBUG
+  //   for (const uint8_t* pc : recorded_pcs_) {
+  //     const NodeBase* node = GetNodeAt(pc);
+  //     DCHECK_NOT_NULL(node);
+  //     for (const uint8_t* successor_pc : node->successors()) {
+  //       DCHECK_NOT_NULL(GetNodeAt(successor_pc));
+  //     }
+  //   }
+  // #endif  // DEBUG
+
+  // Validation is split into two passes:
+  // 1. Data-flow analysis propagates and merges validation states along CFG
+  //    edges until a fixed point is reached for all reachable nodes.
+  // 2. Violation checking iterates over all nodes in ascending PC order and
+  //    validates each instruction against its converged input state.
+  // Separating the two passes ensures that nodes visited multiple times during
+  // fixed-point iteration are not checked against transient pre-convergence
+  // states or reported multiple times, and that violations are reported
+  // deterministically in PC order.
+  PropagateStates(update_state);
+  CheckStates(check_state);
+}
+
+void GeneratedCodeValidator::ControlFlowGraphBase::PropagateStates(
+    base::FunctionRef<State(const NodeBase&)> update_state) {
+  NodeBase* entry_node = GetNodeAt(code_start_);
+  DCHECK_NOT_NULL(entry_node);
+
+  std::queue<NodeBase*> worklist;
+
+  auto push_node = [&worklist](NodeBase* node) {
+    if (!node->is_pending()) {
+      node->set_is_pending(true);
+      worklist.push(node);
+    }
+  };
+
+  entry_node->MergeInputState(State::CreateNewState(code_));
+  push_node(entry_node);
+
+  while (!worklist.empty()) {
+    NodeBase* node = worklist.front();
+    worklist.pop();
+    DCHECK(node->is_pending());
+    node->set_is_pending(false);
+    State output_state = update_state(*node);
+    if (node->UpdateOutputState(output_state)) {
+      for (const uint8_t* successor_pc : node->successors()) {
+        if (!IsPcInBounds(successor_pc)) {
+          // TODO(523128533): Handle tail calls.
+          continue;
+        }
+        NodeBase* successor = GetNodeAt(successor_pc);
+        DCHECK_NOT_NULL(successor);
+        if (successor->MergeInputState(output_state)) {
+          push_node(successor);
+        }
+      }
+    }
+  }
+}
+
+void GeneratedCodeValidator::ControlFlowGraphBase::CheckStates(
+    base::FunctionRef<void(const NodeBase&)> check_state) {
+  for (const uint8_t* pc : recorded_pcs_) {
+    const NodeBase* node = GetNodeAt(pc);
+    DCHECK_NOT_NULL(node);
+    // TODO(523128533): Check that all instructions have an input state once
+    // jump tables and indirect jumps are handled.
+    if (node->has_input_state()) {
+      check_state(*node);
+    }
+  }
+}
 
 }  // namespace v8::internal
 

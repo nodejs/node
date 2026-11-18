@@ -4,34 +4,46 @@
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
+function LEView(memory, type, count) {
+  const dv = new DataView(memory.buffer);
+  const accessors = {
+    i32: {size: 4, get: (i) => dv.getInt32(i * 4, true)},
+    i64: {size: 8, get: (i) => dv.getBigInt64(i * 8, true)},
+    f32: {size: 4, get: (i) => dv.getFloat32(i * 4, true)},
+    f64: {size: 8, get: (i) => dv.getFloat64(i * 8, true)},
+  };
+  const {size, get} = accessors[type];
+  return {get, byteLength: count * size};
+}
+
 (function ReplaceLaneZeroWithConstant() {
   const replace_lane_configs = [
     {
       name: 'i32x4 lane0',
       replace_opcode: kExprI32x4ReplaceLane,
       value_bytes: wasmI32Const(0x1234),
-      view: (memory) => new Int32Array(memory.buffer, 0, 4),
+      view: (memory) => LEView(memory, 'i32', 4),
       expected: [0x1234, 0, 0, 0],
     },
     {
       name: 'i64x2 lane0',
       replace_opcode: kExprI64x2ReplaceLane,
       value_bytes: wasmI64Const(0x1234),
-      view: (memory) => new BigInt64Array(memory.buffer, 0, 2),
+      view: (memory) => LEView(memory, 'i64', 2),
       expected: [0x1234n, 0n],
     },
     {
       name: 'f32x4 lane0',
       replace_opcode: kExprF32x4ReplaceLane,
       value_bytes: wasmF32Const(1.5),
-      view: (memory) => new Float32Array(memory.buffer, 0, 4),
+      view: (memory) => LEView(memory, 'f32', 4),
       expected: [1.5, 0, 0, 0],
     },
     {
       name: 'f64x2 lane0',
       replace_opcode: kExprF64x2ReplaceLane,
       value_bytes: wasmF64Const(2.25),
-      view: (memory) => new Float64Array(memory.buffer, 0, 2),
+      view: (memory) => LEView(memory, 'f64', 2),
       expected: [2.25, 0],
     },
   ];
@@ -61,7 +73,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
     const view = config.view(memory);
     for (let i = 0; i < config.expected.length; ++i) {
-      assertEquals(config.expected[i], view[i]);
+      assertEquals(config.expected[i], view.get(i));
     }
     // The rest should be zero.
     for (let i = view.byteLength; i < 16; ++i) {
@@ -77,7 +89,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       replace_opcode: kExprI32x4ReplaceLane,
       sig: kSig_v_i,
       param_value: 0x5678,
-      view: (memory) => new Int32Array(memory.buffer, 0, 4),
+      view: (memory) => LEView(memory, 'i32', 4),
       expected: [0x5678, 0, 0, 0],
     },
     {
@@ -85,7 +97,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       replace_opcode: kExprI64x2ReplaceLane,
       sig: kSig_v_l,
       param_value: 0x5678n,
-      view: (memory) => new BigInt64Array(memory.buffer, 0, 2),
+      view: (memory) => LEView(memory, 'i64', 2),
       expected: [0x5678n, 0n],
     },
     {
@@ -93,7 +105,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       replace_opcode: kExprF32x4ReplaceLane,
       sig: kSig_v_f,
       param_value: 3.5,
-      view: (memory) => new Float32Array(memory.buffer, 0, 4),
+      view: (memory) => LEView(memory, 'f32', 4),
       expected: [3.5, 0, 0, 0],
     },
     {
@@ -101,7 +113,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       replace_opcode: kExprF64x2ReplaceLane,
       sig: kSig_v_d,
       param_value: 4.75,
-      view: (memory) => new Float64Array(memory.buffer, 0, 2),
+      view: (memory) => LEView(memory, 'f64', 2),
       expected: [4.75, 0],
     },
   ];
@@ -131,7 +143,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
     const view = config.view(memory);
     for (let i = 0; i < config.expected.length; ++i) {
-      assertEquals(config.expected[i], view[i]);
+      assertEquals(config.expected[i], view.get(i));
     }
     // The rest should be zero.
     for (let i = view.byteLength; i < 16; ++i) {

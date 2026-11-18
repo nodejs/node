@@ -1076,11 +1076,14 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_EXCEPTION_PACKAGE_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
+    case WASM_SUSPENDING_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
+    case WASM_TAG_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return true;
@@ -1448,25 +1451,27 @@ bool JSFunction::SetName(Isolate* isolate, DirectHandle<JSFunction> function,
 
 namespace {
 
-DirectHandle<String> NativeCodeFunctionSourceString(
-    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info) {
+MaybeDirectHandle<String> NativeCodeFunctionSourceString(
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info,
+    ShouldThrow should_throw) {
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("function ");
   builder.AppendString(direct_handle(shared_info->Name(), isolate));
   builder.AppendCStringLiteral("() { [native code] }");
-  return builder.Finish().ToHandleChecked();
+  return builder.Finish(should_throw);
 }
 
 }  // namespace
 
 // static
-DirectHandle<String> JSFunction::ToString(Isolate* isolate,
-                                          DirectHandle<JSFunction> function) {
+MaybeDirectHandle<String> JSFunction::ToString(
+    Isolate* isolate, DirectHandle<JSFunction> function,
+    ShouldThrow should_throw) {
   DirectHandle<SharedFunctionInfo> shared_info(function->shared(), isolate);
 
   // Check if {function} should hide its source code.
   if (!shared_info->IsUserJavaScript()) {
-    return NativeCodeFunctionSourceString(isolate, shared_info);
+    return NativeCodeFunctionSourceString(isolate, shared_info, should_throw);
   }
 
   if (IsClassConstructor(shared_info->kind())) {
@@ -1486,8 +1491,9 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
   }
 
   // Check if we have source code for the {function}.
-  if (!shared_info->HasSourceCode()) {
-    return NativeCodeFunctionSourceString(isolate, shared_info);
+  if (!shared_info->HasSourceCode() ||
+      shared_info->StartPosition() == shared_info->EndPosition()) {
+    return NativeCodeFunctionSourceString(isolate, shared_info, should_throw);
   }
 
   if (shared_info->function_token_position() == kNoSourcePosition) {
@@ -1496,7 +1502,7 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
     // giving inconsistent call behaviour.
     isolate->CountUsage(
         v8::Isolate::UseCounterFeature::kFunctionTokenOffsetTooLongForToString);
-    return NativeCodeFunctionSourceString(isolate, shared_info);
+    return NativeCodeFunctionSourceString(isolate, shared_info, should_throw);
   }
   return Cast<String>(
       SharedFunctionInfo::GetSourceCodeHarmony(isolate, shared_info));

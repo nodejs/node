@@ -39,12 +39,13 @@ class V8_EXPORT_PRIVATE FrameInspector {
   DirectHandle<String> GetFunctionName();
 
 #if V8_ENABLE_WEBASSEMBLY
-  bool IsWasm();
+  bool IsWasm() const;
+  bool IsWasmInlined() const { return is_wasm_inlined_; }
 #if V8_ENABLE_DRUMBRAKE
-  bool IsWasmInterpreter();
+  bool IsWasmInterpreter() const;
 #endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY
-  bool IsJavaScript();
+  bool IsJavaScript() const;
 
   JavaScriptFrame* javascript_frame();
 
@@ -64,6 +65,9 @@ class V8_EXPORT_PRIVATE FrameInspector {
   int source_position_ = -1;
   bool is_optimized_ = false;
   bool is_constructor_ = false;
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_wasm_inlined_ = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 class RedirectActiveFunctions : public ThreadVisitor {

@@ -4,17 +4,13 @@
 
 #include "src/base/numbers/bignum.h"
 
+#include <algorithm>
+#include <string_view>
+
 #include "src/base/strings.h"
 
 namespace v8 {
 namespace base {
-
-Bignum::Bignum()
-    : bigits_(bigits_buffer_, kBigitCapacity), used_digits_(0), exponent_(0) {
-  for (int i = 0; i < kBigitCapacity; ++i) {
-    bigits_[i] = 0;
-  }
-}
 
 template <typename S>
 static int BitSize(S value) {
@@ -60,39 +56,6 @@ void Bignum::AssignBignum(const Bignum& other) {
   used_digits_ = other.used_digits_;
 }
 
-static uint64_t ReadUInt64(Vector<const char> buffer, int from,
-                           int digits_to_read) {
-  uint64_t result = 0;
-  int to = from + digits_to_read;
-
-  for (int i = from; i < to; ++i) {
-    int digit = buffer[i] - '0';
-    DCHECK(0 <= digit && digit <= 9);
-    result = result * 10 + digit;
-  }
-  return result;
-}
-
-void Bignum::AssignDecimalString(Vector<const char> value) {
-  // 2^64 = 18446744073709551616 > 10^19
-  const int kMaxUint64DecimalDigits = 19;
-  Zero();
-  int length = value.length();
-  int pos = 0;
-  // Let's just say that each digit needs 4 bits.
-  while (length >= kMaxUint64DecimalDigits) {
-    uint64_t digits = ReadUInt64(value, pos, kMaxUint64DecimalDigits);
-    pos += kMaxUint64DecimalDigits;
-    length -= kMaxUint64DecimalDigits;
-    MultiplyByPowerOfTen(kMaxUint64DecimalDigits);
-    AddUInt64(digits);
-  }
-  uint64_t digits = ReadUInt64(value, pos, length);
-  MultiplyByPowerOfTen(length);
-  AddUInt64(digits);
-  Clamp();
-}
-
 static int HexCharValue(char c) {
   if ('0' <= c && c <= '9') return c - '0';
   if ('a' <= c && c <= 'f') return 10 + c - 'a';
@@ -100,9 +63,9 @@ static int HexCharValue(char c) {
   UNREACHABLE();
 }
 
-void Bignum::AssignHexString(Vector<const char> value) {
+void Bignum::AssignHexString(std::string_view value) {
   Zero();
-  int length = value.length();
+  int length = static_cast<int>(value.length());
 
   int needed_bigits = length * 4 / kBigitSize + 1;
   EnsureCapacity(needed_bigits);
@@ -127,13 +90,6 @@ void Bignum::AssignHexString(Vector<const char> value) {
     used_digits_++;
   }
   Clamp();
-}
-
-void Bignum::AddUInt64(uint64_t operand) {
-  if (operand == 0) return;
-  Bignum other;
-  other.AssignUInt64(operand);
-  AddBignum(other);
 }
 
 void Bignum::AddBignum(const Bignum& other) {
@@ -260,45 +216,6 @@ void Bignum::MultiplyByUInt64(uint64_t factor) {
     used_digits_++;
     carry >>= kBigitSize;
   }
-}
-
-void Bignum::MultiplyByPowerOfTen(int exponent) {
-  const uint64_t kFive27 = 0x6765'C793'FA10'079D;
-  const uint16_t kFive1 = 5;
-  const uint16_t kFive2 = kFive1 * 5;
-  const uint16_t kFive3 = kFive2 * 5;
-  const uint16_t kFive4 = kFive3 * 5;
-  const uint16_t kFive5 = kFive4 * 5;
-  const uint16_t kFive6 = kFive5 * 5;
-  const uint32_t kFive7 = kFive6 * 5;
-  const uint32_t kFive8 = kFive7 * 5;
-  const uint32_t kFive9 = kFive8 * 5;
-  const uint32_t kFive10 = kFive9 * 5;
-  const uint32_t kFive11 = kFive10 * 5;
-  const uint32_t kFive12 = kFive11 * 5;
-  const uint32_t kFive13 = kFive12 * 5;
-  const uint32_t kFive1_to_12[] = {kFive1, kFive2,  kFive3,  kFive4,
-                                   kFive5, kFive6,  kFive7,  kFive8,
-                                   kFive9, kFive10, kFive11, kFive12};
-
-  DCHECK_GE(exponent, 0);
-  if (exponent == 0) return;
-  if (used_digits_ == 0) return;
-
-  // We shift by exponent at the end just before returning.
-  int remaining_exponent = exponent;
-  while (remaining_exponent >= 27) {
-    MultiplyByUInt64(kFive27);
-    remaining_exponent -= 27;
-  }
-  while (remaining_exponent >= 13) {
-    MultiplyByUInt32(kFive13);
-    remaining_exponent -= 13;
-  }
-  if (remaining_exponent > 0) {
-    MultiplyByUInt32(kFive1_to_12[remaining_exponent - 1]);
-  }
-  ShiftLeft(exponent);
 }
 
 void Bignum::Square() {

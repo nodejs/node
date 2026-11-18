@@ -31,6 +31,7 @@
 #include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
+#include "absl/container/internal/container_memory.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/memory/memory.h"
 #include "absl/profiling/internal/exponential_biased.h"
@@ -124,12 +125,11 @@ static bool ShouldForceSampling() {
 }
 
 #if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
-HashtablezInfoHandle ForcedTrySample(size_t inline_element_size,
-                                     size_t key_size, size_t value_size,
-                                     uint16_t soo_capacity) {
-  return HashtablezInfoHandle(SampleSlow(global_next_sample,
-                                         inline_element_size, key_size,
-                                         value_size, soo_capacity));
+HashtablezInfoHandle ForcedTrySample(const HashtableTypeInfo& info) {
+  if (!info.is_hashtablez_enabled) return HashtablezInfoHandle(nullptr);
+  return HashtablezInfoHandle(
+      SampleSlow(global_next_sample, info.slot_size, info.key_size,
+                 info.value_size, info.soo_capacity()));
 }
 void TestOnlyRefreshSamplingStateForCurrentThread() {
   global_next_sample.next_sample =
@@ -137,7 +137,7 @@ void TestOnlyRefreshSamplingStateForCurrentThread() {
   global_next_sample.sample_stride = global_next_sample.next_sample;
 }
 #else
-HashtablezInfoHandle ForcedTrySample(size_t, size_t, size_t, uint16_t) {
+HashtablezInfoHandle ForcedTrySample(const HashtableTypeInfo&) {
   return HashtablezInfoHandle{nullptr};
 }
 void TestOnlyRefreshSamplingStateForCurrentThread() {}

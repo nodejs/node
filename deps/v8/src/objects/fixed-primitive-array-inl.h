@@ -192,6 +192,11 @@ void FixedDoubleArray::set(uint32_t index, double value) {
   DCHECK(!is_the_hole(index));
 }
 
+void FixedDoubleArray::set_raw(uint32_t index, Float64 value) {
+  DCHECK(IsInBounds(index));
+  values()[index].set_value_as_bits(value.get_bits());
+}
+
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void FixedDoubleArray::set_undefined(uint32_t index) {
   DCHECK(IsInBounds(index));
@@ -320,16 +325,21 @@ DirectHandle<TrustedFixedAddressArray> TrustedFixedAddressArray::New(
 }
 
 template <typename T, typename Base>
-template <typename... MoreArgs>
+template <typename IsolateT, typename... MoreArgs>
 // static
 Handle<FixedIntegerArrayBase<T, Base>> FixedIntegerArrayBase<T, Base>::New(
-    Isolate* isolate, uint32_t length, MoreArgs&&... more_args) {
+    IsolateT* isolate, uint32_t length, MoreArgs&&... more_args) {
   uint32_t byte_length;
   base::internal::CheckedNumeric<uint32_t> checked_byte_length = length;
   checked_byte_length *= sizeof(T);
   CHECK(checked_byte_length.AssignIfValid(&byte_length));
-  return TrustedCast<FixedIntegerArrayBase<T, Base>>(
-      Base::New(isolate, byte_length, std::forward<MoreArgs>(more_args)...));
+  if constexpr (is_subtype_v<Base, TrustedObject>) {
+    return TrustedCast<FixedIntegerArrayBase<T, Base>>(
+        Base::New(isolate, byte_length, std::forward<MoreArgs>(more_args)...));
+  } else {
+    return Cast<FixedIntegerArrayBase<T, Base>>(
+        Base::New(isolate, byte_length, std::forward<MoreArgs>(more_args)...));
+  }
 }
 
 template <typename T, typename Base>

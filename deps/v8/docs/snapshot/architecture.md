@@ -1,87 +1,126 @@
-# V8 Snapshot and Serializer System
+# V8 Snapshot Architecture (`src/snapshot/`)
 
-To achieve fast startup times, V8 uses a **Snapshot** system. Instead of parsing and compiling the standard library and initializing the heap from scratch every time a new Isolate is created, V8 captures a snapshot of a fully initialized heap and persists it.
+Constructing a fresh JavaScript environment (`Isolate` and `NativeContext`) from scratch requires compiling hundreds of JavaScript and Torque builtins, allocating core `Map`s (`meta_map`, `fixed_array_map`, oddballs), and setting up all global intrinsics (`Object`, `Array`, `Promise`, `Intl`, etc.). Doing this at runtime would take tens or hundreds of milliseconds.
 
-When a new Isolate starts up, it simply restores the heap state from the snapshot, which is significantly faster.
+Instead, V8 runs **`mksnapshot`** at build time to initialize an `Isolate` and `Context`, serialize the resulting heap graphs into a binary **Snapshot Blob**, and link or map that blob into the binary so runtime startup (`Snapshot::Initialize`) deserializes a ready-to-run `Isolate` in a few milliseconds.
 
-## Key Components
+---
 
-### 1. `mksnapshot`
+## 1. Snapshot Layers and Serializers
 
-`mksnapshot` is a standalone executable tool built during the V8 build process.
-*   **Purpose**: To run a minimal V8 instance, initialize the heap (including compiling builtins), and serialize the resulting heap state into a snapshot.
-*   **Output**: It generates C++ files containing the snapshot data as byte arrays, which are then compiled and linked directly into the V8 binary (or written to external files).
+A V8 snapshot blob (`src/snapshot/snapshot.h`) is divided into four modular sections, each produced by a dedicated serializer and restored by a matching deserializer:
 
-### 2. Serializer and Deserializer
+```
+Snapshot Blob Layout
++-----------------------------------------------------------------------+
+| 1. ReadOnly Snapshot     (ReadOnlySerializer / ReadOnlyDeserializer)  |
+|    - Raw memory segments of ReadOnlyPage(s) + optional relocation bits|
++-----------------------------------------------------------------------+
+| 2. SharedHeap Snapshot   (SharedHeapSerializer / Deserializer)        |
+|    - Shared space objects (e.g., shared internalized strings)         |
++-----------------------------------------------------------------------+
+| 3. Startup Snapshot      (StartupSerializer / StartupDeserializer)    |
+|    - Per-Isolate roots, Builtins constants, initial OldSpace/CodeSpace|
+|    - Split into Untrusted Section + TrustedSectionSerializer          |
++-----------------------------------------------------------------------+
+| 4. Context Snapshot(s)   (ContextSerializer / ContextDeserializer)    |
+|    - NativeContext, JSGlobalObject, intrinsics, initial Map trees     |
+|    - Split into Untrusted Section + TrustedSectionSerializer          |
++-----------------------------------------------------------------------+
+```
 
-The core logic for saving and restoring heap state is in the `Serializer` and `Deserializer` classes (in `src/snapshot/`).
+### 1. `ReadOnlySerializer` & `ReadOnlyDeserializer` (`src/snapshot/read-only-serializer.h`)
+Unlike the other serializers, **`ReadOnlySerializer` does NOT serialize objects one by one using serializer bytecodes** (`ReadOnlySerializer::SerializeObjectImpl` is literally `UNREACHABLE()`).
 
-*   **Serialization**: The process of traversing the heap graph and writing objects to a stream (`SnapshotByteSink`).
-    *   It handles pointers by converting them to references (e.g., back references to already seen objects or roots).
-    *   It uses specialized serializers for different spaces.
-*   **Deserialization**: The process of reading the byte stream and recreating the objects in the heap.
-    *   It allocates objects and fills in their fields.
-    *   It patches pointers based on the references in the stream.
+Instead, `ReadOnlySerializer` performs a **segment-based `memcpy` serialization** (`src/snapshot/read-only-serializer.cc`):
+1. **`ReadOnlySegmentForSerialization`**: Copies each contiguous object area of every `ReadOnlyPage` into an off-heap byte buffer via `MemCopy`.
+2. **`ObjectPreProcessor`**: Walks the objects in the off-heap copy in lockstep with the live `ReadOnlyPage` to scrub process-specific pointers:
+   * External pointers in `AccessorInfo`, `InterceptorInfo`, `FunctionTemplateInfo`, and `JSExternalObject` are encoded into compact 32-bit `ro::EncodedExternalReference` indices (`tag`, `is_from_api`, `index`).
+   * Builtin `Code` objects in `ReadOnlySpace` have their runtime `instruction_start` and source position tables cleared.
+3. **Relocation Bitset (`ro::BitSet tagged_slots`) vs. Static Roots (`V8_STATIC_ROOTS_BOOL`)**:
+   * **When `V8_STATIC_ROOTS_BOOL` is enabled (Default on 64-bit compressed builds)**: Every `ReadOnlyPage` is deterministic and always mapped at the exact same offset at the bottom of the 4GB pointer compression cage. Therefore, `ReadOnlySerializer` does **not** even encode tagged slots; `ReadOnlyDeserializer` simply `memcpy`s the raw page segments directly into `ReadOnlySpace` and decodes the few preprocessed external pointer slots.
+   * **When `V8_STATIC_ROOTS_BOOL` is disabled**: `EncodeRelocationsVisitor` encodes every tagged slot into a `ro::EncodedTagged(page_index, offset)` and records a `1` bit in `tagged_slots`, which `ReadOnlyDeserializer` uses to relocate pointers after allocating the `ReadOnlyPage`s.
 
-## Serialization Bytecode
+### 2. `SharedHeapSerializer` & `SharedHeapDeserializer` (`src/snapshot/shared-heap-serializer.h`)
+* Serializes objects residing in `SharedSpace` (such as shared string table entries when `--shared-string-table` is active) that are initialized once per `IsolateGroup` (`shared_space_isolate()`).
 
-The snapshot data is not a raw memory dump. Instead, it is a stream of **bytecode instructions** that the `Deserializer` executes to reconstruct the heap. This design makes the snapshot format robust across different memory layouts and address spaces.
+### 3. `StartupSerializer` & `StartupDeserializer` (`src/snapshot/startup-serializer.h`)
+* Serializes per-`Isolate` state reachable from the mutable sections of `RootsTable` (`STRONG_MUTABLE_IMMOVABLE_ROOT_LIST` and `STRONG_MUTABLE_MOVABLE_ROOT_LIST`) and the `StartupObjectCache`.
+* References to objects in `ReadOnlySpace` are emitted as compact `kReadOnlyHeapRef` backreferences rather than re-serializing the object.
 
-> [!IMPORTANT]
-> The serialization format is trusted and strictly build- and version-dependent. Code caches and snapshots include the V8 version and critical build flags as metadata. The deserializer will bail out and reject the snapshot if a mismatch is detected.
+### 4. `ContextSerializer` & `ContextDeserializer` (`src/snapshot/context-serializer.h`)
+* Serializes a complete `NativeContext` (or custom embedder context created via `v8::SnapshotCreator`).
+* References to per-`Isolate` objects already serialized by `StartupSerializer` are emitted as `kStartupObjectCache` indices; references to `ReadOnlySpace` use `kReadOnlyHeapRef`.
+* Enables `Context::New` to instantiate additional realms (`<iframe>`s or worker contexts) in microseconds by running `ContextDeserializer` without re-running `StartupDeserializer`.
 
-The bytecode is defined in `src/snapshot/serializer-deserializer.h` (in `enum Bytecode`) and includes instructions for:
-*   **Object Allocation**: Instructions to allocate an object of a specific size in a specific heap space (e.g., `kNewObject`).
-*   **Reference Handling**:
-    *   **Back References**: Pointing to an object already deserialized in the current stream.
-    *   **Root References**: Pointing to a well-known object in the roots table (e.g., `kRootArrayConstants`).
-    *   **Attached Objects**: References to objects provided externally to the deserializer.
-*   **Data Filling**: Copying raw data into the allocated objects.
-*   **Pointer Patching**: Instructions to resolve pointers between objects as they are created.
-*   **Repetition**: Optimizing for repetitive data (e.g., `kFixedRepeatRoot`).
+### 5. `CodeSerializer` (`src/snapshot/code-serializer.h`)
+* Used at runtime (not just build time) to serialize compiled `SharedFunctionInfo` and `BytecodeArray` / baseline code into an on-disk **Code Cache** (`v8::ScriptCompiler::CachedData`).
 
-By using a bytecode interpreter for deserialization, V8 can handle complex object graphs and cyclic references efficiently during isolate startup.
+---
 
-## Types of Snapshots
+## 2. Sandbox Security: Untrusted vs. Trusted Snapshot Sections
 
-V8 uses several distinct snapshots to organize heap data:
+Under the [V8 Sandbox](../sandbox/architecture.md), snapshots and cached data are **not** treated as a single monolithically trusted byte stream. If an untrusted or corrupted snapshot stream could emit arbitrary external reference or trusted-space bytecodes while writing into in-sandbox objects, or vice versa, deserialization could be abused to corrupt out-of-sandbox memory.
 
-### 1. Read-Only Snapshot
-*   **Purpose**: Contains objects that are immutable and shared across all Isolates (e.g., the `undefined` value, small integers, certain Maps).
-*   **Benefit**: These objects can be placed in a read-only memory region and shared directly, saving memory and avoiding the need for locks.
+V8 enforces a strict separation between the **Untrusted Section** (in-sandbox objects) and the **Trusted Section** (`TrustedSectionSerializer` in `src/snapshot/trusted-section-serializer.h`).
 
-### 2. Startup Snapshot
-*   **Purpose**: Contains the rest of the initial heap state needed to start an Isolate, excluding custom contexts.
-*   **Contents**: Includes builtins, initial symbols, and global objects.
+```
+Untrusted Section (In-Sandbox Objects)               Trusted Section (TrustedSectionSerializer)
++-----------------------------------------+          +------------------------------------------+
+| Allocates only in NEW/OLD/SHARED_SPACE  |          | Allocates TrustedObjects outside sandbox |
+| Forbids IsTrustedBytecode(bytecode)     |          | + External References Table              |
+|                                         |          |                                          |
+| [kTrustedPointerPrefix]                 |          | Export[n]:                               |
+| [kTrustedExportRef (n)] ----------------+--------->|   [kNewObject (TrustedSpace)]            |
+|                                         |          |   [kInitializeSelfTrustedPointer]        |
+| [kNewObject (OldSpace)] <---------------+----------|   [kUntrustedRef (backref)]              |
+|                                         |          |                                          |
+| [kTrustedExternalRef (m)] --------------+--------->| ExternalReferences[m]:                   |
++-----------------------------------------+          |   EncodedExternalReference(index, tag)   |
+                                                     +------------------------------------------+
+```
 
-### 3. Context Snapshot
-*   **Purpose**: Contains the state of a fully initialized `NativeContext`.
-*   **Benefit**: Allows embedders (like Chrome or Node.js) to create snapshots of a context with their own specific APIs already initialized.
+### 1. Bytecode Classification (`SerializerDeserializer::IsTrustedBytecode`)
+In `src/snapshot/serializer-deserializer.h`, `SerializerDeserializer::IsTrustedBytecode(Bytecode)` exhaustively classifies every serializer bytecode (with no `default:` case so any newly added bytecode must be explicitly reviewed):
+* **Trusted-Only Bytecodes (`IsTrustedBytecode == true`)**:
+  * `kApiReference`, `kExternalReference`, `kSandboxedApiReference`, `kSandboxedExternalReference`, `kSandboxedRawExternalReference`
+  * `kInitializeSelfTrustedPointer`
+  * `kAllocateJSDispatchEntry`
+  * `kProtectedPointerPrefix`
+* When `Deserializer` is deserializing an **untrusted section**, encountering any bytecode where `IsTrustedBytecode(bytecode)` is `true` is rejected, ensuring the untrusted stream cannot write outside the sandbox or forge raw external pointers/trusted table entries.
 
-### 4. Shared Heap Snapshot
-*   **Purpose**: Contains objects that should be in the shared heap in the shared Isolate during startup (e.g., for `--shared-string-table`).
-*   **Behavior**: When the shared heap is not in use, its contents are deserialized into each Isolate.
+### 2. `TrustedSectionSerializer` and Cross-Section Reference Bytecodes (`src/snapshot/trusted-section-serializer.h`)
+When the untrusted serializer (`StartupSerializer`, `ContextSerializer`, or `CodeSerializer`) encounters a reference from an in-sandbox object to an out-of-sandbox resource, it delegates to `TrustedSectionSerializer`:
+* **`kTrustedExportRef`**: When an in-sandbox object references a `TrustedObject` (for example, via `kTrustedPointerPrefix`), the untrusted serializer calls `trusted_serializer->Export(obj)` to assign an export index `n` and emits `kTrustedExportRef(n)` into the untrusted stream. `TrustedSectionSerializer::SerializeExports()` later serializes all exported `TrustedObject`s into the trusted section.
+* **`kUntrustedRef`**: Conversely, if a `TrustedObject` inside the trusted section contains a regular tagged pointer back to an in-sandbox `HeapObject`, `TrustedSectionSerializer::SerializeUntrustedReference(obj)` serializes the in-sandbox object inside the `untrusted_serializer_` and emits `kUntrustedRef` (referencing its untrusted backref index) in the trusted stream.
+* **`kTrustedExternalRef`**: When an in-sandbox object contains an `ExternalPointerSlot`, the untrusted serializer registers the `(ExternalReferenceEncoder::Value, ExternalPointerTag)` pair in the trusted section via `trusted_serializer->AddExternalReference(reference, tag)` and emits `kTrustedExternalRef(m)` in the untrusted stream.
 
-## Code Serialization (Code Cache)
+---
 
-Independent of the startup snapshot, V8 also uses serialization for **Code Caching**.
-*   **Purpose**: To cache the generated code (Ignition bytecode or machine code) for user scripts.
-*   **How it works**: When a script is run for the first time, V8 can serialize its `BytecodeArray` or optimized code and save it to disk. On subsequent loads, V8 can deserialize the code directly, bypassing parsing and compilation.
-*   **Files**: Managed by `CodeSerializer` in `src/snapshot/code-serializer.cc`.
+## 3. Core Serializer / Deserializer Bytecodes (`src/snapshot/serializer-deserializer.h`)
 
-## Snapshot Compression
+The snapshot bytecode stream is a compact state-machine DSL interpreted by `Deserializer::ReadData`:
 
-V8 can compress the snapshot data to reduce the size of the binary or external snapshot files.
-*   **Implementation**: Managed by `SnapshotCompression` in `src/snapshot/snapshot-compression.h` & `.cc`.
-*   **Configuration**: Controlled by the `V8_SNAPSHOT_COMPRESSION` build flag.
+* **Object Allocation & Backreferences**:
+  * `kNewObject (0x00..0x03)`: Encodes the target `SnapshotSpace` (`kOld`, `kCode`, `kMap`, `kTrusted`) in the low 2 bits, followed by the object's size in `kTaggedSize` words, allocates the object, pushes it to the `back_refs_` vector, and recursively deserializes its body.
+  * `kBackref (0x04)` & `kFixedBackref (0x90..0xcf)`: Emits a reference to the `n`-th previously deserialized object (`back_refs_[n]`), handling cyclic object graphs.
+  * `kRegisterPendingForwardRef` / `kResolvePendingForwardRef`: Used when an object must be referenced before its own allocation has completed (e.g., complex cyclic map/transition structures).
+  * `kNewContextlessMetaMap` / `kNewContextfulMetaMap` / `kExtendedMapBitFieldEx`: Specialized bytecodes for bootstrapping meta-maps and initializing `ExtendedMap::bit_field_ex_` immediately after the map word so the GC knows the extended map's size before visiting its fields.
+* **Cross-Snapshot & Root References**:
+  * `kRootArray` & `kRootArrayConstants (0x40..0x5f)`: Loads a root directly from `Isolate::roots_table()[index]`.
+  * `kReadOnlyHeapRef`: Resolves a `(chunk_index, offset)` into `ReadOnlySpace`.
+  * `kStartupObjectCache` / `kSharedHeapObjectCache` / `kAttachedReference`: Indexes into the startup cache, shared heap cache, or code-serializer attached objects list.
+* **Raw Data & Repeats**:
+  * `kFixedRawData (0x60..0x7f)` & `kVariableRawData`: Copies `N` uninterpreted `kTaggedSize` words (Smi fields, numbers, strings, bytecode bytes) directly into the current object.
+  * `kFixedRepeatRoot (0x80..0x8f)` & `kVariableRepeatRoot`: Fills `N` consecutive slots with the same root value (e.g., initializing a `FixedArray` with `undefined` or `the_hole`).
+* **Sandbox & Dispatch Table Bytecodes**:
+  * `kTrustedPointerPrefix`: Prefixes the next object reference so it is stored as a `TrustedPointerHandle` into a `TrustedPointerSlot`.
+  * `kInitializeSelfTrustedPointer`: Initializes `ExposedTrustedObject::self_indirect_pointer_` in the `TrustedPointerTable` right after the `map_` word so inner backreferences can already use the handle.
+  * `kProtectedPointerPrefix`: Prefixes a reference between two `TrustedObject`s (`ProtectedTaggedMember`).
+  * `kAllocateJSDispatchEntry` & `kJSDispatchEntry`: Allocates a new entry in the `JSDispatchTable` (with parameter count and `Code` object) or back-references the `n`-th already-allocated dispatch entry.
 
-## File Structure
+---
 
-*   `src/snapshot/mksnapshot.cc`: Entry point for the snapshot creation tool.
-*   `src/snapshot/serializer.h` & `.cc`: Base classes for serialization.
-*   `src/snapshot/deserializer.h` & `.cc`: Base classes for deserialization.
-*   `src/snapshot/read-only-serializer.cc` & `read-only-deserializer.cc`: Serializer and deserializer for the read-only space.
-*   `src/snapshot/startup-serializer.cc` & `startup-deserializer.cc`: Serializer and deserializer for the startup heap.
-*   `src/snapshot/context-serializer.cc` & `context-deserializer.cc`: Serializer and deserializer for contexts.
-*   `src/snapshot/shared-heap-serializer.cc` & `shared-heap-deserializer.cc`: Serializer and deserializer for the shared heap.
-*   `src/snapshot/code-serializer.cc`: Serializer for code caching.
+## 4. Rehashing (`RehashBasedOnMap`)
+
+To prevent HashDoS attacks, V8 randomizes its string and hash-table hash seed (`v8_flags.hash_seed`) per `Isolate` at startup. Because hash tables (`NameDictionary`, `SwissNameDictionary`, `NumberDictionary`, `RegisteredSymbolTable`, etc.) baked into the snapshot were built using the `mksnapshot` hash seed, `ReadOnlyDeserializer`, `StartupDeserializer`, and `ContextDeserializer` track deserialized tables (`to_rehash_`) and call **`HeapObject::RehashBasedOnMap`** at the end of deserialization to recompute hash codes and re-insert entries whenever the runtime hash seed differs from the snapshot seed.

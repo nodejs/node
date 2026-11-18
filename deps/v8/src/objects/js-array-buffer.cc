@@ -5,6 +5,7 @@
 #include "src/objects/js-array-buffer.h"
 
 #include "src/api/api-inl.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/execution/protectors-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
@@ -61,7 +62,8 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   };
   clear_padding();
   init_extension();
-  set_views_or_detach_key(views);
+  set_views_or_detach_key(
+      Cast<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>(views));
   set_bit_field(0);
   set_is_shared(shared);
   set_is_resizable_by_js(resizable);
@@ -71,6 +73,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
     SetEmbedderField(i, Smi::zero());
   }
   if (!backing_store) {
+    DCHECK(!resizable);
     set_backing_store(isolate, EmptyBackingStoreBuffer());
     set_byte_length(0);
     set_max_byte_length(0);
@@ -78,9 +81,9 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
     return;
   }
   // Rest of the code here deals with attaching the BackingStore.
-  DCHECK_EQ(is_shared(), backing_store->is_shared());
-  DCHECK((is_resizable_by_js() == backing_store->is_resizable_by_js()) ||
-         (backing_store->is_wasm_memory() && is_shared()));
+  DCHECK_EQ(shared, backing_store->is_shared());
+  DCHECK((resizable == backing_store->is_resizable_by_js()) ||
+         (backing_store->is_wasm_memory() && shared));
   DCHECK_IMPLIES(
       !backing_store->is_wasm_memory() && !backing_store->is_resizable_by_js(),
       backing_store->byte_length() == backing_store->max_byte_length());
@@ -101,8 +104,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
 
   // GSABs need to read their byte_length from the BackingStore. Maintain the
   // invariant that their byte_length field is always 0.
-  auto byte_len =
-      (is_shared() && is_resizable_by_js()) ? 0 : backing_store->byte_length();
+  auto byte_len = (shared && resizable) ? 0 : backing_store->byte_length();
   CHECK_LE(backing_store->byte_length(), kMaxByteLength);
   set_byte_length(byte_len);
 
@@ -110,15 +112,15 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   // different from the JSArrayBuffer maximum. The maximum pages allowed on a
   // Wasm memory are tracked on the Wasm memory object, and not the
   // JSArrayBuffer associated with it.
-  auto max_byte_len = is_resizable_by_js() ? backing_store->max_byte_length()
-                                           : backing_store->byte_length();
+  auto max_byte_len = resizable ? backing_store->max_byte_length()
+                                : backing_store->byte_length();
   set_max_byte_length(max_byte_len);
 
   if (backing_store->is_wasm_memory()) {
     set_is_detachable(false);
   }
 
-  CreateExtension(isolate, std::move(backing_store));
+  CreateExtension(isolate, std::move(backing_store), shared, resizable);
   finish_setup();
 }
 
@@ -251,7 +253,7 @@ void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
       HandleScope scope(isolate);
       isolate->array_buffer_detach_callback()(
           reinterpret_cast<v8::Isolate*>(isolate),
-          Utils::ToLocal(array_buffer));
+          Utils::ToLocalUnshared(array_buffer));
     }
   }
 }
@@ -333,17 +335,22 @@ JSArrayBuffer::GetResizableBackingStorePageConfigurationImpl(
 }
 
 ArrayBufferExtension* JSArrayBuffer::CreateExtension(
-    Isolate* isolate, std::shared_ptr<BackingStore> backing_store) {
+    Isolate* isolate, std::shared_ptr<BackingStore> backing_store,
+    SharedFlag shared, ResizableFlag resizable) {
   // `Heap::InYoungGeneration` during full GC with sticky markbits is generally
   // inaccurate. However, a full GC will sweep both lists and promote all to
   // old, so it doesn't matter which list initially holds the extension in this
   // case.
-  const auto age = HeapLayout::InYoungGeneration(Tagged<JSArrayBuffer>(this))
-                       ? ArrayBufferExtension::Age::kYoung
-                       : ArrayBufferExtension::Age::kOld;
+  const auto age =
+      TrustedHeapLayout::InYoungGeneration(Tagged<JSArrayBuffer>(this))
+          ? ArrayBufferExtension::Age::kYoung
+          : ArrayBufferExtension::Age::kOld;
+  DCHECK_EQ(shared, is_shared());
+  DCHECK_EQ(resizable, is_resizable_by_js());
   ArrayBufferExtension* extension = new ArrayBufferExtension(
-      std::move(backing_store), age, is_shared(), is_resizable_by_js());
-  set_extension(extension);
+      isolate->heap(), std::move(backing_store), age, shared, resizable);
+  SYNCHRONIZATION_POINT_TEST_ONLY("JSArrayBuffer::CreateExtension");
+  set_extension(isolate, extension);
   isolate->heap()->AppendArrayBufferExtension(extension);
   return extension;
 }

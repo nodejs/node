@@ -40,7 +40,6 @@ namespace compiler {
   V(OwnConstantDoubleProperty)          \
   V(OwnConstantDictionaryProperty)      \
   V(OwnConstantElement)                 \
-  V(PretenureMode)                      \
   V(Protector)                          \
   V(PrototypeProperty)                  \
   V(ContextCell)                        \
@@ -692,37 +691,6 @@ class TransitionDependency final : public CompilationDependency {
   const MapRef map_;
 };
 
-class PretenureModeDependency final : public CompilationDependency {
- public:
-  PretenureModeDependency(AllocationSiteRef site, AllocationType allocation)
-      : CompilationDependency(kPretenureMode),
-        site_(site),
-        allocation_(allocation) {}
-
-  bool IsValid(JSHeapBroker* broker) const override {
-    return allocation_ == site_.object()->GetAllocationType();
-  }
-  void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
-    SLOW_DCHECK(IsValid(broker));
-    deps->Register(site_.object(),
-                   DependentCode::kAllocationSiteTenuringChangedGroup);
-  }
-
- private:
-  size_t Hash() const override {
-    ObjectRef::Hash h;
-    return base::hash_combine(h(site_), allocation_);
-  }
-
-  bool Equals(const CompilationDependency* that) const override {
-    const PretenureModeDependency* const zat = that->AsPretenureMode();
-    return site_.equals(zat->site_) && allocation_ == zat->allocation_;
-  }
-
-  const AllocationSiteRef site_;
-  const AllocationType allocation_;
-};
-
 class FieldRepresentationDependency final : public CompilationDependency {
  public:
   FieldRepresentationDependency(MapRef map, MapRef owner,
@@ -936,9 +904,7 @@ class GlobalPropertyDependency final : public CompilationDependency {
 class ContextCellDependency final : public CompilationDependency {
  public:
   ContextCellDependency(ContextCellRef slot, ContextCell::State state)
-      : CompilationDependency(kContextCell), slot_(slot), state_(state) {
-    DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
-  }
+      : CompilationDependency(kContextCell), slot_(slot), state_(state) {}
 
   bool IsValid(JSHeapBroker* broker) const override {
     return slot_.state() == state_;
@@ -1257,14 +1223,6 @@ void CompilationDependencies::DependOnConstantInDictionaryPrototypeChain(
       receiver_map, property_name, constant, kind));
 }
 
-AllocationType CompilationDependencies::DependOnPretenureMode(
-    AllocationSiteRef site) {
-  if (!v8_flags.allocation_site_pretenuring) return AllocationType::kYoung;
-  AllocationType allocation = site.GetAllocationType();
-  RecordDependency(zone_->New<PretenureModeDependency>(site, allocation));
-  return allocation;
-}
-
 PropertyConstness CompilationDependencies::DependOnFieldConstness(
     MapRef map, MapRef owner, InternalIndex descriptor) {
   PropertyConstness constness =
@@ -1338,7 +1296,6 @@ bool CompilationDependencies::DependOnContextCell(ContextRef script_context,
 
 bool CompilationDependencies::DependOnContextCell(ContextCellRef slot,
                                                   ContextCell::State state) {
-  DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
   RecordDependency(zone_->New<ContextCellDependency>(slot, state));
   return true;
 }
@@ -1515,26 +1472,18 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
   }
 
   // It is even possible that a GC during the above installations invalidated
-  // one of the dependencies. However, this should only affect
-  //
-  // 1. pretenure mode dependencies, or
-  // 2. function consistency dependencies,
-  //
-  // which we assert below. It is safe to return successfully in these cases,
-  // because
-  //
-  // 1. once the code gets executed it will do a stack check that triggers its
-  //    deoptimization.
-  // 2. since the function state was deemed consistent above, that means the
-  //    compilation saw a self-consistent state of the jsfunction.
+  // one of the dependencies. However, this should only affect function
+  // consistency dependencies, which we assert below. It is safe to return
+  // successfully in this case, because since the function state was deemed
+  // consistent above, that means the compilation saw a self-consistent state
+  // of the jsfunction.
   if (v8_flags.stress_gc_during_compilation) {
     broker_->isolate()->heap()->PreciseCollectAllGarbage(
         GCFlag::kForced, GarbageCollectionReason::kTesting, kNoGCCallbackFlags);
   }
 #ifdef DEBUG
   for (auto dep : dependencies_) {
-    CHECK_IMPLIES(!dep->IsValid(broker_),
-                  dep->IsPretenureMode() || dep->IsConsistentJSFunctionView());
+    CHECK_IMPLIES(!dep->IsValid(broker_), dep->IsConsistentJSFunctionView());
   }
 #endif
 

@@ -67,10 +67,9 @@ macro SlowCopy(
     implicit context: Context)(src: JSTypedArray, dest: JSTypedArray,
     k: uintptr, final: uintptr): void {
   if (typed_array::IsBigInt64ElementsKind(src.elements_kind) !=
-      typed_array::IsBigInt64ElementsKind(dest.elements_kind))
-    deferred {
-      ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
-    }
+      typed_array::IsBigInt64ElementsKind(dest.elements_kind)) deferred {
+    ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
+  }
 
   CallCCopyTypedArrayElementsSlice(src, dest, k, final);
 }

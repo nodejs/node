@@ -9,5 +9,6 @@ add_object_library(
   HDRS
     rpc_client.h
   DEPENDS
+    libc.hdr.stdint_proxy
     libc.src.__support.GPU.utils
 )

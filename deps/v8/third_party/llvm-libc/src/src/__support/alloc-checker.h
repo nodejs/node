@@ -11,6 +11,7 @@
 
 #include "hdr/func/aligned_alloc.h"
 #include "hdr/func/malloc.h"
+#include "hdr/types/size_t.h"
 #include "src/__support/CPP/new.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"

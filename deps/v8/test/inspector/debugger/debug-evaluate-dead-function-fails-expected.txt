@@ -1,0 +1,3 @@
+Tests that evaluating a live inner function succeeds while an unused dead inner function fails.
+live(): 1
+dead() exception: ReferenceError

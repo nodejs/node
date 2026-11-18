@@ -11,6 +11,7 @@
 
 #include <memory>
 
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/code-desc.h"
 #include "src/codegen/compiler.h"
@@ -59,8 +60,6 @@ class AssumptionsJournal {
 
 struct WasmCompilationResult {
  public:
-  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmCompilationResult);
-
   enum Kind : int8_t {
     kFunction,
     kWasmToJsWrapper,
@@ -74,18 +73,19 @@ struct WasmCompilationResult {
   bool failed() const { return !succeeded(); }
   explicit operator bool() const { return succeeded(); }
 
-  CodeDesc code_desc;
-  std::unique_ptr<AssemblerBuffer> instr_buffer;
+  CodeDesc code_desc = {};
+  std::unique_ptr<AssemblerBuffer> instr_buffer = nullptr;
   uint32_t frame_slot_count = 0;
   uint32_t ool_spill_count = 0;
   uint32_t tagged_parameter_slots = 0;
-  base::OwnedVector<uint8_t> source_positions;
-  base::OwnedVector<uint8_t> inlining_positions;
-  base::OwnedVector<uint8_t> trapping_instructions_data;
-  base::OwnedVector<uint8_t> deopt_data;
-  base::OwnedVector<uint8_t> effect_handlers;
-  std::unique_ptr<AssumptionsJournal> assumptions;
-  std::unique_ptr<LiftoffFrameDescriptionForDeopt> liftoff_frame_descriptions;
+  base::UniqueArray<uint8_t> source_positions = {};
+  base::UniqueArray<uint8_t> inlining_positions = {};
+  base::UniqueArray<uint8_t> trapping_instructions_data = {};
+  base::UniqueArray<uint8_t> deopt_data = {};
+  base::UniqueArray<uint8_t> effect_handlers = {};
+  std::unique_ptr<AssumptionsJournal> assumptions = nullptr;
+  std::unique_ptr<LiftoffFrameDescriptionForDeopt> liftoff_frame_descriptions =
+      nullptr;
   int func_index = kAnonymousFuncIndex;
   ExecutionTier result_tier = ExecutionTier::kNone;
   Kind kind = kFunction;
@@ -101,10 +101,7 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
       : func_index_(index),
         tier_(tier),
         for_debugging_(for_debugging),
-        validation_(validation) {
-    DCHECK_IMPLIES(for_debugging != ForDebugging::kNotForDebugging,
-                   tier_ == ExecutionTier::kLiftoff);
-  }
+        validation_(validation) {}
 
   WasmCompilationResult ExecuteCompilation(CompilationEnv*,
                                            const WireBytesStorage*,

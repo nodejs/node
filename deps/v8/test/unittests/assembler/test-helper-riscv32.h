@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CCTEST_TEST_HELPER_RISCV32_H_
-#define V8_CCTEST_TEST_HELPER_RISCV32_H_
+#ifndef V8_UNITTESTS_ASSEMBLER_TEST_HELPER_RISCV32_H_
+#define V8_UNITTESTS_ASSEMBLER_TEST_HELPER_RISCV32_H_
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -17,7 +17,7 @@
 #define PRINT_RES(res, expected_res, in_hex)                         \
   if (in_hex) std::cout << "[hex-form]" << std::hex;                 \
   std::cout << "res = " << (res) << " expected = " << (expected_res) \
-            << std::endl;
+            << std::dec << std::endl;
 
 namespace v8 {
 namespace internal {
@@ -341,4 +341,4 @@ T UseCanonicalNan(T x) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CCTEST_TEST_HELPER_RISCV32_H_
+#endif  // V8_UNITTESTS_ASSEMBLER_TEST_HELPER_RISCV32_H_

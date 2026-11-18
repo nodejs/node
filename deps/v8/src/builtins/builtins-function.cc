@@ -81,7 +81,7 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
 
   // Use an embedder-provided source string when available; otherwise, fall
   // back to ToString().
-  DirectHandleVector<String> parameter_strings(isolate);
+  DirectHandleSmallVector<String, 8> parameter_strings(isolate);
   if (argc > 1) parameter_strings.reserve(argc - 1);
 
   // A call with no arguments has nothing trustworthy to base "code-like"
@@ -160,12 +160,9 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
         JSFunction::GetDerivedMap(isolate, target, new_target));
 
     DirectHandle<SharedFunctionInfo> shared_info(function->shared(), isolate);
-    DirectHandle<Map> map =
-        Map::AsLanguageMode(isolate, initial_map, shared_info);
-
     DirectHandle<Context> context(function->context(), isolate);
     function = Factory::JSFunctionBuilder{isolate, shared_info, context}
-                   .set_map(map)
+                   .set_map(initial_map)
                    .set_allocation_type(AllocationType::kYoung)
                    .Build();
   }
@@ -246,7 +243,8 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
   // Allocate the bound function with the given {this_arg} and {args}.
   DirectHandle<JSReceiver> target = args.at<JSReceiver>(0);
   DirectHandle<JSAny> this_arg = isolate->factory()->undefined_value();
-  DirectHandleVector<Object> argv(isolate, std::max(0, args.length() - 2));
+  DirectHandleSmallVector<Object, 8> argv(isolate,
+                                          std::max(0, args.length() - 2));
   if (args.length() > 1) {
     this_arg = args.at<JSAny>(1);
     for (int i = 2; i < args.length(); ++i) {
@@ -299,7 +297,8 @@ BUILTIN(FunctionPrototypeToString) {
     return *JSBoundFunction::ToString(isolate, Cast<JSBoundFunction>(receiver));
   }
   if (IsJSFunction(*receiver)) {
-    return *JSFunction::ToString(isolate, Cast<JSFunction>(receiver));
+    RETURN_RESULT_OR_FAILURE(
+        isolate, JSFunction::ToString(isolate, Cast<JSFunction>(receiver)));
   }
   // With the revised toString behavior, all callable objects are valid
   // receivers for this method.
@@ -313,8 +312,6 @@ BUILTIN(FunctionPrototypeToString) {
                                 "Function.prototype.toString"),
                             isolate->factory()->Function_string()));
 }
-
-#ifndef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 
 namespace {
 
@@ -373,8 +370,6 @@ BUILTIN(FunctionPrototypeLegacyCallerSetter) {
   isolate->CountUsage(v8::Isolate::kFunctionPrototypeCaller);
   return ReadOnlyRoots(isolate).undefined_value();
 }
-
-#endif  // !V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 
 }  // namespace internal
 }  // namespace v8

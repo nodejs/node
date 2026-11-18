@@ -210,13 +210,12 @@ Tagged<Script> Script::GetEvalOrigin() {
   return origin_script;
 }
 
-String::LineEndsVector Script::GetLineEnds(Isolate* isolate,
-                                           DirectHandle<Script> script) {
-  DCHECK(!script->has_line_ends());
-  Tagged<Object> src_obj = script->source();
+String::LineEndsVector Script::GetLineEnds(
+    const DisallowGarbageCollection& no_gc) const {
+  DCHECK(!has_line_ends());
+  Tagged<Object> src_obj = source();
   if (IsString(src_obj)) {
-    DirectHandle<String> src(Cast<String>(src_obj), isolate);
-    return String::CalculateLineEndsVector(isolate, src, true);
+    return String::CalculateLineEndsVector(Cast<String>(src_obj), true, no_gc);
   }
 
   return String::LineEndsVector();

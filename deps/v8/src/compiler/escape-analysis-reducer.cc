@@ -48,17 +48,14 @@ Reduction EscapeAnalysisReducer::ReplaceNode(Node* original,
   DCHECK_EQ(1, original->op()->ControlInputCount());
   Node* effect = NodeProperties::GetEffectInput(original);
   Node* control = NodeProperties::GetControlInput(original);
-  original->TrimInputCount(0);
-  original->AppendInput(jsgraph()->zone(), replacement);
-  original->AppendInput(jsgraph()->zone(), effect);
-  original->AppendInput(jsgraph()->zone(), control);
+  Node* type_guard =
+      jsgraph()->graph()->NewNode(jsgraph()->common()->TypeGuard(original_type),
+                                  replacement, effect, control);
   NodeProperties::SetType(
-      original,
+      type_guard,
       Type::Intersect(original_type, replacement_type, jsgraph()->zone()));
-  NodeProperties::ChangeOp(original,
-                           jsgraph()->common()->TypeGuard(original_type));
-  ReplaceWithValue(original, original, original, control);
-  return NoChange();
+  ReplaceWithValue(original, type_guard, type_guard, control);
+  return Replace(type_guard);
 }
 
 Node* EscapeAnalysisReducer::ObjectIdNode(const VirtualObject* vobject) {

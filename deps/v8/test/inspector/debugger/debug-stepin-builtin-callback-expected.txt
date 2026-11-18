@@ -1,0 +1,9 @@
+Tests stepping into callbacks passed to builtin functions.
+testForEach: 12 breaks, 9 callback pauses
+testSome: 12 breaks, 9 callback pauses
+testEvery: 12 breaks, 9 callback pauses
+testMap: 12 breaks, 9 callback pauses
+testFilter: 12 breaks, 9 callback pauses
+testReduce: 9 breaks, 6 callback pauses
+testReduceRight: 9 breaks, 6 callback pauses
+testNestedForEach: 39 breaks, 36 callback pauses

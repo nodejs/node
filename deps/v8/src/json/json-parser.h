@@ -204,6 +204,128 @@ constexpr uint8_t JsonTokenToCharacter(JsonToken token) {
   }
 }
 
+// Caches `JsonParser::cursor_` in a local variable during hot scanning loops
+// and writes it back on exit. Because `LocalCursor` does not escape the
+// function, Scalar Replacement of Aggregates (SROA) breaks the struct into
+// scalar values and keeps `cursor_` in a register on the fast path.
+//
+// Updating `this->cursor_` directly forces memory loads and stores in the loop
+// for two reasons:
+// 1. Each fast-path step can bail out to cold helper methods on `this` that
+//    read `this->cursor_`. Clang will not sink a memory store out of the hot
+//    loop into those cold bailout paths (Partial Dead Store Elimination), so
+//    updating `this->cursor_` directly writes to memory before every branch.
+// 2. V8 builds with `-fno-strict-aliasing` and `this` escapes, so Clang cannot
+//    prove that other writes in the loop (such as allocating a Handle or
+//    pushing to `property_stack_`) do not alias `this->cursor_`.
+//
+// Helpers taking `LocalCursor&` must be `V8_INLINE` so `LocalCursor` stays in a
+// register. Before calling a method that uses `this->cursor_` directly or may
+// trigger GC (which updates `this->cursor_` if the input string moves), use
+// `Suspend()` to write the local cursor back beforehand and reload it after, or
+// `Release()` when exiting `LocalCursor`'s scope without using it again.
+template <typename Char>
+class V8_NODISCARD LocalCursor {
+ public:
+  V8_INLINE explicit LocalCursor(const Char*& cursor)
+      : cursor_ref_(&cursor), cursor_(cursor) {}
+  V8_INLINE ~LocalCursor() {
+    if (cursor_ref_ != nullptr) {
+      *cursor_ref_ = cursor_;
+    }
+  }
+
+  LocalCursor(const LocalCursor&) = delete;
+  LocalCursor& operator=(const LocalCursor&) = delete;
+
+  V8_INLINE void Flush() {
+    DCHECK_NOT_NULL(cursor_ref_);
+    *cursor_ref_ = cursor_;
+  }
+  V8_INLINE void Reload() {
+    DCHECK_NOT_NULL(cursor_ref_);
+    cursor_ = *cursor_ref_;
+  }
+  V8_INLINE void Release() {
+    Flush();
+    cursor_ref_ = nullptr;
+  }
+
+  // Flushes the local cursor to `JsonParser::cursor_` on construction and
+  // reloads it on destruction for calls that access `JsonParser::cursor_` or
+  // may trigger GC.
+  class V8_NODISCARD SuspendScope {
+   public:
+    V8_INLINE explicit SuspendScope(LocalCursor& cursor) : cursor_(cursor) {
+      cursor_.Flush();
+    }
+    V8_INLINE ~SuspendScope() { cursor_.Reload(); }
+
+    SuspendScope(const SuspendScope&) = delete;
+    SuspendScope& operator=(const SuspendScope&) = delete;
+
+   private:
+    LocalCursor& cursor_;
+  };
+
+  V8_INLINE SuspendScope Suspend() { return SuspendScope(*this); }
+
+  V8_INLINE LocalCursor& operator=(const Char* cursor) {
+    DCHECK_NOT_NULL(cursor_ref_);
+    cursor_ = cursor;
+    return *this;
+  }
+
+  V8_INLINE LocalCursor& operator++() {
+    DCHECK_NOT_NULL(cursor_ref_);
+    ++cursor_;
+    return *this;
+  }
+  V8_INLINE const Char* operator++(int) {
+    DCHECK_NOT_NULL(cursor_ref_);
+    return cursor_++;
+  }
+  V8_INLINE LocalCursor& operator--() {
+    DCHECK_NOT_NULL(cursor_ref_);
+    --cursor_;
+    return *this;
+  }
+  V8_INLINE const Char* operator--(int) {
+    DCHECK_NOT_NULL(cursor_ref_);
+    return cursor_--;
+  }
+  V8_INLINE LocalCursor& operator+=(ptrdiff_t n) {
+    DCHECK_NOT_NULL(cursor_ref_);
+    cursor_ += n;
+    return *this;
+  }
+  V8_INLINE LocalCursor& operator-=(ptrdiff_t n) {
+    DCHECK_NOT_NULL(cursor_ref_);
+    cursor_ -= n;
+    return *this;
+  }
+
+  V8_INLINE Char operator*() const {
+    DCHECK_NOT_NULL(cursor_ref_);
+    return *cursor_;
+  }
+  V8_INLINE operator const Char*&() {
+    DCHECK_NOT_NULL(cursor_ref_);
+    return cursor_;
+  }
+  V8_INLINE operator const Char*() const {
+    DCHECK_NOT_NULL(cursor_ref_);
+    return cursor_;
+  }
+
+ private:
+  const Char** cursor_ref_;
+  const Char* cursor_;
+};
+
+template <typename Char>
+LocalCursor(const Char*&) -> LocalCursor<Char>;
+
 // A json parser.
 template <typename Char>
 class JsonParser final {
@@ -249,16 +371,95 @@ class JsonParser final {
     HandleScope scope;
     uint32_t max_index;
     uint32_t elements;
-    // True if ParseJsonObjectProperties<FastIterableState::kJsonFast> matched
-    // all property keys against the feedback map in exact sequence with no
-    // trailing properties. Used by BuildJsonObject for direct layout
-    // allocation.
+    // True if ParseFastJsonObjectProperties matched all property keys against
+    // the feedback map in exact sequence with no trailing properties. Used by
+    // BuildJsonObject for direct layout allocation.
     bool fast_keys_matched;
 
    private:
     using TypeField = base::BitField<Type, 0, 2>;
     using IndexField = TypeField::template Next<size_t, 30>;
     uint32_t type_and_index_;
+  };
+
+  class JsonContinuations {
+   public:
+    explicit JsonContinuations(Isolate* isolate)
+        : isolate_(isolate), cont_(isolate, JsonContinuation::kReturn, 0) {
+      stack_.reserve(16);
+    }
+    ~JsonContinuations() {
+      while (!stack_.empty()) {
+        Pop();
+      }
+    }
+
+    JsonContinuations(const JsonContinuations&) = delete;
+    JsonContinuations& operator=(const JsonContinuations&) = delete;
+
+    void New(JsonContinuation::Type type, size_t index) {
+      stack_.emplace_back(std::move(cont_));
+      cont_ = JsonContinuation(isolate_, type, index);
+    }
+
+    template <typename T>
+    Handle<T> CloseAndEscape(Handle<T> value) {
+      return cont_.scope.CloseAndEscape(value);
+    }
+
+    template <typename T, typename U>
+    std::pair<Handle<T>, Handle<U>> CloseAndEscape(Handle<T> value,
+                                                   Handle<U> val_node) {
+      DisallowGarbageCollection no_gc;
+      Tagged<U> raw_val_node = *val_node;
+      Handle<T> escaped_value = cont_.scope.CloseAndEscape(value);
+      Handle<U> escaped_val_node =
+          cont_.scope.CloseAndEscape(handle(raw_val_node, isolate_));
+      return {escaped_value, escaped_val_node};
+    }
+
+    // Pops the current continuation (closing its HandleScope) and recreates the
+    // handle(s) in the restored parent HandleScope. Using CloseAndEscape
+    // followed by Pop would redundantly close the current HandleScope twice (or
+    // three times when escaping two handles).
+    template <typename T>
+    Handle<T> PopAndEscape(Handle<T> value) {
+      DisallowGarbageCollection no_gc;
+      Tagged<T> raw_value = *value;
+      Pop();
+      return handle(raw_value, isolate_);
+    }
+
+    template <typename T, typename U, template <typename> typename HandleType>
+      requires(std::is_convertible_v<HandleType<U>, DirectHandle<U>>)
+    std::pair<Handle<T>, Handle<U>> PopAndEscape(Handle<T> value,
+                                                 HandleType<U> val_node) {
+      DisallowGarbageCollection no_gc;
+      Tagged<T> raw_value = *value;
+      Tagged<U> raw_val_node = *val_node;
+      Pop();
+      return {handle(raw_value, isolate_), handle(raw_val_node, isolate_)};
+    }
+
+    JsonContinuation& current() { return cont_; }
+    const JsonContinuation& current() const { return cont_; }
+
+    bool HasArrayFeedback(size_t element_stack_size) const {
+      return !stack_.empty() &&
+             stack_.back().type() == JsonContinuation::kArrayElement &&
+             stack_.back().index() < element_stack_size;
+    }
+
+   private:
+    void Pop() {
+      DCHECK(!stack_.empty());
+      cont_ = std::move(stack_.back());
+      stack_.pop_back();
+    }
+
+    Isolate* isolate_;
+    std::vector<JsonContinuation> stack_;
+    JsonContinuation cont_;
   };
 
   JsonParser(Isolate* isolate, Handle<String> source,
@@ -287,8 +488,6 @@ class JsonParser final {
     return CurrentCharacter();
   }
 
-  void AdvanceToNonDecimal();
-
   V8_INLINE JsonToken peek() const;
 
   void Consume(JsonToken token) {
@@ -297,29 +496,28 @@ class JsonParser final {
   }
 
   template <JsonToken token>
-  V8_INLINE bool IsNextToken() {
+  V8_INLINE bool IsNextToken(const Char* cursor) const {
+    static_assert(token == JsonToken::EOS || JsonTokenIsCharacter<token>);
     if constexpr (token == JsonToken::EOS) {
-      return is_at_end();
-    } else if constexpr (JsonTokenIsCharacter<token>) {
-      constexpr Char expected_char = JsonTokenToCharacter(token);
-      return V8_LIKELY(expected_char == CurrentCharacter());
+      return cursor == end_;
     } else {
-      return false;
+      constexpr Char expected_char = JsonTokenToCharacter(token);
+      return V8_LIKELY(cursor < end_ && *cursor == expected_char);
     }
   }
 
   template <JsonToken token>
-  V8_WARN_UNUSED_RESULT bool Check() {
-    if (V8_LIKELY(IsNextToken<token>())) {
-      advance();
-      return true;
-    }
-    GetNextNonWhitespaceToken();
-    if (peek() == token) {
-      advance();
-      return true;
-    }
-    return false;
+  V8_INLINE bool IsNextToken() const {
+    return IsNextToken<token>(cursor_);
+  }
+
+  template <JsonToken token>
+  V8_INLINE V8_WARN_UNUSED_RESULT bool Check(LocalCursor<Char>& cursor);
+
+  template <JsonToken token>
+  V8_INLINE V8_WARN_UNUSED_RESULT bool Check() {
+    LocalCursor<Char> cursor(cursor_);
+    return Check<token>(cursor);
   }
 
   template <JsonToken token>
@@ -334,41 +532,54 @@ class JsonParser final {
   }
 
   template <JsonToken token>
-  V8_WARN_UNUSED_RESULT bool ExpectNext(
-      std::optional<MessageTemplate> errorMessage) {
-    if (Check<token>()) {
-      return true;
-    }
-    ReportUnexpectedToken(peek(), errorMessage);
-    return false;
+  V8_INLINE V8_WARN_UNUSED_RESULT bool ExpectNext(
+      LocalCursor<Char>& cursor,
+      std::optional<MessageTemplate> errorMessage = std::nullopt);
+
+  template <JsonToken token>
+  V8_INLINE V8_WARN_UNUSED_RESULT bool ExpectNext(
+      std::optional<MessageTemplate> errorMessage = std::nullopt) {
+    LocalCursor<Char> cursor(cursor_);
+    return ExpectNext<token>(cursor, errorMessage);
   }
 
   template <size_t N>
-  void ScanLiteral(const char (&s)[N]) {
-    DCHECK(!is_at_end());
+  V8_INLINE bool ScanLiteral(LocalCursor<Char>& cursor, const char (&s)[N]) {
+    DCHECK_LT(cursor, end_);
     // There's at least 1 character, we always consume a character and compare
     // the next character. The first character was compared before we jumped
     // to ScanLiteral.
     static_assert(N > 2);
-    size_t remaining = remaining_chars();
+    size_t remaining = end_ - cursor;
     if (V8_LIKELY(remaining >= N - 1 &&
-                  CompareCharsEqual(s + 1, cursor_ + 1, N - 2))) {
-      cursor_ += N - 1;
-      return;
+                  CompareCharsEqual(s + 1, cursor + 1, N - 2))) {
+      cursor += N - 1;
+      return true;
     }
 
-    cursor_++;
+    cursor++;
     for (size_t i = 0; i < std::min(N - 2, remaining - 1); i++) {
-      if (*(s + 1 + i) != *cursor_) {
+      if (*(s + 1 + i) != *cursor) {
+        cursor.Release();
         ReportUnexpectedCharacter(*cursor_);
-        return;
+        return false;
       }
-      cursor_++;
+      cursor++;
     }
 
-    DCHECK(is_at_end());
+    DCHECK_EQ(cursor, end_);
+    cursor.Release();
     ReportUnexpectedToken(JsonToken::EOS);
+    return false;
   }
+
+  template <size_t N>
+  V8_INLINE bool ScanLiteral(const char (&s)[N]) {
+    LocalCursor<Char> cursor(cursor_);
+    return ScanLiteral(cursor, s);
+  }
+
+  V8_INLINE void SkipWhitespace(LocalCursor<Char>& cursor);
 
   // The JSON lexical grammar is specified in the ECMAScript 5 standard,
   // section 15.12.1.1. The only allowed whitespace characters between tokens
@@ -409,10 +620,22 @@ class JsonParser final {
   // the integer part is zero), and may include an exponent part (e.g., "e-10").
   // Hexadecimal and octal numbers are not allowed.
   Handle<Object> ParseJsonNumber();
+  // General number parser when an inline Smi scan in
+  // `ParseFastJsonPropertyValue` encounters a decimal point, exponent, or >9
+  // digits starting at `start`.
+  MaybeHandle<Object> ParseGeneralJsonNumber(const Char* start);
 
-  // Parses a number either as a double or a Smi. Returns true if it was a
-  // double, false if it was a Smi.
-  bool ParseJsonNumberAsDoubleOrSmi(double* result_double, int* result_smi);
+  // Parses a number either as a double or a Smi, trying a fast 1-9 digit Smi
+  // scan first before falling back to `ParseGeneralJsonNumberAsDoubleOrSmi`.
+  // Returns true if it was a double, false if it was a Smi.
+  V8_INLINE bool ParseJsonNumberAsDoubleOrSmi(double* result_double,
+                                              int* result_smi);
+  // Parses a general JSON number starting at `start` via `fast_float` (and
+  // canonicalizes Smi-representable results such as `1e2` into `*result_smi`).
+  // Returns true if it was a double, false if it was a Smi.
+  bool ParseGeneralJsonNumberAsDoubleOrSmi(double* result_double,
+                                           int* result_smi, const Char* start);
+  bool ReparseJsonDoubleForError(const Char* start);
 
   // Parse a single JSON value from input (grammar production JSONValue).
   // A JSON value is either a (double-quoted) string literal, a number literal,
@@ -424,13 +647,20 @@ class JsonParser final {
       Handle<Map> feedback = {});
   MaybeHandle<Object> ParseJsonArray();
   MaybeHandle<Object> ParseJsonObject(Handle<Map> feedback);
-  template <DescriptorArray::FastIterableState fast_iterable_state>
-  V8_INLINE bool ParseJsonObjectProperties(JsonContinuation* cont,
-                                           MessageTemplate first_token_msg,
-                                           Handle<DescriptorArray> descriptors,
-                                           uint16_t nof_descriptors);
+  V8_INLINE bool ParseFastJsonObjectProperties(
+      JsonContinuation* cont, MessageTemplate first_token_msg,
+      Handle<DescriptorArray> descriptors, uint16_t nof_descriptors);
+  V8_INLINE bool ParseSlowJsonObjectProperties(JsonContinuation* cont,
+                                               MessageTemplate first_token_msg);
+  V8_INLINE bool ParseUnknownJsonObjectProperties(
+      JsonContinuation* cont, MessageTemplate first_token_msg,
+      Handle<DescriptorArray> descriptors, uint16_t nof_descriptors);
+  V8_INLINE bool ParseFastJsonPropertyValue(LocalCursor<Char>& cursor,
+                                            const JsonString& key);
+  V8_INLINE MaybeHandle<Object> ParseFastJsonString(LocalCursor<Char>& cursor);
   V8_INLINE bool ParseJsonPropertyValue(const JsonString& key);
-  V8_INLINE bool FastKeyMatch(const uint8_t* key_chars, uint32_t key_length);
+  V8_INLINE bool FastKeyMatch(const uint8_t* key_chars, uint32_t key_length,
+                              const Char* cursor);
   V8_INLINE bool FastKeyMatch(const uint8_t* key_chars, uint32_t key_length,
                               JsonString scanned_key);
 
@@ -519,10 +749,14 @@ class JsonParser final {
   // callable.
   MaybeHandle<Object> parsed_val_node_;
 
-  SmallVector<Handle<Object>> element_stack_;
-  SmallVector<JsonProperty> property_stack_;
-  SmallVector<double> double_elements_;
-  SmallVector<int> smi_elements_;
+  // Inline capacities sized to avoid heap reallocations on medium-sized JSON
+  // arrays and objects (~100 elements) while keeping the stack-allocated
+  // JsonParser modest (~2.5 KiB of inline buffers; JsonParser is not
+  // instantiated recursively).
+  base::SmallVector<Handle<Object>, 128> element_stack_;
+  base::SmallVector<JsonProperty, 32> property_stack_;
+  base::SmallVector<double, 64> double_elements_;
+  base::SmallVector<int, 64> smi_elements_;
 
   // Cached pointer to the raw chars in source. In case source is on-heap, we
   // register an UpdatePointers callback. For this reason, chars_, cursor_ and

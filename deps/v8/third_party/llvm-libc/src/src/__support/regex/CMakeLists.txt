@@ -6,10 +6,66 @@ add_object_library(
     regex_expr_pool.h
     regex_ast.h
   DEPENDS
-    libc.src.__support.CPP.new
-    libc.src.__support.hash
-    libc.src.__support.macros.config
-    libc.src.__support.macros.null_check
-    libc.src.__support.alloc_checker
+    libc.hdr.limits_macros
     libc.hdr.regex_macros
+    libc.hdr.stdint_proxy
+    libc.src.__support.checked_ptr
+    libc.src.__support.CPP.array
+    libc.src.__support.CPP.bitset
+    libc.src.__support.CPP.span
+    libc.src.__support.CPP.unique_ptr
+    libc.src.__support.CPP.utility
+    libc.src.__support.error_or
+    libc.src.__support.hash
+    libc.src.__support.libc_assert
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  regex_internal
+  HDRS
+    regex_internal.h
+  DEPENDS
+    .regex_expr_pool
+    libc.src.__support.macros.config
+    libc.src.__support.threads.spin_lock
+)
+
+add_object_library(
+  regex_matcher
+  SRCS
+    regex_matcher.cpp
+  HDRS
+    regex_matcher.h
+  DEPENDS
+    .regex_expr_pool
+    .regex_internal
+    libc.hdr.regex_macros
+    libc.src.__support.common
+    libc.src.__support.CPP.string_view
+    libc.src.__support.error_or
+    libc.src.__support.libc_assert
+)
+
+add_object_library(
+  regex_parser
+  SRCS
+    regex_parser.cpp
+  HDRS
+    regex_charclass.h
+    regex_parser.h
+  DEPENDS
+    .regex_expr_pool
+    libc.hdr.regex_macros
+    libc.src.__support.checked_ptr
+    libc.src.__support.CPP.array
+    libc.src.__support.CPP.bitset
+    libc.src.__support.CPP.optional
+    libc.src.__support.CPP.span
+    libc.src.__support.CPP.string_view
+    libc.src.__support.CPP.unique_ptr
+    libc.src.__support.ctype_utils
+    libc.src.__support.error_or
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
 )

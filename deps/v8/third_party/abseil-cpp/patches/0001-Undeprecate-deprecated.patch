@@ -68,14 +68,7 @@ diff --git a/third_party/abseil-cpp/absl/types/variant.h b/third_party/abseil-cp
 index 49f3e24a86e7e..a6e5187fa2f48 100644
 --- a/third_party/abseil-cpp/absl/types/variant.h
 +++ b/third_party/abseil-cpp/absl/types/variant.h
-@@ -38,13 +38,13 @@ using bad_variant_access ABSL_REFACTOR_INLINE
-     = std::bad_variant_access;
- 
- template <size_t I, typename... Args>
--[[deprecated]] constexpr auto get(Args&&... args)
-+constexpr auto get(Args&&... args)
-     -> decltype(std::get<I>(std::forward<Args>(args)...)) {
-   return std::get<I>(std::forward<Args>(args)...);
+@@ -44,7 +44,7 @@ constexpr auto get(Args&&... args)
  }
  
  template <typename T, typename... Args>
@@ -111,22 +104,7 @@ diff --git a/third_party/abseil-cpp/absl/utility/utility.h b/third_party/abseil-
 index 3cb6940f182e7..dd699d4900ad6 100644
 --- a/third_party/abseil-cpp/absl/utility/utility.h
 +++ b/third_party/abseil-cpp/absl/utility/utility.h
-@@ -71,12 +71,10 @@ inline constexpr const std::in_place_t& in_place ABSL_DEPRECATE_AND_INLINE() =
- 
- template <size_t I>
- inline constexpr const std::in_place_index_t<I>& in_place_index
--    [[deprecated("Use std::in_place_index<I> instead.")]] =
--        std::in_place_index<I>;
-+ABSL_DEPRECATE_AND_INLINE() = std::in_place_index<I>;
- 
- template <size_t I>
--using in_place_index_t [[deprecated("Use std::in_place_index_t<I> instead.")]] =
--    std::in_place_index_t<I>;
-+using in_place_index_t ABSL_DEPRECATE_AND_INLINE() = std::in_place_index_t<I>;
- 
- using in_place_t ABSL_DEPRECATE_AND_INLINE() = std::in_place_t;
- 
-@@ -88,17 +86,15 @@ template <class T>
+@@ -88,17 +88,15 @@ template <class T>
  using in_place_type_t ABSL_DEPRECATE_AND_INLINE() = std::in_place_type_t<T>;
  
  template <size_t... I>
@@ -135,8 +113,7 @@ index 3cb6940f182e7..dd699d4900ad6 100644
 +using index_sequence ABSL_DEPRECATE_AND_INLINE() = std::index_sequence<I...>;
  
  template <class T, T... I>
--using integer_sequence [[deprecated("Use std::integer_sequence instead.")]] =
-+using integer_sequence ABSL_DEPRECATE_AND_INLINE() =
+ using integer_sequence [[deprecated("Use std::integer_sequence instead.")]] =
      std::integer_sequence<T, I...>;
  
  template <class... T>
@@ -148,7 +125,7 @@ index 3cb6940f182e7..dd699d4900ad6 100644
  
  template <class T, class Tuple>
  ABSL_DEPRECATE_AND_INLINE()
-@@ -109,14 +105,12 @@ ABSL_DEPRECATE_AND_INLINE()
+@@ -109,8 +107,7 @@ ABSL_DEPRECATE_AND_INLINE()
  }
  
  template <size_t N>
@@ -159,14 +136,6 @@ index 3cb6940f182e7..dd699d4900ad6 100644
 +    std::make_index_sequence<N>;
  
  template <class T, T N>
--using make_integer_sequence
--    [[deprecated("Use std::make_integer_sequence instead.")]] =
--        std::make_integer_sequence<T, N>;
-+using make_integer_sequence ABSL_DEPRECATE_AND_INLINE() =
-+    std::make_integer_sequence<T, N>;
- 
- template <class It, class OutIt>
- [[deprecated("Use std::move instead.")]]
 diff --git a/third_party/abseil-cpp/absl/meta/type_traits.h b/third_party/abseil-cpp/absl/meta/type_traits.h
 index 60b40c3bd4f3f..9d582702ebd5f 100644
 --- a/third_party/abseil-cpp/absl/meta/type_traits.h
@@ -194,4 +163,57 @@ index 72614172586f3..6c788ac1b5d79 100644
 +  struct _absl_fallthrough_intended_macro;                                \
    (void)sizeof(_absl_fallthrough_intended_macro*);                        \
    [[fallthrough]]
+
+diff --git a/third_party/abseil-cpp/absl/base/attributes.h b/third_party/abseil-cpp/absl/base/attributes.h
+index 8385bf9bef1ab..5bccfc51db78f 100644
+--- a/third_party/abseil-cpp/absl/base/attributes.h
++++ b/third_party/abseil-cpp/absl/base/attributes.h
+@@ -202,10 +202,13 @@
+ //
+ // Deprecated: Prefer the `[[noreturn]]` attribute standardized by C++11 over
+ // this macro.
+-#ifdef ABSL_ATTRIBUTE_NORETURN
+-#error "ABSL_ATTRIBUTE_NORETURN should not be defined."
++#if ABSL_HAVE_ATTRIBUTE(noreturn) || (defined(__GNUC__) && !defined(__clang__))
++#define ABSL_ATTRIBUTE_NORETURN __attribute__((noreturn))
++#elif defined(_MSC_VER)
++#define ABSL_ATTRIBUTE_NORETURN __declspec(noreturn)
++#else
++#define ABSL_ATTRIBUTE_NORETURN
+ #endif
+-#define ABSL_ATTRIBUTE_NORETURN [[noreturn]]
  
+ // ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
+ //
+--- a/third_party/abseil-cpp/absl/base/attributes.h
++++ b/third_party/abseil-cpp/absl/base/attributes.h
+@@ -323,9 +323,7 @@
+ // ABSL_ATTRIBUTE_RETURNS_NONNULL
+ //
+ // Tells the compiler that a particular function never returns a null pointer.
+-#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::returns_nonnull)
+-#define ABSL_ATTRIBUTE_RETURNS_NONNULL [[gnu::returns_nonnull]]
+-#elif ABSL_HAVE_ATTRIBUTE(returns_nonnull)
++#if ABSL_HAVE_ATTRIBUTE(returns_nonnull)
+ #define ABSL_ATTRIBUTE_RETURNS_NONNULL __attribute__((returns_nonnull))
+ #else
+ #define ABSL_ATTRIBUTE_RETURNS_NONNULL
+diff --git a/third_party/abseil-cpp/absl/base/attributes.h b/third_party/abseil-cpp/absl/base/attributes.h
+index 5bccfc51db78f..00a3eb033aba4 100644
+--- a/third_party/abseil-cpp/absl/base/attributes.h
++++ b/third_party/abseil-cpp/absl/base/attributes.h
+@@ -441,10 +441,11 @@
+ //
+ //   Sprocket* SprocketPointer();
+ //   SprocketPointer();  // Does *not* trigger a warning.
+-#ifdef ABSL_MUST_USE_RESULT
+-#error "ABSL_MUST_USE_RESULT should not be defined."
++#if defined(__clang__) && ABSL_HAVE_ATTRIBUTE(warn_unused_result)
++#define ABSL_MUST_USE_RESULT __attribute__((warn_unused_result))
++#else
++#define ABSL_MUST_USE_RESULT
+ #endif
+-#define ABSL_MUST_USE_RESULT [[nodiscard]]
+ 
+ // ABSL_ATTRIBUTE_HOT, ABSL_ATTRIBUTE_COLD
+ //

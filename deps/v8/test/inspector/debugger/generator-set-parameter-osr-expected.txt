@@ -1,0 +1,3 @@
+Tests that a generator parameter changed by the debugger in a live frame survives OSR and later suspends.
+Paused, setting a = 42
+Yielded: [1,42,42]

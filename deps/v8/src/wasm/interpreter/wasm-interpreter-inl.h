@@ -62,11 +62,10 @@ inline Isolate* WasmInterpreterThread::Activation::GetIsolate() const {
 inline WasmInterpreterThread::Activation*
 WasmInterpreterThread::StartActivation(WasmInterpreterRuntime* wasm_runtime,
                                        Address frame_pointer,
-                                       uint8_t* interpreter_fp,
                                        const FrameState& frame_state) {
   Run();
   activations_.emplace_back(std::make_unique<Activation>(
-      this, wasm_runtime, frame_pointer, interpreter_fp, frame_state));
+      this, wasm_runtime, frame_pointer, frame_state));
   return activations_.back().get();
 }
 

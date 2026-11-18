@@ -114,6 +114,7 @@ LIBC_INLINE float16 log10p1f16(float16 x) {
 
   // log10p1(-1) = -inf
   if (LIBC_UNLIKELY(x_u == 0xbc00U)) {
+    fputil::set_errno_if_required(ERANGE);
     fputil::raise_except_if_required(FE_DIVBYZERO);
     return FPBits::inf(Sign::NEG).get_val();
   }

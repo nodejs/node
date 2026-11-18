@@ -13,6 +13,10 @@
 // modified significantly by Google Inc.
 // Copyright 2016 the V8 project authors. All rights reserved.
 
+#define LIBC_MATH                             \
+  (LIBC_MATH_NO_ERRNO | LIBC_MATH_NO_EXCEPT | \
+   LIBC_MATH_ASSUME_ROUND_NEAREST_ONLY)
+
 #include "src/base/ieee754.h"
 
 #include <cmath>
@@ -64,16 +68,6 @@ namespace ieee754 {
     uint64_t bits = base::bit_cast<uint64_t>(d); \
     bits &= 0x0000'0000'FFFF'FFFF;               \
     bits |= static_cast<uint64_t>(v) << 32;      \
-    (d) = base::bit_cast<double>(bits);          \
-  } while (false)
-
-/* Set the less significant 32 bits of a double from an int.  */
-
-#define SET_LOW_WORD(d, v)                       \
-  do {                                           \
-    uint64_t bits = base::bit_cast<uint64_t>(d); \
-    bits &= 0xFFFF'FFFF'0000'0000;               \
-    bits |= static_cast<uint32_t>(v);            \
     (d) = base::bit_cast<double>(bits);          \
   } while (false)
 
@@ -230,70 +224,7 @@ double sin(double x) { return LIBC_NAMESPACE::shared::sin(x); }
 
 double tan(double x) { return LIBC_NAMESPACE::shared::tan(x); }
 
-/*
- * ES6 draft 09-27-13, section 20.2.2.12.
- * Math.cosh
- * Method :
- * mathematically cosh(x) if defined to be (exp(x)+exp(-x))/2
- *      1. Replace x by |x| (cosh(x) = cosh(-x)).
- *      2.
- *                                                      [ exp(x) - 1 ]^2
- *          0        <= x <= ln2/2  :  cosh(x) := 1 + -------------------
- *                                                         2*exp(x)
- *
- *                                                 exp(x) + 1/exp(x)
- *          ln2/2    <= x <= 22     :  cosh(x) := -------------------
- *                                                        2
- *          22       <= x <= lnovft :  cosh(x) := exp(x)/2
- *          lnovft   <= x <= ln2ovft:  cosh(x) := exp(x/2)/2 * exp(x/2)
- *          ln2ovft  <  x           :  cosh(x) := huge*huge (overflow)
- *
- * Special cases:
- *      cosh(x) is |x| if x is +INF, -INF, or NaN.
- *      only cosh(0)=1 is exact for finite x.
- */
-double cosh(double x) {
-  static const double KCOSH_OVERFLOW = 710.4758600739439;
-  static const double one = 1.0, half = 0.5;
-  static volatile double huge = 1.0e+300;
-
-  int32_t ix;
-
-  /* High word of |x|. */
-  GET_HIGH_WORD(ix, x);
-  ix &= 0x7FFFFFFF;
-
-  // |x| in [0,0.5*log2], return 1+expm1(|x|)^2/(2*exp(|x|))
-  if (ix < 0x3FD62E43) {
-    double t = expm1(fabs(x));
-    double w = one + t;
-    // For |x| < 2^-55, cosh(x) = 1
-    if (ix < 0x3C800000) return w;
-    return one + (t * t) / (w + w);
-  }
-
-  // |x| in [0.5*log2, 22], return (exp(|x|)+1/exp(|x|)/2
-  if (ix < 0x40360000) {
-    double t = exp(fabs(x));
-    return half * t + half / t;
-  }
-
-  // |x| in [22, log(maxdouble)], return half*exp(|x|)
-  if (ix < 0x40862E42) return half * exp(fabs(x));
-
-  // |x| in [log(maxdouble), overflowthreshold]
-  if (fabs(x) <= KCOSH_OVERFLOW) {
-    double w = exp(half * fabs(x));
-    double t = half * w;
-    return t * w;
-  }
-
-  /* x is INF or NaN */
-  if (ix >= 0x7FF00000) return x * x;
-
-  // |x| > overflowthreshold.
-  return huge * huge;
-}
+double cosh(double x) { return LIBC_NAMESPACE::shared::cosh(x); }
 
 namespace legacy {
 
@@ -301,64 +232,13 @@ double pow(double x, double y) { return LIBC_NAMESPACE::shared::pow(x, y); }
 
 }  // namespace legacy
 
-/*
- * ES6 draft 09-27-13, section 20.2.2.30.
- * Math.sinh
- * Method :
- * mathematically sinh(x) if defined to be (exp(x)-exp(-x))/2
- *      1. Replace x by |x| (sinh(-x) = -sinh(x)).
- *      2.
- *                                                  E + E/(E+1)
- *          0        <= x <= 22     :  sinh(x) := --------------, E=expm1(x)
- *                                                      2
- *
- *          22       <= x <= lnovft :  sinh(x) := exp(x)/2
- *          lnovft   <= x <= ln2ovft:  sinh(x) := exp(x/2)/2 * exp(x/2)
- *          ln2ovft  <  x           :  sinh(x) := x*shuge (overflow)
- *
- * Special cases:
- *      sinh(x) is |x| if x is +Infinity, -Infinity, or NaN.
- *      only sinh(0)=0 is exact for finite x.
- */
-double sinh(double x) {
-  static const double KSINH_OVERFLOW = 710.4758600739439,
-                      TWO_M28 =
-                          3.725290298461914e-9,  // 2^-28, empty lower half
-      LOG_MAXD = 709.7822265625;  // 0x40862E42 00000000, empty lower half
-  static const double shuge = 1.0e307;
-
-  double h = (x < 0) ? -0.5 : 0.5;
-  // |x| in [0, 22]. return sign(x)*0.5*(E+E/(E+1))
-  double ax = fabs(x);
-  if (ax < 22) {
-    // For |x| < 2^-28, sinh(x) = x
-    if (ax < TWO_M28) return x;
-    double t = expm1(ax);
-    if (ax < 1) {
-      return h * (2 * t - t * t / (t + 1));
-    }
-    return h * (t + t / (t + 1));
-  }
-  // |x| in [22, log(maxdouble)], return 0.5 * exp(|x|)
-  if (ax < LOG_MAXD) return h * exp(ax);
-  // |x| in [log(maxdouble), overflowthreshold]
-  // overflowthreshold = 710.4758600739426
-  if (ax <= KSINH_OVERFLOW) {
-    double w = exp(0.5 * ax);
-    double t = h * w;
-    return t * w;
-  }
-  // |x| > overflowthreshold or is NaN.
-  // Return Infinity of the appropriate sign or NaN.
-  return x * shuge;
-}
+double sinh(double x) { return LIBC_NAMESPACE::shared::sinh(x); }
 
 #undef EXTRACT_WORDS
 #undef GET_HIGH_WORD
 #undef SET_HIGH_WORD
-#undef SET_LOW_WORD
 
-double tanh(double x) { return std::tanh(x); }
+double tanh(double x) { return LIBC_NAMESPACE::shared::tanh(x); }
 
 }  // namespace ieee754
 }  // namespace base

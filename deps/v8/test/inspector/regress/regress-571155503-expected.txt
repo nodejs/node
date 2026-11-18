@@ -1,0 +1,9 @@
+Regression test for crbug.com/571155503.
+
+Running test: testClearBreakPointDuringInterruptAtReturn
+
+Running test: testSetBreakPointDuringInterruptAtReturn
+
+Running test: testLazyDeoptAfterSideEffectCheck
+
+Running test: testAsyncGeneratorSuspendDuringSideEffectCheck

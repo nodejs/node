@@ -447,8 +447,8 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
   }
 }
 
-int ObjectLiteralBoilerplateBuilder::ComputeFlags(bool disable_mementos) const {
-  int flags = LiteralBoilerplateBuilder::ComputeFlags(disable_mementos);
+int ObjectLiteralBoilerplateBuilder::ComputeFlags() const {
+  int flags = LiteralBoilerplateBuilder::ComputeFlags();
   if (fast_elements()) flags |= ObjectLiteral::kFastElements;
   if (has_null_prototype()) flags |= ObjectLiteral::kHasNullPrototype;
   return flags;

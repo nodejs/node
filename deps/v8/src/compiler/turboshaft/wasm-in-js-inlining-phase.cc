@@ -13,7 +13,10 @@
 namespace v8::internal::compiler::turboshaft {
 
 void WasmInJSInliningPhase::Run(PipelineData* data, Zone* temp_zone) {
-  UnparkedScopeIfNeeded scope(data->broker(), DEBUG_BOOL);
+  // Unpark the LocalHeap unconditionally: WasmInJsInliningInterface::RefCast
+  // dereferences `wasm_instance()` and creates canonical persistent handles in
+  // release builds.
+  UnparkedScopeIfNeeded scope(data->broker());
 
   // GVN (ValueNumberingReducer) is run here to deduplicate Wasm operations
   // across multiple inlined functions. This can also help with subsequent

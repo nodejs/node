@@ -160,7 +160,7 @@ class Word64Adapter {
   Reduction ReduceIntNAdd(Node* node) { return r_->ReduceInt64Add(node); }
   Reduction TryMatchWordNRor(Node* node) {
     // TODO(nicohartmann@): Add a MachineOperatorReducer::TryMatchWord64Ror.
-    return r_->NoChange();
+    return MachineOperatorReducer::NoChange();
   }
 
   Node* IntNConstant(int64_t value) { return r_->Int64Constant(value); }
@@ -925,13 +925,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.HasResolvedValue()) {
         return ReplaceFloat64(FastI2D(m.ResolvedValue()));
       }
-      break;
-    }
-    case IrOpcode::kBitcastWord32ToWord64: {
-      Int32Matcher m(node->InputAt(0));
-      if (m.HasResolvedValue()) return ReplaceInt64(m.ResolvedValue());
-      // No need to truncate the value, since top 32 bits are not important.
-      if (m.IsTruncateInt64ToInt32()) return Replace(m.node()->InputAt(0));
       break;
     }
     case IrOpcode::kChangeInt32ToInt64: {

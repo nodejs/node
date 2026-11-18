@@ -1,0 +1,10 @@
+Checks that a side-effect-free evaluation on a call frame paused inside a with statement over a deferred module namespace fails without starting the module evaluation.
+
+Running test: testEvaluateOnCallFrameInWithScope
+Side-effect-free Debugger.evaluateOnCallFrame of foo:
+Threw: EvalError: Possible side-effect in debug-evaluate
+globalThis.deferredEvaluated: undefined
+
+Regular Debugger.evaluateOnCallFrame of foo:
+Result: 1
+globalThis.deferredEvaluated: true

@@ -29,14 +29,17 @@ bool WasmInterpreterObject::RunInterpreter(
   DirectHandle<TrustedManaged<wasm::InterpreterHandle>> handle =
       wasm::GetOrCreateInterpreterHandle(isolate, trusted_data);
 
+  // Execute() can trigger a GC, so hold a reference instead of using raw().
+  std::shared_ptr<wasm::InterpreterHandle> interpreter_handle = handle->get();
+
   // Publish the currently-executing trusted instance data to the runtime so
   // that wasm_trusted_instance_data() serves it from the GC-rooted cache.
   wasm::WasmInterpreterRuntime::InstanceScope instance_scope(
-      handle->raw()->interpreter()->GetWasmRuntime(), trusted_data);
+      interpreter_handle->interpreter()->GetWasmRuntime(), trusted_data);
 
-  return handle->raw()->Execute(thread, frame_pointer,
-                                static_cast<uint32_t>(func_index),
-                                argument_values, return_values);
+  return interpreter_handle->Execute(thread, frame_pointer,
+                                     static_cast<uint32_t>(func_index),
+                                     argument_values, return_values);
 }
 
 // static
@@ -54,10 +57,13 @@ bool WasmInterpreterObject::RunInterpreter(
   DirectHandle<TrustedManaged<wasm::InterpreterHandle>> handle =
       wasm::GetInterpreterHandle(isolate, trusted_data);
 
-  wasm::WasmInterpreterRuntime::InstanceScope instance_scope(
-      handle->raw()->interpreter()->GetWasmRuntime(), trusted_data);
+  // Execute() can trigger a GC, so hold a reference instead of using raw().
+  std::shared_ptr<wasm::InterpreterHandle> interpreter_handle = handle->get();
 
-  return handle->raw()->Execute(
+  wasm::WasmInterpreterRuntime::InstanceScope instance_scope(
+      interpreter_handle->interpreter()->GetWasmRuntime(), trusted_data);
+
+  return interpreter_handle->Execute(
       thread, frame_pointer, static_cast<uint32_t>(func_index), interpreter_sp);
 }
 
@@ -66,8 +72,9 @@ std::vector<WasmInterpreterStackEntry>
 WasmInterpreterObject::GetInterpretedStack(
     Tagged<WasmTrustedInstanceData> trusted_data, Address frame_pointer) {
   CHECK(trusted_data->has_interpreter_handle());
-  return trusted_data->interpreter_handle()->raw()->GetInterpretedStack(
-      frame_pointer);
+  return trusted_data->interpreter_handle()
+      ->raw(DisallowGarbageCollection{})
+      ->GetInterpretedStack(frame_pointer);
 }
 
 // static
@@ -75,8 +82,9 @@ int WasmInterpreterObject::GetFunctionIndex(
     Tagged<WasmTrustedInstanceData> trusted_data, Address frame_pointer,
     int index) {
   CHECK(trusted_data->has_interpreter_handle());
-  return trusted_data->interpreter_handle()->raw()->GetFunctionIndex(
-      frame_pointer, index);
+  return trusted_data->interpreter_handle()
+      ->raw(DisallowGarbageCollection{})
+      ->GetFunctionIndex(frame_pointer, index);
 }
 
 }  // namespace internal

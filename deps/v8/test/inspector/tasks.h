@@ -89,10 +89,19 @@ class ExecuteStringTask : public TaskRunner::Task {
   ~ExecuteStringTask() override = default;
   ExecuteStringTask(const ExecuteStringTask&) = delete;
   ExecuteStringTask& operator=(const ExecuteStringTask&) = delete;
+  enum class CodeCacheMode {
+    kNone,
+    kProduceAfterCompile,
+    kProduceEagerAfterCompile,
+    kProduceAfterExecute
+  };
+  static void SetCodeCacheMode(CodeCacheMode mode) { code_cache_mode_ = mode; }
+
   bool is_priority_task() override { return false; }
   void Run(InspectorIsolateData* data) override;
 
  private:
+  static CodeCacheMode code_cache_mode_;
   std::vector<uint16_t> expression_;
   std::string expression_utf8_;
   std::vector<uint16_t> name_;

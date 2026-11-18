@@ -10,12 +10,24 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
+#include "src/roots/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+Cell::Cell(const AllocationWitness& witness)
+    : HeapObject(witness.roots().cell_map()),
+      maybe_value_(witness.roots().undefined_value()) {}
+
+Cell::Cell(const AllocationWitness& witness, Tagged<Smi> value)
+    : HeapObject(witness.roots().cell_map()), maybe_value_(value) {}
+
+Cell::Cell(const AllocationWitness& witness, Tagged<ClearedWeakValue> value)
+    : HeapObject(witness.roots().cell_map()), maybe_value_(value) {}
 
 Tagged<MaybeObject> Cell::maybe_value() const { return maybe_value_.load(); }
 
@@ -39,8 +51,19 @@ Tagged<Object> Cell::value(RelaxedLoadTag) const {
   return v.GetHeapObjectOrSmi();
 }
 
+Tagged<Object> Cell::value(AcquireLoadTag) const {
+  Tagged<MaybeObject> v = maybe_value_.Acquire_Load();
+  DCHECK(v.IsObject());
+  return v.GetHeapObjectOrSmi();
+}
+
 void Cell::set_value(Tagged<Object> value, WriteBarrierMode mode) {
   set_maybe_value(value, mode);
+}
+
+void Cell::set_value(Tagged<Object> value, ReleaseStoreTag,
+                     WriteBarrierMode mode) {
+  maybe_value_.Release_Store(this, value, mode);
 }
 
 }  // namespace internal

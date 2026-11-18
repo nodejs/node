@@ -1,0 +1,7 @@
+# vpython.toml spec for the ASD-STE100 linter (it needs absl-py).
+# Used by ste_check.py.
+
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "absl-py==2.1.0",
+]

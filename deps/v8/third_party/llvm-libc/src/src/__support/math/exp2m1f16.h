@@ -31,8 +31,10 @@ namespace math {
 
 LIBC_INLINE constexpr float16 exp2m1f16(float16 x) {
 #ifndef LIBC_MATH_HAS_SKIP_ACCURATE_PASS
-  constexpr fputil::ExceptValues<float16, 6> EXP2M1F16_EXCEPTS_LO = {{
+  constexpr fputil::ExceptValues<float16, 7> EXP2M1F16_EXCEPTS_LO = {{
       // (input, RZ output, RU offset, RD offset, RN offset)
+      // Subnormal output straddling the upward rounding boundary.
+      {0x8461U, 0x8308U, 0U, 1U, 1U},
       // x = 0x1.cf4p-13, exp2m1f16(x) = 0x1.41p-13 (RZ)
       {0x0b3dU, 0x0904U, 1U, 0U, 1U},
       // x = 0x1.4fcp-12, exp2m1f16(x) = 0x1.d14p-13 (RZ)
@@ -106,21 +108,7 @@ LIBC_INLINE constexpr float16 exp2m1f16(float16 x) {
       if (x_bits.is_inf())
         return FPBits::inf().get_val();
 
-#ifdef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      fputil::set_errno_if_required(ERANGE);
-      fputil::raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
-      return FPBits::inf().get_val();
-#else
-      switch (fputil::quick_get_round()) {
-      case FE_TONEAREST:
-      case FE_UPWARD:
-        fputil::set_errno_if_required(ERANGE);
-        fputil::raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
-        return FPBits::inf().get_val();
-      default:
-        return FPBits::max_normal().get_val();
-      }
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+      return fputil::set_overflow<float16>();
     }
 
     // When x < -11.
@@ -155,8 +143,13 @@ LIBC_INLINE constexpr float16 exp2m1f16(float16 x) {
     if (x_abs <= 0x3000U) {
 #ifndef LIBC_MATH_HAS_SKIP_ACCURATE_PASS
       if (auto r = EXP2M1F16_EXCEPTS_LO.lookup(x_u);
-          LIBC_UNLIKELY(r.has_value()))
+          LIBC_UNLIKELY(r.has_value())) {
+        if (FPBits(r.value()).is_subnormal()) {
+          fputil::set_errno_if_required(ERANGE);
+          fputil::raise_underflow_except_if_required<float16>();
+        }
         return r.value();
+      }
 #endif // !LIBC_MATH_HAS_SKIP_ACCURATE_PASS
 
       float xf = x;

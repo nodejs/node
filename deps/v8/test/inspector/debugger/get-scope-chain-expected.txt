@@ -1,0 +1,91 @@
+Tests Debugger.getScopeChain
+
+Running test: testMatchesScopeChainOfPausedEvent
+Scope chain of inner:
+  block: blockLocal: block
+  local: param: param, stackLocal: stack, contextLocal: context, getContextLocal: () => contextLocal
+  global
+  Matches Debugger.paused: true
+Scope chain of outer:
+  local: outerLocal: outer, result: <unavailable>
+  global
+  Matches Debugger.paused: true
+Scope chain of (anonymous):
+  global
+  Matches Debugger.paused: true
+Result: ["outer","param","stack","context","block"]
+
+Running test: testEvaluateOnCallFrame
+Scope chain of inner after evaluateOnCallFrame:
+  block: blockLocal: 4
+  local: param: 1, stackLocal: 2, contextLocal: 3, getContextLocal: () => contextLocal
+  global
+Scope chain of outer after evaluateOnCallFrame:
+  local: outerLocal: changed, result: <unavailable>
+  global
+Result: ["changed",1,2,3,4]
+
+Running test: testSetVariableValue
+Scope chain of inner after setVariableValue:
+  block: blockLocal: changed
+  local: param: param, stackLocal: changed, contextLocal: context, getContextLocal: () => contextLocal
+  global
+Result: ["outer","param","changed","context","changed"]
+
+Running test: testRemovedVariable
+Scope chain of withEval:
+  local: arguments: Arguments(0), evalLocal: eval
+  global
+Scope chain of withEval after evaluateOnCallFrame:
+  local: arguments: Arguments(0)
+  global
+Result: "undefined"
+
+Running test: testScopeObjectsReleasedOnResume
+Scope object is alive while paused: true
+Result: ["outer","param","stack","context","block"]
+Runtime.getProperties after resume: Could not find object with given id
+
+Running test: testErrors
+Missing call frame id:
+{
+    error : {
+        code : -32602
+        data : Failed to deserialize params.callFrameId - BINDINGS: mandatory field missing at <some position>
+        message : Invalid parameters
+    }
+    id : <messageId>
+}
+Malformed call frame id:
+{
+    error : {
+        code : -32000
+        message : Invalid call frame id
+    }
+    id : <messageId>
+}
+Call frame id of a non-existent frame:
+{
+    error : {
+        code : -32000
+        message : Could not find call frame with given id
+    }
+    id : <messageId>
+}
+Result: ["outer","param","stack","context","block"]
+Not paused:
+{
+    error : {
+        code : -32000
+        message : Can only perform operation while paused.
+    }
+    id : <messageId>
+}
+
+Running test: testChangedScopeChain
+Scope chain of inner after declaring scriptLet:
+  block: blockLocal: block
+  local: param: param, stackLocal: stack, contextLocal: context, getContextLocal: () => contextLocal
+  script: scriptLet: script
+  global
+Result: ["outer","param","stack","context","block"]

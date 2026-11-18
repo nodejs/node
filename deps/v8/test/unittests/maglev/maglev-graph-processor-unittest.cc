@@ -24,7 +24,7 @@ class MaglevGraphProcessorTest : public TestWithNativeContextAndZone {
  public:
   template <typename Function>
   void RunSubgraphTest(Function&& body) {
-    i::v8_flags.allow_natives_syntax = true;
+    i::v8_flags.allow_natives_syntax.Set(true);
     HandleScope scope(isolate());
     const char* script = R"(
       function f(a) { return a; }
@@ -37,9 +37,9 @@ class MaglevGraphProcessorTest : public TestWithNativeContextAndZone {
         MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
     Graph* graph = Graph::New(info.get());
     compiler::CurrentHeapBrokerScope current_broker(info->broker());
+    PersistentHandlesScope persistent_scope(isolate());
     MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                      info->toplevel_compilation_unit(), graph);
-    PersistentHandlesScope persistent_scope(isolate());
     ASSERT_TRUE(graph_builder.Build());
 
     ReachableExceptionHandlerTracker tracker(graph);
@@ -51,7 +51,7 @@ class MaglevGraphProcessorTest : public TestWithNativeContextAndZone {
     ASSERT_FALSE(graph->blocks().empty());
     BasicBlock* block = graph->blocks()[0];
     reducer.set_current_block(block);
-    reducer.set_known_node_aspects(zone()->New<KnownNodeAspects>(zone()));
+    reducer.set_known_node_aspects(KnownNodeAspects::New(graph->kna_pool()));
 
     body(reducer, block);
 
@@ -126,7 +126,7 @@ class SecondBackwardProcessor {
 }  // namespace
 
 TEST_F(MaglevGraphProcessorTest, GraphBackwardMultiProcessorOrder) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   HandleScope scope(isolate());
   const char* script = R"(
     function f(a, b) { return a + b; }
@@ -139,9 +139,9 @@ TEST_F(MaglevGraphProcessorTest, GraphBackwardMultiProcessorOrder) {
       MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
   Graph* graph = Graph::New(info.get());
   compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  PersistentHandlesScope persistent_scope(isolate());
   MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                    info->toplevel_compilation_unit(), graph);
-  PersistentHandlesScope persistent_scope(isolate());
   ASSERT_TRUE(graph_builder.Build());
 
   EventRecorder recorder;
@@ -170,18 +170,20 @@ TEST_F(MaglevGraphProcessorTest, LoopHeaderAvailableExpressions) {
         reducer.AddNewNodeNoInputConversion<Float64Add>({value, value});
     std::array<ValueNode*, 1> load_inputs{object};
     std::array<ValueNode*, 2> pure_inputs{value, value};
-    KnownNodeAspects backedge(zone());
+    KnownNodeAspects::Ptr backedge =
+        KnownNodeAspects::New(reducer.graph()->kna_pool());
     for (bool loop_has_effects : {false, true}) {
       for (bool stale : {false, true}) {
-        KnownNodeAspects forward(zone());
-        forward.AddExpression(1, load);
-        forward.AddExpression(2, pure);
-        if (stale) forward.increment_effect_epoch();
-        forward.MergeForLoop(backedge, zone(), nullptr, loop_has_effects);
+        KnownNodeAspects::Ptr forward =
+            KnownNodeAspects::New(reducer.graph()->kna_pool());
+        forward->AddExpression(1, load);
+        forward->AddExpression(2, pure);
+        if (stale) forward->increment_effect_epoch();
+        forward->MergeForLoop(*backedge, zone(), nullptr, loop_has_effects);
         EXPECT_EQ(
             !loop_has_effects && !stale ? load : nullptr,
-            forward.FindExpression<LoadDataViewByteLength>(1, load_inputs));
-        EXPECT_EQ(pure, forward.FindExpression<Float64Add>(2, pure_inputs));
+            forward->FindExpression<LoadDataViewByteLength>(1, load_inputs));
+        EXPECT_EQ(pure, forward->FindExpression<Float64Add>(2, pure_inputs));
       }
     }
     reducer.FlushNodesToBlock();

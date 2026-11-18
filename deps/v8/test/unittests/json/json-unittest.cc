@@ -14,7 +14,7 @@ namespace {
 class JSONTest : public fuzztest::PerFuzzTestFixtureAdapter<TestWithContext> {
  public:
   JSONTest() : context_(context()), isolate_(isolate()) {
-    internal::v8_flags.expose_gc = true;
+    internal::v8_flags.expose_gc.Set(true);
     Isolate::Scope isolate_scope(isolate_);
     v8::HandleScope handle_scope(isolate_);
     v8::Context::Scope context_scope(context_);

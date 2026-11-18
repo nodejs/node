@@ -69,6 +69,8 @@ void Builtins::Generate_StoreIC_NoFeedback(
   StoreICNoFeedbackGenerator::Generate(state);
 }
 
+// For the "no feedback" case, we don't need to distinguish between "in literal"
+// and "not in literal".
 void Builtins::Generate_DefineNamedOwnIC_NoFeedback(
     compiler::CodeAssemblerState* state) {
   DefineNamedOwnICNoFeedbackGenerator::Generate(state);
@@ -201,7 +203,6 @@ TF_BUILTIN(ElementsTransitionAndStore_NoTransitionHandleCOW,
   V(PACKED_ELEMENTS)                 \
   V(PACKED_NONEXTENSIBLE_ELEMENTS)   \
   V(PACKED_SEALED_ELEMENTS)          \
-  V(SHARED_ARRAY_ELEMENTS)           \
   V(HOLEY_ELEMENTS)                  \
   V(HOLEY_NONEXTENSIBLE_ELEMENTS)    \
   V(HOLEY_SEALED_ELEMENTS)           \

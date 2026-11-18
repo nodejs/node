@@ -1,0 +1,4 @@
+Tests debug events with undefined reject closure in custom promise.
+Exception message: caught
+Call frame count: 0
+Log: ["resolve","construct","end main","reject caught"]

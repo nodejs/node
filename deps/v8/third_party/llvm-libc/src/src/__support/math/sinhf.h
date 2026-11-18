@@ -9,12 +9,12 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_SINHF_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_SINHF_H
 
-#include "sinhfcoshf_utils.h"
-#include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
+#include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h" // LIBC_UNLIKELY
+#include "src/__support/math/sinhfcoshf_utils.h"
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -65,21 +65,7 @@ LIBC_INLINE float sinhf(float x) {
     if (xbits.is_inf())
       return x;
 
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-    int rounding = fputil::quick_get_round();
-    if (xbits.is_neg()) {
-      if (LIBC_UNLIKELY(rounding == FE_UPWARD || rounding == FE_TOWARDZERO))
-        return -FPBits::max_normal().get_val();
-    } else {
-      if (LIBC_UNLIKELY(rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO))
-        return FPBits::max_normal().get_val();
-    }
-#endif // !LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-
-    fputil::set_errno_if_required(ERANGE);
-    fputil::raise_except_if_required(FE_OVERFLOW);
-
-    return x + FPBits::inf(xbits.sign()).get_val();
+    return fputil::set_overflow<float>(xbits.sign());
   }
 
   // sinh(x) = (e^x - e^(-x)) / 2.

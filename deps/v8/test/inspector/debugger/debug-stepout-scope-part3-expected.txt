@@ -1,0 +1,2 @@
+Tests ScopeIterator scope recreation while stepping (part 3).
+Total pauses: 157

@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/parsing/preparser.h"
+
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/strings.h"
-#include "src/base/vector.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compiler.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
@@ -34,8 +36,6 @@ enum SkipTests {
 };
 
 enum class PreciseMaybeAssigned { YES, NO };
-
-enum class Bailout { BAILOUT_IF_OUTER_SLOPPY, NO };
 
 }  // namespace
 
@@ -69,6 +69,7 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
     bool strict_outer;
     bool strict_test_function;
     bool arrow;
+    bool simple_params_only = false;
   } outers[] = {
       // Normal case (test function at the laziness boundary):
       {"function test(%s) { %s function skippable() { } } test;", false, false,
@@ -77,8 +78,10 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       {"var test2 = function test(%s) { %s function skippable() { } }; test2",
        false, false, false},
 
-      // Arrow functions (they can never be at the laziness boundary):
+      // Arrow functions (both skippable and parenthesized eager):
       {"function test() { (%s) => { %s }; function skippable() { } } test;",
+       false, false, true},
+      {"function test() { ((%s) => { %s }); function skippable() { } } test;",
        false, false, true},
 
       // Repeat the above mentioned cases with global 'use strict'
@@ -90,6 +93,9 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
        true, false, false},
 
       {"'use strict'; function test() { (%s) => { %s };\n"
+       "function skippable() { } } test;",
+       true, false, true},
+      {"'use strict'; function test() { ((%s) => { %s });\n"
        "function skippable() { } } test;",
        true, false, true},
 
@@ -104,6 +110,9 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       {"function test() { 'use strict'; (%s) => { %s };\n"
        "function skippable() { } } test;",
        false, true, true},
+      {"function test() { 'use strict'; ((%s) => { %s });\n"
+       "function skippable() { } } test;",
+       false, true, true},
 
       // Methods containing skippable functions.
       {"function get_method() {\n"
@@ -116,7 +125,17 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       // Corner case: function expression with name "arguments".
       {"var test = function arguments(%s) { %s function skippable() { } };\n"
        "test;\n",
-       false, false, false}
+       false, false, false},
+
+      // Simple-parameter arrow functions at the laziness boundary:
+      {"var test2 = (function test() {\n"
+       "  return (%s) => { %s function skippable() { } };\n"
+       "})(); test2",
+       false, false, true, true},
+      {"'use strict'; var test2 = (function test() {\n"
+       "  return (%s) => { %s function skippable() { } };\n"
+       "})(); test2",
+       true, false, true, true}
 
       // FIXME(marja): Generators and async functions
   };
@@ -133,14 +152,11 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
     Inner(const char* p, const char* s, SkipTests skip,
           PreciseMaybeAssigned precise)
         : params(p), source(s), skip(skip), precise_maybe_assigned(precise) {}
-    Inner(const char* p, const char* s, SkipTests skip, Bailout bailout)
-        : params(p), source(s), skip(skip), bailout(bailout) {}
 
     const char* params = "";
     const char* source;
     SkipTests skip = DONT_SKIP;
     PreciseMaybeAssigned precise_maybe_assigned = PreciseMaybeAssigned::YES;
-    Bailout bailout = Bailout::NO;
     std::function<void()> prologue = nullptr;
     std::function<void()> epilogue = nullptr;
   } inners[] = {
@@ -229,6 +245,10 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       {"if (true) { this; }"},
       {"() => { this; };"},
 
+      {"new.target;"},
+      {"if (true) { new.target; }"},
+      {"() => { new.target; };"},
+
       // Variable called "arguments"
       {"var arguments;", SKIP_STRICT},
       {"var arguments; arguments = 5;", SKIP_STRICT},
@@ -279,6 +299,13 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       {"const {var1: var2, var3: var4} = {var1: 1, var3: 2};"},
       {"const {var1: var2, var3: {var4: var5}} = {var1: 1, var3: {var4: 2}};"},
       {"const {var1: var2, var3: [var4, var5]} = {var1: 1, var3: [2, 3]};"},
+
+      {"var [var1 = 1, var2 = 2] = [1, 2]; function f() { var1; var2; }"},
+      {"var {var1 = 1, var2: var3 = 2} = {}; function f() { var1; var3; }"},
+      {"let [var1 = 1, var2 = 2] = [1, 2]; function f() { var1; var2; }"},
+      {"let {var1 = 1, var2: var3 = 2} = {}; function f() { var1; var3; }"},
+      {"const [var1 = 1, var2 = 2] = [1, 2]; function f() { var1; var2; }"},
+      {"const {var1 = 1, var2: var3 = 2} = {}; function f() { var1; var3; }"},
 
       // Referencing the function variable.
       {"test;"},
@@ -511,10 +538,9 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       {"var1, ...var2", "function f1() { var2 = 9; }", SKIP_STRICT_FUNCTION},
 
       // Default parameters.
-      {"var1 = 3", "", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
-      {"var1, var2 = var1", "", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
-      {"var1, var2 = 4, ...var3", "", SKIP_STRICT_FUNCTION,
-       PreciseMaybeAssigned::NO},
+      {"var1 = 3", "", SKIP_STRICT_FUNCTION},
+      {"var1, var2 = var1", "", SKIP_STRICT_FUNCTION},
+      {"var1, var2 = 4, ...var3", "", SKIP_STRICT_FUNCTION},
 
       // Destructuring parameters. Because of the search space explosion, we
       // cannot test all interesting cases. Let's try to test a relevant subset.
@@ -558,10 +584,10 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       // Complicated params.
       {"var1, [var2], var3 = 24, [var4, var5] = [2, 4], var6, {var7}, var8, "
        "{name9: var9, name10: var10}, ...var11",
-       "", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
+       "", SKIP_STRICT_FUNCTION},
 
       // Complicated cases from bugs.
-      {"var1 = {} = {}", "", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
+      {"var1 = {} = {}", "", SKIP_STRICT_FUNCTION},
 
       // Destructuring rest. Because we can.
       {"var1, ...[var2]", "", SKIP_STRICT_FUNCTION},
@@ -574,16 +600,12 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       {"var1, ...{0: var2, 1: var3}", "", SKIP_STRICT_FUNCTION},
 
       // Default parameters for destruring parameters.
-      {"[var1, var2] = [2, 4]", "", SKIP_STRICT_FUNCTION,
-       PreciseMaybeAssigned::NO},
-      {"{var1, var2} = {var1: 3, var2: 3}", "", SKIP_STRICT_FUNCTION,
-       PreciseMaybeAssigned::NO},
+      {"[var1, var2] = [2, 4]", "", SKIP_STRICT_FUNCTION},
+      {"{var1, var2} = {var1: 3, var2: 3}", "", SKIP_STRICT_FUNCTION},
 
       // Default parameters inside destruring parameters.
-      {"[var1 = 4, var2 = var1]", "", SKIP_STRICT_FUNCTION,
-       PreciseMaybeAssigned::NO},
-      {"{var1 = 4, var2 = var1}", "", SKIP_STRICT_FUNCTION,
-       PreciseMaybeAssigned::NO},
+      {"[var1 = 4, var2 = var1]", "", SKIP_STRICT_FUNCTION},
+      {"{var1 = 4, var2 = var1}", "", SKIP_STRICT_FUNCTION},
 
       // Locals shadowing parameters.
       {"var1, var2", "var var1 = 16; () => { var1 = 17; };"},
@@ -596,7 +618,7 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       {"var1, var2, ...var3", "var var3 = 16; () => { var3 = 17; };",
        SKIP_STRICT_FUNCTION},
       {"var1, var2 = var1", "var var1 = 16; () => { var1 = 17; };",
-       SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
+       SKIP_STRICT_FUNCTION},
 
       // Hoisted sloppy block function shadowing a parameter.
       // FIXME(marja): why is maybe_assigned inaccurate?
@@ -605,14 +627,14 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
 
       // Sloppy eval in default parameter.
       {"var1, var2 = eval(''), var3", "let var4 = 0;", SKIP_STRICT_FUNCTION,
-       Bailout::BAILOUT_IF_OUTER_SLOPPY},
+       PreciseMaybeAssigned::NO},
       {"var1, var2 = eval(''), var3 = eval('')", "let var4 = 0;",
-       SKIP_STRICT_FUNCTION, Bailout::BAILOUT_IF_OUTER_SLOPPY},
+       SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
 
       // Sloppy eval in arrow function parameter list which is inside another
       // arrow function parameter list.
       {"var1, var2 = (var3, var4 = eval(''), var5) => { let var6; }, var7",
-       "let var8 = 0;", SKIP_STRICT_FUNCTION, Bailout::BAILOUT_IF_OUTER_SLOPPY},
+       "let var8 = 0;", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
 
       // Sloppy eval in a function body with non-simple parameters.
       {"var1 = 1, var2 = 2", "eval('');", SKIP_STRICT_FUNCTION},
@@ -626,6 +648,9 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
 
       {"try { } catch({var1, var2}) { function f() { var1 = 3; } }"},
       {"try { } catch([var1, var2]) { function f() { var1 = 3; } }"},
+      {"try { } catch({var1 = 1, var2: var3 = 2}) { function f() { var1; var3; "
+       "} }"},
+      {"try { } catch([var1 = 1, var2 = 2]) { function f() { var1; var2; } }"},
       {"try { } catch({}) { }"},
       {"try { } catch([]) { }"},
 
@@ -698,6 +723,10 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
         continue;
       }
       if (outer.arrow && (inner.skip & SKIP_ARROW)) continue;
+      if (outer.simple_params_only &&
+          strpbrk(inner.params, "=[]{}.") != nullptr) {
+        continue;
+      }
 
       const char* code = outer.code;
       int code_len = Utf8LengthHelper(code);
@@ -706,8 +735,8 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       int source_len = Utf8LengthHelper(inner.source);
       int len = code_len + params_len + source_len;
 
-      auto program = v8::base::OwnedVector<char>::NewForOverwrite(len + 1);
-      v8::base::SNPrintF(program.as_vector(), code, inner.params, inner.source);
+      auto program = v8::base::UniqueArray<char>::NewForOverwrite(len + 1);
+      v8::base::SNPrintF(program.as_span(), code, inner.params, inner.source);
 
       i::HandleScope scope(isolate);
       i::ReusableUnoptimizedCompileState reusable_state(isolate);
@@ -722,12 +751,6 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
       i::DirectHandle<i::JSFunction> f = i::Cast<i::JSFunction>(o);
       i::DirectHandle<i::SharedFunctionInfo> shared(f->shared(), isolate);
-
-      if (inner.bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
-          !outer.strict_outer) {
-        CHECK(!shared->HasUncompiledDataWithPreparseData(isolate));
-        continue;
-      }
 
       CHECK(shared->HasUncompiledDataWithPreparseData(isolate));
       i::Handle<i::PreparseData> produced_data_on_heap(
@@ -811,6 +834,10 @@ TEST_F(PreParserTest, TopLevelArrowFunctions) {
     var g = (x = (y => y * 2)) => { return x; };
     var h = ((x = y => y * 2) => { return x; });
     var i = (x = (y) => 0) => { return x; };
+    var j = async () => { return 4; };
+    var k = (async () => { return 4; });
+    var l = async x => { return x; };
+    var m = (async x => { return x; });
   )";
   i::Isolate* isolate = i_isolate();
   i::HandleScope scope(isolate);
@@ -831,9 +858,140 @@ TEST_F(PreParserTest, TopLevelArrowFunctions) {
   EXPECT_FALSE(IsCompiled("g"));
   EXPECT_TRUE(IsCompiled("h"));
   EXPECT_FALSE(IsCompiled("i"));
+  EXPECT_FALSE(IsCompiled("j"));
+  EXPECT_TRUE(IsCompiled("k"));
+  EXPECT_FALSE(IsCompiled("l"));
+  EXPECT_TRUE(IsCompiled("m"));
   EXPECT_TRUE(IsCompiled("g()"));
   EXPECT_FALSE(IsCompiled("h()"));
   EXPECT_FALSE(IsCompiled("i()"));
+}
+
+TEST_F(PreParserTest, InnerArrowFunctionsWithPreparseData) {
+  constexpr char kSource[] = R"(
+    var uncalledModule, calledModule, innerMethod, innerArrow, subHelper;
+    var conciseArrow, conciseMethod, nonSimpleArrow, defHelper, bodyHelper;
+    var eagerAsyncParens, eagerAsyncIdent, lazyAsyncParens;
+    (() => {
+      uncalledModule = (e, t, i) => {
+        function helper() { return e; }
+        return helper;
+      };
+      calledModule = (e, t, i) => {
+        class Widget {
+          unusedMethod() {
+            function sub() {}
+            return sub;
+          }
+        }
+        innerMethod = Widget.prototype.unusedMethod;
+        innerArrow = (x) => {
+          function subArrowHelper() { return x; }
+          subHelper = subArrowHelper;
+          return subArrowHelper;
+        };
+        conciseArrow = (x) => ({
+          m() { return x; }
+        });
+        nonSimpleArrow = (x = (() => {
+          function dh() { return e; }
+          defHelper = dh;
+          return dh;
+        })()) => {
+          function bh() { return x(); }
+          bodyHelper = bh;
+          return bh;
+        };
+        eagerAsyncParens = (async () => { return 1; });
+        eagerAsyncIdent = (async x => { return x; });
+        lazyAsyncParens = async () => { return 1; };
+      };
+    })();
+  )";
+  i::Isolate* isolate = i_isolate();
+  i::HandleScope scope(isolate);
+  TryRunJS(kSource).ToLocalChecked();
+
+  auto GetShared = [&](const char* name) {
+    Local<Value> v = TryRunJS(name).ToLocalChecked();
+    i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
+    i::DirectHandle<i::JSFunction> f = i::Cast<i::JSFunction>(o);
+    return i::DirectHandle<i::SharedFunctionInfo>(f->shared(), isolate);
+  };
+
+  EXPECT_FALSE(GetShared("uncalledModule")->is_compiled());
+  EXPECT_TRUE(
+      GetShared("uncalledModule")->HasUncompiledDataWithPreparseData(isolate));
+
+  // Verify scope allocation equivalence when compiling a lazy arrow function
+  // (`uncalledModule`) with ConsumedPreparseData vs. without.
+  {
+    i::DirectHandle<i::SharedFunctionInfo> shared = GetShared("uncalledModule");
+    i::Handle<i::PreparseData> produced_data_on_heap(
+        shared->uncompiled_data_with_preparse_data(isolate)->preparse_data(),
+        isolate);
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
+    i::UnoptimizedCompileFlags flags =
+        i::UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared);
+    flags.set_is_lazy_compile(true);
+
+    i::UnoptimizedCompileState using_scope_state;
+    i::ParseInfo using_scope_data(isolate, flags, &using_scope_state,
+                                  &reusable_state);
+    using_scope_data.set_consumed_preparse_data(
+        i::ConsumedPreparseData::For(isolate, produced_data_on_heap));
+    CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate,
+                                    i::parsing::ReportStatisticsMode{true}));
+    CHECK(i::ScopeTestHelper::HasSkippedFunctionInside(
+        using_scope_data.literal()->scope()));
+
+    i::UnoptimizedCompileState not_using_scope_state;
+    i::ParseInfo not_using_scope_data(isolate, flags, &not_using_scope_state,
+                                      &reusable_state);
+    CHECK(i::parsing::ParseFunction(&not_using_scope_data, shared, isolate,
+                                    i::parsing::ReportStatisticsMode{true}));
+    CHECK(!i::ScopeTestHelper::HasSkippedFunctionInside(
+        not_using_scope_data.literal()->scope()));
+
+    i::ScopeTestHelper::CompareScopes(not_using_scope_data.literal()->scope(),
+                                      using_scope_data.literal()->scope(),
+                                      true);
+  }
+
+  EXPECT_FALSE(GetShared("calledModule")->is_compiled());
+  EXPECT_TRUE(
+      GetShared("calledModule")->HasUncompiledDataWithPreparseData(isolate));
+
+  // Lazily compiling `calledModule` must keep its inner methods and inner
+  // block-body arrow functions lazy with PreparseData intact, while honoring
+  // parenthesized async-arrow eager compile hints.
+  TryRunJS("calledModule(1, 2, 3);").ToLocalChecked();
+  EXPECT_TRUE(GetShared("calledModule")->is_compiled());
+  EXPECT_FALSE(GetShared("innerMethod")->is_compiled());
+  EXPECT_TRUE(
+      GetShared("innerMethod")->HasUncompiledDataWithPreparseData(isolate));
+  EXPECT_FALSE(GetShared("innerArrow")->is_compiled());
+  EXPECT_TRUE(
+      GetShared("innerArrow")->HasUncompiledDataWithPreparseData(isolate));
+  EXPECT_TRUE(GetShared("eagerAsyncParens")->is_compiled());
+  EXPECT_TRUE(GetShared("eagerAsyncIdent")->is_compiled());
+  EXPECT_FALSE(GetShared("lazyAsyncParens")->is_compiled());
+
+  // Consuming `innerArrow`'s own PreparseData keeps `subHelper` lazy.
+  TryRunJS("innerArrow(10);").ToLocalChecked();
+  EXPECT_TRUE(GetShared("innerArrow")->is_compiled());
+  EXPECT_FALSE(GetShared("subHelper")->is_compiled());
+
+  // Lazily compiling concise-body and non-simple-parameter arrows must also
+  // keep their inner functions lazy (exercising LazyParsingScope).
+  TryRunJS("conciseMethod = conciseArrow(5).m;").ToLocalChecked();
+  EXPECT_TRUE(GetShared("conciseArrow")->is_compiled());
+  EXPECT_FALSE(GetShared("conciseMethod")->is_compiled());
+
+  TryRunJS("nonSimpleArrow();").ToLocalChecked();
+  EXPECT_TRUE(GetShared("nonSimpleArrow")->is_compiled());
+  EXPECT_FALSE(GetShared("defHelper")->is_compiled());
+  EXPECT_FALSE(GetShared("bodyHelper")->is_compiled());
 }
 
 TEST_F(PreParserTest, ProducingAndConsumingByteData) {
@@ -1009,6 +1167,15 @@ TEST_F(PreParserTest, ProducingAndConsumingByteData) {
     // We should have consumed all data at this point.
     CHECK(!bytes_for_reading.HasRemainingBytes(1));
   }
+}
+
+TEST_F(PreParserTest, DefaultExpressionIsNotThis) {
+  CHECK(!PreParserExpression::Default().IsThis());
+  CHECK(PreParserExpression::This().IsThis());
+  CHECK(!PreParserExpression::Property().IsThisProperty());
+  CHECK(PreParserExpression::ThisProperty().IsThisProperty());
+  CHECK(!PreParserExpression::PrivateReference().IsThisProperty());
+  CHECK(PreParserExpression::ThisPrivateReference().IsThisProperty());
 }
 
 }  // namespace internal

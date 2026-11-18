@@ -52,7 +52,7 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   int PageCount() const { return page_count_; }
 
   void ShrinkPageToObjectSize(LargePage* page, Tagged<HeapObject> object,
-                              size_t object_size);
+                              SafeHeapObjectSize object_size);
 
   // Checks whether a heap object is in this space; O(1).
   bool Contains(Tagged<HeapObject> obj) const;

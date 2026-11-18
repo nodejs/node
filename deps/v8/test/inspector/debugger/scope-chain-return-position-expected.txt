@@ -1,0 +1,77 @@
+Tests the scope chain at the return position of a function that returns from inside a block context while its own scope has no context.
+
+Running test: setUp
+
+Running test: testReturnInsideBlockInWith
+Paused in 'returnInsideBlockInWith' at 6:6
+  [0] block
+      x : 1
+  [1] local
+  [2] block
+      returnInsideBlockInWith : <value_unavailable>
+  [3] with
+      withProp : 1
+  [4] global
+  x = 1
+Paused in 'returnInsideBlockInWith' at 7:6
+  [0] block
+      x : 1
+  [1] local
+  [2] block
+      returnInsideBlockInWith : <value_unavailable>
+  [3] with
+      withProp : 1
+  [4] global
+  x = 1
+Paused in 'returnInsideBlockInWith' at 7:16
+  [0] local
+  [1] block
+      returnInsideBlockInWith : <value_unavailable>
+  [2] with
+      withProp : 1
+  [3] global
+  x = ReferenceError: x is not defined
+    at eval (eval at returnInsideBlockInWith (:8:17), <anonymous>:1:1)
+    at returnInsideBlockInWith (test.js:8:17)
+    at <anonymous>:1:1
+Result: 42
+
+Running test: testReturnInsideBlockInDirectEval
+Paused in '' at 0:40
+  [0] block
+      x : 1
+  [1] local
+  [2] block
+      x : 5
+      a : 2
+      b : 3
+      c : 4
+  [3] closure
+      arguments : Arguments(0)
+  [4] global
+  x = 1
+Paused in '' at 0:50
+  [0] block
+      x : 1
+  [1] local
+  [2] block
+      x : 5
+      a : 2
+      b : 3
+      c : 4
+  [3] closure
+      arguments : Arguments(0)
+  [4] global
+  x = 1
+Paused in '' at 0:60
+  [0] local
+  [1] block
+      x : 5
+      a : 2
+      b : 3
+      c : 4
+  [2] closure
+      arguments : Arguments(0)
+  [3] global
+  x = 5
+Result: 42

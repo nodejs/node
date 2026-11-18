@@ -1,0 +1,47 @@
+Tests that deep serialization limits the total length of strings for shared references.
+
+Running test: testSmallStrings
+{
+    className : Array
+    deepSerializedValue : {
+        type : array
+        value : [
+            [0] : {
+                type : string
+                value : abc
+            }
+            [1] : {
+                type : string
+                value : abc
+            }
+            [2] : {
+                type : object
+                value : [
+                    [0] : [
+                        [0] : t
+                        [1] : {
+                            type : string
+                            value : abc
+                        }
+                    ]
+                ]
+            }
+        ]
+    }
+    description : Array(3)
+    objectId : <objectId>
+    subtype : array
+    type : object
+}
+
+Running test: testLargeStringInArray
+Error: Object is too large to be returned by value
+
+Running test: testLargeStringInObject
+Error: Object is too large to be returned by value
+
+Running test: testLargeStringInMap
+Error: Object is too large to be returned by value
+
+Running test: testLargeStringAfterBigInt
+Error: Object is too large to be returned by value

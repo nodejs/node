@@ -135,6 +135,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
         declaration_scope_->set_is_dynamic_scope(true);
         declaration_scope_->set_sloppy_eval_can_extend_vars(true);
       }
+      if (declaration_scope_calls_eval_) {
+        declaration_scope_->set_calls_eval(true);
+      }
       if (calls_eval_) {
         outer_scope_->set_calls_eval(true);
       }
@@ -155,6 +158,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     // scope. Otherwise the cached flags will be merged with the flags from the
     // arrow head.
     bool calls_eval_;
+    bool declaration_scope_calls_eval_;
     bool sloppy_eval_can_extend_vars_;
   };
 
@@ -278,6 +282,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Inform the scope and outer scopes that the corresponding code contains an
   // eval call.
   inline void RecordEvalCall();
+
+  // Inform the receiver scope (and any enclosing arrow scopes) that the
+  // corresponding code uses "super".
+  void RecordSuperPropertyUsage(DeclarationScope* receiver_scope = nullptr);
 
   void RecordInnerScopeEvalCall() {
     set_inner_scope_calls_eval(true);
@@ -544,6 +552,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Determine if we can parse a function literal in this scope lazily without
   // caring about the unresolved variables within.
+  // TODO(victorgomes): Rename to e.g. CanPreparseWithoutVariableResolution()
+  // since nested functions still preparse lazily with variable resolution.
   bool AllowsLazyParsingWithoutUnresolvedVariables(const Scope* outer) const;
 
   // The number of contexts between this and scope; zero if this == scope.
@@ -643,7 +653,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   void set_needs_home_object() {
-    DCHECK(is_home_object_scope());
+    DCHECK(is_home_object_scope() || from_scope_info() || is_script_scope());
     flags_ = NeedsHomeObjectField::update(flags_, true);
   }
 
@@ -963,25 +973,12 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   FunctionKind function_kind() const { return function_kind_; }
 
-  // Inform the scope that the corresponding code uses "super".
-  void RecordSuperPropertyUsage() {
-    DCHECK(IsConciseMethod(function_kind()) ||
-           IsAccessorFunction(function_kind()) ||
-           IsClassConstructor(function_kind()));
-    set_uses_super_property(true);
-    Scope* home_object_scope = GetHomeObjectScope();
-    DCHECK_NOT_NULL(home_object_scope);
-    home_object_scope->set_needs_home_object();
-  }
-
   bool uses_super_property() const {
     return UsesSuperPropertyField::decode(flags_);
   }
   void set_uses_super_property(bool value) {
     flags_ = UsesSuperPropertyField::update(flags_, value);
   }
-
-  void TakeUnresolvedReferencesFromParent();
 
   bool is_arrow_scope() const {
     return is_function_scope() && IsArrowFunction(function_kind_);
@@ -1519,7 +1516,7 @@ void Scope::RecordEvalCall() {
   DCHECK(!receiver_scope->is_arrow_scope());
   FunctionKind function_kind = receiver_scope->function_kind();
   if (BindsSuper(function_kind)) {
-    receiver_scope->RecordSuperPropertyUsage();
+    RecordSuperPropertyUsage(receiver_scope);
   }
 }
 
@@ -1530,12 +1527,15 @@ Scope::Snapshot::Snapshot(Scope* scope)
       top_unresolved_(scope->unresolved_list_.end()),
       top_local_(scope->GetClosureScope()->locals_.end()),
       calls_eval_(outer_scope_->calls_eval()),
+      declaration_scope_calls_eval_(declaration_scope_->calls_eval()),
       sloppy_eval_can_extend_vars_(
           declaration_scope_->sloppy_eval_can_extend_vars()) {
   // Reset in order to record (sloppy) eval calls during this Snapshot's
   // lifetime.
   outer_scope_->set_calls_eval(false);
+  declaration_scope_->set_calls_eval(false);
   declaration_scope_->set_sloppy_eval_can_extend_vars(false);
+  declaration_scope_->set_is_dynamic_scope(false);
 }
 
 class ModuleScope final : public DeclarationScope {

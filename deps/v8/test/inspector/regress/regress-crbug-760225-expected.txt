@@ -1,0 +1,7 @@
+Regression test for crbug.com/760225.
+{
+    className : Bar
+    description : Bar
+    objectId : <objectId>
+    type : object
+}

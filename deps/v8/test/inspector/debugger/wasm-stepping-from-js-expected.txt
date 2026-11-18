@@ -1,0 +1,14 @@
+Test stepping from JS through Wasm.
+Running main.
+Break at imported:2:2
+Break at imported:3:2
+Break at imported:3:11
+Break at $main:0:68
+Break at $main:0:70
+Break at $sub:0:58
+Break at $sub:0:60
+Break at $sub:0:62
+Break at $sub:0:63
+Break at $main:0:72
+Main returned.
+Result: 4

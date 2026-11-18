@@ -1,0 +1,23 @@
+Tests scope chain at return position in generator switch.
+function* serialize() {
+  #debugger;
+  switch (0) {
+
+  debugger;
+  #switch (0) {
+    case 0:
+
+    case 0:
+      let x = #1;  // Defeat TDZ check elision
+    case 1:
+
+    case 1:
+      #return x;  // Check scopes
+  }
+
+[
+    [0] : block
+    [1] : local
+    [2] : script
+    [3] : global
+]

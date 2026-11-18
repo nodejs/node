@@ -9,15 +9,19 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_FPUTIL_HYPOT_H
 #define LLVM_LIBC_SRC___SUPPORT_FPUTIL_HYPOT_H
 
+#include "hdr/fenv_macros.h"
+#include "hdr/stdint_proxy.h"
 #include "src/__support/CPP/bit.h"
 #include "src/__support/CPP/type_traits.h"
-#include "src/__support/FPUtil/BasicOperations.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/cast.h"
+#include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/rounding_mode.h"
-#include "src/__support/common.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
+#include "src/__support/macros/optimization.h"
+#include "src/__support/macros/properties/types.h"
 #include "src/__support/uint128.h"
 
 namespace LIBC_NAMESPACE_DECL {
@@ -198,17 +202,8 @@ LIBC_INLINE T hypot(T x, T y) {
       sticky_bits = sticky_bits || ((sum & 0x3U) != 0);
       sum >>= 2;
       ++out_exp;
-      if (out_exp >= FPBits_t::MAX_BIASED_EXPONENT) {
-        fputil::raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-        if (int round_mode = quick_get_round();
-            round_mode == FE_TONEAREST || round_mode == FE_UPWARD)
-          return FPBits_t::inf().get_val();
-        return FPBits_t::max_normal().get_val();
-#else
-        return FPBits_t::inf().get_val();
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      }
+      if (out_exp >= FPBits_t::MAX_BIASED_EXPONENT)
+        return set_overflow<T>();
     } else {
       // For denormal result, we simply move the leading bit of the result to
       // the left by 1.
@@ -237,7 +232,7 @@ LIBC_INLINE T hypot(T x, T y) {
   bool lsb = y_new & StorageType(2);
 
   if ((out_exp == 0) && (round_bit || sticky_bits || (r != 0)))
-    fputil::raise_except_if_required(FE_UNDERFLOW | FE_INEXACT);
+    raise_underflow_except_if_required<T>();
 
   if (y_new >= ONE) {
     y_new -= ONE;
@@ -253,14 +248,6 @@ LIBC_INLINE T hypot(T x, T y) {
   // Round to the nearest, tie to even.
   if (round_bit && (lsb || sticky_bits || (r != 0)))
     ++y_new;
-  if (y_new >= (ONE >> 1)) {
-    y_new -= ONE >> 1;
-    ++out_exp;
-    if (out_exp >= FPBits_t::MAX_BIASED_EXPONENT) {
-      fputil::raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
-      return FPBits_t::inf().get_val();
-    }
-  }
 #else
   // Round to the nearest, tie to even.
   int round_mode = quick_get_round();
@@ -275,18 +262,14 @@ LIBC_INLINE T hypot(T x, T y) {
       ++y_new;
     break;
   }
+#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
 
   if (y_new >= (ONE >> 1)) {
     y_new -= ONE >> 1;
     ++out_exp;
-    if (out_exp >= FPBits_t::MAX_BIASED_EXPONENT) {
-      fputil::raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
-      if (round_mode == FE_TONEAREST || round_mode == FE_UPWARD)
-        return FPBits_t::inf().get_val();
-      return FPBits_t::max_normal().get_val();
-    }
+    if (out_exp >= FPBits_t::MAX_BIASED_EXPONENT)
+      return set_overflow<T>();
   }
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
 
   y_new |= static_cast<StorageType>(out_exp) << FPBits_t::FRACTION_LEN;
 

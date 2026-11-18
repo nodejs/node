@@ -14,6 +14,7 @@
 #include "src/objects/tagged.h"
 #include "src/objects/trusted-object.h"
 #include "src/roots/roots.h"
+#include "src/utils/boxed-float.h"
 #include "src/utils/memcopy.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -135,6 +136,7 @@ V8_OBJECT class FixedDoubleArray
   static inline Handle<Object> get(Tagged<FixedDoubleArray> array,
                                    uint32_t index, Isolate* isolate);
   inline void set(uint32_t index, double value);
+  inline void set_raw(uint32_t index, Float64 value);
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
   inline void set_undefined(uint32_t index);
   inline bool is_undefined(uint32_t index);
@@ -158,7 +160,9 @@ V8_OBJECT class FixedDoubleArray
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
-  FLEXIBLE_ARRAY_MEMBER(ElementMemberT, values);
+  V8_TQ_TAIL_LENGTH(length);
+  FLEXIBLE_ARRAY_MEMBER(ElementMemberT, values,
+                        V8_TQ_TYPE(float64_or_undefined_or_hole));
 } V8_OBJECT_END;
 
 // ByteArray represents fixed sized arrays containing raw bytes that will not
@@ -194,6 +198,7 @@ V8_OBJECT class ByteArray : public PrimitiveArrayBase<ByteArray, uint8_t> {
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(uint8_t, values);
 } V8_OBJECT_END;
 
@@ -231,6 +236,7 @@ class TrustedByteArray : public PrimitiveArrayBase<TrustedByteArray, uint8_t,
 
  public:
   // length_ / optional_padding_ live in TrustedFixedArrayBase.
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(uint8_t, values);
 } V8_OBJECT_END;
 
@@ -243,8 +249,8 @@ class FixedIntegerArrayBase : public Base {
 
  public:
   // {MoreArgs...} allows passing the `AllocationType` if `Base` is `ByteArray`.
-  template <typename... MoreArgs>
-  static Handle<FixedIntegerArrayBase<T, Base>> New(Isolate* isolate,
+  template <typename IsolateT, typename... MoreArgs>
+  static Handle<FixedIntegerArrayBase<T, Base>> New(IsolateT* isolate,
                                                     uint32_t length,
                                                     MoreArgs&&... more_args);
 

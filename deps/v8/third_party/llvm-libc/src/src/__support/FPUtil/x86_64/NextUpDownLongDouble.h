@@ -27,11 +27,17 @@ LIBC_INLINE LIBC_BIT_CAST_CONSTEXPR long double nextupdown(long double x) {
 
   using FPBits_t = FPBits<long double>;
   FPBits_t xbits(x);
-  if (xbits.is_nan() || xbits == FPBits_t::max_normal(sign) ||
-      xbits == FPBits_t::inf(sign))
+  if (xbits.is_nan() || xbits == FPBits_t::inf(sign))
     return x;
 
-  if (x == 0.0l)
+  // Crossing the normal/subnormal boundary also changes the explicit
+  // integer bit in the x86 extended precision encoding.
+  if (xbits == FPBits_t::max_subnormal(sign))
+    return FPBits_t::min_normal(sign).get_val();
+  if (xbits == FPBits_t::min_normal(sign.negate()))
+    return FPBits_t::max_subnormal(sign.negate()).get_val();
+
+  if (xbits.is_zero())
     return FPBits_t::min_subnormal(sign).get_val();
 
   using StorageType = typename FPBits_t::StorageType;

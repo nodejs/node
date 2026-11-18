@@ -191,7 +191,7 @@ namespace compiler {
   V(X64Float64Neg)                                   \
   V(X64Float32Abs)                                   \
   V(X64Float32Neg)                                   \
-  V(X64MovqStoreIndirectPointer)                     \
+  V(X64MovqStoreTrustedPointer)                      \
   V(X64MovqEncodeSandboxedPointer)                   \
   V(X64MovqDecodeSandboxedPointer)                   \
   V(X64BitcastFI)                                    \
@@ -232,7 +232,6 @@ namespace compiler {
   V(X64Maxpd)                                        \
   V(X64F64x2Round)                                   \
   V(X64F64x2ConvertLowI32x4S)                        \
-  V(X64F64x4ConvertI32x4S)                           \
   V(X64F64x2ConvertLowI32x4U)                        \
   V(X64F32x4SConvertI32x4)                           \
   V(X64F32x8SConvertI32x8)                           \
@@ -244,7 +243,6 @@ namespace compiler {
   V(X64Maxps)                                        \
   V(X64F32x4Round)                                   \
   V(X64F32x4DemoteF64x2Zero)                         \
-  V(X64F32x4DemoteF64x4)                             \
   V(X64F16x8Round)                                   \
   V(X64I16x8SConvertF16x8)                           \
   V(X64I16x8UConvertF16x8)                           \

@@ -51,10 +51,10 @@ TEST_F(MaglevGraphBuilderTest, LoopEffectEpochComparison) {
       MaglevGraphLabellerScope graph_labeller_scope(info->graph_labeller());
       Graph* graph = Graph::New(info.get());
       compiler::CurrentHeapBrokerScope current_broker(info->broker());
+      PersistentHandlesScope persistent_scope(isolate());
       MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                        info->toplevel_compilation_unit(),
                                        graph);
-      PersistentHandlesScope persistent_scope(isolate());
       ASSERT_TRUE(graph_builder.Build());
       int loop_count = 0;
       for (BasicBlock* block : graph->blocks()) {
@@ -84,8 +84,21 @@ static T* getUniqueNode(Graph* graph) {
   return target;
 }
 
+template <typename T>
+static int countNodes(Graph* graph) {
+  int count = 0;
+  for (BasicBlock* block : graph->blocks()) {
+    for (Node* node : block->nodes()) {
+      if (node->Is<T>()) {
+        ++count;
+      }
+    }
+  }
+  return count;
+}
+
 TEST_F(MaglevGraphBuilderTest, TrailingArgumentsRemoval) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   for (bool strict : {true, false}) {
     HandleScope scope(isolate());
     std::string script;
@@ -105,9 +118,9 @@ TEST_F(MaglevGraphBuilderTest, TrailingArgumentsRemoval) {
         MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
     Graph* graph = Graph::New(info.get());
     compiler::CurrentHeapBrokerScope current_broker(info->broker());
+    PersistentHandlesScope persistent_scope(isolate());
     MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                      info->toplevel_compilation_unit(), graph);
-    PersistentHandlesScope persistent_scope(isolate());
     CHECK(graph_builder.Build());
     CallKnownJSFunction* func = getUniqueNode<CallKnownJSFunction>(graph);
     CHECK_EQ(strict ? 2 : 4, func->num_args());
@@ -118,7 +131,7 @@ TEST_F(MaglevGraphBuilderTest, TrailingArgumentsRemoval) {
 }
 
 TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemoval) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   HandleScope scope(isolate());
   std::string script = R"(
       'use strict'
@@ -133,9 +146,9 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemoval) {
       MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
   Graph* graph = Graph::New(info.get());
   compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  PersistentHandlesScope persistent_scope(isolate());
   MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                    info->toplevel_compilation_unit(), graph);
-  PersistentHandlesScope persistent_scope(isolate());
   CHECK(graph_builder.Build());
   CallKnownJSFunction* func = getUniqueNode<CallKnownJSFunction>(graph);
   CHECK_EQ(2, func->num_args());
@@ -151,7 +164,7 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemoval) {
 // `sizeof(unused_parameter_bits)` (== 4) instead of the highest set bit. An
 // unused parameter at an index >= 4 must still be replaced by OptimizedOut.
 TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalHighIndex) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   HandleScope scope(isolate());
   // The 6th parameter (index 5) is unused; all others are used.
   std::string script = R"(
@@ -167,9 +180,9 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalHighIndex) {
       MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
   Graph* graph = Graph::New(info.get());
   compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  PersistentHandlesScope persistent_scope(isolate());
   MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                    info->toplevel_compilation_unit(), graph);
-  PersistentHandlesScope persistent_scope(isolate());
   CHECK(graph_builder.Build());
   CallKnownJSFunction* func = getUniqueNode<CallKnownJSFunction>(graph);
   // No trailing arguments to remove: all 6 are formal parameters.
@@ -187,7 +200,7 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalHighIndex) {
 // and unused parameters (including ones at high indices) must still be replaced
 // by OptimizedOut, without indexing past the truncated argument list.
 TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalWithTruncation) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   HandleScope scope(isolate());
   // `f` has 5 formal parameters; the 5th (index 4) is unused. It is called with
   // 6 arguments, so the call is truncated down to 5 arguments.
@@ -204,9 +217,9 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalWithTruncation) {
       MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
   Graph* graph = Graph::New(info.get());
   compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  PersistentHandlesScope persistent_scope(isolate());
   MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                    info->toplevel_compilation_unit(), graph);
-  PersistentHandlesScope persistent_scope(isolate());
   CHECK(graph_builder.Build());
   CallKnownJSFunction* func = getUniqueNode<CallKnownJSFunction>(graph);
   // The trailing 6th argument has been dropped, leaving the 5 formal params.
@@ -225,7 +238,7 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalWithTruncation) {
 // 30) is unused, the sign extension would incorrectly mark the 32nd parameter
 // (index 31) as unused and replace it with OptimizedOut.
 TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalSignExtension) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   HandleScope scope(isolate());
   // `f` has 32 parameters. Only the last one (index 31) is used; all of the
   // first 31 parameters (indices 0..30) are unused, yielding unused-parameter
@@ -250,9 +263,9 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalSignExtension) {
       MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
   Graph* graph = Graph::New(info.get());
   compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  PersistentHandlesScope persistent_scope(isolate());
   MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
                                    info->toplevel_compilation_unit(), graph);
-  PersistentHandlesScope persistent_scope(isolate());
   CHECK(graph_builder.Build());
   CallKnownJSFunction* func = getUniqueNode<CallKnownJSFunction>(graph);
   CHECK_EQ(32, func->num_args());
@@ -265,6 +278,166 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalSignExtension) {
   CHECK_EQ(func->arg(30).node()->Cast<RootConstant>()->index(),
            RootIndex::kOptimizedOut);
   persistent_scope.Detach();
+}
+
+TEST_F(MaglevGraphBuilderTest, OldInlinedAllocationFoldingAndWriteBarriers) {
+  FlagScope<bool> allow_natives_syntax(&v8_flags.allow_natives_syntax, true);
+  HandleScope scope(isolate());
+  Handle<JSFunction> function = RunJS<JSFunction>(R"(
+      function f() { return {}; }
+      %PrepareFunctionForOptimization(f);
+      f();
+      (f)
+    )");
+  auto info =
+      MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
+  Graph* graph = Graph::New(info.get());
+  compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  info->broker()->AttachLocalIsolateForMaglev(info.get(),
+                                              isolate()->AsLocalIsolate());
+  MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
+                                   info->toplevel_compilation_unit(), graph);
+  CHECK(graph_builder.Build());
+
+  compiler::MapRef object_map = getUniqueNode<StoreMap>(graph)->map();
+  BasicBlock* block = graph->blocks().back();
+  block->nodes().clear();
+  graph_builder.set_current_block(block);
+
+  auto allocate = [&](AllocationType type) {
+    return graph_builder
+        .BuildInlinedAllocation(graph_builder.CreateJSObject(object_map), type)
+        .value()
+        ->Cast<InlinedAllocation>();
+  };
+
+  InlinedAllocation* young_1 = allocate(AllocationType::kYoung);
+  InlinedAllocation* young_2 = allocate(AllocationType::kYoung);
+  EXPECT_EQ(young_1->allocation_block(), young_2->allocation_block());
+  EXPECT_TRUE(
+      graph_builder.TryElideWriteBarrierForAllocation(young_1, young_2));
+
+  InlinedAllocation* old_1 = allocate(AllocationType::kOld);
+  InlinedAllocation* old_2 = allocate(AllocationType::kOld);
+  EXPECT_NE(young_2->allocation_block(), old_1->allocation_block());
+  EXPECT_EQ(old_1->allocation_block(), old_2->allocation_block());
+  EXPECT_FALSE(graph_builder.TryElideWriteBarrierForAllocation(old_1, old_2));
+
+  graph_builder.FlushNodesToBlock();
+  int store_map_count = 0;
+  for (Node* node : block->nodes()) {
+    if (StoreMap* store_map = node->TryCast<StoreMap>()) {
+      ++store_map_count;
+      EXPECT_EQ(store_map->ValueInput().node() == young_1 ||
+                    store_map->ValueInput().node() == young_2,
+                store_map->NoWriteBarrier());
+    }
+  }
+  EXPECT_EQ(4, store_map_count);
+  info->broker()->DetachLocalIsolateForMaglev(info.get());
+}
+
+TEST_F(MaglevGraphBuilderTest, ConstructNodesHaveJSReceiverStaticType) {
+  FlagScope<bool> allow_natives_syntax(&v8_flags.allow_natives_syntax, true);
+  FlagScope<bool> non_eager_inlining(&v8_flags.maglev_non_eager_inlining,
+                                     false);
+
+  auto BuildGraphFor = [&](const char* script) {
+    Handle<JSFunction> function = RunJS<JSFunction>(script);
+    std::unique_ptr<MaglevCompilationInfo> info =
+        MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
+    info->broker()->AttachLocalIsolateForMaglev(info.get(),
+                                                isolate()->AsLocalIsolate());
+    Graph* graph = Graph::New(info.get());
+    compiler::CurrentHeapBrokerScope current_broker(info->broker());
+    MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
+                                     info->toplevel_compilation_unit(), graph);
+    CHECK(graph_builder.Build());
+    info->broker()->DetachLocalIsolateForMaglev(info.get());
+    return std::make_pair(std::move(info), graph);
+  };
+
+  {
+    HandleScope scope(isolate());
+    auto [info, graph] = BuildGraphFor(R"(
+      class A {}
+      class B {}
+      class Base1 {
+        constructor(ctor) { return new ctor(); }
+      }
+      function f1(ctor) { return new Base1(ctor); }
+      %PrepareFunctionForOptimization(Base1);
+      %PrepareFunctionForOptimization(f1);
+      f1(A);
+      f1(B);
+      (f1)
+    )");
+    CHECK_EQ(1, countNodes<Construct>(graph));
+    CHECK_EQ(0, countNodes<CheckConstructResult>(graph));
+  }
+
+  {
+    HandleScope scope(isolate());
+    auto [info, graph] = BuildGraphFor(R"(
+      class Base2 {
+        constructor(ctor, arr) { return new ctor(...arr); }
+      }
+      function f2(ctor, arr) { return new Base2(ctor, arr); }
+      %PrepareFunctionForOptimization(Base2);
+      %PrepareFunctionForOptimization(f2);
+      f2(A, [1]);
+      f2(B, [1, 2]);
+      (f2)
+    )");
+    CHECK_EQ(1, countNodes<ConstructWithSpread>(graph));
+    CHECK_EQ(0, countNodes<CheckConstructResult>(graph));
+  }
+
+  {
+    HandleScope scope(isolate());
+    auto [info, graph] = BuildGraphFor(R"(
+      class Base3 {
+        constructor(ctor, args) { return new ctor(...args); }
+      }
+      function f3(ctor, ...args) { return new Base3(ctor, args); }
+      %PrepareFunctionForOptimization(Base3);
+      %PrepareFunctionForOptimization(f3);
+      f3(A, 1);
+      f3(B, 1, 2);
+      (f3)
+    )");
+    CHECK_EQ(1, countNodes<ConstructForwardVarargs>(graph));
+    CHECK_EQ(0, countNodes<CheckConstructResult>(graph));
+  }
+}
+
+TEST_F(MaglevGraphBuilderTest, ConsStringMapCanonicalizesInputs) {
+  FlagScope<bool> allow_natives_syntax(&v8_flags.allow_natives_syntax, true);
+  FlagScope<bool> cons_string_elision(&v8_flags.maglev_cons_string_elision,
+                                      true);
+  HandleScope scope(isolate());
+  Handle<JSFunction> function = RunJS<JSFunction>(R"(
+      function f(s) { return s + "0123456789abc"; }
+      %PrepareFunctionForOptimization(f);
+      f("hello");
+      (f)
+    )");
+  std::unique_ptr<MaglevCompilationInfo> info =
+      MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
+  info->broker()->AttachLocalIsolateForMaglev(info.get(),
+                                              isolate()->AsLocalIsolate());
+  Graph* graph = Graph::New(info.get());
+  compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
+                                   info->toplevel_compilation_unit(), graph);
+  CHECK(graph_builder.Build());
+  info->broker()->DetachLocalIsolateForMaglev(info.get());
+
+  ConsStringMap* map_node = getUniqueNode<ConsStringMap>(graph);
+  ASSERT_TRUE(map_node->LeftInput().node()->Is<RootConstant>());
+  EXPECT_EQ(RootIndex::kConsOneByteStringMap,
+            map_node->LeftInput().node()->Cast<RootConstant>()->index());
+  EXPECT_FALSE(map_node->RightInput().node()->Is<RootConstant>());
 }
 
 }  // namespace maglev

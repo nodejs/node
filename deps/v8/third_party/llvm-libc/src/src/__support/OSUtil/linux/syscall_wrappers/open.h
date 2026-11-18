@@ -11,7 +11,7 @@
 
 #include "hdr/fcntl_macros.h"
 #include "hdr/types/mode_t.h"
-#include "src/__support/OSUtil/linux/syscall.h" // syscall_impl
+#include "src/__support/OSUtil/linux/syscall.h" // syscall_checked
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
@@ -22,13 +22,10 @@ namespace linux_syscalls {
 
 LIBC_INLINE ErrorOr<int> open(const char *path, int flags, mode_t mode_flags) {
 #ifdef SYS_openat
-  int fd = syscall_impl<int>(SYS_openat, AT_FDCWD, path, flags, mode_flags);
+  return syscall_checked<int>(SYS_openat, AT_FDCWD, path, flags, mode_flags);
 #else
-  int fd = syscall_impl<int>(SYS_open, path, flags, mode_flags);
+  return syscall_checked<int>(SYS_open, path, flags, mode_flags);
 #endif
-  if (fd < 0)
-    return Error(-fd);
-  return fd;
 }
 
 } // namespace linux_syscalls

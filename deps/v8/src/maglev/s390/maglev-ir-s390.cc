@@ -284,8 +284,8 @@ void Int32Multiply::GenerateCode(MaglevAssembler* masm,
   // TODO(leszeks): peephole optimise multiplication by a constant.
   __ MulS32(out, left, right);
 
-  // Making sure that the 32-bit output is zero-extended.
-  __ LoadU32(out, out);
+  // Making sure that the 32-bit output is sign-extended.
+  __ LoadS32(out, out);
 }
 
 void Int32MultiplyOverflownBits::SetValueLocationConstraints() {
@@ -301,8 +301,10 @@ void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
   Register out = ToRegister(result());
 
   // TODO(leszeks): peephole optimise multiplication by a constant.
-  // Making sure that the 32-bit output is zero-extended.
   __ MulHighS32(out, left, right);
+
+  // Making sure that the 32-bit output is sign-extended.
+  __ LoadS32(out, out);
 }
 
 void Int32Divide::SetValueLocationConstraints() {
@@ -328,7 +330,7 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
         // Truncated value of anything divided by 0 is 0.
         __ bne(&right_is_neg);
         __ mov(out, Operand::Zero());
-        __ b(*done);
+        __ Jump(*done);
 
         // Return -left if right = -1.
         // This avoids a hardware exception if left = INT32_MIN.
@@ -339,7 +341,7 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
         __ CmpS32(right, Operand(-1));
         __ bne(*do_division);
         __ lcr(out, left);
-        __ b(*done);
+        __ Jump(*done);
       },
       do_division, done, right, left, out);
 
@@ -410,8 +412,8 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 
-  // Making sure that the 32-bit output is zero-extended.
-  __ LoadU32(out, out);
+  // Making sure that the 32-bit output is sign-extended.
+  __ LoadS32(out, out);
 
   // If the result is zero, check if either lhs or rhs is negative.
   Label end;
@@ -492,10 +494,6 @@ void Int32ModulusWithOverflow::SetValueLocationConstraints() {
 }
 void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
-  // If AreAliased(lhs, rhs):
-  //   deopt if lhs < 0  // Minus zero.
-  //   0
-
   // Using same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
@@ -519,17 +517,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   static constexpr DeoptimizeReason deopt_reason =
       DeoptimizeReason::kDivisionByZero;
 
-  if (lhs == rhs) {
-    // For the modulus algorithm described above, lhs and rhs must not alias
-    // each other.
-    __ CmpS32(lhs, Operand::Zero());
-    // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
-    // allows one deopt reason per IR.
-    __ EmitEagerDeoptIf(lt, deopt_reason, this);
-    __ Move(out, 0);
-    return;
-  }
-
+  // For the modulus algorithm described above, lhs and rhs must not alias
+  // each other.
   DCHECK_NE(lhs, rhs);
 
   ZoneLabelRef done(masm);
@@ -634,8 +623,39 @@ DEF_BITWISE_BINOP(Int32BitwiseXor, Xor)
   }
 DEF_SHIFT_BINOP(Int32ShiftLeft, ShiftLeftU32)
 DEF_SHIFT_BINOP(Int32ShiftRight, ShiftRightS32)
-DEF_SHIFT_BINOP(Int32ShiftRightLogical, ShiftRightU32)
 #undef DEF_SHIFT_BINOP
+
+void Int32ShiftRightLogical::SetValueLocationConstraints() {
+  UseRegister(LeftInput());
+  if (RightInput().node()->Is<Int32Constant>()) {
+    UseAny(RightInput());
+  } else {
+    UseRegister(RightInput());
+  }
+  DefineAsRegister(this);
+}
+
+void Int32ShiftRightLogical::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  Register left = ToRegister(LeftInput());
+  Register out = ToRegister(result());
+  if (Int32Constant* constant = RightInput().node()->TryCast<Int32Constant>()) {
+    uint32_t shift = constant->value() & 31;
+    if (shift == 0) {
+      __ LoadU32(out, left);
+      return;
+    }
+    __ ShiftRightU32(out, left, Operand(shift));
+    __ LoadU32(out, out);
+  } else {
+    MaglevAssembler::TemporaryRegisterScope temps(masm);
+    Register scratch = temps.AcquireScratch();
+    Register right = ToRegister(RightInput());
+    __ And(scratch, right, Operand(31));
+    __ ShiftRightU32(out, left, scratch, Operand::Zero());
+    __ LoadU32(out, out);
+  }
+}
 
 void Int32BitwiseNot::SetValueLocationConstraints() {
   UseRegister(ValueInput());
@@ -1000,7 +1020,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
     save_register_state.DefineSafepoint();
   }
-  __ b(*done);
+  __ Jump(*done);
 }
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
@@ -1074,12 +1094,15 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ LeaveFrame(StackFrame::MAGLEV);
 
   // If actual is bigger than formal, then we should use it to free up the stack
-  // arguments.
-  Label drop_dynamic_arg_size;
-  __ CmpS32(actual_params_size, Operand(formal_params_size));
-  __ bgt(&drop_dynamic_arg_size);
-  __ mov(actual_params_size, Operand(formal_params_size));
-  __ bind(&drop_dynamic_arg_size);
+  // arguments. Both counts include the receiver, so without formal parameters
+  // the actual count is never smaller.
+  if (formal_params_size > 1) {
+    Label drop_dynamic_arg_size;
+    __ CmpS32(actual_params_size, Operand(formal_params_size));
+    __ bgt(&drop_dynamic_arg_size);
+    __ mov(actual_params_size, Operand(formal_params_size));
+    __ bind(&drop_dynamic_arg_size);
+  }
 
   // Drop receiver + arguments according to dynamic arguments size.
   __ DropArguments(actual_params_size);

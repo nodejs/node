@@ -14,12 +14,11 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_EXP10F_FLOAT_EVAL_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXP10F_FLOAT_EVAL_H
 
-#include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/double_double.h"
+#include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/nearest_integer.h"
-#include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
@@ -47,27 +46,13 @@ LIBC_INLINE float exp10f(float x) {
       // exp(nan) = nan
       if (xbits.is_nan())
         return x;
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      if (fputil::fenv_is_round_up())
-        return FPBits::min_subnormal().get_val();
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      fputil::set_errno_if_required(ERANGE);
-      fputil::raise_except_if_required(FE_UNDERFLOW);
-      return 0.0f;
+      return fputil::set_underflow<float>();
     }
     // x >= log10(2^128) or nan
     if (xbits.is_pos() && (x_u >= 0x421a'209bU)) {
       // x is finite
-      if (x_u < 0x7f80'0000U) {
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-        int rounding = fputil::quick_get_round();
-        if (rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO)
-          return FPBits::max_normal().get_val();
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-
-        fputil::set_errno_if_required(ERANGE);
-        fputil::raise_except_if_required(FE_OVERFLOW);
-      }
+      if (x_u < 0x7f80'0000U)
+        return fputil::set_overflow<float>();
       // x is +inf or nan
       return x + FPBits::inf().get_val();
     }

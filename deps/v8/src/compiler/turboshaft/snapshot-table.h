@@ -436,7 +436,7 @@ SnapshotTable<Value, KeyData>::MoveToNewSnapshot(
   if (predecessors.empty()) {
     common_ancestor = root_snapshot_;
   } else {
-    common_ancestor = predecessors.first().data_;
+    common_ancestor = predecessors.front().data_;
     for (Snapshot s : predecessors.SubVectorFrom(1)) {
       common_ancestor = common_ancestor->CommonAncestor(s.data_);
     }
@@ -559,10 +559,6 @@ class ChangeTrackingSnapshotTable : public SnapshotTable<Value, KeyData> {
       static_cast<Derived*>(this)->OnValueChange(key, old_value,
                                                  Super::Get(key));
     }
-  }
-
-  void SetNoNotify(Key key, Value new_value) {
-    Super::Set(key, std::move(new_value));
   }
 
   Key NewKey(KeyData data, Value initial_value = Value{}) {

@@ -1,0 +1,5 @@
+Tests setting and clearing a breakpoint on an empty function return.
+Without breakpoint: count=0
+First call: count=1, line=1, col=15
+Second call: count=2, line=1, col=15
+After removeBreakpoint: count=2

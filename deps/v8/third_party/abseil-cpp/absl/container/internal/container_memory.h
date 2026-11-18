@@ -25,6 +25,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/hash/hash.h"
 #include "absl/memory/memory.h"
@@ -42,6 +43,40 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
+
+// We only allow a maximum of 1 SOO element, which makes the implementation
+// much simpler. Complications with multiple SOO elements include:
+// - Satisfying the guarantee that erasing one element doesn't invalidate
+//   iterators to other elements means we would probably need actual SOO
+//   control bytes.
+// - In order to prevent user code from depending on iteration order for small
+//   tables, we would need to randomize the iteration order somehow.
+constexpr size_t HashtableSooCapacity() { return 1; }
+
+// HashtableTypeInfo bundles the numeric properties of a raw_hash_set<T, ...>
+// instantiation. It is defined here (rather than in raw_hash_set.h) so that
+// hashtablez sampling can receive a pointer to it instead of several separate
+// size arguments.
+struct HashtableTypeInfo {
+  // 8 bytes
+  uint32_t slot_size;
+  // `alignof(slot_type) - 1`. Storing the mask instead of the alignment lets
+  // `AlignUpToMask` compute `(offset + mask) & ~mask` without negation.
+  uint16_t slot_align_mask;
+  bool soo_enabled;
+  bool is_hashtablez_enabled : 1;
+  // True if `alignof(slot_type) > alignof(size_t)` or the allocator is not
+  // `std::allocator`. When true, the policy object is an instance of
+  // `CustomAllocPolicy`.
+  bool is_custom_alloc : 1;
+  // 8 bytes
+  uint32_t key_size;
+  uint32_t value_size;
+
+  constexpr uint8_t soo_capacity() const {
+    return static_cast<uint8_t>(soo_enabled ? HashtableSooCapacity() : 0);
+  }
+};
 
 template <size_t Alignment>
 struct alignas(Alignment) AlignedType {
@@ -195,17 +230,18 @@ decltype(std::declval<F>()(std::declval<T>())) WithConstructed(Tuple&& t,
 inline std::pair<std::tuple<>, std::tuple<>> PairArgs() { return {}; }
 template <class F, class S>
 std::pair<std::tuple<F&&>, std::tuple<S&&>> PairArgs(F&& f, S&& s) {
-  return {std::piecewise_construct, std::forward_as_tuple(std::forward<F>(f)),
+  return {std::forward_as_tuple(std::forward<F>(f)),
           std::forward_as_tuple(std::forward<S>(s))};
 }
 template <class F, class S>
 std::pair<std::tuple<const F&>, std::tuple<const S&>> PairArgs(
     const std::pair<F, S>& p) {
-  return PairArgs(p.first, p.second);
+  return container_internal::PairArgs(p.first, p.second);
 }
 template <class F, class S>
 std::pair<std::tuple<F&&>, std::tuple<S&&>> PairArgs(std::pair<F, S>&& p) {
-  return PairArgs(std::forward<F>(p.first), std::forward<S>(p.second));
+  return container_internal::PairArgs(std::forward<F>(p.first),
+                                      std::forward<S>(p.second));
 }
 template <class F, class S>
 auto PairArgs(std::piecewise_construct_t, F&& f, S&& s)
@@ -215,13 +251,61 @@ auto PairArgs(std::piecewise_construct_t, F&& f, S&& s)
                         memory_internal::TupleRef(std::forward<S>(s)));
 }
 
+// Ensures the argument is a std::pair, and returns std::pair::first as const&.
+// Necessary for proper handling of public subclasses of std::pair.
+template <class T1, class T2>
+const T1& PairConstFirst(const std::pair<T1, T2>* p) {
+  return p->first;
+}
+
+template <class Ref, class Else>
+using IfReference = std::conditional_t<std::is_reference_v<Ref>, Ref, Else>;
+
 // A helper function for implementing apply() in map policies.
-template <class F, class... Args>
-auto DecomposePair(F&& f, Args&&... args)
-    -> decltype(memory_internal::DecomposePairImpl(
-        std::forward<F>(f), PairArgs(std::forward<Args>(args)...))) {
-  return memory_internal::DecomposePairImpl(
-      std::forward<F>(f), PairArgs(std::forward<Args>(args)...));
+template <class F, class Pair>
+auto DecomposePair(F&& f, Pair&& p) -> decltype(std::forward<F>(f)(
+    container_internal::PairConstFirst(std::addressof(p)),
+    static_cast<IfReference<typename std::remove_reference_t<Pair>::first_type,
+                            decltype((std::forward<Pair>(p).first))>>(p.first),
+    static_cast<IfReference<typename std::remove_reference_t<Pair>::second_type,
+                            decltype((std::forward<Pair>(p).second))>>(
+        p.second))) {
+  // The code here is tricky because a naive std::forward<Pair>(p).second would
+  // incorrectly turn into an lvalue when second_type is an rvalue reference.
+  return std::forward<F>(f)(
+      container_internal::PairConstFirst(std::addressof(p)),
+      static_cast<
+          IfReference<typename std::remove_reference_t<Pair>::first_type,
+                      decltype((std::forward<Pair>(p).first))>>(p.first),
+      static_cast<
+          IfReference<typename std::remove_reference_t<Pair>::second_type,
+                      decltype((std::forward<Pair>(p).second))>>(p.second));
+}
+
+template <class F, class K, class V>
+auto DecomposePair(F&& f, K&& k, V&& v)
+    -> decltype(std::forward<F>(f)(std::declval<const K&>(), std::forward<K>(k),
+                                   std::forward<V>(v))) {
+  const auto& key = k;
+  return std::forward<F>(f)(key, std::forward<K>(k), std::forward<V>(v));
+}
+
+template <class F, class TK, class TV>
+auto DecomposePair(
+    F&& f,
+    std::enable_if_t<(std::tuple_size_v<remove_cvref_t<TK>> == 1 &&
+                      std::tuple_size_v<remove_cvref_t<TV>> >= 0),
+                     std::piecewise_construct_t>,
+    TK&& tk, TV&& tv)
+    -> decltype(std::forward<F>(f)(
+        std::declval<const std::tuple_element_t<0, remove_cvref_t<TK>>&>(),
+        std::piecewise_construct,
+        memory_internal::TupleRef(std::forward<TK>(tk)),
+        memory_internal::TupleRef(std::forward<TV>(tv)))) {
+  const auto& key = std::get<0>(tk);
+  return std::forward<F>(f)(key, std::piecewise_construct,
+                            memory_internal::TupleRef(std::forward<TK>(tk)),
+                            memory_internal::TupleRef(std::forward<TV>(tv)));
 }
 
 // A helper function for implementing apply() in set policies.
@@ -488,7 +572,9 @@ struct map_slot_policy {
 // Useful for usage with policy traits.
 template <class Hash, bool kIsAbsl, size_t kSeedShift>
 struct HashElement {
-  HashElement(const Hash& h, size_t s) : hash(h), seed(s >> kSeedShift) {}
+  HashElement(type_traits_internal::AddConstRefIfExpensiveToCopy<Hash> h,
+              size_t s)
+      : hash(h), seed(s >> kSeedShift) {}
 
   template <class K, class... Args>
   size_t operator()(const K& key, Args&&...) const {
@@ -501,20 +587,25 @@ struct HashElement {
     // NOLINTNEXTLINE(clang-diagnostic-sign-conversion)
     return hash(key) ^ seed;
   }
-  const Hash& hash;
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS
+  type_traits_internal::AddConstRefIfExpensiveToCopy<Hash> hash;
   size_t seed;
 };
 
 // No arguments function hash function for a specific key.
 template <class Hash, class Key, bool kIsAbsl, size_t kSeedShift>
 struct HashKey {
-  HashKey(const Hash& h, const Key& k) : hash(h), key(k) {}
-
   size_t operator()(size_t seed) const {
     return HashElement<Hash, kIsAbsl, kSeedShift>{hash, seed}(key);
   }
-  const Hash& hash;
-  const Key& key;
+
+  // Static version of the above to pass to type erased functions.
+  static size_t GetHash(void* data, size_t seed) {
+    return (*static_cast<const HashKey*>(data))(seed);
+  }
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS
+  type_traits_internal::AddConstRefIfExpensiveToCopy<Hash> hash;
+  type_traits_internal::AddConstRefIfExpensiveToCopy<Key> key;
 };
 
 // Variadic arguments equality function that ignore the rest of the arguments.
@@ -525,8 +616,9 @@ struct EqualElement {
   bool operator()(const K2& lhs, Args&&...) const {
     ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(eq(lhs, rhs));
   }
-  const K1& rhs;
-  const KeyEqual& eq;
+  type_traits_internal::AddConstRefIfExpensiveToCopy<K1> rhs;
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS
+  type_traits_internal::AddConstRefIfExpensiveToCopy<KeyEqual> eq;
 };
 
 // Type erased function for computing hash of the slot.
@@ -547,18 +639,15 @@ template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
 size_t TypeErasedDerefAndApplyToSlotFn(const void* fn, void* slot_ptr,
                                        size_t seed) {
   const auto* f = static_cast<const Fn*>(fn);
-  const T* slot = *static_cast<T**>(slot_ptr);
+  const T* slot;
+  // We use memcpy to avoid a strict-aliasing violation when this is called from
+  // NodeHashMapPolicy::get_hash_slot_fn(). In that case, slot_ptr has type
+  // `std::pair<const T, mapped_type>**`, which is not safe to dereference as
+  // `const T**`. Note that it is safe to dereference `slot` afterwards because
+  // `IsLayoutCompatible` guarantees that `std::pair<const T, mapped_type>` is
+  // standard-layout.
+  std::memcpy(&slot, slot_ptr, sizeof(slot));
   return HashElement<Fn, kIsAbsl, kSeedShift>{*f, seed}(*slot);
-}
-
-// Type erased function to apply `Fn` to data inside of the `slot_ptr->first`.
-// The data is expected to have type `T`.
-template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
-size_t TypeErasedDerefAndApplyToSlotFirstFn(const void* fn, void* slot_ptr,
-                                            size_t seed) {
-  const auto* f = static_cast<const Fn*>(fn);
-  const T* slot = *static_cast<T**>(slot_ptr);
-  return HashElement<Fn, kIsAbsl, kSeedShift>{*f, seed}(slot->first);
 }
 
 }  // namespace container_internal

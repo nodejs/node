@@ -1,0 +1,58 @@
+description: >-
+  Verify v8-understanding helps locate and fix all three stack-trace receiver
+  consumers (Error.stack CallSiteBuilder, StringStream::PrintPrototype, and
+  DebugStackTraceIterator::GetReceiver) that check for TdzHole on derived
+  constructor frames before super().
+owner: leszeks@chromium.org
+prompts:
+  - >-
+    Investigate and fix a crash/sentinel-leak when inspecting stack frames of a
+    derived class constructor before `super()` has been called. In derived
+    constructors prior to `super()`, the receiver slot on the frame holds
+    `TdzHole` as a placeholder, but the stack-trace and debugger receiver
+    inspection paths are checking `IsTheHole` instead of `IsTdzHole`, allowing
+    `TdzHole` to leak past the check into `Error.stack` call-site construction,
+    crash stack formatting, and debugger stack frame receiver inspection. Find
+    all stack-walking / stack-trace consumers that inspect the placeholder
+    constructor receiver, and fix all of them in `src/` (skip C++ compilation
+    and test execution).
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 600
+      skills:
+        - v8-understanding
+      changes:
+        - apply: >-
+            agents/prompts/eval/v8-understanding/tdz_hole_stack_trace_receiver.patch
+tests:
+  - assert:
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_changes.py:check_files_changed
+        config:
+          files:
+            - src/execution/isolate.cc
+            - src/strings/string-stream.cc
+            - src/debug/debug-stack-trace-iterator.cc
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_changes.py:check_file_content
+        config:
+          files:
+            - path: src/execution/isolate.cc
+              present:
+                - 'IsTdzHole'
+            - path: src/strings/string-stream.cc
+              present:
+                - 'IsTdzHole'
+            - path: src/debug/debug-stack-trace-iterator.cc
+              present:
+                - 'IsTdzHole'
+    metadata:
+      category: stack-walking-tdz-receiver
+      tags:
+        - docs
+        - runtime
+        - debug
+        - holes

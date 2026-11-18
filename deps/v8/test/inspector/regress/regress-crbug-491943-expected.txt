@@ -1,0 +1,2 @@
+Tests regress-crbug-491943.
+this === expected: true

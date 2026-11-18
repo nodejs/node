@@ -1,0 +1,10 @@
+Tests basic frame and global evaluation while paused.
+frame(0) "1+2": 3
+frame(0) "a+2": 5
+frame(0) "({a:1,b:2}).b+2": 4
+frame(0) "a": 3
+frame(1) "a": 2
+frame(2) "a": 1
+global "a": 1
+global "this.a": 1
+global "this.longString": 1234567890_1234567890_1234567890_1234567890_1234567890_1234567890_1234567890_1234567890_1234567890_1234567890_1234567890_1234567890_1234567890_1234567890_1234567890_1234567890_

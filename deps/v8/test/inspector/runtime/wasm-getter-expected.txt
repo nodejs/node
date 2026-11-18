@@ -1,0 +1,5 @@
+Tests that WebAssembly exported functions used as getters are not eagerly invoked
+wasmProp:
+  has get: true
+  has value: false
+getter invocations: 0

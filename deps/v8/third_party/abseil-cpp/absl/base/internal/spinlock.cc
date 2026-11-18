@@ -14,10 +14,8 @@
 
 #include "absl/base/internal/spinlock.h"
 
-#include <algorithm>
 #include <atomic>
 #include <cstdint>
-#include <limits>
 
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
@@ -28,6 +26,7 @@
 #include "absl/base/internal/spinlock_wait.h"
 #include "absl/base/internal/sysinfo.h" /* For NumCPUs() */
 #include "absl/base/internal/tsan_mutex_interface.h"
+#include "absl/base/nullability.h"
 
 // Description of lock-word:
 //  31..00: [............................3][2][1][0]
@@ -35,8 +34,8 @@
 //     [0]: kSpinLockHeld
 //     [1]: kSpinLockCooperative
 //     [2]: kSpinLockDisabledScheduling
-// [31..3]: ONLY kSpinLockSleeper OR
-//          Wait time in cycles >> PROFILE_TIMESTAMP_SHIFT
+// [31..3]: 0 OR
+//          CycleClock timestamp >> PROFILE_TIMESTAMP_SHIFT
 //
 // Detailed descriptions:
 //
@@ -51,23 +50,64 @@
 //          even if non-cooperative, if a ThreadIdentity did not yet exist at
 //          time of acquisition.
 //
-// Bit [3]: If this is the only upper bit ([31..3]) set then this lock was
-//          acquired without contention, however, at least one waiter exists.
-//
-//          Otherwise, bits [31..3] represent the time spent by the current lock
-//          holder to acquire the lock.  There may be outstanding waiter(s).
+// Bits [31..3]: If non-zero, at least one waiter may be sleeping in the kernel
+//          and the holder must wake a waiter when it releases the lock.  The
+//          value is the time at which the current hold first had a sleeping
+//          waiter: set by the first waiter to go to sleep during the hold, or
+//          at acquisition by a holder that itself slept, since other sleepers
+//          may remain.  At unlock, the holder reports the time elapsed since
+//          then as the contended portion of its critical section.
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES static AtomicHook<void (*)(
-    const void *lock, int64_t wait_cycles)>
-    submit_profile_data;
+    const void* lock, int64_t wait_cycles)>
+    submit_unlock_profile_data;
 
-void RegisterSpinLockProfiler(void (*fn)(const void *contendedlock,
-                                         int64_t wait_cycles)) {
-  submit_profile_data.Store(fn);
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES static AtomicHook<void (*)(
+    const void* lock, int64_t wait_cycles)>
+    submit_lock_profile_data;
+
+void RegisterSpinLockProfiler(void (*absl_nonnull fn)(
+    const void* absl_nonnull contendedlock, int64_t wait_cycles)) {
+  submit_unlock_profile_data.Store(fn);
+}
+
+void RegisterSpinLockLockProfiler(void (*absl_nonnull fn)(
+    const void* absl_nonnull contendedlock, int64_t wait_cycles)) {
+  submit_lock_profile_data.Store(fn);
+}
+
+// We use the upper 29 bits of the lock word to store the time at which the
+// current hold first had a sleeping waiter.  Since the lower bits of the cycle
+// counter wrap very quickly on high-frequency processors we divide to reduce
+// the granularity to 2^kProfileTimestampShift sized units.  Because only 29
+// bits are stored in the 32-bit lock word (and uncontended lock() does not read
+// CycleClock), SlowUnlock only knows the start time modulo 2^36 CycleClock
+// ticks (=~ 34 seconds at a 2 GHz CycleClock) and cannot distinguish a wrapped
+// hold to saturate.
+static constexpr int kProfileTimestampShift = 7;
+
+// We currently reserve the lower 3 bits.
+static constexpr int kLockwordReservedShift = 3;
+
+// Waits shorter than one timestamp unit are not reported.
+static constexpr int64_t kMinProfiledWaitCycles = int64_t{1}
+                                                  << kProfileTimestampShift;
+
+// Report how long an acquiring thread was blocked, measured from the point
+// at which it gave up spinning for the lock.
+static void ReportLockWait(SpinLock& lock, int64_t wait_start_time,
+                           int64_t wait_end_time) {
+  const int64_t wait_cycles = wait_end_time - wait_start_time;
+  if (wait_cycles < kMinProfiledWaitCycles) {
+    return;
+  }
+  ABSL_TSAN_MUTEX_PRE_DIVERT(&lock, 0);
+  submit_lock_profile_data(&lock, wait_cycles);
+  ABSL_TSAN_MUTEX_POST_DIVERT(&lock, 0);
 }
 
 // Monitor the lock to see if its value changes within some time period
@@ -111,31 +151,34 @@ void SpinLock::SlowLock() {
 
   // The lock was not obtained initially, so this thread needs to wait for
   // it.  Record the current timestamp in the local variable wait_start_time
-  // so the total wait time can be stored in the lockword once this thread
-  // obtains the lock.
-  int64_t wait_start_time = CycleClock::Now();
-  uint32_t wait_cycles = 0;
+  // so the total wait time can be reported once this thread obtains the lock.
+  //
+  // Once this thread has slept, it must also store a wait start time in the
+  // lock word when it eventually acquires the lock, since other sleepers may
+  // remain that only the next unlock can wake.  Those sleepers cannot observe
+  // the new hold, so the acquiring thread records its own acquisition as the
+  // start of contention on behalf of them.
+  const int64_t wait_start_time = CycleClock::Now();
+  int64_t now = wait_start_time;
+  uint32_t sleeper_bits = 0;
   int lock_wait_call_count = 0;
   while ((lock_value & kSpinLockHeld) != 0) {
     // If the lock is currently held, but not marked as having a sleeper, mark
     // it as having a sleeper.
     if ((lock_value & kWaitTimeMask) == 0) {
-      // Here, just "mark" that the thread is going to sleep.  Don't store the
-      // lock wait time in the lock -- the lock word stores the amount of time
-      // that the current holder waited before acquiring the lock, not the wait
-      // time of any thread currently waiting to acquire it.
-      if (lockword_.compare_exchange_strong(
-              lock_value, lock_value | kSpinLockSleeper,
-              std::memory_order_relaxed, std::memory_order_relaxed)) {
-        // Successfully transitioned to kSpinLockSleeper.  Pass
-        // kSpinLockSleeper to the SpinLockWait routine to properly indicate
-        // the last lock_value observed.
-        lock_value |= kSpinLockSleeper;
+      // Here, "mark" that the thread is going to sleep by recording when the
+      // current hold first had a sleeping waiter.
+      const uint32_t new_value = lock_value | EncodeWaitStart(now);
+      if (lockword_.compare_exchange_strong(lock_value, new_value,
+                                            std::memory_order_relaxed,
+                                            std::memory_order_relaxed)) {
+        // Successfully marked as having a sleeper.  Pass the new value to the
+        // SpinLockWait routine to properly indicate the last lock_value
+        // observed.
+        lock_value = new_value;
       } else if ((lock_value & kSpinLockHeld) == 0) {
-        // Lock is free again, so try and acquire it before sleeping.  The
-        // new lock state will be the number of cycles this thread waited if
-        // this thread obtains the lock.
-        lock_value = TryLockInternal(lock_value, wait_cycles);
+        // Lock is free again, so try and acquire it before sleeping.
+        lock_value = TryLockInternal(lock_value, sleeper_bits);
         continue;  // Skip the delay at the end of the loop.
       } else if ((lock_value & kWaitTimeMask) == 0) {
         // The lock is still held, without a waiter being marked, but something
@@ -158,66 +201,51 @@ void SpinLock::SlowLock() {
     // Spin again after returning from the wait routine to give this thread
     // some chance of obtaining the lock.
     lock_value = SpinLoop();
-    wait_cycles = EncodeWaitCycles(wait_start_time, CycleClock::Now());
-    lock_value = TryLockInternal(lock_value, wait_cycles);
+    now = CycleClock::Now();
+    sleeper_bits = EncodeWaitStart(now);
+    lock_value = TryLockInternal(lock_value, sleeper_bits);
   }
+
+  ReportLockWait(*this, wait_start_time, now);
 }
 
 void SpinLock::SlowUnlock(uint32_t lock_value) {
+  // Read the clock before waking a waiter, which may preempt this thread.
+  const int64_t now = CycleClock::Now();
   SpinLockWake(&lockword_,
                false);  // wake waiter if necessary
 
-  // If our acquisition was contended, collect contentionz profile info.  We
-  // reserve a unitary wait time to represent that a waiter exists without our
-  // own acquisition having been contended.
-  if ((lock_value & kWaitTimeMask) != kSpinLockSleeper) {
-    const int64_t wait_cycles = DecodeWaitCycles(lock_value);
-    ABSL_TSAN_MUTEX_PRE_DIVERT(this, 0);
-    submit_profile_data(this, wait_cycles);
-    ABSL_TSAN_MUTEX_POST_DIVERT(this, 0);
+  // Collect contentionz profile info: for how long our critical section had a
+  // sleeping waiter, attributed to our stack.
+  const int64_t wait_cycles = DecodeWaitCycles(lock_value, now);
+  if (wait_cycles < kMinProfiledWaitCycles) {
+    return;
   }
+  ABSL_TSAN_MUTEX_PRE_DIVERT(this, 0);
+  submit_unlock_profile_data(this, wait_cycles);
+  ABSL_TSAN_MUTEX_POST_DIVERT(this, 0);
 }
 
-// We use the upper 29 bits of the lock word to store the time spent waiting to
-// acquire this lock.  This is reported by contentionz profiling.  Since the
-// lower bits of the cycle counter wrap very quickly on high-frequency
-// processors we divide to reduce the granularity to 2^kProfileTimestampShift
-// sized units.  On a 4Ghz machine this will lose track of wait times greater
-// than (2^29/4 Ghz)*128 =~ 17.2 seconds.  Such waits should be extremely rare.
-static constexpr int kProfileTimestampShift = 7;
-
-// We currently reserve the lower 3 bits.
-static constexpr int kLockwordReservedShift = 3;
-
-uint32_t SpinLock::EncodeWaitCycles(int64_t wait_start_time,
-                                    int64_t wait_end_time) {
-  static const int64_t kMaxWaitTime =
-      std::numeric_limits<uint32_t>::max() >> kLockwordReservedShift;
-  int64_t scaled_wait_time =
-      (wait_end_time - wait_start_time) >> kProfileTimestampShift;
-
-  // Return a representation of the time spent waiting that can be stored in
-  // the lock word's upper bits.
-  uint32_t clamped = static_cast<uint32_t>(
-      std::min(scaled_wait_time, kMaxWaitTime) << kLockwordReservedShift);
-
-  if (clamped == 0) {
-    return kSpinLockSleeper;  // Just wake waiters, but don't record contention.
+uint32_t SpinLock::EncodeWaitStart(int64_t now) {
+  uint32_t scaled_now = static_cast<uint32_t>(now >> kProfileTimestampShift) &
+                        (kWaitTimeMask >> kLockwordReservedShift);
+  // Zero in kWaitTimeMask means the current hold has no sleeping waiter.  If
+  // `now` was truncated to zero, we round to the nearest positive value to
+  // ensure that any sleeping waiters will be woken when the lock is released.
+  if (scaled_now == 0) {
+    scaled_now = 1;
   }
-  // Bump up value if necessary to avoid returning kSpinLockSleeper.
-  const uint32_t kMinWaitTime =
-      kSpinLockSleeper + (1 << kLockwordReservedShift);
-  if (clamped == kSpinLockSleeper) {
-    return kMinWaitTime;
-  }
-  return clamped;
+  return scaled_now << kLockwordReservedShift;
 }
 
-int64_t SpinLock::DecodeWaitCycles(uint32_t lock_value) {
-  // Cast to uint32_t first to ensure bits [63:32] are cleared.
-  const int64_t scaled_wait_time =
-      static_cast<uint32_t>(lock_value & kWaitTimeMask);
-  return scaled_wait_time << (kProfileTimestampShift - kLockwordReservedShift);
+int64_t SpinLock::DecodeWaitCycles(uint32_t lock_value, int64_t now) {
+  // Modular subtraction in the width of the stored timestamp.  Encode `now`
+  // the same way as `lock_value` so a timestamp truncated to zero does not
+  // underflow against EncodeWaitStart's rounding to one.
+  const uint32_t scaled_wait_time =
+      (EncodeWaitStart(now) - (lock_value & kWaitTimeMask)) >>
+      kLockwordReservedShift;
+  return static_cast<int64_t>(scaled_wait_time) << kProfileTimestampShift;
 }
 
 }  // namespace base_internal

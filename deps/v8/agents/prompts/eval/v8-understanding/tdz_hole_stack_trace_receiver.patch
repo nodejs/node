@@ -1,0 +1,54 @@
+diff --git a/src/debug/debug-stack-trace-iterator.cc b/src/debug/debug-stack-trace-iterator.cc
+index 6f1eb8ca5b4..fc5189e9234 100644
+--- a/src/debug/debug-stack-trace-iterator.cc
++++ b/src/debug/debug-stack-trace-iterator.cc
+@@ -104,15 +104,12 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
+         *isolate_->factory()->this_string());
+     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
+     DirectHandle<Object> value(context->GetNoCell(slot_index), isolate_);
+-    if (IsTdzHole(*value)) return v8::MaybeLocal<v8::Value>();
++    if (IsTheHole(*value)) return v8::MaybeLocal<v8::Value>();
+     return Utils::ToLocal(value);
+   }
+ 
+   DirectHandle<Object> value = frame_inspector_->GetReceiver();
+-#ifdef V8_ENABLE_TDZ_HOLE
+-  DCHECK(value.is_null() || !IsTheHole(*value));
+-#endif
+-  if (value.is_null() || (IsSmi(*value) || !IsTdzHole(*value))) {
++  if (value.is_null() || (IsSmi(*value) || !IsTheHole(*value))) {
+     return Utils::ToLocal(value);
+   }
+   return v8::MaybeLocal<v8::Value>();
+diff --git a/src/execution/isolate.cc b/src/execution/isolate.cc
+index 2ce0d809468..233900b3161 100644
+--- a/src/execution/isolate.cc
++++ b/src/execution/isolate.cc
+@@ -1234,10 +1234,7 @@ class CallSiteBuilder {
+                    DirectHandle<UnionOf<Smi, JSFunction>> function,
+                    DirectHandle<Union<Code, BytecodeArray, Undefined>> code_obj,
+                    int offset, int flags) {
+-#ifdef V8_ENABLE_TDZ_HOLE
+-    DCHECK(!IsTheHole(*receiver_or_instance));
+-#endif
+-    if (IsTdzHole(*receiver_or_instance)) {
++    if (IsTheHole(*receiver_or_instance)) {
+       // TODO(jgruber): Fix all cases in which frames give us a hole value
+       // (e.g. the receiver in RegExp constructor frames).
+       receiver_or_instance = isolate_->factory()->undefined_value();
+diff --git a/src/strings/string-stream.cc b/src/strings/string-stream.cc
+index 4b60931c3a5..1e947872726 100644
+--- a/src/strings/string-stream.cc
++++ b/src/strings/string-stream.cc
+@@ -421,10 +421,7 @@ void StringStream::PrintPrototype(Isolate* isolate, Tagged<JSFunction> fun,
+                                   Tagged<Object> receiver) {
+   Tagged<Object> name = fun->shared()->Name();
+   bool print_name = false;
+-#ifdef V8_ENABLE_TDZ_HOLE
+-  DCHECK(!IsTheHole(receiver));
+-#endif
+-  if (IsNullOrUndefined(receiver) || IsTdzHole(receiver) ||
++  if (IsNullOrUndefined(receiver) || IsTheHole(receiver) ||
+       IsJSProxy(receiver) || IsWasmObject(receiver)) {
+     print_name = true;
+   } else if (!isolate->context().is_null()) {

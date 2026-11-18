@@ -951,7 +951,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
     AssertNotSmi(object);
     CompareRoot(object, scratch, RootIndex::kUndefinedValue);
     j(equal, &done_checking);
-    LoadRoot(scratch, RootIndex::kAllocationSiteWithWeakNextMap);
+    LoadRoot(scratch, RootIndex::kAllocationSiteMap);
     cmp(FieldOperand(object, 0), scratch);
     Assert(equal, AbortReason::kExpectedUndefinedOrCell);
     bind(&done_checking);
@@ -1083,13 +1083,6 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
     cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
         Immediate(StackFrame::TypeToMarker(type)));
     j(equal, &ok, Label::kNear);
-#if V8_ENABLE_WEBASSEMBLY
-    if (type == StackFrame::WASM && v8_flags.wasm_growable_stacks) {
-      cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
-          Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-      j(equal, &ok, Label::kNear);
-    }
-#endif
     Abort(AbortReason::kStackFrameTypesMustMatch);
     bind(&ok);
   }
@@ -2087,7 +2080,7 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
   mov(ecx,
       FieldOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
@@ -2192,6 +2185,14 @@ void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
     test(Operand(scratch, MemoryChunk::FlagsOffset()), Immediate(mask));
   }
   j(cc, condition_met, condition_met_distance);
+}
+
+void MacroAssembler::JumpIfMarking(Label* is_marking,
+                                   Label::Distance condition_met_distance) {
+  DCHECK(root_array_available());
+  cmpb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
+       Immediate(0));
+  j(not_equal, is_marking, condition_met_distance);
 }
 
 void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,

@@ -1,0 +1,8 @@
+Tests evaluating BigInt expressions on a call frame.
+{
+    result : {
+        description : 42n
+        type : bigint
+        unserializableValue : 42n
+    }
+}

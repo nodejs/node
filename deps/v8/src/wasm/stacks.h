@@ -15,6 +15,7 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/objects/visitors.h"
+#include "src/sandbox/external-pointer-table.h"
 #include "src/utils/allocation.h"
 #include "src/wasm/value-type.h"
 
@@ -59,7 +60,12 @@ struct JumpBuffer {
   StackState state;
 };
 
-class StackMemory {
+class V8_EXPORT_PRIVATE StackMemory
+#ifdef V8_COMPRESS_POINTERS
+    : public ExternalPointerTable::ManagedResource {
+#else
+    : public Malloced {
+#endif  // V8_COMPRESS_POINTERS
  public:
   static std::unique_ptr<StackMemory> New() {
     return std::unique_ptr<StackMemory>(new StackMemory());
@@ -69,6 +75,8 @@ class StackMemory {
   // the simulator's stack when running on the simulator.
   static StackMemory* GetCentralStackView(Isolate* isolate);
 
+  StackMemory(const StackMemory&) = delete;
+  StackMemory& operator=(const StackMemory&) = delete;
   ~StackMemory();
   Address limit() const;
   void* jslimit() const;
@@ -135,8 +143,11 @@ class StackMemory {
   void Iterate(v8::internal::RootVisitor* v, Isolate* isolate,
                ThreadLocalTop* thread);
 
-  Address old_fp() { return active_segment_->old_fp; }
-  bool Grow(Address current_fp, size_t min_size);
+  // We record the fp of the segment's parent frame (relocated to just below the
+  // return slots) to facilitate shrinking the current segment on return.
+  Address parent_frame_fp() const { return active_segment_->parent_frame_fp; }
+  Address GetParentSegmentOldFP(Address child_fp) const;
+  bool Grow(Address parent_frame_fp, size_t min_size);
   Address Shrink();
   void ShrinkTo(Address stack_address);
   bool contains_only_old_pointers() const {
@@ -161,7 +172,7 @@ class StackMemory {
     // References to segments of segmented stack
     StackSegment* next_segment_ = nullptr;
     StackSegment* prev_segment_ = nullptr;
-    Address old_fp = 0;
+    Address parent_frame_fp = 0;
 
     friend class StackMemory;
   };
@@ -332,13 +343,17 @@ constexpr int kStackStateOffset =
 
 // A pool of "finished" stacks, i.e. stacks whose last frame have returned and
 // whose memory can be reused for new suspendable computations.
-class StackPool {
+class V8_EXPORT_PRIVATE StackPool {
  public:
+  StackPool() = default;
+  StackPool(const StackPool&) = delete;
+  StackPool& operator=(const StackPool&) = delete;
+
   // Gets a stack from the free list if one exists, else allocates it.
   std::unique_ptr<StackMemory> GetOrAllocate();
   // Adds a finished stack to the free list.
   void Add(std::unique_ptr<StackMemory> stack);
-  // Decommit the stack memories and empty the freelist.
+  // Free the stack memories and empty the freelist.
   void ReleaseFinishedStacks();
   size_t Size() const;
 

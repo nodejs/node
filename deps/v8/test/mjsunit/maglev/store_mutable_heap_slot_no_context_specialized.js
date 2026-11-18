@@ -5,6 +5,7 @@
 // Flags: --allow-natives-syntax --maglev
 // Flags: --script-context-cells
 // Flags: --no-maglev-function-context-specialization
+// Flags: --no-always-specialize-for-script-context
 
 let x = 42;
 

@@ -45,6 +45,12 @@ RUNTIME_FUNCTION(Runtime_ThrowAwaitUsingAssignError) {
       isolate, NewTypeError(MessageTemplate::kAwaitUsingAssign));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowExpectAnObjectWithUsing) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kExpectAnObjectWithUsing));
+}
+
 namespace {
 
 enum class RedeclarationType { kSyntaxError = 0, kTypeError = 1 };
@@ -307,14 +313,13 @@ RUNTIME_FUNCTION(Runtime_AddAsyncDisposableValue) {
 
 RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
   HandleScope scope(isolate);
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(4, args.length());
 
   DirectHandle<JSDisposableStackBase> disposable_stack =
       args.at<JSDisposableStackBase>(0);
   DirectHandle<Smi> continuation_token = args.at<Smi>(1);
   Handle<Object> continuation_error = args.at<Object>(2);
   Handle<Object> continuation_message = args.at<Object>(3);
-  DirectHandle<Smi> has_await_using = args.at<Smi>(4);
 
   // If state is not kDisposed, then the disposing of the resources has
   // not started yet. So, if the continuation token is kRethrow we need
@@ -327,21 +332,49 @@ RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
     disposable_stack->set_error_message(*continuation_message);
   }
 
-  DCHECK_IMPLIES(
-      disposable_stack->state() == DisposableStackState::kDisposed,
-      static_cast<DisposableStackResourcesType>(Smi::ToInt(*has_await_using)) ==
-          DisposableStackResourcesType::kAtLeastOneAsync);
-
   disposable_stack->set_state(DisposableStackState::kDisposed);
 
   DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSDisposableStackBase::DisposeResources(
-          isolate, disposable_stack,
-          static_cast<DisposableStackResourcesType>(
-              Smi::ToInt(*has_await_using))));
+      JSDisposableStackBase::DisposeResources(isolate, disposable_stack));
   return *result;
+}
+
+// The slow path of a `using` declaration, for a @@dispose `method` whose typeof
+// is not "function": throws unless it is callable. Returns `method`.
+RUNTIME_FUNCTION(Runtime_CheckSyncDisposeMethod) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DirectHandle<Object> method = args.at(0);
+
+  if (!IsCallable(*method)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotCallable,
+                              isolate->factory()->dispose_symbol()));
+  }
+  return *method;
+}
+
+// A dispose method of a `using` declaration threw `error` while the scope was
+// already completing with the throw of `suppressed`.
+RUNTIME_FUNCTION(Runtime_NewSuppressedErrorAtDisposal) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<Object> error = args.at(0);
+  DirectHandle<Object> suppressed = args.at(1);
+  return *isolate->factory()->NewSuppressedErrorAtDisposal(isolate, error,
+                                                           suppressed);
+}
+
+// Throws a SuppressedError made by NewSuppressedErrorAtDisposal at the end of
+// a scope with `using` declarations. Like DisposeResources, it is not reported
+// to the debugger as a new exception: the debugger has seen the errors in it.
+RUNTIME_FUNCTION(Runtime_ThrowSuppressedErrorAtDisposal) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  SuppressDebug while_processing(isolate->debug());
+  return isolate->Throw(args[0]);
 }
 
 RUNTIME_FUNCTION(Runtime_HandleExceptionsInDisposeDisposableStack) {
@@ -491,7 +524,8 @@ namespace {
 
 // Find the arguments of the JavaScript function invocation that called
 // into C++ code. Collect these in a newly allocated array of handles.
-DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
+// Expect up to 8 arguments in the common case.
+DirectHandleSmallVector<Object, 8> GetCallerArguments(Isolate* isolate) {
   // Find frame containing arguments passed to the caller.
   JavaScriptStackFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
@@ -515,7 +549,7 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
     iter++;
     argument_count--;
 
-    DirectHandleVector<Object> param_data(isolate, argument_count);
+    DirectHandleSmallVector<Object, 8> param_data(isolate, argument_count);
     bool should_deoptimize = false;
     for (int i = 0; i < argument_count; i++) {
       // If we materialize any object, we should deoptimize the frame because we
@@ -533,7 +567,7 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
     return param_data;
   } else {
     uint32_t args_count = frame->GetActualArgumentCount();
-    DirectHandleVector<Object> param_data(isolate, args_count);
+    DirectHandleSmallVector<Object, 8> param_data(isolate, args_count);
     for (uint32_t i = 0; i < args_count; i++) {
       DirectHandle<Object> val =
           DirectHandle<Object>(frame->GetParameter(i), isolate);
@@ -717,20 +751,6 @@ RUNTIME_FUNCTION(Runtime_NewClosure) {
   return *Factory::JSFunctionBuilder{isolate, shared, context}
               .set_feedback_cell(feedback_cell)
               .set_allocation_type(AllocationType::kYoung)
-              .Build();
-}
-
-RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  DirectHandle<SharedFunctionInfo> shared = args.at<SharedFunctionInfo>(0);
-  DirectHandle<FeedbackCell> feedback_cell = args.at<FeedbackCell>(1);
-  DirectHandle<Context> context(isolate->context(), isolate);
-  // The caller ensures that we pretenure closures that are assigned
-  // directly to properties.
-  return *Factory::JSFunctionBuilder{isolate, shared, context}
-              .set_feedback_cell(feedback_cell)
-              .set_allocation_type(AllocationType::kOld)
               .Build();
 }
 
@@ -950,8 +970,7 @@ MaybeDirectHandle<Object> StoreLookupSlot(
       SourceTextModule::StoreVariable(Cast<SourceTextModule>(holder), index,
                                       value);
     } else {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kConstAssign, name));
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kConstAssign));
     }
     return value;
   }
@@ -966,8 +985,7 @@ MaybeDirectHandle<Object> StoreLookupSlot(
     if ((attributes & READ_ONLY) == 0) {
       Context::Set(holder_context, index, value, isolate);
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kConstAssign, name));
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kConstAssign));
     }
     return value;
   }

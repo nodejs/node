@@ -35,6 +35,7 @@ void ExplicitManagementImpl::FreeUnreferencedObject(HeapHandle& heap_handle,
   }
 
   auto& header = HeapObjectHeader::FromObject(object);
+  HeapBase::From(heap_handle).RemoveSampledObject(&header);
   header.Finalize();
 
   // `object` is guaranteed to be of type GarbageCollected, so getting the
@@ -178,9 +179,19 @@ bool ExplicitManagementImpl::Resize(void* object, size_t new_object_size) {
 
   const size_t new_size = RoundUp<kAllocationGranularity>(
       sizeof(HeapObjectHeader) + new_object_size);
+  // Size should not overflow.
+  static_assert(sizeof(HeapObjectHeader) >= kAllocationGranularity);
+  // On 64-bit systems, new_object_size can be at most 33 bits, so we know that
+  // adding sizeof(HeapObjectHeader) to it can't overflow. On 32-bit systems, we
+  // need to check it.
+#if !defined(V8_HOST_ARCH_64_BIT)
+  if (new_size < new_object_size) {
+    return false;
+  }
+#endif
 
-  if (new_size < sizeof(HeapObjectHeader) ||
-      new_size >= kLargeObjectSizeThreshold) {
+  DCHECK_GT(new_size, sizeof(HeapObjectHeader));
+  if (new_size >= kLargeObjectSizeThreshold) {
     return false;
   }
 

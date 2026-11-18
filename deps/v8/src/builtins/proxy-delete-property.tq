@@ -55,7 +55,7 @@ transitioning builtin ProxyDeleteProperty(
     // exception.
     // 13. Let extensibleTarget be ? IsExtensible(target).
     // 14. If extensibleTarget is false, throw a TypeError exception.
-    CheckDeleteTrapResult(target, proxy, name);
+    CheckDeleteTrapResult(target, name);
 
     // 15. Return true.
     return True;

@@ -103,13 +103,7 @@ LIBC_INLINE float16 erfcf16(float16 x) {
       float xf = fputil::cast<float>(x);
       return fputil::cast<float16>(2.0 - 0x1.0p-12 * (-4.0 / xf));
     }
-    fputil::set_errno_if_required(ERANGE);
-    fputil::raise_except_if_required(FE_UNDERFLOW | FE_INEXACT);
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-    if (fputil::fenv_is_round_up())
-      return FPBits::min_subnormal().get_val();
-#endif
-    return FPBits::zero().get_val();
+    return fputil::set_underflow<float16>();
   }
 
   // Polynomial approximation:

@@ -155,6 +155,11 @@ class V8_EXPORT V8StackTrace {
   virtual int topColumnNumber() const = 0;
   virtual int topScriptId() const = 0;
   virtual StringView topFunctionName() const = 0;
+  // Returns true if the script of the top frame was compiled with
+  // resource_is_opaque set in its ScriptOrigin (code created via eval or
+  // new Function inherits this from the calling script). Like the other
+  // top*() accessors, this must only be called if !isEmpty().
+  virtual bool isTopScriptOpaque() const = 0;
 
   virtual ~V8StackTrace() = default;
   virtual std::unique_ptr<protocol::Runtime::API::StackTrace>
@@ -329,8 +334,6 @@ class V8_EXPORT V8InspectorClient {
   virtual void startRepeatingTimer(double, TimerCallback, void* data) {}
   virtual void cancelTimer(void* data) {}
 
-  // TODO(dgozman): this was added to support service worker shadow page. We
-  // should not connect at all.
   virtual bool canExecuteScripts(int contextGroupId) { return true; }
 
   virtual void maxAsyncCallStackDepthChanged(int depth) {}
@@ -452,7 +455,6 @@ class V8_EXPORT V8Inspector {
 
   enum ClientTrustLevel { kUntrusted, kFullyTrusted };
   enum SessionPauseState { kWaitingForDebugger, kNotWaitingForDebugger };
-  // TODO(chromium:1352175): remove default value once downstream change lands.
   // Deprecated: Use `connectShared` instead.
   // Channel is owned by the embedder. Ensure to keep it alive as long as the
   // returned session is alive.

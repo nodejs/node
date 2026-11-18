@@ -184,7 +184,7 @@ void DeclarationContext::Check(const char* source, int get, int set, int query,
 
 v8::Intercepted DeclarationContext::HandleGet(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  DeclarationContext* context = GetInstance(info.DataV2());
+  DeclarationContext* context = GetInstance(info.Data());
   context->get_count_++;
   auto result = context->Get(key);
   if (!result.IsEmpty()) {
@@ -197,7 +197,7 @@ v8::Intercepted DeclarationContext::HandleGet(
 v8::Intercepted DeclarationContext::HandleSet(
     Local<Name> key, Local<Value> value,
     const v8::PropertyCallbackInfo<Boolean>& info) {
-  DeclarationContext* context = GetInstance(info.DataV2());
+  DeclarationContext* context = GetInstance(info.Data());
   context->set_count_++;
   Maybe<bool> maybe_result = context->Set(key, value);
   bool result;
@@ -212,7 +212,7 @@ v8::Intercepted DeclarationContext::HandleSet(
 
 v8::Intercepted DeclarationContext::HandleQuery(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Integer>& info) {
-  DeclarationContext* context = GetInstance(info.DataV2());
+  DeclarationContext* context = GetInstance(info.Data());
   context->query_count_++;
   auto result = context->Query(key);
   if (!result.IsEmpty()) {
@@ -487,7 +487,7 @@ TEST_F(DeclsTest, CrossScriptReferences) {
 }
 
 TEST_F(DeclsTest, CrossScriptReferences_Simple) {
-  i::v8_flags.use_strict = true;
+  i::v8_flags.use_strict.Set(true);
 
   HandleScope scope(isolate());
 
@@ -499,7 +499,7 @@ TEST_F(DeclsTest, CrossScriptReferences_Simple) {
 }
 
 TEST_F(DeclsTest, CrossScriptReferences_Simple2) {
-  i::v8_flags.use_strict = true;
+  i::v8_flags.use_strict.Set(true);
 
   HandleScope scope(isolate());
 
@@ -678,7 +678,7 @@ TEST_F(DeclsTest, CrossScriptReferencesHarmonyRegress) {
 }
 
 TEST_F(DeclsTest, GlobalLexicalOSR) {
-  i::v8_flags.use_strict = true;
+  i::v8_flags.use_strict.Set(true);
 
   HandleScope scope(isolate());
   SimpleContext context;
@@ -701,7 +701,7 @@ TEST_F(DeclsTest, GlobalLexicalOSR) {
 }
 
 TEST_F(DeclsTest, CrossScriptConflicts) {
-  i::v8_flags.use_strict = true;
+  i::v8_flags.use_strict.Set(true);
 
   HandleScope scope(isolate());
 
@@ -826,7 +826,7 @@ TEST_F(DeclsTest, CrossScriptStaticLookupUndeclared) {
 }
 
 TEST_F(DeclsTest, CrossScriptLoadICs) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
 
   HandleScope handle_scope(isolate());
 
@@ -884,7 +884,7 @@ TEST_F(DeclsTest, CrossScriptLoadICs) {
 }
 
 TEST_F(DeclsTest, CrossScriptStoreICs) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
 
   HandleScope handle_scope(isolate());
 
@@ -953,7 +953,7 @@ TEST_F(DeclsTest, CrossScriptStoreICs) {
 }
 
 TEST_F(DeclsTest, CrossScriptAssignmentToConst) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
 
   HandleScope handle_scope(isolate());
 
@@ -974,7 +974,7 @@ TEST_F(DeclsTest, CrossScriptAssignmentToConst) {
 }
 
 TEST_F(DeclsTest, Regress425510) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
 
   HandleScope handle_scope(isolate());
 
@@ -990,7 +990,7 @@ TEST_F(DeclsTest, Regress425510) {
 }
 
 TEST_F(DeclsTest, Regress3941) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
 
   HandleScope handle_scope(isolate());
 
@@ -1030,7 +1030,7 @@ TEST_F(DeclsTest, Regress3941) {
 }
 
 TEST_F(DeclsTest, Regress3941_Reads) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
 
   HandleScope handle_scope(isolate());
 

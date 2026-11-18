@@ -18,8 +18,11 @@ namespace value_type_impl {
   static_assert(                                     \
       static_cast<uint32_t>(GenericKind::k##kind) == \
       (static_cast<uint32_t>(GenericKind::k##kind) & kGenericKindMask));
-FOREACH_GENERIC_TYPE(CHECK_MASK)
+FOREACH_STANDARD_GENERIC_TYPE(CHECK_MASK)
 #undef CHECK_MASK
+static_assert(static_cast<uint32_t>(GenericKind::kI31) ==
+              (static_cast<uint32_t>(GenericKind::kI31) &
+               (kGenericKindMask | CanBeI31Field::kMask)));
 #define CHECK_MASK(kind, ...)                        \
   static_assert(                                     \
       static_cast<uint32_t>(NumericKind::k##kind) == \
@@ -39,9 +42,17 @@ static_assert(kWasmTop.is_top());
 static_assert(kWasmBottom.is_none_or_bottom());
 static_assert(kWasmNullRef.is_none_or_bottom());
 static_assert(kWasmRefNone.is_none_or_bottom());
+static_assert(!kWasmI31Ref.is_none_or_bottom());
+static_assert(!kWasmRefI31.is_none_or_bottom());
 static_assert(ValueType::Generic(GenericKind::kNone, kNullable,
                                  SharedFlag{true})
                   .is_none_or_bottom());
+static_assert(kWasmI31Ref.can_be_i31());
+static_assert(kWasmRefI31.can_be_i31());
+static_assert(kWasmEqRef.can_be_i31());
+static_assert(kWasmAnyRef.can_be_i31());
+static_assert(!kWasmNullRef.can_be_i31());
+static_assert(!kWasmStructRef.can_be_i31());
 
 ValueTypeCode ValueTypeBase::value_type_code_numeric() const {
   switch (numeric_kind()) {
@@ -90,36 +101,6 @@ std::string ValueTypeBase::generic_heaptype_name() const {
   UNREACHABLE();
 }
 
-namespace {
-
-void PrintGenericHeaptypeName(std::ostringstream& buf, ValueTypeBase type) {
-  DCHECK(type.is_generic());
-  if (type.is_nullable()) {
-    GenericKind kind = type.generic_kind();
-    if (kind == GenericKind::kNone) {
-      // The code below would produce "noneref", and we need to keep it
-      // that way for "(ref none)", so we need this special case.
-      buf << (type.is_shared() ? "(shared nullref)" : "nullref");
-      return;
-    } else if (kind == GenericKind::kNoExn) {
-      buf << (type.is_shared() ? "(shared nullexnref)" : "nullexnref");
-      return;
-    } else if (kind == GenericKind::kNoExtern) {
-      buf << (type.is_shared() ? "(shared nullexternref)" : "nullexternref");
-      return;
-    } else if (kind == GenericKind::kNoFunc) {
-      buf << (type.is_shared() ? "(shared nullfuncref)" : "nullfuncref");
-      return;
-    } else if (kind == GenericKind::kNoCont) {
-      buf << (type.is_shared() ? "(shared nullcontref)" : "nullcontref");
-      return;
-    }
-  }
-  buf << type.generic_heaptype_name();
-}
-
-}  // namespace
-
 std::string ValueTypeBase::name() const {
   if (is_numeric()) {
     switch (numeric_kind()) {
@@ -137,10 +118,11 @@ std::string ValueTypeBase::name() const {
     if (is_nullable()) buf << "null ";
     if (is_exact()) buf << "exact ";
     buf << raw_index().index << ")";
+    if (can_be_i31()) buf << "|i31";
   } else {
     DCHECK(is_generic());
+    GenericKind kind = generic_kind();
     if (is_nullable()) {
-      GenericKind kind = generic_kind();
       if (kind == GenericKind::kNone) {
         // The code below would produce "noneref", and we need to keep it
         // that way for "(ref none)", so we need this special case.
@@ -160,9 +142,15 @@ std::string ValueTypeBase::name() const {
     bool append_ref = is_nullable() && !is_sentinel() && !is_exact();
     if (!shorthand) buf << "(ref ";
     if (!shorthand && is_nullable()) buf << "null ";
-    PrintGenericHeaptypeName(buf, *this);
+    buf << generic_heaptype_name();
     if (append_ref) buf << "ref";
     if (!shorthand) buf << ")";
+    bool default_can_be_i31 = kind == GenericKind::kI31 ||
+                              kind == GenericKind::kEq ||
+                              kind == GenericKind::kAny;
+    if (can_be_i31() != default_can_be_i31) {
+      buf << (can_be_i31() ? "|i31" : "∖i31");
+    }
   }
   return buf.str();
 }

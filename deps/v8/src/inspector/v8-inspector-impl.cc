@@ -246,6 +246,7 @@ V8InspectorSessionImpl* V8InspectorImpl::connectImpl(
       this, contextGroupId, sessionId, channel, state, client_trust_level,
       std::move(debuggerBarrier), std::move(embedder_state));
   m_sessions[contextGroupId][sessionId] = session;
+  session->restore(state);
   return session;
 }
 

@@ -19,6 +19,7 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/base/build_config.h"
+#include "src/base/unique-array.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-buffer.h"
@@ -287,7 +288,8 @@ class ValueSerializerTest : public TestWithIsolate {
     return host_object_constructor_template_.Get(isolate())
         ->GetFunction(context)
         .ToLocalChecked()
-        ->NewInstance(context, argc, argv)
+        ->NewInstanceWithSideEffectType(context, argc, argv,
+                                        SideEffectType::kHasNoSideEffect)
         .ToLocalChecked();
   }
 
@@ -1695,7 +1697,7 @@ TEST_F(ValueSerializerTest, DecodeLinearRegExp) {
   std::vector<uint8_t> regexp_encoding = {0xFF, 0x09, 0x3F, 0x00, 0x52,
                                           0x03, 0x66, 0x6F, 0x6F, 0x6D};
 
-  i::v8_flags.enable_experimental_regexp_engine = true;
+  i::v8_flags.enable_experimental_regexp_engine.Set(true);
   // DecodeTestUpToVersion will overwrite the version number in the data but
   // it's fine.
   DecodeTestUpToVersion(
@@ -1705,10 +1707,10 @@ TEST_F(ValueSerializerTest, DecodeLinearRegExp) {
         ExpectScriptTrue("result.toString() === '/foo/glmsy'");
       });
 
-  i::v8_flags.enable_experimental_regexp_engine = false;
+  i::v8_flags.enable_experimental_regexp_engine.Set(false);
   InvalidDecodeTest(regexp_encoding);
 
-  i::v8_flags.enable_experimental_regexp_engine = flag_was_enabled;
+  i::v8_flags.enable_experimental_regexp_engine.Set(flag_was_enabled);
 }
 
 TEST_F(ValueSerializerTest, DecodeHasIndicesRegExp) {
@@ -1769,6 +1771,16 @@ TEST_F(ValueSerializerTest, RoundTripMap) {
       "m;");
   ASSERT_TRUE(value->IsMap());
   ExpectScriptTrue("Array.from(result.keys()).toString() === '1,a,3,2'");
+
+  // NaN and HeapNumber keys must work with Map.prototype.get/has.
+  value = RoundTripTest(
+      "var m = new Map();"
+      "m.set(NaN, 'nan'); m.set(1.5, 'half');"
+      "m;");
+  ASSERT_TRUE(value->IsMap());
+  ExpectScriptTrue("result.size === 2");
+  ExpectScriptTrue("result.get(NaN) === 'nan'");
+  ExpectScriptTrue("result.get(1.5) === 'half'");
 }
 
 TEST_F(ValueSerializerTest, DecodeMap) {
@@ -1851,6 +1863,16 @@ TEST_F(ValueSerializerTest, RoundTripSet) {
       "s;");
   ASSERT_TRUE(value->IsSet());
   ExpectScriptTrue("Array.from(result.keys()).toString() === '1,a,3,2'");
+
+  // NaN and HeapNumber keys must work with Set.prototype.has.
+  value = RoundTripTest(
+      "var s = new Set();"
+      "s.add(NaN); s.add(1.5);"
+      "s;");
+  ASSERT_TRUE(value->IsSet());
+  ExpectScriptTrue("result.size === 2");
+  ExpectScriptTrue("result.has(NaN)");
+  ExpectScriptTrue("result.has(1.5)");
 }
 
 TEST_F(ValueSerializerTest, DecodeSet) {
@@ -2623,6 +2645,39 @@ TEST_F(ValueSerializerTest, DecodeTypedArrayBrokenData) {
   ExpectScriptTrue("result.b === 13");
 }
 
+TEST_F(ValueSerializerTest, DecodeTypedArrayBrokenDataMultiValue) {
+  // Multi-value stream: Value 1 is a JSObject (assigned ID 0), Value 2 has a
+  // TypedArray with broken v13 flags (triggering the ReadObjectWrapper retry)
+  // and an ObjectReference back to Value 1 (ID 0).
+  const uint8_t data[] = {
+      0xFF, 0x0D,                          // Version 13 header
+      0x6F, 0x7B, 0x00,                    // Value 1: {} (ID 0)
+      0x6F,                                // Value 2: BeginJSObject (ID 1)
+      0x22, 0x01, 'a',                     // key "a"
+      0x42, 0x00,                          // ArrayBuffer(0) (ID 2)
+      0x56, 0x42, 0x00, 0x00, 0xE8, 0x47,  // Uint8Array with v13 flags (ID 3)
+      0x22, 0x03, 'r',  'e',  'f',         // key "ref"
+      0x5E, 0x00,                          // ObjectReference(0) -> Value 1
+      0x7B, 0x02,                          // EndJSObject(2 properties)
+  };
+  Local<Context> context = deserialization_context();
+  Context::Scope scope(context);
+  ValueDeserializer deserializer(isolate(), data, sizeof(data), nullptr);
+  ASSERT_TRUE(deserializer.ReadHeader(context).FromMaybe(false));
+
+  Local<Value> first;
+  ASSERT_TRUE(deserializer.ReadValue(context).ToLocal(&first));
+  ASSERT_TRUE(first->IsObject());
+
+  Local<Value> second;
+  ASSERT_TRUE(deserializer.ReadValue(context).ToLocal(&second));
+  ASSERT_TRUE(second->IsObject());
+
+  Local<Value> ref =
+      second.As<Object>()->Get(context, StringFromUtf8("ref")).ToLocalChecked();
+  EXPECT_TRUE(ref->StrictEquals(first));
+}
+
 TEST_F(ValueSerializerTest, DecodeInvalidTypedArray) {
   // Byte offset out of range.
   InvalidDecodeTest(
@@ -2646,7 +2701,7 @@ TEST_F(ValueSerializerTest, RoundTripDataView) {
   ASSERT_TRUE(value->IsDataView());
   EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
   EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
-  EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+  EXPECT_EQ(4u, DataView::Cast(*value)->GetBuffer()->ByteLength());
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed
@@ -2665,7 +2720,7 @@ TEST_F(ValueSerializerTest, DecodeDataView) {
         ASSERT_TRUE(value->IsDataView());
         EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
         EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
-        EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+        EXPECT_EQ(4u, DataView::Cast(*value)->GetBuffer()->ByteLength());
         ExpectScriptTrue(
             "Object.getPrototypeOf(result) === DataView.prototype");
       });
@@ -2677,7 +2732,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedDataView) {
   ASSERT_TRUE(value->IsDataView());
   EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
   EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
-  EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+  EXPECT_EQ(4u, DataView::Cast(*value)->GetBuffer()->ByteLength());
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
@@ -2693,7 +2748,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingDataView) {
   ASSERT_TRUE(value->IsDataView());
   EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
   EXPECT_EQ(3u, DataView::Cast(*value)->ByteLength());
-  EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+  EXPECT_EQ(4u, DataView::Cast(*value)->GetBuffer()->ByteLength());
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
@@ -2712,7 +2767,7 @@ TEST_F(ValueSerializerTest, DecodeDataViewBackwardsCompatibility) {
         ASSERT_TRUE(value->IsDataView());
         EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
         EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
-        EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+        EXPECT_EQ(4u, DataView::Cast(*value)->GetBuffer()->ByteLength());
         ExpectScriptTrue(
             "Object.getPrototypeOf(result) === DataView.prototype");
       });
@@ -2881,6 +2936,32 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
   ExpectScriptTrue("result.a instanceof SharedArrayBuffer");
   ExpectScriptTrue("result.a === result.b");
   ExpectScriptTrue("new Uint8Array(result.a).toString() === '0,1,128,255'");
+}
+
+TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
+       SharedArrayBufferCloneErrorCanInvokeApiConstructor) {
+  i::DisableHandleChecksForMockingScope mocking_scope;
+
+  InitializeData({0x00, 0x01, 0x80, 0xFF}, false);
+
+  EXPECT_CALL(serializer_delegate_,
+              GetSharedArrayBufferId(isolate(), input_buffer()))
+      .WillOnce(Return(Just(0U)));
+  EXPECT_CALL(deserializer_delegate_, GetSharedArrayBufferFromId(isolate(), 0U))
+      .WillOnce([this](Isolate* isolate, uint32_t) {
+        EXPECT_FALSE(i::AllowJavascriptExecution::IsAllowed(
+            reinterpret_cast<i::Isolate*>(isolate)));
+        Local<Context> context = deserialization_context();
+        Local<Function> ctor = FunctionTemplate::New(isolate)
+                                   ->GetFunction(context)
+                                   .ToLocalChecked();
+        Local<Object> exception = ctor->NewInstance(context).ToLocalChecked();
+        isolate->ThrowException(exception);
+        return MaybeLocal<SharedArrayBuffer>();
+      });
+
+  std::vector<uint8_t> encoded = EncodeTest(input_buffer());
+  InvalidDecodeTest(encoded);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -3480,8 +3561,8 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
     i::wasm::ErrorThrower thrower(i_isolate(), "MakeWasm");
     auto enabled_features =
         i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
-    base::OwnedVector<const uint8_t> wire_bytes =
-        base::OwnedCopyOf(kIncrementerWasm);
+    base::UniqueArray<const uint8_t> wire_bytes =
+        base::UniqueCopyOf(kIncrementerWasm);
     i::MaybeDirectHandle<i::JSObject> compiled =
         i::wasm::GetWasmEngine()->SyncCompile(i_isolate(), enabled_features,
                                               i::wasm::CompileTimeImports{},

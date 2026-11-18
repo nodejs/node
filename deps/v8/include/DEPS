@@ -14,5 +14,10 @@ include_rules = [
   "+cppgc/name-provider.h",
   "+cppgc/garbage-collected.h",
   "+cppgc/macros.h",
-  "+cppgc/persistent.h"
+  "+cppgc/persistent.h",
+  # Heavyweight C++ standard library headers are banned in public API headers.
+  "-fstream",
+  "-iostream",
+  "-regex",
+  "-sstream",
 ]

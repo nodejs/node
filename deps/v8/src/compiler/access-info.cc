@@ -9,7 +9,6 @@
 #include <ostream>
 
 #include "src/base/logging.h"
-#include "src/builtins/accessors.h"
 #include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/heap-refs.h"
@@ -24,6 +23,7 @@
 #include "src/objects/field-index-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/js-array.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-details.h"
@@ -53,18 +53,17 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
   static_assert(ODDBALL_TYPE == LAST_PRIMITIVE_HEAP_OBJECT_TYPE);
   if (IsBooleanMap(*map.object())) return true;
   if (map.instance_type() < LAST_PRIMITIVE_HEAP_OBJECT_TYPE) return true;
-  if (IsJSObjectMap(*map.object())) {
+  if (map.IsJSObjectMap()) {
     if (map.is_dictionary_map()) {
       if (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return false;
-      return access_mode == AccessMode::kLoad &&
-             map.object()->is_prototype_map();
+      return access_mode == AccessMode::kLoad && map.is_prototype_map();
     }
     return !map.has_named_interceptor() &&
            // TODO(verwaest): Allowlist contexts to which we have access.
            !map.is_access_check_needed();
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (IsWasmObjectMap(*map.object())) {
+  if (map.IsAnyWasmObjectMap()) {
     DCHECK(!map.has_named_interceptor());
     DCHECK(!map.is_access_check_needed());
     // Accesses to Wasm objects all go through the prototype chain, but
@@ -119,7 +118,7 @@ ElementAccessInfo::ElementAccessInfo(
 ElementAccessInfo::ElementAccessInfo(MapRef map, ObjectRef accessor,
                                      ObjectRef target, bool string_keys,
                                      Zone* zone)
-    : elements_kind_(map.elements_kind()),
+    : elements_kind_(NO_ELEMENTS),
       string_keys_(string_keys),
       lookup_start_object_maps_({map}, zone),
       transition_sources_(zone),
@@ -492,13 +491,16 @@ bool AccessInfoFactory::ObjectIsSuitableProxyTarget(KeyType key_type,
   // of other Proxy traps. So we also support objects where we can register
   // sufficient code dependencies to get a deopt if the object gains elements.
   //
-  // For now, we support objects that are currently empty, have a stable map,
-  // and have fast elements (which are always configurable and writable) by
-  // installing a dependency on their map stability. Adding properties or
-  // elements with non-default attributes would cause a map transition and
-  // loss of stability.
-  if (map.is_stable() && map.NumberOfOwnDescriptors() == 0 &&
+  // For now, we support ordinary objects that are currently empty, have a
+  // stable map, and have fast elements (which are always configurable and
+  // writable) by installing a dependency on their map stability. Adding
+  // properties or elements with non-default attributes would cause a map
+  // transition and loss of stability.
+  if (!IsCustomElementsReceiverInstanceType(map.instance_type()) &&
+      map.is_stable() && map.NumberOfOwnDescriptors() == 0 &&
       IsFastElementsKind(map.elements_kind())) {
+    DCHECK(!IsSpecialReceiverInstanceType(map.instance_type()));
+    DCHECK(!map.is_dictionary_map());
     dependencies()->DependOnStableMap(map);
     return true;
   }
@@ -520,7 +522,7 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
     return ElementAccessInfo({{map}, zone()}, map.elements_kind(), zone());
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (map.IsWasmObjectMap() &&
+  if (map.IsAnyWasmObjectMap() &&
       (access_mode == AccessMode::kLoad || access_mode == AccessMode::kStore)) {
     // See if there is a Proxy on the prototype chain that will handle
     // element accesses.
@@ -556,9 +558,11 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         if (!maybe_handler->IsJSObject()) return {};
         JSObjectRef handler = maybe_handler.value().AsJSObject();
         MapRef handler_map = handler.map(broker());
-        // We could implement support for dictionary-mode handlers, but it's
-        // probably not worth it.
-        if (handler_map.is_dictionary_map()) return {};
+        // We could implement support for dictionary-mode or unstable handlers,
+        // but it's probably not worth it.
+        if (handler_map.is_dictionary_map() || !handler_map.is_stable()) {
+          return {};
+        }
         NameRef trap_name = access_mode == AccessMode::kLoad
                                 ? broker()->get_string()
                                 : broker()->set_string();
@@ -567,7 +571,10 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         if (!trap_info.IsFastDataConstant()) return {};
         Representation repr = trap_info.field_representation();
         if (!repr.IsHeapObject() && !repr.IsTagged()) return {};
-        OptionalObjectRef trap = handler.GetOwnFastConstantDataProperty(
+        OptionalJSObjectRef trap_holder = trap_info.holder();
+        JSObjectRef trap_holder_ref =
+            trap_holder.has_value() ? trap_holder.value() : handler;
+        OptionalObjectRef trap = trap_holder_ref.GetOwnFastConstantDataProperty(
             broker(), repr, trap_info.field_index(), dependencies());
         if (!trap.has_value()) return {};
         ObjectRef trap_value = trap.value();
@@ -607,10 +614,18 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         }
 
         // Finally: all good!
+        trap_info.RecordDependencies(dependencies());
+        if (trap_holder.has_value()) {
+          dependencies()->DependOnStablePrototypeChains(
+              trap_info.lookup_start_object_maps(), kStartAtReceiver,
+              trap_holder.value());
+        } else {
+          dependencies()->DependOnStableMap(handler_map);
+        }
         bool string_keys = key_type == wasm::kWasmExternRef;
         return ElementAccessInfo(map, trap_value, target, string_keys, zone());
       }
-      if (proto_map.IsWasmObjectMap()) {
+      if (proto_map.IsAnyWasmObjectMap()) {
         // Wasm objects are opaque and frozen, so we can safely skip over them.
         prototype = proto_map.prototype(broker());
         continue;
@@ -779,26 +794,6 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   InstanceType holder_instance_type = holder_map.instance_type();
   if (holder_instance_type == JS_MODULE_NAMESPACE_TYPE ||
       holder_instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE) {
-    DCHECK(holder_map.object()->is_prototype_map());
-    DirectHandle<PrototypeInfo> proto_info = broker->CanonicalPersistentHandle(
-        Cast<PrototypeInfo>(holder_map.object()->prototype_info()));
-    DirectHandle<JSModuleNamespace> module_namespace =
-        broker->CanonicalPersistentHandle(
-            Cast<JSModuleNamespace>(proto_info->module_namespace()));
-    // A deferred module namespace triggers synchronous evaluation of its
-    // module on the first non-symbol property access. We can only fold the
-    // access into a direct cell load once that module is already evaluated;
-    // before then, the load must go through the slow path that triggers
-    // evaluation. The evaluated state is monotonic (a module never leaves
-    // kEvaluated), so this remains valid for the lifetime of the optimized
-    // code without an extra compilation dependency.
-    if (holder_instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE &&
-        module_namespace->module()->status() != Module::kEvaluated) {
-      return PropertyAccessInfo::Invalid(zone);
-    }
-    Handle<Cell> cell = broker->CanonicalPersistentHandle(
-        Cast<Cell>(module_namespace->module()->exports()->Lookup(
-            name.object(), Smi::ToInt(Object::GetHash(*name.object())))));
     if (IsAnyStore(access_mode)) {
       // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-set-p-v-receiver
       // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
@@ -807,16 +802,30 @@ PropertyAccessInfo AccessorAccessInfoHelper(
       // JS.
       return PropertyAccessInfo::Invalid(zone);
     }
-    if (IsTdzHole(cell->value(kRelaxedLoad))) {
-      // This module has not been fully initialized yet.
+    OptionalModuleRef module = holder_map.GetNamespaceModule(broker);
+    if (!module.has_value()) return PropertyAccessInfo::Invalid(zone);
+    // Only fold accesses to namespaces of evaluated modules. A deferred
+    // namespace evaluates its module on the first non-symbol property access,
+    // so before then the load must take the slow path. Ordinary namespaces are
+    // restricted the same way for simplicity; they are only reachable before
+    // evaluation completes from within the module graph itself. The evaluated
+    // state is monotonic (a module never leaves kEvaluated), so this remains
+    // valid for the lifetime of the optimized code without an extra
+    // compilation dependency.
+    if (module->status() != Module::kEvaluated) {
       return PropertyAccessInfo::Invalid(zone);
     }
-    OptionalCellRef cell_ref = TryMakeRef(broker, cell);
-    if (!cell_ref.has_value()) {
+    OptionalCellRef cell = module->LookupExportCell(broker, name);
+    if (!cell.has_value()) return PropertyAccessInfo::Invalid(zone);
+    if (IsTdzHole(cell->object()->value(kRelaxedLoad))) {
+      // The export belongs to a module that has not been fully initialized
+      // yet. This can happen even though {module} is evaluated: with
+      // top-level await, a module in a cycle becomes evaluated before the
+      // modules that import it run, and it can re-export their bindings.
       return PropertyAccessInfo::Invalid(zone);
     }
-    return PropertyAccessInfo::ModuleExport(zone, receiver_map,
-                                            cell_ref.value(), holder);
+    return PropertyAccessInfo::ModuleExport(zone, receiver_map, cell.value(),
+                                            holder);
   }
   if (access_mode == AccessMode::kHas) {
     // kHas is not supported for dictionary mode objects.
@@ -923,7 +932,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
     InternalIndex dictionary_index, AccessMode access_mode,
     PropertyDetails details) const {
   CHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
-  DCHECK(holder.map(broker()).object()->is_prototype_map());
+  DCHECK(holder.map(broker()).is_prototype_map());
   DCHECK_EQ(access_mode, AccessMode::kLoad);
 
   // We can only inline accesses to constant properties.
@@ -950,7 +959,7 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
     InternalIndex* index_out, PropertyDetails* details_out) const {
   if (map.is_dictionary_map()) {
     DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
-    DCHECK(map.object()->is_prototype_map());
+    DCHECK(map.is_prototype_map());
 
     DisallowGarbageCollection no_gc;
 
@@ -1008,7 +1017,7 @@ PropertyAccessInfo TryComputeDictionaryDataFieldAccessInfo(
   // Receiver map must be a standard JSObject without access checks or
   // interceptors.
   if (!map.is_dictionary_map() || !map.IsJSObjectMap() ||
-      IsJSGlobalObjectMap(*map.object()) || map.is_access_check_needed() ||
+      map.IsJSGlobalObjectMap() || map.is_access_check_needed() ||
       map.has_named_interceptor()) {
     return PropertyAccessInfo::Invalid(zone);
   }
@@ -1049,7 +1058,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
   }
 
-  if (access_mode == AccessMode::kHas && !IsJSReceiverMap(*map.object())) {
+  if (access_mode == AccessMode::kHas && !map.IsJSReceiverMap()) {
     return Invalid();
   }
 
@@ -1184,9 +1193,37 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     // The property wasn't found on {map}. Look on the prototype if appropriate.
     DCHECK(!index.is_found());
 
+    // Module namespace objects are exotic, so a name absent from {map} must
+    // not be handled as on an ordinary object.
+    InstanceType instance_type = map.instance_type();
+    if (instance_type == JS_MODULE_NAMESPACE_TYPE ||
+        instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE) {
+      // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-set-p-v-receiver
+      // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
+      // [[Set]] and [[DefineOwnProperty]] always fail, even when reached
+      // through the prototype chain, so never transition on the receiver.
+      if (IsAnyStore(access_mode)) return Invalid();
+
+      // "Loads" and "has" checks of absent names on a deferred namespace
+      // trigger evaluation of its module (or throw if evaluation failed). They
+      // can only be folded once the module is evaluated; that state is
+      // monotonic, so no compilation dependency is needed.
+      //
+      // Namespace objects are optimized as prototypes on creation, so their
+      // map is never shared and its PrototypeInfo points back to the
+      // namespace. This lets us find its module even when the namespace is the
+      // receiver (and there is no {holder} yet).
+      if (instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE) {
+        OptionalModuleRef module = map.GetNamespaceModule(broker());
+        if (!module.has_value() || module->status() != Module::kEvaluated) {
+          return Invalid();
+        }
+      }
+    }
+
     // Don't search on the prototype chain for special indices in case of
     // integer indexed exotic objects (see ES6 section 9.4.5).
-    if (IsJSTypedArrayMap(*map.object()) && name.IsString()) {
+    if (map.IsJSTypedArrayMap() && name.IsString()) {
       StringRef name_str = name.AsString();
       SharedStringAccessGuardIfNeeded access_guard(
           *name_str.object(), broker()->local_isolate_or_isolate());
@@ -1213,7 +1250,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && holder.has_value()) {
       // At this point, we are past the first loop iteration.
-      DCHECK(holder->object()->map()->is_prototype_map());
+      DCHECK(holder->map(broker()).is_prototype_map());
       DCHECK(!holder->map(broker()).equals(receiver_map));
 
       fast_mode_prototype_on_chain =
@@ -1228,11 +1265,11 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     HeapObjectRef prototype = map.prototype(broker());
 
     MapRef map_prototype_map = prototype.map(broker());
-    if (!IsJSObjectMap(*map_prototype_map.object())) {
+    if (!map_prototype_map.IsJSObjectMap()) {
       // Don't allow proxies on the prototype chain.
       if (!prototype.IsNull()) {
-        DCHECK(IsJSProxy(*prototype.object()) ||
-               IsWasmObject(*prototype.object()));
+        DCHECK(map_prototype_map.IsJSProxyMap() ||
+               map_prototype_map.IsAnyWasmObjectMap());
         return Invalid();
       }
 
@@ -1391,14 +1428,14 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
 PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
     MapRef map, NameRef name) const {
   // Check for String::length field accessor.
-  if (IsStringMap(*map.object())) {
+  if (map.IsStringMap()) {
     if (Name::Equals(isolate(), name.object(),
                      isolate()->factory()->length_string())) {
       return PropertyAccessInfo::StringLength(zone(), map);
     }
     return Invalid();
   }
-  if (IsJSPrimitiveWrapperMap(*map.object()) &&
+  if (map.IsJSPrimitiveWrapperMap() &&
       (map.elements_kind() == FAST_STRING_WRAPPER_ELEMENTS ||
        map.elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS)) {
     if (Name::Equals(isolate(), name.object(),
@@ -1406,29 +1443,29 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
       return PropertyAccessInfo::StringWrapperLength(zone(), map);
     }
   }
-  // Check for special JSObject field accessors.
-  FieldIndex field_index;
-  if (Accessors::IsJSObjectFieldAccessor(isolate(), map.object(), name.object(),
-                                         &field_index)) {
+  // Check for special JSObject field accessors. Mirrors
+  // Accessors::IsJSObjectFieldAccessor, inlined here to use the snapshotted
+  // MapRef instance type rather than reading the live Map.
+  if (map.IsJSArrayMap() && !map.is_dictionary_map() &&
+      Name::Equals(isolate(), name.object(),
+                   isolate()->factory()->length_string())) {
+    FieldIndex field_index = FieldIndex::ForInObjectOffset(
+        offsetof(JSArray, length_), FieldIndex::kTagged);
     Type field_type = Type::NonInternal();
     Representation field_representation = Representation::Tagged();
-    if (IsJSArrayMap(*map.object())) {
-      DCHECK(Name::Equals(isolate(), isolate()->factory()->length_string(),
-                          name.object()));
-      // The JSArray::length property is a smi in the range
-      // [0, FixedDoubleArray::kMaxLength] in case of fast double
-      // elements, a smi in the range [0, FixedArray::kMaxLength]
-      // in case of other fast elements, and [0, kMaxUInt32] in
-      // case of other arrays.
-      if (IsDoubleElementsKind(map.elements_kind())) {
-        field_type = type_cache_->kFixedDoubleArrayLengthType;
-        field_representation = Representation::Smi();
-      } else if (IsFastElementsKind(map.elements_kind())) {
-        field_type = type_cache_->kFixedArrayLengthType;
-        field_representation = Representation::Smi();
-      } else {
-        field_type = type_cache_->kJSArrayLengthType;
-      }
+    // The JSArray::length property is a smi in the range
+    // [0, FixedDoubleArray::kMaxLength] in case of fast double
+    // elements, a smi in the range [0, FixedArray::kMaxLength]
+    // in case of other fast elements, and [0, kMaxUInt32] in
+    // case of other arrays.
+    if (IsDoubleElementsKind(map.elements_kind())) {
+      field_type = type_cache_->kFixedDoubleArrayLengthType;
+      field_representation = Representation::Smi();
+    } else if (IsFastElementsKind(map.elements_kind())) {
+      field_type = type_cache_->kFixedArrayLengthType;
+      field_representation = Representation::Smi();
+    } else {
+      field_type = type_cache_->kJSArrayLengthType;
     }
     // Special fields are always mutable.
     return PropertyAccessInfo::DataField(broker(), zone(), map, {{}, zone()},
@@ -1443,9 +1480,8 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessorInHolder(
     PropertyDetails details, InternalIndex index) const {
   // Check whether we're accessing the `length` property in a TypedArray
   // prototype.
-  if (v8_flags.typed_array_length_loading &&
-      IsJSTypedArrayMap(*receiver_map.object()) &&
-      !IsJSDetachedTypedArrayMap(*receiver_map.object()) &&
+  if (v8_flags.typed_array_length_loading && receiver_map.IsJSTypedArrayMap() &&
+      !receiver_map.IsJSDetachedTypedArrayMap() &&
       !IsRabGsabTypedArrayElementsKind(receiver_map.elements_kind()) &&
       Name::Equals(isolate(), name.object(),
                    isolate()->factory()->length_string()) &&

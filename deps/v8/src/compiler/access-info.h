@@ -48,6 +48,7 @@ class ElementAccessInfo final {
 
   void AddTransitionSource(MapRef map) {
     CHECK_EQ(lookup_start_object_maps_.size(), 1);
+    CHECK(!is_proxy_on_prototype());
     transition_sources_.push_back(map);
   }
 

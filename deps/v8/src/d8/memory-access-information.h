@@ -6,12 +6,11 @@
 #define V8_D8_MEMORY_ACCESS_INFORMATION_H_
 
 #include "include/v8config.h"
+#include "src/sandbox/testing.h"
 
 struct user_regs_struct;
 
-#if defined(V8_ENABLE_MEMORY_CORRUPTION_API) && defined(V8_OS_LINUX) && \
-    V8_TARGET_ARCH_X64
-#define V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
 
 namespace v8 {
 

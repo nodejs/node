@@ -16,11 +16,33 @@ const innerFunc = outer();
 const wasmTable = new WebAssembly.Table({ initial: 2, element: "anyfunc" });
 
 const wasmBytes = new Uint8Array([
-  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, // wasm magic & version
-  0x01, 0x04, 0x01, 0x60, 0x00, 0x00,             // type section: () -> ()
-  0x03, 0x02, 0x01, 0x00,                         // func section
-  0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00,       // export section: export "f"
-  0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b             // code section: empty function
+  0x00, 0x61, 0x73, 0x6d,  // wasm magic
+  0x01, 0x00, 0x00, 0x00,  // wasm version
+
+  0x01,                    // section kind: Type
+  0x04,                    // section length 4
+  0x01, 0x60,              // types count 1:  kind: func
+  0x00,                    // param count 0
+  0x00,                    // return count 0
+
+  0x03,                    // section kind: Function
+  0x02,                    // section length 2
+  0x01, 0x00,              // functions count 1: 0 $f
+
+  0x07,                    // section kind: Export
+  0x05,                    // section length 5
+  0x01,                    // exports count 1: export # 0
+  0x01,                    // field name length:  1
+  0x66,                    // field name: f
+  0x00, 0x00,              // kind: function index:  0
+
+  0x0a,                    // section kind: Code
+  0x04,                    // section length 4
+  0x01,                    // functions count 1
+                           // function #0 $f
+  0x02,                    // body size 2
+  0x00,                    // 0 entries in locals list
+  0x0b,                    // end
 ]);
 const wasmModule = new WebAssembly.Module(wasmBytes);
 const wasmInstance = new WebAssembly.Instance(wasmModule);

@@ -73,9 +73,10 @@ void DefineArray(WasmModule* module, FieldInit element_type,
                  bool is_final = false,
                  SharedFlag is_shared = SharedFlag{false},
                  bool in_singleton_rec_group = true) {
-  module->AddArrayTypeForTesting(module->signature_storage.New<ArrayType>(
-                                     element_type.first, element_type.second),
-                                 supertype, is_final, is_shared);
+  module->AddArrayTypeForTesting(
+      module->signature_storage.New<ArrayType>(element_type.first,
+                                               element_type.second, is_shared),
+      supertype, is_final, is_shared);
   if (in_singleton_rec_group) {
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module);
   }
@@ -609,16 +610,16 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   UNION(kWasmEqRef, kWasmI31Ref, kWasmEqRef);
   UNION(kWasmEqRef, kWasmArrayRef, kWasmEqRef);
   UNION(kWasmEqRef, kWasmNullRef, kWasmEqRef);
-  UNION(kWasmStructRef, kWasmI31Ref, kWasmEqRef);
-  UNION(kWasmStructRef, kWasmArrayRef, kWasmEqRef);
+  UNION(kWasmStructRef, kWasmI31Ref, kWasmStructRef.AsCanBeI31());
+  UNION(kWasmStructRef, kWasmArrayRef, kWasmEqRef.AsNonI31());
   UNION(kWasmStructRef, kWasmNullRef, kWasmStructRef);
   UNION(kWasmI31Ref.AsNonNull(), kWasmArrayRef.AsNonNull(),
-        kWasmEqRef.AsNonNull());
+        kWasmArrayRef.AsNonNull().AsCanBeI31());
   UNION(kWasmI31Ref, kWasmNullRef, kWasmI31Ref);
   UNION(kWasmArrayRef, kWasmNullRef, kWasmArrayRef);
   UNION(kWasmStructRef.AsNonNull(), kWasmI31Ref.AsNonNull(),
-        kWasmEqRef.AsNonNull());
-  UNION(kWasmI31Ref.AsNonNull(), kWasmArrayRef, kWasmEqRef);
+        kWasmStructRef.AsNonNull().AsCanBeI31());
+  UNION(kWasmI31Ref.AsNonNull(), kWasmArrayRef, kWasmArrayRef.AsCanBeI31());
   UNION(kWasmAnyRef, kWasmNullRef, kWasmAnyRef);
   UNION(kWasmExternRef, kWasmNullExternRef, kWasmExternRef);
   UNION(kWasmRefNullExternString, kWasmNullExternRef, kWasmRefNullExternString);
@@ -641,8 +642,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   UNION(kWasmFuncRef, kWasmAnyRef, kWasmTop);
   UNION(kWasmFuncRef, kWasmEqRef, kWasmTop);
   UNION(kWasmStringRef, kWasmAnyRef, kWasmAnyRef);
-  UNION(kWasmStringRef, kWasmStructRef, kWasmAnyRef);
-  UNION(kWasmStringRef, kWasmArrayRef, kWasmAnyRef);
+  UNION(kWasmStringRef, kWasmStructRef, kWasmAnyRef.AsNonI31());
+  UNION(kWasmStringRef, kWasmArrayRef, kWasmAnyRef.AsNonI31());
   UNION(kWasmStringRef, kWasmFuncRef, kWasmTop);
   UNION(kWasmStringViewIter, kWasmStringRef, kWasmTop);
   UNION(kWasmStringViewWtf8, kWasmStringRef, kWasmTop);
@@ -745,19 +746,19 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   INTERSECTION(kWasmEqRef, function_type, kWasmBottom);
 
   UNION(kWasmStructRef, struct_type, kWasmStructRef);
-  UNION(kWasmStructRef, array_type, kWasmEqRef);
+  UNION(kWasmStructRef, array_type, kWasmEqRef.AsNonI31());
   UNION(kWasmStructRef, function_type, kWasmTop);
   INTERSECTION(kWasmStructRef, struct_type, struct_type);
   INTERSECTION(kWasmStructRef, array_type, kWasmBottom);
   INTERSECTION(kWasmStructRef, function_type, kWasmBottom);
 
-  UNION(kWasmI31Ref, struct_type, kWasmEqRef);
-  UNION(kWasmI31Ref, array_type, kWasmEqRef);
+  UNION(kWasmI31Ref, struct_type, struct_type.AsNullable().AsCanBeI31());
+  UNION(kWasmI31Ref, array_type, array_type.AsNullable().AsCanBeI31());
   INTERSECTION(kWasmI31Ref, struct_type, kWasmBottom);
   INTERSECTION(kWasmI31Ref, array_type, kWasmBottom);
   INTERSECTION(kWasmI31Ref, function_type, kWasmBottom);
 
-  UNION(kWasmArrayRef, struct_type, kWasmEqRef);
+  UNION(kWasmArrayRef, struct_type, kWasmEqRef.AsNonI31());
   UNION(kWasmArrayRef, array_type, kWasmArrayRef);
   UNION(kWasmArrayRef, function_type, kWasmTop);
   INTERSECTION(kWasmArrayRef, struct_type, kWasmBottom);
@@ -774,8 +775,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   INTERSECTION(kWasmNullRef, array_type.AsNullable(), kWasmNullRef);
   INTERSECTION(kWasmNullRef, function_type.AsNullable(), kWasmBottom);
 
-  UNION(struct_type, kWasmStringRef, kWasmAnyRef);
-  UNION(array_type, kWasmStringRef, kWasmAnyRef);
+  UNION(struct_type, kWasmStringRef, kWasmAnyRef.AsNonI31());
+  UNION(array_type, kWasmStringRef, kWasmAnyRef.AsNonI31());
   UNION(function_type, kWasmStringRef, kWasmTop);
 
   UNION(struct_type, kWasmRefNullExternString, kWasmTop);
@@ -783,7 +784,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   UNION(function_type, kWasmRefNullExternString, kWasmTop);
 
   // Indexed types of different kinds.
-  UNION(struct_type, array_type, kRefEq);
+  UNION(struct_type, array_type, kRefEq.AsNonI31());
   INTERSECTION(struct_type, array_type, kWasmBottom);
   INTERSECTION(struct_type, function_type, kWasmBottom);
   INTERSECTION(array_type, function_type, kWasmBottom);
@@ -820,7 +821,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   UNION(struct_shared, struct_shared.AsNullable(), struct_shared.AsNullable());
   UNION(struct_shared, struct_type, kWasmTop);
   UNION(struct_shared, function_shared, kWasmTop);
-  UNION(struct_shared, kRefI31Shared, kRefEqShared);
+  UNION(struct_shared, kRefI31Shared, struct_shared.AsCanBeI31());
   UNION(struct_shared, kRefAnyShared, kRefAnyShared);
   UNION(struct_shared, kRefNoneShared, struct_shared);
   UNION(struct_shared, kRefAny, kWasmTop);
@@ -845,16 +846,107 @@ TEST_F(WasmSubtypingTest, Subtyping) {
                kRefNullNoFuncShared);
   INTERSECTION(function_shared, kRefNoExternShared, kWasmBottom);
 
+  // Orthogonal can_be_i31 tests.
+  {
+    EXPECT_TRUE(kWasmI31Ref.can_be_i31());
+    EXPECT_TRUE(kWasmI31Ref.is_nullable());
+    EXPECT_EQ(kWasmI31Ref.generic_kind(), GenericKind::kI31);
+    EXPECT_EQ(kWasmI31Ref.name(), "i31ref");
+    EXPECT_FALSE(kWasmI31Ref.is_uninhabited());
+
+    EXPECT_TRUE(kWasmRefI31.can_be_i31());
+    EXPECT_FALSE(kWasmRefI31.is_nullable());
+    EXPECT_EQ(kWasmRefI31.generic_kind(), GenericKind::kI31);
+    EXPECT_EQ(kWasmRefI31.name(), "(ref i31)");
+    EXPECT_FALSE(kWasmRefI31.is_uninhabited());
+
+    EXPECT_TRUE(kWasmEqRef.can_be_i31());
+    EXPECT_TRUE(kWasmEqRef.is_nullable());
+    EXPECT_EQ(kWasmEqRef.generic_kind(), GenericKind::kEq);
+    EXPECT_EQ(kWasmEqRef.name(), "eqref");
+
+    EXPECT_TRUE(kWasmAnyRef.can_be_i31());
+    EXPECT_TRUE(kWasmAnyRef.is_nullable());
+    EXPECT_EQ(kWasmAnyRef.generic_kind(), GenericKind::kAny);
+    EXPECT_EQ(kWasmAnyRef.name(), "anyref");
+
+    EXPECT_FALSE(kWasmNullRef.can_be_i31());
+    EXPECT_TRUE(kWasmNullRef.is_nullable());
+    EXPECT_EQ(kWasmNullRef.generic_kind(), GenericKind::kNone);
+    EXPECT_EQ(kWasmNullRef.name(), "nullref");
+    EXPECT_EQ(ValueType{kWasmI31Ref.AsNonI31()}, kWasmNullRef);
+    EXPECT_EQ(ValueType{kWasmNullRef.AsCanBeI31()}, kWasmI31Ref);
+
+    EXPECT_FALSE(kWasmRefNone.can_be_i31());
+    EXPECT_FALSE(kWasmRefNone.is_nullable());
+    EXPECT_TRUE(kWasmRefNone.is_uninhabited());
+    EXPECT_EQ(ValueType{kWasmRefI31.AsNonI31()}, kWasmRefNone);
+    EXPECT_EQ(ValueType{kWasmRefNone.AsCanBeI31()}, kWasmRefI31);
+
+    // Finer-grained union/intersection cases with can_be_i31:
+    ValueType struct_or_i31 = refS(0).AsCanBeI31();
+    ValueType array_or_i31 = refA(2).AsCanBeI31();
+    EXPECT_EQ(struct_or_i31.name(), "(ref 0)|i31");
+    UNION(refS(0), kWasmRefI31, struct_or_i31);
+    UNION(refS(0).AsExact(), kWasmRefI31, refS(0).AsExact().AsCanBeI31());
+
+    // Union of struct and array is eq WITHOUT i31:
+    ValueType eq_no_i31 = kWasmEqRef.AsNonNull().AsNonI31();
+    EXPECT_EQ(eq_no_i31.name(), "(ref eq)∖i31");
+    UNION(refS(0), refA(2), eq_no_i31);
+    EXPECT_FALSE(eq_no_i31.can_be_i31());
+    EXPECT_TRUE(HeapTypesUnrelated(eq_no_i31.heap_type(),
+                                   kWasmRefI31.heap_type(), module1));
+    INTERSECTION(eq_no_i31, kWasmRefI31, kWasmBottom);
+    UNION(eq_no_i31, kWasmRefI31, kWasmEqRef.AsNonNull());
+
+    // Intersection of ($s0 | i31) and ($a2 | i31) is i31:
+    INTERSECTION(struct_or_i31, array_or_i31, kWasmRefI31);
+    EXPECT_FALSE(HeapTypesUnrelated(struct_or_i31.heap_type(),
+                                    array_or_i31.heap_type(), module1));
+    EXPECT_TRUE(HeapTypesUnrelated(struct_or_i31.AsNonI31().heap_type(),
+                                   array_or_i31.AsNonI31().heap_type(),
+                                   module1));
+
+    // Subtyping and intersection with struct hierarchy ($1 <: $0):
+    ValueType s0 = refS(0);
+    ValueType s1 = refS(1);
+    ValueType s0_i31 = s0.AsCanBeI31();
+    ValueType s1_i31 = s1.AsCanBeI31();
+    SUBTYPE(s0, s0_i31);
+    SUBTYPE(kWasmRefI31, s0_i31);
+    SUBTYPE(s1_i31, s0_i31);
+    NOT_SUBTYPE(s1_i31, s0);
+    NOT_SUBTYPE(s0, s1_i31);
+    EXPECT_FALSE(
+        HeapTypesUnrelated(s1_i31.heap_type(), s0.heap_type(), module1));
+    INTERSECTION(s1_i31, s0, s1);
+    UNION(s1_i31, s0, s0_i31);
+  }
+
   // Generic test covering all kinds of always applicable rules (like
   // commutativity).
   std::vector<ValueType> test_types;
-  test_types.reserve(arraysize(numeric_types) + arraysize(ref_types));
+  test_types.reserve(arraysize(numeric_types) + arraysize(ref_types) + 20);
   test_types.insert(test_types.end(), std::begin(numeric_types),
                     std::end(numeric_types));
   test_types.insert(test_types.end(), std::begin(ref_types),
                     std::end(ref_types));
   test_types.push_back(kWasmBottom);
   test_types.push_back(kWasmTop);
+  for (ValueType base : std::initializer_list<ValueType>{
+           refNullS(0), refS(0), refNullS(0).AsExact(), refS(0).AsExact(),
+           refNullA(2), refA(2), refNullA(2).AsExact(), refA(2).AsExact(),
+           kWasmStructRef, kWasmStructRef.AsNonNull(), kWasmArrayRef,
+           kWasmArrayRef.AsNonNull(), kWasmStringRef, kWasmRefString}) {
+    test_types.push_back(base.AsCanBeI31());
+  }
+  for (ValueType base :
+       std::initializer_list<ValueType>{kWasmEqRef, kWasmEqRef.AsNonNull(),
+                                        kWasmAnyRef, kWasmAnyRef.AsNonNull()}) {
+    test_types.push_back(base.AsNonI31());
+  }
+
   for (const ValueType type_a : test_types) {
     SCOPED_TRACE("a = " + type_a.name());
     // Neutral elements: kWasmTop wrt. intersection, kWasmBottom wrt. union.
@@ -880,30 +972,38 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       EXPECT_TRUE(IsSubtypeOf(type_a, union_ab, module1));
       EXPECT_TRUE(IsSubtypeOf(type_b, union_ab, module1));
 
+      // The intersection of two types is always a subtype of both types.
+      ValueType intersection_ab = Intersection(type_a, type_b, module1).type;
+      EXPECT_TRUE(IsSubtypeOf(intersection_ab, type_a, module1));
+      EXPECT_TRUE(IsSubtypeOf(intersection_ab, type_b, module1));
+
+      if (type_a.is_ref() && type_b.is_ref()) {
+        EXPECT_EQ(
+            HeapTypesUnrelated(type_a.heap_type(), type_b.heap_type(), module1),
+            Intersection(type_a.AsNonNull(), type_b.AsNonNull(), module1)
+                .type.is_uninhabited());
+      }
+
       // Test commutativity.
-      EXPECT_EQ(Union(type_a, type_b, module1).type,
-                Union(type_b, type_a, module1).type);
-      EXPECT_EQ(Intersection(type_a, type_b, module1).type,
-                Intersection(type_b, type_a, module1).type);
+      EXPECT_EQ(union_ab, Union(type_b, type_a, module1).type);
+      EXPECT_EQ(intersection_ab, Intersection(type_b, type_a, module1).type);
 
       // If the union of a and b is b, then a is a subtype of b, so the
       // intersection has to be a.
-      EXPECT_EQ(Union(type_a, type_b, module1).type == type_b,
-                Intersection(type_a, type_b, module1).type == type_a);
+      EXPECT_EQ(union_ab == type_b, intersection_ab == type_a);
+      EXPECT_EQ(union_ab == type_b, IsSubtypeOf(type_a, type_b, module1));
 
       for (const ValueType type_c : test_types) {
         SCOPED_TRACE("c = " + type_c.name());
         // Test associativity.
         EXPECT_EQ(
             Union(type_a, Union(type_b, type_c, module1).type, module1).type,
-            Union(Union(type_a, type_b, module1).type, type_c, module1).type);
+            Union(union_ab, type_c, module1).type);
         EXPECT_EQ(
             Intersection(type_a, Intersection(type_b, type_c, module1).type,
                          module1)
                 .type,
-            Intersection(Intersection(type_a, type_b, module1).type, type_c,
-                         module1)
-                .type);
+            Intersection(intersection_ab, type_c, module1).type);
 
         // Test transitivity.
         if (IsSubtypeOf(type_a, type_b, module1) &&

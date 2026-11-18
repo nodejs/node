@@ -172,7 +172,13 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
       switch (operand_type) {
         case interpreter::OperandType::kReg:
         case interpreter::OperandType::kRegOut:
-        case interpreter::OperandType::kRegInOut:
+        case interpreter::OperandType::kRegInOut: {
+          interpreter::Register reg = iterator.GetRegisterOperand(i);
+          bool is_output =
+              interpreter::Bytecodes::IsRegisterOutputOperandType(operand_type);
+          VerifyRegister(reg, is_output);
+          break;
+        }
         case interpreter::OperandType::kRegPair:
         case interpreter::OperandType::kRegOutPair:
         case interpreter::OperandType::kRegOutTriple:
@@ -181,17 +187,22 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
           bool is_output =
               interpreter::Bytecodes::IsRegisterOutputOperandType(operand_type);
           uint32_t count = iterator.GetRegisterOperandRange(i);
-          if (count > 0) {
-            interpreter::Register start = iterator.GetRegisterOperand(i);
+          interpreter::Register start = iterator.GetRegisterOperand(i);
+          if (count == 0) {
+            Check(start == interpreter::Register(0),
+                  "Invalid empty register list");
+          } else {
             VerifyRegister(start, is_output);
+            if (is_output || count > 1) {
+              Check(!start.is_parameter(),
+                    "Register list cannot use parameter registers");
+            }
             if (count > 1) {
               base::internal::CheckedNumeric<int> end_index = start.index();
               end_index += count - 1;
               Check(end_index.IsValid(), "Register range end overflows");
               interpreter::Register end(end_index.ValueOrDie());
               VerifyRegister(end, is_output);
-              Check(start.is_parameter() == end.is_parameter(),
-                    "Register range crosses parameter/local boundary");
             }
           }
           break;
@@ -236,6 +247,14 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
       interpreter::Register reg = iterator.GetStarTargetRegister();
       VerifyRegister(reg, true);
     }
+
+    if (current_bytecode == interpreter::Bytecode::kSuspendGenerator ||
+        current_bytecode == interpreter::Bytecode::kResumeGenerator ||
+        current_bytecode == interpreter::Bytecode::kSwitchOnGeneratorState) {
+      interpreter::Register generator = iterator.GetRegisterOperand(0);
+      Check(!generator.is_parameter(),
+            "Generator register cannot be a parameter");
+    }
   }
 
   Check(previous_bytecode_end == bytecode->length(),
@@ -267,8 +286,13 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
 
 // static
 bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
-  // This is currently purely for fuzzer-cleanliness and so we only add
-  // functions to this blocklist if we see them cause crashes during fuzzing.
+  // This was purely for fuzzer-cleanliness and so we only added functions to
+  // this blocklist if we saw them cause crashes during fuzzing. Now that
+  // %InstallBytecode is disabled for fuzzing, this blocklist is currently not
+  // used in practice (as the bytecode compiler never emits calls to these
+  // functions). We are keeping the list in case %InstallBytecode is later
+  // re-enabled on the fuzzers.
+  //
   // It's unclear if we'll ever need this in production, but if we decide to
   // use it, we should do a more thorough audit to determine which functions
   // should be disallowed here.

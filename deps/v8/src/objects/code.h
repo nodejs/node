@@ -9,8 +9,8 @@
 #include "src/objects/code-kind.h"
 #include "src/objects/struct.h"
 #include "src/objects/trusted-object.h"
-#include "src/objects/trusted-pointer.h"
 #include "src/sandbox/code-entrypoint-tag.h"
+#include "src/sandbox/trusted-pointer.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -30,6 +30,12 @@ class RootVisitor;
 
 enum class Builtin;
 enum class LazyDeoptimizeReason : uint8_t;
+
+#if V8_ENABLE_WEBASSEMBLY
+namespace wasm {
+class NativeModule;
+}  // namespace wasm
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Code is a container for data fields related to its associated
 // {InstructionStream} object. Since {InstructionStream} objects reside on
@@ -363,6 +369,14 @@ V8_OBJECT class Code : public ExposedTrustedObject {
   // Returns true if the function is inlined in the code.
   bool Inlines(Tagged<SharedFunctionInfo> sfi);
 
+#if V8_ENABLE_WEBASSEMBLY
+  // Returns true if the code inlines a Wasm function from {native_module}
+  // matching {func_index} (or any function from {native_module} if
+  // {func_index == -1}).
+  bool InlinesWasmFunction(const wasm::NativeModule* native_module,
+                           int func_index = -1);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // Returns the PC of the next bytecode in execution order.
   // If the bytecode at the given offset is JumpLoop, the PC of the jump target
   // is returned. Other jumps are not allowed.
@@ -585,6 +599,8 @@ V8_OBJECT class CodeWrapper : public Struct {
   V8_IT_NO_AUTO_DISPATCH;
 
  public:
+  inline explicit CodeWrapper(const AllocationWitness& witness);
+
   DECL_CODE_POINTER_ACCESSORS(code)
 
   DECL_PRINTER(CodeWrapper)
@@ -593,7 +609,7 @@ V8_OBJECT class CodeWrapper : public Struct {
   class BodyDescriptor;
 
  public:
-  TrustedPointerMember<Code, kCodeIndirectPointerTag> code_;
+  TrustedPointerMember<Code, kCodeTrustedPointerTag> code_;
 } V8_OBJECT_END;
 
 }  // namespace internal

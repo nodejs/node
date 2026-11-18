@@ -9,8 +9,8 @@
 #include "include/v8-context.h"
 #include "include/v8-exception.h"
 #include "include/v8-unwinder.h"
+#include "src/base/thread-id.h"
 #include "src/common/globals.h"
-#include "src/execution/thread-id.h"
 #include "src/objects/contexts.h"
 #include "src/utils/utils.h"
 
@@ -164,7 +164,7 @@ class ThreadLocalTop {
 
   // These two fields are updated rarely (on every thread restore).
   Isolate* isolate_;
-  std::atomic<ThreadId> thread_id_;
+  std::atomic<base::ThreadId> thread_id_{base::ThreadId::Invalid()};
 
   // TODO(all): Combine into a bitfield.
   uintptr_t num_frames_above_pending_handler_;

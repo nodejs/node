@@ -185,17 +185,26 @@ class TaskRunner {
    * Implementation of above methods with an additional `location` argument.
    */
   virtual void PostTaskImpl(std::unique_ptr<Task> task,
-                            const SourceLocation& location) {}
+                            const SourceLocation& location) = 0;
   virtual void PostNonNestableTaskImpl(std::unique_ptr<Task> task,
-                                       const SourceLocation& location) {}
+                                       const SourceLocation& location) {
+    // This must be overridden if `NonNestableTasksEnabled()`.
+    abort();
+  }
   virtual void PostDelayedTaskImpl(std::unique_ptr<Task> task,
                                    double delay_in_seconds,
-                                   const SourceLocation& location) {}
+                                   const SourceLocation& location) = 0;
   virtual void PostNonNestableDelayedTaskImpl(std::unique_ptr<Task> task,
                                               double delay_in_seconds,
-                                              const SourceLocation& location) {}
+                                              const SourceLocation& location) {
+    // This must be overridden if `NonNestableDelayedTasksEnabled()`.
+    abort();
+  }
   virtual void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
-                                const SourceLocation& location) {}
+                                const SourceLocation& location) {
+    // This must be overridden if `IdleTasksEnabled()`.
+    abort();
+  }
 };
 
 /**
@@ -1241,6 +1250,15 @@ class VirtualAddressSpace {
    * \returns true on success, false otherwise.
    */
   virtual bool SetName(const std::string& name) { return false; }
+
+#if V8_OS_FUCHSIA
+  /**
+   * Returns the zx_handle_t for the VMAR backing this address space, or
+   * ZX_HANDLE_INVALID (0) if backed by the root VMAR. This VirtualAddressSpace
+   * retains ownership of the handle, which remains valid only for its lifetime.
+   */
+  virtual uint32_t GetVmarHandle() const { return 0; }
+#endif  // V8_OS_FUCHSIA
 
  private:
   const size_t page_size_;

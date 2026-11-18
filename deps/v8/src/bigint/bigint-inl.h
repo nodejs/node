@@ -931,27 +931,18 @@ inline digit_t DivideSingle(RWDigits Q, digit_t* remainder, Digits A,
   digit_t rem = 0;
   digit_t top;
   uint32_t length = A.len();
-  if (A[length - 1] >= b) {
-    DCHECK(Q.len() >= A.len());
-    uint32_t i = length - 1;
-    Q[i] = top = digit_div(rem, A[i], b, &rem);
-    while (i-- > 0) {
-      Q[i] = digit_div(rem, A[i], b, &rem);
-    }
-    for (uint32_t j = length; j < Q.len(); j++) Q[j] = top = 0;
-  } else {
-    DCHECK(Q.len() >= A.len() - 1);
+  if (A[length - 1] < b) {
+    DCHECK(length >= 2);
     rem = A[length - 1];
-    top = 0;
-    uint32_t i = length - 2;
-    if (i >= 0) [[likely]] {
-      Q[i] = top = digit_div(rem, A[i], b, &rem);
-      while (i-- > 0) {
-        Q[i] = digit_div(rem, A[i], b, &rem);
-      }
-    }
-    for (uint32_t j = length - 1; j < Q.len(); j++) Q[j] = top = 0;
+    length--;
   }
+  DCHECK(Q.len() >= length);
+  uint32_t i = length - 1;
+  Q[i] = top = digit_div(rem, A[i], b, &rem);
+  while (i-- > 0) {
+    Q[i] = digit_div(rem, A[i], b, &rem);
+  }
+  for (uint32_t j = length; j < Q.len(); j++) Q[j] = top = 0;
   *remainder = rem;
   return top;
 }

@@ -14,15 +14,15 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_EXPF_DOUBLE_EVAL_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXPF_DOUBLE_EVAL_H
 
-#include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/PolyEval.h"
+#include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/nearest_integer.h"
-#include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
+#include "src/__support/math/check/exp_exceptions.h"
 #include "src/__support/math/exp_float_constants.h" // Lookup tables EXP_M1 and EXP_M2.
 
 namespace LIBC_NAMESPACE_DECL {
@@ -31,6 +31,8 @@ namespace double_eval {
 
 LIBC_INLINE float expf(float x) {
   using FPBits = fputil::FPBits<float>;
+  using FPBounds = math::check::exp_internal::Bounds<float>;
+
   FPBits xbits(x);
 
   uint32_t x_u = xbits.uintval();
@@ -43,8 +45,8 @@ LIBC_INLINE float expf(float x) {
   }
 #endif // !LIBC_MATH_HAS_SKIP_ACCURATE_PASS
 
-  // When |x| >= 89, |x| < 2^-25, or x is nan
-  if (LIBC_UNLIKELY(x_abs >= 0x42b2'0000U || x_abs <= 0x3280'0000U)) {
+  // When |x| >= log(2^127 * (2 - 2^-23)), |x| < 2^-25, or x is nan
+  if (LIBC_UNLIKELY(x_abs >= FPBounds::UPPER_BITS || x_abs <= 0x3280'0000U)) {
     // |x| < 2^-25
     if (xbits.get_biased_exponent() <= 101) {
       return 1.0f + x;
@@ -58,27 +60,13 @@ LIBC_INLINE float expf(float x) {
       // exp(nan) = nan
       if (xbits.is_nan())
         return x;
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      if (fputil::fenv_is_round_up())
-        return FPBits::min_subnormal().get_val();
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      fputil::set_errno_if_required(ERANGE);
-      fputil::raise_except_if_required(FE_UNDERFLOW);
-      return 0.0f;
+      return fputil::set_underflow<float>();
     }
-    // x >= 89 or nan
-    if (xbits.is_pos() && (xbits.uintval() >= 0x42b2'0000)) {
+    // x >= log(2^127 * (2 - 2^-23)) or nan
+    if (xbits.is_pos() && (xbits.uintval() >= FPBounds::UPPER_BITS)) {
       // x is finite
-      if (xbits.uintval() < 0x7f80'0000U) {
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-        int rounding = fputil::quick_get_round();
-        if (rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO)
-          return FPBits::max_normal().get_val();
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-
-        fputil::set_errno_if_required(ERANGE);
-        fputil::raise_except_if_required(FE_OVERFLOW);
-      }
+      if (xbits.uintval() < 0x7f80'0000U)
+        return fputil::set_overflow<float>();
       // x is +inf or nan
       return x + FPBits::inf().get_val();
     }

@@ -1,0 +1,38 @@
+Tests function scope chains and scope objects while paused.
+Case 1
+scopeCount: 7
+  scope 0 (local): {}
+  scope 1 (closure): {"a":4,"b":5}
+  scope 2 (with): {"w":5,"v":"Capybara"}
+  scope 3 (closure): {"z":22}
+  scope 4 (closure): {"x":5}
+  scope 5 (script): {}
+  scope 6 (global): {}
+Case 2
+scopeCount: 3
+  scope 0 (local): {}
+  scope 1 (script): {}
+  scope 2 (global): {}
+Case 3
+scopeCount: 6
+  scope 0 (local): {}
+  scope 1 (closure): {"visible2":20}
+  scope 2 (closure): {"invisible2":"<missing>"}
+  scope 3 (closure): {"visible1":10,"invisible1":"<missing>"}
+  scope 4 (script): {}
+  scope 5 (global): {}
+Case 4
+scopeCount: 6
+  scope 0 (local): {}
+  scope 1 (catch): {"e2":"I'm error 2"}
+  scope 2 (catch): {"e1":"I'm error 1"}
+  scope 3 (closure): {}
+  scope 4 (script): {}
+  scope 5 (global): {}
+Case 5
+scopeCount: 5
+  scope 0 (local): {}
+  scope 1 (closure): {"p4":20,"p6":22}
+  scope 2 (closure): {"p1":1}
+  scope 3 (script): {}
+  scope 4 (global): {}

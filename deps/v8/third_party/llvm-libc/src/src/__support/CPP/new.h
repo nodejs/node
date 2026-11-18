@@ -30,17 +30,19 @@ namespace LIBC_NAMESPACE_DECL {
 namespace cpp {
 
 template <class T> [[nodiscard]] constexpr T *launder(T *p) {
+#ifndef LIBC_COMPILER_IS_MSVC
   static_assert(__has_builtin(__builtin_launder),
                 "cpp::launder requires __builtin_launder");
+#endif // !LIBC_COMPILER_IS_MSVC
   return __builtin_launder(p);
 }
 
 } // namespace cpp
 } // namespace LIBC_NAMESPACE_DECL
 
-LIBC_INLINE void *operator new(size_t, void *p) { return p; }
+LIBC_INLINE void *operator new(size_t, void *p) noexcept { return p; }
 
-LIBC_INLINE void *operator new[](size_t, void *p) { return p; }
+LIBC_INLINE void *operator new[](size_t, void *p) noexcept { return p; }
 
 // The ideal situation would be to define the various flavors of operator delete
 // inline like we do with operator new above. However, since we need operator

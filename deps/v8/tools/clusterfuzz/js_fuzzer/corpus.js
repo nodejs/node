@@ -312,8 +312,27 @@ class V8Corpus extends Corpus {
       if (!match) {
         continue;
       }
-      for (const flag of match[1].split(/\s+/)) {
-        result.push(flag);
+      for (const token of match[1].trim().split(/\s+/)) {
+        if (!token) {
+          continue;
+        }
+        if (token === '--') {
+          // V8 stops processing flags at a bare '--' and passes the remaining
+          // arguments to the script. Everything after it isn't a flag and
+          // the '--' itself must not end up in the generated flags, as it
+          // would hide all subsequent flags passed by ClusterFuzz.
+          return result;
+        }
+        const last = result.length - 1;
+        if (!token.startsWith('-') && last >= 0 &&
+            result[last].startsWith('--') && !result[last].includes('=')) {
+          // A value passed as a separate argument, e.g. '--stress-runs 2'.
+          // Merge it with its flag, as a lone value-less flag would consume
+          // the next command-line argument as its value.
+          result[last] = `${result[last]}=${token}`;
+          continue;
+        }
+        result.push(token);
       }
     }
     return result;

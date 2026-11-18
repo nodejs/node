@@ -128,15 +128,21 @@ class MaxCallDepthProcessor {
  private:
   void UpdateMaxDeoptedStackSize(DeoptInfo* deopt_info) {
     const DeoptFrame* deopt_frame = &deopt_info->top_frame();
-    int frame_size = 0;
     if (deopt_frame->type() == DeoptFrame::FrameType::kInterpretedFrame) {
       if (&deopt_frame->as_interpreted().unit() == last_seen_unit_) return;
       last_seen_unit_ = &deopt_frame->as_interpreted().unit();
-      frame_size = deopt_frame->as_interpreted().unit().max_arguments() *
-                   kSystemPointerSize;
     }
 
+    int frame_size = 0;
     do {
+      if (deopt_frame->type() == DeoptFrame::FrameType::kInterpretedFrame) {
+        // Include the maximum outgoing arguments of each parent frame in the
+        // deopt chain, which may be larger at another call site in that parent
+        // frame than at the current inlined call site.
+        frame_size = std::max<int>(
+            frame_size, deopt_frame->as_interpreted().unit().max_arguments() *
+                            kSystemPointerSize);
+      }
       frame_size += ConservativeFrameSize(deopt_frame);
       deopt_frame = deopt_frame->parent();
     } while (deopt_frame != nullptr);
@@ -163,12 +169,12 @@ class MaxCallDepthProcessor {
       }
       case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
         // PC + FP + Closure + Params + Context
-        const RegisterConfiguration* config = RegisterConfiguration::Default();
+        const BuiltinContinuationDeoptFrame& frame =
+            deopt_frame->as_builtin_continuation();
         auto info = BuiltinContinuationFrameInfo::Conservative(
-            deopt_frame->as_builtin_continuation().parameters().length(),
-            Builtins::CallInterfaceDescriptorFor(
-                deopt_frame->as_builtin_continuation().builtin_id()),
-            config);
+            frame.translation_height(),
+            Builtins::CallInterfaceDescriptorFor(frame.builtin_id()),
+            RegisterConfiguration::Default());
         return info.frame_size_in_bytes();
       }
     }

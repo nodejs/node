@@ -105,8 +105,8 @@ void RegionAllocator::FreeListRemoveRegion(Region* region) {
 RegionAllocator::Region* RegionAllocator::Split(Region* region,
                                                 size_t new_size) {
   DCHECK(IsAligned(new_size, page_size_));
-  DCHECK_NE(new_size, 0);
-  DCHECK_GT(region->size(), new_size);
+  CHECK_NE(new_size, 0);
+  CHECK_GT(region->size(), new_size);
 
   if (on_split_) on_split_(region->begin(), new_size);
 
@@ -149,7 +149,7 @@ void RegionAllocator::Merge(AllRegionsSet::iterator prev_iter,
 
 RegionAllocator::Address RegionAllocator::AllocateRegion(
     size_t size, AllocationStrategy allocation_strategy) {
-  DCHECK_NE(size, 0);
+  if (size == 0 || size > whole_region_.size()) return kAllocationFailure;
   DCHECK(IsAligned(size, page_size_));
 
   Region* region = nullptr;
@@ -177,6 +177,7 @@ RegionAllocator::Address RegionAllocator::AllocateRegion(
 
 RegionAllocator::Address RegionAllocator::AllocateRegion(
     RandomNumberGenerator* rng, size_t size) {
+  if (size == 0 || size > whole_region_.size()) return kAllocationFailure;
   if (free_size() >= max_load_for_randomization_) {
     // There is enough free space for trying to randomize the address.
     size_t random = 0;
@@ -196,8 +197,8 @@ RegionAllocator::Address RegionAllocator::AllocateRegion(
 
 bool RegionAllocator::AllocateRegionAt(Address requested_address, size_t size,
                                        RegionState region_state) {
+  if (size == 0 || size > whole_region_.size()) return false;
   DCHECK(IsAligned(requested_address, page_size_));
-  DCHECK_NE(size, 0);
   DCHECK(IsAligned(size, page_size_));
   DCHECK_NE(region_state, RegionState::kFree);
 
@@ -243,6 +244,7 @@ bool RegionAllocator::AllocateRegionAt(Address requested_address, size_t size,
 
 RegionAllocator::Address RegionAllocator::AllocateAlignedRegion(
     size_t size, size_t alignment) {
+  if (size == 0 || size > whole_region_.size()) return kAllocationFailure;
   DCHECK(IsAligned(size, page_size_));
   DCHECK(IsAligned(alignment, page_size_));
   DCHECK_GE(alignment, page_size_);
@@ -258,7 +260,7 @@ RegionAllocator::Address RegionAllocator::AllocateAlignedRegion(
 
   if (!IsAligned(region->begin(), alignment)) {
     size_t start = RoundUp(region->begin(), alignment);
-    if (start + size > region->end()) {
+    if (start + size > region->end() || start + size < start) {
       return kAllocationFailure;
     }
     region = Split(region, start - region->begin());
@@ -281,6 +283,7 @@ RegionAllocator::Address RegionAllocator::AllocateAlignedRegion(
 RegionAllocator::Address RegionAllocator::AllocateRegion(Address hint,
                                                          size_t size,
                                                          size_t alignment) {
+  if (size == 0 || size > whole_region_.size()) return kAllocationFailure;
   DCHECK(IsAligned(alignment, page_size()));
   DCHECK(IsAligned(hint, alignment));
 
@@ -303,6 +306,7 @@ RegionAllocator::Address RegionAllocator::AllocateRegion(Address hint,
 
 size_t RegionAllocator::TrimRegion(Address address, size_t new_size,
                                    AddressRegion* free_region) {
+  if (new_size > whole_region_.size()) return 0;
   DCHECK(IsAligned(new_size, page_size_));
 
   AllRegionsSet::iterator region_iter = FindRegion(address);
@@ -316,6 +320,10 @@ size_t RegionAllocator::TrimRegion(Address address, size_t new_size,
 
   // The region must not be in the free list.
   DCHECK_EQ(free_regions_.find(*region_iter), free_regions_.end());
+
+  if (new_size >= region->size()) {
+    return 0;
+  }
 
   if (new_size > 0) {
     region = Split(region, new_size);
@@ -356,6 +364,9 @@ size_t RegionAllocator::TrimRegion(Address address, size_t new_size,
 }
 
 bool RegionAllocator::TryGrowRegion(Address address, size_t new_size) {
+  if (new_size == 0 || new_size > whole_region_.size()) {
+    return false;
+  }
   DCHECK(IsAligned(new_size, page_size_));
 
   AllRegionsSet::iterator region_iter = FindRegion(address);
@@ -369,6 +380,10 @@ bool RegionAllocator::TryGrowRegion(Address address, size_t new_size) {
 
   // The region must not be in the free list.
   DCHECK_EQ(free_regions_.find(*region_iter), free_regions_.end());
+
+  if (new_size <= region->size()) {
+    return false;
+  }
   DCHECK_LT(region->size(), new_size);
 
   if (!AllocateRegionAt(region->end(), new_size - region->size())) {

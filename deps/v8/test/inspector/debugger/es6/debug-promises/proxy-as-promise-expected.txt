@@ -1,0 +1,5 @@
+Tests that Promise subclass returning a Proxy does not crash in debugger.
+Paused on exception: uncaught=true
+Exception message: Method Promise.prototype.then called on incompatible receiver #<P>
+Total exception events: 1
+Log: [1]

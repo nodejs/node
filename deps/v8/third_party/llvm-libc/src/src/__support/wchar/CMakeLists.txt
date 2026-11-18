@@ -97,15 +97,16 @@ add_header_library(
     wcsnrtombs.h
   DEPENDS
     libc.hdr.errno_macros
+    libc.hdr.stdint_proxy
     libc.hdr.types.char8_t
-    libc.hdr.types.char32_t
     libc.hdr.types.size_t
     libc.hdr.types.wchar_t
     libc.src.__support.common
     libc.src.__support.error_or
     libc.src.__support.macros.config
     libc.src.__support.macros.null_check
-    .string_converter
+    libc.src.__support.macros.properties.types
     .character_converter
     .mbstate
+    .string_converter
 )

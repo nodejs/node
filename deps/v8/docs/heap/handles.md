@@ -1,60 +1,109 @@
-# Handles in V8
+# Handles and GC Safety Scopes in V8
 
-Handles are the primary mechanism in V8 for referencing heap objects in C++ code in a way that is safe for garbage collection. Because V8's garbage collector moves objects during compaction, raw C++ pointers to heap objects would become invalid. Handles solve this by adding a layer of indirection or by collaborating with conservative stack scanning.
+Because V8's garbage collector moves `HeapObject`s during young-generation scavenging and old-generation compaction, raw `Tagged<T>` pointers in C++ local variables become invalid if a garbage collection occurs during their lifetime. **Handles** (`src/handles/`) keep referenced objects alive as GC roots and ensure C++ code observes their updated addresses after any relocation.
 
-This document focuses on **internal** handles used within the V8 implementation. For external handles used by embedders, see the public API (e.g., `v8::Local` and `v8::Persistent`).
+---
 
-## Types of Handles
+## 1. `IndirectHandle<T>` (`Handle<T>`) vs. `DirectHandle<T>` (`src/handles/handles.h`)
 
-V8 provides two main types of internal handles: **Indirect Handles** (`Handle<T>` or explicitly `IndirectHandle<T>`) and **Direct Handles** (`DirectHandle<T>`).
+V8 provides two distinct local handle types in `src/handles/handles.h`:
 
-### 1. Indirect Handles (`Handle<T>`)
+> [!IMPORTANT]
+> **`Handle<T>` is an alias for `IndirectHandle<T>`, NOT `DirectHandle<T>`** (`using Handle = IndirectHandle<T>;` in `src/handles/handles.h`).
+> `DirectHandle<T>` is a separate C++ type that holds a direct stack word when `V8_ENABLE_DIRECT_HANDLE` is enabled (with Conservative Stack Scanning), or wraps an `IndirectHandle<T>` on builds where `V8_ENABLE_DIRECT_HANDLE` is disabled.
 
-Indirect handles are the traditional handle type in V8.
-*   **Representation**: A `Handle<T>` is a pointer to a location (usually in a `HandleScope`) that contains the actual tagged pointer to the `HeapObject`.
-*   **GC Safety**: When the GC moves an object, it updates the pointer in the `HandleScope` slot. All `Handle` instances pointing to that slot automatically see the new location.
-*   **Usage**: Used widely across the codebase.
+```
+IndirectHandle<T> (alias Handle<T>)               DirectHandle<T> (with V8_ENABLE_DIRECT_HANDLE)
++-------------------+    HandleScope Block        +-----------------------------------+
+| Address* location_|--->+-------------------+    | Address obj_ (on C++ machine stack|
++-------------------+    | Tagged HeapObject |    | scanned directly by CSS)          |
+  (Stack Variable)       +-------------------+    +-----------------------------------+
+                                   |                                |
+                                   +---------------+----------------+
+                                                   |
+                                                   v
+                                          +-----------------+
+                                          |   HeapObject    |
+                                          +-----------------+
+```
 
-### 2. Direct Handles (`DirectHandle<T>`)
+### 1. `IndirectHandle<T>` (aliased as `Handle<T>`)
+* **Representation**: Wraps a single pointer `Address* location_` pointing to a slot inside a heap/isolate-managed **`HandleScopeData`** block (`src/handles/handles.h`).
+* **GC Behavior**: During a GC pause, the collector iterates all active `HandleScope` blocks, marks the pointed-to `HeapObject`s, and updates the `Address` inside each `HandleScope` slot if the object moves. Every `Handle<T>` sharing that `location_` automatically observes the new address.
+* **Dereferencing**: Requires a double dereference (`Tagged<T>(*location_)`).
+* **Where Required**: Must be used whenever a handle is stored on the C++ heap, inside a struct/class allocated off-stack, or passed across thread boundaries via `PersistentHandles`.
 
-Direct handles are an optimization intended to reduce the overhead of indirection.
-*   **Representation**:
-    *   When `V8_ENABLE_DIRECT_HANDLE` is enabled: A `DirectHandle<T>` is a direct wrapper around a tagged pointer to a heap object or Smi. It does NOT use a slot in a `HandleScope`.
-    *   When `V8_ENABLE_DIRECT_HANDLE` is NOT enabled: It is a wrapper around an `IndirectHandle<T>`, serving as a fallback. (Note: `DirectHandle<T>` is often used interchangeably with `Handle<T>` in API signatures that accept both).
-*   **GC Safety**: When enabled, direct handles rely on **Conservative Stack Scanning (CSS)**. The GC scans the C++ stack to find potential pointers to heap objects. If a direct handle is on the stack, the GC will find it and update it if the object moves. DirectHandles are *only* valid thanks to CSS finding them on the stack.
-*   **Usage**: They should only be used on the stack (enforced by C++ type traits in debug builds). They must not be stored in heap objects or global structures.
+### 2. `DirectHandle<T>` (`src/handles/direct-handles.h`)
+* **Representation**:
+  * **When `V8_ENABLE_DIRECT_HANDLE` is enabled** (64-bit builds with Conservative Stack Scanning): Contains a single `Address obj_` holding the tagged value directly in the stack variable or CPU register. Allocating or dereferencing a `DirectHandle<T>` does **not** touch `HandleScopeData` and has zero indirection overhead.
+  * **When `V8_ENABLE_DIRECT_HANDLE` is disabled**: Wraps an `IndirectHandle<T> handle_` transparently so the same C++ source code compiles in both configurations.
+* **GC Behavior (Conservative Stack Scanning)**: When a GC occurs while `V8_ENABLE_DIRECT_HANDLE` is active, Conservative Stack Scanning (CSS) scans the C++ machine stack and saved registers. Any stack word looking like a pointer into a V8 page pins the target object (or quarantines its `NewSpace` page) so its address remains valid without slot indirection.
+* **Stack-Only Enforcement (`StackAllocated`)**: `DirectHandle<T>` inherits from `v8::api_internal::StackAllocated<true>`, which deletes `operator new` and enforces via a Clang plugin that `DirectHandle<T>` is **only** declared on the C++ stack (never as a member of a heap-allocated class or inside a standard `std::vector`).
+* **Interoperability**: Both `IndirectHandle<T>` and `DirectHandle<T>` implicitly convert to each other when needed (`DirectHandle<T>` reads `*indirect.location()`, while converting a `DirectHandle<T>` to an `IndirectHandle<T>` allocates a `HandleScope` slot). New C++ code should prefer `DirectHandle<T>` for stack variables and function parameters.
 
-## Handle Scopes (`HandleScope`)
+### 3. `MaybeDirectHandle<T>` and `MaybeHandle<T>` (`src/handles/maybe-handles.h`)
+* Represent nullable handles (analogous to `std::optional<DirectHandle<T>>` / `std::optional<Handle<T>>`), typically used as return types of functions that may fail with a pending JavaScript exception.
+* Callers must explicitly extract the handle via `.ToHandle(&out)` or `.ToHandleChecked()` before dereferencing.
 
-Local handles are managed in the context of a `HandleScope`.
-*   **Indirect Handles**: A `HandleScope` accumulates slots for handles created within its scope. When the `HandleScope` is destroyed (typically at the end of a C++ function scope), all handles created within it become invalid because their slots are reclaimed. This prevents memory leaks from handles accumulating indefinitely.
-*   **Direct Handles**: While direct handles do not use `HandleScope` slots, they are still conceptually local. They must only live on the stack and are valid as long as the object they point to is kept alive by some other means (e.g., an indirect handle in a scope) or if they are tracked by CSS.
-*   **GC Interaction**: `HandleScope` instances are considered roots by the GC. The GC walks all active `HandleScope` slots during the main thread pause to update pointers to moved objects.
+### 4. `DirectHandleVector<T>` and `DirectHandleSmallVector<T, N>` (`src/handles/handles.h`)
+Because `DirectHandle<T>` is stack-only and cannot be placed inside `std::vector<DirectHandle<T>>` (Conservative Stack Scanning does not scan `malloc`-allocated heap buffers), V8 provides dedicated container types:
+* **`DirectHandleVector<T>`**: Stores `internal::DirectHandleUnchecked<T>` elements inside a buffer allocated via **`StrongRootAllocator<element_type>(isolate)`**. `StrongRootAllocator` registers the backing buffer with the `Heap` as a strong root range so the GC traces and updates every element in the vector even when the backing buffer grows on the C++ heap.
+* **`DirectHandleSmallVector<T, kSize>`**: Inherits from `base::SmallVector<DirectHandleUnchecked<T>, kSize, StrongRootAllocator<...>>`, keeping up to `kSize` handles inline on the stack and falling back to `StrongRootAllocator` on the heap if resized beyond `kSize`.
 
-## Global and Eternal Handles
+---
 
-For objects that need to live beyond the scope of a function or a single turn, V8 provides global handles.
+## 2. `HandleScope` and `SealHandleScope`
 
-### Global Handles (`GlobalHandles`)
-*   Independent of stack state.
-*   Can be strong or weak (with callbacks/finalizers).
-*   Used for embedding V8 in applications (e.g., keeping a reference to a JS object from C++).
+### `HandleScope` (`src/handles/handles.h`)
+* Manages the lifetime of `IndirectHandle<T>` slots on the main thread (`Isolate::handle_scope_data()`).
+* Slots are bump-allocated inside 4KB `Address` blocks (`kHandleBlockSize`). When a `HandleScope` goes out of C++ scope, its destructor resets `HandleScopeData::next` and `limit` back to the saved state from when the `HandleScope` was entered, reclaiming all indirect handle slots created inside that scope in `O(1)` time.
+* **`HandleScope::CloseAndEscape(handle)`**: Copies a single handle's value into the enclosing outer `HandleScope` before destroying the inner `HandleScope`, allowing a function to allocate temporary handles internally and return a single result handle without leaking slots.
 
-### Eternal Handles (`EternalHandles`)
-*   Handles that never go away.
-*   Cheaper than global handles because they don't need to be tracked for destruction.
+### `SealHandleScope` (`src/handles/handles.h`)
+* In `DEBUG` builds, `SealHandleScope` temporarily sets `HandleScopeData::level == HandleScopeData::sealed_level`.
+* Any attempt to allocate a new `IndirectHandle` while a `SealHandleScope` is active triggers a `DCHECK` failure unless a new inner `HandleScope` is explicitly opened first. This catches accidental handle leaks inside hot loops or helper functions.
 
-## Maybe Handles
+---
 
-V8 also provides `MaybeHandle<T>` and `MaybeDirectHandle<T>`.
-*   These represent a handle that may be empty (null).
-*   They force validation (checking for emptiness) before they can be converted to regular handles and used.
-*   This is similar to `std::optional` or a nullable pointer, but specifically for handles.
+## 3. Off-Thread, Persistent, Global, and Traced Handles
 
-## Migration to Direct Handles
+| Handle Facility | Header | Threading & Lifetime | Purpose |
+| :--- | :--- | :--- | :--- |
+| **`LocalHandles` & `LocalHandleScope`** | `src/handles/local-handles.h` | Bound to a background thread's `LocalHeap` / `LocalIsolate`. | Allows background compiler and deserializer threads to create scoped handles scanned during safepoints (`LocalHeap::handles()`). |
+| **`PersistentHandles` & `PersistentHandlesScope`** | `src/handles/persistent-handles.h` | Thread-safe detached handle blocks (`PersistentHandlesList`). | Created on the main thread (via `PersistentHandlesScope::Detach()`), passed to a background compilation job (e.g., TurboFan / Maglev), and destroyed when the job finishes. |
+| **`GlobalHandles`** | `src/handles/global-handles.h` | Explicit lifetime (`Create` / `Destroy`), independent of `HandleScope`. | Backs `v8::Persistent<T>` and `v8::Global<T>`. Supports strong references and weak references with finalization callbacks (`WeakCallbackInfo`) or cleared slots. |
+| **`EternalHandles`** | `src/handles/global-handles.h` | Immortal (lasts until `Isolate` teardown). | Backs `v8::Eternal<T>`; cheaper than `GlobalHandles` because slots are never freed or weak-processed. |
+| **`TracedHandles` & `TracedNode`** | `src/handles/traced-handles.h` | Managed jointly by V8 and Oilpan (`CppHeap`). | Backs `v8::TracedReference<T>` for Unified Heap C++ wrappers. Tracks young-generation nodes (`is_in_young_list`), markbits, and droppable weak references. |
 
-V8 is in the process of migrating to `DirectHandle` where appropriate to improve performance.
-*   Direct handles avoid the memory overhead of allocating slots in `HandleScope`.
-*   They avoid the indirection cost when accessing the object.
-*   **Default Status**: Handles are now by default direct handles if pointer compression is enabled (which it is by default on 64-bit platforms), and V8 is moving towards making them the only kind of handle, except where indirect handles are explicitly required.
-*   **Rule**: Use `DirectHandle` for local variables on the stack. Code should be written to use `DirectHandle` where possible, as it will fallback to `Handle` if direct handles are not enabled.
+---
+
+## 4. GC Safety Scopes and Static Analysis (`src/common/assert-scope.h`)
+
+Whenever C++ code holds raw `Tagged<T>` pointers or iterates internal data structures that would be invalidated by a garbage collection, V8 uses RAII assertion scopes (`src/common/assert-scope.h`) and the **`gcmole`** Clang plugin (`tools/gcmole/gcmole.cc`) to guarantee no allocation or GC can occur.
+
+### Runtime & Static Assertion Scopes (`src/common/assert-scope.h`)
+* **`DisallowGarbageCollection`** (and class member macro **`DISALLOW_GARBAGE_COLLECTION(no_gc_)`**):
+  * Combines `DisallowHeapAllocation` and `DisallowSafepoints` in debug builds (`PerThreadAssertScopeDebugOnly<SAFEPOINTS_ASSERT, HEAP_ALLOCATION_ASSERT, false>`).
+  * Any attempt to allocate on the V8 heap or enter a safepoint while `DisallowGarbageCollection` is active triggers an immediate `DCHECK` crash.
+  * Recognized statically by **`gcmole`** as a GC guard scope (`IsGCGuard`).
+  * Functions that require callers to prove GC cannot happen accept `const DisallowGarbageCollection& no_gc` by reference (e.g., `HeapObject::GetWriteBarrierMode(const DisallowGarbageCollection&)` or `AllocationWitness`).
+* **`DisallowGarbageCollectionInRelease`**: Enforces the same assertion even in release builds (`PerThreadAssertScope<..., false>`).
+* **`AllowGarbageCollection`**: Temporarily overrides an enclosing `DisallowGarbageCollection` scope inside debug/test code where an allocation is intentionally safe.
+* **`DisallowHandleAllocation`**: Forbids creating new `IndirectHandle`s on the current thread.
+* **`DisallowHandleDereference`**: Forbids dereferencing handles (used on background compiler threads when reading heap state directly is unsafe without `HeapBroker`).
+* **`DisallowHeapAccess`**: Combines `DisallowGarbageCollection`, `DisallowHandleAllocation`, and `DisallowHandleDereference` to completely isolate a background thread from the V8 heap.
+
+### `HeapObject` Methods and `gcmole` (`NEVER_EVER_ALLOCATE_IN_OBJECT_METHOD`)
+Inside any non-static member method of a `HeapObject` subclass (`V8_OBJECT class Foo : public HeapObject`), the C++ `this` pointer is a **raw, unhandlified address** pointing directly into the V8 heap.
+* **Rule**: **Never allocate or call any function that may trigger GC inside a non-static `HeapObject` member method** (historically enforced by the `NEVER_EVER_ALLOCATE_IN_OBJECT_METHOD` macro in `OBJECT_CONSTRUCTORS`, and today enforced across all `V8_OBJECT` classes by `tools/gcmole`). If a GC were triggered inside an object method, `this` could be evacuated to a new page, leaving the C++ `this` pointer dangling into swept/reused memory.
+* **Pattern**: Any operation on `Foo` that might allocate on the heap **must** be declared as a `static` method accepting `Isolate*` and `DirectHandle<Foo>` (or `Handle<Foo>`) instead of using `this`:
+  ```cpp
+  // BAD: `this` is a raw HeapObject* that becomes invalid if AllocateFixedArray triggers GC!
+  void MyObject::GrowBackingStore(Isolate* isolate, int new_cap) { ... }
+
+  // GOOD: Static method taking DirectHandle<MyObject> so `self` is updated/pinned across GC.
+  static void MyObject::GrowBackingStore(Isolate* isolate,
+                                         DirectHandle<MyObject> self,
+                                         int new_cap);
+  ```
+* **`DisableGCMole` (`src/common/assert-scope.h`)**: Suppresses `gcmole`'s dead-variable analysis in rare false-positive cases where C++ control flow guarantees two branches cannot both allocate and use a raw `Tagged<T>`.

@@ -31,9 +31,9 @@ def resolve_current_isolate(resolver):
 def resolve_heap_hints(resolver):
   """Resolve V8 isolate symbols and offsets through `resolver` into HeapHints.
 
-  Only uses debug info, which the debugger resolves cheaply, since this runs
-  on every inspection. The hints only improve inspection and are not
-  required for it, so resolution failures degrade to empty hints.
+  The isolate is found through the symbol tables, so this works without debug
+  info. The hints only improve inspection and are not required for it, so
+  resolution failures fall back to empty hints.
   """
   try:
     return _resolve_heap_hints(resolver)
@@ -45,10 +45,10 @@ def resolve_heap_hints(resolver):
 
 def _resolve_heap_hints(resolver):
   hints = HeapHints()
-  sym_addr = resolver.debug_symbol_address(_ISOLATE_SYMBOL)
-  isolate_addr = resolver.read_pointer(sym_addr) if sym_addr else None
+  isolate_addr = resolve_current_isolate(resolver)
   if not isolate_addr:
     return hints
+  hints.isolate = isolate_addr
 
   # Read metadata_pointer_table_ from the IsolateGroup of the current Isolate.
   group_offset = resolver.field_offset("v8::internal::Isolate",
@@ -64,9 +64,6 @@ def _resolve_heap_hints(resolver):
   heap_isolate_offset = resolver.field_offset("v8::internal::Heap", "isolate_")
   if heap_isolate_offset is not None:
     hints.isolate_heap_member_offset = int(heap_isolate_offset)
-
-  # TODO(joyee): fill the *_space_first_page hints from the resolved isolate so
-  # FindKnownObject()/FindKnownMapInstanceTypes() return better results.
 
   # any_heap_pointer is filled in by `_run_inspect` from the CLI address.
   return hints

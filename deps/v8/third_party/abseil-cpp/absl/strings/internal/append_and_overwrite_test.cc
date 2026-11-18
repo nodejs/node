@@ -49,7 +49,7 @@ TEST_P(StringAppendAndOverwriteTest, StringAppendAndOverwrite) {
                   'b');
 
   EXPECT_EQ(s, expected);
-  EXPECT_EQ(s.c_str()[s.size()], '\0');
+  EXPECT_EQ(s[s.size()], '\0');
 }
 
 // clang-format off

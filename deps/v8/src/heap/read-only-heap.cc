@@ -5,8 +5,8 @@
 #include "src/heap/read-only-heap.h"
 
 #include <cstddef>
-#include <cstring>
 
+#include "src/base/memcopy.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/base-page.h"
@@ -53,6 +53,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
       CreateInitialHeapForBootstrapping(isolate, artifacts);
       artifacts->read_only_heap()->DeserializeIntoIsolate(
           isolate, read_only_snapshot_data, can_rehash);
+      artifacts->read_only_heap()->DecommitGuardRegions(isolate);
       artifacts->set_initial_next_unique_sfi_id(isolate->next_unique_sfi_id());
       read_only_heap_created = true;
     } else {
@@ -65,7 +66,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
       isolate->trusted_pointer_table().SetUpFromReadOnlyArtifacts(
           isolate->heap()->read_only_trusted_pointer_space(), artifacts);
 #endif  // V8_ENABLE_SANDBOX
-      artifacts->read_only_heap()->InitializeIsolateRoots(isolate);
+      artifacts->read_only_heap()->InitializeIsolateRootsAndBuiltins(isolate);
     }
     artifacts->VerifyChecksum(read_only_snapshot_data, read_only_heap_created);
   } else {
@@ -101,6 +102,34 @@ void ReadOnlyHeap::DeserializeIntoIsolate(Isolate* isolate,
     // contexts, and finally reserialize.
   } else {
     InitFromIsolate(isolate);
+  }
+}
+
+void ReadOnlyHeap::DecommitGuardRegions(Isolate* isolate) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+#if V8_STATIC_ROOTS_BOOL
+  // Protect wasm null.
+  if (!isolate->page_allocator()->DecommitPages(
+          reinterpret_cast<void*>(isolate->factory()->wasm_null()->address()),
+          WasmNull::kSize)) {
+    V8::FatalProcessOutOfMemory(isolate, "decommitting WasmNull payload");
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  if (v8_flags.unmap_holes) {
+// Protect the payload of each hole.
+#define UNMAP_HOLE(CamelName, snake_name, _)                            \
+  if (!isolate->page_allocator()->DecommitPages(                        \
+          reinterpret_cast<void*>(                                      \
+              &isolate->factory()->snake_name()->payload_),             \
+          Hole::kPayloadSize)) {                                        \
+    V8::FatalProcessOutOfMemory(isolate,                                \
+                                "decommitting " #CamelName " payload"); \
+  }
+
+    HOLE_LIST(UNMAP_HOLE)
+#undef UNMAP_HOLE
   }
 }
 
@@ -145,22 +174,34 @@ void ReadOnlyHeap::CreateInitialHeapForBootstrapping(
   isolate->SetUpFromReadOnlyArtifacts(artifacts);
 }
 
-void ReadOnlyHeap::InitializeIsolateRoots(Isolate* isolate) {
+void ReadOnlyHeap::InitializeIsolateRootsAndBuiltins(Isolate* isolate) {
   void* const isolate_ro_roots =
       isolate->roots_table().read_only_roots_begin().location();
-  std::memcpy(isolate_ro_roots, read_only_roots_,
-              kEntriesCount * sizeof(Address));
+  base::MemCopy(isolate_ro_roots, read_only_roots_,
+                kEntriesCount * sizeof(Address));
+  if (Builtins::kCodeObjectsAreInROSpace) {
+    base::MemCopy(isolate->builtin_table(), read_only_builtins_,
+                  Builtins::kBuiltinCount * sizeof(Address));
+    isolate->builtins()->MarkInitialized();
+  }
 }
 
 void ReadOnlyHeap::InitializeFromIsolateRoots(Isolate* isolate) {
   void* const isolate_ro_roots =
       isolate->roots_table().read_only_roots_begin().location();
-  std::memcpy(read_only_roots_, isolate_ro_roots,
-              kEntriesCount * sizeof(Address));
+  base::MemCopy(read_only_roots_, isolate_ro_roots,
+                kEntriesCount * sizeof(Address));
 }
 
 void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
   DCHECK(roots_init_complete_);
+  if (Builtins::kCodeObjectsAreInROSpace) {
+    // Builtins are copied here rather than in InitializeFromIsolateRoots
+    // because in mksnapshot they are compiled and promoted to RO space after
+    // OnCreateRootsComplete.
+    base::MemCopy(read_only_builtins_, isolate->builtin_table(),
+                  Builtins::kBuiltinCount * sizeof(Address));
+  }
   read_only_space_->ShrinkPages();
 
 #if V8_ENABLE_WEBASSEMBLY && V8_STATIC_ROOTS_BOOL

@@ -1,0 +1,4 @@
+Test that tiering up and tiering down works even if functions cannot be compiled with Liftoff.
+Test sync compilation
+Test async compilation
+Finished

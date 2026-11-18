@@ -138,7 +138,7 @@ WritableJumpTablePair::WritableJumpTablePair(Address jump_table_address,
 #ifdef DEBUG
   // Reset the write scope for debugging. We'll create fine-grained scopes in
   // all Write functions of this class instead.
-  write_scope_.SetExecutable();
+  RwxMemoryWriteScope::SetExecutable();
 #endif
 }
 

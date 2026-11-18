@@ -320,20 +320,20 @@ inline bool MaglevAssembler::CanStoreTaggedConstant(ValueNode* value) {
   if (!kSupportsStoreTaggedConstant) return false;
   switch (value->opcode()) {
     case Opcode::kSmiConstant:
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64
       return value->Cast<SmiConstant>()->value() == Smi::zero();
 #else
     case Opcode::kHeapConstant:
       return true;
     case Opcode::kRootConstant:
       return CanBeImmediate(value->Cast<RootConstant>()->index());
-#endif  // V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64
     default:
       return false;
   }
 }
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_LOONG64
 inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
     Register object, int offset, ValueNode* constant) {
   // See {kSupportsStoreTaggedConstant}.
@@ -343,7 +343,8 @@ inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
     Register object, int offset, Handle<HeapObject> constant) {
   UNREACHABLE();
 }
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 &&
+        // !V8_TARGET_ARCH_LOONG64
 
 #if !defined(V8_TARGET_ARCH_RISCV64) && !defined(V8_TARGET_ARCH_LOONG64)
 
@@ -904,7 +905,7 @@ inline void MaglevAssembler::SmiTagInt32AndJumpIfSuccess(
     JumpIf(cond, success, distance);
   } else {
     SmiTag(dst, src);
-    jmp(success);
+    Jump(success);
   }
 }
 
@@ -1115,6 +1116,9 @@ inline void MaglevAssembler::DefineLazyDeoptPoint(LazyDeoptInfo* info) {
 
 inline void MaglevAssembler::DefineExceptionHandlerPoint(NodeBase* node) {
   ExceptionHandlerInfo* info = node->exception_handler_info();
+#ifdef DEBUG
+  info->mark_codegen_registered();
+#endif
   if (!info->HasExceptionHandler()) return;
   info->set_pc_offset(pc_offset_for_safepoint());
   code_gen_state()->PushHandlerInfo(node);

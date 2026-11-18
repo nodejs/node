@@ -15,7 +15,6 @@
 #include <string>
 #include <vector>
 
-#include "src/api/api.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/intl-objects.h"
@@ -287,8 +286,14 @@ bool JSLocale::StartsWithUnicodeLanguageId(std::string_view value) {
 }
 
 namespace {
-// Return false if variants contain duplicate elements or invalid delimiters.
+// Return false if variants contain duplicate elements, invalid delimiters, or
+// exceed ICU's maximum variants length (MAX_VARIANTS_LENGTH = 179 in uloc.cpp).
+// TODO(olivf, 557076207): Remove once mitigated upstream.
 bool IsValidVariants(std::string_view variants) {
+  constexpr size_t kMaxVariantsLength = 179;
+  if (variants.empty() || variants.length() > kMaxVariantsLength) {
+    return false;
+  }
   // The length of one unicode_variant_subtag is between 4-8. To have
   // duplicate or multiple subtags, the length of the variants need to be >=
   // 4+1+4 = 9.
@@ -315,19 +320,16 @@ bool IsValidVariants(std::string_view variants) {
 Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
                               DirectHandle<JSReceiver> options,
                               icu::LocaleBuilder* builder) {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   if (tag->length() == 0) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kLocaleNotEmpty));
   }
 
-  v8::String::Utf8Value bcp47_tag(v8_isolate, v8::Utils::ToLocal(tag));
-  builder->setLanguageTag(
-      {*bcp47_tag, static_cast<int32_t>(bcp47_tag.length())});
-  DCHECK_LT(0, bcp47_tag.length());
-  DCHECK_NOT_NULL(*bcp47_tag);
+  std::string bcp47_tag = tag->ToStdString();
+  builder->setLanguageTag(bcp47_tag);
+  DCHECK(!bcp47_tag.empty());
   // 2. If IsStructurallyValidLanguageTag(tag) is false, throw a RangeError
   // exception.
-  if (!JSLocale::StartsWithUnicodeLanguageId(*bcp47_tag)) {
+  if (!JSLocale::StartsWithUnicodeLanguageId(bcp47_tag.c_str())) {
     return Just(false);
   }
   UErrorCode status = U_ZERO_ERROR;
@@ -407,25 +409,27 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
     // a. If variants is the empty String, throw a RangeError exception.
     // b. Let lowerVariants be the ASCII-lowercase of variants.
     std::string variants_stdstr = variants_str->ToStdString();
+    // e. If variantSubtags contains any duplicate elements, throw a
+    // RangeError exception.
+    // Check IsValidVariants before builder->setVariant() so overlong variants
+    // do not produce a bogus icu::Locale inside LocaleBuilder::build().
+    if (!IsValidVariants(variants_stdstr)) {
+      return Just(false);
+    }
     // c. Let variantSubtags be StringSplitToList(lowerVariants, "-").
     // d. For each element variant of variantSubtags, do
     // i. If variant cannot be matched by the unicode_variant_subtag Unicode
     // locale nonterminal, throw a RangeError exception.
     builder->setVariant(variants_stdstr);
-    builder->build(status);
-    if (U_FAILURE(status) || variants_stdstr.empty()) {
-      return Just(false);
-    }
-    // e. If variantSubtags contains any duplicate elements, throw a
-    // RangeError exception.
-    if (!IsValidVariants(variants_stdstr)) {
+    icu::Locale built = builder->build(status);
+    if (U_FAILURE(status) || built.isBogus()) {
       return Just(false);
     }
   }
 
   // 9. Set tag to CanonicalizeLanguageTag(tag).
   // 10.  If language is not undefined,
-  // a. Assert: tag matches the unicode_locale_id production.
+  // a. Assert: tag matches the unicode_language_id production.
   // b. Set tag to tag with the substring corresponding to the
   //    unicode_language_subtag production replaced by the string language.
   // 11. If script is not undefined, then
@@ -471,7 +475,7 @@ MaybeDirectHandle<JSLocale> JSLocale::New(Isolate* isolate,
 
   icu_locale.canonicalize(status);
 
-  if (!maybe_insert.FromJust() || U_FAILURE(status)) {
+  if (!maybe_insert.FromJust() || U_FAILURE(status) || icu_locale.isBogus()) {
     THROW_NEW_ERROR(isolate,
                     NewRangeError(MessageTemplate::kLocaleBadParameters));
   }
@@ -948,7 +952,7 @@ MaybeDirectHandle<JSObject> JSLocale::GetWeekInfo(
     }
   }
   if (length != 2) {
-    wi = wi->RightTrimOrEmpty(isolate, wi, length);
+    wi = FixedArray::RightTrimOrEmpty(isolate, wi, length);
   }
   DirectHandle<JSArray> we = factory->NewJSArrayWithElements(wi);
 

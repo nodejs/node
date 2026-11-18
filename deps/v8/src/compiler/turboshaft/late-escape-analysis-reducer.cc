@@ -65,8 +65,8 @@ bool LateEscapeAnalysisAnalyzer::AllocationIsEscaping(OpIndex alloc) {
 // emitted.
 bool LateEscapeAnalysisAnalyzer::EscapesThroughUse(OpIndex alloc,
                                                    OpIndex using_op_idx) {
-  if (ShouldSkipOperation(graph_.Get(alloc))) {
-    // {using_op_idx} is an Allocate itself, which has been removed.
+  if (ShouldSkipOperation(graph_.Get(using_op_idx))) {
+    // {using_op_idx} has already been removed.
     return false;
   }
   const Operation& op = graph_.Get(using_op_idx);
@@ -88,6 +88,7 @@ void LateEscapeAnalysisAnalyzer::MarkToRemove(OpIndex alloc) {
 
   // The uses of {alloc} should also be skipped.
   for (OpIndex use : alloc_uses_.at(alloc)) {
+    if (ShouldSkipOperation(graph_.Get(use))) continue;
     const StoreOp& store = graph_.Get(use).Cast<StoreOp>();
     if (graph_.Get(store.value()).Is<AllocateOp>()) {
       // This store was storing the result of an allocation. Because we now

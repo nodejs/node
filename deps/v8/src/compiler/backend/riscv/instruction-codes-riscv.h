@@ -53,6 +53,7 @@ namespace compiler {
   V(RiscvAddOvf32)                                   \
   V(RiscvSubOvf32)                                   \
   V(RiscvAdd128)                                     \
+  V(RiscvAdd64_3)                                    \
   V(RiscvSub128)                                     \
   V(RiscvMulHigh64)                                  \
   V(RiscvMulHighU64)                                 \
@@ -94,7 +95,7 @@ namespace compiler {
   V(RiscvWord64AtomicExchangeUint64)                 \
   V(RiscvLoadDecodeSandboxedPointer)                 \
   V(RiscvStoreEncodeSandboxedPointer)                \
-  V(RiscvStoreIndirectPointer)                       \
+  V(RiscvStoreTrustedPointer)                        \
   V(RiscvAtomicLoadDecompressTaggedSigned)           \
   V(RiscvAtomicLoadDecompressTagged)                 \
   V(RiscvLoadDecompressTrapping)                     \

@@ -43,7 +43,7 @@ gm x64.release.check
 `gm` enables building the required binaries and running specific tests with a single command:
 
 ```bash
-gm x64.debug mjsunit/foo cctest/test-bar/*
+gm x64.debug mjsunit/foo unittests/Bar*
 ```
 
 ## Building V8: the raw, manual workflow { #manual }

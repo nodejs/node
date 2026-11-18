@@ -301,6 +301,7 @@ class V8_EXPORT_PRIVATE TracedHandles final {
 
   void SetIsMarking(bool);
   void SetIsSweepingOnMutatorThread(bool);
+  void SetIsProcessingWeakness(bool);
 
   // Updates the list of young nodes that is maintained separately.
   void UpdateListOfYoungNodes();
@@ -367,6 +368,7 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   Isolate* isolate_;
   bool is_marking_ = false;
   bool is_sweeping_on_mutator_thread_ = false;
+  bool is_processing_weakness_ = false;
   size_t used_nodes_ = 0;
   size_t block_size_bytes_ = 0;
   bool disable_block_handling_on_free_ = false;

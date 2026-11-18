@@ -234,12 +234,12 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Register result, Register char_code,
                                          Register scratch,
                                          CharCodeMaskMode mask_mode) {
-  AssertZeroExtended(char_code);
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
   if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
     and_(char_code, char_code, Operand(0xFFFF));
   }
+  AssertZeroExtended(char_code);
   cmp(char_code, Operand(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       kUnsignedGreaterThan,
@@ -261,7 +261,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         __ AllocateTwoByteString(register_snapshot, result, 1);
         __ strh(char_code, FieldMemOperand(
                                result, OFFSET_OF_DATA_START(SeqTwoByteString)));
-        __ b(*done);
+        __ Jump(*done);
       },
       register_snapshot, done, result, char_code, scratch);
   if (char_code_fits_one_byte != nullptr) {
@@ -308,7 +308,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
           __ SmiUntag(kReturnRegister0);
           __ Move(result, kReturnRegister0);
         }
-        __ b(*done);
+        __ Jump(*done);
       },
       mode, register_snapshot, done, result, string, index);
 
@@ -351,7 +351,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   // Is a thin string.
   {
     ldr(string, FieldMemOperand(string, offsetof(ThinString, actual_)));
-    b(&loop);
+    Jump(&loop);
   }
 
   bind(&sliced_string);
@@ -359,11 +359,25 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     TemporaryRegisterScope temps(this);
     Register offset = temps.AcquireScratch();
 
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+      Label unwrap_sliced;
+      tst(instance_type, Operand(kOneByteStringTag));
+      b(ne, &unwrap_sliced);
+      // Unwrapping a two-byte SlicedString loses its end bound; if {index} is
+      // the last code unit of the slice, fall back to the runtime before
+      // unwrapping.
+      ldr(instance_type, FieldMemOperand(string, offsetof(String, length_)));
+      add(offset, index, Operand(1));
+      cmp(offset, instance_type);
+      b(hs, deferred_runtime_call);
+      bind(&unwrap_sliced);
+    }
+
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
     add(index, index, offset);
-    b(&loop);
+    Jump(&loop);
   }
 
   bind(&cons_string);
@@ -375,7 +389,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     CompareRoot(second_string, RootIndex::kempty_string);
     b(ne, deferred_runtime_call);
     ldr(string, FieldMemOperand(string, offsetof(ConsString, first_)));
-    b(&loop);  // Try again with first string.
+    Jump(&loop);  // Try again with first string.
   }
 
   bind(&seq_string);
@@ -387,7 +401,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
     SeqOneByteStringCharCodeAt(result, string, index);
-    b(result_fits_one_byte);
+    Jump(result_fits_one_byte);
 
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.
@@ -401,10 +415,18 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     } else {
       DCHECK_EQ(mode,
                 BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+      DCHECK_NE(string, index);
+      // {result} is written before the trailing-surrogate lookahead, which
+      // still needs {string} and {index}. Preserve whichever one {result}
+      // aliases.
       Register string_backup = string;
+      Register index_backup = index;
       if (result == string) {
         string_backup = scratch2;
         Move(string_backup, string);
+      } else if (result == index) {
+        index_backup = scratch2;
+        Move(index_backup, index);
       }
       ldrh(result, MemOperand(string, scratch));
 
@@ -415,18 +437,18 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
       Register length = scratch;
       ldr(length, FieldMemOperand(string_backup, offsetof(String, length_)));
-      add(index, index, Operand(1));
-      cmp(index, length);
+      add(index_backup, index_backup, Operand(1));
+      cmp(index_backup, length);
       b(ge, *done);
 
       Register second_code_point = scratch;
-      lsl(index, index, Operand(1));
-      add(index, index,
+      lsl(index_backup, index_backup, Operand(1));
+      add(index_backup, index_backup,
           Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
-      ldrh(second_code_point, MemOperand(string_backup, index));
+      ldrh(second_code_point, MemOperand(string_backup, index_backup));
 
-      // {index} is not needed at this point.
-      Register scratch2 = index;
+      // {string_backup} and {index_backup} are dead here, so {scratch2} is
+      // free even if it held a backup.
       and_(scratch2, second_code_point, Operand(0xfc00));
       cmp(scratch2, Operand(0xdc00));
       b(ne, *done);

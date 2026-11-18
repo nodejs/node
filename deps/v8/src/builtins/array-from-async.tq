@@ -831,8 +831,8 @@ transitioning javascript builtin ArrayFromAsync(
     if (mapfn != Undefined) {
       // i. If IsCallable(mapfn) is false, throw a TypeError exception.
       if (!Is<Callable>(mapfn)) deferred {
-          ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfn);
-        }
+        ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfn);
+      }
     }
 
     try {
@@ -893,13 +893,11 @@ transitioning javascript builtin ArrayFromAsync(
 
       CreateArrayFromArrayLikeAsynchronously(arrayLikeResolveContext);
       return promise;
-    } label SyncIteratorNotCallable(_value: JSAny)
-    deferred {
+    } label SyncIteratorNotCallable(_value: JSAny) deferred {
       ThrowTypeError(
           MessageTemplate::kFirstArgumentIteratorSymbolNonCallable,
           'Array.fromAsync');
-    } label AsyncIteratorNotCallable(_value: JSAny)
-    deferred {
+    } label AsyncIteratorNotCallable(_value: JSAny) deferred {
       ThrowTypeError(
           MessageTemplate::kFirstArgumentAsyncIteratorSymbolNonCallable,
           'Array.fromAsync');

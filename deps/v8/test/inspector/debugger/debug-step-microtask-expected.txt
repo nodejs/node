@@ -1,0 +1,10 @@
+Tests stepping into microtasks.
+Paused on line: debugger;
+Paused on line: 
+Paused on line:   print(1);
+Paused on line: }
+Paused on line:   return 2;
+Paused on line:   return 2;
+Paused on line:   throw new Error();
+Paused on line:   print(3);
+Paused on line: }  // STOP

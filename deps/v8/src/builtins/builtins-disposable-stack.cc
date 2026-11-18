@@ -114,8 +114,7 @@ BUILTIN(DisposableStackPrototypeDispose) {
   DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSDisposableStackBase::DisposeResources(
-          isolate, disposable_stack, DisposableStackResourcesType::kAllSync));
+      JSDisposableStackBase::DisposeResources(isolate, disposable_stack));
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

@@ -58,6 +58,7 @@ const fast_c_api = new d8.test.FastCAPI();
       const ret = fast_c_api.call_to_number(val);
       assertEquals(undefined, ret);
     } catch (e) {
+      assertEquals(-42, e);
       exceptionHappened = true;
     }
     // Do a second fast API call. If deoptimization was triggered in the call to
@@ -111,6 +112,7 @@ const fast_c_api = new d8.test.FastCAPI();
       const ret = fast_c_api.call_to_number(val);
       assertEquals(undefined, ret);
     } catch (e) {
+      assertEquals(-42, e);
       exceptionHappened = true;
     }
     // Do a second fast API call. If deoptimization was triggered in the call to
@@ -192,6 +194,7 @@ const fast_c_api = new d8.test.FastCAPI();
   try {
     func();
   } catch(e) {
+    assertEquals(-42, e);
     exceptionHappened = true;
   }
   // `func` starts execution as optimized and therefore calls `call_to_number`

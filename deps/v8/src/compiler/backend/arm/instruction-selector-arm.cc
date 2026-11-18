@@ -685,7 +685,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kProtectedPointer:   // Fall through.
-    case MachineRepresentation::kIndirectPointer:    // Fall through.
+    case MachineRepresentation::kTrustedPointer:     // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
@@ -729,7 +729,7 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kProtectedPointer:   // Fall through.
-    case MachineRepresentation::kIndirectPointer:    // Fall through.
+    case MachineRepresentation::kTrustedPointer:     // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
@@ -777,7 +777,9 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedPointer(rep));
+    DCHECK(CanBeTaggedPointer(rep) ||
+           (write_barrier_kind == kSkippedWriteBarrier &&
+            rep == MachineRepresentation::kTaggedSigned));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
     size_t input_count = 0;
@@ -801,6 +803,8 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
         code = kArchAtomicStoreSkippedWriteBarrier;
         code |= AtomicMemoryOrderField::encode(*atomic_order);
       }
+      code |=
+          CheckSmiField::encode(rep == MachineRepresentation::kTaggedSigned);
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
@@ -816,7 +820,9 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
 
     InstructionOperand temps[1];
     size_t temp_count = 0;
-    if (write_barrier_kind == kSkippedWriteBarrier) {
+    // The inline Smi check doesn't need a scratch register.
+    if (write_barrier_kind == kSkippedWriteBarrier &&
+        !CheckSmiField::decode(code)) {
       temps[temp_count++] = g.TempRegister();
     }
 

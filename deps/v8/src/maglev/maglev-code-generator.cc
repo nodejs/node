@@ -148,6 +148,13 @@ class ParallelMoveResolver {
       StartEmitMoveChain(moves_from_stack_slot_.begin()->first);
     }
     for (auto [stack_slot, node] : materializing_stack_slot_moves_) {
+      if constexpr (std::is_same_v<RegisterT, Register> &&
+                    MaglevAssembler::HasZeroRegister()) {
+        if (node->MaterializesToZero()) {
+          __ Move(StackSlot{stack_slot}, MaglevAssembler::ZeroRegister());
+          continue;
+        }
+      }
       node->LoadToRegister(masm_, scratch_);
       __ Move(StackSlot{stack_slot}, scratch_);
     }
@@ -1196,29 +1203,6 @@ class MaglevCodeGeneratingNodeProcessor {
   bool collect_source_positions_;
 };
 
-class SafepointingNodeProcessor {
- public:
-  explicit SafepointingNodeProcessor(LocalIsolate* local_isolate)
-      : local_isolate_(local_isolate) {}
-
-  void PreProcessGraph(Graph* graph) {}
-  void PostProcessGraph(Graph* graph) {}
-  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
-    return BlockProcessResult::kContinue;
-  }
-  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
-    return BlockProcessResult::kContinue;
-  }
-  void PostPhiProcessing() {}
-  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
-    local_isolate_->heap()->Safepoint();
-    return ProcessResult::kContinue;
-  }
-
- private:
-  LocalIsolate* local_isolate_;
-};
-
 namespace {
 DeoptimizationFrameTranslation::FrameCount GetFrameCount(
     const DeoptFrame* deopt_frame) {
@@ -1258,10 +1242,7 @@ class MaglevFrameTranslationBuilder {
     BuildBeginDeopt(deopt_info);
 
     const InputLocation* current_input_location = deopt_info->input_locations();
-    const VirtualObjectList& virtual_objects =
-        deopt_info->top_frame().GetVirtualObjects();
-    RecursiveBuildDeoptFrame(deopt_info->top_frame(), current_input_location,
-                             virtual_objects);
+    RecursiveBuildDeoptFrame(deopt_info->top_frame(), current_input_location);
     CHECK_EQ(current_input_location, deopt_info->input_locations_end());
   }
 
@@ -1269,31 +1250,29 @@ class MaglevFrameTranslationBuilder {
     BuildBeginDeopt(deopt_info);
 
     const InputLocation* current_input_location = deopt_info->input_locations();
-    const VirtualObjectList& virtual_objects =
-        deopt_info->top_frame().GetVirtualObjects();
 
     if (deopt_info->top_frame().parent()) {
       // Deopt input locations are in the order of deopt frame emission, so
       // update the pointer after emitting the parent frame.
       RecursiveBuildDeoptFrame(*deopt_info->top_frame().parent(),
-                               current_input_location, virtual_objects);
+                               current_input_location);
     }
 
     const DeoptFrame& top_frame = deopt_info->top_frame();
     switch (top_frame.type()) {
       case DeoptFrame::FrameType::kInterpretedFrame:
         return BuildSingleDeoptFrame(
-            top_frame.as_interpreted(), current_input_location, virtual_objects,
+            top_frame.as_interpreted(), current_input_location,
             deopt_info->result_location(), deopt_info->result_size());
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
         // The inlined arguments frame can never be the top frame.
         UNREACHABLE();
       case DeoptFrame::FrameType::kConstructInvokeStubFrame:
         return BuildSingleDeoptFrame(top_frame.as_construct_stub(),
-                                     current_input_location, virtual_objects);
+                                     current_input_location);
       case DeoptFrame::FrameType::kBuiltinContinuationFrame:
         return BuildSingleDeoptFrame(top_frame.as_builtin_continuation(),
-                                     current_input_location, virtual_objects);
+                                     current_input_location);
     }
     CHECK_EQ(current_input_location, deopt_info->input_locations_end());
   }
@@ -1323,34 +1302,31 @@ class MaglevFrameTranslationBuilder {
   }
 
   void RecursiveBuildDeoptFrame(const DeoptFrame& frame,
-                                const InputLocation*& current_input_location,
-                                const VirtualObjectList& virtual_objects) {
+                                const InputLocation*& current_input_location) {
     if (frame.parent()) {
       // Deopt input locations are in the order of deopt frame emission, so
       // update the pointer after emitting the parent frame.
-      RecursiveBuildDeoptFrame(*frame.parent(), current_input_location,
-                               virtual_objects);
+      RecursiveBuildDeoptFrame(*frame.parent(), current_input_location);
     }
 
     switch (frame.type()) {
       case DeoptFrame::FrameType::kInterpretedFrame:
         return BuildSingleDeoptFrame(frame.as_interpreted(),
-                                     current_input_location, virtual_objects);
+                                     current_input_location);
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
         return BuildSingleDeoptFrame(frame.as_inlined_arguments(),
-                                     current_input_location, virtual_objects);
+                                     current_input_location);
       case DeoptFrame::FrameType::kConstructInvokeStubFrame:
         return BuildSingleDeoptFrame(frame.as_construct_stub(),
-                                     current_input_location, virtual_objects);
+                                     current_input_location);
       case DeoptFrame::FrameType::kBuiltinContinuationFrame:
         return BuildSingleDeoptFrame(frame.as_builtin_continuation(),
-                                     current_input_location, virtual_objects);
+                                     current_input_location);
     }
   }
 
   void BuildSingleDeoptFrame(const InterpretedDeoptFrame& frame,
                              const InputLocation*& current_input_location,
-                             const VirtualObjectList& virtual_objects,
                              interpreter::Register result_location,
                              int result_size) {
     int return_offset = frame.ComputeReturnOffset(result_location, result_size);
@@ -1361,12 +1337,11 @@ class MaglevFrameTranslationBuilder {
         frame.unit().register_count(), return_offset, result_size);
 
     BuildDeoptFrameValues(frame.unit(), frame.frame_state(), frame.closure(),
-                          current_input_location, virtual_objects);
+                          current_input_location);
   }
 
   void BuildSingleDeoptFrame(const InterpretedDeoptFrame& frame,
-                             const InputLocation*& current_input_location,
-                             const VirtualObjectList& virtual_objects) {
+                             const InputLocation*& current_input_location) {
     // Returns offset/count is used for updating an accumulator or register
     // after a lazy deopt -- this function is overloaded to allow them to be
     // passed in.
@@ -1379,63 +1354,53 @@ class MaglevFrameTranslationBuilder {
         frame.unit().register_count(), return_offset, return_count);
 
     BuildDeoptFrameValues(frame.unit(), frame.frame_state(), frame.closure(),
-                          current_input_location, virtual_objects);
+                          current_input_location);
   }
 
   void BuildSingleDeoptFrame(const InlinedArgumentsDeoptFrame& frame,
-                             const InputLocation*& current_input_location,
-                             const VirtualObjectList& virtual_objects) {
+                             const InputLocation*& current_input_location) {
     translation_array_builder_->BeginInlinedExtraArguments(
         GetDeoptLiteral(frame.GetSharedFunctionInfo()),
         static_cast<uint32_t>(frame.arguments().size()),
         frame.GetBytecodeArray().parameter_count());
 
     // Closure
-    BuildDeoptFrameSingleValue(frame.closure(), current_input_location,
-                               virtual_objects);
+    BuildDeoptFrameSingleValue(frame.closure(), current_input_location);
 
     // Arguments
     // TODO(victorgomes): Technically we don't need all arguments, only the
     // extra ones. But doing this at the moment, since it matches the
     // TurboFan behaviour.
     for (ValueNode* value : frame.arguments()) {
-      BuildDeoptFrameSingleValue(value, current_input_location,
-                                 virtual_objects);
+      BuildDeoptFrameSingleValue(value, current_input_location);
     }
   }
 
   void BuildSingleDeoptFrame(const ConstructInvokeStubDeoptFrame& frame,
-                             const InputLocation*& current_input_location,
-                             const VirtualObjectList& virtual_objects) {
+                             const InputLocation*& current_input_location) {
     translation_array_builder_->BeginConstructInvokeStubFrame(
         GetDeoptLiteral(frame.GetSharedFunctionInfo()));
 
     // Implicit receiver
-    BuildDeoptFrameSingleValue(frame.receiver(), current_input_location,
-                               virtual_objects);
+    BuildDeoptFrameSingleValue(frame.receiver(), current_input_location);
 
     // Context
-    BuildDeoptFrameSingleValue(frame.context(), current_input_location,
-                               virtual_objects);
+    BuildDeoptFrameSingleValue(frame.context(), current_input_location);
   }
 
   void BuildSingleDeoptFrame(const BuiltinContinuationDeoptFrame& frame,
-                             const InputLocation*& current_input_location,
-                             const VirtualObjectList& virtual_objects) {
+                             const InputLocation*& current_input_location) {
     BytecodeOffset bailout_id =
         Builtins::GetContinuationBytecodeOffset(frame.builtin_id());
     int literal_id = GetDeoptLiteral(frame.GetSharedFunctionInfo());
 
-    constexpr int kFixedJSFrameRegisterParameters =
-        JSTrampolineDescriptor::GetRegisterParameterCount();
 
     if (frame.is_javascript()) {
       translation_array_builder_->BeginJavaScriptBuiltinContinuationFrame(
-          bailout_id, literal_id,
-          frame.parameters().length() + kFixedJSFrameRegisterParameters);
+          bailout_id, literal_id, frame.translation_height());
     } else {
       translation_array_builder_->BeginBuiltinContinuationFrame(
-          bailout_id, literal_id, frame.parameters().length());
+          bailout_id, literal_id, frame.translation_height());
     }
 
     // Closure
@@ -1454,11 +1419,13 @@ class MaglevFrameTranslationBuilder {
     // parameter.
     static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
     for (ValueNode* value : frame.parameters()) {
-      BuildDeoptFrameSingleValue(value, current_input_location,
-                                 virtual_objects);
+      BuildDeoptFrameSingleValue(value, current_input_location);
     }
 
     if (frame.is_javascript()) {
+      constexpr int kFixedJSFrameRegisterParameters =
+          JSTrampolineDescriptor::GetRegisterParameterCount();
+
       // Fixed register parameters for JS frames.
       DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(frame.builtin_id())
                     .GetRegisterParameterCount(),
@@ -1485,7 +1452,7 @@ class MaglevFrameTranslationBuilder {
 
     // Context
     ValueNode* value = frame.context();
-    BuildDeoptFrameSingleValue(value, current_input_location, virtual_objects);
+    BuildDeoptFrameSingleValue(value, current_input_location);
   }
 
   void BuildDeoptStoreRegister(const compiler::AllocatedOperand& operand,
@@ -1564,31 +1531,22 @@ class MaglevFrameTranslationBuilder {
     return kNotDuplicated;
   }
 
-  void BuildNestedValue(const VirtualObject* object, const ValueNode* value,
-                        const InputLocation*& input_location,
-                        const VirtualObjectList& virtual_objects) {
+  void BuildNestedValue(const ValueNode* value,
+                        const InputLocation*& input_location) {
     const Opcode opcode = value->opcode();
     // Identity nodes must have been unwrapped earlier using
     // VirtualObject::UnwrapIdentities.
     DCHECK_NE(opcode, Opcode::kIdentity);
     if (IsConstantNode(opcode)) {
       if (opcode == Opcode::kFloat64Constant) {
-        DCHECK(object->has_static_map());
-        if (object->map()->IsFixedDoubleArrayMap()) {
-          Float64 value_as_float = value->Cast<Float64Constant>()->value();
-          if (value_as_float.is_hole_nan()) {
-            translation_array_builder_->StoreLiteral(GetDeoptLiteral(
-                ReadOnlyRoots{local_isolate_}.the_hole_value()));
-            return;
-          }
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-          if (value_as_float.is_undefined_nan()) {
-            translation_array_builder_->StoreLiteral(GetDeoptLiteral(
-                ReadOnlyRoots{local_isolate_}.undefined_value()));
-            return;
-          }
-#endif  //  V8_ENABLE_UNDEFINED_DOUBLE
-        }
+        translation_array_builder_->StoreDoubleLiteral(
+            value->Cast<Float64Constant>()->value());
+        return;
+      }
+      if (opcode == Opcode::kHoleyFloat64Constant) {
+        translation_array_builder_->StoreHoleyDoubleLiteral(
+            value->Cast<HoleyFloat64Constant>()->value());
+        return;
       }
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(*value->Reify(local_isolate_)));
@@ -1613,14 +1571,13 @@ class MaglevFrameTranslationBuilder {
       case Opcode::kVirtualObject:
         UNREACHABLE();
       default:
-        BuildDeoptFrameSingleValue(value, input_location, virtual_objects);
+        BuildDeoptFrameSingleValue(value, input_location);
         break;
     }
   }
 
   void BuildVirtualObject(const VirtualObject* object,
-                          const InputLocation*& input_location,
-                          const VirtualObjectList& virtual_objects) {
+                          const InputLocation*& input_location) {
     vobj::ObjectType object_type = object->object_type();
     DCHECK_NOT_NULL(object->allocation());
     // HeapNumbers may be mutable object fields; each materialization must
@@ -1635,7 +1592,7 @@ class MaglevFrameTranslationBuilder {
     if (dup_id != kNotDuplicated) {
       translation_array_builder_->DuplicateObject(dup_id);
       object->ForEachNestedRuntimeInput(
-          virtual_objects, [&](ValueNode*) { input_location++; },
+          [&](ValueNode*) { input_location++; },
           VirtualObject::ForEachSlotIterationMode::kForDeopt);
       return;
     }
@@ -1646,15 +1603,17 @@ class MaglevFrameTranslationBuilder {
       int fields = object->slot_count();
 #if TAGGED_SIZE_8_BYTES
       // To keep the deoptimization data in sync with TF (which represents
-      // length and padding in a single Uint64), we skip the padding.
-      if (object_type == vobj::ObjectType::kFixedArray) {
+      // length/dispatch_handle and padding in a single 8-byte slot), we skip
+      // the padding.
+      if (object_type == vobj::ObjectType::kFixedArray ||
+          object_type == vobj::ObjectType::kJSFunction) {
         fields--;
       }
 #endif  // TAGGED_SIZE_8_BYTES
       translation_array_builder_->BeginCapturedObject(fields);
     }
     auto callback = [&](ValueNode* node, const vobj::Field& desc) -> bool {
-      BuildNestedValue(object, node, input_location, virtual_objects);
+      BuildNestedValue(node, input_location);
       return true;
     };
     object->ForEachSlot(callback,
@@ -1662,21 +1621,26 @@ class MaglevFrameTranslationBuilder {
   }
 
   void BuildDeoptFrameSingleValue(const ValueNode* value,
-                                  const InputLocation*& input_location,
-                                  const VirtualObjectList& virtual_objects) {
+                                  const InputLocation*& input_location) {
     value = value->UnwrapIdentities();
     DCHECK(!value->Is<VirtualObject>());
     if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
-      VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
-      if (vobject && alloc->HasBeenElided()) {
-        DCHECK(alloc->HasBeenAnalysed());
-        BuildVirtualObject(vobject, input_location, virtual_objects);
+      if (alloc->HasBeenElided()) {
+        BuildVirtualObject(alloc->object(), input_location);
         return;
       }
     }
     if (input_location->operand().IsConstant()) {
-      translation_array_builder_->StoreLiteral(
-          GetDeoptLiteral(*value->Reify(local_isolate_)));
+      if (value->opcode() == Opcode::kFloat64Constant) {
+        translation_array_builder_->StoreDoubleLiteral(
+            value->Cast<Float64Constant>()->value());
+      } else if (value->opcode() == Opcode::kHoleyFloat64Constant) {
+        translation_array_builder_->StoreHoleyDoubleLiteral(
+            value->Cast<HoleyFloat64Constant>()->value());
+      } else {
+        translation_array_builder_->StoreLiteral(
+            GetDeoptLiteral(*value->Reify(local_isolate_)));
+      }
     } else {
       const compiler::AllocatedOperand& operand =
           compiler::AllocatedOperand::cast(input_location->operand());
@@ -1693,15 +1657,14 @@ class MaglevFrameTranslationBuilder {
   void BuildDeoptFrameValues(
       const MaglevCompilationUnit& compilation_unit,
       const CompactInterpreterFrameState* checkpoint_state,
-      const ValueNode* closure, const InputLocation*& input_location,
-      const VirtualObjectList& virtual_objects) {
+      const ValueNode* closure, const InputLocation*& input_location) {
     // TODO(leszeks): The input locations array happens to be in the same
     // order as closure+parameters+context+locals+accumulator are accessed
     // here. We should make this clearer and guard against this invariant
     // failing.
 
     // Closure
-    BuildDeoptFrameSingleValue(closure, input_location, virtual_objects);
+    BuildDeoptFrameSingleValue(closure, input_location);
 
     // Parameters
     {
@@ -1709,14 +1672,14 @@ class MaglevFrameTranslationBuilder {
       checkpoint_state->ForEachParameter(
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_EQ(reg.ToParameterIndex(), i);
-            BuildDeoptFrameSingleValue(value, input_location, virtual_objects);
+            BuildDeoptFrameSingleValue(value, input_location);
             i++;
           });
     }
 
     // Context
     ValueNode* context_value = checkpoint_state->context(compilation_unit);
-    BuildDeoptFrameSingleValue(context_value, input_location, virtual_objects);
+    BuildDeoptFrameSingleValue(context_value, input_location);
 
     // Locals
     {
@@ -1729,7 +1692,7 @@ class MaglevFrameTranslationBuilder {
               i++;
             }
             DCHECK_EQ(i, reg.index());
-            BuildDeoptFrameSingleValue(value, input_location, virtual_objects);
+            BuildDeoptFrameSingleValue(value, input_location);
             i++;
           });
       while (i < compilation_unit.register_count()) {
@@ -1742,7 +1705,7 @@ class MaglevFrameTranslationBuilder {
     {
       if (checkpoint_state->liveness()->AccumulatorIsLive()) {
         ValueNode* value = checkpoint_state->accumulator(compilation_unit);
-        BuildDeoptFrameSingleValue(value, input_location, virtual_objects);
+        BuildDeoptFrameSingleValue(value, input_location);
       } else {
         translation_array_builder_->StoreOptimizedOut();
       }
@@ -1803,6 +1766,27 @@ class MaglevFrameTranslationBuilder {
   std::vector<intptr_t> object_ids_;
 };
 
+#ifdef DEBUG
+void VerifyExceptionHandlersRegistered(const Graph* graph) {
+  auto check_node = [](const NodeBase* node) {
+    if (!node->properties().can_throw()) return;
+    const ExceptionHandlerInfo* info = node->exception_handler_info();
+    DCHECK(info->codegen_registered());
+    DCHECK_IMPLIES(info->HasExceptionHandler(),
+                   info->pc_offset() ==
+                       node->lazy_deopt_info()->deopting_call_return_pc());
+  };
+  for (const BasicBlock* block : *graph) {
+    DCHECK(!block->is_dead());
+    for (const Node* node : block->nodes()) {
+      if (node == nullptr) continue;
+      check_node(node);
+    }
+    check_node(block->control_node());
+  }
+}
+#endif
+
 }  // namespace
 
 MaglevCodeGenerator::MaglevCodeGenerator(
@@ -1822,7 +1806,6 @@ MaglevCodeGenerator::MaglevCodeGenerator(
       deopt_literals_(isolate->heap()->heap()),
       protected_deopt_literals_vector_(compilation_info->zone()),
       deopt_literals_vector_(compilation_info->zone()),
-      retained_maps_(isolate->heap()),
       is_context_specialized_(
           compilation_info->specialize_to_function_context()),
       zone_(compilation_info->zone()) {
@@ -1844,7 +1827,8 @@ bool MaglevCodeGenerator::Assemble() {
         BuildCodeObject(local_isolate_));
     Handle<Code> code;
     if (code_.ToHandle(&code)) {
-      retained_maps_ = CollectRetainedMaps(code);
+      retained_maps_ = OptimizedCompilationJob::CollectRetainedMaps(
+          code, code_gen_state_.compilation_info()->DetachCanonicalHandles());
     }
   } else if (v8_flags.maglev_deopt_data_on_background) {
     // Only do this if not --maglev-build-code-on-background, since that will do
@@ -1867,19 +1851,8 @@ MaybeHandle<Code> MaglevCodeGenerator::Generate(Isolate* isolate) {
   return BuildCodeObject(isolate->main_thread_local_isolate());
 }
 
-GlobalHandleVector<Map> MaglevCodeGenerator::RetainedMaps(Isolate* isolate) {
-  DisallowGarbageCollection no_gc;
-  GlobalHandleVector<Map> maps(isolate->heap());
-  maps.Reserve(retained_maps_.size());
-  for (DirectHandle<Map> map : retained_maps_) maps.Push(*map);
-  return maps;
-}
-
 bool MaglevCodeGenerator::EmitCode() {
-  GraphProcessor<NodeMultiProcessor<SafepointingNodeProcessor,
-                                    MaglevCodeGeneratingNodeProcessor>>
-      processor(SafepointingNodeProcessor{local_isolate_},
-                MaglevCodeGeneratingNodeProcessor{masm(), zone_});
+  GraphProcessor<MaglevCodeGeneratingNodeProcessor> processor(masm(), zone_);
   RecordInlinedFunctions();
 
   if (graph_->is_osr()) {
@@ -1890,7 +1863,13 @@ bool MaglevCodeGenerator::EmitCode() {
 
   processor.ProcessGraph(graph_);
   EmitDeferredCode();
-  if (!EmitDeopts()) return false;
+#ifdef DEBUG
+  VerifyExceptionHandlersRegistered(graph_);
+#endif
+  bool deopts_emitted = EmitDeopts();
+  protected_deopt_literals_.Clear();
+  deopt_literals_.Clear();
+  if (!deopts_emitted) return false;
   EmitExceptionHandlerTrampolines();
   EmitRetainedObjects();
   __ FinishCode();
@@ -1925,6 +1904,8 @@ void MaglevCodeGenerator::EmitDeferredCode() {
       __ RecordComment("-- Deferred block");
       __ bind(&deferred_code->deferred_code_label);
       deferred_code->Generate(masm());
+      // Deferred code has to end in a jump, a deopt, a trap or an abort.
+      DCHECK(!masm()->is_reachable());
       __ Trap();
     }
   }
@@ -2124,25 +2105,6 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
                                 JitCodeEvent::JIT_CODE));
   }
   return maybe_code;
-}
-
-GlobalHandleVector<Map> MaglevCodeGenerator::CollectRetainedMaps(
-    DirectHandle<Code> code) {
-  DCHECK(code->is_optimized_code());
-
-  DisallowGarbageCollection no_gc;
-  GlobalHandleVector<Map> maps(local_isolate_->heap());
-  int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
-  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-    DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-    Tagged<HeapObject> target_object = it.rinfo()->target_object();
-    if (code->IsWeakObjectInOptimizedCode(target_object)) {
-      if (IsMap(target_object)) {
-        maps.Push(Cast<Map>(target_object));
-      }
-    }
-  }
-  return maps;
 }
 
 Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(

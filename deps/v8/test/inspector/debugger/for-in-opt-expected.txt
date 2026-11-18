@@ -1,0 +1,2 @@
+Tests for-in optimization and deoptimization.
+count: 1

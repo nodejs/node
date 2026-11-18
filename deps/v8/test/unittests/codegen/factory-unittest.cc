@@ -58,10 +58,10 @@ size_t NearHeapLimitCallback(void* raw_bool, size_t current_heap_limit,
 class FactoryCodeBuilderOOMTest : public TestWithIsolate {
  public:
   static void SetUpTestSuite() {
-    v8_flags.max_old_space_size = kInstructionSize / MB / 2;  // In MB.
+    v8_flags.max_old_space_size.Set(kInstructionSize / MB / 2);  // In MB.
     // Keep semi-space size small so that the heuristics don't think we have
     // enough combined space for the allocation.
-    v8_flags.max_semi_space_size = 8;
+    v8_flags.max_semi_space_size.Set(8);
   }
 
   void SetUp() override {

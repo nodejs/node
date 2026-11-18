@@ -1,0 +1,11 @@
+Tests stepping into class extends expression.
+Paused at line: class Derived extends GetBase() {} // 0.
+Step 0 matches '// 0.': true
+Paused at line: var x = 1;   // 1.
+Step 1 matches '// 1.': true
+Paused at line: var y = 2;   // 2.
+Step 2 matches '// 2.': true
+Paused at line: done = true; // 3.
+Step 3 matches '// 3.': true
+Paused at line: return null;
+Total step count: 4

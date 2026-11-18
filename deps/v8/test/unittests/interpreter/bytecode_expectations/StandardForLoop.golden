@@ -178,7 +178,7 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(TestEqual), R(2), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(19),
-  /*   48 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   48 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x1),
                 B(Star5),
   /*   74 E> */ B(CallUndefinedReceiver0), R(5), FBV(0),
                 B(LdaZero),

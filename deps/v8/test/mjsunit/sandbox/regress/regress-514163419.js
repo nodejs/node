@@ -9,8 +9,13 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 // Pad trusted-space so the next trusted allocation (our table) lands on
 // an evacuatable page.
 const bigTableBytes = new Uint8Array([
-  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-  0x04, 0x05, 0x01, 0x70, 0x00, 0xc0, 0x3e
+  0x00, 0x61, 0x73, 0x6d,  // wasm magic
+  0x01, 0x00, 0x00, 0x00,  // wasm version
+
+  0x04,                    // section kind: Table
+  0x05,                    // section length 5
+  0x01, 0x70, 0x00,        // table count 1:  funcref no maximum
+  0xc0, 0x3e,              // initial size 8000
 ]);
 const bigModule = new WebAssembly.Module(bigTableBytes);
 var prePad = [];

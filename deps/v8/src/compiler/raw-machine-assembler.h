@@ -208,7 +208,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void OptimizedStoreField(MachineRepresentation rep, Node* object, int offset,
                            Node* value, WriteBarrierKind write_barrier) {
     DCHECK(!IsMapOffsetConstantMinusTag(offset));
-    DCHECK_NE(rep, MachineRepresentation::kIndirectPointer);
+    DCHECK_NE(rep, MachineRepresentation::kTrustedPointer);
     AddNode(simplified()->StoreField(
                 FieldAccess(BaseTaggedness::kTaggedBase, offset,
                             MaybeHandle<Name>(), OptionalMapRef(), Type::Any(),
@@ -216,16 +216,16 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                             write_barrier, "OptimizedStoreField")),
             object, value);
   }
-  void OptimizedStoreIndirectPointerField(Node* object, int offset,
-                                          IndirectPointerTag tag, Node* value,
-                                          WriteBarrierKind write_barrier) {
+  void OptimizedStoreTrustedPointerField(Node* object, int offset,
+                                         TrustedPointerTag tag, Node* value,
+                                         WriteBarrierKind write_barrier) {
     DCHECK(!IsMapOffsetConstantMinusTag(offset));
     DCHECK(write_barrier == WriteBarrierKind::kNoWriteBarrier ||
-           write_barrier == WriteBarrierKind::kIndirectPointerWriteBarrier);
+           write_barrier == WriteBarrierKind::kTrustedPointerWriteBarrier);
     FieldAccess access(BaseTaggedness::kTaggedBase, offset, MaybeHandle<Name>(),
                        OptionalMapRef(), Type::Any(),
-                       MachineType::IndirectPointer(), write_barrier,
-                       "OptimizedStoreIndirectPointerField",
+                       MachineType::TrustedPointer(), write_barrier,
+                       "OptimizedStoreTrustedPointerField",
                        ConstFieldInfo::None(), false, kExternalPointerNullTag,
                        tag, false, false);
     AddNode(simplified()->StoreField(access), object, value);

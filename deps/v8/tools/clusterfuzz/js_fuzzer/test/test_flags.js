@@ -35,4 +35,19 @@ describe('Flag loading', () => {
     const mutated = mutator.mutateMultiple(sources);
     assert.deepEqual(['--future', '--js-staging'], mutated.flags);
   });
+
+  it('handles flag values and separators', () => {
+    const inputs = [
+        'flags/separators/input1.js',
+        'flags/separators/input2.js'];
+    const sources = inputs.map(input => helpers.loadV8TestData(input));
+    assert.deepEqual(
+        ['--future', '--stress-runs=2', '--js-staging'], sources[0].flags);
+    assert.deepEqual(['--isolate'], sources[1].flags);
+    const mutator = new scriptMutator.ScriptMutator(this.settings, helpers.DB_DIR);
+    const mutated = mutator.mutateMultiple(sources);
+    assert.deepEqual(
+        ['--future', '--stress-runs=2', '--js-staging', '--isolate'],
+        mutated.flags);
+  });
 });

@@ -14,11 +14,19 @@
 #ifndef LLVM_LIBC_MACROS_LINUX_UNISTD_MACROS_H
 #define LLVM_LIBC_MACROS_LINUX_UNISTD_MACROS_H
 
+#include <linux/close_range.h>
+
 // Values for mode argument to the access(...) function.
 #define F_OK 0
 #define X_OK 1
 #define W_OK 2
 #define R_OK 4
+
+// Values for command argument to the lockf(...) function.
+#define F_ULOCK 0
+#define F_LOCK 1
+#define F_TLOCK 2
+#define F_TEST 3
 
 #define _SC_ARG_MAX 0
 #define _SC_CLK_TCK 2
@@ -30,6 +38,7 @@
 #define _SC_THREAD_SAFE_FUNCTIONS 68
 #define _SC_GETGR_R_SIZE_MAX 69
 #define _SC_GETPW_R_SIZE_MAX 70
+#define _SC_THREAD_DESTRUCTOR_ITERATIONS 73
 #define _SC_THREAD_ATTR_STACKADDR 77
 #define _SC_THREAD_ATTR_STACKSIZE 78
 #define _SC_THREAD_PRIORITY_SCHEDULING 79
@@ -105,6 +114,8 @@
     } while (__result == -1L && errno == EINTR);                               \
     __result;                                                                  \
   }))
-#endif
+#endif // TEMP_FAILURE_RETRY
+
+#define POSIX_CLOSE_RESTART 0
 
 #endif // LLVM_LIBC_MACROS_LINUX_UNISTD_MACROS_H

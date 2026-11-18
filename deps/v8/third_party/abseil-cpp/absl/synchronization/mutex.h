@@ -559,10 +559,11 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
                             const Condition* absl_nullable cond,
                             synchronization_internal::KernelTimeout t,
                             int flags);
-  void LockSlow(MuHow absl_nonnull how, const Condition* absl_nullable cond,
-                int flags) ABSL_ATTRIBUTE_COLD;
+  ABSL_ATTRIBUTE_COLD void LockSlow(MuHow absl_nonnull how,
+                                    const Condition* absl_nullable cond,
+                                    int flags);
   // slow path release
-  void UnlockSlow(SynchWaitParams* absl_nullable waitp) ABSL_ATTRIBUTE_COLD;
+  ABSL_ATTRIBUTE_COLD void UnlockSlow(SynchWaitParams* absl_nullable waitp);
   // TryLock slow path.
   bool TryLockSlow();
   // ReaderTryLock slow path.

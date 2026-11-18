@@ -1,0 +1,29 @@
+Tests Debugger.setVariableValue across different scope types in modules.
+Running closure test cases...
+Closure test 0: v1 (cat -> 5) => 5
+Closure test 1: t (2 -> 7) => 9
+Closure test 2: t (3 -> 10) => 13
+Closure test 3: foo (capybara -> 77) => 77
+Closure test 4: eee (Alpha -> 5) => 5Beta
+Running local test cases...
+Local test 0: u (You -> We) => HelloWe
+Local test 1: p (world -> GoodBye) => HelloGoodBye
+Local test 2: v1 (mouse -> dog) => dog
+Local test 3: v (Blue -> Green) => Green
+Local test 4: p (5 -> 2012) => 2012
+Running module scope tests...
+spargel scope: module
+spargel error: Internal error
+spargel reference error verified: true
+salat: (12 -> 42)
+salat result: 42
+salad: (12 -> 42)
+salad result: 42
+salami: (1 -> 2)
+salami result: 2
+ham: (1 -> 2)
+ham result: 2
+wurst: 2, error: Internal error
+wurst result: 2
+wurstl: 2, error: Internal error
+wurstl result: 2

@@ -161,7 +161,8 @@ Tagged<Object> NewError(Isolate* isolate, RuntimeArguments args,
   DirectHandle<Object> message_args[kMaxMessageArgs];
   int num_message_args = 0;
   while (num_message_args < kMaxMessageArgs &&
-         args.length() > num_message_args + 1) {
+         args.length() > num_message_args + 1 &&
+         !IsTheHole(args[num_message_args + 1])) {
     message_args[num_message_args] = args.at(num_message_args + 1);
     ++num_message_args;
   }
@@ -193,7 +194,7 @@ RUNTIME_FUNCTION(Runtime_ThrowRangeError) {
     // this difference, we crash the program.
     if (MessageTemplateFromInt(message_id_smi) ==
         MessageTemplate::kBigIntTooBig) {
-      FATAL("Aborting on invalid BigInt length");
+      base::FatalNoSecurityImpact("Aborting on invalid BigInt length");
     }
   }
 
@@ -298,11 +299,10 @@ RUNTIME_FUNCTION(Runtime_NewTypeError) {
 
 RUNTIME_FUNCTION(Runtime_NewReferenceError) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
   int template_index = args.smi_value_at(0);
-  Handle<Object> arg0 = args.at(1);
   MessageTemplate message_template = MessageTemplateFromInt(template_index);
-  return *isolate->factory()->NewReferenceError(message_template, arg0);
+  return *isolate->factory()->NewReferenceError(message_template);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
@@ -842,16 +842,6 @@ RUNTIME_FUNCTION(Runtime_DoubleToStringWithRadix) {
   DirectHandle<String> result =
       isolate->factory()->NewStringFromAsciiChecked(str);
   return *result;
-}
-
-RUNTIME_FUNCTION(Runtime_SharedValueBarrierSlow) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<HeapObject> value = args.at<HeapObject>(0);
-  DirectHandle<Object> shared_value;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, shared_value, Object::ShareSlow(isolate, value, kThrowOnError));
-  return *shared_value;
 }
 
 RUNTIME_FUNCTION(Runtime_NotifyContextCellStateWillChange) {

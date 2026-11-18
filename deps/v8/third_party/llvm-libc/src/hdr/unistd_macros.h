@@ -11,11 +11,17 @@
 
 #ifdef LIBC_FULL_BUILD
 
+#include "include/llvm-libc-macros/file-seek-macros.h"
 #include "include/llvm-libc-macros/unistd-macros.h"
 
 #else // Overlay mode
 
 #include "unistd_overlay.h"
+
+// In case the host system libc headers do not define POSIX_CLOSE_RESTART.
+#ifndef POSIX_CLOSE_RESTART
+#define POSIX_CLOSE_RESTART 0
+#endif
 
 #endif // LIBC_FULL_BUILD
 

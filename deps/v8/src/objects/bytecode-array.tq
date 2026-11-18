@@ -8,7 +8,7 @@ type DependentCode extends WeakArrayList;
 extern class BytecodeArray extends ExposedTrustedObject {
   const length: Smi;
   wrapper: BytecodeWrapper;
-  source_position_table: ProtectedPointer<TrustedByteArray>;
+  source_position_table: ProtectedPointer<TrustedByteArray|Smi>;
   handler_table: ProtectedPointer<TrustedByteArray>;
   constant_pool: ProtectedPointer<TrustedFixedArray>;
   frame_size: int32;

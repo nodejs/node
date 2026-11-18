@@ -4,7 +4,7 @@ Test BigInt can be converted
 Considering JS-to-Wasm wrapper for Wasm function [0] squareI64 of module {ADDRESS} for inlining
 - inlining wrapper
 Considering Wasm function [0] squareI64 of module {ADDRESS} for inlining
-- not inlining: unsupported operation: i64.mul
+- inlining Wasm function
 Test input of unconvertible type
 [bailout (kind: deopt-eager, reason: not a BigInt): begin. deoptimizing {ADDRESS} <JSFunction callSquare (sfi = {ADDRESS})>, {ADDRESS} <Code TURBOFAN_JS>, opt id {NUMBER}, *bytecode offset {NUMBER}, deopt exit {NUMBER}, FP to SP delta {NUMBER}, caller SP {ADDRESS}, pc {ADDRESS}]
 testJsWasmWrapperInliningWithI32Args

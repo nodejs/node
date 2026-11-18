@@ -91,6 +91,18 @@ constexpr inline bool IsComparisonOperation(Operation op) {
   }
 }
 
+constexpr bool IsInlineSmiArithmeticBinaryOperationSupported(
+    Operation operation) {
+  return operation == Operation::kAdd || operation == Operation::kSubtract;
+}
+
+constexpr bool IsInlineSmiBitwiseBinaryOperationSupported(Operation operation) {
+  return operation == Operation::kBitwiseAnd ||
+         operation == Operation::kBitwiseOr ||
+         operation == Operation::kBitwiseXor ||
+         operation == Operation::kShiftRight;
+}
+
 inline std::ostream& operator<<(std::ostream& os, const Operation& operation) {
   switch (operation) {
 #define CASE(name)         \

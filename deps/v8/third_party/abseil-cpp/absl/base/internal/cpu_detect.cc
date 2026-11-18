@@ -221,6 +221,8 @@ CpuType GetAmdCpuType() {
           return CpuType::kAmdGenoa;
         case 0x44:  // Stepping A0
           return CpuType::kAmdRyzenV3000;
+        case 0xA0:  // Stepping A0
+          return CpuType::kAmdSiena;
         default:
           return CpuType::kUnknown;
       }
@@ -229,6 +231,8 @@ CpuType GetAmdCpuType() {
       switch (model_num) {
         case 0x2:
           return CpuType::kAmdTurin;
+        case 0x50:
+          return CpuType::kAmdVenice;
         default:
           return CpuType::kUnknown;
       }
@@ -302,8 +306,12 @@ CpuType GetCpuType() {
             }
             return CpuType::kArmNeoverseV2;
           }
+          case 0xd84:
+            return CpuType::kArmNeoverseV3;
           case 0xd8e:
             return CpuType::kArmNeoverseN3;
+          case 0xd94:
+            return CpuType::kArmNeoverseN4;
           default:
             return CpuType::kUnknown;
         }

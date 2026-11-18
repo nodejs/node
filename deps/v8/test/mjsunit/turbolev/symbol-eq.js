@@ -18,4 +18,7 @@ assertTrue(symbol_eq(a, a));
 assertOptimized(symbol_eq);
 
 assertFalse(symbol_eq(a, "a"));
+assertOptimized(symbol_eq);
+
+assertTrue(symbol_eq("a", "a"));
 assertUnoptimized(symbol_eq);

@@ -83,12 +83,11 @@ struct HasProperRunMethod {
 };
 
 template <typename Phase, typename... Args>
-concept TurboshaftPhase =
-    HasProperRunMethod<Phase>::value &&
-    requires(Phase p) { p.kKind == PhaseKind::kTurboshaft; };
+concept TurboshaftPhase = HasProperRunMethod<Phase>::value &&
+                          (Phase::kKind == PhaseKind::kTurboshaft);
 
 template <typename Phase>
-concept TurbofanPhase = requires(Phase p) { p.kKind == PhaseKind::kTurbofan; };
+concept TurbofanPhase = (Phase::kKind == PhaseKind::kTurbofan);
 
 template <typename Phase>
 concept CompilerPhase = TurboshaftPhase<Phase> || TurbofanPhase<Phase>;
@@ -328,12 +327,19 @@ class V8_EXPORT_PRIVATE PipelineData {
     instruction_component_.reset();
   }
 
-  void InitializeRegisterComponent(const RegisterConfiguration* config,
-                                   CallDescriptor* call_descriptor);
+  void InitializeRegisterComponent(const RegisterConfiguration* config);
 
   void ClearRegisterComponent() {
     DCHECK(register_component_.has_value());
     register_component_.reset();
+  }
+
+  void ClearAllComponents() {
+    register_component_.reset();
+    instruction_component_.reset();
+    codegen_component_.reset();
+    graph_component_.reset();
+    builtin_component_.reset();
   }
 
   AccountingAllocator* allocator() const;

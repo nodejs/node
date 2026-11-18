@@ -1,0 +1,47 @@
+Tests regress-crbug-405922.
+function testRun() {
+  #debugger;
+  f(2);
+
+  debugger;
+  #f(2);
+}
+
+function f(x) {
+  #if (x > 0) %Call(f, null, x-1);
+}
+
+function f(x) {
+  if (x > 0) #%Call(f, null, x-1);
+}
+
+function f(x) {
+  #if (x > 0) %Call(f, null, x-1);
+}
+
+function f(x) {
+  if (x > 0) #%Call(f, null, x-1);
+}
+
+function f(x) {
+  #if (x > 0) %Call(f, null, x-1);
+}
+
+  if (x > 0) %Call(f, null, x-1);
+#}
+
+
+  if (x > 0) %Call(f, null, x-1);
+#}
+
+
+  if (x > 0) %Call(f, null, x-1);
+#}
+
+
+  f(2);
+#}
+
+
+testRun()#
+

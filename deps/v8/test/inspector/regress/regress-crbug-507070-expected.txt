@@ -1,0 +1,2 @@
+Test that code caching functions works with inspector active.
+a = 2

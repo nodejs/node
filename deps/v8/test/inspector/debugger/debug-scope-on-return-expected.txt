@@ -1,0 +1,29 @@
+Tests debug-scope-on-return.
+function f() {
+  #debugger;
+
+
+scopes: local, global
+
+  L: #with ({x:12}) {
+    break L;
+
+scopes: local, global
+  L: with ({x:12}) {
+    #break L;
+  }
+
+scopes: with, local, global
+
+  #return;
+}
+
+scopes: local, global
+
+  return;#
+}
+
+scopes: local, global
+f()#
+
+scopes: global

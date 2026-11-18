@@ -1,0 +1,9 @@
+Regression test for crbug.com/586444654.
+wasOptimized: true
+pauseCount: 1
+{
+    first : 1
+    interpreted : true
+    second : 999
+    unoptimized : true
+}

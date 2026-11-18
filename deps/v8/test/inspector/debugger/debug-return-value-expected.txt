@@ -1,0 +1,16 @@
+Tests that callFrames[0].returnValue is available when stepping to function return.
+Testing: f()
+Step 1 at 2:2, returnValue: undefined
+Step 2 at 3:2, returnValue: undefined
+Step 3 at 6:4, returnValue: undefined
+Step 4 at 6:13, returnValue: {"type":"number","value":2,"description":"2"}
+Testing: f(true)
+Step 1 at 2:2, returnValue: undefined
+Step 2 at 3:2, returnValue: undefined
+Step 3 at 4:4, returnValue: undefined
+Step 4 at 4:13, returnValue: {"type":"number","value":1,"description":"1"}
+Testing: f(false)
+Step 1 at 2:2, returnValue: undefined
+Step 2 at 3:2, returnValue: undefined
+Step 3 at 6:4, returnValue: undefined
+Step 4 at 6:13, returnValue: {"type":"number","value":2,"description":"2"}

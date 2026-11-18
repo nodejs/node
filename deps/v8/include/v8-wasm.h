@@ -10,6 +10,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 
 #include "v8-internal.h"      // NOLINT(build/include_directory)
@@ -20,7 +21,7 @@
 
 namespace v8 {
 
-class ArrayBuffer;
+class ArrayBufferBase;
 class Promise;
 
 namespace internal::wasm {
@@ -31,11 +32,38 @@ class NativeModule;
  * An owned byte buffer with associated size.
  */
 struct OwnedBuffer {
-  std::unique_ptr<const uint8_t[]> buffer;
-  size_t size = 0;
-  OwnedBuffer(std::unique_ptr<const uint8_t[]> buffer, size_t size)
-      : buffer(std::move(buffer)), size(size) {}
   OwnedBuffer() = default;
+  ~OwnedBuffer() = default;
+
+  OwnedBuffer(const OwnedBuffer&) = delete;
+  OwnedBuffer& operator=(const OwnedBuffer&) = delete;
+
+  OwnedBuffer(OwnedBuffer&& other) noexcept
+      : buffer_(std::move(other.buffer_)),
+        size_(std::exchange(other.size_, 0)) {}
+
+  OwnedBuffer& operator=(OwnedBuffer&& other) noexcept {
+    if (this != &other) {
+      buffer_ = std::move(other.buffer_);
+      size_ = std::exchange(other.size_, 0);
+    }
+    return *this;
+  }
+
+  constexpr bool empty() const { return size_ == 0; }
+
+  constexpr std::span<const uint8_t> as_span() const {
+    return {buffer_.get(), size_};
+  }
+
+ private:
+  friend class CompiledWasmModule;
+
+  OwnedBuffer(std::unique_ptr<const uint8_t[]> buffer, size_t size)
+      : buffer_(std::move(buffer)), size_(size) {}
+
+  std::unique_ptr<const uint8_t[]> buffer_;
+  size_t size_ = 0;
 };
 
 /**
@@ -75,9 +103,9 @@ class V8_EXPORT WasmMemoryObject : public Object {
   WasmMemoryObject() = delete;
 
   /**
-   * Returns underlying ArrayBuffer.
+   * Returns underlying ArrayBuffer or SharedArrayBuffer.
    */
-  Local<ArrayBuffer> Buffer();
+  Local<ArrayBufferBase> GetBuffer();
 
   V8_INLINE static WasmMemoryObject* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -130,9 +158,8 @@ class V8_EXPORT WasmModuleObject : public Object {
     // remain valid for the duration of the compile call.
     const char* imported_string_constants_module = nullptr;
     // If non-empty, associated with the module's script as its source URL, for
-    // use in stack traces and developer tooling. If a script already exists in
-    // the isolate for the same module, its existing URL is retained. The
-    // string must remain valid for the duration of the compile call.
+    // use in stack traces and developer tooling. The string must remain valid
+    // for the duration of the compile call.
     std::string_view source_url = {};
   };
 

@@ -1,0 +1,3 @@
+Tests wasm-breakpoint-memoryestimation-concurrency.
+Breakpoint set: success
+Memory estimation finished.

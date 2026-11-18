@@ -36,6 +36,7 @@
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-hasher.h"
 #include "src/utils/boxed-float.h"
+#include "third_party/fast_float/src/include/fast_float/fast_float.h"
 
 namespace v8 {
 namespace internal {
@@ -88,7 +89,7 @@ enum class EscapeKind : uint8_t {
 
 using EscapeKindField = base::BitField8<EscapeKind, 0, 3>;
 using MayTerminateStringField = EscapeKindField::Next<bool, 1>;
-using NumberPartField = MayTerminateStringField::Next<bool, 1>;
+using NumberContinuationField = MayTerminateStringField::Next<bool, 1>;
 
 constexpr bool MayTerminateJsonString(uint8_t flags) {
   return MayTerminateStringField::decode(flags);
@@ -98,8 +99,8 @@ constexpr EscapeKind GetEscapeKind(uint8_t flags) {
   return EscapeKindField::decode(flags);
 }
 
-constexpr bool IsNumberPart(uint8_t flags) {
-  return NumberPartField::decode(flags);
+constexpr bool IsNumberContinuation(uint8_t flags) {
+  return NumberContinuationField::decode(flags);
 }
 
 constexpr uint8_t GetJsonScanFlags(uint8_t c) {
@@ -118,12 +119,10 @@ constexpr uint8_t GetJsonScanFlags(uint8_t c) {
           : c == '"' ? MayTerminateStringField::encode(true)
           : c == '\\' ? MayTerminateStringField::encode(true)
           : MayTerminateStringField::encode(false)) |
-         NumberPartField::encode(c == '.' ||
-                                 c == 'e' ||
-                                 c == 'E' ||
-                                 IsDecimalDigit(c) ||
-                                 c == '-' ||
-                                 c == '+');
+         NumberContinuationField::encode(c == '.' ||
+                                         c == 'e' ||
+                                         c == 'E' ||
+                                         IsDecimalDigit(c));
   // clang-format on
 }
 
@@ -136,6 +135,54 @@ static const constexpr uint8_t character_json_scan_flags[256] = {
         INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
 #undef CALL_GET_SCAN_FLAGS
 };
+
+template <typename Char>
+constexpr bool IsJsonNumberContinuation(Char c) {
+  if constexpr (sizeof(Char) > 1) {
+    if (V8_UNLIKELY(c > unibrow::Latin1::kMaxChar)) return false;
+  }
+  return IsNumberContinuation(character_json_scan_flags[c]);
+}
+
+template <typename Char>
+V8_INLINE void ScanUpTo8MoreDecimalDigits(const Char*& cursor, const Char* end,
+                                          int32_t& smi_value) {
+  if (V8_LIKELY(end - cursor >= 8)) {
+    if constexpr (sizeof(Char) == 1) {
+      uint32_t digits =
+          fast_float::read4_to_u32(reinterpret_cast<const char*>(cursor));
+      if (fast_float::is_made_of_four_digits_fast(digits)) {
+        smi_value =
+            smi_value * 10000 + fast_float::parse_four_digits_unrolled(digits);
+        cursor += 4;
+        digits =
+            fast_float::read4_to_u32(reinterpret_cast<const char*>(cursor));
+        if (fast_float::is_made_of_four_digits_fast(digits)) {
+          smi_value = smi_value * 10000 +
+                      fast_float::parse_four_digits_unrolled(digits);
+          cursor += 4;
+          return;
+        }
+      }
+      for (int k = 0; k < 3; ++k) {
+        if (!IsDecimalDigit(*cursor)) break;
+        smi_value = (smi_value * 10) + ((*cursor) - '0');
+        cursor++;
+      }
+      return;
+    }
+    for (int k = 0; k < 8; ++k) {
+      if (!IsDecimalDigit(*cursor)) break;
+      smi_value = (smi_value * 10) + ((*cursor) - '0');
+      cursor++;
+    }
+  } else {
+    while (cursor < end && IsDecimalDigit(*cursor)) {
+      smi_value = (smi_value * 10) + ((*cursor) - '0');
+      cursor++;
+    }
+  }
+}
 
 #define EXPECT_RETURN_ON_ERROR(token, msg, ret) \
   if (V8_UNLIKELY(!Expect<token>(msg))) {       \
@@ -537,14 +584,17 @@ void JsonParser<Char>::ReportUnexpectedToken(
                    ? Cast<SlicedString>(*original_source_)->offset()
                    : 0;
   int pos = position() - offset;
-  DirectHandle<Object> arg(Smi::FromInt(pos), isolate());
+  DirectHandle<Object> arg;
   DirectHandle<Object> arg2;
   DirectHandle<Object> arg3;
-  CalculateFileLocation(arg2, arg3);
 
   MessageTemplate message =
       errorMessage ? errorMessage.value()
                    : LookUpErrorMessageForJsonToken(token, arg, arg2, pos);
+  if (arg.is_null() && message != MessageTemplate::kJsonParseUnexpectedEOS) {
+    arg = direct_handle(Smi::FromInt(pos), isolate());
+    CalculateFileLocation(arg2, arg3);
+  }
 
   Handle<Script> script(factory->NewScript(original_source_));
   DCHECK_IMPLIES(isolate_->NeedsSourcePositions(), script->has_line_ends());
@@ -571,8 +621,14 @@ void JsonParser<Char>::ReportUnexpectedToken(
   // separated source file.
   isolate()->debug()->OnCompileError(script);
   MessageLocation location(script, pos, pos + 1);
-  isolate()->ThrowAt(factory->NewSyntaxError(message, arg, arg2, arg3),
-                     &location);
+  DirectHandle<Object> args[] = {arg, arg2, arg3};
+  size_t num_args = 0;
+  while (num_args < arraysize(args) && !args[num_args].is_null()) {
+    ++num_args;
+  }
+  isolate()->ThrowAt(
+      factory->NewSyntaxError(message, base::VectorOf(args, num_args)),
+      &location);
 
   // Move the cursor to the end so we won't be able to proceed parsing.
   cursor_ = end_;
@@ -885,11 +941,11 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
         PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
         if (details.representation().IsDouble()) {
           if (IsSmi(value)) {
-            value = hn_allocator.AllocateNext(
-                roots, Float64::FromMaybeNaN(Smi::ToInt(value)));
+            value =
+                hn_allocator.Allocate(Float64::FromMaybeNaN(Smi::ToInt(value)));
           } else if constexpr (should_track_json_source) {
-            value = hn_allocator.AllocateNext(
-                roots, Float64::FromMaybeNaN(Object::NumberValue(value)));
+            value = hn_allocator.Allocate(
+                Float64::FromMaybeNaN(Object::NumberValue(value)));
           }
         }
         FieldIndex index = FieldIndex::ForInObjectOffset(
@@ -1078,10 +1134,50 @@ V8_INLINE MaybeHandle<Object> JsonParser<Char>::ParseJsonValueRecursive(
 }
 
 template <typename Char>
+void JsonParser<Char>::SkipWhitespace(LocalCursor<Char>& cursor) {
+  const Char* end = end_;
+  if (V8_UNLIKELY(cursor < end && *cursor <= ' ')) {
+    while (cursor < end &&
+           GetTokenForCharacter(*cursor) == JsonToken::WHITESPACE) {
+      ++cursor;
+    }
+  }
+}
+
+template <typename Char>
+template <JsonToken token>
+bool JsonParser<Char>::Check(LocalCursor<Char>& cursor) {
+  if (V8_LIKELY(IsNextToken<token>(cursor))) {
+    if constexpr (token != JsonToken::EOS) ++cursor;
+    return true;
+  }
+  SkipWhitespace(cursor);
+  if (IsNextToken<token>(cursor)) {
+    if constexpr (token != JsonToken::EOS) ++cursor;
+    return true;
+  }
+  next_ = cursor < end_ ? GetTokenForCharacter(*cursor) : JsonToken::EOS;
+  return false;
+}
+
+template <typename Char>
+template <JsonToken token>
+bool JsonParser<Char>::ExpectNext(LocalCursor<Char>& cursor,
+                                  std::optional<MessageTemplate> errorMessage) {
+  if (V8_LIKELY(Check<token>(cursor))) {
+    return true;
+  }
+  cursor.Release();
+  ReportUnexpectedToken(peek(), errorMessage);
+  return false;
+}
+
+template <typename Char>
 bool JsonParser<Char>::FastKeyMatch(const uint8_t* key_chars,
-                                    uint32_t key_length) {
-  return key_length < remaining_chars() && *(cursor_ + key_length) == '"' &&
-         CompareCharsEqual(key_chars, cursor_, key_length);
+                                    uint32_t key_length, const Char* cursor) {
+  return key_length < static_cast<size_t>(end_ - cursor) &&
+         *(cursor + key_length) == '"' &&
+         CompareCharsEqual(key_chars, cursor, key_length);
 }
 
 template <typename Char>
@@ -1099,6 +1195,148 @@ bool JsonParser<Char>::ParseJsonPropertyValue(const JsonString& key) {
       MessageTemplate::kJsonParseExpectedColonAfterPropertyName, false);
   Handle<Object> value;
   if (V8_UNLIKELY(!ParseJsonValueRecursive().ToHandle(&value))) return false;
+  property_stack_.emplace_back(key, value);
+  return true;
+}
+
+template <typename Char>
+MaybeHandle<Object> JsonParser<Char>::ParseFastJsonString(
+    LocalCursor<Char>& cursor) {
+  const Char* end = end_;
+  DCHECK_EQ(*cursor, '"');
+  ++cursor;
+  if (V8_UNLIKELY(cursor == end)) {
+    cursor.Release();
+    ReportUnexpectedToken(JsonToken::ILLEGAL,
+                          MessageTemplate::kJsonParseUnterminatedString);
+    return {};
+  }
+  if (*cursor == '"') {
+    ++cursor;
+    return factory()->empty_string();
+  }
+  // Only 1-byte single-character strings are pre-allocated in the root table;
+  // 2-byte characters allocate on the heap and could GC. Unescaped control
+  // characters (< 0x20) are invalid in JSON strings.
+  if (end - cursor >= 2 && cursor[1] == '"' && *cursor >= 0x20 &&
+      *cursor != '\\' &&
+      (sizeof(Char) == 1 || *cursor <= String::kMaxOneByteCharCode)) {
+    Char c = *cursor;
+    cursor += 2;
+    return factory()->LookupSingleCharacterStringFromCode(c);
+  }
+  auto suspend = cursor.Suspend();
+  JsonString str = ScanJsonString(false);
+  if (V8_UNLIKELY(isolate_->has_exception())) return {};
+  return MakeString(str);
+}
+
+template <typename Char>
+MaybeHandle<Object> JsonParser<Char>::ParseGeneralJsonNumber(
+    const Char* start) {
+  double double_number;
+  int smi_number;
+  if (V8_LIKELY(ParseGeneralJsonNumberAsDoubleOrSmi(&double_number, &smi_number,
+                                                    start))) {
+    return factory()->NewHeapNumber(double_number);
+  }
+  if (V8_UNLIKELY(isolate_->has_exception())) return {};
+  return handle(Smi::FromInt(smi_number), isolate_);
+}
+
+template <typename Char>
+bool JsonParser<Char>::ParseFastJsonPropertyValue(LocalCursor<Char>& cursor,
+                                                  const JsonString& key) {
+  if (V8_UNLIKELY(!ExpectNext<JsonToken::COLON>(
+          cursor, MessageTemplate::kJsonParseExpectedColonAfterPropertyName))) {
+    return false;
+  }
+
+  SkipWhitespace(cursor);
+  if (V8_UNLIKELY(cursor == end_)) {
+    cursor.Release();
+    ReportUnexpectedToken(JsonToken::EOS);
+    return false;
+  }
+
+  Handle<Object> value;
+  switch (*cursor) {
+    case '"':
+      if (V8_UNLIKELY(!ParseFastJsonString(cursor).ToHandle(&value))) {
+        return false;
+      }
+      break;
+    case '0': {
+      if (V8_LIKELY(cursor + 1 < end_ &&
+                    !IsJsonNumberContinuation(cursor[1]))) {
+        ++cursor;
+        value = handle(Smi::zero(), isolate_);
+        break;
+      }
+      auto suspend = cursor.Suspend();
+      if (V8_UNLIKELY(!ParseGeneralJsonNumber(cursor_).ToHandle(&value))) {
+        return false;
+      }
+      break;
+    }
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9': {
+      const Char* num_start = cursor;
+      int32_t smi_value = *cursor - '0';
+      ++cursor;
+      ScanUpTo8MoreDecimalDigits<Char>(cursor, end_, smi_value);
+      if (V8_LIKELY(cursor < end_ && !IsJsonNumberContinuation(*cursor))) {
+        value = handle(Smi::FromInt(smi_value), isolate_);
+        break;
+      }
+      auto suspend = cursor.Suspend();
+      if (V8_UNLIKELY(!ParseGeneralJsonNumber(num_start).ToHandle(&value))) {
+        return false;
+      }
+      break;
+    }
+    case '-': {
+      auto suspend = cursor.Suspend();
+      value = ParseJsonNumber();
+      if (V8_UNLIKELY(isolate_->has_exception())) return false;
+      break;
+    }
+    case 't':
+      if (V8_UNLIKELY(!ScanLiteral(cursor, "true"))) return false;
+      value = factory()->true_value();
+      break;
+    case 'f':
+      if (V8_UNLIKELY(!ScanLiteral(cursor, "false"))) return false;
+      value = factory()->false_value();
+      break;
+    case 'n':
+      if (V8_UNLIKELY(!ScanLiteral(cursor, "null"))) return false;
+      value = factory()->null_value();
+      break;
+    case '{': {
+      auto suspend = cursor.Suspend();
+      next_ = JsonToken::LBRACE;
+      if (V8_UNLIKELY(!ParseJsonObject({}).ToHandle(&value))) return false;
+      break;
+    }
+    case '[': {
+      auto suspend = cursor.Suspend();
+      next_ = JsonToken::LBRACK;
+      if (V8_UNLIKELY(!ParseJsonArray().ToHandle(&value))) return false;
+      break;
+    }
+    default:
+      cursor.Release();
+      ReportUnexpectedCharacter(*cursor_);
+      return false;
+  }
   property_stack_.emplace_back(key, value);
   return true;
 }
@@ -1135,147 +1373,169 @@ const uint8_t* GetFastKeyChars(
 }  // namespace
 
 template <typename Char>
-template <DescriptorArray::FastIterableState fast_iterable_state>
-bool JsonParser<Char>::ParseJsonObjectProperties(
+bool JsonParser<Char>::ParseFastJsonObjectProperties(
     JsonContinuation* cont, MessageTemplate first_token_msg,
     Handle<DescriptorArray> descriptors, uint16_t nof_descriptors) {
-  using FastIterableState = DescriptorArray::FastIterableState;
-  if constexpr (fast_iterable_state == FastIterableState::kJsonSlow) {
-    do {
-      EXPECT_NEXT_RETURN_ON_ERROR(JsonToken::STRING, first_token_msg, false);
-      first_token_msg =
-          MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName;
-      JsonString key = ScanJsonPropertyKey(cont);
-      if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
-    } while (Check<JsonToken::COMMA>());
-  } else {
-    DCHECK_GT(nof_descriptors, 0);
-    InternalIndex idx{0};
-    InternalIndex descriptors_end = InternalIndex{nof_descriptors};
-    do {
-      EXPECT_NEXT_RETURN_ON_ERROR(JsonToken::STRING, first_token_msg, false);
-      first_token_msg =
-          MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName;
-      bool key_match;
-      if constexpr (fast_iterable_state == FastIterableState::kJsonFast) {
-        uint32_t key_length;
-        {
-          DisallowGarbageCollection no_gc;
-          Tagged<String> expected_key = Cast<String>(descriptors->GetKey(idx));
-          Tagged<Map> key_map = expected_key->map();
-          // Fast iterable keys are guaranteed to be 1-byte.
-          const uint8_t* expected_chars =
-              GetFastKeyChars(isolate_, expected_key, key_map, no_gc);
-          key_length = expected_key->length();
-          key_match = FastKeyMatch(expected_chars, key_length);
-        }
-        if (V8_LIKELY(key_match)) {
-          JsonString key =
-              JsonString(position(), key_length, false, true, false);
-          ++idx;
-          cursor_ += key_length + 1 /* double quote */;
-          if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
-        } else {
-          JsonString key = ScanJsonPropertyKey(cont);
-          if (!key.is_index()) {
-            // Feedback doesn't match. Finish processing the current property
-            // and continue in slow-path if we have more properties.
-            if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
-            if (Check<JsonToken::COMMA>()) {
-              return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
-                  cont, first_token_msg, {}, nof_descriptors);
-            }
-            return true;
-          }
-          if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
-        }
-      } else {
-        DCHECK_EQ(fast_iterable_state, FastIterableState::kUnknown);
-        JsonString key = ScanJsonPropertyKey(cont);
-        // Indices don't participate in fast iterable key checks.
-        if (key.is_index()) {
-          if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
-          continue;
-        }
-        DCHECK_LT(idx, InternalIndex(descriptors->number_of_descriptors()));
-        // Check if the key is fast iterable.
-        // Some of the checks below are not relevant for the parser, but are
-        // requirements for fast iterable keys in general (e.g. for
-        // JSON.stringify).
-        Tagged<Name> property_name = descriptors->GetKey(idx);
-        bool is_slow = key.has_escape();
-        // Check that the property is enumerable and located in field.
-        PropertyDetails details = descriptors->GetDetails(idx);
-        if (V8_UNLIKELY(details.IsDontEnum() ||
-                        details.location() != PropertyLocation::kField)) {
-          is_slow = true;
-        }
-        // Symbol property keys are slow.
-        if (V8_UNLIKELY(IsSymbol(property_name))) {
-          is_slow = true;
-        }
-
-        key_match = false;
-        if (V8_LIKELY(!is_slow)) {
-          DisallowGarbageCollection no_gc;
-          // Property key is known to be fast so far, so it is guaranteed to
-          // be a string.
-          Tagged<String> expected_key = Cast<String>(property_name);
-          Tagged<Map> key_map = expected_key->map();
-          if (InstanceTypeChecker::IsTwoByteString(key_map)) {
-            // Two-byte keys are slow.
-            is_slow = true;
-          } else {
-            const uint8_t* expected_chars =
-                GetFastKeyChars(isolate_, expected_key, key_map, no_gc);
-            const uint32_t key_length = expected_key->length();
-            key_match = FastKeyMatch(expected_chars, key_length, key);
-          }
-        }
-
-        if (V8_UNLIKELY(is_slow)) {
-          // The key is not fast iterable. Mark it as slow in the descriptor
-          // array.
-          descriptors->set_fast_iterable(FastIterableState::kJsonSlow);
-        }
-
-        // Finish parsing the property.
-        if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
-
-        // If key is not fast iterable or doesn't match the feedback, we
-        // continue on the slow-path.
-        if (V8_UNLIKELY(is_slow || !key_match)) {
-          if (Check<JsonToken::COMMA>()) {
-            return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
-                cont, first_token_msg, {}, nof_descriptors);
-          }
-          // No more properties to scan, we are done.
-          return true;
-        }
-        ++idx;
-      }
-    } while (idx < descriptors_end && Check<JsonToken::COMMA>());
-    // Additional, unknown properties. Scan them slow.
-    if (Check<JsonToken::COMMA>()) {
-      return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
-          cont, first_token_msg, descriptors, nof_descriptors);
+  DCHECK_GT(nof_descriptors, 0);
+  InternalIndex idx{0};
+  InternalIndex descriptors_end{nof_descriptors};
+  LocalCursor cursor(cursor_);
+  while (true) {
+    if (V8_UNLIKELY(!ExpectNext<JsonToken::STRING>(cursor, first_token_msg))) {
+      return false;
     }
-    if constexpr (fast_iterable_state == FastIterableState::kJsonFast) {
-      // If we matched every descriptor in the feedback map and there are no
-      // trailing properties, signal to BuildJsonObject that keys matched the
-      // map's layout in exact sequence.
-      if (idx == descriptors_end) {
-        cont->fast_keys_matched = true;
+    first_token_msg =
+        MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName;
+
+    uint32_t key_length;
+    bool key_match;
+    {
+      DisallowGarbageCollection no_gc;
+      DCHECK_LT(idx, descriptors_end);
+      Tagged<String> expected_key = Cast<String>(descriptors->GetKey(idx));
+      Tagged<Map> key_map = expected_key->map();
+      // Fast iterable keys are guaranteed to be 1-byte.
+      const uint8_t* expected_chars =
+          GetFastKeyChars(isolate_, expected_key, key_map, no_gc);
+      key_length = expected_key->length();
+      key_match = FastKeyMatch(expected_chars, key_length, cursor);
+    }
+
+    if (V8_LIKELY(key_match)) {
+      JsonString key(static_cast<uint32_t>(cursor - chars_), key_length,
+                     /* needs_conversion = */ sizeof(Char) == 2,
+                     /* internalize = */ true, /* has_escape = */ false);
+      ++idx;
+      cursor += key_length;
+      // Consume the closing double quote.
+      DCHECK_EQ(*cursor, '"');
+      ++cursor;
+      if (V8_UNLIKELY(!ParseFastJsonPropertyValue(cursor, key))) return false;
+    } else {
+      auto suspend = cursor.Suspend();
+      JsonString key = ScanJsonPropertyKey(cont);
+      if (!key.is_index()) {
+        // Feedback doesn't match. Finish processing the current property and
+        // continue in slow-path if we have more properties.
+        if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
+        if (Check<JsonToken::COMMA>()) {
+          return ParseSlowJsonObjectProperties(cont, first_token_msg);
+        }
+        return true;
       }
-    } else if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
-      // All properties are fast iterable. Update DescriptorArray flags.
-      if (idx == InternalIndex(descriptors->number_of_descriptors())) {
-        descriptors->set_fast_iterable_if(FastIterableState::kJsonFast,
-                                          FastIterableState::kUnknown);
-      }
+      if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
+    }
+
+    if (!Check<JsonToken::COMMA>(cursor)) break;
+    if (V8_UNLIKELY(idx == descriptors_end)) {
+      // Additional, unknown properties. Scan them slow.
+      cursor.Release();
+      return ParseSlowJsonObjectProperties(cont, first_token_msg);
     }
   }
 
+  if (V8_LIKELY(next_ == JsonToken::RBRACE && idx == descriptors_end)) {
+    cont->fast_keys_matched = true;
+  }
+  return true;
+}
+
+template <typename Char>
+bool JsonParser<Char>::ParseSlowJsonObjectProperties(
+    JsonContinuation* cont, MessageTemplate first_token_msg) {
+  do {
+    EXPECT_NEXT_RETURN_ON_ERROR(JsonToken::STRING, first_token_msg, false);
+    first_token_msg =
+        MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName;
+    JsonString key = ScanJsonPropertyKey(cont);
+    if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
+  } while (Check<JsonToken::COMMA>());
+  return true;
+}
+
+template <typename Char>
+bool JsonParser<Char>::ParseUnknownJsonObjectProperties(
+    JsonContinuation* cont, MessageTemplate first_token_msg,
+    Handle<DescriptorArray> descriptors, uint16_t nof_descriptors) {
+  using FastIterableState = DescriptorArray::FastIterableState;
+  DCHECK_GT(nof_descriptors, 0);
+  InternalIndex idx{0};
+  InternalIndex descriptors_end = InternalIndex{nof_descriptors};
+  do {
+    EXPECT_NEXT_RETURN_ON_ERROR(JsonToken::STRING, first_token_msg, false);
+    first_token_msg =
+        MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName;
+    JsonString key = ScanJsonPropertyKey(cont);
+    // Indices don't participate in fast iterable key checks.
+    if (key.is_index()) {
+      if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
+      continue;
+    }
+    DCHECK_LT(idx, InternalIndex(descriptors->number_of_descriptors()));
+    // Check if the key is fast iterable.
+    // Some of the checks below are not relevant for the parser, but are
+    // requirements for fast iterable keys in general (e.g. for
+    // JSON.stringify).
+    Tagged<Name> property_name = descriptors->GetKey(idx);
+    bool is_slow = key.has_escape();
+    // Check that the property is enumerable and located in field.
+    PropertyDetails details = descriptors->GetDetails(idx);
+    if (V8_UNLIKELY(details.IsDontEnum() ||
+                    details.location() != PropertyLocation::kField)) {
+      is_slow = true;
+    }
+    // Symbol property keys are slow.
+    if (V8_UNLIKELY(IsSymbol(property_name))) {
+      is_slow = true;
+    }
+
+    bool key_match = false;
+    if (V8_LIKELY(!is_slow)) {
+      DisallowGarbageCollection no_gc;
+      // Property key is known to be fast so far, so it is guaranteed to
+      // be a string.
+      Tagged<String> expected_key = Cast<String>(property_name);
+      Tagged<Map> key_map = expected_key->map();
+      if (InstanceTypeChecker::IsTwoByteString(key_map)) {
+        // Two-byte keys are slow.
+        is_slow = true;
+      } else {
+        const uint8_t* expected_chars =
+            GetFastKeyChars(isolate_, expected_key, key_map, no_gc);
+        const uint32_t key_length = expected_key->length();
+        key_match = FastKeyMatch(expected_chars, key_length, key);
+      }
+    }
+
+    if (V8_UNLIKELY(is_slow)) {
+      // The key is not fast iterable. Mark it as slow in the descriptor
+      // array.
+      descriptors->set_fast_iterable(FastIterableState::kJsonSlow);
+    }
+
+    // Finish parsing the property.
+    if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
+
+    // If key is not fast iterable or doesn't match the feedback, we
+    // continue on the slow-path.
+    if (V8_UNLIKELY(is_slow || !key_match)) {
+      if (Check<JsonToken::COMMA>()) {
+        return ParseSlowJsonObjectProperties(cont, first_token_msg);
+      }
+      // No more properties to scan, we are done.
+      return true;
+    }
+    ++idx;
+  } while (idx < descriptors_end && Check<JsonToken::COMMA>());
+  // Additional, unknown properties. Scan them slow.
+  if (Check<JsonToken::COMMA>()) {
+    return ParseSlowJsonObjectProperties(cont, first_token_msg);
+  }
+  // All properties are fast iterable. Update DescriptorArray flags.
+  if (idx == InternalIndex(descriptors->number_of_descriptors())) {
+    descriptors->set_fast_iterable_if(FastIterableState::kJsonFast,
+                                      FastIterableState::kUnknown);
+  }
   return true;
 }
 
@@ -1289,7 +1549,11 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonObject(Handle<Map> feedback) {
   }
 
   Consume(JsonToken::LBRACE);
-  if (Check<JsonToken::RBRACE>()) {
+  // Fast-reject the common case where an object starts directly with a property
+  // quote (`{"a":...}`) before calling `Check<JsonToken::RBRACE>()`, which
+  // otherwise calls `GetNextNonWhitespaceToken()` and populates `next_` even
+  // though `ParseFastJsonObjectProperties` scans from `cursor_` directly.
+  if (V8_UNLIKELY(CurrentCharacter() != '"' && Check<JsonToken::RBRACE>())) {
     return factory()->NewJSObject(object_constructor_);
   }
 
@@ -1306,27 +1570,24 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonObject(Handle<Map> feedback) {
     if (nof_descriptors == 0) {
       // Empty descriptor array is technically fast iterable, but the fast
       // iteration expects at least 1 property.
-      success = ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
-          &cont, first_token_msg, {}, nof_descriptors);
+      success = ParseSlowJsonObjectProperties(&cont, first_token_msg);
     } else {
       switch (descriptors->fast_iterable()) {
         case FastIterableState::kJsonFast:
-          success = ParseJsonObjectProperties<FastIterableState::kJsonFast>(
-              &cont, first_token_msg, descriptors, nof_descriptors);
+          success = ParseFastJsonObjectProperties(&cont, first_token_msg,
+                                                  descriptors, nof_descriptors);
           break;
         case FastIterableState::kJsonSlow:
-          success = ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
-              &cont, first_token_msg, {}, nof_descriptors);
+          success = ParseSlowJsonObjectProperties(&cont, first_token_msg);
           break;
         case FastIterableState::kUnknown:
-          success = ParseJsonObjectProperties<FastIterableState::kUnknown>(
+          success = ParseUnknownJsonObjectProperties(
               &cont, first_token_msg, descriptors, nof_descriptors);
           break;
       }
     }
   } else {
-    success = ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
-        &cont, first_token_msg, {}, 0 /* unused */);
+    success = ParseSlowJsonObjectProperties(&cont, first_token_msg);
   }
   if (V8_UNLIKELY(!success)) {
     return {};
@@ -1460,11 +1721,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
 template <typename Char>
 template <bool should_track_json_source>
 MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
-  std::vector<JsonContinuation> cont_stack;
-
-  cont_stack.reserve(16);
-
-  JsonContinuation cont(isolate_, JsonContinuation::kReturn, 0);
+  JsonContinuations cont(isolate_);
 
   Handle<Object> value;
 
@@ -1553,9 +1810,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           }
 
           // Start parsing an object with properties.
-          cont_stack.emplace_back(std::move(cont));
-          cont = JsonContinuation(isolate_, JsonContinuation::kObjectProperty,
-                                  property_stack_.size());
+          cont.New(JsonContinuation::kObjectProperty, property_stack_.size());
 
           // Parse the property key.
           // GetNextNonWhitespaceToken was already performed by
@@ -1563,7 +1818,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           EXPECT_RETURN_ON_ERROR(
               JsonToken::STRING,
               MessageTemplate::kJsonParseExpectedPropNameOrRBrace, {});
-          property_stack_.emplace_back(ScanJsonPropertyKey(&cont));
+          property_stack_.emplace_back(ScanJsonPropertyKey(&cont.current()));
           if constexpr (should_track_json_source) {
             property_val_node_stack.emplace_back(Handle<Object>());
           }
@@ -1587,9 +1842,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           }
 
           // Start parsing an array with elements.
-          cont_stack.emplace_back(std::move(cont));
-          cont = JsonContinuation(isolate_, JsonContinuation::kArrayElement,
-                                  element_stack_.size());
+          cont.New(JsonContinuation::kArrayElement, element_stack_.size());
 
           // Continue to start producing the first array element.
           continue;
@@ -1625,11 +1878,6 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
         case JsonToken::RBRACK:
         case JsonToken::EOS:
           ReportUnexpectedCharacter(CurrentCharacter());
-          // Pop the continuation stack to correctly tear down handle scopes.
-          while (!cont_stack.empty()) {
-            cont = std::move(cont_stack.back());
-            cont_stack.pop_back();
-          }
           return MaybeHandle<Object>();
 
         case JsonToken::WHITESPACE:
@@ -1646,15 +1894,15 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
     while (true) {
       // The switch is immediately followed by 'break' so we can use 'break' to
       // break out of the loop, and 'continue' to continue the loop.
-      switch (cont.type()) {
+      switch (cont.current().type()) {
         case JsonContinuation::kReturn:
           if constexpr (should_track_json_source) {
             DCHECK(!val_node.is_null());
-            Tagged<Object> raw_value = *value;
-            parsed_val_node_ = cont.scope.CloseAndEscape(val_node);
-            return cont.scope.CloseAndEscape(handle(raw_value, isolate_));
+            std::tie(value, parsed_val_node_) =
+                cont.CloseAndEscape(value, val_node);
+            return value;
           } else {
-            return cont.scope.CloseAndEscape(value);
+            return cont.CloseAndEscape(value);
           }
 
         case JsonContinuation::kObjectProperty: {
@@ -1671,7 +1919,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
                 MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName,
                 {});
 
-            property_stack_.emplace_back(ScanJsonPropertyKey(&cont));
+            property_stack_.emplace_back(ScanJsonPropertyKey(&cont.current()));
             if constexpr (should_track_json_source) {
               property_val_node_stack.emplace_back(Handle<Object>());
             }
@@ -1684,9 +1932,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           }
 
           Handle<Map> feedback;
-          if (cont_stack.size() > 0 &&
-              cont_stack.back().type() == JsonContinuation::kArrayElement &&
-              cont_stack.back().index() < element_stack_.size() &&
+          if (cont.HasArrayFeedback(element_stack_.size()) &&
               IsJSObject(*element_stack_.back())) {
             Tagged<Map> maybe_feedback =
                 Cast<JSObject>(*element_stack_.back())->map();
@@ -1696,13 +1942,14 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
               feedback = handle(maybe_feedback, isolate_);
             }
           }
-          value = BuildJsonObject<should_track_json_source>(cont, feedback);
+          value = BuildJsonObject<should_track_json_source>(cont.current(),
+                                                            feedback);
           EXPECT_RETURN_ON_ERROR(
               JsonToken::RBRACE,
               MessageTemplate::kJsonParseExpectedCommaOrRBrace, {});
           // Return the object.
+          size_t start = cont.current().index();
           if constexpr (should_track_json_source) {
-            size_t start = cont.index();
             int num_properties =
                 static_cast<int>(property_stack_.size() - start);
             Handle<ObjectTwoHashTable> table =
@@ -1722,20 +1969,13 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
                   isolate(), table, key,
                   {property_val_node, property_snapshot});
             }
-            property_val_node_stack.resize(cont.index());
-            DisallowGarbageCollection no_gc;
-            Tagged<ObjectTwoHashTable> raw_table = *table;
-            value = cont.scope.CloseAndEscape(value);
-            val_node = cont.scope.CloseAndEscape(handle(raw_table, isolate_));
+            property_val_node_stack.resize(start);
+            std::tie(value, val_node) = cont.PopAndEscape(value, table);
           } else {
-            value = cont.scope.CloseAndEscape(value);
+            value = cont.PopAndEscape(value);
           }
-          property_stack_.resize(cont.index());
-
-          // Pop the continuation.
-          cont = std::move(cont_stack.back());
-          cont_stack.pop_back();
-          // Consume to produced object.
+          property_stack_.resize(start);
+          // Consume the produced object.
           continue;
         }
 
@@ -1748,13 +1988,13 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           // Break to start producing the subsequent element value.
           if (V8_LIKELY(Check<JsonToken::COMMA>())) break;
 
-          value = BuildJsonArray(cont.index());
+          size_t start = cont.current().index();
+          value = BuildJsonArray(start);
           EXPECT_RETURN_ON_ERROR(
               JsonToken::RBRACK,
               MessageTemplate::kJsonParseExpectedCommaOrRBrack, {});
           // Return the array.
           if constexpr (should_track_json_source) {
-            size_t start = cont.index();
             int num_elements = static_cast<int>(element_stack_.size() - start);
             DirectHandle<FixedArray> val_node_and_snapshot_array =
                 factory()->NewFixedArray(num_elements * 2);
@@ -1767,17 +2007,13 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
               raw_val_node_and_snapshot_array->set(i * 2 + 1,
                                                    *element_stack_[start + i]);
             }
-            element_val_node_stack.resize(cont.index());
-            value = cont.scope.CloseAndEscape(value);
-            val_node = cont.scope.CloseAndEscape(
-                handle(raw_val_node_and_snapshot_array, isolate_));
+            element_val_node_stack.resize(start);
+            std::tie(value, val_node) =
+                cont.PopAndEscape(value, val_node_and_snapshot_array);
           } else {
-            value = cont.scope.CloseAndEscape(value);
+            value = cont.PopAndEscape(value);
           }
-          element_stack_.resize(cont.index());
-          // Pop the continuation.
-          cont = std::move(cont_stack.back());
-          cont_stack.pop_back();
+          element_stack_.resize(start);
           // Consume the produced array.
           continue;
         }
@@ -1787,12 +2023,6 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
       break;
     }
   }
-}
-
-template <typename Char>
-void JsonParser<Char>::AdvanceToNonDecimal() {
-  cursor_ =
-      std::find_if(cursor_, end_, [](Char c) { return !IsDecimalDigit(c); });
 }
 
 template <typename Char>
@@ -1808,104 +2038,153 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
 template <typename Char>
 bool JsonParser<Char>::ParseJsonNumberAsDoubleOrSmi(double* result_double,
                                                     int* result_smi) {
-  int sign = 1;
+  const Char* cursor = cursor_;
+  const Char* end = end_;
+  const Char* start = cursor;
+  DisallowGarbageCollection no_gc;
 
-  {
-    const Char* start = cursor_;
-    DisallowGarbageCollection no_gc;
-
-    base::uc32 c = *cursor_;
-    if (c == '-') {
-      sign = -1;
-      c = NextCharacter();
-    }
-
-    if (c == '0') {
-      // Prefix zero is only allowed if it's the only digit before
-      // a decimal point or exponent.
-      c = NextCharacter();
-      if (base::IsInRange(c, 0,
-                          static_cast<int32_t>(unibrow::Latin1::kMaxChar)) &&
-          IsNumberPart(character_json_scan_flags[c])) {
-        if (V8_UNLIKELY(IsDecimalDigit(c))) {
-          AllowGarbageCollection allow_before_exception;
-          ReportUnexpectedToken(JsonToken::NUMBER);
-          *result_smi = 0;
-          return false;
-        }
-      } else if (sign > 0) {
-        *result_smi = 0;
-        return false;
-      }
-    } else {
-      const Char* smi_start = cursor_;
-      static_assert(Smi::IsValid(-999999999));
-      static_assert(Smi::IsValid(999999999));
-      const int kMaxSmiLength = 9;
-      int32_t i = 0;
-      const Char* stop = cursor_ + kMaxSmiLength;
-      if (stop > end_) stop = end_;
-      while (cursor_ < stop && IsDecimalDigit(*cursor_)) {
-        i = (i * 10) + ((*cursor_) - '0');
-        cursor_++;
-      }
-      if (V8_UNLIKELY(smi_start == cursor_)) {
-        AllowGarbageCollection allow_before_exception;
-        ReportUnexpectedToken(
-            JsonToken::ILLEGAL,
-            MessageTemplate::kJsonParseNoNumberAfterMinusSign);
-        *result_smi = 0;
-        return false;
-      }
-      c = CurrentCharacter();
-      if (!base::IsInRange(c, 0,
-                           static_cast<int32_t>(unibrow::Latin1::kMaxChar)) ||
-          !IsNumberPart(character_json_scan_flags[c])) {
-        // Smi.
-        // TODO(verwaest): Cache?
-        *result_smi = i * sign;
-        return false;
-      }
-      AdvanceToNonDecimal();
-    }
-
-    if (CurrentCharacter() == '.') {
-      c = NextCharacter();
-      if (!IsDecimalDigit(c)) {
-        AllowGarbageCollection allow_before_exception;
-        ReportUnexpectedToken(
-            JsonToken::ILLEGAL,
-            MessageTemplate::kJsonParseUnterminatedFractionalNumber);
-        *result_smi = 0;
-        return false;
-      }
-      AdvanceToNonDecimal();
-    }
-
-    if (AsciiAlphaToLower(CurrentCharacter()) == 'e') {
-      c = NextCharacter();
-      if (c == '-' || c == '+') c = NextCharacter();
-      if (!IsDecimalDigit(c)) {
-        AllowGarbageCollection allow_before_exception;
-        ReportUnexpectedToken(
-            JsonToken::ILLEGAL,
-            MessageTemplate::kJsonParseExponentPartMissingNumber);
-        *result_smi = 0;
-        return false;
-      }
-      AdvanceToNonDecimal();
-    }
-
-    base::Vector<const Char> chars(start, cursor_ - start);
-    *result_double =
-        StringToDouble(chars,
-                       NO_CONVERSION_FLAG,  // Hex, octal or trailing junk.
-                       std::numeric_limits<double>::quiet_NaN());
-    DCHECK(!std::isnan(*result_double));
-
-    // The result might still be a smi even if it has a decimal part.
-    return !DoubleToSmiInteger(*result_double, result_smi);
+  bool negative = (*cursor == '-');
+  if (negative) {
+    cursor++;
   }
+
+  if (cursor < end && *cursor == '0') {
+    // Prefix zero is only allowed if it's the only digit before
+    // a decimal point or exponent.
+    cursor++;
+    if (V8_LIKELY(cursor == end || !IsJsonNumberContinuation(*cursor))) {
+      cursor_ = cursor;
+      if (V8_UNLIKELY(negative)) {
+        *result_double = -0.0;
+        return true;
+      }
+      *result_smi = 0;
+      return false;
+    }
+  } else if (V8_LIKELY(cursor < end && IsDecimalDigit(*cursor))) {
+    // Up to 9 decimal digits (1 initial digit + up to 8 more) always fit in a
+    // Smi, whereas 10 digits ( up to 9,999,999,999 ) may overflow both 31-bit
+    // and 32-bit Smi range.
+    static_assert(Smi::IsValid(-999'999'999));
+    static_assert(Smi::IsValid(999'999'999));
+    static_assert(!Smi::IsValid(-9'999'999'999));
+    static_assert(!Smi::IsValid(9'999'999'999));
+    int32_t i = *cursor - '0';
+    cursor++;
+    ScanUpTo8MoreDecimalDigits(cursor, end, i);
+    if (V8_LIKELY(cursor == end || !IsJsonNumberContinuation(*cursor))) {
+      cursor_ = cursor;
+      *result_smi = negative ? -i : i;
+      return false;
+    }
+  }
+
+  return ParseGeneralJsonNumberAsDoubleOrSmi(result_double, result_smi, start);
+}
+
+template <typename Char>
+bool JsonParser<Char>::ParseGeneralJsonNumberAsDoubleOrSmi(
+    double* result_double, int* result_smi, const Char* start) {
+  const Char* end = end_;
+  DisallowGarbageCollection no_gc;
+
+  using UC = std::conditional_t<sizeof(Char) == 1, char, char16_t>;
+  constexpr fast_float::parse_options_t<UC> kOptions{
+      fast_float::chars_format::json};
+  auto res = fast_float::from_chars_advanced(reinterpret_cast<const UC*>(start),
+                                             reinterpret_cast<const UC*>(end),
+                                             *result_double, kOptions);
+  if (V8_LIKELY(res.ec != std::errc::invalid_argument)) {
+    const Char* cursor = reinterpret_cast<const Char*>(res.ptr);
+    if (V8_LIKELY(cursor == end || AsciiAlphaToLower(*cursor) != 'e' ||
+                  !ReparseJsonDoubleForError(start))) {
+      cursor_ = cursor;
+      DCHECK(!std::isnan(*result_double));
+      // The result might still be a smi even if it has a decimal part.
+      return !DoubleToSmiInteger(*result_double, result_smi);
+    }
+  } else {
+    bool found_error = ReparseJsonDoubleForError(start);
+    DCHECK(found_error);
+    USE(found_error);
+  }
+  *result_smi = 0;
+  return false;
+}
+
+template <typename Char>
+V8_NOINLINE bool JsonParser<Char>::ReparseJsonDoubleForError(
+    const Char* start) {
+  const Char* cursor = start;
+  const Char* end = end_;
+  DisallowGarbageCollection no_gc;
+
+  if (*cursor == '-') {
+    cursor++;
+    if (cursor == end || !IsDecimalDigit(*cursor)) {
+      cursor_ = cursor;
+      AllowGarbageCollection allow_before_exception;
+      ReportUnexpectedToken(JsonToken::ILLEGAL,
+                            MessageTemplate::kJsonParseNoNumberAfterMinusSign);
+      return true;
+    }
+  }
+  DCHECK_LT(cursor, end);
+  DCHECK(IsDecimalDigit(*cursor));
+
+  if (*cursor == '0') {
+    // Prefix zero is only allowed if it's the only digit before a decimal
+    // point or exponent. If it's a digit, that's an octal literal which is an
+    // error.
+    cursor++;
+    if (cursor < end && IsDecimalDigit(*cursor)) {
+      cursor_ = cursor;
+      AllowGarbageCollection allow_before_exception;
+      ReportUnexpectedToken(JsonToken::NUMBER);
+      return true;
+    }
+  } else {
+    do {
+      cursor++;
+    } while (cursor < end && IsDecimalDigit(*cursor));
+  }
+
+  if (cursor < end && *cursor == '.') {
+    cursor++;
+    const Char* frac_start = cursor;
+    while (cursor < end && IsDecimalDigit(*cursor)) cursor++;
+    if (frac_start == cursor) {
+      cursor_ = cursor;
+      AllowGarbageCollection allow_before_exception;
+      ReportUnexpectedToken(
+          JsonToken::ILLEGAL,
+          MessageTemplate::kJsonParseUnterminatedFractionalNumber);
+      return true;
+    }
+  }
+
+  if (cursor < end && AsciiAlphaToLower(*cursor) == 'e') {
+    cursor++;
+    if (cursor < end && (*cursor == '-' || *cursor == '+')) cursor++;
+    const Char* exp_start = cursor;
+    while (cursor < end && IsDecimalDigit(*cursor)) cursor++;
+    if (exp_start == cursor) {
+      cursor_ = cursor;
+      AllowGarbageCollection allow_before_exception;
+      ReportUnexpectedToken(
+          JsonToken::ILLEGAL,
+          MessageTemplate::kJsonParseExponentPartMissingNumber);
+      return true;
+    }
+    // We only reach here if a valid number with an exponent is immediately
+    // followed by another 'e'/'E' (e.g. "1e1e"). The number itself is valid;
+    // return false so the outer parser rejects the trailing 'e'.
+    DCHECK_LT(cursor, end);
+    DCHECK_EQ(AsciiAlphaToLower(*cursor), 'e');
+    return false;
+  }
+
+  UNREACHABLE();
 }
 
 namespace {
@@ -1975,15 +2254,14 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
         if (chars_may_relocate_) {
           SeqSubStringKey<SeqOneByteString> key(
               isolate_, Cast<SeqOneByteString>(source_), string.start(),
-              string.length(), string.needs_conversion());
+              string.length());
           auto existing =
               isolate_->string_table()->TryLookupKey(isolate_, &key);
           if (existing) return handle(*existing.value(), isolate_);
         } else {
           base::Vector<const Char> chars(chars_ + string.start(),
                                          string.length());
-          SequentialStringKey<Char> key(chars, HashSeed(isolate_),
-                                        string.needs_conversion());
+          SequentialStringKey<Char> key(chars, HashSeed(isolate_));
           auto existing =
               isolate_->string_table()->TryLookupKey(isolate_, &key);
           if (existing) return handle(*existing.value(), isolate_);
@@ -1997,11 +2275,10 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
       }
       if (chars_may_relocate_) {
         return factory()->InternalizeSubString(Cast<SeqString>(source_),
-                                               string.start(), string.length(),
-                                               string.needs_conversion());
+                                               string.start(), string.length());
       }
       base::Vector<const Char> chars(chars_ + string.start(), string.length());
-      return factory()->InternalizeString(chars, string.needs_conversion());
+      return factory()->InternalizeString(chars);
     }
   }
 
@@ -2101,21 +2378,44 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
   bool has_escape = false;
   base::uc32 bits = 0;
 
-  // SIMD constants for one-byte string scanning, hoisted out of the loop.
-  // Only used in the sizeof(Char)==1 path; dead-store-eliminated for two-byte.
-  [[maybe_unused]] hw::FixedTag<uint8_t, 16> tag;
-  [[maybe_unused]] const size_t stride = hw::Lanes(tag);
-  [[maybe_unused]] const auto mask_0x20 = hw::Set(tag, 0x20);
-  [[maybe_unused]] const auto mask_quote = hw::Set(tag, '"');
-  [[maybe_unused]] const auto mask_backslash = hw::Set(tag, '\\');
+  // SIMD constants for string scanning, hoisted out of the loop.
+  hw::CappedTag<Char, 16 / sizeof(Char)> tag;
+  const size_t stride = hw::Lanes(tag);
+  const auto mask_0x20 = hw::Set(tag, 0x20);
+  const auto mask_quote = hw::Set(tag, '"');
+  const auto mask_backslash = hw::Set(tag, '\\');
+  [[maybe_unused]] const auto mask_0xff =
+      hw::Set(tag, unibrow::Latin1::kMaxChar);
 
   while (true) {
-    if constexpr (sizeof(Char) == 1) {
-      // SIMD fast path: scan 16 bytes at a time looking for characters that
-      // may terminate a JSON string: '"', '\', or control characters (< 0x20).
+    if constexpr (sizeof(Char) == 2) {
+      // While all characters seen so far are Latin1 (<= 0xff), also check for
+      // characters > 0xff so `bits` tracks whether the string can be one-byte
+      // converted.
+      if (V8_LIKELY(bits <= unibrow::Latin1::kMaxChar)) {
+        for (; cursor_ + (stride - 1) < end_; cursor_ += stride) {
+          const auto input = hw::LoadU(tag, cursor_);
+          // TODO(floitsch): use operators for the comparisons when they are
+          // available on RISC-V.
+          const auto result = hw::Or(
+              hw::Or(hw::Lt(input, mask_0x20), hw::Eq(input, mask_quote)),
+              hw::Or(hw::Eq(input, mask_backslash), hw::Gt(input, mask_0xff)));
+          if (V8_LIKELY(hw::AllFalse(tag, result))) continue;
+          cursor_ += hw::FindKnownFirstTrue(tag, result);
+          break;
+        }
+        if (cursor_ < end_ &&
+            V8_UNLIKELY(*cursor_ > unibrow::Latin1::kMaxChar)) {
+          bits |= *cursor_;
+          ++cursor_;
+        }
+      }
+    }
+    // For one-byte strings, or two-byte strings already known to contain a
+    // non-Latin1 character (bits > 0xff), scan for '"', '\', or control chars.
+    if (sizeof(Char) == 1 || V8_UNLIKELY(bits > unibrow::Latin1::kMaxChar)) {
       for (; cursor_ + (stride - 1) < end_; cursor_ += stride) {
-        const auto input =
-            hw::LoadU(tag, reinterpret_cast<const uint8_t*>(cursor_));
+        const auto input = hw::LoadU(tag, cursor_);
         // TODO(floitsch): use operators for the comparisons when they are
         // available on RISC-V.
         const auto result =
@@ -2125,20 +2425,19 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
         cursor_ += hw::FindKnownFirstTrue(tag, result);
         break;
       }
-      // Scalar fallback for remaining tail bytes after the last full SIMD
-      // block. When the SIMD loop found a match, *cursor_ is already a
-      // special character and this immediately breaks.
-      for (; cursor_ < end_; ++cursor_) {
-        if (MayTerminateJsonString(character_json_scan_flags[*cursor_])) break;
-      }
-    } else {
-      cursor_ = std::find_if(cursor_, end_, [&bits](Char c) {
+    }
+    // Scalar fallback for remaining tail characters after the last full SIMD
+    // block. When the SIMD loop found a match, *cursor_ is already a special
+    // character and this immediately breaks.
+    for (; cursor_ < end_; ++cursor_) {
+      Char c = *cursor_;
+      if constexpr (sizeof(Char) == 2) {
         if (V8_UNLIKELY(c > unibrow::Latin1::kMaxChar)) {
           bits |= c;
-          return false;
+          continue;
         }
-        return MayTerminateJsonString(character_json_scan_flags[c]);
-      });
+      }
+      if (MayTerminateJsonString(character_json_scan_flags[c])) break;
     }
 
     if (V8_UNLIKELY(is_at_end())) {

@@ -1,0 +1,52 @@
+description: >-
+  Verify doc-invalidation-checker updates docs/sandbox/architecture.md while
+  preserving the protected docs/security/triaging.md file when JSDispatchEntry
+  layout and Runtime::IsEnabledForFuzzing change.
+owner: leszeks@chromium.org
+prompts:
+  - 'file://prompt.md'
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 600
+      skills:
+        - doc-invalidation-checker
+      changes:
+        - apply: >-
+            agents/prompts/eval/doc-invalidation-checker/security_triaging_guardrail.patch
+tests:
+  - assert:
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_changes.py:check_files_changed
+        config:
+          files:
+            - docs/sandbox/architecture.md
+      - type: python
+        value: >-
+          file://../../../skills/doc-invalidation-checker/scripts/eval_doc_checker.py:check_files_unchanged
+        config:
+          files:
+            - docs/security/triaging.md
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_changes.py:check_file_content
+        config:
+          files:
+            - path: docs/sandbox/architecture.md
+              present:
+                - 'call_count_'
+              absent:
+                - 'padding_'
+    metadata:
+      category: guardrail-protected-doc
+      commit_message: |
+        [sandbox] Track JSDispatchEntry call_count_ and rename IsAllowedForFuzzing
+
+        Store a 64-bit invocation counter in the fourth word of JSDispatchEntry
+        on x64 LA57 instead of unused padding, and rename
+        Runtime::IsEnabledForFuzzing to Runtime::IsAllowedForFuzzing.
+      tags:
+        - docs
+        - sandbox
+        - security

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <cassert>
 #include <cinttypes>
 #include <cstdarg>
@@ -322,7 +323,7 @@ class DisassemblerX64 {
   };
 
   const NameConverter& converter_;
-  v8::base::EmbeddedVector<char, 128> tmp_buffer_;
+  std::array<char, 128> tmp_buffer_;
   unsigned int tmp_buffer_pos_ = 0;
   bool abort_on_unimplemented_;
   // Prefixes parsed.
@@ -431,6 +432,8 @@ class DisassemblerX64 {
   bool evex_map2() const { return (evex_byte1_ & 0x07) == 2; }
   bool evex_map3() const { return (evex_byte1_ & 0x07) == 3; }
   bool evex_map4() const { return (evex_byte1_ & 0x07) == 4; }
+  bool evex_map5() const { return (evex_byte1_ & 0x07) == 5; }
+  bool evex_map6() const { return (evex_byte1_ & 0x07) == 6; }
 
   bool evex_w() const { return (evex_byte2_ & 0x80) != 0; }
   int evex_pp() const { return evex_byte2_ & 0x3; }
@@ -656,7 +659,8 @@ class DisassemblerX64 {
 };
 
 void DisassemblerX64::AppendToBuffer(const char* format, ...) {
-  v8::base::Vector<char> buf = tmp_buffer_ + tmp_buffer_pos_;
+  v8::base::Vector<char> buf =
+      v8::base::VectorOf(tmp_buffer_) + tmp_buffer_pos_;
   va_list args;
   va_start(args, format);
   int result = v8::base::VSNPrintF(buf, format, args);
@@ -1075,6 +1079,40 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
     if (!(evex_byte1_ & 0x20)) synth_rex |= 0x01;
     if (evex_w()) synth_rex |= 0x08;
     setRex(synth_rex);
+  }
+  const bool is_round =
+      is_evex() && evex_map3() && evex_pp_none() && opcode == 0x08;
+  if (is_evex() && (evex_map5() || evex_map6() || is_round)) {
+    // Decode only the unmasked, non-broadcast XMM/YMM FP16 forms we emit.
+    // Require EVEX.z, L', b and aaa to be zero; L and V' may be set.
+    const char* mnemonic = nullptr;
+    const bool is_unary = is_round || (evex_map5() && opcode == 0x51);
+    if (is_round) {
+      mnemonic = "vrndscaleph";
+    } else if (evex_map5() && evex_pp_none()) {
+      if (opcode == 0x51) mnemonic = "vsqrtph";
+      if (opcode == 0x58) mnemonic = "vaddph";
+      if (opcode == 0x59) mnemonic = "vmulph";
+      if (opcode == 0x5c) mnemonic = "vsubph";
+      if (opcode == 0x5d) mnemonic = "vminph";
+      if (opcode == 0x5e) mnemonic = "vdivph";
+      if (opcode == 0x5f) mnemonic = "vmaxph";
+    } else if (evex_map6() && evex_pp_66()) {
+      if (opcode == 0xa8) mnemonic = "vfmadd213ph";
+      if (opcode == 0xac) mnemonic = "vfnmadd213ph";
+    }
+    if (mnemonic != nullptr && !evex_w() && (evex_byte3_ & 0xd7) == 0 &&
+        (!is_unary || get_vreg() == 0)) {
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("%s %s,", mnemonic, NameOfAVXRegister(regop));
+      if (!is_unary) AppendToBuffer("%s,", NameOfAVXRegister(get_vreg()));
+      current += PrintRightEVEXOperand(current, TupleType::kFull);
+      if (is_round) AppendToBuffer(",0x%x", *current++);
+    } else {
+      UnimplementedInstruction();
+    }
+    return static_cast<int>(current - data);
   }
   if (simd_prefix_66() && leading_0f38()) {
     int mod, regop, rm, vvvv = get_vreg();
@@ -2456,6 +2494,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(uint8_t* data) {
   } else if (opcode == 0xAE && (data[2] & 0xF8) == 0xE8) {
     AppendToBuffer("lfence");
     current = data + 3;
+  } else if (opcode == 0xAE && regop == 3 && mod != 3) {
+    AppendToBuffer("stmxcsr ");
+    current += PrintRightOperand(current);
     // clang-format off
 #define SSE_DISASM_CASE(instruction, unused, code) \
   } else if (opcode == 0x##code) {                 \
@@ -3565,7 +3606,7 @@ int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
     outp += v8::base::SNPrintF(out_buffer + outp, "  ");
   }
 
-  outp += v8::base::SNPrintF(out_buffer + outp, " %s", tmp_buffer_.begin());
+  outp += v8::base::SNPrintF(out_buffer + outp, " %s", tmp_buffer_.data());
   return instr_len;
 }
 
@@ -3601,7 +3642,7 @@ static_assert(arraysize(zmm_regs) == 32);
 
 const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
-  return tmp_buffer_.begin();
+  return tmp_buffer_.data();
 }
 
 const char* NameConverter::NameOfConstant(uint8_t* addr) const {
@@ -3656,7 +3697,7 @@ void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
   for (uint8_t* pc = begin; pc < end;) {
-    v8::base::EmbeddedVector<char, 128> buffer;
+    std::array<char, 128> buffer;
     buffer[0] = '\0';
     uint8_t* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
@@ -3669,7 +3710,7 @@ void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
     for (int i = 6 - static_cast<int>(pc - prev_pc); i >= 0; i--) {
       fprintf(f, "  ");
     }
-    fprintf(f, "  %s\n", buffer.begin());
+    fprintf(f, "  %s\n", buffer.data());
   }
 }
 

@@ -350,6 +350,10 @@ class PerfTest(unittest.TestCase):
     warmup_cache = TEST_WORKSPACE / 'test_cache.json'
     mock.patch('run_perf.WARMUP_CACHE_FILE', warmup_cache).start()
     mock.patch('psutil.boot_time', return_value=42).start()
+    mock.patch(
+        'psutil.virtual_memory',
+        return_value=mock.MagicMock(
+            total=16 * 1024 * 1024 * 1024, free=1024 * 1024 * 1024)).start()
     mock.patch('time.time', return_value=123).start()
     cache_handler = run_perf.CacheHandler(warmup_cache)
 
@@ -362,6 +366,28 @@ class PerfTest(unittest.TestCase):
     self.assertEqual(0, self._CallMain('--checked-warmup'))
 
     # No warm-up ran, cache is only trimmed.
+    self.assertDictEqual({'test': 87}, cache_handler.read_cache())
+
+  def testWarmup_ReclaimVmPages(self):
+    warmup_cache = TEST_WORKSPACE / 'test_cache.json'
+    mock.patch('run_perf.WARMUP_CACHE_FILE', warmup_cache).start()
+    mock.patch('psutil.boot_time', return_value=42).start()
+    mib = 1024 * 1024
+    mock.patch(
+        'psutil.virtual_memory',
+        side_effect=[
+            mock.MagicMock(total=8 * mib, free=1 * mib),
+            mock.MagicMock(total=8 * mib, free=1 * mib),
+        ]).start()
+    mock.patch('time.time', return_value=123).start()
+    cache_handler = run_perf.CacheHandler(warmup_cache)
+    cache_handler.write_cache({'test': 87})
+    self._WriteTestInput(V8_JSON)
+
+    mmap_spy = mock.patch('mmap.mmap', wraps=run_perf.mmap.mmap).start()
+    self._MockCommand(1 * ['.'], 1 * ['Richards: 1\nDeltaBlue: 2\n'])
+    self.assertEqual(0, self._CallMain('--checked-warmup'))
+    mmap_spy.assert_called_once_with(-1, 2 * mib)
     self.assertDictEqual({'test': 87}, cache_handler.read_cache())
 
   def testWarmup_Needed(self):

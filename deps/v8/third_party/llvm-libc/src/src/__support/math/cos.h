@@ -14,6 +14,7 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_COS_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_COS_H
 
+#include "hdr/errno_macros.h"
 #include "range_reduction_double_common.h"
 #include "sincos_eval.h"
 #include "src/__support/FPUtil/FEnvImpl.h"

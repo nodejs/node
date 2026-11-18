@@ -117,6 +117,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
   if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
     andl(char_code, Immediate(0xFFFF));
   }
+  AssertZeroExtended(char_code);
   cmpl(char_code, Immediate(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       above,
@@ -140,7 +141,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         __ AllocateTwoByteString(register_snapshot, result, 1);
         __ movw(FieldOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString)),
                 char_code);
-        __ jmp(*done);
+        __ Jump(*done);
       },
       register_snapshot, done, result, char_code, scratch);
   if (char_code_fits_one_byte != nullptr) {
@@ -189,7 +190,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
           __ SmiUntag(kReturnRegister0);
           __ Move(result, kReturnRegister0);
         }
-        __ jmp(*done);
+        __ Jump(*done);
       },
       mode, register_snapshot, done, result, string, index);
 
@@ -271,17 +272,34 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   // Is a thin string.
   {
     LoadTaggedField(string, string, offsetof(ThinString, actual_));
-    jmp(&loop, Label::kNear);
+    Jump(&loop, Label::kNear);
   }
 
   bind(&sliced_string);
   {
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+      Label unwrap_sliced;
+#if V8_STATIC_ROOTS_BOOL
+      CompareInt32AndJumpIf(map, StaticReadOnlyRoot::kSlicedOneByteStringMap,
+                            kEqual, &unwrap_sliced, Label::kNear);
+#else
+      testl(instance_type, Immediate(kOneByteStringTag));
+      j(not_zero, &unwrap_sliced, Label::kNear);
+#endif
+      // Unwrapping a two-byte SlicedString loses its end bound; if {index} is
+      // the last code unit of the slice, fall back to the runtime before
+      // unwrapping.
+      leal(scratch1, Operand(index, 1));
+      cmpl(scratch1, FieldOperand(string, offsetof(String, length_)));
+      j(above_equal, deferred_runtime_call);
+      bind(&unwrap_sliced);
+    }
     Register offset = scratch1;
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
     addl(index, offset);
-    jmp(&loop, Label::kNear);
+    Jump(&loop, Label::kNear);
   }
 
   bind(&cons_string);
@@ -290,7 +308,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                 RootIndex::kempty_string);
     j(not_equal, deferred_runtime_call);
     LoadTaggedField(string, string, offsetof(ConsString, first_));
-    jmp(&loop, Label::kNear);  // Try again with first string.
+    Jump(&loop, Label::kNear);  // Try again with first string.
   }
 
   bind(&seq_string);
@@ -314,7 +332,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
     SeqOneByteStringCharCodeAt(result, string, index);
-    jmp(result_fits_one_byte);
+    Jump(result_fits_one_byte);
     bind(&two_byte_string);
 
     if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt) {
@@ -323,10 +341,18 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     } else {
       DCHECK_EQ(mode,
                 BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+      DCHECK_NE(string, index);
+      // {result} is written before the trailing-surrogate lookahead, which
+      // still needs {string} and {index}. Preserve whichever one {result}
+      // aliases.
       Register string_backup = string;
+      Register index_backup = index;
       if (result == string) {
         string_backup = scratch2;
         movq(string_backup, string);
+      } else if (result == index) {
+        index_backup = scratch2;
+        movl(index_backup, index);
       }
       movzxwl(result, FieldOperand(string, index, times_2,
                                    OFFSET_OF_DATA_START(SeqTwoByteString)));
@@ -339,13 +365,13 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
       Register length = scratch1;
       StringLength(length, string_backup);
-      incl(index);
-      cmpl(index, length);
+      incl(index_backup);
+      cmpl(index_backup, length);
       j(greater_equal, *done);
 
       Register second_code_point = scratch1;
       movzxwl(second_code_point,
-              FieldOperand(string_backup, index, times_2,
+              FieldOperand(string_backup, index_backup, times_2,
                            OFFSET_OF_DATA_START(SeqTwoByteString)));
       movl(scratch2, second_code_point);
       andl(scratch2, Immediate(0xfc00));
@@ -419,14 +445,19 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
       [](MaglevAssembler* masm, DoubleRegister src, Register dst,
          ZoneLabelRef done) {
         // Push the double register onto the stack as an input argument.
-        __ AllocateStackSpace(kDoubleSize);
+        // With V8_X64_16BYTE_STACK_ALIGNMENT, reserve 16 bytes instead of 8 so
+        // that rsp stays 16-byte aligned at the call (the extra 8 bytes sit
+        // above the double; DoubleToI still finds its argument at [rsp]).
+        constexpr int kScratchSize =
+            V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? 2 * kDoubleSize : kDoubleSize;
+        __ AllocateStackSpace(kScratchSize);
         __ Movsd(MemOperand(rsp, 0), src);
         __ CallBuiltin(Builtin::kDoubleToI);
         // DoubleToI sets the result on the stack, pop the result off the stack.
         // Avoid using `pop` to not mix implicit and explicit rsp updates.
         __ movl(dst, MemOperand(rsp, 0));
-        __ addq(rsp, Immediate(kDoubleSize));
-        __ jmp(*done);
+        __ addq(rsp, Immediate(kScratchSize));
+        __ Jump(*done);
       },
       src, dst, done);
   bind(*done);
@@ -520,6 +551,14 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
   uint32_t source_frame_size =
       graph->min_maglev_stackslots_for_unoptimized_frame_size();
 
+#if V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
+  static_assert(StandardFrameConstants::kFixedSlotCount % 2 == 1);
+  // When source_frame_size is even, the incoming unoptimized frame has an extra
+  // alignment padding slot (already initialized to undefined), so include it in
+  // source_frame_size.
+  if (source_frame_size % 2 == 0) source_frame_size++;
+#endif
+
   if (V8_ENABLE_SANDBOX_BOOL || v8_flags.debug_code) {
     movq(kScratchRegister, rbp);
     subq(kScratchRegister, rsp);
@@ -531,6 +570,11 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
 
   uint32_t target_frame_size =
       graph->tagged_stack_slots() + graph->untagged_stack_slots();
+#if V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
+  // The register allocator makes the frame body odd so that, together with
+  // the odd fixed header, the frame is 16-byte aligned.
+  CHECK_EQ(target_frame_size % 2, 1);
+#endif
   CHECK_LE(source_frame_size, target_frame_size);
 
   if (source_frame_size < target_frame_size) {

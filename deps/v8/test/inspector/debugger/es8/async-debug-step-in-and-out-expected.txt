@@ -1,0 +1,6 @@
+Tests async debug step in and out.
+  debugger;            // B0 StepOver
+       await           // B1 StepInto
+  return new Promise(  // B2 StepOut
+  return a;            // B3 Continue
+step_count: 4

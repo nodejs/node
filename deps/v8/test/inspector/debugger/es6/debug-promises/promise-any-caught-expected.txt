@@ -1,0 +1,3 @@
+Tests Promise.any with catch handler has no uncaught exception break.
+Promise catch handler executed: true
+Paused on exception: false

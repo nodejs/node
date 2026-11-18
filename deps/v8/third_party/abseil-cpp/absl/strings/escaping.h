@@ -27,9 +27,7 @@
 #include <cstddef>
 #include <optional>
 #include <string>
-#include <vector>
 
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"

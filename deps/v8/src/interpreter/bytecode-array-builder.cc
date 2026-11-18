@@ -185,8 +185,7 @@ void BytecodeArrayBuilder::Write(BytecodeNode* node) {
 
 void BytecodeArrayBuilder::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   AttachOrEmitDeferredSourceInfo(node);
-  DCHECK(Bytecodes::IsWithoutExternalSideEffects(node->bytecode()) ||
-         Bytecodes::IsJumpIfToBoolean(node->bytecode()));
+  DCHECK(Bytecodes::IsWithoutExternalSideEffects(node->bytecode()));
   bytecode_array_writer_.WriteJump(node, label);
 }
 
@@ -1019,6 +1018,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAsyncIteratorProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadDisposeProperty(
+    Register object, int feedback_slot) {
+  size_t name_index = DisposeSymbolConstantPoolEntry();
+  OutputGetNamedProperty(object, name_index, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::DefineKeyedOwnPropertyInLiteral(
     Register object, Register name, DefineKeyedOwnPropertyInLiteralFlags flags,
     int feedback_slot) {
@@ -1762,6 +1768,7 @@ SINGLETON_CONSTANT_ENTRY_TYPES(ENTRY_GETTER)
 BytecodeJumpTable* BytecodeArrayBuilder::AllocateJumpTable(
     int size, int case_value_base) {
   DCHECK_GT(size, 0);
+  DCHECK(!RemainderOfBlockIsDead());
 
   size_t constant_pool_index = constant_array_builder()->InsertJumpTable(size);
 

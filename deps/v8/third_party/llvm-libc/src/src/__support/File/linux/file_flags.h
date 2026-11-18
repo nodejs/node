@@ -27,6 +27,8 @@ public:
   static constexpr int WRITE_ONLY = O_WRONLY;
   static constexpr int READ_ONLY = O_RDONLY;
   static constexpr int CREATE_OR_TRUNCATE = O_CREAT | O_TRUNC;
+  static constexpr int EXCLUSIVE_CREATE = O_EXCL;
+  static constexpr int CLOSE_ON_EXEC = O_CLOEXEC;
 
   // File created will have 0666 permissions.
   LIBC_INLINE static constexpr mode_t OPEN_MODE =

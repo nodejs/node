@@ -15,6 +15,10 @@ namespace internal {
 
 V8_OBJECT class Cell : public HeapObject {
  public:
+  inline explicit Cell(const AllocationWitness& witness);
+  inline Cell(const AllocationWitness& witness, Tagged<Smi> value);
+  inline Cell(const AllocationWitness& witness, Tagged<ClearedWeakValue> value);
+
   // [maybe_value]: field containing a possibly weak reference to an object.
   inline Tagged<MaybeObject> maybe_value() const;
   inline Tagged<MaybeObject> maybe_value(RelaxedLoadTag) const;
@@ -26,8 +30,12 @@ V8_OBJECT class Cell : public HeapObject {
   // only Objects.
   inline Tagged<Object> value() const;
   inline Tagged<Object> value(RelaxedLoadTag) const;
+  inline Tagged<Object> value(AcquireLoadTag) const;
   inline void set_value(
       Tagged<Object> value,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  inline void set_value(
+      Tagged<Object> value, ReleaseStoreTag,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(Cell)

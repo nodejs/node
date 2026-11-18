@@ -1,0 +1,3 @@
+Tests clearing a breakpoint from inside the pause handler.
+Paused #1, removing breakpoint...
+Total pauses: 1

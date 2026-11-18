@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecodes.h"
 
+#include <bit>
 #include <vector>
 
 #include "src/init/v8.h"
@@ -53,10 +54,9 @@ TEST(OperandConversion, Parameters) {
 TEST(OperandConversion, RegistersParametersNoOverlap) {
   int register_count = 128;
   int parameter_count = 100;
-  int32_t register_space_size = base::bits::RoundUpToPowerOfTwo32(
-      static_cast<uint32_t>(register_count + parameter_count));
-  uint32_t range = static_cast<uint32_t>(register_space_size);
-  std::vector<uint8_t> operand_count(range);
+  uint32_t register_space_size =
+      std::bit_ceil<uint32_t>(register_count + parameter_count);
+  std::vector<uint8_t> operand_count(register_space_size);
 
   for (int i = 0; i < register_count; i += 1) {
     Register r = Register(i);

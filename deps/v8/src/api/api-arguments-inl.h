@@ -354,9 +354,8 @@ v8::Intercepted PropertyCallbackArguments::CallNamedSetter(
   set_property_key(*name);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
-  NamedPropertySetterCallbackV2 f =
-      reinterpret_cast<NamedPropertySetterCallbackV2>(
-          interceptor->named_setter(isolate));
+  NamedPropertySetterCallback f = reinterpret_cast<NamedPropertySetterCallback>(
+      interceptor->named_setter(isolate));
   DirectHandle<InterceptorInfo> has_side_effects;
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Boolean, has_side_effects,
                                     ExceptionContext::kNamedSetter);
@@ -374,8 +373,8 @@ v8::Intercepted PropertyCallbackArguments::CallNamedDefiner(
   set_property_key(*name);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
-  NamedPropertyDefinerCallbackV2 f =
-      reinterpret_cast<NamedPropertyDefinerCallbackV2>(
+  NamedPropertyDefinerCallback f =
+      reinterpret_cast<NamedPropertyDefinerCallback>(
           interceptor->named_definer(isolate));
   DirectHandle<InterceptorInfo> has_side_effects;
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Boolean, has_side_effects,
@@ -558,7 +557,7 @@ PropertyCallbackArguments::CallPropertyEnumerator(
                                     ExceptionContext::kNamedEnumerator);
   f(callback_info);
   DirectHandle<JSAny> result = GetReturnValue<JSAny>();
-  DCHECK(IsUndefined(*result) || IsJSObject(*result));
+  DCHECK(IsUndefined(*result) || IsJSArray(*result));
   return Cast<JSObjectOrUndefined>(result);
 }
 
@@ -634,32 +633,12 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   set_property_key(*name);
   slot_at(kCallbackInfoIndex).store(*accessor_info);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
-  // The actual type of setter callback is either
-  // v8::AccessorNameSetterCallback or
-  // i::Accessors::AccessorNameBooleanSetterCallback, depending on whether the
-  // AccessorInfo was created by the API or internally (see accessors.cc).
-  // Here we handle both cases using the AccessorNameSetterCallback signature
-  // and checking whether the returned result is set to default value
-  // (the undefined value).
-  AccessorNameSetterCallbackV2 f =
-      reinterpret_cast<AccessorNameSetterCallbackV2>(
-          accessor_info->setter(isolate));
+  AccessorNameSetterCallback f = reinterpret_cast<AccessorNameSetterCallback>(
+      accessor_info->setter(isolate));
   PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, v8::Boolean, accessor_info,
                                  holder(), ACCESSOR_SETTER,
                                  ExceptionContext::kAttributeSet);
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);
-  // Historically, in case of v8::AccessorNameSetterCallback it wasn't allowed
-  // to set the result and not setting the result was treated as successful
-  // execution.
-  // During interceptors Api refactoring it was temporarily allowed to call
-  // v8::ReturnValue<void>::Set[NonEmpty](Local<S>) and the result was just
-  // converted to v8::Boolean which was then treated as a result of [[Set]].
-  // In case of AccessorNameBooleanSetterCallback, the result is always
-  // set to v8::Boolean or an exception is be thrown (in which case the
-  // result is ignored anyway). So, regardless of whether the signature was
-  // v8::AccessorNameSetterCallback or AccessorNameBooleanSetterCallback
-  // the result is guaranteed to be v8::Boolean value indicating success or
-  // failure.
   DirectHandle<Boolean> result = GetReturnValue<Boolean>();
   return IsTrue(*result);
 }

@@ -1,95 +1,149 @@
-# Scopes and ScopeInfos in V8
+# Scopes, Contexts, `ScopeInfo`, and `ContextCell`
 
-V8 manages variable scopes at both compile time and runtime using different data structures. This document explains how `Scope` and `ScopeInfo` work together.
+## Conceptual Overview
 
-## Compile-Time: `Scope`
+JavaScript is lexically scoped: an inner function can read and write variables declared in any outer function, block, class, or script, even long after the outer function has returned.
 
-During parsing and AST generation, V8 uses the `Scope` class (defined in `src/ast/scopes.h`) to represent lexical scopes.
+In V8, variables have two possible physical storage locations (`VariableLocation` in `src/ast/variables.h`):
+1. **Stack-Allocated (`PARAMETER` or `LOCAL`)**: If a variable is only ever accessed by the function in which it is declared (never captured by an inner closure, `eval`, or generator suspension across closures), V8 allocates it in a virtual register on the CPU stack frame. Stack variables require zero heap allocation and vanish automatically when the function returns.
+2. **Context-Allocated (`CONTEXT`, `LOOKUP`, or `MODULE`)**: If a variable is referenced by an inner function (or forced by direct `eval` / `with`), V8 allocates it inside a heap object called a **`Context`**. A `Context` contains a pointer to its enclosing `previous` `Context`, forming a linked **Scope Chain** on the heap.
 
-### Purpose
-*   **Variable Tracking**: It tracks all variables declared in a scope.
-*   **Variable Resolution**: It resolves variable references to their declarations.
-*   **Allocation Decision**: It determines whether a variable can live on the stack (fast) or must be allocated in a `Context` on the heap (slow, needed for closures).
+To bridge compile-time AST analysis and runtime execution, V8 uses three core structures:
+- **`Scope` (`src/ast/scopes.h`)**: A transient, Zone-allocated tree built during parsing to resolve identifiers (`VariableProxy`) to declarations (`Variable`) and decide which variables can stay on the stack vs which must move to a heap `Context`.
+- **`ScopeInfo` (`src/objects/scope-info.h`)**: A compact, immutable heap object serialized from a `Scope` after parsing. It survives for the lifetime of the `SharedFunctionInfo` and `Context` to support lazy compilation of inner functions, deoptimization, stack traces, and debugger variable inspection.
+- **`Context` & `ContextCell` (`src/objects/contexts.h`)**: The runtime heap storage for context-allocated variables, enhanced with **`ContextCell`** slots that track constancy and unboxed `Smi`/`int32`/`float64` states for optimizing compilers.
 
-### Scope Types
-V8 supports various scope types defined in `src/common/globals.h`:
-*   `SCRIPT_SCOPE`: The top-level scope for a script or a top-level eval.
-*   `REPL_MODE_SCOPE`: The top-level scope for a repl-mode script.
-*   `CLASS_SCOPE`: The scope introduced by a class.
-*   `EVAL_SCOPE`: The top-level scope for an eval source.
-*   `FUNCTION_SCOPE`: The top-level scope for a function.
-*   `MODULE_SCOPE`: The scope introduced by a module literal.
-*   `CATCH_SCOPE`: The scope introduced by catch.
-*   `BLOCK_SCOPE`: The scope introduced by a new block.
-*   `WITH_SCOPE`: The scope introduced by with.
-*   `SHADOW_REALM_SCOPE`: Synthetic scope for ShadowRealm NativeContexts.
+---
 
-## Runtime: `ScopeInfo`
+## 1. Compile-Time `Scope` vs Runtime `ScopeInfo` & `Context`
 
-When V8 compiles a function, it serializes the compile-time `Scope` information into a `ScopeInfo` object (defined in `src/objects/scope-info.h`).
+```mermaid
+flowchart LR
+    subgraph Compile-Time (Zone Memory, Freed After Compile)
+        AST["Parser / AST"] --> Scope["Scope Tree<br/>(DeclarationScope, BlockScope...)"]
+        Scope --> Analyze["DeclarationScope::Analyze()<br/>ResolveVariables + AllocateVariables"]
+    end
 
-### Purpose
-`ScopeInfo` is a compressed heap object that retains the necessary information about a scope for execution and debugging.
+    subgraph Persistent Heap Metadata
+        Analyze -->|"ScopeInfo::Create"| SI["ScopeInfo<br/>(Packed variable names, modes, indices)"]
+        SI --> SFI["SharedFunctionInfo::name_or_scope_info_"]
+    end
 
-*   **Context Layout**: It tells V8 how many context slots are needed and what variables go into which slots.
-*   **Debugger Support**: It allows the debugger to inspect variables and understand the scope structure of running code.
-*   **Deoptimization**: Used to reconstruct stack frames during deoptimization.
-
-### Contents of ScopeInfo
-*   **Flags**: Scope type, language mode, receiver info, etc.
-*   **Counts**: Number of parameters, context-allocated locals.
-*   **Inlined Local Names**: Names of variables, allowing lookups by name (primarily for debugging and `eval`).
-*   **Outer Scope Info**: A link to the `ScopeInfo` of the enclosing scope, forming a chain.
-
-## Runtime: `Context`
-
-While `ScopeInfo` is read-only metadata, the `Context` is the actual runtime object (a variable-sized heap object, conceptually similar to a `FixedArray`) that holds the values of context-allocated variables.
-
-*   Each `ScopeInfo` that requires a context will have a corresponding `Context` object created at runtime when the scope is entered.
-*   Contexts are linked in a chain (via the `previous` pointer), mirroring the `ScopeInfo` chain.
-
-### Context Types
-Similar to scope types, V8 has different context types (see `src/objects/contexts.h`):
-*   **Native Context**: The top-level context for a specific realm. Contains many fixed slots for builtins and global objects.
-*   **Function Context**: Created for function executions that have context-allocated variables.
-*   **Block Context**: Created for block scopes with block-scoped declarations (`let`, `const`).
-*   **Catch Context**: Created for `catch` blocks to hold the exception object.
-*   **With Context**: Created for `with` statements.
-*   **Eval Context**: Created for `eval` executions.
-*   **Module Context**: Created for ES modules.
-
-
-## Example: Context Allocation (Closures)
-
-To understand how `ScopeInfo` and `Context` work in practice, consider a closure that captures a variable:
-
-```javascript
-function makeCounter() {
-  let count = 0;
-  return function() {
-    return ++count;
-  };
-}
-const counter = makeCounter();
-counter(); // Returns 1
-counter(); // Returns 2
+    subgraph Runtime Execution (JS Heap)
+        SI -->|"Context::scope_info()"| Ctx["Context<br/>(NativeContext, ScriptContext, FunctionContext, BlockContext)"]
+        Ctx --> CC["ContextCell<br/>(kConst / kSmi / kInt32 / kFloat64 / kDetached)"]
+    end
 ```
 
-### What V8 does:
-1.  **Compile-Time**: The parser sees that the inner anonymous function references `count`, which is declared in the outer `makeCounter` function. The compiler decides that `count` cannot be stack-allocated and must be **context-allocated**.
-2.  **ScopeInfo**: The `ScopeInfo` for `makeCounter` will record that it needs a context with at least one slot for `count`.
-3.  **Runtime Execution**:
-    *   When `makeCounter()` is called, V8 creates a new `FunctionContext` for it.
-    *   The `count` variable is stored in a slot in this context, initialized to `0`.
-    *   The inner function is created as a `JSFunction` object. This object contains a reference to the current `Context` (the `makeCounter` context).
-    *   When `makeCounter` returns, its stack frame is destroyed, but the `FunctionContext` lives on in the heap because the inner function holds a reference to it.
-    *   When `counter()` is called, V8 sets the current context to the one referenced by the closure. The `++count` operation reads and writes directly to the slot in that heap context.
+### Empty Scopes Elision
+Not every syntactic `{ ... }` block in JavaScript creates a `ScopeInfo` or allocates a runtime `BlockContext`. During `Scope::MustAllocateInContext`, if a block scope has **zero** context-allocated variables, V8 elides the runtime `Context` completely: the variables live in stack registers, and no `ScopeInfo` or `PushContext` bytecode is emitted for that block.
 
-## Summary
+### How Lazy Inner Functions Resolve Outer Variables (`kParsedScope` vs `kDeserializedScope`)
+Suppose `outer()` has already been compiled to bytecode (and its AST/`Scope` Zone memory freed), while an inner function `inner()` was skipped by the PreParser (`CompileLazy`). When `inner()` is called later:
+1. V8 reconstructs the enclosing scope chain from the outer `SharedFunctionInfo`s' **`ScopeInfo`** objects (`Scope::DeserializeScopeChain`).
+2. `Scope::Lookup<kDeserializedScope>` queries `ScopeInfo::ContextSlotIndex(name)` on those deserialized scopes to find the exact `(context_chain_depth, slot_index)` for any outer variable captured by `inner()`.
 
-1.  **Parser** creates `Scope` objects.
-2.  **Compiler** uses `Scope` to allocate variables and generates `ScopeInfo`.
-3.  **Runtime** uses `ScopeInfo` to create `Context` objects and access variables.
+---
 
-## See Also
--   [Objects and Maps](../heap/objects-and-maps.md)
+## 2. `ScopeInfo` Packed Layout (`src/objects/scope-info.h`, `src/objects/scope-info.tq`)
+
+Because every compiled `SharedFunctionInfo` and every runtime `Context` points to a `ScopeInfo`, `ScopeInfo` is heavily bit-packed as a variable-length Torque-defined object (`src/objects/scope-info.tq`):
+
+1. **`Flags` (32-bit packed bitfield)**:
+   - `ScopeType` (`FUNCTION_SCOPE`, `SCRIPT_SCOPE`, `EVAL_SCOPE`, `MODULE_SCOPE`, `CATCH_SCOPE`, `BLOCK_SCOPE`, `WITH_SCOPE`, `CLASS_SCOPE`, `SHADOW_REALM_SCOPE`).
+   - `LanguageMode` (`kSloppy` vs `kStrict`), `FunctionKind`, `CallsSloppyEval`, `HasContextAllocation`, `HasContextCells`, `IsSimpleParameterList`, `PrivateNameLookupSkipsOuterClass`, etc.
+2. **Counts**: `ParameterCount`, `ContextLocalCount` (number of slots allocated in this `Context`).
+3. **Variable Metadata Arrays (`ContextLocalNames` & `ContextLocalInfos`)**:
+   - **`ContextLocalNames`**: Either inline `InternalizedString` pointers (for small scopes) or a pointer to a deduplicated **`NameToIndexHashTable`** (when `ContextLocalCount >= kMaxInlinedLocalNamesSize`) for $O(1)$ variable lookup by name.
+   - **`ContextLocalInfos`**: One packed `Smi` per context slot encoding:
+     - `VariableMode` (`kLet`, `kConst`, `kVar`, `kUsing`, `kAwaitUsing`, private methods/accessors).
+     - `InitializationFlag` (`kNeedsInitialization` vs `kCreatedInitialized`).
+     - `MaybeAssignedFlag` (`kNotAssigned` vs `kMaybeAssigned`, computed statically during parsing!).
+     - `ParameterNumber` and **`InlinedLocalNameLookup`** / **Position Distance** (whether the variable's initializer is within `ScopeInfo::kMaxVariablePositionDistance` of the scope start, used for cross-closure TDZ hole-check elimination -- see [Parser Hole Check Elimination](../parsing/hole-check-elimination-parser.md)).
+
+---
+
+## 3. Runtime `Context` Hierarchy (`src/objects/contexts.h`)
+
+Every `Context` on the heap is a variable-length array of tagged slots prefixed by a fixed 3-slot header (`kScopeInfoIndex = 0`, `kPreviousIndex = 1`, and an optional 3rd slot such as `kExtensionIndex`):
+
+```text
++-----------------------------------------------------------------------+
+| Map (function_context_map, block_context_map, script_context_map...)  |
+| length (Smi: total slots)                                             |
++-----------------------------------------------------------------------+
+| [0] kScopeInfoIndex : Tagged<ScopeInfo>                               |
+| [1] kPreviousIndex  : Tagged<Context> (enclosing lexical Context)     |
+| [2] MIN_CONTEXT_SLOTS: Context local 0 (or kExtensionIndex if Ext)    |
+| [3]                  : Context local 1                                |
+| ...                                                                   |
++-----------------------------------------------------------------------+
+```
+
+- **`NativeContext`**: The root context of a JavaScript realm (`window` / `globalThis`). Holds all intrinsic constructors (`Array`, `Object`, `Promise`), default maps, and the `ScriptContextTable`.
+- **`ScriptContext`**: Holds top-level lexical declarations (`let`, `const`, `class`) of a script.
+- **`FunctionContext`**: Created by `CreateFunctionContext` on entry to a function that has context-allocated variables.
+- **`BlockContext` / `CatchContext` / `WithContext`**: Created by `CreateBlockContext`, `CreateCatchContext` (single variable slot for the caught exception), or `CreateWithContext` (stores the `with (obj)` target in `kExtensionIndex`).
+
+---
+
+## 4. `ContextCell`: Typed Specialization for Context Variables (`src/objects/contexts.h`)
+
+### The Problem with Raw `Context` Slots
+Historically, every variable in a `Context` was stored as a plain tagged value directly in `context->get(slot_index)`.
+- If a variable was assigned more than once (`MaybeAssignedFlag::kMaybeAssigned`), optimizing compilers could not constant-fold it, even if at runtime it was only ever initialized once!
+- Worse, if a loop counter or numeric accumulator (`let sum = 0.0; sum += x;`) was captured in a `FunctionContext` or `ScriptContext`, every single write had to allocate a brand-new `HeapNumber` box because raw `Context` slots had no `Representation::Double()` tracking or `DependentCode` invalidation!
+
+### How `ContextCell` Solves This
+When `Scope::has_context_cells()` is true (used in `ScriptContext`s and `FunctionContext`s with mutable context-allocated variables when `--script-context-cells` / `--function-context-cells` is active), mutable context variables are wrapped in a **`ContextCell`** heap object (`src/objects/contexts.h`, `src/objects/contexts.tq`) stored in the `Context` slot:
+
+```text
++-------------------------------------------------------------------+
+| Map (context_cell_map)                                            |
++-------------------------------------------------------------------+
+| tagged_value_   (TaggedMember<Object>: JS value or tdz_hole)      |
+| dependent_code_ (TaggedMember<DependentCode>: deopt dependents)   |
+| state_          (std::atomic<State>: int32_t enum)                |
+| double_value_   (double: 64-bit unboxed float64 or int32 payload) |
++-------------------------------------------------------------------+
+```
+
+### The `ContextCell::State` Lattice
+
+A `ContextCell` transitions monotonically through five states (`ContextCell::State`):
+
+```mermaid
+stateDiagram-v2
+    [*] --> kConst: Initial allocation (tagged_value_ = tdz_hole or initial value)
+    kConst --> kSmi: Overwritten with a Smi
+    kConst --> kInt32: Overwritten with a HeapNumber (int32 value)
+    kConst --> kFloat64: Overwritten with a HeapNumber (double value)
+    kConst --> kDetached: Overwritten with non-number HeapObject
+
+    kSmi --> kInt32: Overwritten with int32 HeapNumber
+    kSmi --> kFloat64: Overwritten with float64 HeapNumber
+    kSmi --> kDetached: Overwritten with non-number
+
+    kInt32 --> kFloat64: Overwritten with non-int32 double
+    kInt32 --> kDetached: Overwritten with non-number
+
+    kFloat64 --> kDetached: Overwritten with non-number
+```
+
+| `ContextCell::State` | Value Storage Location | Compiler & Runtime Behavior |
+| :--- | :--- | :--- |
+| **`kConst = 0`** | `tagged_value_` (initially `tdz_hole_value`, then the first assigned value) | **Constant Folding!** Maglev and TurboFan read `tagged_value_` at compile time, register in `dependent_code_` (`LazyDeoptimizeReason::kContextCellChange`), and fold the constant directly into the IR without emitting a runtime load! (While `tagged_value_` is still `tdz_hole_value`, the cell remains in `kConst` without registering constant-folding code until the first real assignment initializes it.) |
+| **`kSmi = 1`** | `tagged_value_` (`Tagged<Smi>`) | Guaranteed to hold a `Smi`. Compilers load/store `tagged_value_` directly as a tagged `Smi`. |
+| **`kInt32 = 2`** | `double_value_` (low 32 bits as `int32_t`, `tagged_value_ = Smi::zero()`) | **Unboxed 32-bit Integer!** Compilers load and store raw 32-bit signed integers directly inside `double_value_` with **zero `HeapNumber` allocations**! |
+| **`kFloat64 = 3`** | `double_value_` (64-bit IEEE-754 `double`, `tagged_value_ = Smi::zero()`) | **Unboxed 64-bit Float!** Compilers load and store raw `double` values in-place inside `double_value_` with **zero `HeapNumber` allocations**! |
+| **`kDetached = 4`** | Detached (`tagged_value_ = Smi::zero()`) | Once a variable holds varied non-numeric `HeapObject`s (or transitions out of tracked states), the `ContextCell` is **detached**: V8 replaces the `ContextCell` pointer inside the `Context` slot directly with the raw `Tagged<Object>` value, and future accesses read/write the `Context` slot directly! |
+
+Whenever a write (`LdaContextSlot` / `StaContextSlot` or `ScriptContext` IC/runtime helper) causes a `ContextCell` to transition from one `State` to another (e.g., `kConst -> kSmi` or `kInt32 -> kFloat64`), V8 triggers `DependentCode::DeoptimizeDependencyGroups(..., DependentCode::kContextCellGroup)` (`LazyDeoptimizeReason::kContextCellChange`), safely deoptimizing any Maglev/TurboFan code that specialized on the narrower state.
+
+---
+
+## Key Source Files
+
+- `src/ast/scopes.h` & `src/ast/scopes.cc`: `Scope`, `DeclarationScope::Analyze`, `MustAllocate`, and `ResolveVariable`.
+- `src/objects/scope-info.h`, `src/objects/scope-info.tq`, & `src/objects/scope-info.cc`: `ScopeInfo` bit-packing and variable lookup tables.
+- `src/objects/contexts.h`, `src/objects/contexts-inl.h`, & `src/objects/contexts.tq`: `Context`, `ScriptContextTable`, and `ContextCell` (`State::kConst`, `kSmi`, `kInt32`, `kFloat64`, `kDetached`).

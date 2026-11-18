@@ -210,6 +210,11 @@ class JSONEscaped {
     if (c == '\n') return os << "\\n";
     if (c == '\r') return os << "\\r";
     if (c == '\t') return os << "\\t";
+    unsigned char uc = static_cast<unsigned char>(c);
+    if (uc < 0x20) {
+      constexpr char kHexDigits[] = "0123456789abcdef";
+      return os << "\\u00" << kHexDigits[uc >> 4] << kHexDigits[uc & 0xf];
+    }
     return os << c;
   }
 

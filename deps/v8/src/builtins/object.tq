@@ -118,6 +118,18 @@ transitioning builtin CreateObjectWithoutProperties(
               const theMap = MaybeObjectToStrong(derived_maps.objects[0])
                   otherwise Runtime;
               map = UnsafeCast<Map>(theMap);
+              // Only use the cached map in PrototypeInfo if the prototype
+              // belongs to the same native context, matching
+              // Map::GetObjectCreateMap.
+              // Given that we already have both objectFunction and the initial
+              // map, this is a faster version of BelongsToSameNativeContextAs.
+              const constructor =
+                  map.constructor_or_back_pointer_or_native_context;
+              const isSameContext: bool =
+                  TaggedEqual(constructor, objectFunction);
+              dcheck(
+                  isSameContext == BelongsToSameNativeContextAs(map, context));
+              if (!isSameContext) goto Runtime;
             }
           }
         }
@@ -191,10 +203,10 @@ transitioning javascript builtin ObjectPrototypeToLocaleString(
   // 1. Let O be the this value.
   // 2. Return ? Invoke(O, "toString").
   if (receiver == Null || receiver == Undefined) deferred {
-      ThrowTypeError(
-          MessageTemplate::kCalledOnNullOrUndefined,
-          'Object.prototype.toLocaleString');
-    }
+    ThrowTypeError(
+        MessageTemplate::kCalledOnNullOrUndefined,
+        'Object.prototype.toLocaleString');
+  }
   const method = GetProperty(receiver, 'toString');
   return Call(context, method, receiver);
 }

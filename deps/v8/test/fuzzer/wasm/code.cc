@@ -17,12 +17,11 @@ class WasmCodeFuzzer : public WasmExecutionFuzzer {
   bool GenerateModule(Isolate* isolate, Zone* zone,
                       base::Vector<const uint8_t> data,
                       ZoneBuffer* buffer) override {
-    TestSignatures sigs;
     WasmModuleBuilder builder(zone);
-    WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
+    WasmFunctionBuilder* f = builder.AddFunction(TestSignatures::i_iii());
     f->EmitCode(data.begin(), static_cast<uint32_t>(data.size()));
     f->Emit(kExprEnd);
-    builder.AddExport(base::CStrVector("main"), f);
+    builder.AddExport("main", f);
 
     builder.AddMemory(0, 32);
     builder.WriteTo(buffer);

@@ -33,7 +33,7 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   if (!IsJSObject(*object_obj)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kInvalidArgument, object_obj));
+        isolate, NewTypeError(MessageTemplate::kInvalidArgument));
   }
 
   DirectHandle<JSObject> object = Cast<JSObject>(object_obj);

@@ -1,0 +1,4 @@
+Tests stepping out of async function.
+  debugger;        // B0 StepOver
+  a += await g();  // B1 StepOut
+  late_resolve(3);   // B2 Continue

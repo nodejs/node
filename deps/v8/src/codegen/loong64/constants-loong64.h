@@ -3069,6 +3069,42 @@ bool InstructionGetters<P>::IsStore() const {
   if ((this->Bits(31, 20) << 20) == VSTELM_W) return true;
   if ((this->Bits(31, 19) << 19) == VSTELM_D) return true;
   switch (this->Bits(31, 15) << 15) {
+    case AMSWAP_W:
+    case AMSWAP_D:
+    case AMADD_W:
+    case AMADD_D:
+    case AMAND_W:
+    case AMAND_D:
+    case AMOR_W:
+    case AMOR_D:
+    case AMXOR_W:
+    case AMXOR_D:
+    case AMMAX_W:
+    case AMMAX_D:
+    case AMMIN_W:
+    case AMMIN_D:
+    case AMMAX_WU:
+    case AMMAX_DU:
+    case AMMIN_WU:
+    case AMMIN_DU:
+    case AMSWAP_DB_W:
+    case AMSWAP_DB_D:
+    case AMADD_DB_W:
+    case AMADD_DB_D:
+    case AMAND_DB_W:
+    case AMAND_DB_D:
+    case AMOR_DB_W:
+    case AMOR_DB_D:
+    case AMXOR_DB_W:
+    case AMXOR_DB_D:
+    case AMMAX_DB_W:
+    case AMMAX_DB_D:
+    case AMMIN_DB_W:
+    case AMMIN_DB_D:
+    case AMMAX_DB_WU:
+    case AMMAX_DB_DU:
+    case AMMIN_DB_WU:
+    case AMMIN_DB_DU:
     case STX_B:
     case STX_H:
     case STX_W:

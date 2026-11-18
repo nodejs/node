@@ -1,0 +1,5 @@
+Tests setVariableValue on module scope with many variables.
+Paused on debugger statement.
+Found module scope: true
+Setting non-existing variable returned error: true
+moduleTestResults: {"v0":1000,"v74":1074,"v75":1075,"v119":2000,"notExported":"b","v1":1}

@@ -58,7 +58,6 @@ LIBC_INLINE bfloat16 atanbf16(bfloat16 x) {
   };
 
   float xf = x;
-  float x_sq = xf * xf;
 
   // |x| <= 1
   if (x_abs <= 0x3f80) {
@@ -67,9 +66,13 @@ LIBC_INLINE bfloat16 atanbf16(bfloat16 x) {
       return x;
 
     // For smaller x
-    if (LIBC_UNLIKELY(x_abs <= 0x3db8))
-      return fputil::cast<bfloat16>(fputil::multiply_add(xf, -0x1p-9f, xf));
+    if (LIBC_UNLIKELY(x_abs <= 0x3db8)) {
+      // Keep the small correction normal even for the smallest bfloat16 input.
+      double xd = xf;
+      return fputil::cast<bfloat16>(fputil::multiply_add(xd, -0x1p-9, xd));
+    }
 
+    float x_sq = xf * xf;
     float result = atan_eval(x_sq);
     return fputil::cast<bfloat16>(fputil::multiply_add(xf * x_sq, result, xf));
   }
@@ -87,6 +90,14 @@ LIBC_INLINE bfloat16 atanbf16(bfloat16 x) {
     // atanbf16(+/-inf) = +/-pi/2
     return fputil::cast<bfloat16>(sign * PI_2);
   }
+
+  // For |x| >= 2^12, atan(|x|) lies strictly between 0x1.92p0 and pi/2.
+  // This interval has the same bfloat16 rounding as pi/2 in every mode.
+  // Avoid squaring large inputs or forming tiny reciprocal intermediates.
+  if (LIBC_UNLIKELY(x_abs >= 0x4580))
+    return fputil::cast<bfloat16>(sign * PI_2);
+
+  float x_sq = xf * xf;
 
   // If |x| > 1:
   // atan(x) = sign(x) * (pi/2 - atan(1/|x|))

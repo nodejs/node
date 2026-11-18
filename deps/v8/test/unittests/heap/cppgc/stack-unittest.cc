@@ -25,7 +25,8 @@ namespace {
 class GCStackTest : public ::testing::Test {
  public:
   GCStackTest() : stack_(std::make_unique<Stack>()) {
-    stack_->SetStackStart(v8::base::Stack::GetStackStart());
+    stack_->SetStackStart(v8::base::Stack::GetStackStart(),
+                          /*check_for_tls=*/true);
   }
 
   Stack* GetStack() const { return stack_.get(); }

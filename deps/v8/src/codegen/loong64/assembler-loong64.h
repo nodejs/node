@@ -608,6 +608,32 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void sc_w(Register rd, Register rj, int32_t si14);
   void sc_d(Register rd, Register rj, int32_t si14);
 
+  // dbar hint encoding (0x1~0x1f), as documented in GCC's loongarch/sync.md
+  // and as emitted by both GCC and LLVM:
+  //
+  //   bit4: 0 = completion, 1 = ordering only
+  //   bit3: no barrier for previous reads
+  //   bit2: no barrier for previous writes
+  //   bit1: no barrier for succeeding reads
+  //   bit0: no barrier for succeeding writes
+  //
+  // Hint 0x0 is a full completion barrier, only needed for device or IO
+  // ordering; V8 does not use it. Hint 0x700 orders loads of the same address
+  // and is needed by LL/SC loops on cores without LD_SEQ_SA (CPUCFG.3 bit 23);
+  // No regular load exists between LL and SC, so 0x700 is not needed; keep
+  // 0x14 at the CAS loop tail to cover failed-CAS acquire.
+  enum DbarHint : int32_t {
+    // Full ordering barrier.
+    kDbarFull = 0x10,
+    // Store-release.
+    kDbarStoreRelease = 0x12,
+    // Load-acquire.
+    kDbarLoadAcquire = 0x14,
+    // Order succeeding accesses after this point, which turns a release store
+    // into a seq_cst store.
+    kDbarSucceeding = 0x18,
+  };
+
   void dbar(int32_t hint);
   void ibar(int32_t hint);
 
@@ -1552,9 +1578,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
  protected:
-  // Helper function for memory load/store.
-  void AdjustBaseAndOffset(MemOperand* src);
-
   inline static void set_target_internal_reference_encoded_at(Address pc,
                                                               Address target);
 

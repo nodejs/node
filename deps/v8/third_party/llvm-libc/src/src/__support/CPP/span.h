@@ -77,6 +77,11 @@ public:
   LIBC_INLINE constexpr span(array<U, N> &arr)
       : span_data(arr.data()), span_size(arr.size()) {}
 
+  template <typename U, size_t N,
+            cpp::enable_if_t<is_compatible_v<const U>, bool> = true>
+  LIBC_INLINE constexpr span(const array<U, N> &arr)
+      : span_data(arr.data()), span_size(arr.size()) {}
+
   template <typename U, cpp::enable_if_t<is_compatible_v<U>, bool> = true>
   LIBC_INLINE constexpr span(const span<U> &s)
       : span_data(s.data()), span_size(s.size()) {}

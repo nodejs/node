@@ -392,18 +392,21 @@ TEST_F(SweeperTest, DiscardingNormalPageMemory) {
   if (!Sweeper::CanDiscardMemory()) return;
 
   // Test ensures that free list payload is discarded and accounted for on page
-  // level.
-  auto* holder = MakeGarbageCollected<GCed<1>>(GetAllocationHandle());
+  // level. The object is held by a Persistent as it needs to stay alive across
+  // both GCs below; a raw pointer that is no longer used may not be found by
+  // conservative stack scanning.
+  Persistent<GCed<1>> holder =
+      MakeGarbageCollected<GCed<1>>(GetAllocationHandle());
   ConservativeMemoryDiscardingGC();
-  auto* page = NormalPage::FromPayload(holder);
+  auto* page = NormalPage::From(BasePage::FromPayload(holder.Get()));
   // Assume the `holder` object is the first on the page for simplifying exact
   // discarded count.
   ASSERT_EQ(static_cast<void*>(page->PayloadStart() + sizeof(HeapObjectHeader)),
-            holder);
+            holder.Get());
   // No other object on the page is live.
   Address free_list_payload_start =
       page->PayloadStart() +
-      HeapObjectHeader::FromObject(holder).AllocatedSize() +
+      HeapObjectHeader::FromObject(holder.Get()).AllocatedSize() +
       sizeof(kFreeListEntrySize);
   uintptr_t start =
       RoundUp(reinterpret_cast<uintptr_t>(free_list_payload_start),
@@ -411,8 +414,61 @@ TEST_F(SweeperTest, DiscardingNormalPageMemory) {
   uintptr_t end = RoundDown(reinterpret_cast<uintptr_t>(page->PayloadEnd()),
                             GetPlatform().GetPageAllocator()->CommitPageSize());
   EXPECT_GT(end, start);
-  EXPECT_EQ(page->discarded_memory(), end - start);
-  USE(holder);
+  EXPECT_EQ(page->purged_memory(), end - start);
+  EXPECT_EQ(Heap::From(GetHeap())->stats_collector()->purged_memory_size(),
+            end - start);
+
+  // A repeated memory-reducing GC without new allocations keeps the same
+  // purged memory size.
+  ConservativeMemoryDiscardingGC();
+  EXPECT_EQ(page->purged_memory(), end - start);
+  EXPECT_EQ(Heap::From(GetHeap())->stats_collector()->purged_memory_size(),
+            end - start);
+}
+
+TEST_F(SweeperTest, AllocationOnlyRestoresReusedSystemPages) {
+  if (!Sweeper::CanDiscardMemory()) return;
+
+  const size_t commit_page_size =
+      GetPlatform().GetPageAllocator()->CommitPageSize();
+  // The garbage object below needs to cover a full system page and still fit
+  // on a normal page.
+  if (commit_page_size > kLargeObjectSizeThreshold / 4) return;
+
+  // Lay out a page as [first][garbage][second][unused], so that a
+  // memory-reducing GC leaves two free blocks behind that both contain
+  // purged system pages.
+  using Object = GCed<256>;
+  const auto garbage_additional_bytes =
+      static_cast<uint32_t>(2 * commit_page_size);
+  Persistent<Object> first =
+      MakeGarbageCollected<Object>(GetAllocationHandle());
+  MakeGarbageCollected<Object>(GetAllocationHandle(),
+                               AdditionalBytes(garbage_additional_bytes));
+  Persistent<Object> second =
+      MakeGarbageCollected<Object>(GetAllocationHandle());
+  auto* page = NormalPage::From(BasePage::FromPayload(first.Get()));
+  ASSERT_EQ(page, BasePage::FromPayload(second.Get()));
+
+  Heap* heap = Heap::From(GetHeap());
+  heap->CollectGarbage({CollectionType::kMajor, StackState::kNoHeapPointers,
+                        GCConfig::MarkingType::kAtomic,
+                        GCConfig::SweepingType::kAtomic,
+                        GCConfig::FreeMemoryHandling::kReleaseMemory});
+  const size_t purged_memory_after_gc = page->purged_memory();
+  EXPECT_GT(purged_memory_after_gc, 0u);
+  EXPECT_EQ(purged_memory_after_gc,
+            heap->stats_collector()->purged_memory_size());
+
+  // The allocation is served from one of the two free blocks. Only the system
+  // pages of that block are in use again.
+  Persistent<Object> third =
+      MakeGarbageCollected<Object>(GetAllocationHandle());
+  ASSERT_EQ(page, BasePage::FromPayload(third.Get()));
+  EXPECT_GT(page->purged_memory(), 0u);
+  EXPECT_LT(page->purged_memory(), purged_memory_after_gc);
+  EXPECT_EQ(page->purged_memory(),
+            heap->stats_collector()->purged_memory_size());
 }
 
 namespace {

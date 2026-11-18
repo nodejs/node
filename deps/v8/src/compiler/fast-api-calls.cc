@@ -67,12 +67,14 @@ ElementsKind GetTypedArrayElementsKind(CTypeInfo::Type type) {
 bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
   USE(c_signature);
 
-#if defined(V8_OS_MACOS) && defined(V8_TARGET_ARCH_ARM64)
-  // On MacArm64 hardware we don't support passing of arguments on the stack.
+#if defined(V8_OS_DARWIN) && defined(V8_TARGET_ARCH_ARM64)
+  // On Apple arm64 (macOS and iOS) stack arguments are packed at their natural
+  // size, which V8's C linkage (one 8-byte slot per argument) does not model,
+  // so we don't support passing of arguments on the stack.
   if (c_signature->ArgumentCount() > 8) {
     return false;
   }
-#endif  // defined(V8_OS_MACOS) && defined(V8_TARGET_ARCH_ARM64)
+#endif  // defined(V8_OS_DARWIN) && defined(V8_TARGET_ARCH_ARM64)
 
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat32 ||
@@ -302,9 +304,7 @@ Node* FastApiCallBuilder::Build(FastApiCallFunction c_function,
 
     Node* data_argument_to_pass = __ AdaptLocalArgument(data_argument);
 
-    START_ALLOW_USE_DEPRECATED()
     constexpr int data_offset = offsetof(v8::FastApiCallbackOptions, data);
-    END_ALLOW_USE_DEPRECATED()
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
              stack_slot, data_offset, data_argument_to_pass);
@@ -404,10 +404,12 @@ FastApiCallFunction GetFastApiCallTarget(
       for (unsigned int j = 0; j < c_signature->ArgumentCount(); ++j) {
         const uint8_t flags =
             static_cast<uint8_t>(c_signature->ArgumentInfo(j).GetFlags());
+        START_ALLOW_USE_DEPRECATED()
         if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
           // Bailout
           return {0, nullptr};
         }
+        END_ALLOW_USE_DEPRECATED()
       }
 #endif
       return {overloads[i].address, c_signature};

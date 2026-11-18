@@ -69,6 +69,19 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   // Returns whether the current scope declares any variables.
   bool DeclaresLocals(Mode mode) const;
 
+  enum class VariableInfo {
+    // The scope does not declare any variables.
+    kEmpty,
+    // The scope declares variables, but none of their values are available
+    // (i.e. all of them are optimized out or in their TDZ).
+    kAllUnavailable,
+    // The scope declares at least one variable with an available value.
+    kAvailable,
+  };
+
+  // Classifies the variables declared by the current scope.
+  VariableInfo GetVariableInfo(Mode mode) const;
+
   // Returns whether the current scope should be ignored by debugger scope
   // numbers.
   bool ShouldIgnore() const;
@@ -106,6 +119,29 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     return !function_.is_null() && HasScope();
   }
   bool HasContext() const;
+  bool InPausedFunctionScopes() const;
+  // Whether `context_` belongs to the current script (`script_`).
+  //
+  // ScopeIterator walks the static DebugScriptScope tree (`current_scope()` in
+  // `script_`) in lockstep with the runtime Context chain (`context_`), and
+  // HasContext() matches a context-requiring static scope to `context_` by
+  // comparing UniqueIdInScript().
+  //
+  // UniqueIdInScript() is only unique within a single script (character start
+  // offset for ordinary scopes, or -2 for both EVAL_SCOPE and MODULE_SCOPE).
+  // When execution pauses before an inner scope's runtime context has been
+  // pushed (or after all contexts created inside an eval / new Function script
+  // have been unwound while `current_scope()` has not yet crossed
+  // FindEvalOuterScope()), `context_` already points to an enclosing runtime
+  // context created outside the paused function or by an outer/caller script.
+  //
+  // Returns true iff `context_` was allocated for a scope in `script_` (and,
+  // while still inside InPausedFunctionScopes(), inside the paused function
+  // itself rather than its outer creation context `function_->context()`,
+  // except for top-level script/module code which executes directly in its own
+  // ScriptContext/ModuleContext), making UniqueIdInScript() comparison with
+  // `current_scope()` meaningful.
+  bool ContextBelongsToCurrentScript() const;
   bool NeedsContext() const;
   bool NeedsAndHasContext() const { return NeedsContext() && HasContext(); }
   Handle<Context> CurrentContext() const {
@@ -116,6 +152,9 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     if (current_scope_index_ == -1) return std::nullopt;
     return current_scope();
   }
+  // Returns the innermost runtime context at the current position. Unlike
+  // CurrentContext(), this is also valid for scopes without their own context.
+  Handle<Context> EvaluationContext() const { return context_; }
 
  private:
   Isolate* isolate_;
@@ -127,15 +166,22 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   Handle<JSFunction> function_;
 
   Handle<Context> context_;
+  // The script and serialized scope tree containing the current scope. These
+  // start out as the paused script and move on to the caller's script when
+  // iteration leaves the root scope of a direct eval script.
+  // `current_scope_index_` indexes into `debug_scope_info_` and is set to -1
+  // once iteration leaves the outermost scope tree.
+  // `start_scope_index_` and `closure_scope_index_` always index into the
+  // paused script's scope tree.
   Handle<Script> script_;
-  // Serialized scope tree of the paused script and indices into it.
-  // `current_scope_index_` is set to -1 once iteration leaves
-  // `closure_scope_index_` (matching `function_` becoming null).
   Handle<DebugScriptScopeInfo> debug_scope_info_;
   int start_scope_index_ = -1;
   int closure_scope_index_ = -1;
   int current_scope_index_ = -1;
   bool seen_script_scope_ = false;
+  // Set when paused at a return position. Iteration then starts at the
+  // closure scope and nested block, catch and with scopes are skipped.
+  bool ignore_nested_scopes_ = false;
 
   DebugScriptScope current_scope() const {
     return DebugScriptScope::FromIndex(debug_scope_info_, current_scope_index_);
@@ -148,7 +194,6 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     return frame_inspector_->javascript_frame();
   }
 
-  bool AdvanceOneScope();
   void AdvanceOneContext();
   void AdvanceScope();
   void AdvanceContext();
@@ -156,7 +201,9 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   int GetSourcePosition() const;
 
   void TryParseAndRetrieveScopes();
+  void UnwindToClosureContext();
 
+  static Tagged<Context> UnwrapEvaluationContext(Tagged<Context> context);
   void UnwrapEvaluationContext();
 
   using Visitor =
@@ -165,6 +212,30 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
   Handle<JSObject> WithContextExtension();
 
+  // Sets the value of a local variable in the current scope.
+  // Note on TDZ handling:
+  // - Context, script, and module lexical slots never elide TdzHole
+  //   initialization, and writing over TdzHole via Context::Set would wrap a
+  //   kNotAssigned (NoCell) slot in a ContextCell (leaking a raw ContextCell to
+  //   JS).
+  // - Stack and suspended-generator VariableLocation::LOCAL registers only emit
+  //   TdzHole when a path before or across the initializer can read the
+  //   register (Variable::binding_needs_init()); otherwise TdzHole
+  //   initialization is elided and the register holds `undefined` until the
+  //   initializer runs.
+  // - Calling IsLocalInTdz here falsely rejected valid debugger writes to
+  //   already-initialized `undefined` locals (such as in switch scopes where
+  //   initializer_position is kMaxInt, or earlier bindings in multi-binding
+  //   destructuring declarations where initializer_position is the end of the
+  //   declaration).
+  // - Working as intended (WAI): While overwriting `undefined` with another
+  //   value in an elided-TDZ register via SetLocalVariableValue is
+  //   theoretically observable (e.g. to a subsequent debugger read via
+  //   VisitLocals / DebugEvaluate::Local before the initializer runs, since
+  //   IsLocalInTdz only checks IsUndefined(value)), it cannot violate VM,
+  //   compiler, deoptimization, or ContextCell invariants and is overwritten
+  //   when the initializer executes. We intentionally do not care about this
+  //   edge case and consider it working as intended.
   bool SetLocalVariableValue(DirectHandle<String> variable_name,
                              DirectHandle<Object> new_value);
   bool SetContextVariableValue(DirectHandle<String> variable_name,
@@ -182,6 +253,26 @@ class V8_EXPORT_PRIVATE ScopeIterator {
                        ScopeType scope_type) const;
   void VisitScriptScope(const Visitor& visitor) const;
   void VisitModuleScope(const Visitor& visitor) const;
+  // Checks whether a local/register slot is currently in its temporal dead
+  // zone. When hole-initialization bytecodes are elided
+  // (var.is_hole_initialization_elided), this uses the static source position
+  // heuristic (GetSourcePosition() <= var.initializer_position). Note:
+  // 1. Switch statements: ParserBase::ParseSwitchStatement forces hole
+  //    initialization for all lexical locals in a switch scope so
+  //    var.is_hole_initialization_elided is false and bytecode always emits
+  //    explicit LdaTdzHole at scope entry. Uninitialized switch locals
+  //    therefore always hold an actual TdzHole, and an `undefined` runtime
+  //    value is always an initialized value.
+  // 2. Multi-binding destructuring: When hole initialization is elided,
+  //    IsLocalInTdz intentionally uses the lightweight static
+  //    GetSourcePosition() <= var.initializer_position heuristic rather than
+  //    scanning bytecode. For multi-binding destructuring patterns (e.g.
+  //    `let [a, b = (debugger, 2)] = [undefined]`), the parser assigns the end
+  //    position of the entire declaration to all bindings in the pattern, so
+  //    earlier bindings initialized to `undefined` conservatively appear as
+  //    unavailable until the declaration finishes. This is working as
+  //    intended.
+  bool IsLocalInTdz(const DebugVariableInfo& var, Tagged<Object> value) const;
   bool VisitLocals(const Visitor& visitor, Mode mode,
                    ScopeType scope_type) const;
   bool VisitContextLocals(const Visitor& visitor,

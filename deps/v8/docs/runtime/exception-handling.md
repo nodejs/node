@@ -1,89 +1,126 @@
 # Exception Handling in V8
 
-Exception handling in V8 is implemented using side-tables rather than explicit bytecodes for entering and leaving `try` blocks. This ensures zero overhead for the "happy path" (when no exception is thrown).
+## Conceptual Overview
 
-## The Handler Table
+When JavaScript code executes `throw new Error()`, or when a runtime operation fails (such as dereferencing `undefined.foo` or exhausting the call stack), V8 must locate the nearest enclosing `try`/`catch` or `try`/`finally` block across a mixed call stack of Ignition bytecode frames, Sparkplug baseline frames, Maglev/TurboFan optimized frames, C++ builtins, and Wasm frames.
 
-The core data structure for exception handling is the `HandlerTable` (defined in `src/codegen/handler-table.h`). It maps code regions or specific instructions to their corresponding exception handlers.
-
-There are two flavors of handler tables, depending on the execution tier:
-
-### 1. Range-Based Handler Table (Unoptimized Code)
-
-Used by **Ignition** (interpreter) and **Sparkplug** (baseline compiler). It is stored as a `TrustedByteArray` attached to the `BytecodeArray`.
-
-Since unoptimized code is relatively linear and compact, it is efficient to use ranges to describe `try` blocks.
-
-**Layout:**
-An array of 4-element entries:
-`[ range-start , range-end , handler-offset , handler-data ]`
-
-*   **range-start**: The bytecode offset where the `try` block begins.
-*   **range-end**: The bytecode offset where the `try` block ends.
-*   **handler-offset**: The bytecode offset of the `catch` or `finally` block. It also encodes prediction information (whether it's likely to catch the exception) and a flag indicating if the handler was used.
-*   **handler-data**: The index of the context register.
-
-**Zero-Overhead Try Blocks:**
-When generating bytecode for a `try-catch` statement, the `BytecodeGenerator` does not emit any bytecodes to "enter" the try block. Instead, it calls `MarkTryBegin` and `MarkTryEnd` on the `BytecodeArrayBuilder`, which records the offsets in the `HandlerTableBuilder`. The execution proceeds linearly.
-
-### 2. Return-Address-Based Handler Table (Optimized Code)
-
-Used by **Maglev** and **TurboFan**. It is stored directly in the instruction stream of the generated code.
-
-Optimized code can be heavily reordered and scheduled, making ranges impractical. Instead, V8 tracks specific instructions that can throw (primarily calls) and maps their return addresses to handlers.
-
-**Layout:**
-An array of 2-element entries:
-`[ return-address-offset , handler-offset ]`
-
-*   **return-address-offset**: The offset from the start of the code where a call returns. If the call throws, the return address is used to look up the handler.
-*   **handler-offset**: The offset in the generated code where the handler starts.
-
-## Exception Flow across Tiers
-
-### Ignition
-1.  **Try Entry**: No operation.
-2.  **Throw**: The `Throw` or `ReThrow` bytecode is executed, or a C++ runtime function throws an exception.
-3.  **Lookup**: The runtime looks up the current bytecode offset in the `BytecodeArray`'s `HandlerTable` using `LookupHandlerIndexForRange`.
-4.  **Unwinding**: If found, the interpreter restores the context (saved in a register at `try` entry) and jumps to the handler offset. If not found, it unwinds the stack frame and continues searching in the caller.
-
-### Sparkplug
-Sparkplug shares the `BytecodeArray` with Ignition and therefore reuses the same range-based `HandlerTable`. When an exception occurs in Sparkplug code, it can often be handled directly in Sparkplug or it might deoptimize to Ignition to handle it.
-
-### Maglev & TurboFan
-1.  **Try Entry**: No operation.
-2.  **Throw**: An instruction (like a call) throws an exception.
-3.  **Lookup**: The runtime uses the return address of the throwing call to look up the handler in the code object's return-address-based `HandlerTable` using `LookupReturn`.
-4.  **Unwinding**: The runtime unwinds the stack to the handler and resumes execution there.
-
-## Lazy Deoptimization on Throw
-
-In optimized code (Maglev and TurboFan), V8 sometimes uses a mechanism called **Lazy Deopt on Throw** for certain calls.
-
-Instead of generating complex exception handling code (catch blocks) in the optimized code itself, V8 can mark a call descriptor with `LazyDeoptOnThrow{true}`.
-
-**How it works:**
-1.  **Sentinel Handler**: In the return-address-based handler table, instead of mapping to a real handler offset, the entry for that call maps to a special sentinel value (`kLazyDeoptOnThrowSentinel` which is -1).
-2.  **Exception Trigger**: If the called function throws an exception, the runtime exception search looks up the handler.
-3.  **Deopt Trigger**: When it finds the sentinel value, it knows that it should not branch to a catch block in the optimized code. Instead, it triggers a **Lazy Deoptimization** of the frame.
-4.  **Interpreter Handles It**: The frame is translated back to an Ignition interpreter frame, and the exception is handled by Ignition's standard range-based handler table lookup.
-
-This simplifies optimized code generation for operations where exceptions are rare or where generating optimized catch blocks would be too costly.
-
-## Catch Prediction
-V8 uses "Catch Prediction" to guess whether an exception will be caught locally. This is used by the debugger to pause on uncaught exceptions.
-*   `CAUGHT`: The exception is caught by a local `catch` block.
-*   `UNCAUGHT`: The exception will (likely) rethrow the exception to outside the code boundary.
-*   `PROMISE`: The exception will be caught and cause a promise rejection.
-*   `ASYNC_AWAIT`: The exception will be caught and cause a promise rejection in the desugaring of an async function.
-*   `UNCAUGHT_ASYNC_AWAIT`: The exception will be caught and cause a promise rejection in the desugaring of an async REPL script.
-
-> [!NOTE]
-> We cannot perform exception prediction on optimized code directly. Instead, V8 uses `FrameSummary` to find the corresponding code offset in unoptimized code to perform prediction there.
+To make zero-exception execution completely free ("zero-cost try blocks"), V8 does **not** execute setup instructions when entering or leaving a `try` block. Instead, every compiled unit attaches a static side table (`HandlerTable`) that maps program counter (PC) or bytecode offsets to catch handler targets. Only when an exception is actually thrown does `Isolate::Throw` walk the stack and consult each frame's `HandlerTable`.
 
 ---
 
-## See Also
--   [Stack Walking](stack-walking.md)
--   [Ignition](../interpreter/interpreter-ignition.md)
--   [Function Architecture](function-architecture.md)
+## 1. `pending_exception` vs `scheduled_exception` (`src/execution/isolate.h`)
+
+V8's `Isolate` tracks two distinct exception slots in `ThreadLocalTop` (`src/execution/thread-local-top.h`) to bridge JavaScript stack unwinding and C++ embedder/runtime boundaries:
+
+| Slot on `Isolate` | Meaning & Lifecycle |
+| :--- | :--- |
+| **`pending_exception()`** | **Active Unwinding Exception.** Set by `Isolate::Throw(raw_exception)` when an exception is actively being thrown and the stack has already been searched for a handler (`FindHandler`). C++ `RUNTIME_FUNCTION`s signal that `pending_exception` is set by returning the sentinel `ReadOnlyRoots(isolate).exception()` (`ExceptionHole`), and `MaybeHandle<T>` / `MaybeDirectHandle<T>` functions return an empty handle (`kNullMaybeHandle`). |
+| **`scheduled_exception()`** | **Deferred C++ API / Interrupt Exception.** Set when C++ embedder code (`v8::Isolate::ThrowException`) or an asynchronous interrupt/termination requests an exception while inside C++ helper frames before returning to a JS/runtime boundary (`Isolate::ScheduleThrow`). When crossing back to JS or finishing a C++ API call, `Isolate::PromoteScheduledException()` moves `scheduled_exception` into `pending_exception` and invokes `Isolate::Throw` to compute the handler unwinding targets. |
+
+### Uncatchable Termination (`TerminationException`)
+When an embedder calls `v8::Isolate::TerminateExecution()` (for example, to stop a runaway worker or script timeout), V8 throws `ReadOnlyRoots(isolate).termination_exception()` (`TerminationException`).
+- Unlike normal JS exceptions (`IsTheHole` / `IsException`), `TerminationException` is **uncatchable** by user JavaScript: `Isolate::Throw` ignores user `try`/`catch` and `finally` blocks, unwinding all JavaScript frames back to the outermost C++ entry point (`Invoke`).
+
+---
+
+## 2. `HandlerTable` Layouts and Bitfields (`src/codegen/handler-table.h`)
+
+Depending on the compiler tier, `HandlerTable` uses one of two physical layouts (`HandlerTable::EncodingMode`):
+
+```text
+1. kRangeBasedEncoding (Ignition BytecodeArray & Sparkplug BaselineFrame)
++----------------+----------------+-----------------------------+---------------+
+| try_start (i32)| try_end (i32)  | handler_offset_bitfield(i32)| context (i32) |
++----------------+----------------+-----------------------------+---------------+
+                                    bits 0..2:  CatchPrediction
+                                    bit  3:     HandlerWasUsed
+                                    bits 4..31: HandlerOffset (28 bits)
+
+2. kReturnAddressBasedEncoding (Maglev, TurboFan, Turboshaft, Wasm)
++---------------------------------+---------------------------------------------+
+| return_address_offset (i32)     | handler_offset_bitfield (i32)               |
++---------------------------------+---------------------------------------------+
+                                    bits 0..2:  CatchPrediction (TurboFan)
+                                    bits 3..31: HandlerOffset
+```
+
+### 1. `kRangeBasedEncoding` (Ignition & Sparkplug)
+Stored in `BytecodeArray::handler_table()` (`TrustedByteArray`) with 4 `int32_t` integers per row (`kRangeEntrySize = 4`):
+- **`try_start` and `try_end`**: Half-open bytecode offset interval `[try_start, try_end)` covered by the `try` block. Nested `try` blocks appear earlier in the table than outer `try` blocks so the first matching interval in `LookupRange` is always the innermost handler!
+- **`handler` bitfield (`HandlerOffsetField` + `HandlerPredictionField` + `HandlerWasUsedField`)**:
+  - **Bits `0..2` (`HandlerPredictionField`, 3 bits)**: Static `CatchPrediction` (`UNCAUGHT`, `CAUGHT`, `PROMISE`, `ASYNC_AWAIT`, `UNCAUGHT_ASYNC_AWAIT`), used by the debugger and DevTools "Pause on uncaught exceptions" to predict whether the handler will swallow or rethrow the exception.
+  - **Bit `3` (`HandlerWasUsedField`, 1 bit)**: Mutable feedback bit set via `MarkHandlerUsed(index)` whenever `Isolate::Throw` actually takes this handler! Optimizing compilers (Maglev/TurboFan) read `HandlerWasUsed` to know whether a `catch` block has ever executed at runtime; if `HandlerWasUsed` is `false`, the compiler can emit `HandlerTable::kLazyDeopt` instead of compiling cold `catch` block machine code!
+  - **Bits `4..31` (`HandlerOffsetField`, 28 bits)**: Bytecode offset of the `catch` or `finally` landing pad.
+- **`context` (`range_data`)**: The bytecode register index holding the saved `Context` that must be restored into the interpreter's `context` register upon jumping to the handler!
+
+### 2. `kReturnAddressBasedEncoding` (Maglev, TurboFan, Wasm)
+Stored inside `InstructionStream`'s metadata section (`handler_table_offset`) with 2 `int32_t` integers per row (`kReturnEntrySize = 2`), sorted by `return_address_offset`:
+- Because optimized code only throws at calls (or deoptimizes eagerly before throwing on inline checks), it maps the **call return PC offset** (`LookupReturn(pc_offset)`) via binary search to a machine code `handler_offset`.
+
+### Critical Sentinel Constants (`kNoHandlerFound` vs `kLazyDeopt`)
+
+> [!IMPORTANT]
+> Do not confuse the two `HandlerTable` sentinel constants in `src/codegen/handler-table.h`:
+> - **`HandlerTable::kNoHandlerFound = -1`**: Returned by `LookupRange` or `LookupReturn` when a frame has **no catch handler** covering the current PC/bytecode offset. Unwinding continues to the caller frame.
+> - **`HandlerTable::kLazyDeopt = HandlerOffsetField::kMax` (`0x0fffffff`)**: Stored inside `HandlerOffsetField` in an **optimized frame's** `kReturnAddressBasedEncoding` table when the `try` block **does** have a handler in the source code, but the optimizing compiler chose **not to compile the `catch` block into machine code** (for example, because `HandlerWasUsed` was `false` when the function was optimized).
+>   - When `LookupReturn` returns `HandlerTable::kLazyDeopt`, `Isolate::Throw` does **not** skip the frame! Instead, it marks that frame for lazy deoptimization so the exception is caught in the reconstructed unoptimized `InterpretedFrame`!
+
+---
+
+## 3. How Each Execution Tier Unwinds Exceptions (`Isolate::Throw` / `FindHandler`)
+
+When `Isolate::Throw` runs, `FindHandler` walks the stack using `StackFrameIterator` from innermost frame to outermost entry frame (`src/execution/isolate.cc`):
+
+```mermaid
+flowchart TD
+    Throw["Isolate::Throw(exception)"] --> Iter["Walk StackFrames (innermost to outermost)"]
+    Iter --> CheckType{"Frame Type?"}
+    CheckType -- "ENTRY / CONSTRUCT_ENTRY" --> Uncaught["Uncaught in JS entry:<br/>Return to C++ caller"]
+    CheckType -- "INTERPRETED" --> IgnLookup["BytecodeArray::LookupRange(bytecode_offset)"]
+    CheckType -- "BASELINE (Sparkplug)" --> SpLookup["Convert PC to bytecode_offset<br/>BytecodeArray::LookupRange(bytecode_offset)<br/>Convert handler bytecode_offset to Sparkplug PC"]
+    CheckType -- "MAGLEV / TURBOFAN_JS" --> OptLookup["Code::LookupReturn(pc_offset)"]
+    OptLookup -- "handler == kLazyDeopt" --> LazyDeopt["Deoptimize frame lazily;<br/>Catch in reconstructed InterpretedFrame"]
+    OptLookup -- "handler >= 0" --> Found["Found Handler!"]
+    IgnLookup -- "handler >= 0" --> Found
+    SpLookup -- "handler >= 0" --> Found
+    IgnLookup -- "kNoHandlerFound (-1)" --> Iter
+    SpLookup -- "kNoHandlerFound (-1)" --> Iter
+    OptLookup -- "kNoHandlerFound (-1)" --> Iter
+    Found --> Pack["Save target PC, SP, FP, Context in Isolate::thread_local_top()"]
+```
+
+### How Sparkplug (`BaselineFrame`) Handles Exceptions (No Deoptimization!)
+A common misconception is that Sparkplug lazy-deoptimizes to Ignition on exceptions. **Sparkplug never deoptimizes!**
+- A `BaselineFrame` shares the exact same `BytecodeArray` (and its `kRangeBasedEncoding` `HandlerTable`) as Ignition.
+- During `FindHandler` on a `BaselineFrame`:
+  1. V8 translates the current Sparkplug return PC into a bytecode offset using the baseline `BytecodeOffsetTable`.
+  2. It queries `bytecode_array->LookupHandler(bytecode_offset)` in the range-based `HandlerTable` (and calls `MarkHandlerUsed`).
+  3. It translates the resulting **handler bytecode offset** forward into a **Sparkplug machine PC offset** (`BaselinePCForNextExecutedBytecode`), restores the saved `Context` from the frame's register slot, and jumps directly to the Sparkplug landing pad!
+
+### How Unwinding Transfers Control (`Throw` Stub / CEntry)
+Once `FindHandler` locates the catching frame and landing pad:
+1. It records the target `handler_address`, `handler_fp`, `handler_sp`, and `handler_context` in `Isolate::thread_local_top()`, and places the thrown exception object in `pending_exception`.
+2. The C++ runtime function returns `ReadOnlyRoots::exception()` to the `CEntry` stub (or builtin).
+3. Seeing the `exception` sentinel, `CEntry` invokes the architecture-specific unwinding sequence: popping all intermediate stack frames by setting `sp = handler_sp` and `fp = handler_fp`, loading `context = handler_context` and `accumulator = pending_exception`, clearing `pending_exception`, and jumping straight to `handler_address`!
+
+---
+
+## 4. `finally` Blocks and Bytecode Re-Dispatch
+
+In JavaScript, a `try { ... } finally { cleanup(); }` block must execute `cleanup()` whether the `try` block:
+1. Finishes normally (fallthrough),
+2. Executes `return val`, `break`, or `continue`, or
+3. Throws an exception (which must be re-thrown after `cleanup()` finishes, unless `cleanup()` itself throws or returns).
+
+`BytecodeGenerator` compiles `try`/`finally` using a single unified landing pad controlled by a hidden **`token` register** and a **`message` / `result` register**:
+- On **normal exit / `return` / `break`**, bytecode stores the return value (if any) in `result`, loads a small integer `Smi` dispatch token (`0, 1, 2, ...`) into `token`, and jumps to the `finally` block.
+- On **exception**, the `HandlerTable` catches the exception, preserves the pending exception message (`SetPendingMessage`), stores the caught exception into `result`, sets `token = -1` (or the rethrow token), and falls into the exact same `finally` block.
+- At the end of `finally`, bytecode switches on `token`: if it matches the exception token, it restores the pending message and executes `ReThrow`; otherwise it executes the deferred `Return`, `Jump`, or fallthrough.
+
+---
+
+## Key Source Files
+
+- `src/codegen/handler-table.h` & `src/codegen/handler-table.cc`: `HandlerTable`, `EncodingMode`, `CatchPrediction`, `kNoHandlerFound`, and `kLazyDeopt`.
+- `src/execution/isolate.cc`: `Isolate::Throw`, `Isolate::ReThrow`, `Isolate::FindHandler`, `PromoteScheduledException`, and `PredictExceptionCatcher`.
+- `src/execution/frames.h` & `src/execution/frames.cc`: `StackFrame::ComputeParameters`, `VisitSpillSlots`, `InterpretedFrame`, `BaselineFrame`, and `OptimizedJSFrame`.

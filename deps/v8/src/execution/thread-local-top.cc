@@ -23,7 +23,7 @@ void ThreadLocalTop::Clear() {
   context_ = {};
   last_entered_context_ = {};
   topmost_script_having_context_ = {};
-  thread_id_ = ThreadId();
+  thread_id_ = base::ThreadId::Invalid();
   pending_handler_entrypoint_ = kNullAddress;
   pending_handler_constant_pool_ = kNullAddress;
   pending_handler_fp_ = kNullAddress;
@@ -47,7 +47,7 @@ void ThreadLocalTop::Clear() {
 void ThreadLocalTop::Initialize(Isolate* isolate) {
   Clear();
   isolate_ = isolate;
-  thread_id_ = ThreadId::Current();
+  thread_id_ = base::ThreadId::Current();
 #if V8_ENABLE_WEBASSEMBLY
   is_on_central_stack_flag_ = true;
 #endif  // V8_ENABLE_WEBASSEMBLY

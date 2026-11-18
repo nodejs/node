@@ -179,6 +179,8 @@ void IteratorBuiltinsAssembler::Iterate(
   Label done(this), early_break(this);
 
   IteratorRecord iterator_record = GetIterator(context, iterable, iterable_fn);
+  TNode<Map> fast_iterator_result_map = CAST(LoadContextElementNoCell(
+      LoadNativeContext(context), Context::ITERATOR_RESULT_MAP_INDEX));
 
   Label if_exception(this, Label::kDeferred);
   TVARIABLE(Object, var_exception);
@@ -190,8 +192,10 @@ void IteratorBuiltinsAssembler::Iterate(
   {
     GotoIfNot(condition(), &early_break);
 
-    TNode<JSReceiver> next = IteratorStep(context, iterator_record, &done);
-    TNode<Object> next_value = IteratorValue(context, next);
+    TNode<JSReceiver> next =
+        IteratorStep(context, iterator_record, &done, fast_iterator_result_map);
+    TNode<Object> next_value =
+        IteratorValue(context, next, fast_iterator_result_map);
 
     {
       compiler::ScopedExceptionHandler handler(this, &if_exception,

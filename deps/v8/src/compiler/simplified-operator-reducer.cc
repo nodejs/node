@@ -76,9 +76,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedToBit: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.HasResolvedValue()) {
-        std::optional<bool> maybe_result =
-            m.Ref(broker()).TryGetBooleanValue(broker());
-        if (maybe_result.has_value()) return ReplaceInt32(*maybe_result);
+        return ReplaceInt32(m.Is(factory()->true_value()));
       }
       if (m.IsChangeBitToTagged()) return Replace(m.InputAt(0));
       break;
@@ -381,11 +379,11 @@ Reduction SimplifiedOperatorReducer::ReplaceInt32(int32_t value) {
 }
 
 Reduction SimplifiedOperatorReducer::ReplaceNumber(double value) {
-  return Replace(jsgraph()->ConstantMaybeHole(value));
+  return Replace(jsgraph()->ConstantNoHole(value));
 }
 
 Reduction SimplifiedOperatorReducer::ReplaceNumber(Float64 value) {
-  return Replace(jsgraph()->ConstantMaybeHole(value));
+  return Replace(jsgraph()->ConstantNoHole(value));
 }
 
 Reduction SimplifiedOperatorReducer::ReplaceNumber(int32_t value) {

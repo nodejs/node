@@ -4,3 +4,9 @@ include_rules = [
   "+src/base",
   "+src/libsampler",
 ]
+
+specific_include_rules = {
+  "sampler.cc": [
+    "+absl/base/internal/sysinfo.h",
+  ],
+}

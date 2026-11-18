@@ -60,7 +60,7 @@ EXPECTED_PROCESSED_OUTPUT = {
 # all executables.
 EXE_LIST = [
     '/path/to/d8',
-    '/path/to/cctest',
+    '/path/to/bigint_shell',
     '/path/to/v8_unittests',
 ]
 
@@ -87,7 +87,7 @@ INSTRUMENTED_LINE_RESULTS = [
 # line number and contain no duplicates.
 EXPECTED_INSTRUMENTED_LINES_DATA = {
     'version': 1,
-    'tests': ['cctest', 'd8', 'v8_unittests'],
+    'tests': ['bigint_shell', 'd8', 'v8_unittests'],
     'files': {
         'src/baz/bar.h': [[0, 0], [3, 0], [7, 0], [8, 0]],
         'src/baz.cc': [[1, 0], [2, 0]],
@@ -110,7 +110,7 @@ COVERED_LINE_RESULTS = [
         'src/baz/bar.h': [3, 7],
         'src/baz.cc': [2],
         'src/foo.cc': [1],
-    }, 'cctest'),
+    }, 'bigint_shell'),
     ({
         'src/foo.cc': [92],
         'src/baz.cc': [2],
@@ -118,11 +118,11 @@ COVERED_LINE_RESULTS = [
 ]
 
 # This shows initial instrumentation + coverage. The mask bits are:
-# cctest: 1, d8: 2, v8_unittests:4. So a line covered by cctest and v8_unittests
-# has a coverage mask of 0b101, e.g. line 2 in src/baz.cc.
+# bigint_shell: 1, d8: 2, v8_unittests: 4. So a line covered by bigint_shell and
+# v8_unittests has a coverage mask of 0b101, e.g. line 2 in src/baz.cc.
 EXPECTED_COVERED_LINES_DATA = {
     'version': 1,
-    'tests': ['cctest', 'd8', 'v8_unittests'],
+    'tests': ['bigint_shell', 'd8', 'v8_unittests'],
     'files': {
         'src/baz/bar.h': [[0, 0b0], [3, 0b11], [7, 0b11], [8, 0b0]],
         'src/baz.cc': [[1, 0b0], [2, 0b101]],
@@ -140,7 +140,7 @@ EXPECTED_SPLIT_FILES = [
         os.path.join('src', 'baz', 'bar.h.json'),
         {
             'version': 1,
-            'tests': ['cctest', 'd8', 'v8_unittests'],
+            'tests': ['bigint_shell', 'd8', 'v8_unittests'],
             'files': {
                 'src/baz/bar.h': [[0, 0b0], [3, 0b11], [7, 0b11], [8, 0b0]],
             },
@@ -150,7 +150,7 @@ EXPECTED_SPLIT_FILES = [
         os.path.join('src', 'baz.cc.json'),
         {
             'version': 1,
-            'tests': ['cctest', 'd8', 'v8_unittests'],
+            'tests': ['bigint_shell', 'd8', 'v8_unittests'],
             'files': {
                 'src/baz.cc': [[1, 0b0], [2, 0b101]],
             },
@@ -160,7 +160,7 @@ EXPECTED_SPLIT_FILES = [
         os.path.join('src', 'foo.cc.json'),
         {
             'version': 1,
-            'tests': ['cctest', 'd8', 'v8_unittests'],
+            'tests': ['bigint_shell', 'd8', 'v8_unittests'],
             'files': {
                 'src/foo.cc': [[1, 0b1], [11, 0b10], [92, 0b100], [93, 0b0]],
             },

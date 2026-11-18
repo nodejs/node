@@ -1,0 +1,14 @@
+Tests debug-evaluate-no-side-effect-async.
+new Promise(): EvalError
+generator(): EvalError
+g.next(): EvalError
+Promise.resolve(): EvalError
+Promise.reject(): EvalError
+p.then(() => {}): EvalError
+p.catch(() => {}): EvalError
+p.finally(() => {}): EvalError
+Promise.all([p, p]): EvalError
+Promise.race([p, p]): EvalError
+(async function() { await 1; })(): EvalError
+async(): ok
+(async function() {})(): ok

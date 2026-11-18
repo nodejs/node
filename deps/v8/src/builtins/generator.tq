@@ -16,9 +16,9 @@ namespace generator {
 // when a throw arrives at the inlined call PC after the optimized code is
 // invalidated.
 transitioning javascript builtin GeneratorPrototypeNextLazyDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(generator: JSAny,
+    js-implicit context: NativeContext, receiver: JSAny)(
     exception: JSAny|TheHole, result: JSAny): JSAny {
-  const gen = UnsafeCast<JSGeneratorObject>(generator);
+  const gen = UnsafeCast<JSGeneratorObject>(receiver);
 
   // Exception path: close the generator and rethrow.
   typeswitch (exception) {

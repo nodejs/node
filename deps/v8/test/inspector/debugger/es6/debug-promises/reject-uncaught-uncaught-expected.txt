@@ -1,0 +1,8 @@
+Tests debug events for uncaught rejected promise with no catch handler.
+Paused on exception: uncaught=true
+Exception message: uncaught reject
+At event line: true
+Total exception events: 1
+Test done: true
+Test error: null
+Log: ["resolve","end main","reject"]

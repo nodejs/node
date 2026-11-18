@@ -316,3 +316,26 @@ runTest = function() {
 }
 
 runTest();
+
+// ----------------------------------------------------------------------
+// Mixed named property and element keyed store with TypedArray prototype.
+// ----------------------------------------------------------------------
+(function() {
+  function keyedStore(obj, key, val) {
+    obj[key] = val;
+  }
+
+  const arrWithTypedArrayProto = [10];
+  Object.setPrototypeOf(arrWithTypedArrayProto, new Int32Array(1));
+
+  // First record a named property store on arrWithTypedArrayProto (which skips
+  // MayHaveTypedArrayInPrototypeChain in StoreIC), then perform an out-of-bounds
+  // element store on a normal array. UpdateStoreElement must transition the
+  // mixed property/element IC to MEGAMORPHIC rather than installing a fast
+  // growing element handler for arrWithTypedArrayProto's map.
+  keyedStore(arrWithTypedArrayProto, "prop", 1);
+  keyedStore([10], 1, 2);
+  keyedStore(arrWithTypedArrayProto, 1, 99);
+  assertEquals(undefined, arrWithTypedArrayProto[1]);
+  assertEquals(1, arrWithTypedArrayProto.length);
+})();

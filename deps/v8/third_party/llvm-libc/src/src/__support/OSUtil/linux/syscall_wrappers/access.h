@@ -15,7 +15,7 @@
 #define LLVM_LIBC_SRC___SUPPORT_OSUTIL_SYSCALL_WRAPPERS_ACCESS_H
 
 #include "hdr/fcntl_macros.h"
-#include "src/__support/OSUtil/linux/syscall.h" // syscall_impl
+#include "src/__support/OSUtil/linux/syscall.h" // syscall_checked
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
@@ -26,15 +26,12 @@ namespace linux_syscalls {
 
 LIBC_INLINE ErrorOr<int> access(const char *path, int mode) {
 #ifdef SYS_faccessat
-  int ret = syscall_impl<int>(SYS_faccessat, AT_FDCWD, path, mode, 0);
+  return syscall_checked<int>(SYS_faccessat, AT_FDCWD, path, mode, 0);
 #elif defined(SYS_access)
-  int ret = syscall_impl<int>(SYS_access, path, mode);
+  return syscall_checked<int>(SYS_access, path, mode);
 #else
 #error "access and faccessat syscalls not available."
 #endif
-  if (ret < 0)
-    return Error(-ret);
-  return ret;
 }
 
 } // namespace linux_syscalls

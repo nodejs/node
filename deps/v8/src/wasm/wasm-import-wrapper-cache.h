@@ -15,17 +15,17 @@ namespace v8::internal::wasm {
 
 struct ImportWrapperCacheKey {
   ImportWrapperCacheKey(ImportCallKind kind, const CanonicalSig* sig,
-                        int expected_arity, Suspend suspend)
-      : kind(kind),
-        sig(sig),
+                        uint16_t expected_arity, Suspend suspend)
+      : sig(sig),
         expected_arity(expected_arity),
+        kind(kind),
         suspend(suspend) {}
 
   bool operator==(const ImportWrapperCacheKey& rhs) const = default;
 
-  ImportCallKind kind;
   const CanonicalSig* sig;
-  int expected_arity;
+  uint16_t expected_arity;
+  ImportCallKind kind;
   Suspend suspend;
 
   class Hash {
@@ -35,11 +35,13 @@ struct ImportWrapperCacheKey {
       if (v8_flags.hashes_collide) return base::kCollidingHash;
 #endif  // V8_HASHES_COLLIDE
 
-      return base::hash_combine(static_cast<uint8_t>(key.kind),
-                                key.sig->index(), key.expected_arity);
+      return base::hash_combine(key.kind, key.suspend, key.sig->index(),
+                                key.expected_arity);
     }
   };
 };
+// Update {Hash} when adding fields.
+static_assert(sizeof(ImportWrapperCacheKey) == 2 * kSystemPointerSize);
 
 class WasmImportWrapperCache : public WasmWrapperCache<ImportWrapperCacheKey> {
  public:
@@ -57,11 +59,7 @@ class WasmImportWrapperCache : public WasmWrapperCache<ImportWrapperCacheKey> {
 
   V8_EXPORT_PRIVATE
   bool HasCodeForTesting(ImportCallKind kind, const CanonicalSig* sig,
-                         int expected_arity, Suspend suspend);
-
-#ifdef DEBUG
-  bool IsCompiledWrapper(WasmCodePointer code_pointer);
-#endif
+                         uint16_t expected_arity, Suspend suspend);
 
  protected:
   std::pair<WasmCompilationResult, WasmCode::Kind> CompileWrapper(

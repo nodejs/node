@@ -116,6 +116,9 @@ void DeclareMethods(AggregateType* container_type,
                                            signature, body);
     m->SetPosition(method->pos);
     m->SetIdentifierPosition(method->name->pos);
+    if (GlobalContext::collect_kythe_data()) {
+      KytheData::AddFunctionDefinition(m);
+    }
   }
 }
 
@@ -170,14 +173,15 @@ const BitFieldStructType* TypeVisitor::ComputeType(
       ReportError("Invalid number of bits for ",
                   field.name_and_type.name->value);
     }
+    offset = field.offset.value_or(offset);
+    if (offset < 0 || static_cast<size_t>(offset) + field.num_bits > size) {
+      ReportError("Bitfield outside storage in ", decl->name->value);
+    }
     type->RegisterField({field.name_and_type.name->pos,
                          {field.name_and_type.name->value, field_type},
                          offset,
                          field.num_bits});
     offset += field.num_bits;
-    if (static_cast<size_t>(offset) > size) {
-      ReportError("Too many total bits in ", decl->name->value);
-    }
   }
 
   return type;

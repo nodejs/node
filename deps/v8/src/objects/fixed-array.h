@@ -131,7 +131,6 @@ class TaggedArrayBase : public Super {
   inline Tagged<ElementT> get(uint32_t index) const;
   inline Tagged<ElementT> get(uint32_t index, RelaxedLoadTag) const;
   inline Tagged<ElementT> get(uint32_t index, AcquireLoadTag) const;
-  inline Tagged<ElementT> get(uint32_t index, SeqCstAccessTag) const;
 
   inline void set(uint32_t index, Tagged<ElementT> value,
                   WriteBarrierMode mode = kDefaultMode);
@@ -148,18 +147,6 @@ class TaggedArrayBase : public Super {
   template <typename T = ElementT,
             typename = std::enable_if<kSupportsSmiElements<T>>>
   inline void set(uint32_t index, Tagged<Smi> value, ReleaseStoreTag);
-  inline void set(uint32_t index, Tagged<ElementT> value, SeqCstAccessTag,
-                  WriteBarrierMode mode = kDefaultMode);
-  template <typename T = ElementT,
-            typename = std::enable_if<kSupportsSmiElements<T>>>
-  inline void set(uint32_t index, Tagged<Smi> value, SeqCstAccessTag);
-
-  inline Tagged<ElementT> swap(uint32_t index, Tagged<ElementT> value,
-                               SeqCstAccessTag,
-                               WriteBarrierMode mode = kDefaultMode);
-  inline Tagged<ElementT> compare_and_swap(
-      uint32_t index, Tagged<ElementT> expected, Tagged<ElementT> value,
-      SeqCstAccessTag, WriteBarrierMode mode = kDefaultMode);
 
   // Move vs. Copy behaves like memmove vs. memcpy: for Move, the memory
   // regions may overlap, for Copy they must not overlap.
@@ -318,6 +305,7 @@ V8_OBJECT class FixedArray
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, objects);
 } V8_OBJECT_END;
 
@@ -358,6 +346,7 @@ V8_OBJECT class TrustedFixedArray
 
  public:
   // length_ / optional_padding_ live in TrustedFixedArrayBase.
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, objects);
 } V8_OBJECT_END;
 
@@ -396,6 +385,7 @@ V8_OBJECT class ProtectedFixedArray
 
  public:
   // length_ / optional_padding_ live in TrustedFixedArrayBase.
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(ElementMemberT, objects);
 } V8_OBJECT_END;
 
@@ -432,6 +422,7 @@ V8_OBJECT class WeakFixedArray
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, objects);
 } V8_OBJECT_END;
 
@@ -464,6 +455,7 @@ V8_OBJECT class WeakHomomorphicFixedArray
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, objects);
 } V8_OBJECT_END;
 
@@ -491,6 +483,7 @@ V8_OBJECT class TrustedWeakFixedArray
 
  public:
   // length_ / optional_padding_ live in TrustedFixedArrayBase.
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, objects);
 } V8_OBJECT_END;
 
@@ -521,6 +514,7 @@ V8_OBJECT class ProtectedWeakFixedArray
 
  public:
   // length_ / optional_padding_ live in TrustedFixedArrayBase.
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(ElementMemberT, objects);
 } V8_OBJECT_END;
 
@@ -639,8 +633,9 @@ V8_OBJECT class WeakArrayList
   }
 
  public:
-  uint32_t capacity_;
+  V8_TQ_CONST uint32_t capacity_;
   uint32_t length_;
+  V8_TQ_TAIL_LENGTH(capacity);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, objects);
 } V8_OBJECT_END;
 
@@ -716,8 +711,9 @@ V8_OBJECT class ArrayList
       AllocationType allocation = AllocationType::kYoung);
 
  public:
-  uint32_t capacity_;
+  V8_TQ_CONST uint32_t capacity_;
   uint32_t length_;
+  V8_TQ_TAIL_LENGTH(capacity);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, objects);
 } V8_OBJECT_END;
 

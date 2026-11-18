@@ -1,0 +1,5 @@
+Tests stepping with blackboxing and inlining across OSR
+Paused in: callee
+Paused in: callee
+Paused in: target
+Target was paused: true

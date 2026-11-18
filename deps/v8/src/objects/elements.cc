@@ -4,6 +4,8 @@
 
 #include "src/objects/elements.h"
 
+#include <cstring>
+
 #include "src/base/atomicops.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/common/globals.h"
@@ -21,7 +23,6 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/keys.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
@@ -130,7 +131,6 @@ enum Where { AT_START, AT_END };
   V(FastPackedFrozenObjectElementsAccessor, PACKED_FROZEN_ELEMENTS,           \
     FixedArray)                                                               \
   V(FastHoleyFrozenObjectElementsAccessor, HOLEY_FROZEN_ELEMENTS, FixedArray) \
-  V(SharedArrayElementsAccessor, SHARED_ARRAY_ELEMENTS, FixedArray)           \
   V(DictionaryElementsAccessor, DICTIONARY_ELEMENTS, NumberDictionary)        \
   V(FastSloppyArgumentsElementsAccessor, FAST_SLOPPY_ARGUMENTS_ELEMENTS,      \
     FixedArray)                                                               \
@@ -398,8 +398,7 @@ void CopyDoubleToDoubleElements(Tagged<FixedArrayBase> from_base,
   // access to double values in the arrays. This will no longed be necessary
   // once the allocations alignment issue is fixed.
   uint32_t words_per_double = (kDoubleSize / kTaggedSize);
-  CopyTagged(to_address, from_address,
-             static_cast<size_t>(words_per_double * copy_size));
+  CopyTagged(to_address, from_address, words_per_double * copy_size);
 #else
   uint32_t words_per_double = (kDoubleSize / kSystemPointerSize);
   CopyWords(to_address, from_address,
@@ -763,64 +762,6 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                                 InternalIndex entry) {
     return handle(Cast<BackingStore>(backing_store)->get(entry.as_uint32()),
                   isolate);
-  }
-
-  Handle<Object> GetAtomic(Isolate* isolate, DirectHandle<JSObject> holder,
-                           InternalIndex entry, SeqCstAccessTag tag) final {
-    return Subclass::GetAtomicInternalImpl(isolate, holder->elements(), entry,
-                                           tag);
-  }
-
-  static Handle<Object> GetAtomicInternalImpl(
-      Isolate* isolate, Tagged<FixedArrayBase> backing_store,
-      InternalIndex entry, SeqCstAccessTag tag) {
-    UNREACHABLE();
-  }
-
-  void SetAtomic(DirectHandle<JSObject> holder, InternalIndex entry,
-                 Tagged<Object> value, SeqCstAccessTag tag) final {
-    Subclass::SetAtomicInternalImpl(holder->elements(), entry, value, tag);
-  }
-
-  static void SetAtomicInternalImpl(Tagged<FixedArrayBase> backing_store,
-                                    InternalIndex entry, Tagged<Object> value,
-                                    SeqCstAccessTag tag) {
-    UNREACHABLE();
-  }
-
-  Handle<Object> SwapAtomic(Isolate* isolate, DirectHandle<JSObject> holder,
-                            InternalIndex entry, Tagged<Object> value,
-                            SeqCstAccessTag tag) final {
-    return Subclass::SwapAtomicInternalImpl(isolate, holder->elements(), entry,
-                                            value, tag);
-  }
-
-  static Handle<Object> SwapAtomicInternalImpl(
-      Isolate* isolate, Tagged<FixedArrayBase> backing_store,
-      InternalIndex entry, Tagged<Object> value, SeqCstAccessTag tag) {
-    UNREACHABLE();
-  }
-
-  Handle<Object> CompareAndSwapAtomic(Isolate* isolate,
-                                      DirectHandle<JSObject> holder,
-                                      InternalIndex entry,
-                                      Tagged<Object> expected,
-                                      Tagged<Object> value,
-                                      SeqCstAccessTag tag) final {
-    return handle(
-        HeapObject::SeqCst_CompareAndSwapField(
-            expected, value,
-            [=](Tagged<Object> expected_value, Tagged<Object> new_value) {
-              return Subclass::CompareAndSwapAtomicInternalImpl(
-                  holder->elements(), entry, expected_value, new_value, tag);
-            }),
-        isolate);
-  }
-
-  static Tagged<Object> CompareAndSwapAtomicInternalImpl(
-      Tagged<FixedArrayBase> backing_store, InternalIndex entry,
-      Tagged<Object> expected, Tagged<Object> value, SeqCstAccessTag tag) {
-    UNREACHABLE();
   }
 
   void Set(DirectHandle<JSObject> holder, InternalIndex entry,
@@ -1677,7 +1618,7 @@ class DictionaryElementsAccessor
           // deleted and adjust range accordingly.
           for (InternalIndex entry : dict->IterateEntries()) {
             Tagged<Object> index = dict->KeyAt(entry);
-            if (dict->IsKey(roots, index)) {
+            if (NumberDictionary::IsKey(roots, index)) {
               uint32_t number =
                   static_cast<uint32_t>(Object::NumberValue(index));
               if (length <= number && number < old_length) {
@@ -1696,7 +1637,7 @@ class DictionaryElementsAccessor
           int removed_entries = 0;
           for (InternalIndex entry : dict->IterateEntries()) {
             Tagged<Object> index = dict->KeyAt(entry);
-            if (dict->IsKey(roots, index)) {
+            if (NumberDictionary::IsKey(roots, index)) {
               uint32_t number =
                   static_cast<uint32_t>(Object::NumberValue(index));
               if (length <= number && number < old_length) {
@@ -1743,7 +1684,7 @@ class DictionaryElementsAccessor
     ReadOnlyRoots roots = GetReadOnlyRoots();
     for (InternalIndex i : dict->IterateEntries()) {
       Tagged<Object> key = dict->KeyAt(i);
-      if (!dict->IsKey(roots, key)) continue;
+      if (!NumberDictionary::IsKey(roots, key)) continue;
       PropertyDetails details = dict->DetailsAt(i);
       if (details.kind() == PropertyKind::kAccessor) return true;
     }
@@ -1762,13 +1703,6 @@ class DictionaryElementsAccessor
     return handle(GetRaw(backing_store, entry), isolate);
   }
 
-  static Handle<Object> GetAtomicInternalImpl(
-      Isolate* isolate, Tagged<FixedArrayBase> backing_store,
-      InternalIndex entry, SeqCstAccessTag tag) {
-    return handle(Cast<NumberDictionary>(backing_store)->ValueAt(entry, tag),
-                  isolate);
-  }
-
   static inline void SetImpl(DirectHandle<JSObject> holder, InternalIndex entry,
                              Tagged<Object> value) {
     SetImpl(holder->elements(), entry, value);
@@ -1777,27 +1711,6 @@ class DictionaryElementsAccessor
   static inline void SetImpl(Tagged<FixedArrayBase> backing_store,
                              InternalIndex entry, Tagged<Object> value) {
     Cast<NumberDictionary>(backing_store)->ValueAtPut(entry, value);
-  }
-
-  static void SetAtomicInternalImpl(Tagged<FixedArrayBase> backing_store,
-                                    InternalIndex entry, Tagged<Object> value,
-                                    SeqCstAccessTag tag) {
-    Cast<NumberDictionary>(backing_store)->ValueAtPut(entry, value, tag);
-  }
-
-  static Handle<Object> SwapAtomicInternalImpl(
-      Isolate* isolate, Tagged<FixedArrayBase> backing_store,
-      InternalIndex entry, Tagged<Object> value, SeqCstAccessTag tag) {
-    return handle(
-        Cast<NumberDictionary>(backing_store)->ValueAtSwap(entry, value, tag),
-        isolate);
-  }
-
-  static Tagged<Object> CompareAndSwapAtomicInternalImpl(
-      Tagged<FixedArrayBase> backing_store, InternalIndex entry,
-      Tagged<Object> expected, Tagged<Object> value, SeqCstAccessTag tag) {
-    return Cast<NumberDictionary>(backing_store)
-        ->ValueAtCompareAndSwap(entry, expected, value, tag);
   }
 
   static void ReconfigureImpl(Isolate* isolate, DirectHandle<JSObject> object,
@@ -1906,7 +1819,9 @@ class DictionaryElementsAccessor
                                      PropertyFilter filter) {
     DisallowGarbageCollection no_gc;
     Tagged<Object> raw_key = dictionary->KeyAt(entry);
-    if (!dictionary->IsKey(ReadOnlyRoots(isolate), raw_key)) return kMaxUInt32;
+    if (!NumberDictionary::IsKey(ReadOnlyRoots(isolate), raw_key)) {
+      return kMaxUInt32;
+    }
     return FilterKey(dictionary, entry, raw_key, filter);
   }
 
@@ -1924,7 +1839,7 @@ class DictionaryElementsAccessor
     for (InternalIndex i : dictionary->IterateEntries()) {
       AllowGarbageCollection allow_gc;
       Tagged<Object> raw_key = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(roots, raw_key)) continue;
+      if (!NumberDictionary::IsKey(roots, raw_key)) continue;
       uint32_t key = FilterKey(dictionary, i, raw_key, filter);
       if (key == kMaxUInt32) {
         // This might allocate, but {raw_key} is not used afterwards.
@@ -1970,7 +1885,7 @@ class DictionaryElementsAccessor
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
       Tagged<Object> k = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(roots, k)) continue;
+      if (!NumberDictionary::IsKey(roots, k)) continue;
       Tagged<Object> value = dictionary->ValueAt(i);
       DCHECK(!IsTheHole(value));
       DCHECK(!IsAccessorPair(value));
@@ -2944,7 +2859,6 @@ class FastSmiOrObjectElementsAccessor
       case HOLEY_FROZEN_ELEMENTS:
       case HOLEY_SEALED_ELEMENTS:
       case HOLEY_NONEXTENSIBLE_ELEMENTS:
-      case SHARED_ARRAY_ELEMENTS:
         CopyObjectToObjectElements(isolate, from, from_kind, from_start, to,
                                    to_kind, to_start, copy_size);
         break;
@@ -3254,41 +3168,6 @@ class FastPackedSealedObjectElementsAccessor
           FastPackedSealedObjectElementsAccessor,
           ElementsKindTraits<PACKED_SEALED_ELEMENTS>> {};
 
-class SharedArrayElementsAccessor
-    : public FastSealedObjectElementsAccessor<
-          SharedArrayElementsAccessor,
-          ElementsKindTraits<SHARED_ARRAY_ELEMENTS>> {
- public:
-  static Handle<Object> GetAtomicInternalImpl(
-      Isolate* isolate, Tagged<FixedArrayBase> backing_store,
-      InternalIndex entry, SeqCstAccessTag tag) {
-    return handle(
-        Cast<BackingStore>(backing_store)->get(entry.as_uint32(), tag),
-        isolate);
-  }
-
-  static void SetAtomicInternalImpl(Tagged<FixedArrayBase> backing_store,
-                                    InternalIndex entry, Tagged<Object> value,
-                                    SeqCstAccessTag tag) {
-    Cast<BackingStore>(backing_store)->set(entry.as_uint32(), value, tag);
-  }
-
-  static Handle<Object> SwapAtomicInternalImpl(
-      Isolate* isolate, Tagged<FixedArrayBase> backing_store,
-      InternalIndex entry, Tagged<Object> value, SeqCstAccessTag tag) {
-    return handle(
-        Cast<BackingStore>(backing_store)->swap(entry.as_uint32(), value, tag),
-        isolate);
-  }
-
-  static Tagged<Object> CompareAndSwapAtomicInternalImpl(
-      Tagged<FixedArrayBase> backing_store, InternalIndex entry,
-      Tagged<Object> expected, Tagged<Object> value, SeqCstAccessTag tag) {
-    return Cast<BackingStore>(backing_store)
-        ->compare_and_swap(entry.as_uint32(), expected, value, tag);
-  }
-};
-
 class FastHoleySealedObjectElementsAccessor
     : public FastSealedObjectElementsAccessor<
           FastHoleySealedObjectElementsAccessor,
@@ -3478,7 +3357,6 @@ class FastDoubleElementsAccessor
       case HOLEY_FROZEN_ELEMENTS:
       case HOLEY_SEALED_ELEMENTS:
       case HOLEY_NONEXTENSIBLE_ELEMENTS:
-      case SHARED_ARRAY_ELEMENTS:
         CopyObjectToDoubleElements(from, from_start, to, to_start, copy_size);
         break;
       case DICTIONARY_ELEMENTS:
@@ -3945,6 +3823,23 @@ class TypedElementsAccessor
     return MaybeDirectHandle<Object>(typed_array);
   }
 
+  // Returns the index of the first element in [start_from, length) that is
+  // equal to {value}, or -1 if there is none. Only for buffers that are not
+  // shared, because memchr does not use atomic loads (see GetImpl).
+  static int64_t FindFirstOneByte(ElementType* data_ptr, size_t start_from,
+                                  size_t length, ElementType value) {
+    static_assert(sizeof(ElementType) == 1);
+    // Also keeps {length - start_from} below from wrapping around when the
+    // array shrank during the conversion of fromIndex.
+    if (start_from >= length) return -1;
+    const uint8_t* start = reinterpret_cast<const uint8_t*>(data_ptr);
+    const void* found =
+        memchr(start + start_from, static_cast<unsigned char>(value),
+               length - start_from);
+    if (found == nullptr) return -1;
+    return static_cast<int64_t>(static_cast<const uint8_t*>(found) - start);
+  }
+
   static Maybe<bool> IncludesValueImpl(Isolate* isolate,
                                        DirectHandle<JSObject> receiver,
                                        DirectHandle<Object> value,
@@ -4017,6 +3912,12 @@ class TypedElementsAccessor
       }
     }
 
+    if constexpr (sizeof(ElementType) == 1) {
+      if (!is_shared) {
+        return Just(FindFirstOneByte(data_ptr, start_from, length,
+                                     typed_search_value) != -1);
+      }
+    }
     for (size_t k = start_from; k < length; ++k) {
       ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
       if (elem_k == typed_search_value) return Just(true);
@@ -4087,6 +3988,12 @@ class TypedElementsAccessor
       }
     }
 
+    if constexpr (sizeof(ElementType) == 1) {
+      if (!is_shared) {
+        return Just<int64_t>(
+            FindFirstOneByte(data_ptr, start_from, length, typed_search_value));
+      }
+    }
     for (size_t k = start_from; k < length; ++k) {
       ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
       if (elem_k == typed_search_value) {
@@ -6014,21 +5921,23 @@ MaybeDirectHandle<Object> ArrayConstructInitializeElements(
       }
       break;
     }
-    case HOLEY_DOUBLE_ELEMENTS:
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-    {
+    case HOLEY_DOUBLE_ELEMENTS: {
       auto double_elms = Cast<FixedDoubleArray>(elms);
+      Tagged<Object> the_hole = ReadOnlyRoots(isolate).the_hole_value();
       for (uint32_t entry = 0; entry < number_of_elements; entry++) {
         Tagged<Object> obj = (*args)[static_cast<int>(entry)];
-        if (Is<Undefined>(obj)) {
+        if (obj == the_hole) {
+          double_elms->set_the_hole(entry);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+        } else if (Is<Undefined>(obj)) {
           double_elms->set_undefined(entry);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
         } else {
           double_elms->set(entry, Object::NumberValue(obj));
         }
       }
       break;
     }
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     case PACKED_DOUBLE_ELEMENTS: {
       auto double_elms = Cast<FixedDoubleArray>(elms);
       for (uint32_t entry = 0; entry < number_of_elements; entry++) {

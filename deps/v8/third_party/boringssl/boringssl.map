@@ -1,0 +1,6 @@
+# BoringSSL symbols may conflict with OpenSSL symbols when linked in the same
+# process, so add a symbol version to allow linking both in the same process.
+BORINGSSL {
+  global:
+    *;
+};

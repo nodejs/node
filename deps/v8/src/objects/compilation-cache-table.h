@@ -123,7 +123,6 @@ class CompilationCacheTable
       const ScriptDetails& script_details, Isolate* isolate);
   static DirectHandle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
-      MaybeHandle<FixedArray> maybe_wrapped_arguments,
       DirectHandle<SharedFunctionInfo> value, Isolate* isolate);
 
   // Eval code only gets cached after a second probe for the

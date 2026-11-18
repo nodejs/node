@@ -8,6 +8,7 @@
 #include "include/v8-function.h"
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 
 // This file exposes a d8.test.fast_c_api object, which adds testing facility
 // for writing mjsunit tests that exercise fast API calls.
@@ -108,8 +109,10 @@ class FastCApiObject {
           "Invalid parameter, destination array is too small.");
       return;
     }
-    uint8_t* memory =
-        reinterpret_cast<uint8_t*>(out.As<Uint8Array>()->Buffer()->Data());
+    i::DisallowGarbageCollection no_gc;
+    i::Tagged<i::JSTypedArray> i_array =
+        i::Cast<i::JSTypedArray>(*Utils::OpenDirectHandle(*array));
+    uint8_t* memory = reinterpret_cast<uint8_t*>(i_array->DataPtr());
     memcpy(memory, source.data, source.length);
   }
 
@@ -382,7 +385,7 @@ class FastCApiObject {
       return 0;
     }
     T* memory = reinterpret_cast<T*>(
-        typed_array_arg.As<TypedArray>()->Buffer()->Data());
+        typed_array_arg.As<TypedArray>()->GetBuffer()->Data());
     size_t length = typed_array_arg.As<TypedArray>()->ByteLength() / sizeof(T);
     double sum = 0;
     for (size_t i = 0; i < length; ++i) {
@@ -415,7 +418,7 @@ class FastCApiObject {
     Local<TypedArray> typed_array_arg = info[0].As<TypedArray>();
     size_t length = typed_array_arg->Length();
 
-    void* data = typed_array_arg->Buffer()->GetBackingStore()->Data();
+    void* data = typed_array_arg->GetBuffer()->GetBackingStore()->Data();
     if (typed_array_arg->IsUint8Array() || typed_array_arg->IsInt32Array() ||
         typed_array_arg->IsUint32Array() ||
         typed_array_arg->IsBigInt64Array() ||
@@ -1094,7 +1097,7 @@ class FastCApiObject {
 
     v8::Local<v8::WasmMemoryObject> wasm_memory =
         mem.As<v8::WasmMemoryObject>();
-    v8::Local<v8::ArrayBuffer> buffer = wasm_memory->Buffer();
+    v8::Local<v8::ArrayBufferBase> buffer = wasm_memory->GetBuffer();
     if (address >= buffer->ByteLength()) {
       isolate->ThrowError("Address out of bounds for Wasm memory.");
       return true;
@@ -1816,6 +1819,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_32bit_int_c_func));
 
+    START_ALLOW_USE_DEPRECATED()
     static CFunction add_all_annotate_c_func = CFunction::Make(
         FastCApiObject::AddAllAnnotateFastCallback<
             v8::CTypeInfo::Flags::kEnforceRangeBit>
@@ -1889,6 +1893,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::EnforceRangeCompareSlowCallback<uint64_t>,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &enforce_range_compare_u64_c_func));
+    END_ALLOW_USE_DEPRECATED()
 
     // Testing clamp annotation.
 
@@ -1954,6 +1959,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
 
     // Testing restricted float annotation.
 
+    START_ALLOW_USE_DEPRECATED()
     static CFunction check_restricted_float32_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::CheckRestrictedFloat32FastCallback)
@@ -1977,6 +1983,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             .Patch(FastCApiObject::CheckRestrictedFloat64Patch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Build();
+    END_ALLOW_USE_DEPRECATED()
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "check_restricted_float64",
         FunctionTemplate::New(
@@ -2103,6 +2110,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               Local<Value>(), signature, 1,
                               ConstructorBehavior::kThrow));
 
+    START_ALLOW_USE_DEPRECATED()
     static CFunction add_all_32bit_int_5args_enforce_range_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::AddAll32BitIntFastCallback_5Args)
@@ -2112,6 +2120,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             .Patch(FastCApiObject::AddAll32BitIntFastCallback_5ArgsPatch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Build();
+    END_ALLOW_USE_DEPRECATED()
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "add_all_5args_enforce_range",
         FunctionTemplate::New(
@@ -2147,7 +2156,7 @@ namespace {
 v8::Intercepted D8InterceptCallback(Local<Name> property,
                                     const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  Local<Value> data = info.DataV2().As<Value>();
+  Local<Value> data = info.Data().As<Value>();
   if (!data->IsFunction()) {
     isolate->ThrowError("Interceptor callback must be a function");
     return v8::Intercepted::kYes;

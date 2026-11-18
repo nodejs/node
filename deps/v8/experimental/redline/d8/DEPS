@@ -1,0 +1,16 @@
+include_rules = [
+  # The code that V8 and d8 link for Redline (v8_redline=true). Like
+  # src/fuzzilli, it uses these V8 internals.
+  "+src/api/api.h",
+  "+src/base/logging.h",
+  "+src/base/macros.h",
+  "+src/base/platform/mutex.h",
+  "+src/base/platform/platform.h",
+  "+src/base/strings.h",
+  "+src/codegen/external-reference.h",
+  "+src/execution/isolate-inl.h",
+  "+src/execution/isolate.h",
+  "+src/execution/simulator.h",
+  "+src/sandbox/sandbox.h",
+  "+src/sandbox/testing.h",
+]

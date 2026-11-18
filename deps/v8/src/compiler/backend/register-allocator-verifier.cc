@@ -7,7 +7,6 @@
 #include <optional>
 
 #include "src/compiler/backend/instruction.h"
-#include "src/utils/bit-vector.h"
 #include "src/utils/ostreams.h"
 
 namespace v8::internal::compiler {
@@ -60,16 +59,16 @@ int GetValue(const ImmediateOperand* imm) {
 }  // namespace
 
 RegisterAllocatorVerifier::RegisterAllocatorVerifier(
-    Zone* zone, const RegisterConfiguration* config,
-    const InstructionSequence* sequence, const Frame* frame)
+    Zone* zone, const InstructionSequence* sequence, const Frame* frame)
     : zone_(zone),
-      config_(config),
       sequence_(sequence),
       constraints_(zone),
       assessments_(zone),
       outstanding_assessments_(zone),
       spill_slot_delta_(frame->GetTotalFrameSlotCount() -
-                        frame->GetSpillSlotCount()) {
+                        frame->GetSpillSlotCount()),
+      pending_worklist_(zone),
+      pending_seen_epoch_(sequence->InstructionBlockCount(), 0, zone) {
   constraints_.reserve(sequence->instructions().size());
   // TODO(dcarney): model unique constraints.
   // Construct OperandConstraints for all InstructionOperands, eliminating
@@ -437,27 +436,25 @@ BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
 
 V8_CLANG_NO_SANITIZE("coverage")
 void RegisterAllocatorVerifier::ValidatePendingAssessment(
-    RpoNumber block_id, InstructionOperand op,
-    const BlockAssessments* current_assessments,
-    PendingAssessment* const assessment, int virtual_register) {
+    RpoNumber block_id, PendingAssessment* const assessment,
+    int virtual_register) {
   if (assessment->IsAliasOf(virtual_register)) return;
 
   // When validating a pending assessment, it is possible some of the
   // assessments for the original operand (the one where the assessment was
   // created for first) are also pending. To avoid recursion, we use a work
-  // list. To deal with cycles, we keep a set of seen nodes.
-  Zone local_zone(zone()->allocator(), ZONE_NAME);
-  ZoneQueue<std::pair<const PendingAssessment*, int>> worklist(&local_zone);
-  ZoneSet<RpoNumber> seen(&local_zone);
-  worklist.push(std::make_pair(assessment, virtual_register));
-  seen.insert(block_id);
+  // list. To deal with cycles, we mark seen blocks in pending_seen_epoch_.
+  pending_worklist_.clear();
+  ++pending_current_epoch_;
+  DCHECK_NE(pending_current_epoch_, 0);
+  pending_worklist_.push_back({assessment, virtual_register});
+  pending_seen_epoch_[block_id.ToSize()] = pending_current_epoch_;
 
-  while (!worklist.empty()) {
-    auto work = worklist.front();
-    const PendingAssessment* current_assessment = work.first;
-    int current_virtual_register = work.second;
+  for (size_t head = 0; head < pending_worklist_.size(); ++head) {
+    // Copy by value, as push_back below may reallocate pending_worklist_.
+    auto [current_assessment, current_virtual_register] =
+        pending_worklist_[head];
     InstructionOperand current_operand = current_assessment->operand();
-    worklist.pop();
 
     const InstructionBlock* origin = current_assessment->origin();
     CHECK(origin->PredecessorCount() > 1 || !origin->phis().empty());
@@ -507,9 +504,9 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
           // This happens if we have a diamond feeding into another one, and
           // the inner one never being used - other than for carrying the value.
           const PendingAssessment* next = PendingAssessment::cast(contribution);
-          auto [it, inserted] = seen.insert(pred);
-          if (inserted) {
-            worklist.push({next, expected});
+          if (pending_seen_epoch_[pred.ToSize()] != pending_current_epoch_) {
+            pending_seen_epoch_[pred.ToSize()] = pending_current_epoch_;
+            pending_worklist_.push_back({next, expected});
           }
           // Note that we do not want to finalize pending assessments at the
           // beginning of a block - which is the information we'd have
@@ -542,8 +539,7 @@ void RegisterAllocatorVerifier::ValidateUse(
       break;
     case Pending: {
       PendingAssessment* pending = PendingAssessment::cast(assessment);
-      ValidatePendingAssessment(block_id, op, current_assessments, pending,
-                                virtual_register);
+      ValidatePendingAssessment(block_id, pending, virtual_register);
       break;
     }
   }
@@ -624,7 +620,7 @@ void RegisterAllocatorVerifier::VerifyGapMoves() {
                    vreg);
           break;
         case Pending:
-          ValidatePendingAssessment(block->rpo_number(), op, block_assessments,
+          ValidatePendingAssessment(block->rpo_number(),
                                     PendingAssessment::cast(found_op->second),
                                     vreg);
           break;

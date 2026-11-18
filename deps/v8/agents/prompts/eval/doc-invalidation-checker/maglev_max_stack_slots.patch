@@ -1,0 +1,13 @@
+diff --git a/src/maglev/maglev-compiler.cc b/src/maglev/maglev-compiler.cc
+index f03cac1ad14..96042283fb6 100644
+--- a/src/maglev/maglev-compiler.cc
++++ b/src/maglev/maglev-compiler.cc
+@@ -53,7 +53,7 @@ namespace maglev {
+ 
+ namespace {
+ 
+-constexpr uint32_t kMaxStackSlots = 4 * KB / kSystemPointerSize;
++constexpr uint32_t kMaxStackSlots = 8 * KB / kSystemPointerSize;
+ 
+ void PrintGraph(Graph* graph, bool condition, MaglevPhase phase) {
+   MaglevCompilationInfo* info = graph->compilation_info();

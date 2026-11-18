@@ -96,7 +96,6 @@ INTERESTING_OLD_GEN_KEYS="\
   clear.weak_collections \
   clear.weak_lists \
   evacuate.candidates \
-  evacuate.clean_up \
   evacuate.copy \
   evacuate.update_pointers \
   evacuate.update_pointers.to_evacuated \

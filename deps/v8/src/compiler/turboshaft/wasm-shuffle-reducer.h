@@ -39,6 +39,13 @@ using SmallShuffleVector = SmallZoneVector<const Simd128ShuffleOp*, 8>;
 // required width of the shuffle can be further reduced.
 // If a shuffle is only used by a shuffle which only uses half of a shuffle
 // input, that input shuffle can also reduced.
+// If lower and upper shuffles are used between the widening and narrowing of
+// two vectors whose elements are bytes or half-words, with equal shuffle and
+// widening widths, equal signedness of the widening and narrowing instructions
+// and the shuffles preserve whole widened lanes, this can be replaced with a
+// mask operating on byte indices. The upper shuffle only operates on the upper
+// half of the lanes that extend the signedness, causing the widen and narrow
+// operations to be redundant too.
 
 // Used by the analysis to search back from uses to their defs, looking for
 // shuffles that could be reduced.
@@ -307,6 +314,13 @@ class WasmShuffleAnalyzer {
     const Simd128ShuffleOp& odd_shfop;
   };
 
+  struct NarrowShuffleCandidate {
+    OpIndex narrow;
+    OpIndex left;
+    OpIndex right;
+    std::array<uint8_t, kSimd128Size> shuffle;
+  };
+
   // To represent a shuffle that has one, or more, shuffles as inputs, or a
   // shuffle that is used by another shuffle.
   class ShuffleWindow {
@@ -463,6 +477,14 @@ class WasmShuffleAnalyzer {
     return {};
   }
 
+  std::optional<NarrowShuffleCandidate> GetNarrowShuffleCandidate(
+      OpIndex node) const {
+    for (auto& candidate : narrow_shuffle_candidates_) {
+      if (candidate.narrow == node) return candidate;
+    }
+    return {};
+  }
+
   WasmShuffleAnalyzer(Zone* phase_zone, const Graph& input_graph)
       : phase_zone_(phase_zone), input_graph_(input_graph) {}
 
@@ -482,10 +504,12 @@ class WasmShuffleAnalyzer {
   bool ProcessShuffleOfShuffle(const Simd128ShuffleOp& shuffle_op,
                                const Simd128ShuffleOp& shuffle,
                                const ShuffleSide side);
+  void ProcessNarrowShuffle(const Simd128BinopOp& binop);
 
   bool ShouldReduce() const {
     return !demanded_byte_analysis_.demanded_bytes().empty() ||
-           !dot_candidates_.empty() || !deinterleave_load_candidates_.empty() ||
+           !dot_candidates_.empty() || !narrow_shuffle_candidates_.empty() ||
+           !deinterleave_load_candidates_.empty() ||
            !load_lane_candidates_.empty() ||
            !shuffles_to_read_shifted_.empty() || !shuffles_to_shift_.empty();
   }
@@ -591,6 +615,7 @@ class WasmShuffleAnalyzer {
   base::SmallVector<DeinterleaveLoadCandidate, 8> deinterleave_load_candidates_;
   ZoneUnorderedSet<OpIndex> dot_candidate_nodes_{phase_zone_};
   base::SmallVector<DotCandidate, 4> dot_candidates_;
+  base::SmallVector<NarrowShuffleCandidate, 4> narrow_shuffle_candidates_;
 };
 
 template <class Next>
@@ -666,6 +691,14 @@ class WasmShuffleReducer : public Next {
       return __ Simd128Binop(__ MapToNewGraph(maybe_dot->left),
                              __ MapToNewGraph(maybe_dot->right),
                              Simd128BinopOp::Kind::kI32x4DotI8x16S);
+    }
+
+    if (const std::optional<WasmShuffleAnalyzer::NarrowShuffleCandidate>
+            maybe_shuffle = analyzer_->GetNarrowShuffleCandidate(ig_index)) {
+      return __ Simd128Shuffle(__ MapToNewGraph(maybe_shuffle->left),
+                               __ MapToNewGraph(maybe_shuffle->right),
+                               Simd128ShuffleOp::Kind::kI8x16,
+                               maybe_shuffle->shuffle);
     }
 
     goto no_change;

@@ -635,7 +635,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(LoadImmutable)
       CASE(Store)
       CASE(StorePair)
-      CASE(StoreIndirectPointer)
+      CASE(StoreTrustedPointer)
       CASE(StackSlot)
       CASE(Word32Popcnt)
       CASE(Word64Popcnt)
@@ -667,7 +667,6 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(TryTruncateFloat64ToInt32)
       CASE(TryTruncateFloat64ToUint32)
       CASE(ChangeInt32ToFloat64)
-      CASE(BitcastWord32ToWord64)
       CASE(ChangeInt64ToFloat64)
       CASE(ChangeUint32ToFloat64)
       CASE(ChangeFloat16RawBitsToFloat64)
@@ -757,7 +756,6 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
         break;
       }
       MACHINE_SIMD128_OP_LIST(CASE)
-      IF_SIMD256(MACHINE_SIMD256_OP_LIST, CASE)
       IF_WASM(SIMPLIFIED_WASM_OP_LIST, CASE) {
         // SIMD operators should not be in the graph, yet.
         UNREACHABLE();

@@ -201,7 +201,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
     if (CanConsiderForInlining(broker(), feedback_cell)) {
       out.shared_info = feedback_cell.shared_function_info(broker()).value();
       out.bytecode[0] = out.shared_info->GetBytecodeArray(broker());
-      CHECK(out.shared_info->equals(n.Parameters().shared_info()));
+      CHECK(out.shared_info->equals(n.shared_info()));
     }
     out.num_functions = 1;
     return out;
@@ -367,7 +367,11 @@ void JSInliningHeuristic::Finalize() {
         IsSmallWithHeapNumberParam(candidate.own_size) &&
         total_ignored_bytecode_size_ < max_inlined_bytecode_size_small_total_) {
       Reduction const reduction = InlineCandidate(candidate, true);
-      if (reduction.Changed()) return;
+      if (reduction.Changed()) {
+        DCHECK(candidate.node->uses().empty());
+        candidate.node->Kill();
+        return;
+      }
     }
 
     // Make sure we have some extra budget left, so that any small functions
@@ -384,7 +388,11 @@ void JSInliningHeuristic::Finalize() {
     }
 
     Reduction const reduction = InlineCandidate(candidate, false);
-    if (reduction.Changed()) return;
+    if (reduction.Changed()) {
+      DCHECK(candidate.node->uses().empty());
+      candidate.node->Kill();
+      return;
+    }
   }
 }
 
@@ -769,8 +777,9 @@ void JSInliningHeuristic::CreateOrReuseDispatch(
     if (node->opcode() == IrOpcode::kJSConstruct) {
       // TODO(jgruber, v8:10675): This branch seems unreachable.
       JSConstructNode n(node);
-      if (inputs[n.TargetIndex()] == inputs[n.NewTargetIndex()]) {
-        inputs[n.NewTargetIndex()] = target;
+      if (inputs[JSConstructNode::TargetIndex()] ==
+          inputs[JSConstructNode::NewTargetIndex()]) {
+        inputs[JSConstructNode::NewTargetIndex()] = target;
       }
     }
     inputs[JSCallOrConstructNode::TargetIndex()] = target;

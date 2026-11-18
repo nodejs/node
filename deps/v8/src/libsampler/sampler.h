@@ -55,9 +55,12 @@ class V8_EXPORT_PRIVATE Sampler {
   bool IsActive() const { return active_.load(std::memory_order_relaxed); }
 
   // Returns true and consumes the pending sample bit if a sample should be
-  // dispatched to this sampler.
+  // dispatched to this sampler. Uses seq_cst to pair with
+  // signal_pending_on_thread in sampler.cc so that clearing the per-thread
+  // pending-signal flag in the signal handler is ordered before checking
+  // record_sample_.
   bool ShouldRecordSample() {
-    return record_sample_.exchange(false, std::memory_order_relaxed);
+    return record_sample_.exchange(false, std::memory_order_seq_cst);
   }
 
   void DoSample();
@@ -84,8 +87,11 @@ class V8_EXPORT_PRIVATE Sampler {
     active_.store(value, std::memory_order_relaxed);
   }
 
+  // Uses seq_cst to pair with signal_pending_on_thread in sampler.cc so that
+  // setting record_sample_ in Sampler::DoSample() is ordered before checking
+  // whether a SIGPROF is already in flight for the target thread.
   void SetShouldRecordSample() {
-    record_sample_.store(true, std::memory_order_relaxed);
+    record_sample_.store(true, std::memory_order_seq_cst);
   }
 
   Isolate* isolate_;

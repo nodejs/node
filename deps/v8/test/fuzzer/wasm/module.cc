@@ -11,6 +11,7 @@
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "src/base/unique-array.h"
 #include "src/execution/isolate-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
@@ -31,21 +32,21 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // We reduce the maximum memory size and table size of WebAssembly instances
   // to avoid OOMs in the fuzzer.
-  v8_flags.wasm_max_mem_pages = 32;
-  v8_flags.wasm_max_table_size = 100;
+  v8_flags.wasm_max_mem_pages.Set(32);
+  v8_flags.wasm_max_table_size.Set(100);
 
   // Disable lazy compilation to find compiler bugs easier.
-  v8_flags.wasm_lazy_compilation = false;
+  v8_flags.wasm_lazy_compilation.Set(false);
 
   // Choose one of Liftoff or TurboFan, depending on the size of the input (we
   // can't use a dedicated byte from the input, because we want to be able to
   // pass Wasm modules unmodified to this fuzzer).
-  v8_flags.liftoff = size & 1;
+  v8_flags.liftoff.Set(size & 1);
 
   // Disable wasm deoptimizations. Deoptimizations only make sense with both
   // Liftoff and Turbofan enabled while this fuzzer only tests for either one of
   // them,
-  v8_flags.wasm_deopt = false;
+  v8_flags.wasm_deopt.Set(false);
 
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
@@ -75,7 +76,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       GetWasmEngine()
           ->SyncCompile(i_isolate, enabled_features,
                         CompileTimeImportsForFuzzing(), &thrower,
-                        base::OwnedCopyOf(wire_bytes.module_bytes()))
+                        base::UniqueCopyOf(wire_bytes.module_bytes()))
           .ToHandle(&module_object);
 
   if (v8_flags.wasm_fuzzer_gen_test) {

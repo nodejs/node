@@ -1,0 +1,31 @@
+Tests Wasm breakpoints and instrumentation breakpoints with Wasm-in-JS body inlining.
+--- Order A ---
+optimize(js_fn1, s) = 42
+js_fn1 optimized before breakpoint: true
+js_fn1 optimized after breakpoint: false
+js_fn1(s) = 42
+Order A pauses: 1
+Paused in: $getField (other)
+--- Order B ---
+optimize(js_fn2, s) = 42
+js_fn2 optimized with breakpoint: true
+Order B warmup+opt pauses: 11
+js_fn2(s) = 42
+Order B call pauses: 1
+Paused in: $getField (other)
+--- After removeBreakpoint ---
+optimize(js_fn3, s) = 42
+js_fn3 optimized after removeBreakpoint: true
+Pauses after removeBreakpoint: 0
+js_fn3 optimized after re-adding breakpoint: false
+js_fn3(s) = 42
+Pauses after re-adding breakpoint: 1
+--- Instrumentation breakpoint ---
+optimizeInstrPre() = 42
+js_fn_instr_pre optimized before instrumentation: true
+js_fn_instr_pre optimized after instrumentation: false
+js_fn_instr(s, 0) = 42
+Wasm instrumentation pauses: 1
+Paused in: $getFieldWithDummy (instrumentation)
+js_fn_instr(s, 0) second = 42
+Second call Wasm pauses: 0

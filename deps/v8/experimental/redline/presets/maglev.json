@@ -1,0 +1,7 @@
+{
+  "d8_extra_args": ["--maglev", "--no-turbofan", "--jit-fuzzing", "--optimize-on-next-call-optimizes-to-maglev"],
+  "randomize_d8_flags": true,
+  "selection": {"seeds": {"strategy": "rarity"}, "partners": {"strategy": "rarity-partner"}, "mutators": {"strategy": "adaptive"},
+    "generators": {"strategy": "adaptive", "params": {"weights": {
+      "JitOptimize": 8, "JitTricky": 4, "Deopt": 3, "LazyDeopt": 3, "OsrLoop": 3, "ElementsKind": 4, "ShapeChange": 3}}}}
+}

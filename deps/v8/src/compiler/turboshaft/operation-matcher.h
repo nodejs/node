@@ -13,6 +13,8 @@
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/execution/isolate.h"
+#include "src/roots/roots.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -211,6 +213,16 @@ class OperationMatcher {
     return true;
   }
 
+  bool MatchRootConstant(V<Any> matched, RootIndex root_index,
+                         Isolate* isolate) const {
+    DCHECK(RootsTable::IsImmortalImmovable(root_index));
+    Handle<HeapObject> tagged;
+    if (!MatchHeapConstant(matched, &tagged)) return false;
+    RootIndex found_index;
+    return isolate->roots_table().IsRootHandle(tagged, &found_index) &&
+           found_index == root_index;
+  }
+
   bool MatchIntegralWordConstant(V<Any> matched, WordRepresentation rep,
                                  uint64_t* unsigned_constant,
                                  int64_t* signed_constant = nullptr) const {
@@ -343,16 +355,6 @@ class OperationMatcher {
     if (!op) return false;
     if (op->kind != ConstantOp::Kind::kExternal) return false;
     *reference = op->storage.external;
-    return true;
-  }
-
-  bool MatchWasmStubCallConstant(V<Any> matched, uint64_t* stub_id) const {
-    const ConstantOp* op = TryCast<ConstantOp>(matched);
-    if (!op) return false;
-    if (op->kind != ConstantOp::Kind::kRelocatableWasmStubCall) {
-      return false;
-    }
-    *stub_id = op->integral();
     return true;
   }
 

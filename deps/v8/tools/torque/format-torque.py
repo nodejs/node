@@ -33,6 +33,7 @@ def preprocess(input):
   input = re.sub(r'&([a-zA-Z(])', kAddressofEscape + r'\1', input)
 
   input = re.sub(r'(if\s+)constexpr(\s*\()', r'\1/*COxp*/\2', input)
+  input = re.sub(r'(\)|\belse)\s+deferred\s*{', r'\1 /*dEfR*/ {', input)
   input = re.sub(r'\btypeswitch\s*(\([^{]*\))\s{', r' if /*tPsW*/ \1 {', input)
   input = re.sub(r'\bcase\s*(\([^{]*\))\s*:\s*deferred\s*{', r' if /*cAsEdEfF*/ \1 {', input)
   input = re.sub(r'\bcase\s*(\([^{]*\))\s*:\s*{', r' if /*cA*/ \1 {', input)
@@ -112,6 +113,8 @@ def postprocess(output):
       flags=re.MULTILINE)
 
   output = re.sub(r'\/\*COxp\*\/', r'constexpr', output)
+  output = re.sub(r'\/\*dEfR\*\/\n(\s*)\{', r'\n\1  deferred {', output)
+  output = re.sub(r'\/\*dEfR\*\/', r'deferred', output)
   output = re.sub(r'(\S+)\s*: type([,>])', r'\1: type\2', output)
   output = re.sub(r'(\n\s*)labels( [A-Z])', r'\1    labels\2', output)
   output = re.sub(r'\bif\s*\/\*tPsW\*\/', r'typeswitch', output)

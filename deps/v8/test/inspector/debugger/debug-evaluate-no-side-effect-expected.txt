@@ -1,0 +1,55 @@
+Tests debug-evaluate-no-side-effect.
+1 + 2: 3
+array: [4,5]
+a: 1
+object.property: 2
+object.getter: 3
+string1 + 'y': "xy"
+array[1]: 5
+get_a(): 1
+bound(): 1
+new get_a(): {}
+try { get_a() } catch (e) {}: 1
+Math.sin(2): 0.9092974268256817
+'abc'.length: 3
+array.length: 2
+'x'.length: 1
+set_a.length: 0
+set_a.name: "set_a"
+bound.length: 0
+bound.name: "bound get_a"
+return_arg0(1): 1
+(function f() { return return_caller_name() })(): "f"
+[1]: [1]
+({x: 1}): {"x":1}
+[a]: [1]
+({x: a}): {"x":1}
+simple_return`1`: EvalError
+exception = 1: EvalError
+set_a(): EvalError
+new set_a(): EvalError
+string2 + 'y': EvalError
+try { set_a() } catch (e) {}: EvalError
+array.length = 4: EvalError
+set_a.name = 'set_b': EvalError
+set_a.length = 1: EvalError
+bound.name = 'bound': EvalError
+bound.length = 1: EvalError
+set_a.prototype = null: EvalError
+error.stack: EvalError
+[].length = 1: 1
+'x'.length = 1: 1
+string0.length = 1: EvalError
+(new String('abc')).length = 1: 1
+(function(){}).name = 'g': "g"
+(function(){}).length = 1: 1
+get_a.bind(0).name = 'g': "g"
+get_a.bind(0).length = 1: 1
+(function(){}).prototype = null: null
+(new Error()).stack.length > 1: EvalError
+(new Error()).stack = 'a': EvalError
+eval('Math.sin(1)'): EvalError
+eval('exception = 1'): EvalError
+global_eval('1'): EvalError
+(() => { var a = 1; return a++; })(): 1
+a: 1

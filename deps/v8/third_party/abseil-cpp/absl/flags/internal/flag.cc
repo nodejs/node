@@ -129,7 +129,15 @@ class FlagState : public flags_internal::FlagStateInterface {
         on_command_line_(on_command_line),
         counter_(counter) {}
 
+  FlagState(FlagImpl& flag_impl, FlagDefaultSrc default_value)
+      : flag_impl_(flag_impl),
+        value_(default_value),
+        modified_(false),
+        on_command_line_(false),
+        counter_(-1) {}
+
   ~FlagState() override {
+    if (counter_ < 0) return;
     if (flag_impl_.ValueStorageKind() != FlagValueStorageKind::kHeapAllocated &&
         flag_impl_.ValueStorageKind() != FlagValueStorageKind::kSequenceLocked)
       return;
@@ -153,9 +161,11 @@ class FlagState : public flags_internal::FlagStateInterface {
   union SavedValue {
     explicit SavedValue(void* v) : heap_allocated(v) {}
     explicit SavedValue(int64_t v) : one_word(v) {}
+    explicit SavedValue(FlagDefaultSrc v) : default_value(v) {}
 
     void* heap_allocated;
     int64_t one_word;
+    FlagDefaultSrc default_value;
   } value_;
   bool modified_;
   bool on_command_line_;
@@ -435,7 +445,35 @@ void FlagImpl::InvokeCallback() const {
   cb();
 }
 
+// Returns true if an unmodified absl::Flag (i.e. `seq_lock_.IsUnmodified()`)
+// can skip lazy initialization and state allocation in `SaveState()`, and
+// instead reconstructs from the provided default value if modified before
+// restoration.
+bool FlagImpl::CanSkipInitOnSave() const {
+  if (!seq_lock_.IsUnmodified()) return false;
+  switch (ValueStorageKind()) {
+    case FlagValueStorageKind::kValueAndInitBit:
+    case FlagValueStorageKind::kOneWordAtomic:
+      // Only `kOneWord` defaults are inlinable compile-time constants; other
+      // kinds may have dynamic defaults or side effects.
+      return static_cast<FlagDefaultKind>(def_kind_) ==
+             FlagDefaultKind::kOneWord;
+    case FlagValueStorageKind::kSequenceLocked:
+      // Always uses a default-generator function when unmodified.
+      return true;
+    case FlagValueStorageKind::kHeapAllocated:
+      // Built-in types have side-effect-free defaults; user-defined types may
+      // have custom construction or validation side effects.
+      return !ShouldValidateFlagValue(flags_internal::FastTypeId(op_));
+  }
+  return false;
+}
+
 std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
+  if (ABSL_PREDICT_TRUE(CanSkipInitOnSave())) {
+    return std::make_unique<FlagState>(*this, default_value_);
+  }
+
   absl::MutexLock l(DataGuard());
 
   bool modified = modified_;
@@ -469,6 +507,10 @@ std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
 }
 
 bool FlagImpl::RestoreState(const FlagState& flag_state) {
+  if (ABSL_PREDICT_TRUE(flag_state.counter_ < 0 && seq_lock_.IsUnmodified())) {
+    return false;
+  }
+
   absl::MutexLock l(DataGuard());
   if (flag_state.counter_ == ModificationCount()) {
     return false;
@@ -477,11 +519,22 @@ bool FlagImpl::RestoreState(const FlagState& flag_state) {
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kValueAndInitBit:
     case FlagValueStorageKind::kOneWordAtomic:
-      StoreValue(&flag_state.value_.one_word, kProgrammaticChange);
+      StoreValue(
+          flag_state.counter_ < 0
+              ? static_cast<const void*>(&flag_state.value_.default_value)
+              : static_cast<const void*>(&flag_state.value_.one_word),
+          kProgrammaticChange);
       break;
     case FlagValueStorageKind::kSequenceLocked:
     case FlagValueStorageKind::kHeapAllocated:
-      StoreValue(flag_state.value_.heap_allocated, kProgrammaticChange);
+      if (flag_state.counter_ < 0) {
+        std::unique_ptr<void, DynValueDeleter> init_value(
+            flags_internal::Alloc(op_), DynValueDeleter{op_});
+        (*flag_state.value_.default_value.gen_func)(init_value.get());
+        StoreValue(init_value.get(), kProgrammaticChange);
+      } else {
+        StoreValue(flag_state.value_.heap_allocated, kProgrammaticChange);
+      }
       break;
   }
 

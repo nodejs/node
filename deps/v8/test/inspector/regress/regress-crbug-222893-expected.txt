@@ -1,0 +1,7 @@
+Tests regress-crbug-222893.
+arguments: ["a","b","c"]
+arguments: ["a","b","c"]
+arguments: ["a","b","c"]
+arguments: ["a","b","c"]
+arguments: undefined
+arguments: undefined

@@ -459,7 +459,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kIndirectPointer:    // Fall through.
+    case MachineRepresentation::kTrustedPointer:     // Fall through.
     case MachineRepresentation::kFloat16RawBits:     // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -550,7 +550,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
       case MachineRepresentation::kProtectedPointer:   // Fall through.
       case MachineRepresentation::kSandboxedPointer:   // Fall through.
       case MachineRepresentation::kMapWord:            // Fall through.
-      case MachineRepresentation::kIndirectPointer:    // Fall through.
+      case MachineRepresentation::kTrustedPointer:     // Fall through.
       case MachineRepresentation::kFloat16RawBits:     // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
@@ -1123,10 +1123,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   Emit(kMips64TruncUwD, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  UNIMPLEMENTED();
-}
-
 void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
   Mips64OperandGenerator g(this);
   const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();
@@ -1542,7 +1538,7 @@ void InstructionSelector::VisitUnalignedLoad(OpIndex node) {
     case MachineRepresentation::kProtectedPointer:   // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kIndirectPointer:    // Fall through.
+    case MachineRepresentation::kTrustedPointer:     // Fall through.
     case MachineRepresentation::kFloat16RawBits:     // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -1596,7 +1592,7 @@ void InstructionSelector::VisitUnalignedStore(OpIndex node) {
     case MachineRepresentation::kProtectedPointer:   // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kIndirectPointer:    // Fall through.
+    case MachineRepresentation::kTrustedPointer:     // Fall through.
     case MachineRepresentation::kFloat16RawBits:     // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();

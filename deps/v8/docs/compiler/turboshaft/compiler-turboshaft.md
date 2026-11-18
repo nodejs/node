@@ -1,78 +1,127 @@
-# Turboshaft and Turbolev
+# Turboshaft Compiler Architecture
 
-This document covers V8's next-generation optimizing compiler pipeline, **Turboshaft**, and its frontend for Maglev graphs, **Turbolev**.
+Turboshaft (`src/compiler/turboshaft/`) is V8's top-tier optimizing compiler architecture and backend IR. It replaces the legacy Sea-of-Nodes representation with a cache-friendly, typed Static Single Assignment (SSA) Control-Flow Graph (CFG) and a template-based copying reducer framework.
 
-## Turboshaft: Next-Generation IR and Pipeline
-
-Turboshaft is designed to replace the Sea-of-Nodes IR used in TurboFan. It introduces a more traditional Control Flow Graph (CFG) representation with explicit blocks and instructions.
-
-### Key Features of Turboshaft
-*   **CFG-Based IR**: Unlike TurboFan's Sea-of-Nodes, where control and data flow are intermingled, Turboshaft uses a clear separation. Blocks contain a linear sequence of operations.
-*   **Reducers**: Optimizations are implemented as "Reducers" that can be composed. This makes it easier to write and combine optimization passes.
-*   **Performance**: Designed to be faster to compile and generate better code than TurboFan.
-
-### Common Reducers
-Turboshaft includes many reducers for different optimization passes. Some examples include:
-*   **MachineOptimizationReducer**: Performs low-level machine-specific optimizations.
-*   **ValueNumberingReducer**: Implements global value numbering to eliminate redundant computations.
-*   **TypeInferenceReducer**: Infers types for operations to enable further optimizations.
-*   **BranchEliminationReducer**: Eliminates redundant branches based on known conditions.
-*   **LoopUnrollingReducer**: Unrolls loops to reduce overhead.
-
-## Motivation: Leaving the Sea of Nodes
-
-Turboshaft was created to address several pain points with TurboFan's Sea-of-Nodes IR:
-
-1.  **Complexity**: Sea-of-Nodes graphs are hard to read and reason about. Effect and control chains must be managed manually, leading to subtle bugs.
-2.  **Limited Benefits for JS**: In JavaScript, most operations can have side effects or throw, meaning they must be on the effect or control chain. This defeats the purpose of Sea-of-Nodes, where operations are supposed to float freely.
-3.  **Slow Compilation**: Finding a good order to visit nodes for optimizations is hard in a soup of nodes, leading to many revisits. Cache locality is also poor because nodes are mutated in place and new nodes are allocated arbitrarily.
-4.  **Difficult Transformations**: Introducing new control flow during lowerings is hard because you have to figure out where to plug it into the control chain.
-
-Turboshaft's return to a CFG IR solves these issues, resulting in simpler code and significantly faster compilation times.
-
-For a more detailed discussion on why V8 adopted CFG and the benefits it brings, see [Why V8 Embraced CFG](../why-cfg.md).
+Turboshaft is **mandatory** for all top-tier compilation in V8 (`--no-turboshaft` implies `--no-turbofan`, and `InstructionSelector` operates exclusively on Turboshaft graphs).
 
 ---
 
-## Turbolev: Bridging Maglev and Turboshaft
+## 1. Conceptual Overview: End-to-End Turboshaft Pipeline
 
-**Turbolev** (implemented in `src/compiler/turboshaft/turbolev-graph-builder.cc`) is a frontend for Turboshaft that constructs a Turboshaft graph directly from a **Maglev graph**.
+A top-tier compilation enters Turboshaft through one of two frontends in `src/compiler/pipeline.cc` and then executes a series of Turboshaft `CopyingPhase` passes followed by instruction selection and code generation:
 
-### Rationale
-Maglev is fast to compile and collects good type feedback, building a graph that is already somewhat optimized and has environment/frame state information attached. By starting from the Maglev graph instead of starting over from bytecode, Turboshaft can:
-1.  Leverage the analysis and type inference already done by Maglev.
-2.  Save time on graph building.
+```
+                  [ Ignition Bytecode + FeedbackVector ]
+                                    |
+          +-------------------------+-------------------------+
+          |                                                   |
+   Default: Turbolev (--turbolev)              Legacy SoN (--no-turbolev)
+   ==============================              ==========================
+   1. TurbolevFrontendPipeline                 1. BytecodeGraphBuilder & SoN
+      (builds & optimizes maglev::Graph)          Inlining / Typer / Lowering
+   2. TurbolevGraphBuildingPhase               2. ComputeScheduledGraph()
+      (translates Maglev CFG ->                   + BuildGraphPhase
+       Turboshaft CFG directly)                   (Schedule -> Turboshaft CFG)
+          |                                                   |
+          +-------------------------+-------------------------+
+                                    |
+                                    v
+              [ Turboshaft Optimization Phases (CFG) ]
+              ========================================
+              - MachineLoweringPhase / FastApiCallLowering
+              - LoopPeelingPhase / LoopUnrollingPhase (if not Turbolev)
+              - StoreStoreEliminationPhase ( + LateLoadElimination )
+              - OptimizePhase (StructuralOptimization, BranchElimination,
+                MachineOptimization, ValueNumbering)
+              - TypedOptimizationsPhase
+              - DecompressionOptimizationPhase (in-place)
+                                    |
+                                    v
+              [ Turboshaft Backend & Code Generation ]
+              ========================================
+              - SpecialRPO (TurboshaftSpecialRPONumberer)
+              - PropagateDeferred & ProfileApplicationPhase
+              - InstructionSelectionPhase (InstructionSelector::SelectInstructions)
+              - Register Allocation, Frame Elision, Jump Threading, Code Assembly
+```
 
-### Complex Graph Transformations
+---
 
-Translating from Maglev to Turboshaft is not always a 1-to-1 mapping because they have different IR constraints.
+## 2. The Turbolev Frontend (`TurbolevFrontendPipeline`)
 
-#### Example: Generator Resumes and Loop Dominance
-A prime example of non-trivial translation is how Turbolev handles **Generators** (yield/resume).
+When `--turbolev` is enabled (`PipelineImpl::CreateGraphWithMaglev()` in `src/compiler/pipeline.cc`), V8 bypasses the legacy Sea-of-Nodes graph and scheduler entirely. Instead, **`TurbolevFrontendPipeline::Run()`** (`src/compiler/turboshaft/turbolev-frontend-pipeline.cc`) constructs and optimizes a `maglev::Graph` using a dedicated sequence of Maglev phases before translating it into a Turboshaft `Graph`:
 
-*   **Maglev Constraint**: Maglev graphs for resumable generator functions can have edges that bypass loop headers (e.g., jumping directly into the middle of a loop from the initial switch-resume table).
-*   **Turboshaft Constraint**: In Turboshaft, a loop header must strictly dominate every block in the loop. It does not allow arbitrary edges bypassing the loop header.
-*   **Solution in Turbolev**: The `GeneratorAnalyzer` in `turbolev-graph-builder.cc` detects these loop header bypasses in the Maglev graph. Turbolev then transforms the graph by re-routing these resume edges to the loop headers and inserting secondary switches inside the loop to dispatch to the correct resume point.
+### Phase-by-Phase Execution in `TurbolevFrontendPipeline::Run()`
 
-## Turboshaft Pipeline
+1. **`MaglevGraphBuilderPhase` (`MaglevGraphBuilding`)**:
+   Runs `maglev::MaglevGraphBuilder::Build()` (`src/maglev/maglev-graph-builder.cc`) on the top-level compilation unit. During bytecode traversal, small callees that meet the eager inlining budget are inlined inline on the fly, while larger candidates are recorded as `MaglevCallSiteInfo` entries in `graph->inlineable_calls()`.
+2. **`InlinerPhase` (`Inlining`, when `--turbolev-non-eager-inlining`)**:
+   Runs `maglev::MaglevInliner::Run()` (`src/maglev/maglev-inlining.cc`), which greedily pops the highest-priority `MaglevCallSiteInfo` from the max-heap, builds its subgraph, splices it into the caller CFG, and after each inlining batch runs a combined `GraphMultiProcessor` pass (`MaglevGraphOptimizer`, `ReachableExceptionHandlerTracker`, and `RecomputeKnownNodeAspectsProcessor`) plus `RemoveUnreachableBlocks()`.
+3. **`LoopPeelerPhase` (`LoopPeeling`, when `--turbolev-non-eager-loop-peeling`)**:
+   Runs `maglev::MaglevLoopPeeler::Run()` (`src/maglev/maglev-loop-peeler.cc`) to peel hot loops. If at least one loop was peeled (`peeled == true`), it immediately runs **`PostOptimizerPhase`** (`MaglevGraphOptimizer` + `CommonSubexpressionEliminationProcessor` + `ReachableExceptionHandlerTracker` + `RecomputeKnownNodeAspectsProcessor`) to fold redundant checks and loads exposed in the peeled body.
+4. **`TruncationPhase` (`Truncation`, when `--maglev-truncation` and `graph->may_have_truncation()`)**:
+   Runs a two-pass truncation optimization (`src/maglev/maglev-truncation.h`):
+   * Pass 1 (`GraphBackwardProcessor<PropagateTruncationProcessor>`): Propagates `CanTruncateToInt32` flags backward from bitwise/truncating uses while verifying via `GetMaxExactValue` that intermediate `Float64Add`/`Subtract` sums cannot exceed `kMaxExactlyRepresentableValue` ($2^{53}$).
+   * Pass 2 (`GraphProcessor<TruncationProcessor>`): Rewrites truncatable `Float64Add`/`Subtract`/`Multiply`/`Divide`, `Float64SpeculateSafeAdd`, and `Int32AddWithOverflow`/`SubtractWithOverflow`/`MultiplyWithOverflow` nodes into non-overflow-checking wrapping `Int32` operations.
+5. **`PrePhiUntaggingPhase` and `PhiUntaggingPhase` (when `--turbolev-untagged-phis`)**:
+   * `PrePhiUntaggingPhase`: Runs a `GraphMultiProcessor` combining `MaglevGraphOptimizer`, `ReachableExceptionHandlerTracker`, `RecomputeKnownNodeAspectsProcessor`, `RecomputePhiUseHintsProcessor` (which refreshes `use_repr_hints` and `same_loop_use_repr_hints` on all `Phi`s after inlining/peeling/truncation, and pins `Phi`s referenced by deopt frames with `UseRepresentation::kNonTruncated`), and `BoundsCheckEliminationProcessor`.
+   * `PhiUntaggingPhase`: Runs `ReachableExceptionHandlerTracker` and `MaglevPhiRepresentationSelector` (`src/maglev/maglev-phi-representation-selector.h`) to convert `Tagged` phis to `kInt32`, `kUint32`, `kFloat64`, or `kHoleyFloat64` and bypass/replace obsolete tagging and untagging conversions.
+6. **`RangeAnalysisPhase` + `PostOptimizerPhase` (when `--maglev-range-analysis`)**:
+   Runs `maglev::NodeRanges::ProcessGraph()` (`src/maglev/maglev-range-analysis.h`) to compute static integer range intervals on the CFG, followed by **`PostOptimizerPhase`** (`MaglevGraphOptimizer` with `&ranges` + `CommonSubexpressionEliminationProcessor` + `ReachableExceptionHandlerTracker` + `RecomputeKnownNodeAspectsProcessor`) to eliminate overflow checks and comparisons proven redundant by range analysis.
+7. **`EscapeAnalysisPhase` + `PostOptimizerPhase` (when `--turbolev-escape-analysis`)**:
+   Runs `maglev::EscapeAnalysis::Run(graph, compilation_info, temp_zone)` (`src/maglev/turbolev-escape-analysis.h`) to scalar-replace captured `InlinedAllocation` objects and synthesize `Phi` nodes for their fields at control merges, followed by another **`PostOptimizerPhase`** to fold newly exposed constants and field values.
+8. **`PostHocPhase` (`AnyUseMarking`)**:
+   If `!v8_flags.turbolev_escape_analysis`, calls `graph->UnwrapDeoptFrames()` to strip `Identity` wrappers from all deopt frames (when escape analysis is enabled, it already unwraps deopt frames). Then runs `ReturnedValueRepresentationSelector` and `AnyUseMarkingProcessor` to compute transitive `use_count`s across nodes and deopt frames.
+9. **`DeadNodeSweepingPhase` (`DeadNodeSweeping`)**:
+   Runs `GraphProcessor<DeadNodeSweepingProcessor>` to remove unused pure nodes (`!is_required_when_unused() && !is_used()`) and unused `Phi`s left behind by earlier passes and escape analysis.
 
-The general pipeline from IR to machine code in Turboshaft is as follows:
+After `TurbolevFrontendPipeline::Run()` returns the optimized `maglev::Graph*`, `PipelineImpl::CreateGraphWithMaglev()` invokes **`TurbolevGraphBuildingPhase`** (`src/compiler/turboshaft/turbolev-graph-builder.cc`), which walks the Maglev CFG and emits the corresponding Turboshaft operations into `PipelineData::graph()`.
 
-1.  **Graph Building**: The graph is built either from Ignition bytecode or by lowering from a higher-level representation (like Maglev via Turbolev).
-2.  **Optimization Phases**: The graph passes through multiple reducer phases (dead code elimination, loop unrolling, machine optimization, etc.). This usually involves copying the graph from an input to an output graph while applying optimizations on the fly.
-3.  **Scheduling**: The blocks are ordered, often using a special Reverse Post-Order (RPO) to ensure contiguous loop bodies.
-4.  **Instruction Selection**: The `InstructionSelector` visits the operations and emits corresponding machine instructions into an `InstructionSequence`.
-5.  **Register Allocation**: Registers are allocated for the values in the `InstructionSequence`.
-6.  **Code Generation**: The finalized instruction sequence is translated into the actual machine code (bytes) for the target architecture.
+---
 
-## Instruction Selection
+## 3. Core Turboshaft Optimization Phases
 
-Instruction Selection is the phase that bridges the high-level Turboshaft IR to the low-level machine instructions.
+Once the Turboshaft `Graph` is populated (either via `TurbolevGraphBuildingPhase` or legacy `BuildGraphPhase`), `PipelineImpl::OptimizeTurboshaftGraph()` runs a sequence of `CopyingPhase<Reducers...>` passes (`src/compiler/turboshaft/`):
 
-*   **Shared Backend**: Turboshaft leverages the existing backend infrastructure used by TurboFan.
-*   **Mapping to Instructions**: In `src/compiler/turboshaft/instruction-selection-phase.cc`, Turboshaft initializes an `InstructionSelector` specifically for Turboshaft graphs (`InstructionSelector::ForTurboshaft`). This selector traverses the Turboshaft IR and generates an `InstructionSequence`, mapping Turboshaft operations to architecture-specific machine instructions (defined in shared files like `instruction-selector-x64.cc`).
+* **`MachineLoweringPhase`**: Lowers high-level `Simplified` operations (`CheckMaps`, `ConvertJSPrimitiveToUntagged`, `StringAt`, `TransitionAndStoreArrayElement`, `Allocate`, etc.) into low-level `Machine` operations (`Load`, `Store`, `WordBinop`, `DeoptimizeIf`, `Branch`) using `JSGenericLoweringReducer`, `DataViewLoweringReducer`, `MachineLoweringReducer`, `FastApiCallLoweringReducer`, `SelectLoweringReducer`, and `MachineOptimizationReducer`.
+* **`LoopUnrollingPhase` / `LoopPeelingPhase`**: Analyzes loop headers and clones loop subgraphs via `GraphVisitor::CloneSubGraph`.
+* **`StoreStoreEliminationPhase`**: Runs `StoreStoreEliminationReducer` (`RedundantStoreAnalysis` in `src/compiler/turboshaft/store-store-elimination-reducer-inl.h`), `LateLoadEliminationReducer`, `MachineOptimizationReducer`, `BranchEliminationReducer`, and `ValueNumberingReducer` to eliminate redundant heap stores and loads using path-sensitive alias tracking in `SnapshotTable`:
+  - Walking blocks backward, `RedundantStoreAnalysis::ProcessBlock` tracks field writes as `kUnobservable` until an operation with `effects.requires_consistent_heap()` transitions all tracked stores to **`StoreObservability::kGCObservable`** (`MarkAllStoresAsGCObservable()`). When a `StoreOp` is encountered in the `kGCObservable` state, if `store.maybe_initializing_or_transitioning` is true, it **cannot** be eliminated across a GC safepoint; instead, `RedundantStoreAnalysis` keeps the store and calls `table_.MarkStoreAsUnobservable(store.base(), store.offset, size)` so any earlier stores to the same field before the safepoint can be eliminated, whereas non-initializing stores (`!store.maybe_initializing_or_transitioning`) are added to `eliminable_stores_`.
+  - When finishing `ProcessBlock` for a loop header (`block.IsLoop()` in `RedundantStoreAnalysis::Run`), `table_.InvalidateBasesInRange(block_index, back_edge->index())` resets stores to objects allocated inside the loop (`[block_index, back_edge->index()]`) back to `kObservable` before `table_.Seal(&needs_revisit)`, preventing stores in a later loop iteration from eliminating stores to a previous iteration's allocation.
+* **`OptimizePhase`**: Runs `StructuralOptimizationReducer` (switch folding, branch-to-select), `LateEscapeAnalysisReducer`, `PretenuringPropagationReducer`, `MemoryOptimizationReducer` (allocation folding and write-barrier elimination), `MachineOptimizationReducer`, and `ValueNumberingReducer`.
+* **`DecompressionOptimizationPhase`**: An in-place analysis pass (`src/compiler/turboshaft/decompression-optimization.cc`) that walks operations backward to avoid unnecessary 32-to-64-bit pointer decompressions when only the lower 32 compressed bits are needed.
 
-## File Structure
-*   `src/compiler/turboshaft/`: Core Turboshaft implementation.
-*   `src/compiler/turboshaft/turbolev-graph-builder.cc`: The main implementation of the Maglev-to-Turboshaft translator.
-*   `src/compiler/turboshaft/turbolev-frontend-pipeline.cc`: The pipeline stages for the Turbolev frontend.
+---
+
+## 4. Instruction Selection on Turboshaft (`InstructionSelectionPhase`)
+
+Instruction selection (`src/compiler/turboshaft/instruction-selection-phase.cc` and `src/compiler/backend/instruction-selector.cc`) translates the Turboshaft `Graph` into a backend `InstructionSequence` of target-specific `Instruction`s (`ArchOpcode` + `InstructionOperand`s).
+
+### 1. Special Reverse Post-Order (`TurboshaftSpecialRPONumberer`)
+Before selecting instructions, `InstructionSelectionPhase::Run` runs **`TurboshaftSpecialRPONumberer::ComputeSpecialRPO()`** (`src/compiler/turboshaft/instruction-selection-phase.cc`):
+* Performs an iterative depth-first traversal of the Turboshaft `Graph` to detect loop backedges (`rpo_number(succ) == kBlockOnStack`).
+* If loops exist, `ComputeLoopInfo` propagates loop membership backward from each backedge to its loop header using `SparseBitVector`s.
+* Performs a second post-order traversal that delays outgoing edges leaving a loop until every block belonging to the loop body (and any nested inner loops) has been visited. This guarantees that all blocks of a loop occupy a **contiguous range of RPO numbers**, which is required by the backend register allocator's loop live-range extension.
+* Next, `PropagateDeferred(graph)` propagates deferred-block hints (`Block::CustomDataKind::kDeferredInSchedule`) along single-predecessor edges from `BranchHint`s so cold blocks are placed out-of-line at the end of the function.
+
+### 2. Bottom-Up Visitation & `effect_level_` Tracking
+`InstructionSelector::SelectInstructions()` (`src/compiler/backend/instruction-selector.cc`) first marks all `PhiOp` inputs in loop headers as `Used`, and then visits basic blocks in **reverse RPO order (bottom-up)** (`base::Reversed(blocks)`). Within each `Block`, `VisitBlock` scans operations from bottom to top, while pre-computing a per-operation **`effect_level_`** counter in a forward scan:
+* Whenever an operation has `Effects().can_write()` (or produces control flow / cannot be reordered across loads), `effect_level` is incremented.
+* If an operation `op` is a pure read (`op.Effects().can_read() && !op.Effects().can_write()`), its recorded `effect_level_[op]` is bumped by `+1` relative to preceding non-writing ops when followed by a write, capturing the exact state epoch in which the load executes.
+
+### 3. Tree Pattern Matching & `InstructionSelector::CanCover(user, node)`
+Backend instruction selectors (x64, arm64, ia32, arm) frequently fold a producer `node` into a consumer `user` to emit a single complex machine instruction (for example, folding a shift and an add into an x64 LEA or ARM64 shifted-register instruction, or folding a `Load` or `Comparison` into a `Branch`).
+
+Folding `node` into `user` means `node` will be evaluated at `user`'s position rather than at `node`'s original position. **`InstructionSelector::CanCover(OpIndex user, OpIndex node)`** (`src/compiler/backend/instruction-selector.cc`) enforces four safety conditions before allowing this fold:
+1. **Same Basic Block (`InCurrentBlock(node)`)**: Both `user` and `node` must belong to `current_block_`.
+2. **Pure No-Produce Fast Path**: If `op.Effects().produces.bits() == 0` (the operation produces no side effects or state dependencies that later operations depend on), it skips the effect-level check and only checks `is_exclusive_user_of(schedule(), user, node)`.
+3. **Matching Effect Level (`GetEffectLevel(node) == current_effect_level_`)**: If `node` produces effects or reads mutable state, its `effect_level_` must equal `user`'s `current_effect_level_`, proving that no interfering store or call occurred between `node` and `user`.
+4. **Exclusive Use (`is_exclusive_user_of(schedule(), user, node)`)**: Checks `value_op.saturated_use_count`: all uses of `node` in the entire graph must belong to `user` (or, in the implicit-truncation special case `value -> TruncateWord64ToWord32 -> user`, both `value` and the intermediate truncation must have `saturated_use_count.Is(1)`). This guarantees that folding `node` into `user` will not duplicate computation for another consumer.
+
+---
+
+## 5. Further Reading in `docs/compiler/turboshaft/`
+
+* [Turboshaft IR (`compiler-turboshaft-ir.md`)](./compiler-turboshaft-ir.md): Detailed reference on `OperationBuffer`, `OpIndex` (`generation_mod2`), `V<T>` / `OptionalV<T>` / `ConstOrV<T>`, `Explode`, and `THROWING_OP_BOILERPLATE`.
+* [Turboshaft Reducers (`compiler-turboshaft-reducers.md`)](./compiler-turboshaft-reducers.md): Detailed reference on `Assembler`, `TURBOSHAFT_REDUCER_BOILERPLATE`, `REDUCE` vs. `REDUCE_INPUT_GRAPH`, and control-flow macros (`IF`/`ELSE`, `GOTO`, `BIND_LOOP`).
+* [Turboshaft Copying Approach (`compiler-turboshaft-copying-approach.md`)](./compiler-turboshaft-copying-approach.md): Detailed reference on `GraphVisitor`, why `MayThrow` ops return `OpIndex::Invalid()` in `VisitOpNoMappingUpdate`, `CheckExceptionOp`/`DidntThrowOp`, `SnapshotTable`, `VariableReducer`, and `PendingLoopPhiOp` -> `FixLoopPhis`.

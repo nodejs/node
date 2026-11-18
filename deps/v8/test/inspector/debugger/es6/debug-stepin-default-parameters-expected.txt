@@ -1,0 +1,18 @@
+Tests stepping into default parameters.
+debugger;                           // a
+entry: a0
+var result = f();                   // b
+entry: b13
+function f(arg0 = default_arg()) {  // f
+entry: f18b13
+  return "default";                 // d
+entry: d2f18b13
+  return "default";                 // d
+entry: d19f18b13
+  return arg0;                      // g
+entry: g14b13
+done = true;                        // c
+entry: c0
+result: default
+log: ["a0","b13","f18b13","d2f18b13","d19f18b13","g14b13","c0"]
+logMatches: true

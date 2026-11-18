@@ -1,0 +1,48 @@
+Checks that constructor names are truncated and CustomPreviewBudget charges className before recursion.
+
+Running test: setUp
+
+Running test: testPlainObject
+plainObject (generatePreview=false) className length: 1001
+plainObject (generatePreview=false) ends with ellipsis: true
+plainObject (generatePreview=false) description length: 1001
+plainObject (generatePreview=true) className length: 1001
+plainObject (generatePreview=true) ends with ellipsis: true
+plainObject (generatePreview=true) description length: 1001
+
+Running test: testCollection
+collection (generatePreview=false) className length: 7
+collection (generatePreview=false) className ends with ellipsis: false
+collection (generatePreview=false) description length: 10
+collection (generatePreview=false) description ends with (0): true
+collection (generatePreview=true) className length: 7
+collection (generatePreview=true) className ends with ellipsis: false
+collection (generatePreview=true) description length: 10
+collection (generatePreview=true) description ends with (0): true
+
+Running test: testCustomError
+customError className length: 1001
+customError className ends with ellipsis: true
+customError description starts with prefix: true
+customError description contains stack: true
+
+Running test: testFunction
+function className length: 1001
+function className ends with ellipsis: true
+
+Running test: testClassInstance
+classInstance className length: 1001
+classInstance className ends with ellipsis: true
+classInstance description length: 1001
+
+Running test: testBudgetClassNameCharge
+console.error: Custom Formatter Failed: Uncaught JSONML is too large
+testBudgetClassNameCharge customPreview present: false
+
+Running test: testBudgetPreRecursionCharge
+console.error: Custom Formatter Failed: Uncaught JSONML is too large
+childHeaderCalls: 0
+
+Running test: testSelfRecursiveFormatter
+console.error: Custom Formatter Failed: Uncaught Too deep hierarchy of inlined custom previews
+selfObj formatted safely without OOM: true

@@ -4,6 +4,8 @@
 
 #include "src/debug/debug-property-iterator.h"
 
+#include <array>
+
 #include "src/api/api-inl.h"
 #include "src/base/flags.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -133,13 +135,12 @@ v8::Maybe<v8::PropertyAttribute> DebugPropertyIterator::attributes() {
   // V8 will crash.
 
 #if DEBUG
-  auto property_message = base::OwnedVector<char>::NewForOverwrite(128);
-  auto name_buffer = base::OwnedVector<char>::NewForOverwrite(100);
-  raw_name()->NameShortPrint(name_buffer.as_vector());
-  v8::base::SNPrintF(property_message.as_vector(),
-                     "Invalid result for property \"%s\"\n",
-                     name_buffer.begin());
-  DCHECK_WITH_MSG(result.FromJust() != ABSENT, property_message.begin());
+  std::array<char, 128> property_message;
+  std::array<char, 100> name_buffer;
+  raw_name()->NameShortPrint(name_buffer);
+  v8::base::SNPrintF(property_message, "Invalid result for property \"%s\"\n",
+                     name_buffer.data());
+  DCHECK_WITH_MSG(result.FromJust() != ABSENT, property_message.data());
 #endif
   return Just(static_cast<v8::PropertyAttribute>(result.FromJust()));
 }

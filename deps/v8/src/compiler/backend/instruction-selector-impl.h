@@ -218,6 +218,10 @@ class OperandGenerator : public turboshaft::OperationMatcher {
     return sequence()->AddImmediate(Constant(immediate));
   }
 
+  InstructionOperand UseImmediate(const Constant& constant) {
+    return sequence()->AddImmediate(constant);
+  }
+
   InstructionOperand UseImmediate(turboshaft::OpIndex node) {
     return sequence()->AddImmediate(ToConstant(node));
   }
@@ -343,6 +347,7 @@ class OperandGenerator : public turboshaft::OperationMatcher {
     return selector_->GetVirtualRegister(node);
   }
 
+ public:
   Constant ToConstant(turboshaft::OpIndex node) {
     using Kind = turboshaft::ConstantOp::Kind;
     if (const turboshaft::ConstantOp* constant =
@@ -413,6 +418,7 @@ class OperandGenerator : public turboshaft::OperationMatcher {
     UNREACHABLE();
   }
 
+ private:
   Constant ToNegatedConstant(turboshaft::OpIndex node) {
     const turboshaft::ConstantOp& constant =
         selector()->Cast<turboshaft::ConstantOp>(node);

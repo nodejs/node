@@ -1,0 +1,25 @@
+header: net/ethernet.h
+standards:
+  - bsd
+public_includes:
+  - linux/if_ether.h
+macros:
+  - macro_name: ETHER_ADDR_LEN
+    macro_value: 6
+  - macro_name: ETHER_TYPE_LEN
+    macro_value: 2
+  - macro_name: ETHER_CRC_LEN
+    macro_value: 4
+  - macro_name: ETHER_HDR_LEN
+    macro_value: 14
+  - macro_name: ETHER_MIN_LEN
+    macro_value: 64
+  - macro_name: ETHER_MAX_LEN
+    macro_value: 1518
+  - macro_name: ETHER_MAX_LEN_JUMBO
+    macro_value: 9018
+types:
+  - type_name: struct_ether_addr
+enums: []
+objects: []
+functions: []

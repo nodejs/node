@@ -201,7 +201,7 @@ struct builtin : CallDescriptorBuilder {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
     static constexpr OpEffects kEffects =
-        base_effects.CanWriteHeapMemory().CanReadMemory();
+        base_effects.CanDeopt().CanWriteHeapMemory().CanReadMemory();
   };
 
   struct ToNumber : public Descriptor<ToNumber> {
@@ -1113,7 +1113,7 @@ struct BuiltinCallDescriptor {
       : public Descriptor<WasmAllocateDescriptorStruct> {
     static constexpr auto kFunction = Builtin::kWasmAllocateDescriptorStruct;
     using arguments_t = std::tuple<V<Map>, V<Word32>, V<Object>>;
-    using results_t = std::tuple<V<WasmStruct>>;
+    using results_t = std::tuple<V<WasmDescriptor>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
@@ -1144,7 +1144,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanChangeControlFlow();
+    static constexpr OpEffects kEffects = base_effects.CanThrowOrTrap();
   };
 
   struct WasmThrowRef : public Descriptor<WasmThrowRef> {
@@ -1558,21 +1558,6 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects = base_effects.CanReadMemory()
                                               .CanAllocateWithoutIdentity()
                                               .CanThrowOrTrap();
-  };
-
-  struct WasmStringFromDataSegment
-      : public Descriptor<WasmStringFromDataSegment> {
-    static constexpr auto kFunction = Builtin::kWasmStringFromDataSegment;
-    using arguments_t =
-        std::tuple<V<Word32>, V<Word32>, V<Word32>, V<Smi>, V<Smi>, V<Smi>>;
-    using results_t = std::tuple<V<WasmStringRefNullable>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
-    // No "CanReadMemory" because data segments are immutable.
-    static constexpr OpEffects kEffects =
-        base_effects.CanAllocateWithoutIdentity().CanThrowOrTrap();
   };
 
   struct WasmStringConst : public Descriptor<WasmStringConst> {

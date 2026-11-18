@@ -1,0 +1,6 @@
+Test debug events when we listen to all exceptions and there is a catch handler for the to-be-rejected Promise.
+Paused on exception: uncaught=false
+Exception message: reject
+Total exception events: 1
+Caught error message: reject
+Log: ["resolve","end main","reject"]

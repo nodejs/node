@@ -136,13 +136,15 @@ ObjectAllocator::ObjectAllocator(RawHeap& heap, PageBackend& page_backend,
                                  StatsCollector& stats_collector,
                                  PreFinalizerHandler& prefinalizer_handler,
                                  FatalOutOfMemoryHandler& oom_handler,
-                                 GarbageCollector& garbage_collector)
+                                 GarbageCollector& garbage_collector,
+                                 cppgc::AllocationSampler* allocation_sampler)
     : raw_heap_(heap),
       page_backend_(page_backend),
       stats_collector_(stats_collector),
       prefinalizer_handler_(prefinalizer_handler),
       oom_handler_(oom_handler),
-      garbage_collector_(garbage_collector) {}
+      garbage_collector_(garbage_collector),
+      allocation_sampler_(allocation_sampler) {}
 
 void ObjectAllocator::OutOfLineAllocateGCSafePoint(
     NormalPageSpace& space, size_t size, AlignVal alignment, GCInfoIndex gcinfo,
@@ -196,6 +198,12 @@ void* ObjectAllocator::OutOfLineAllocateImpl(
       oom_handler_("Oilpan: Large allocation.");
 #endif
     }
+    if (result && allocation_sampler_) {
+      if (allocation_sampler_->OnAllocated(result, size)) {
+        raw_heap_.heap()->AddSampledObject(
+            &HeapObjectHeader::FromObject(result));
+      }
+    }
     return result;
   }
 
@@ -226,25 +234,59 @@ void* ObjectAllocator::OutOfLineAllocateImpl(
   }
 
   // The allocation must succeed, as we just refilled the LAB.
-  void* result =
-      (dynamic_alignment == kAllocationGranularity)
-          ? AllocateObjectOnSpace(space, size, gcinfo, may_contain_mixins)
-          : AllocateObjectOnSpace(space, size, alignment, gcinfo,
-                                  may_contain_mixins);
+  void* result = (dynamic_alignment == kAllocationGranularity)
+                     ? (may_contain_mixins == MayContainMixins::kYes
+                            ? AllocateObjectOnSpace<MayContainMixins::kYes>(
+                                  space, size, gcinfo)
+                            : AllocateObjectOnSpace<MayContainMixins::kNo>(
+                                  space, size, gcinfo))
+                     : (may_contain_mixins == MayContainMixins::kYes
+                            ? AllocateObjectOnSpace<MayContainMixins::kYes>(
+                                  space, size, alignment, gcinfo)
+                            : AllocateObjectOnSpace<MayContainMixins::kNo>(
+                                  space, size, alignment, gcinfo));
   CHECK(result);
+  if (allocation_sampler_) {
+    if (allocation_sampler_->OnAllocated(result, size)) {
+      raw_heap_.heap()->AddSampledObject(&HeapObjectHeader::FromObject(result));
+    }
+  }
   return result;
 }
 
+void ObjectAllocator::ClampAndReplaceLinearAllocationBuffer(
+    NormalPageSpace& space, Address start, size_t size, size_t requested_size) {
+  auto& page = *NormalPage::From(BasePage::FromPayload(start));
+  if (allocation_sampler_) {
+    const size_t sample_interval = RoundUp<kAllocationGranularity>(
+        allocation_sampler_->GetSampleInterval());
+    const size_t target_size = std::max(sample_interval, requested_size);
+    DCHECK(IsAligned(target_size, kAllocationGranularity));
+    if (sample_interval > 0 && size > target_size) {
+      // Use only the first `target_size` bytes as the LAB payload and return
+      // the remainder to the free list to trigger a sample on the next
+      // interval. Only the free list entry at the start of the remainder is
+      // written to, the rest of the remainder may stay purged.
+      const size_t remainder_size = size - target_size;
+      page.RestoreSystemPages(start + target_size,
+                              std::min(remainder_size, kFreeListEntrySize));
+      AddToFreeList(space, start + target_size, remainder_size);
+      size = target_size;
+    }
+  }
+  // The linear allocation buffer may reuse purged memory.
+  page.RestoreSystemPages(start, size);
+  ReplaceLinearAllocationBuffer(space, stats_collector_, start, size);
+}
+
 bool ObjectAllocator::TryExpandAndRefillLinearAllocationBuffer(
-    NormalPageSpace& space) {
+    NormalPageSpace& space, size_t size) {
   auto* const new_page = NormalPage::TryCreate(page_backend_, space);
   if (!new_page) return false;
 
   space.AddPage(new_page);
-  // Set linear allocation buffer to new page.
-  ReplaceLinearAllocationBuffer(space, stats_collector_,
-                                new_page->PayloadStart(),
-                                new_page->PayloadSize());
+  ClampAndReplaceLinearAllocationBuffer(space, new_page->PayloadStart(),
+                                        NormalPage::PayloadSize(), size);
   return true;
 }
 
@@ -270,7 +312,7 @@ bool ObjectAllocator::TryRefillLinearAllocationBuffer(NormalPageSpace& space,
   // Sweeping was off or did not yield in any memory within limited
   // contributing. We expand at this point as that's cheaper than possibly
   // continuing sweeping the whole heap.
-  if (TryExpandAndRefillLinearAllocationBuffer(space)) return true;
+  if (TryExpandAndRefillLinearAllocationBuffer(space, size)) return true;
 
   // Expansion failed. Before finishing all sweeping, finish sweeping of a given
   // space which is cheaper.
@@ -290,7 +332,7 @@ bool ObjectAllocator::TryRefillLinearAllocationBuffer(NormalPageSpace& space,
     if (TryRefillLinearAllocationBufferFromFreeList(space, size)) return true;
 
     // Sweeping may have freed pages completely.
-    if (TryExpandAndRefillLinearAllocationBuffer(space)) return true;
+    if (TryExpandAndRefillLinearAllocationBuffer(space, size)) return true;
   }
   return false;
 }
@@ -300,15 +342,8 @@ bool ObjectAllocator::TryRefillLinearAllocationBufferFromFreeList(
   const FreeList::Block entry = space.free_list().Allocate(size);
   if (!entry.address) return false;
 
-  // Assume discarded memory on that page is now zero.
-  auto& page = *NormalPage::From(BasePage::FromPayload(entry.address));
-  if (page.discarded_memory()) {
-    stats_collector_.DecrementDiscardedMemory(page.discarded_memory());
-    page.ResetDiscardedMemory();
-  }
-
-  ReplaceLinearAllocationBuffer(
-      space, stats_collector_, static_cast<Address>(entry.address), entry.size);
+  ClampAndReplaceLinearAllocationBuffer(
+      space, static_cast<Address>(entry.address), entry.size, size);
   return true;
 }
 

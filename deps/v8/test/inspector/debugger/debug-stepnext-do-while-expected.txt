@@ -1,0 +1,6 @@
+Tests stepping through do-while loop with step-over.
+Hit 0: runDoWhile at "debugger;"
+Hit 1: runDoWhile at "} while(condition());"
+Hit 2: runDoWhile at "}"
+Hit 3: (anonymous) at "(caller)"
+Total break count: 4

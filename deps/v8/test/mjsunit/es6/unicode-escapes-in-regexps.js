@@ -116,7 +116,7 @@ function testRegexpHelper(r) {
   assertThrows("/\\ufoo/u", SyntaxError);
   assertThrows("/\\x/u", SyntaxError);
   assertThrows("/\\xfoo/u", SyntaxError);
-  assertThrows("/\\z/u", SyntaxError);
+  assertThrows("/[\\z]/u", SyntaxError);
   assertThrows("/\\8/u", SyntaxError);
   assertThrows("/\\9/u", SyntaxError);
 
@@ -125,7 +125,7 @@ function testRegexpHelper(r) {
   assertThrows("new RegExp('\\\\ufoo', 'u')", SyntaxError);
   assertThrows("new RegExp('\\\\x', 'u')", SyntaxError);
   assertThrows("new RegExp('\\\\xfoo', 'u')", SyntaxError);
-  assertThrows("new RegExp('\\\\z', 'u')", SyntaxError);
+  assertThrows("new RegExp('[\\\\z]', 'u')", SyntaxError);
   assertThrows("new RegExp('\\\\8', 'u')", SyntaxError);
   assertThrows("new RegExp('\\\\9', 'u')", SyntaxError);
 })();

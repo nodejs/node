@@ -35,13 +35,14 @@ void RelocInfo::Visit(Tagged<InstructionStream> host, ObjectVisitor* visitor) {
   }
 }
 
-void WritableRelocInfo::set_target_object(Tagged<InstructionStream> host,
+void WritableRelocInfo::set_target_object(Isolate* isolate,
+                                          Tagged<InstructionStream> host,
                                           Tagged<HeapObject> target,
                                           WriteBarrierMode write_barrier_mode,
                                           ICacheFlushMode icache_flush_mode) {
   set_target_object(target, icache_flush_mode);
   if (!v8_flags.disable_write_barriers) {
-    WriteBarrier::ForRelocInfo(host, this, target, write_barrier_mode);
+    WriteBarrier::ForRelocInfo(isolate, host, this, target, write_barrier_mode);
   }
 }
 

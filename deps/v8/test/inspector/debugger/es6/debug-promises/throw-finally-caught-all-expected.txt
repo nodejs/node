@@ -1,0 +1,8 @@
+Tests debug events when we listen to all exceptions and there is a catch handler for the exception thrown in a Promise, first caught by a try-finally, and immediately rethrown.
+Paused on exception: uncaught=false
+Exception message: caught
+At event line: true
+Total exception events: 1
+Test done: true
+Test error: null
+Log: ["resolve","end main","throw"]

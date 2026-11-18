@@ -39,7 +39,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/pending-allocations.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/remembered-set.h"
@@ -53,7 +52,6 @@
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/objects.h"
-#include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/tasks/cancelable-task.h"
@@ -323,7 +321,6 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
                    heap_->concurrent_marking()->garbage_collector() ==
                        GarbageCollector::MINOR_MARK_SWEEPER);
     heap_->concurrent_marking()->Join();
-    heap_->concurrent_marking()->FlushPretenuringFeedback();
   }
   CHECK(heap_->concurrent_marking()->IsStopped());
   heap_->tracer()->SampleConcurrencyEsimate(
@@ -376,18 +373,14 @@ void MinorMarkSweepCollector::StartMarking(bool force_use_background_threads) {
   DCHECK_NULL(marking_worklists_);
   marking_worklists_ = std::make_unique<MarkingWorklists>();
   DCHECK_NULL(main_marking_visitor_);
-  DCHECK_NULL(pretenuring_feedback_);
   if (v8_flags.sticky_mark_bits) {
     DCHECK(ExternalPointerRememberedSetsEmpty(heap_->sticky_space()));
   } else {
     DCHECK(ExternalPointerRememberedSetsEmpty(
         heap_->paged_new_space()->paged_space()));
   }
-  pretenuring_feedback_ =
-      std::make_unique<PretenuringHandler::PretenuringFeedbackMap>(
-          PretenuringHandler::kInitialFeedbackCapacity);
-  main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
-      heap_, pretenuring_feedback_.get());
+  main_marking_visitor_ =
+      std::make_unique<YoungGenerationMainMarkingVisitor>(heap_);
   DCHECK_NULL(remembered_sets_marking_handler_);
   remembered_sets_marking_handler_ =
       std::make_unique<YoungGenerationRememberedSetsMarkingWorklist>(heap_);
@@ -454,41 +447,6 @@ void MinorMarkSweepCollector::CollectGarbage() {
 
 namespace {
 
-class YoungStringForwardingTableCleaner final
-    : public StringForwardingTableCleanerBase {
- public:
-  explicit YoungStringForwardingTableCleaner(Heap* heap)
-      : StringForwardingTableCleanerBase(heap) {}
-
-  // For Minor MS we don't mark forward objects, because they are always
-  // in old generation (and thus considered live).
-  // We only need to delete non-live young objects.
-  void ProcessYoungObjects() {
-    DCHECK(v8_flags.always_use_string_forwarding_table);
-    StringForwardingTable* forwarding_table =
-        isolate_->string_forwarding_table();
-    forwarding_table->IterateElements(
-        [&](StringForwardingTable::Record* record) {
-          ClearNonLiveYoungObjects(record);
-        });
-  }
-
- private:
-  void ClearNonLiveYoungObjects(StringForwardingTable::Record* record) {
-    Tagged<Object> original = record->OriginalStringObject(isolate_);
-    if (!IsHeapObject(original)) {
-      DCHECK_EQ(original, StringForwardingTable::deleted_element());
-      return;
-    }
-    Tagged<String> original_string = Cast<String>(original);
-    if (!HeapLayout::InYoungGeneration(original_string)) return;
-    if (!marking_state_->IsMarked(original_string)) {
-      DisposeExternalResource(record);
-      record->set_original_string(StringForwardingTable::deleted_element());
-    }
-  }
-};
-
 bool IsUnmarkedObjectInYoungGeneration(Heap* heap, FullObjectSlot p) {
   if (v8_flags.sticky_mark_bits) {
     return HeapLayout::InYoungGeneration(*p);
@@ -502,14 +460,6 @@ bool IsUnmarkedObjectInYoungGeneration(Heap* heap, FullObjectSlot p) {
 
 void MinorMarkSweepCollector::ClearNonLiveReferences() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_CLEAR);
-
-  if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
-    TRACE_GC(heap_->tracer(),
-             GCTracer::Scope::MINOR_MS_CLEAR_STRING_FORWARDING_TABLE);
-    // Clear non-live objects in the string fowarding table.
-    YoungStringForwardingTableCleaner forwarding_table_cleaner(heap_);
-    forwarding_table_cleaner.ProcessYoungObjects();
-  }
 
   Isolate* isolate = heap_->isolate();
   if (isolate->global_handles()->HasYoung() ||
@@ -753,11 +703,6 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   main_marking_visitor_.reset();
   marking_worklists_.reset();
   remembered_sets_marking_handler_.reset();
-
-  PretenuringHandler* pretenuring_handler = heap_->pretenuring_handler();
-  pretenuring_handler->MergeAllocationSitePretenuringFeedback(
-      *pretenuring_feedback_);
-  pretenuring_feedback_.reset();
 
   if (v8_flags.minor_ms_trace_fragmentation) {
     TraceFragmentation();

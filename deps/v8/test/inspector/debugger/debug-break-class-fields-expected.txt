@@ -1,0 +1,218 @@
+Tests setting and removing breakpoints on class fields and computed property names.
+--- class Y single breakpoints ---
+class Y {
+  x = #1;
+  y = 2;
+
+x = [B0]1;
+  y = 2;
+  z = 3
+x = 1;
+  y = 2;
+  z = 3
+  x = 1;
+  y = #2;
+  z = 3;
+
+x = 1;
+  y = [B0]2;
+  z = 3
+x = 1;
+  y = 2;
+  z = 3
+  y = 2;
+  z = #3;
+}
+
+x = 1;
+  y = 2;
+  z = [B0]3
+x = 1;
+  y = 2;
+  z = 3
+--- class Y breakpoint pairs ---
+class Y {
+  x = #1;
+  y = 2;
+
+  x = 1;
+  y = #2;
+  z = 3;
+
+x = [B0]1;
+  y = [B1]2;
+  z = 3
+x = 1;
+  y = [B0]2;
+  z = 3
+x = 1;
+  y = 2;
+  z = 3
+class Y {
+  x = #1;
+  y = 2;
+
+  y = 2;
+  z = #3;
+}
+
+x = [B0]1;
+  y = 2;
+  z = [B1]3
+x = 1;
+  y = 2;
+  z = [B0]3
+x = 1;
+  y = 2;
+  z = 3
+  x = 1;
+  y = #2;
+  z = 3;
+
+  y = 2;
+  z = #3;
+}
+
+x = 1;
+  y = [B0]2;
+  z = [B1]3
+x = 1;
+  y = 2;
+  z = [B0]3
+x = 1;
+  y = 2;
+  z = 3
+--- top-level class X with computed property ---
+class X {
+  [#foo()] = 1;
+  baz = foo();
+
+[foo()] = 1;
+  baz = foo()
+  [foo()] = 1;
+  baz = #foo();
+}
+
+[foo()] = 1;
+  baz = [B0]foo()
+--- function t() enclosing class X ---
+  class X {
+    [#foo()] = 1;
+    [bar] = 2;
+
+() {
+  class X {
+    [[B0]foo()] = 1;
+    [bar] = 2;
+    baz = foo();
+  }
+}
+() {
+  class X {
+    [foo()] = 1;
+    [bar] = 2;
+    baz = foo();
+  }
+}
+    [foo()] = 1;
+    [#bar] = 2;
+    baz = foo();
+
+() {
+  class X {
+    [foo()] = 1;
+    [[B0]bar] = 2;
+    baz = foo();
+  }
+}
+() {
+  class X {
+    [foo()] = 1;
+    [bar] = 2;
+    baz = foo();
+  }
+}
+    [bar] = 2;
+    baz = #foo();
+  }
+
+() {
+  class X {
+    [foo()] = 1;
+    [bar] = 2;
+    baz = foo();
+  }
+}
+  class X {
+    [#foo()] = 1;
+    [bar] = 2;
+
+    [foo()] = 1;
+    [#bar] = 2;
+    baz = foo();
+
+() {
+  class X {
+    [[B0]foo()] = 1;
+    [[B1]bar] = 2;
+    baz = foo();
+  }
+}
+() {
+  class X {
+    [foo()] = 1;
+    [[B0]bar] = 2;
+    baz = foo();
+  }
+}
+() {
+  class X {
+    [foo()] = 1;
+    [bar] = 2;
+    baz = foo();
+  }
+}
+  class X {
+    [#foo()] = 1;
+    [bar] = 2;
+
+    [bar] = 2;
+    baz = #foo();
+  }
+
+() {
+  class X {
+    [[B0]foo()] = 1;
+    [bar] = 2;
+    baz = foo();
+  }
+}
+() {
+  class X {
+    [foo()] = 1;
+    [bar] = 2;
+    baz = foo();
+  }
+}
+    [foo()] = 1;
+    [#bar] = 2;
+    baz = foo();
+
+    [bar] = 2;
+    baz = #foo();
+  }
+
+() {
+  class X {
+    [foo()] = 1;
+    [[B0]bar] = 2;
+    baz = foo();
+  }
+}
+() {
+  class X {
+    [foo()] = 1;
+    [bar] = 2;
+    baz = foo();
+  }
+}

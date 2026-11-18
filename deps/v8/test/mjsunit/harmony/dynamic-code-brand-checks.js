@@ -9,7 +9,7 @@
 // fallback-to-ToString behavior when no embedder callback is installed,
 // and the codegen_allowed rejection path via %DisallowCodegenFromStrings.
 // The callback's HostGetCodeForEval-style code-substitution path is
-// covered in more detail via cctest, since installing a callback that
+// covered in more detail via C++ unittests, since installing a callback that
 // distinguishes between argument shapes isn't possible from pure JS.
 
 (function TestNormalFunctionConstructorStillWorks() {

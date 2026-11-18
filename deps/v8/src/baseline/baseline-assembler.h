@@ -197,6 +197,11 @@ class BaselineAssembler {
                                     int32_t index);
   inline void LoadFixedArrayElement(TaggedRegister output, TaggedRegister array,
                                     int32_t index);
+
+  // Pushes a single register slot without inserting 16-byte stack alignment
+  // padding. Only for building fixed/local frame layouts (e.g.
+  // PrologueFillFrame) where alignment is managed across the whole frame body.
+  inline void PushUnpadded(Register reg);
 #endif
 
   // Falls through and sets scratch_and_result to 0 on failure, jumps to
@@ -252,6 +257,18 @@ class BaselineAssembler {
   inline void SmiAddConstantAndJumpIfOverflow(
       Register value, int constant, Label* overflow,
       Label::Distance distance = Label::kFar);
+
+  // Computes a tagged Smi Add/Sub into |output|. |output| may alias |lhs|.
+  // Jumps to |overflow| without modifying |lhs| when the result is not a Smi.
+  inline void SmiAddSubAndJumpIfOverflow(
+      Register output, Register lhs, Tagged<Smi> rhs, Operation operation,
+      Label* overflow, Label::Distance distance = Label::kFar);
+
+  // Computes BitwiseAnd/BitwiseOr/BitwiseXor/ShiftRight in place.
+  // TODO(yuheng): Add support for ShiftLeft and ShiftRightLogical with overflow
+  // checks. They are currently omitted because their results can exceed the Smi
+  // range.
+  inline void SmiBitwiseOp(Register lhs, Tagged<Smi> rhs, Operation operation);
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
   inline void Switch(Register reg, int case_value_base, Label** labels,

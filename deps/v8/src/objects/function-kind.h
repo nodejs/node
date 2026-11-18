@@ -112,7 +112,7 @@ inline bool IsConciseMethod(FunctionKind kind) {
              FunctionKind::kClassStaticInitializerFunctionPrecededByMember);
 }
 
-inline bool IsStrictFunctionWithoutPrototype(FunctionKind kind) {
+inline bool IsFunctionWithoutPrototype(FunctionKind kind) {
   return base::IsInRange(kind, FunctionKind::kGetterFunction,
                          FunctionKind::kAsyncArrowFunction) ||
          base::IsInRange(kind, FunctionKind::kAsyncConciseMethod,

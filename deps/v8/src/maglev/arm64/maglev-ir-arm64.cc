@@ -550,10 +550,6 @@ void Int32ModulusWithOverflow::SetValueLocationConstraints() {
 }
 void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
-  // If AreAliased(lhs, rhs):
-  //   deopt if lhs < 0  // Minus zero.
-  //   0
-  //
   // Using same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
@@ -577,17 +573,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   static constexpr DeoptimizeReason deopt_reason =
       DeoptimizeReason::kDivisionByZero;
 
-  if (lhs == rhs) {
-    // For the modulus algorithm described above, lhs and rhs must not alias
-    // each other.
-    __ Tst(lhs, lhs);
-    // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
-    // allows one deopt reason per IR.
-    __ EmitEagerDeoptIf(mi, deopt_reason, this);
-    __ Move(ToRegister(result()), 0);
-    return;
-  }
-
+  // For the modulus algorithm described above, lhs and rhs must not alias
+  // each other.
   DCHECK(!AreAliased(lhs, rhs));
 
   ZoneLabelRef done(masm);
@@ -604,9 +591,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
       rhs_checked, rhs, this);
   __ Bind(*rhs_checked);
 
-  __ Cmp(lhs, Immediate(0));
-  __ JumpToDeferredIf(
-      lt,
+  Label* lhs_negative = __ MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register lhs, Register rhs,
          Register out, Int32ModulusWithOverflow* node) {
         MaglevAssembler::TemporaryRegisterScope temps(masm);
@@ -621,6 +606,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
         __ EmitEagerDeopt(node, deopt_reason);
       },
       done, lhs, rhs, out, this);
+  __ RecordComment("-- Jump to deferred code");
+  __ Tbnz(lhs, lhs.SizeInBits() - 1, lhs_negative);
 
   Label rhs_not_power_of_2;
   MaglevAssembler::TemporaryRegisterScope temps(masm);
@@ -1062,7 +1049,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
     save_register_state.DefineSafepoint();
   }
-  __ B(*done);
+  __ Jump(*done);
 }
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
@@ -1133,15 +1120,19 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // incoming argc's register (if it's still valid).
   __ Ldr(actual_params_size,
          MemOperand(fp, StandardFrameConstants::kArgCOffset));
-  __ Mov(params_size, Immediate(formal_params_size));
 
   // If actual is bigger than formal, then we should use it to free up the stack
-  // arguments.
-  Label corrected_args_count;
-  __ CompareAndBranch(params_size, actual_params_size, ge,
-                      &corrected_args_count);
-  __ Mov(params_size, actual_params_size);
-  __ Bind(&corrected_args_count);
+  // arguments. A conditional select rather than a branch over the move, as in
+  // Sparkplug's EmitReturn: one instruction fewer and no branch in the
+  // epilogue. Both counts include the receiver, so without formal parameters
+  // the actual count is never smaller.
+  if (formal_params_size > 1) {
+    __ Mov(params_size, Immediate(formal_params_size));
+    __ Cmp(params_size, actual_params_size);
+    __ Csel(params_size, actual_params_size, params_size, lt);
+  } else {
+    params_size = actual_params_size;
+  }
 
   // Leave the frame.
   __ LeaveFrame(StackFrame::MAGLEV);
@@ -1215,15 +1206,18 @@ void LoadDictionaryField::GenerateCode(MaglevAssembler* masm,
     __ CompareTaggedAndJumpIf(scratch, name().object(), kNotEqual,
                               deferred_fallback);
 
-    __ LoadTaggedField(scratch, properties,
-                       NameDictionary::OffsetOfElementAt(
-                           entry_index + NameDictionary::kEntryDetailsIndex));
-    __ SmiToInt32(scratch);
-    __ And(scratch.W(), scratch.W(),
-           Immediate(PropertyDetails::KindField::kMask));
-    __ CompareInt32AndJumpIf(
-        scratch.W(), PropertyDetails::KindField::encode(PropertyKind::kData),
-        kNotEqual, deferred_fallback);
+    // PropertyDetails is stored as a Smi, so we can test the KindField bit in
+    // place without decompressing or untagging. This works for both 31-bit and
+    // 32-bit Smis because LoadTaggedFieldWithoutDecompressing loads the full
+    // tagged width and kSmiShift accounts for the Smi tag offset.
+    static_assert(PropertyDetails::KindField::kSize == 1);
+    static_assert(static_cast<int>(PropertyKind::kData) == 0);
+    __ LoadTaggedFieldWithoutDecompressing(
+        scratch, properties,
+        NameDictionary::OffsetOfElementAt(entry_index +
+                                          NameDictionary::kEntryDetailsIndex));
+    __ Tbnz(scratch, kSmiShift + PropertyDetails::KindField::kShift,
+            deferred_fallback);
 
     __ LoadTaggedField(result_reg, properties,
                        NameDictionary::OffsetOfElementAt(

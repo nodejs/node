@@ -17,7 +17,7 @@ grep \
     --recursive \
     --word-regexp \
     --fixed-strings "$bailouts" \
-    -- "$v8_root/src" "$v8_root/test/cctest" \
+    -- "$v8_root/src" "$v8_root/test/unittests" \
 | sort \
 | uniq -u \
 | sed -e 's/.*/Bailout reason "&" seems to be unused./'

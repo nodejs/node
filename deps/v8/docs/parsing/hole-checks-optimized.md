@@ -1,170 +1,134 @@
-# Hole Check Elision in Optimizing Compilers
+# Stage 3: Hole Check Elision in Optimizing Compilers (Maglev, TurboFan, & Turboshaft)
 
-This document covers Step 3 of the Hole Check Elision process in V8, focusing on how the optimizing compilers (Maglev and Turboshaft/TurboFan) track variables and eliminate Temporal Dead Zone (TDZ) hole checks.
+## Conceptual Overview
 
-## Maglev: High-Level Flow-Sensitive Tracking
+When a function becomes warm and tiers up to **Maglev** or **TurboFan / Turboshaft**, the optimizing compiler translates Ignition bytecode into a Static Single Assignment (SSA) control-flow graph. Even though Stage 1 (`Parser`) and Stage 2 (`BytecodeGenerator`) already eliminated many TDZ checks, bytecode-level elision is intentionally local:
+- `BytecodeGenerator` resets its `HoleCheckBitmap` across loop headers, non-merging `if` branches, and function boundaries (before inlining).
+- In an SSA graph with function inlining, global value numbering (GVN), and path-sensitive type/aspect tracking (`KnownNodeAspects` in Maglev, `ValueNode::IsTdzHole()`, and Turboshaft reducers), the optimizing compiler can prove across basic blocks and inlined calls whether a value is guaranteed to be `tdz_hole_value` (`RootIndex::kTdzHoleValue`) or guaranteed not to be `tdz_hole_value`.
 
-Maglev, V8's mid-tier optimizing compiler, adopts a specialized, high-level approach to hole check elimination during its graph optimization phase.
+---
 
-### The Mechanism
-- **IR Representation**: Maglev represents TDZ checks explicitly using a dedicated `ThrowReferenceErrorIfHole` node.
-- **Holiness Analysis**: During optimization, Maglev uses a method `ValueNode::IsTheHole()` to inspect the source of a value recursively (unwrapping identities, checking phi inputs, etc.). This returns a `Tribool` state:
-  - `kTrue`: The value is definitely `TheHole`.
-  - `kFalse`: The value is definitely NOT `TheHole`.
-  - `kMaybe`: The analysis cannot be certain.
-- **Elision**: In the `MaglevGraphOptimizer`, when visiting a `ThrowReferenceErrorIfHole` node:
-  - If `IsTheHole()` returns `kFalse`, the check node is completely removed from the graph.
-  - If it returns `kTrue`, it is replaced with an unconditional throw.
-  - If `kMaybe`, the check is retained.
+## 1. Maglev TDZ Hole Check Elision (`src/maglev/maglev-graph-builder.cc` & `maglev-graph-optimizer.cc`)
 
-This approach allows Maglev to quickly and effectively drop checks on variables it knows are safe without running heavy, generalized analysis passes.
+When `MaglevGraphBuilder` encounters `ThrowReferenceErrorIfTdzHole`, `ThrowSuperNotCalledIfTdzHole`, or `ThrowSuperAlreadyCalledIfNotTdzHole` in bytecode (and later during `MaglevGraphOptimizer`), Maglev queries **`value->IsTdzHole()`** (`ValueNode::IsHole(RootIndex::kTdzHoleValue)` in `src/maglev/maglev-ir.h`), which returns a 3-state `Tribool`:
 
-### Maglev's Implicit Control-Flow Elision
+```mermaid
+flowchart TD
+    Visit["VisitThrowReferenceErrorIfTdzHole<br/>Switch on value->IsTdzHole()"] --> TrueCase["Tribool::kTrue<br/>(Statically known TdzHoleConstant)"]
+    Visit --> FalseCase["Tribool::kFalse<br/>(Statically proven NOT TdzHole)"]
+    Visit --> MaybeCase["Tribool::kMaybe<br/>(Runtime value unknown)"]
 
-Because Maglev builds a graph and tracks the current value of variables in its environment, it can naturally elide hole checks when branches are pruned, even without explicit flow-sensitive tracking of "holiness".
-
-**The Scenario:**
-Consider a case where the Bytecode Generator (Step 2) had to retain a hole check because one of the paths failed to initialize the variable:
-
-```javascript
-function runExampleTest() {
-  function example(cond) {
-    const getX = () => x; // Closure capturing x
-    if (cond) {
-      // ...
-    }
-    // TDZ check is ambiguous here because we don't know when example is called!
-    console.log(getX()); // Check REQUIRED!
-  }
-
-  let x = 10;
-}
+    TrueCase --> EmitThrow["Unconditional Throw:<br/>reducer_.EmitThrow(Throw::kThrowAccessedUninitializedVariable, name)<br/>(MaglevGraphOptimizer: ThrowAndTruncate)"]
+    FalseCase --> Elide["Elide Check Completely!<br/>(No node emitted)"]
+    MaybeCase --> EmitCheck["Emit Conditional Check Node:<br/>AddNewNode&lt;ThrowReferenceErrorIfTdzHole&gt;({value}, name)<br/>(or ThrowSuperNotCalledIfTdzHole / ThrowSuperAlreadyCalledIfNotTdzHole)"]
 ```
 
-If Maglev specializes this function and proves that `cond` is always true (e.g., through type feedback), it prunes the `else` branch from the graph.
+### 1. `Tribool::kTrue` (Guaranteed TDZ Violation)
+If `value->IsTdzHole()` returns `Tribool::kTrue` (for example, `value` is `RootConstant(RootIndex::kTdzHoleValue)` after constant-propagating an uninitialized register or context slot), Maglev replaces the conditional check with an unconditional throw:
+- In `MaglevGraphBuilder::VisitThrowReferenceErrorIfTdzHole`: calls `reducer_.EmitThrow(Throw::kThrowAccessedUninitializedVariable, GetConstant(name))` and terminates the current basic block.
+- In `MaglevGraphOptimizer::VisitThrowReferenceErrorIfTdzHole`: calls `ThrowAndTruncate(Throw::kThrowAccessedUninitializedVariable, node->name())`.
 
-In the baseline bytecode, the access after the `if/else` is a merge point, so it must load whatever value resulted from the merge. But in Maglev, because the `else` branch is gone, the merge disappears! The value of `x` at the final `console.log(x)` is now directly mapped to the constant `10` from the `then` branch.
+### 2. `Tribool::kFalse` (Guaranteed Non-Hole -> Complete Elision)
+If `value->IsTdzHole()` returns `Tribool::kFalse` (because `value`'s opcode or `NodeType` in `KnownNodeAspects` cannot produce `RootIndex::kTdzHoleValue`, such as a `SmiConstant`, `Float64Constant`, arithmetic node, newly allocated object, or already-checked value), the TDZ check is **completely elided** (`return ReduceResult::Done()`).
 
-When `MaglevGraphOptimizer` visits the check for this load, `ValueNode::IsTheHole()` looks at the definition (the constant `10`) and returns `kFalse`. The check is successfully elided!
+### 3. `Tribool::kMaybe` (Runtime Check Required)
+When `value` might be `tdz_hole_value` at runtime, `MaglevGraphBuilder` emits the corresponding Maglev IR node:
+- **`ThrowReferenceErrorIfTdzHole`** (`AddNewNode<ThrowReferenceErrorIfTdzHole>({value}, name)`) for lexical variables (`let`, `const`, `class`, `using`).
+- **`ThrowSuperNotCalledIfTdzHole`** for derived class `this` accesses before `super()`.
+- **`ThrowSuperAlreadyCalledIfNotTdzHole`** before initializing `this` in a `super()` call.
 
-### Constant Tracking via Hole Elision and `maybe_assigned`
+---
 
-Maglev leverages a powerful combination of hole check elision and the `maybe_assigned` flag to enable **constant tracking** for context-allocated variables:
+## 2. Sharp Edge: The "Inverted Generator" & `try`/`catch` Context Load Caching
 
-1. **The Hole Check Guarantee**: When a variable is accessed outside a `try`/`catch` block, passing the hole check implies that the variable is safely initialized. If it were a hole, execution would have aborted.
-2. **The Immutability Guarantee**: If the Parser marked the variable as **not `maybe_assigned`**, Maglev knows that no code in the closure can mutate it after initialization.
+One of the subtlest compiler bugs in TDZ hole check elimination arises from the interaction between **Immutable Context Slot Load Caching** (`loaded_context_constants_` in Maglev's `KnownNodeAspects`) and **Exception Handler Control-Flow Merges (`try`/`catch`)** when a generator yields while a `const` variable is still in its TDZ (the **"Inverted Generator"** pattern).
 
-**The Combo**: By combining these two facts, Maglev can safely assume that after the first successful access/check, the variable's value is **permanently fixed**. This allows Maglev to specialize the load to a constant in the graph, eliding both the context load and any subsequent hole checks for the remainder of the function!
-
-### The Challenge of `try` / `catch`
-
-This reasoning becomes more complex inside `try`/`catch` blocks because execution *does* continue after an exception (in the `catch` block).
-- If an operation inside `try` throws because a variable was a hole, the `catch` block executes.
-- In the `catch` block, we might actually know that the variable *must* be the hole (because that's why it threw!).
-- To maintain correctness across these non-linear jumps, Maglev relies on **implicit control-flow modeling**. Maglev does not explicitly build control-flow edges from every potentially throwing node to the `catch` block (which would lead to graph bloat). Instead, it implicitly merges the environment states of all potentially throwing instructions inside the `try` block at the entry of the `catch` block. As a result, the "holiness" state of each variable in the `catch` block is a conservative combination (intersection) of the states at all possible throwing sites.
-
-#### Example: The Hole in the Catch Block
-```javascript
-function testTryCatch() {
-  // let x = hole
-
-  try {
-    console.log(x); // Throws ReferenceError (TDZ)
-    x = 10;        // Skipped!
-  } catch (e) {
-    // We arrive here because the access above threw.
-    // In this block, 'x' is guaranteed to STILL be the hole!
-    console.log(x); // Accessing 'x' here will throw AGAIN.
-  }
-
-  let x;
-}
-```
-If Maglev were to blindly assume that a successful access implies initialization for the rest of the function, it might unsafely elide the second check inside the `catch` block. By forcing spills and merging states conservatively at the `catch` entry, Maglev avoids this trap.
-
-> **Note on Single-Throw Paths**: If there is **only one** potential throwing node in the `try` block, the merge into the `catch` block is indeed trivial. In this specific scenario, Maglev *does* bypass the intersection and simply clones the exact frame state from the throwing node directly into the `catch` block. However, it still does **not** specialize the variable to "the hole constant". It just carries over the state from just before the throw (e.g., that it was *maybe* a hole). Maglev lacks the path-sensitive logic to deduce that "because we reached the catch block, this specific variable must have been the hole."
-
-### The "Inverted Generator" Edge Case
-
-The "Inverted Generator" pattern breaks the assumption that linear execution implies initialization. Consider this scenario:
+### The Inverted Generator Pattern
+Consider an outer generator `gen()` that declares a `const x` (which has `MaybeAssignedFlag::kNotAssigned` in `ScopeInfo` because `const x` is only ever initialized once) and `yield`s **inside `x`'s initializer** before `x` is initialized:
 
 ```javascript
-function* f() {
-  yield function g() {
+function* makeGen() {
+  function readX(stepGenerator) {
     try {
-      return test; // 2. Accesses outer variable 'test' -> Throws TDZ
+      // 1. Because `x` is `const` (kNotAssigned), BytecodeGenerator emits:
+      //    LdaImmutableContextSlot <x>
+      //    ThrowReferenceErrorIfTdzHole <"x">
+      return x;
     } catch (e) {
-      gen.next();  // 3. Resumes the generator!
-      return test; // 4. Accesses 'test' again -> Succeeds!
+      // 2. Caught ReferenceError because `x` is still `tdz_hole_value`!
+      //    Now resume the outer generator so `const x = 42` finishes initializing:
+      stepGenerator();
+      // 3. Read `x` again inside the catch block:
+      //    LdaImmutableContextSlot <x>
+      //    ThrowReferenceErrorIfTdzHole <"x">
+      return x; // <-- MUST return 42, NOT reuse the cached tdz_hole from step 1!
     }
-  };
-  let test = 10; // 1. Declared AFTER the yield
-}
-
-var gen = f();
-var g = gen.next().value; // Gets the function 'g'
-g(); // Invokes 'g'
-```
-
-**The Execution Flow:**
-1. The generator `f()` is paused at the `yield`, returning the function `g`. At this point, `let test = 10` has **not** been executed yet.
-2. We invoke `g()`. Inside, the attempt to read `test` throws a `ReferenceError` because it is still in the TDZ.
-3. The `catch` block intercepts the error and calls `gen.next()`, which resumes the generator and executes `let test = 10`.
-4. Now `test` is initialized! The `catch` block returns `test`, successfully reading `10`.
-
-Here, the access inside `g` actually *causes* the variable to be initialized via the `catch` block!
-
-To prevent Maglev from incorrectly assuming that execution is linear or that `test` cannot change state from "hole" to "initialized" across the yield, V8's Parser detects this pattern (a variable captured from an outer generator scope accessed inside a `try`/`catch` block) and **forcibly marks it as `maybe_assigned`**. This disables aggressive constant-tracking in Maglev, forcing conservative fallback behavior.
-
-### The Power of Inlining for Hole Checks
-
-A particularly powerful scenario for hole check elision in Maglev occurs during **function inlining**.
-
-**The Scenario:**
-Consider an inner function accessing a variable declared in its outer function:
-
-```javascript
-function outer() {
-  let x = 10;
-
-  function inner() {
-    console.log(x); // Cross-closure access
   }
-
-  inner();
+  const x = (yield readX, 42);
 }
 ```
 
-During parsing (Step 1), the access to `x` inside `inner` is cross-closure. Because the parser cannot statically guarantee the execution order of closures, it conservatively marks the access as requiring a hole check (`kRequired`). In the baseline bytecode for `inner`, a `ThrowReferenceErrorIfHole` instruction is emitted.
+Why is `LdaImmutableContextSlot` dangerous here?
+1. Because `const x` has `kNotAssigned` in `ScopeInfo`, `BytecodeGenerator` emits **`LdaImmutableContextSlot`** (translated by Maglev to `LoadContextSlotNoCells` with `kNotAssigned`).
+2. When Maglev visits `LdaImmutableContextSlot` at step 1 inside the `try` block, it caches the loaded SSA `ValueNode*` in **`known_node_aspects_->loaded_context_constants_[(context, offset)] = value`**, reasoning that an "immutable" (`kNotAssigned`) context slot can never change once loaded!
+3. However, at step 1, `makeGen` yielded **before** `const x` finished initializing! Thus, at runtime, `value` loaded at step 1 is **`tdz_hole_value`**.
+4. Next, Maglev visits `ThrowReferenceErrorIfTdzHole(value)`:
+   - Because `ThrowReferenceErrorIfTdzHole` is a throwing node inside a `try` block, Maglev merges the current basic block's `KnownNodeAspects` into the enclosing **`catch` block's state**.
+   - If `loaded_context_constants_[(context, offset)] = value` remained in `KnownNodeAspects` across the throwing edge into the `catch` block:
+     - Inside the `catch` block (step 2), `stepGenerator()` resumes the generator and initializes `const x = 42` in the context!
+     - Yet at step 3, when the `catch` block executes `LdaImmutableContextSlot <x>`, Maglev would see `(context, offset)` still cached in `loaded_context_constants_` from step 1 and **reuse the stale `value` (`tdz_hole_value`) instead of reloading `42` from the context**!
 
-**How Inlining Changes the Game:**
-When Maglev decides to inline `inner()` into `outer()`, the closure boundary effectively disappears. The graph builder imports the bytecode of `inner` directly into the graph of `outer`.
+### The Exact Fix in Maglev (`VisitThrowReferenceErrorIfTdzHole` & `ProcessThrowingNode`)
 
-This inlining converts a context-sensitive cross-closure analysis into a standard local (intraprocedural) analysis. Now, the access to `x` originating from `inner` and the initialization of `x` to `10` in `outer` are part of the **exact same graph**. Maglev's local `ValueNode::IsTheHole()` analysis can trace directly from the inlined access back to the definition (the constant `10`). Since it is a known non-hole constant, the check is completely elided in the optimized code!
+Maglev prevents this poison merge in both `MaglevGraphBuilder::VisitThrowReferenceErrorIfTdzHole` (`src/maglev/maglev-graph-builder.cc` lines 15750-15778) and `KnownNodeAspectsProcessor::ProcessThrowingNode` (`src/maglev/maglev-kna-processor.h` lines 182-206):
 
-While theoretically one could perform context-dependent interprocedural analysis or employ function splitting to carry information from call sites into the callee, inlining is the practical and elegant mechanism V8 uses to unlock these optimizations by leveraging its highly optimized local compiler graph pipelines.
+```mermaid
+sequenceDiagram
+    participant Builder as MaglevGraphBuilder / KNA Processor
+    participant KNA as KnownNodeAspects (loaded_context_constants_)
+    participant Catch as Catch Block Merge State
 
-## Turboshaft: Lower-Level Generalized Reduction
+    Builder->>KNA: 1. VisitLdaImmutableContextSlot:<br/>Caches slot_cache = LoadContextSlotNoCells (value)
+    Builder->>Builder: 2. VisitThrowReferenceErrorIfTdzHole(value):<br/>Detects value->TryCast<LoadContextSlotNoCells>()!
+    Builder->>KNA: 3. Temporarily clear: *cached_slot = nullptr
+    Builder->>Catch: 4. Emit ThrowReferenceErrorIfTdzHole:<br/>ProcessThrowingNode merges KNA into Catch block WITHOUT cached_slot!
+    Builder->>KNA: 5. On non-throwing fallthrough path:<br/>Restore *cached_slot = value (safe because it did NOT throw!)
+```
 
-Turboshaft (and historically TurboFan) adopts a very different philosophy. Instead of maintaining specialized high-level nodes for TDZ checks, it lowers them early into standard machine operations and relies on powerful, general-purpose optimization reducers to clean them up.
+1. **In `MaglevGraphBuilder::VisitThrowReferenceErrorIfTdzHole`** (and in **`RecomputeKnownNodeAspectsProcessor::ProcessThrowingNode`** for `node->TryCast<ThrowReferenceErrorIfTdzHole>()` during graph optimization passes):
+   - Before emitting `AddNewNode<ThrowReferenceErrorIfTdzHole>({value}, name)` (or before `Merge(exception_handler)` in `ProcessThrowingNode`), Maglev checks whether `value` is a `LoadContextSlotNoCells` with `load->maybe_assigned() == kNotAssigned` whose `known_node_aspects().GetContextCachedValue(load->input(0).node(), load->offset(), kNotAssigned)` slot currently equals `value`.
+2. **Clear Before Exception Merge**:
+   - If matched, Maglev saves `cached_load = load` and temporarily clears the slot to `nullptr` (`slot = nullptr`).
+   - Consequently, the `catch` block's merged `KnownNodeAspects` does **not** inherit the pre-throw `LoadContextSlotNoCells` cache entry; any `LdaImmutableContextSlot` in the `catch` block will emit a fresh load!
+3. **Restore on Non-Throwing Fallthrough**:
+   - Immediately after `AddNewNode<ThrowReferenceErrorIfTdzHole>` (and after `Merge(exception_handler)` in `ProcessThrowingNode`), if `cached_load` is non-null, Maglev restores `known_node_aspects().GetContextCachedValue(cached_load->input(0).node(), cached_load->offset(), kNotAssigned) = cached_load` on the normal fallthrough path -- because reaching the fallthrough path proves that `ThrowReferenceErrorIfTdzHole` did **not** throw, meaning `x` was already initialized and truly is immutable from that point onward!
 
-### The Mechanism
-- **Early Lowering**: The high-level hole check is lowered into a standard comparison against the root value: `RootEqual(value, RootIndex::kTheHoleValue)`. This feeds into a `BranchOp` where the true branch calls the runtime to throw the error, and the false branch continues execution.
-- **Elimination via General Reducers**: Because the check is lowered to a standard condition, Turboshaft uses its powerful general-purpose pipeline to eliminate it, relying strictly on structural control flow rather than high-level types:
-  1. **Branch Elimination (`BranchEliminationReducer`)**: This is the primary engine for eliding hole checks in Turboshaft. These are the checks that Maglev (Turbolev) did *not* manage to elide. The reducer processes the graph in dominator order and maintains a map of `known_conditions_`. If execution passes a branch or a `DeoptimizeIf` that proves a value is not `TheHole` (i.e., `RootEqual(...) == false`), that condition is recorded. Subsequent checks on the same value dominated by this path look up the map and are immediately removed.
-  2. **Constant Folding (`MachineOptimizationReducer`)**: If other optimizations (like store-forwarding) reveal that the value is a specific heap constant that is not the hole, this reducer folds the `TaggedEqual` comparison directly to false, eliminating the branch.
-  3. **No Type-Based Elimination**: Unlike TurboFan, which used a complex lattice-based `Type` system that understood `TheHole` as a specific type, **Turboshaft's type system operates on machine types** (ranges of Word32, Word64, etc.). It does not track JS objects or special values like `TheHole` in its types. Thus, Turboshaft relies entirely on the path-sensitive condition tracking of Branch Elimination rather than type inference to drop these checks.
+---
 
-### The Power of Inlining in Turboshaft
-Just like in Maglev (see *The Power of Inlining for Hole Checks* above), function inlining performed by TurboFan (which feeds into Turboshaft) removes closure boundaries. Once an inner function is inlined, the variable access and its definition become part of the same localized graph. This allows Turboshaft's powerful general-purpose passes (like `MachineOptimizationReducer` for constant folding and `BranchEliminationReducer`) to trace directly from the access to the initialization, eliminating checks that the Parser and Interpreter had to retain conservatively.
+## 3. TurboFan and Turboshaft Hole Check Lowering and Elision
 
-## The Impact of Loop Peeling and Unrolling
+When code tiers up to TurboFan / Turboshaft:
+1. **TurboFan Bytecode Graph Builder (`src/compiler/bytecode-graph-builder.cc`)**:
+   - In `BytecodeGraphBuilder::VisitThrowReferenceErrorIfTdzHole`, TurboFan compares the accumulator against `TdzHole` via **`javascript()->ReferenceEqual()`** with **`jsgraph()->TdzHoleConstant()`**, and passes that check to **`BuildHoleCheckAndThrow(check, Runtime::kThrowAccessedUninitializedVariable, name)`** (which builds a diamond branch that calls the runtime throw function on the slow path if `ReferenceEqual` is true).
+   - Similarly, `VisitThrowSuperNotCalledIfTdzHole` and `VisitThrowSuperAlreadyCalledIfNotTdzHole` compare against `jsgraph()->TdzHoleConstant()` and conditionally call `Runtime::kThrowSuperNotCalled` or `Runtime::kThrowSuperAlreadyCalledError`.
+   - During subsequent sea-of-nodes passes (`TypedOptimization`, `SimplifiedLowering`), `ReferenceEqual(x, TdzHoleConstant)` folds to `false` whenever `x`'s static `Type` excludes `Type::Hole()`.
+2. **Turboshaft / Turbolev Lowering (`src/compiler/turboshaft/turbolev-graph-builder.cc`)**:
+   - When lowering Maglev IR to Turboshaft in `TurbolevGraphBuilder::Process(maglev::ThrowReferenceErrorIfTdzHole* node)`, Turboshaft emits:
+     ```cpp
+     IF (UNLIKELY(__ RootEqual(node->ValueInput(), RootIndex::kTdzHoleValue))) {
+       __ CallRuntime<runtime::ThrowAccessedUninitializedVariable>(...);
+       __ Unreachable();
+     }
+     ```
+   - Turboshaft's `MachineOptimizationReducer` and `BranchEliminationReducer` eliminate redundant `RootEqual(..., RootIndex::kTdzHoleValue)` checks along dominated paths.
 
-In optimizing compilers (both Maglev and Turboshaft), **Loop Peeling** and **Loop Unrolling** provide a significant advantage for hole check elision.
+---
 
-In the baseline bytecode, loop entries are merge points where the analyzed state from the loop entry and the back-edge (the end of the loop) must converge. This often forces conservatism because the compiler cannot be sure what state was produced in previous iterations.
+## Key Source Files
 
-By **peeling the first iteration** of a loop (duplicating the first iteration's body before the actual loop header):
-1. The code for the first iteration becomes strictly linear relative to the loop entry.
-2. Any variable initialization occurring in that first iteration is now exposed directly to the rest of the graph without any back-edge merge!
-3. Subsequent accesses in the remaining loop iterations (or after the loop) can now see that the variable is initialized, allowing the compiler to safely elide the checks.
+- `src/maglev/maglev-ir.h`: `ValueNode::IsTdzHole()` (`IsHole(RootIndex::kTdzHoleValue)`), `ThrowReferenceErrorIfTdzHole`, `ThrowSuperNotCalledIfTdzHole`, and `ThrowSuperAlreadyCalledIfNotTdzHole`.
+- `src/maglev/maglev-graph-builder.cc`: `MaglevGraphBuilder::VisitThrowReferenceErrorIfTdzHole`, `VisitThrowSuperNotCalledIfTdzHole`, and `VisitThrowSuperAlreadyCalledIfNotTdzHole`.
+- `src/maglev/maglev-graph-optimizer.cc`: `MaglevGraphOptimizer::VisitThrowReferenceErrorIfTdzHole` (`ThrowAndTruncate`).
+- `src/maglev/maglev-kna-processor.h`: `KnownNodeAspectsProcessor::ProcessThrowingNode` exception-merge invalidation for `ThrowReferenceErrorIfTdzHole`.
+- `src/compiler/bytecode-graph-builder.cc`: `BytecodeGraphBuilder::VisitThrowReferenceErrorIfTdzHole` (`TdzHoleConstant` + `BuildHoleCheckAndThrow`).
+- `src/compiler/turboshaft/turbolev-graph-builder.cc`: Turboshaft lowering of `ThrowReferenceErrorIfTdzHole` (`RootEqual(..., RootIndex::kTdzHoleValue)`).

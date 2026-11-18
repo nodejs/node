@@ -1,0 +1,4 @@
+Tests regress-crbug-609046.
+scopes: block, global
+scopes: block, global
+scopes: block, global

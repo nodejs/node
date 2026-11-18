@@ -429,7 +429,31 @@ test_tag
     ])
     FakeScript(fake_config, self).Run(["--work-dir", work_dir])
 
-  def testCreateRelease(self):
+  CREATE_RELEASE_ARGS = [
+      "-a", "author@chromium.org", "-r", "reviewer@chromium.org", "--revision",
+      "push_hash"
+  ]
+
+  def ExistingBranchCmds(self):
+    """Commands detecting a branch that was created by a previous run."""
+    return [
+        Cmd("git ls-remote origin refs/heads/3.22.5",
+            "branch_hash\trefs/heads/3.22.5\n"),
+        Cmd("git fetch origin "
+            "+refs/heads/3.22.5:refs/remotes/origin/3.22.5", ""),
+    ]
+
+  def ExpectCreateRelease(self,
+                          branch_ref_cmds,
+                          land_version_change=True,
+                          tag=True):
+    """Sets up the expected commands for running the create-release script.
+
+    Args:
+      branch_ref_cmds: Expected commands of the step creating the branch ref.
+      land_version_change: Whether the version change is expected to land.
+      tag: Whether the release is expected to be tagged.
+    """
     TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
 
     # The version file on main has build level 5.
@@ -460,49 +484,126 @@ test_tag
       Cmd("git log -1 --format=%H 3.22.4", "release_hash\n"),
       Cmd("git log -1 --format=%s release_hash", "Version 3.22.4\n"),
       Cmd("git log -1 --format=%H release_hash^", "abc3\n"),
-      Cmd("git log --format=%H abc3..push_hash", "rev1\n"),
-      Cmd("git push origin push_hash:refs/heads/3.22.5", ""),
-      Cmd("git reset --hard origin/main", ""),
-      Cmd("git new-branch work-branch --upstream origin/3.22.5", ""),
-      Cmd("git checkout -f 3.22.4 -- include/v8-version.h", "",
-          cb=self.WriteFakeVersionFile),
-      Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
-          cb=CheckVersionCommit),
-      Cmd("git cl upload --send-mail "
-          "-f --set-bot-commit --bypass-hooks --no-autocc --message-file "
-          "\"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
-      Cmd("git cl land --bypass-hooks -f", ""),
-      Cmd("git fetch", ""),
-      Cmd("git log -1 --format=%H --grep="
-          "\"Version 3.22.5\" origin/3.22.5", "hsh_to_tag"),
-      Cmd("git tag 3.22.5 hsh_to_tag", ""),
-      Cmd("git push origin refs/tags/3.22.5:refs/tags/3.22.5", ""),
-      Cmd("git checkout -f origin/main", ""),
-      Cmd("git branch", "* main\n  work-branch\n"),
-      Cmd("git branch -D work-branch", ""),
-      Cmd("git gc", ""),
     ]
+    expectations += branch_ref_cmds
+    if land_version_change:
+      expectations += [
+          Cmd("git reset --hard origin/main", ""),
+          Cmd("git new-branch work-branch --upstream origin/3.22.5", ""),
+          Cmd("git checkout -f 3.22.4 -- include/v8-version.h",
+              "",
+              cb=self.WriteFakeVersionFile),
+          Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"],
+              "",
+              cb=CheckVersionCommit),
+          Cmd(
+              "git cl upload --send-mail "
+              "-f --set-bot-commit --bypass-hooks --no-autocc --message-file "
+              "\"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
+          Cmd("git cl land --bypass-hooks -f", ""),
+      ]
+    if tag:
+      expectations += [
+          Cmd("git fetch", ""),
+          Cmd(
+              "git log -1 --format=%H --grep="
+              "\"Version 3.22.5\" origin/3.22.5", "hsh_to_tag"),
+          Cmd("git tag 3.22.5 hsh_to_tag", ""),
+          Cmd("git push origin refs/tags/3.22.5:refs/tags/3.22.5", ""),
+          Cmd("git checkout -f origin/main", ""),
+          Cmd("git branch", "* main\n  work-branch\n"),
+          Cmd("git branch -D work-branch", ""),
+          Cmd("git gc", ""),
+      ]
     self.Expect(expectations)
 
-    args = ["-a", "author@chromium.org",
-            "-r", "reviewer@chromium.org",
-            "--revision", "push_hash"]
-    CreateRelease(TEST_CONFIG, self).Run(args)
+  def CheckWatchlists(self, merges_enabled):
+    """Checks for correct content of the WATCHLISTS file."""
+    entry = "'v8-merges@googlegroups.com',"
+    if not merges_enabled:
+      entry = "# " + entry
+    expected_watchlists_content = """
+    'merges': [
+      # Only enabled on branches created with tools/release/create_release.py
+      %s
+    ],
+""" % entry
+    watchlists_content = FileToText(
+        os.path.join(TEST_CONFIG["DEFAULT_CWD"], WATCHLISTS_FILE))
+    self.assertEqual(watchlists_content, expected_watchlists_content)
+
+  def CreateReleaseState(self):
+    return json.loads(
+        FileToText("%s-state.json" % TEST_CONFIG["PERSISTFILE_BASENAME"]))
+
+  def testCreateRelease(self):
+    self.ExpectCreateRelease([
+        Cmd("git ls-remote origin refs/heads/3.22.5", ""),
+        Cmd("git push origin push_hash:refs/heads/3.22.5", ""),
+    ])
+
+    CreateRelease(TEST_CONFIG, self).Run(self.CREATE_RELEASE_ARGS)
 
     # Note: The version file is on build number 5 again in the end of this test
     # since the git command that merges to main is mocked out.
 
-    # Check for correct content of the WATCHLISTS file
+    self.CheckWatchlists(merges_enabled=True)
+    self.assertEqual("push_hash", self.CreateReleaseState()["push_hash"])
 
-    watchlists_content = FileToText(os.path.join(TEST_CONFIG["DEFAULT_CWD"],
-                                          WATCHLISTS_FILE))
-    expected_watchlists_content = """
-    'merges': [
-      # Only enabled on branches created with tools/release/create_release.py
-      'v8-merges@googlegroups.com',
-    ],
-"""
-    self.assertEqual(watchlists_content, expected_watchlists_content)
+  # A previous run created the branch, but failed to land the version change.
+  # The release is created from the revision of the existing branch.
+  def testCreateReleaseResumeBranch(self):
+    self.ExpectCreateRelease(self.ExistingBranchCmds() + [
+        Cmd("git log --format=%H origin/main..origin/3.22.5", ""),
+        Cmd("git log -1 --format=%H origin/3.22.5", "branch_hash\n"),
+    ])
+
+    CreateRelease(TEST_CONFIG, self).Run(self.CREATE_RELEASE_ARGS)
+
+    self.CheckWatchlists(merges_enabled=True)
+    self.assertEqual("branch_hash", self.CreateReleaseState()["push_hash"])
+
+  # A previous run landed the version change, but failed to tag it. Only the
+  # tag is created.
+  def testCreateReleaseResumeTag(self):
+    self.ExpectCreateRelease(
+        self.ExistingBranchCmds() + [
+            Cmd("git log --format=%H origin/main..origin/3.22.5",
+                "version_hash\n"),
+            Cmd("git log -1 --format=%s version_hash", "Version 3.22.5\n"),
+        ],
+        land_version_change=False)
+
+    CreateRelease(TEST_CONFIG, self).Run(self.CREATE_RELEASE_ARGS)
+
+    self.CheckWatchlists(merges_enabled=False)
+
+  # The existing branch contains a commit that's not the version change.
+  def testCreateReleaseUnexpectedBranchCommit(self):
+    self.ExpectCreateRelease(
+        self.ExistingBranchCmds() + [
+            Cmd("git log --format=%H origin/main..origin/3.22.5",
+                "other_hash\n"),
+            Cmd("git log -1 --format=%s other_hash", "Version 3.22.5 (fix)\n"),
+        ],
+        land_version_change=False,
+        tag=False)
+
+    with self.assertRaisesRegex(Exception, "unexpected commits"):
+      CreateRelease(TEST_CONFIG, self).Run(self.CREATE_RELEASE_ARGS)
+
+  # The existing branch contains more commits than the version change.
+  def testCreateReleaseUnexpectedBranchCommits(self):
+    self.ExpectCreateRelease(
+        self.ExistingBranchCmds() + [
+            Cmd("git log --format=%H origin/main..origin/3.22.5",
+                "other_hash\nversion_hash\n"),
+        ],
+        land_version_change=False,
+        tag=False)
+
+    with self.assertRaisesRegex(Exception, "unexpected commits"):
+      CreateRelease(TEST_CONFIG, self).Run(self.CREATE_RELEASE_ARGS)
 
   def testCheckLastPushRecently(self):
     self.Expect([

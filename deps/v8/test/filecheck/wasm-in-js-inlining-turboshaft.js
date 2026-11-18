@@ -25,11 +25,38 @@ const struct8 = builder.addStruct([makeField(kWasmI8, true)]);
 const globalI32 = builder.addGlobal(kWasmI32, true, false);
 const globalEqRef = builder.addGlobal(kWasmEqRef, true, false);
 
+const inputsForType = {
+  [kWasmI32]: [0, 1, -1, 3, 7, -0x80000000, 0x7fffffff],
+  [kWasmI64]: [
+    0n, 1n, -1n, -7n, 7n, 63n, 64n, 65n,
+    0x80n, 0x8000n, 0x80000000n, 0x100000000n, 0x100000001n,
+    0x123456789n, -0x123456789n, 0x1234567887654321n,
+    0x123456789abcdefn, 0xfedcba987654321n,
+    -(1n << 63n), (1n << 63n) - 1n,
+  ],
+  [kWasmF32]: [0, -0, 1, -1, 3, 7, Infinity, -Infinity, Number.MIN_VALUE],
+  [kWasmF64]: [0, -0, 1, -1, 3, 7, Infinity, -Infinity, Number.MIN_VALUE],
+  [kWasmExternRef]: [null, {}, undefined, 0],
+};
+
+function inputsForSignature(wasmSignature) {
+  return wasmSignature.params.reduce(
+      (acc, type) =>
+          acc.flatMap(args => inputsForType[type].map(val => [...args, val])),
+      [[]]);
+}
+
 let tests = [];
 // A helper to avoid repetition (e.g., the Wasm function name) and keep all
 // pieces of one test case in one place (e.g., JS arguments, Wasm signature).
 function addTestcase(name, wasmSignature, wasmArguments, wasmBody, jsFunctionBuilder) {
-  assertEquals(wasmSignature.params.length, wasmArguments.length);
+  let inputs;
+  if (wasmArguments == null) {
+    inputs = inputsForSignature(wasmSignature);
+  } else {
+    assertEquals(wasmSignature.params.length, wasmArguments.length);
+    inputs = [wasmArguments];
+  }
   const wasmFunction = builder.addFunction(name, wasmSignature).addBody(wasmBody).exportFunc();
 
   if (!jsFunctionBuilder) {
@@ -41,7 +68,7 @@ function addTestcase(name, wasmSignature, wasmArguments, wasmBody, jsFunctionBui
     // will not be inlined.
     // TODO(353475584): Is it worth lifting this restriction? Is this a
     // restriction also for regular JS inlining?
-    const argumentList = Array.from(wasmArguments, (x, i) => 'arg' + i);
+    const argumentList = Array.from(wasmSignature.params, (_, i) => 'arg' + i);
     jsFunctionBuilder = eval(`
       (wasmExports) => {
         return function js_${name}(${argumentList}) {
@@ -50,7 +77,7 @@ function addTestcase(name, wasmSignature, wasmArguments, wasmBody, jsFunctionBui
       }
     `);
   }
-  tests[name] = { wasmArguments, jsFunctionBuilder };
+  tests[name] = { inputs, jsFunctionBuilder };
 
     // Return the wasmFunction, so that it can still be manually modified.
   return wasmFunction;
@@ -87,215 +114,337 @@ addTestcase('i64Const', makeSig([], [kWasmI64]), [], [...wasmI64Const(kValueExce
 // CHECK-NEXT: - inlining Wasm function
 addTestcase('refNull', makeSig([], [kWasmExternRef]), [], [kExprRefNull, kExternRefCode]);
 
-function addUnaryTestcase(op, wasmSignature, wasmArgument) {
-  addTestcase(op, wasmSignature, [wasmArgument], [
+function addUnaryTestcase(op, wasmSignature) {
+  addTestcase(op, wasmSignature, null, [
     kExprLocalGet, 0,
-    eval('kExpr' + op)
+    eval('kExpr' + op),
   ]);
 }
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Eqz of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('I32Eqz', kSig_i_i, 0);
+addUnaryTestcase('I32Eqz', kSig_i_i);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Abs of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F32Abs', kSig_f_f, 0);
+addUnaryTestcase('F32Abs', kSig_f_f);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Neg of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F32Neg', kSig_f_f, 0);
+addUnaryTestcase('F32Neg', kSig_f_f);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Sqrt of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F32Sqrt', kSig_f_f, 0);
+addUnaryTestcase('F32Sqrt', kSig_f_f);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Abs of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F64Abs', kSig_d_d, 0);
+addUnaryTestcase('F64Abs', kSig_d_d);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Neg of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F64Neg', kSig_d_d, 0);
+addUnaryTestcase('F64Neg', kSig_d_d);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Sqrt of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F64Sqrt', kSig_d_d, 0);
+addUnaryTestcase('F64Sqrt', kSig_d_d);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64SConvertI32 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F64SConvertI32', kSig_d_i, 0);
+addUnaryTestcase('F64SConvertI32', kSig_d_i);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64UConvertI32 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F64UConvertI32', kSig_d_i, 0);
+addUnaryTestcase('F64UConvertI32', kSig_d_i);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32SConvertI32 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F32SConvertI32', kSig_f_i, 0);
+addUnaryTestcase('F32SConvertI32', kSig_f_i);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32UConvertI32 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F32UConvertI32', kSig_f_i, 0);
+addUnaryTestcase('F32UConvertI32', kSig_f_i);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32ConvertF64 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F32ConvertF64', kSig_f_d, 0);
+addUnaryTestcase('F32ConvertF64', kSig_f_d);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64ConvertF32 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F64ConvertF32', kSig_d_f, 0);
+addUnaryTestcase('F64ConvertF32', kSig_d_f);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32ReinterpretI32 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('F32ReinterpretI32', kSig_f_i, 0);
+addUnaryTestcase('F32ReinterpretI32', kSig_f_i);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32ReinterpretF32 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('I32ReinterpretF32', kSig_i_f, 0);
+addUnaryTestcase('I32ReinterpretF32', kSig_i_f);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Clz of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('I32Clz', kSig_i_i, 0);
+addUnaryTestcase('I32Clz', kSig_i_i);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32SExtendI8 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('I32SExtendI8', kSig_i_i, 0);
+addUnaryTestcase('I32SExtendI8', kSig_i_i);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32SExtendI16 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('I32SExtendI16', kSig_i_i, 0);
+addUnaryTestcase('I32SExtendI16', kSig_i_i);
 // CHECK: Considering Wasm function [{{[0-9]+}}] RefIsNull of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addUnaryTestcase('RefIsNull', kSig_i_r, null);
+addUnaryTestcase('RefIsNull', kSig_i_r);
 
-function addBinaryTestcase(op, wasmSignature, wasmArgument0, wasmArgument1) {
-  addTestcase(op, wasmSignature, [wasmArgument0, wasmArgument1], [
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64Eqz of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('I64Eqz', makeSig([kWasmI64], [kWasmI32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64Clz of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('I64Clz', kSig_l_l);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64SExtendI8 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('I64SExtendI8', kSig_l_l);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64SExtendI16 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('I64SExtendI16', kSig_l_l);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64SExtendI32 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('I64SExtendI32', kSig_l_l);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I32ConvertI64 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('I32ConvertI64', makeSig([kWasmI64], [kWasmI32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64SConvertI32 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('I64SConvertI32', makeSig([kWasmI32], [kWasmI64]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64UConvertI32 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('I64UConvertI32', makeSig([kWasmI32], [kWasmI64]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] F64ReinterpretI64 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('F64ReinterpretI64', makeSig([kWasmI64], [kWasmF64]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64ReinterpretF64 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('I64ReinterpretF64', makeSig([kWasmF64], [kWasmI64]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] F32SConvertI64 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('F32SConvertI64', makeSig([kWasmI64], [kWasmF32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] F32UConvertI64 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('F32UConvertI64', makeSig([kWasmI64], [kWasmF32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] F64SConvertI64 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('F64SConvertI64', makeSig([kWasmI64], [kWasmF64]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] F64UConvertI64 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addUnaryTestcase('F64UConvertI64', makeSig([kWasmI64], [kWasmF64]));
+
+function addBinaryTestcase(op, wasmSignature) {
+  addTestcase(op, wasmSignature, null, [
     kExprLocalGet, 0,
     kExprLocalGet, 1,
-    eval('kExpr' + op)
+    eval('kExpr' + op),
   ]);
 }
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Add of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32Add', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32Add', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Sub of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32Sub', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32Sub', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Mul of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32Mul', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32Mul', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32And of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32And', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32And', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Ior of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32Ior', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32Ior', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Xor of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32Xor', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32Xor', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Shl of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32Shl', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32Shl', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32ShrS of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32ShrS', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32ShrS', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32ShrU of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32ShrU', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32ShrU', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Ror of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32Ror', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32Ror', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Rol of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32Rol', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32Rol', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Eq of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32Eq', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32Eq', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Ne of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32Ne', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32Ne', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32LtS of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32LtS', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32LtS', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32LeS of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32LeS', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32LeS', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32LtU of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32LtU', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32LtU', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32LeU of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32LeU', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32LeU', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32GtS of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32GtS', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32GtS', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32GeS of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32GeS', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32GeS', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32GtU of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32GtU', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32GtU', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32GeU of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('I32GeU', kSig_i_ii, 3, 7);
+addBinaryTestcase('I32GeU', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32CopySign of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32CopySign', kSig_f_ff, 3, 7);
+addBinaryTestcase('F32CopySign', kSig_f_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Add of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32Add', kSig_f_ff, 3, 7);
+addBinaryTestcase('F32Add', kSig_f_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Sub of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32Sub', kSig_f_ff, 3, 7);
+addBinaryTestcase('F32Sub', kSig_f_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Mul of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32Mul', kSig_f_ff, 3, 7);
+addBinaryTestcase('F32Mul', kSig_f_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Div of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32Div', kSig_f_ff, 3, 7);
+addBinaryTestcase('F32Div', kSig_f_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Eq of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32Eq', kSig_i_ff, 3, 7);
+addBinaryTestcase('F32Eq', kSig_i_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Ne of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32Ne', kSig_i_ff, 3, 7);
+addBinaryTestcase('F32Ne', kSig_i_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Lt of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32Lt', kSig_i_ff, 3, 7);
+addBinaryTestcase('F32Lt', kSig_i_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Le of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32Le', kSig_i_ff, 3, 7);
+addBinaryTestcase('F32Le', kSig_i_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Gt of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32Gt', kSig_i_ff, 3, 7);
+addBinaryTestcase('F32Gt', kSig_i_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Ge of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32Ge', kSig_i_ff, 3, 7);
+addBinaryTestcase('F32Ge', kSig_i_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Min of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32Min', kSig_f_ff, 3, 7);
+addBinaryTestcase('F32Min', kSig_f_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F32Max of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F32Max', kSig_f_ff, 3, 7);
+addBinaryTestcase('F32Max', kSig_f_ff);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Add of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F64Add', kSig_d_dd, 3, 7);
+addBinaryTestcase('F64Add', kSig_d_dd);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Sub of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F64Sub', kSig_d_dd, 3, 7);
+addBinaryTestcase('F64Sub', kSig_d_dd);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Mul of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F64Mul', kSig_d_dd, 3, 7);
+addBinaryTestcase('F64Mul', kSig_d_dd);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Div of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F64Div', kSig_d_dd, 3, 7);
+addBinaryTestcase('F64Div', kSig_d_dd);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Eq of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F64Eq', kSig_i_dd, 3, 7);
+addBinaryTestcase('F64Eq', kSig_i_dd);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Ne of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F64Ne', kSig_i_dd, 3, 7);
+addBinaryTestcase('F64Ne', kSig_i_dd);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Lt of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F64Lt', kSig_i_dd, 3, 7);
+addBinaryTestcase('F64Lt', kSig_i_dd);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Le of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F64Le', kSig_i_dd, 3, 7);
+addBinaryTestcase('F64Le', kSig_i_dd);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Gt of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F64Gt', kSig_i_dd, 3, 7);
+addBinaryTestcase('F64Gt', kSig_i_dd);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Ge of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F64Ge', kSig_i_dd, 3, 7);
+addBinaryTestcase('F64Ge', kSig_i_dd);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Min of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F64Min', kSig_d_dd, 3, 7);
+addBinaryTestcase('F64Min', kSig_d_dd);
 // CHECK: Considering Wasm function [{{[0-9]+}}] F64Max of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
-addBinaryTestcase('F64Max', kSig_d_dd, 3, 7);
+addBinaryTestcase('F64Max', kSig_d_dd);
+
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64Add of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64Add', kSig_l_ll);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64Sub of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64Sub', kSig_l_ll);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64Mul of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64Mul', kSig_l_ll);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64And of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64And', kSig_l_ll);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64Ior of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64Ior', kSig_l_ll);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64Xor of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64Xor', kSig_l_ll);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64Shl of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64Shl', kSig_l_ll);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64ShrS of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64ShrS', kSig_l_ll);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64ShrU of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64ShrU', kSig_l_ll);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64Ror of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64Ror', kSig_l_ll);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64Rol of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64Rol', kSig_l_ll);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64Eq of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64Eq', makeSig([kWasmI64, kWasmI64], [kWasmI32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64Ne of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64Ne', makeSig([kWasmI64, kWasmI64], [kWasmI32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64LtS of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64LtS', makeSig([kWasmI64, kWasmI64], [kWasmI32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64LeS of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64LeS', makeSig([kWasmI64, kWasmI64], [kWasmI32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64GtS of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64GtS', makeSig([kWasmI64, kWasmI64], [kWasmI32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64GeS of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64GeS', makeSig([kWasmI64, kWasmI64], [kWasmI32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64LtU of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64LtU', makeSig([kWasmI64, kWasmI64], [kWasmI32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64LeU of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64LeU', makeSig([kWasmI64, kWasmI64], [kWasmI32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64GtU of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64GtU', makeSig([kWasmI64, kWasmI64], [kWasmI32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] I64GeU of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('I64GeU', makeSig([kWasmI64, kWasmI64], [kWasmI32]));
+// CHECK: Considering Wasm function [{{[0-9]+}}] F64CopySign of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addBinaryTestcase('F64CopySign', kSig_d_dd);
+
+// i64 operations also inline when the JS boundary only uses i32.
+// CHECK: Considering Wasm function [{{[0-9]+}}] i64AddI32Args of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('i64AddI32Args', kSig_i_ii, [13, 23], [
+  kExprLocalGet, 0,
+  kExprI64SConvertI32,
+  kExprLocalGet, 1,
+  kExprI64SConvertI32,
+  kExprI64Add,
+  kExprI32ConvertI64,
+]);
 
 // This currently cannot be inlined when passing `eqref`s as an argument from JS
 // because the JS-to-Wasm wrapper inlining bails out in that case.
@@ -801,19 +950,10 @@ addTestcase('createStruct', makeSig([], [kWasmExternRef]), [], [
   kGCPrefix, kExprExternConvertAny,
 ]);
 
-// TODO(dlehmann,353475584): We don't support i64 ops yet, since that requires
-// `Int64LoweringReducer`, which isn't compatible with the JS pipeline yet.
-// Also, there is no wrapper inlining for i64 on 32-bit architectures right
-// now, so pass as i32 on the boundary.
-// CHECK: Considering Wasm function [{{[0-9]+}}] i64Add of module {{.*}} for inlining
-// CHECK-NEXT: - not inlining: unsupported operation: i64.extend_i32_s
-addTestcase(`i64Add`, kSig_i_ii, [13, 23], [
-  kExprLocalGet, 0,
-  kExprI64SConvertI32,
-  kExprLocalGet, 1,
-  kExprI64SConvertI32,
-  kExprI64Add,
-  kExprI32ConvertI64,
+// CHECK: Considering Wasm function [{{[0-9]+}}] i64DivNoInline of module {{.*}} for inlining
+// CHECK-NEXT: - not inlining: unsupported operation: i64.div_s
+addTestcase('i64DivNoInline', kSig_l_ll, [42n, 2n], [
+  kExprLocalGet, 0, kExprLocalGet, 1, kExprI64DivS,
 ]);
 
 // TODO(dlehmann,353475584): This would require supporting multi-value in
@@ -904,35 +1044,37 @@ addTestcase('multiModule', kSig_v_v, [], [], (wasmExports) => {
 // Compile and instantiate the Wasm module, define the caller JS functions,
 // call with arguments defined above.
 const wasmExports = builder.instantiate({}).exports;
-for (const [ name, { wasmArguments, jsFunctionBuilder } ] of Object.entries(tests)) {
+for (const [ name, { inputs, jsFunctionBuilder } ] of Object.entries(tests)) {
   print(`\nTest: ${name}`);
 
   const jsFunction = jsFunctionBuilder(wasmExports);
 
-  const result = {};
+  const result = {unoptimized: [], optimized: []};
   for (let i = 0; i < 2; i++) {
-    const optimized = i == 1;
-    if (optimized) {
+    const is_optimized = i == 1;
+    if (is_optimized) {
       %OptimizeFunctionOnNextCall(jsFunction);
     } else {
       %PrepareFunctionForOptimization(jsFunction);
     }
-    try {
-      // Make sure we use the same call site for the optimized and unoptimized
-      // call, such that the stack traces have the same locations in them
-      // for the comparison below. Hence this for loop instead of simply two
-      // calls to `jsFunction`.
-      result[optimized] = jsFunction(...wasmArguments);
-    } catch (e) {
-      result[optimized] = e.toString() + e.stack;
-    }
-    if (optimized) {
-      assertOptimized(jsFunction);
-    } else {
-      assertUnoptimized(jsFunction);
+    for (const args of inputs) {
+      try {
+        // Use the same call site before and after optimization so that trap
+        // stack traces have the same locations for the comparison below.
+        result[is_optimized ? 'optimized' : 'unoptimized'].push(jsFunction(...args));
+      } catch (e) {
+        result[is_optimized ? 'optimized' : 'unoptimized'].push(e.toString() + e.stack);
+      }
+      if (is_optimized) {
+        assertOptimized(jsFunction);
+      } else {
+        assertUnoptimized(jsFunction);
+      }
     }
   }
 
-  print('Result:', prettyPrinted(result[true]));
-  assertEquals(result[false], result[true]);
+  for (const value of result['optimized']) {
+    print('Result:', prettyPrinted(value));
+  }
+  assertEquals(result['unoptimized'], result['optimized']);
 }

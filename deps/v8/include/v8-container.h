@@ -102,6 +102,14 @@ class V8_EXPORT Map : public Object {
   void Clear();
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
                                               Local<Value> key);
+  /**
+   * Looks up `key` without calling into JavaScript. Needs no context and does
+   * not allocate on the V8 heap, so it can be used where JavaScript must not
+   * run (for example a sampling heap profiler SampleContextExtractor). Returns
+   * the value, or undefined if `key` is absent, and sets `*found` to whether
+   * `key` is present. `found` must not be null.
+   */
+  Local<Value> Get(Local<Value> key, bool* found) const;
   V8_WARN_UNUSED_RESULT MaybeLocal<Map> Set(Local<Context> context,
                                             Local<Value> key,
                                             Local<Value> value);

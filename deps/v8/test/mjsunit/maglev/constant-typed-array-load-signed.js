@@ -35,3 +35,15 @@ function test() {
 test();
 
 assertMaglevved(foo);
+
+const dv = new DataView(ab);
+dv.setInt16(0, 0x0080, true);
+
+function loadBigEndianInt16(v) {
+  return (v.getInt16(0, false) + 1) | 0;
+}
+%PrepareFunctionForOptimization(loadBigEndianInt16);
+assertEquals(-32767, loadBigEndianInt16(dv));
+%OptimizeMaglevOnNextCall(loadBigEndianInt16);
+assertEquals(-32767, loadBigEndianInt16(dv));
+assertMaglevved(loadBigEndianInt16);

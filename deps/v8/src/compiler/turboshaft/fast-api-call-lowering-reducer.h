@@ -86,10 +86,8 @@ class FastApiCallLoweringReducer : public Next {
             offsetof(v8::FastApiCallbackOptions, isolate));
         // data = data_argument
         OpIndex data_argument_to_pass = __ AdaptLocalArgument(data_argument);
-        START_ALLOW_USE_DEPRECATED()
         constexpr size_t data_offset =
             offsetof(v8::FastApiCallbackOptions, data);
-        END_ALLOW_USE_DEPRECATED()
         __ StoreOffHeap(stack_slot, data_argument_to_pass,
                         MemoryRepresentation::UintPtr(), data_offset);
 
@@ -114,7 +112,8 @@ class FastApiCallLoweringReducer : public Next {
 
       V<Object> exception =
           __ Load(__ IsolateField(IsolateFieldId::kException),
-                  LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr());
+                  LoadOp::Kind::RawAligned(),
+                  MemoryRepresentation::AnyUncompressedTagged());
       GOTO_IF_NOT(
           LIKELY(__ TaggedEqual(
               exception, __ template LoadRoot<RootIndex::kTheHoleValue>())),
@@ -168,6 +167,7 @@ class FastApiCallLoweringReducer : public Next {
   OpIndex AdaptFastCallArgument(OpIndex argument, CTypeInfo arg_type,
                                 Label<>& handle_error) {
     uint8_t flags = static_cast<uint8_t>(arg_type.GetFlags());
+    START_ALLOW_USE_DEPRECATED()
     if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
       switch (arg_type.GetType()) {
         case CTypeInfo::Type::kInt32: {
@@ -223,6 +223,7 @@ class FastApiCallLoweringReducer : public Next {
           }
           return argument;
         }
+          END_ALLOW_USE_DEPRECATED()
         case CTypeInfo::Type::kPointer: {
           // Check that the value is a HeapObject.
           GOTO_IF(__ ObjectIsSmi(argument), handle_error);
@@ -433,7 +434,7 @@ class FastApiCallLoweringReducer : public Next {
     __ InitializeField(external, AccessBuilder::ForJSObjectElements(),
                        empty_fixed_array);
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     OpIndex isolate_ptr =
         __ ExternalConstant(ExternalReference::isolate_address());
     MachineSignature::Builder builder(__ graph_zone(), 1, 2);
@@ -456,7 +457,7 @@ class FastApiCallLoweringReducer : public Next {
 #else
     __ InitializeField(external, AccessBuilder::ForJSExternalObjectValue(),
                        pointer);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
     GOTO(done, __ FinishInitialization(std::move(external)));
 
     BIND(done, result);

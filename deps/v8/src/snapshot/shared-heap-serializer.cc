@@ -41,7 +41,8 @@ SharedHeapSerializer::SharedHeapSerializer(Isolate* isolate,
       ,
       serialized_objects_(isolate->heap())
 #endif
-{
+      ,
+      trusted_serializer_(isolate, this) {
   if (ShouldReconstructSharedHeapObjectCacheForTesting()) {
     ReconstructSharedHeapObjectCacheForTesting();
   }
@@ -63,7 +64,8 @@ void SharedHeapSerializer::FinalizeSerialization() {
   // internalizable-in-place strings are in the shared heap.
   SerializeStringTable(isolate()->string_table());
   SerializeDeferredObjects();
-  Pad();
+  trusted_serializer_.FinishSection();
+  FinishUntrustedSection();
 
 #ifdef DEBUG
   // Check that all serialized object are in shared heap and not RO. RO objects
@@ -167,7 +169,6 @@ void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   {
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> raw = *obj;
-    if (SerializeHotObject(raw)) return;
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
   }
   if (SerializeReadOnlyObjectReference(*obj, &sink_)) return;

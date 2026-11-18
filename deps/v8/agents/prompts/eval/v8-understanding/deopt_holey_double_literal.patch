@@ -1,0 +1,52 @@
+diff --git a/src/compiler/backend/code-generator.cc b/src/compiler/backend/code-generator.cc
+index edf804f59ee..c07b11eb345 100644
+--- a/src/compiler/backend/code-generator.cc
++++ b/src/compiler/backend/code-generator.cc
+@@ -1704,11 +1704,7 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
+       case Constant::kFloat64:
+         DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
+                type.representation() == MachineRepresentation::kTagged);
+-        if (type == MachineType::HoleyFloat64()) {
+-          translations_.StoreHoleyDoubleLiteral(Float64(constant.ToFloat64()));
+-        } else {
+-          translations_.StoreDoubleLiteral(Float64(constant.ToFloat64()));
+-        }
++        translations_.StoreDoubleLiteral(Float64(constant.ToFloat64()));
+         return;
+       case Constant::kHeapObject:
+         DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
+diff --git a/src/compiler/turboshaft/turbolev-graph-builder.cc b/src/compiler/turboshaft/turbolev-graph-builder.cc
+index bfb0dce77d1..9fb7000cb43 100644
+--- a/src/compiler/turboshaft/turbolev-graph-builder.cc
++++ b/src/compiler/turboshaft/turbolev-graph-builder.cc
+@@ -6409,7 +6409,7 @@ class GraphBuildingNodeProcessor {
+           break;
+         case maglev::Opcode::kHoleyFloat64Constant:
+           builder.AddInput(
+-              MachineType::HoleyFloat64(),
++              MachineType::Float64(),
+               __ Float64Constant(
+                   value->Cast<maglev::HoleyFloat64Constant>()->value()));
+           break;
+diff --git a/src/maglev/maglev-code-generator.cc b/src/maglev/maglev-code-generator.cc
+index f4013c3b381..27b0e83dc31 100644
+--- a/src/maglev/maglev-code-generator.cc
++++ b/src/maglev/maglev-code-generator.cc
+@@ -1562,7 +1562,7 @@ class MaglevFrameTranslationBuilder {
+         return;
+       }
+       if (opcode == Opcode::kHoleyFloat64Constant) {
+-        translation_array_builder_->StoreHoleyDoubleLiteral(
++        translation_array_builder_->StoreDoubleLiteral(
+             value->Cast<HoleyFloat64Constant>()->value());
+         return;
+       }
+@@ -1655,7 +1655,7 @@ class MaglevFrameTranslationBuilder {
+         translation_array_builder_->StoreDoubleLiteral(
+             value->Cast<Float64Constant>()->value());
+       } else if (value->opcode() == Opcode::kHoleyFloat64Constant) {
+-        translation_array_builder_->StoreHoleyDoubleLiteral(
++        translation_array_builder_->StoreDoubleLiteral(
+             value->Cast<HoleyFloat64Constant>()->value());
+       } else {
+         translation_array_builder_->StoreLiteral(

@@ -1,0 +1,79 @@
+diff --git a/src/maglev/maglev-graph-builder.cc b/src/maglev/maglev-graph-builder.cc
+index 1ef1e857a09..e51f7109d0b 100644
+--- a/src/maglev/maglev-graph-builder.cc
++++ b/src/maglev/maglev-graph-builder.cc
+@@ -15723,34 +15723,7 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfTdzHole() {
+       return ReduceResult::Done();
+     case Tribool::kMaybe: {
+       DCHECK(value->is_tagged());
+-      // Temporarily clear the cached constant value before emitting
+-      // ThrowReferenceErrorIfTdzHole so that known_node_aspects() merged into
+-      // the exception handler (the catch block) does not cache this load. On
+-      // the exception path, the value is guaranteed to be tdz_hole, and the
+-      // catch block may resume a generator that initializes the const variable.
+-      // Restore the cached value afterward for the non-throwing fallthrough
+-      // path where the value is known not to be tdz_hole.
+-      // TODO(verwaest): Look into making loaded_context_constants_ monotonic,
+-      // e.g. by folding the hole check into the context load rather than
+-      // temporarily clearing the cached constant here.
+-      LoadContextSlotNoCells* cached_load = nullptr;
+-      if (auto* load = value->TryCast<LoadContextSlotNoCells>();
+-          load && load->maybe_assigned() == kNotAssigned) {
+-        ValueNode*& slot = known_node_aspects().GetContextCachedValue(
+-            load->input(0).node(), load->offset(), kNotAssigned);
+-        if (slot == value) {
+-          cached_load = load;
+-          slot = nullptr;
+-        }
+-      }
+-      ReduceResult res =
+-          AddNewNode<ThrowReferenceErrorIfTdzHole>({value}, name);
+-      if (cached_load) {
+-        known_node_aspects().GetContextCachedValue(
+-            cached_load->input(0).node(), cached_load->offset(), kNotAssigned) =
+-            value;
+-      }
+-      return res;
++      return AddNewNode<ThrowReferenceErrorIfTdzHole>({value}, name);
+     }
+   }
+   UNREACHABLE();
+diff --git a/src/maglev/maglev-kna-processor.h b/src/maglev/maglev-kna-processor.h
+index a1437d53d10..091fd43eb66 100644
+--- a/src/maglev/maglev-kna-processor.h
++++ b/src/maglev/maglev-kna-processor.h
+@@ -178,34 +178,7 @@ class KnownNodeAspectsProcessor {
+       if (mark_handler_reachable) {
+         tracker_.MarkReachable(exception_handler);
+       }
+-      // Temporarily clear the cached constant value before merging into the
+-      // exception handler so that the catch block does not cache this load. On
+-      // the exception path, the value is guaranteed to be the_hole, and the
+-      // catch block may resume a generator that initializes the variable.
+-      // Restore the cached value afterward for the non-throwing fallthrough
+-      // path where the value is known not to be the_hole.
+-      // TODO(verwaest): Look into making loaded_context_constants_ monotonic,
+-      // e.g. by folding the hole check into the context load rather than
+-      // temporarily clearing the cached constant here.
+-      LoadContextSlotNoCells* cached_load = nullptr;
+-      if (auto* throw_if_hole = node->TryCast<ThrowReferenceErrorIfTdzHole>()) {
+-        ValueNode* value = throw_if_hole->ValueInput().node();
+-        if (auto* load = value->TryCast<LoadContextSlotNoCells>();
+-            load && load->maybe_assigned() == kNotAssigned) {
+-          ValueNode*& slot = known_node_aspects().GetContextCachedValue(
+-              load->input(0).node(), load->offset(), kNotAssigned);
+-          if (slot == value) {
+-            cached_load = load;
+-            slot = nullptr;
+-          }
+-        }
+-      }
+       Merge(exception_handler);
+-      if (cached_load) {
+-        known_node_aspects().GetContextCachedValue(
+-            cached_load->input(0).node(), cached_load->offset(), kNotAssigned) =
+-            cached_load;
+-      }
+     }
+   }
+ 

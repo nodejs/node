@@ -5,6 +5,7 @@
 #include "src/maglev/maglev-graph-serializer.h"
 
 #include <algorithm>
+#include <array>
 #include <iomanip>
 #include <ostream>
 #include <sstream>
@@ -17,6 +18,7 @@
 #include "src/flags/flags.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-compilation-info.h"
+#include "src/maglev/maglev-deopt-frame-visitor.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
@@ -60,7 +62,7 @@ const char* RepresentationSuperscript(ValueRepresentation repr) {
 std::unique_ptr<char[]> GetMaglevVisualizerLogFileName(
     MaglevCompilationInfo* info, const char* optional_base_dir,
     const char* phase, const char* suffix) {
-  base::EmbeddedVector<char, 256> filename(0);
+  std::array<char, 256> filename = {};
   std::string debug_name = info->function_name();
   const char* file_prefix = info->is_turbolev()
                                 ? v8_flags.trace_turbo_file_prefix.value()
@@ -68,10 +70,10 @@ std::unique_ptr<char[]> GetMaglevVisualizerLogFileName(
   int optimization_id = info->optimization_id();
 
   if (debug_name.length() > 0) {
-    SNPrintF(filename, "%s-%s-%i", file_prefix, debug_name.c_str(),
-             optimization_id);
+    base::SNPrintF(filename, "%s-%s-%i", file_prefix, debug_name.c_str(),
+                   optimization_id);
   } else {
-    SNPrintF(filename, "%s-none-%i", file_prefix, optimization_id);
+    base::SNPrintF(filename, "%s-none-%i", file_prefix, optimization_id);
   }
 
   std::replace(filename.begin(), filename.begin() + filename.size(), '/', '_');
@@ -82,25 +84,25 @@ std::unique_ptr<char[]> GetMaglevVisualizerLogFileName(
   std::replace(filename.begin(), filename.begin() + filename.size(), '>', '}');
 #endif
 
-  base::EmbeddedVector<char, 256> base_dir;
+  std::array<char, 256> base_dir;
   if (optional_base_dir != nullptr) {
-    SNPrintF(base_dir, "%s%c", optional_base_dir,
-             base::OS::DirectorySeparator());
+    base::SNPrintF(base_dir, "%s%c", optional_base_dir,
+                   base::OS::DirectorySeparator());
   } else {
     base_dir[0] = '\0';
   }
 
-  base::EmbeddedVector<char, 256> full_filename;
+  std::array<char, 256> full_filename;
   if (phase == nullptr) {
-    SNPrintF(full_filename, "%s%s.%s", base_dir.begin(), filename.begin(),
-             suffix);
+    base::SNPrintF(full_filename, "%s%s.%s", base_dir.data(), filename.data(),
+                   suffix);
   } else {
-    SNPrintF(full_filename, "%s%s-%s.%s", base_dir.begin(), filename.begin(),
-             phase, suffix);
+    base::SNPrintF(full_filename, "%s%s-%s.%s", base_dir.data(),
+                   filename.data(), phase, suffix);
   }
 
   char* buffer = new char[full_filename.size()];
-  memcpy(buffer, full_filename.begin(), full_filename.size());
+  memcpy(buffer, full_filename.data(), full_filename.size());
   return std::unique_ptr<char[]>(buffer);
 }
 
@@ -137,10 +139,12 @@ class JSONMaglevGraphWriter {
       PrintDeoptFrameAndDependencies(frame->parent(), block, first);
     }
 
-    VirtualObjectList vos = frame->GetVirtualObjects();
-    for (VirtualObject* vo : vos) {
-      PrintVirtualObjectAndDependencies(vo, block, first);
-    }
+    frame->ForEachValue([&](ValueNode* val) {
+      if (!val) return;
+      if (const VirtualObject* vo = val->TryGetVirtualObject()) {
+        PrintVirtualObjectAndDependencies(vo, block, first);
+      }
+    });
 
     int id = deopt_frame_ids_[frame];
     PrintDeoptFrameNode(frame, id, block, first);
@@ -150,21 +154,21 @@ class JSONMaglevGraphWriter {
   void PrintVirtualObjectAndDependencies(const VirtualObject* vo,
                                          const BasicBlock* block, bool* first) {
     if (vo == nullptr) return;
-    if (printed_virtual_objects_.find(vo) != printed_virtual_objects_.end()) {
+    if (!printed_virtual_objects_.insert(vo).second) {
       return;
     }
 
     for (int i = 0; i < vo->slot_count(); ++i) {
       ValueNode* val = vo->get_by_index(i);
-      if (val && val->Is<VirtualObject>()) {
-        PrintVirtualObjectAndDependencies(val->Cast<VirtualObject>(), block,
-                                          first);
+      if (val) {
+        if (const VirtualObject* nested = val->TryGetVirtualObject()) {
+          PrintVirtualObjectAndDependencies(nested, block, first);
+        }
       }
     }
 
     int id = virtual_object_ids_[vo];
     PrintVirtualObjectNode(vo, id, block, first);
-    printed_virtual_objects_.insert(vo);
   }
   void PrintNodeAndDependencies(const NodeBase* node, const BasicBlock* block,
                                 bool* first) {
@@ -405,10 +409,12 @@ class JSONMaglevGraphWriter {
     if (deopt_frame_ids_.find(frame) != deopt_frame_ids_.end()) return;
     deopt_frame_ids_[frame] = next_virtual_id_++;
 
-    VirtualObjectList vos = frame->GetVirtualObjects();
-    for (VirtualObject* vo : vos) {
-      RegisterVirtualObject(vo);
-    }
+    frame->ForEachValue([&](ValueNode* val) {
+      if (!val) return;
+      if (const VirtualObject* vo = val->TryGetVirtualObject()) {
+        RegisterVirtualObject(vo);
+      }
+    });
 
     if (frame->parent()) {
       RegisterDeoptFrame(frame->parent());
@@ -417,35 +423,26 @@ class JSONMaglevGraphWriter {
 
   void RegisterVirtualObject(const VirtualObject* vo) {
     if (vo == nullptr) return;
-    if (virtual_object_ids_.find(vo) != virtual_object_ids_.end()) return;
-    virtual_object_ids_[vo] = next_virtual_id_++;
+    if (!virtual_object_ids_.emplace(vo, next_virtual_id_).second) return;
+    ++next_virtual_id_;
 
     for (int i = 0; i < vo->slot_count(); i++) {
       ValueNode* val = vo->get_by_index(i);
-      if (val && val->Is<VirtualObject>()) {
-        RegisterVirtualObject(val->Cast<VirtualObject>());
+      if (val) {
+        if (const VirtualObject* nested = val->TryGetVirtualObject()) {
+          RegisterVirtualObject(nested);
+        }
       }
     }
   }
 
-  int GetValueNodeId(const ValueNode* val, const VirtualObjectList& vos = {}) {
-    val = val->UnwrapIdentities();
-    if (val->Is<VirtualObject>()) {
-      auto it = virtual_object_ids_.find(val->Cast<VirtualObject>());
+  int GetValueNodeId(ValueNode* val) {
+    if (const VirtualObject* vo = val->TryGetVirtualObject()) {
+      auto it = virtual_object_ids_.find(vo);
       DCHECK(it != virtual_object_ids_.end());
       return it->second;
     }
-    if (val->opcode() == Opcode::kInlinedAllocation && !vos.is_empty()) {
-      const InlinedAllocation* alloc = val->Cast<InlinedAllocation>();
-      if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
-        VirtualObject* vo = vos.FindAllocatedWith(alloc);
-        if (vo) {
-          auto it = virtual_object_ids_.find(vo);
-          DCHECK(it != virtual_object_ids_.end());
-          return it->second;
-        }
-      }
-    }
+    val = val->UnwrapIdentities();
     return labeller_->NodeId(val);
   }
 
@@ -508,8 +505,8 @@ class JSONMaglevGraphWriter {
       ValueNode* val = vo->get_by_index(i);
       os_ << "  slot " << i << ": ";
       if (val) {
-        if (val->Is<VirtualObject>()) {
-          os_ << "VirtualObject[#" << val->Cast<VirtualObject>()->id() << "]";
+        if (const VirtualObject* nested_vo = val->TryGetVirtualObject()) {
+          os_ << "VirtualObject[#" << nested_vo->id() << "]";
         } else {
           os_ << OpcodeToString(val->opcode()) << "n" << labeller_->NodeId(val);
         }
@@ -537,76 +534,11 @@ class JSONMaglevGraphWriter {
       PrintVirtualEdge(parent_id, id, "frame-state", first);
     }
 
-    VirtualObjectList vos = frame->GetVirtualObjects();
-
-    if (frame->type() == DeoptFrame::FrameType::kInterpretedFrame) {
-      const CompactInterpreterFrameState* state =
-          frame->as_interpreted().frame_state();
-      const MaglevCompilationUnit& unit = frame->as_interpreted().unit();
-
-      state->ForEachParameter(
-          unit, [&](ValueNode* val, interpreter::Register reg) {
-            if (val) {
-              int val_id = GetValueNodeId(val, vos);
-              PrintVirtualEdge(val_id, id, "frame-state", first);
-            }
-          });
-      state->ForEachLocal(unit, [&](ValueNode* val, interpreter::Register reg) {
-        if (val) {
-          int val_id = GetValueNodeId(val, vos);
-          PrintVirtualEdge(val_id, id, "frame-state", first);
-        }
-      });
-      if (state->liveness()->AccumulatorIsLive()) {
-        ValueNode* val = state->accumulator(unit);
-        if (val) {
-          int val_id = GetValueNodeId(val, vos);
-          PrintVirtualEdge(val_id, id, "frame-state", first);
-        }
-      }
-      ValueNode* closure = frame->as_interpreted().closure();
-      if (closure) {
-        int closure_id = GetValueNodeId(closure, vos);
-        PrintVirtualEdge(closure_id, id, "frame-state", first);
-      }
-    } else if (frame->type() == DeoptFrame::FrameType::kInlinedArgumentsFrame) {
-      ValueNode* closure = frame->as_inlined_arguments().closure();
-      if (closure) {
-        int closure_id = GetValueNodeId(closure, vos);
-        PrintVirtualEdge(closure_id, id, "frame-state", first);
-      }
-      for (ValueNode* val : frame->as_inlined_arguments().arguments()) {
-        if (val) {
-          int val_id = GetValueNodeId(val, vos);
-          PrintVirtualEdge(val_id, id, "frame-state", first);
-        }
-      }
-    } else if (frame->type() ==
-               DeoptFrame::FrameType::kConstructInvokeStubFrame) {
-      ValueNode* receiver = frame->as_construct_stub().receiver();
-      if (receiver) {
-        int receiver_id = GetValueNodeId(receiver, vos);
-        PrintVirtualEdge(receiver_id, id, "frame-state", first);
-      }
-      ValueNode* context = frame->as_construct_stub().context();
-      if (context) {
-        int context_id = GetValueNodeId(context, vos);
-        PrintVirtualEdge(context_id, id, "frame-state", first);
-      }
-    } else if (frame->type() ==
-               DeoptFrame::FrameType::kBuiltinContinuationFrame) {
-      for (ValueNode* val : frame->as_builtin_continuation().parameters()) {
-        if (val) {
-          int val_id = GetValueNodeId(val, vos);
-          PrintVirtualEdge(val_id, id, "frame-state", first);
-        }
-      }
-      ValueNode* context = frame->as_builtin_continuation().context();
-      if (context) {
-        int context_id = GetValueNodeId(context, vos);
-        PrintVirtualEdge(context_id, id, "frame-state", first);
-      }
-    }
+    frame->ForEachValue([&](ValueNode* val) {
+      if (!val) return;
+      int val_id = GetValueNodeId(val);
+      PrintVirtualEdge(val_id, id, "frame-state", first);
+    });
   }
 
   void PrintEdgesForVirtualObject(const VirtualObject* vo, int id,

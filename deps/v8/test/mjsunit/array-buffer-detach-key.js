@@ -76,3 +76,25 @@ function TestDetachFails(originalKey, detachKey) {
   %ArrayBufferDetach(ab2);  // Passing no detach key is fine.
   assertEquals(0, ab2.byteLength);  // Detached.
 })();
+
+(function ResetDetachKeyToUndefinedWithView() {
+  const ab = new ArrayBuffer(16);
+  const ta = new Uint8Array(ab);
+  %ArrayBufferSetDetachKey(ab, "foo");
+  %ArrayBufferSetDetachKey(ab, undefined);
+  %ArrayBufferDetach(ab);
+  assertEquals(0, ab.byteLength);
+  assertEquals(0, ta.byteLength);
+})();
+
+if (typeof WebAssembly !== "undefined") {
+  (function SetDetachKeyOnWasmMemoryBufferIgnored() {
+    const mem = new WebAssembly.Memory({initial: 1, maximum: 2});
+    %ArrayBufferSetDetachKey(mem.buffer, "foo");
+    mem.grow(1);
+    const rab = mem.toResizableBuffer();
+    %ArrayBufferSetDetachKey(rab, "bar");
+    const fab = mem.toFixedLengthBuffer();
+    assertEquals(2 * 65536, fab.byteLength);
+  })();
+}

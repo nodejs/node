@@ -1,0 +1,18 @@
+Tests function and block scopes.
+Case 1:
+Scope count: 6
+Scope local: {}
+Scope closure: {"a":4,"b":5}
+Scope closure: {"z":22,"w":5,"v":"Capybara"}
+Scope closure: {"x":5}
+Scope script: {"top_level_let":255}
+Scope global: {}
+Case 2:
+Scope count: 7
+Scope local: {}
+Scope block: {}
+Scope block: {"l3":9}
+Scope block: {"l2":7}
+Scope closure: {"v1":3,"l0":0,"v3":5,"v6":11}
+Scope script: {"top_level_let":255}
+Scope global: {}

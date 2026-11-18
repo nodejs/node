@@ -268,14 +268,16 @@ class MaybeRedundantStoresTable
       // Finishing a loop for the 2nd time or more; we'll reprocess it only if
       // the previous and current snapshots disagree.
       DCHECK(current_block_->IsLoop());
+      // TODO(dmercadier): Consider adding a read-only diff method to
+      // SnapshotTable instead of allocating a new snapshot just to compare two
+      // snapshots.
       auto new_snapshot = super::Seal();
       *snapshot_has_changed = false;
       StartNewSnapshot(
           base::VectorOf({snapshot.value(), new_snapshot}),
           [&](Key key, base::Vector<const StoreObservability> successors) {
             if (successors[0] != successors[1]) *snapshot_has_changed = true;
-            return static_cast<StoreObservability>(
-                *std::max_element(successors.begin(), successors.end()));
+            return successors[1];
           });
       snapshot = super::Seal();
     }

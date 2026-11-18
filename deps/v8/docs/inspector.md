@@ -8,63 +8,66 @@ This page is intended to give embedders the basic tools they need to implement d
 
 ## Connecting to the Inspector
 
-V8’s [command-line debug shell `d8`](/docs/d8) includes a simple inspector integration through the [`InspectorFrontend`](https://crsrc.org/c/v8/src/d8/d8.cc?q=InspectorFrontend) and [`InspectorClient`](https://crsrc.org/c/v8/src/d8/d8.cc?q=InspectorClient). The client sets up a communication channel for messages sent from the embedder to V8:
+V8 includes an inspector test harness at [`test/inspector/inspector-test.cc`](https://crsrc.org/c/v8/test/inspector/inspector-test.cc). Messages sent from the embedder to V8 are dispatched to the `V8InspectorSession` via [`SendMessageToBackendTask`](https://crsrc.org/c/v8/test/inspector/tasks.h):
 
 ```cpp
-static void SendInspectorMessage(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+void SendMessageToBackendTask::Run(InspectorIsolateData* data) {
   // [...] Create a StringView that Inspector can understand.
-  session->dispatchProtocolMessage(message_view);
+  v8_inspector::StringView message_view(message_.data(), message_.size());
+  data->SendMessage(session_id_, message_view);
+  // Calls session->dispatchProtocolMessage(message_view).
 }
 ```
 
-Meanwhile, the frontend establishes a channel for messages sent from V8 to the embedder by implementing `sendResponse` and `sendNotification`, which then forward to:
+Meanwhile, the frontend channel establishes a path for messages sent from V8 back to the embedder by implementing `sendResponse` and `sendNotification` in [`FrontendChannelImpl`](https://crsrc.org/c/v8/test/inspector/frontend-channel.h):
 
 ```cpp
-void Send(const v8_inspector::StringView& string) {
-  // [...] String transformations.
-  // Grab the global property called 'receive' from the current context.
-  Local<String> callback_name =
-      v8::String::NewFromUtf8(isolate_, "receive", v8::NewStringType::kNormal)
-          .ToLocalChecked();
-  Local<Context> context = context_.Get(isolate_);
-  Local<Value> callback =
-      context->Global()->Get(context, callback_name).ToLocalChecked();
-  // And call it to pass the message on to JS.
-  if (callback->IsFunction()) {
-    // [...]
-    MaybeLocal<Value> result = Local<Function>::Cast(callback)->Call(
-        context, Undefined(isolate_), 1, args);
-  }
+void sendResponse(
+    int callId,
+    std::unique_ptr<v8_inspector::StringBuffer> message) override {
+  task_runner_->Append(std::make_unique<SendMessageTask>(shared_from_this(),
+                                                         std::move(message)));
+}
+```
+
+The task then invokes the registered JavaScript callback:
+
+```cpp
+void SendMessageTask::Run(InspectorIsolateData* data) {
+  // [...] Wrap message as V8 String.
+  v8::Local<v8::Value> message =
+      ToV8String(data->isolate(), message_->string());
+  channel_->function_.Get(data->isolate())
+      ->Call(context, context->Global(), 1, &message);
 }
 ```
 
 ## Using the Inspector Protocol
 
-Continuing with our example, `d8` forwards inspector messages to JavaScript. The following code implements a basic, but fully functional interaction with the Inspector through `d8`:
+The inspector test harness forwards protocol messages to JavaScript test scripts. Using [`test/inspector/protocol-test.js`](https://crsrc.org/c/v8/test/inspector/protocol-test.js), a test can establish a session and exchange protocol messages:
 
 ```js
 // inspector-demo.js
-// Receiver function called by d8.
-function receive(message) {
-  print(message)
-}
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests inspector demo.');
 
-const msg = JSON.stringify({
-  id: 0,
-  method: 'Debugger.enable',
-});
+(async function test() {
+  const message = await Protocol.Debugger.enable();
+  InspectorTest.logMessage(message);
+  InspectorTest.completeTest();
+})();
+```
 
-// Call the function provided by d8.
-send(msg);
+Run this test with `inspector-test` from the V8 checkout root:
 
-// Run this file by executing 'd8 --enable-inspector inspector-demo.js'.
+```bash
+out/Default/inspector-test test/inspector/protocol-test.js inspector-demo.js
 ```
 
 ## Further documentation
 
-A more fleshed-out example of Inspector API usage is available at [`test-api.js`](https://crsrc.org/c/v8/test/debugger/test-api.js), which implements a simple debugging API for use by V8’s test suite.
+Examples of Inspector API usage are available in [`test/inspector`](https://crsrc.org/c/v8/test/inspector/).
 
-V8 also contains an alternative Inspector integration at [`inspector-test.cc`](https://crsrc.org/c/v8/test/inspector/inspector-test.cc).
+The harness implementation can be found in [`inspector-test.cc`](https://crsrc.org/c/v8/test/inspector/inspector-test.cc).
 
 The Chrome DevTools wiki provides [full documentation](https://chromedevtools.github.io/debugger-protocol-viewer/tot/) of all available functions.

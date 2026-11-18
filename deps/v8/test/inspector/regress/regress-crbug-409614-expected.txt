@@ -1,0 +1,23 @@
+Tests regress-crbug-409614.
+function testRun() {
+  #debugger;  // Break
+  f();       // Break
+
+  debugger;  // Break
+  #f();       // Break
+}            // Break
+
+function f() {
+  #return 0;  // Break
+}            // Break
+
+function f() {
+  return 0;#  // Break
+}            // Break
+
+  f();       // Break
+#}            // Break
+
+
+testRun()#
+

@@ -114,8 +114,6 @@ enum class DeoptimizeReason : uint8_t {
   V(FieldTypeChange, "dependent field type changed")                          \
   V(FieldRepresentationChange, "dependent field representation changed")      \
   V(InitialMapChange, "dependent initial map changed")                        \
-  V(AllocationSiteTenuringChange,                                             \
-    "dependent allocation site tenuring changed")                             \
   V(AllocationSiteTransitionChange,                                           \
     "dependent allocation site transition changed")                           \
   V(ContextCellChange, "dependent context cell state changed")                \

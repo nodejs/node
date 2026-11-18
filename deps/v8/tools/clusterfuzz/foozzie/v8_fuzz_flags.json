@@ -47,7 +47,6 @@
   [0.1, "--maglev-disable-builtin-reducers"],
   [0.0001, "--simulate-errors"],
   [0.1, "--minor-ms"],
-  [0.1, "--shared-string-table"],
   [0.1, "--shared-heap"],
   [0.1, "--stress-wasm-memory-moving"],
   [0.05, "--stress-maglev"],

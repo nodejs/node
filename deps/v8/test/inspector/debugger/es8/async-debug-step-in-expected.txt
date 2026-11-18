@@ -1,0 +1,8 @@
+Tests stepping into async function.
+  debugger;            // B0 StepOver
+       await           // B1 StepInto
+  return new Promise(  // B2 StepInto
+      late_resolve = res;  // B3 StepInto
+    }                      // B4 StepInto
+  );                       // B5 StepInto
+  return a;            // B6 Continue

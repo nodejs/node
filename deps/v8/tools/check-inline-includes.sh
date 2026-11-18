@@ -4,7 +4,7 @@
 # found in the LICENSE file.
 
 v8_root=$(readlink -f $(dirname $BASH_SOURCE)/../)
-directories="src test/cctest test/unittests"
+directories="src test/unittests"
 
 for directory in $directories; do
   headers=$(find "$v8_root/$directory" -name '*.h' -not -name '*-inl.h')

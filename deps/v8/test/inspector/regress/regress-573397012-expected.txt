@@ -1,0 +1,2 @@
+Skip unmaterialized closures in allocation tracker.
+Test passed

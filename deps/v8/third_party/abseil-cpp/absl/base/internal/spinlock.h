@@ -42,6 +42,7 @@
 #include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/tsan_mutex_interface.h"
 #include "absl/base/macros.h"
+#include "absl/base/nullability.h"
 #include "absl/base/thread_annotations.h"
 
 namespace tcmalloc {
@@ -136,8 +137,8 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
     }
     if ((lock_value & kWaitTimeMask) != 0) {
       // Collect contentionz profile info, and speed the wakeup of any waiter.
-      // The wait_cycles value indicates how long this thread spent waiting
-      // for the lock.
+      // The upper bits record when this thread's hold first had a sleeping
+      // waiter.
       SlowUnlock(lock_value);
     }
     ABSL_TSAN_MUTEX_POST_UNLOCK(this, 0);
@@ -164,16 +165,18 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
  protected:
   // These should not be exported except for testing.
 
-  // Store number of cycles between wait_start_time and wait_end_time in a
-  // lock value.
-  static uint32_t EncodeWaitCycles(int64_t wait_start_time,
-                                   int64_t wait_end_time);
+  // Encode the CycleClock timestamp `now` into the upper bits of a lock value.
+  // The result is never zero.
+  static uint32_t EncodeWaitStart(int64_t now);
 
-  // Extract number of wait cycles in a lock value.
-  static int64_t DecodeWaitCycles(uint32_t lock_value);
+  // Return the number of cycles between the timestamp encoded in a lock value
+  // and `now`.  Must only be called when the lock value has an encoded wait
+  // start.
+  static int64_t DecodeWaitCycles(uint32_t lock_value, int64_t now);
 
   // Provide access to protected method above.  Use for testing only.
   friend struct SpinLockTest;
+  friend struct SpinLockProfilingTestPeer;
   friend class tcmalloc::tcmalloc_internal::AllocationGuardSpinLockHolder;
   friend class tcmalloc::tcmalloc_internal::Static;
 
@@ -193,23 +196,25 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
   // bit[1] encodes whether a lock uses cooperative scheduling.
   // bit[2] encodes whether the current lock holder disabled scheduling when
   //        acquiring the lock. Only set when kSpinLockHeld is also set.
-  // bit[3:31] encodes time a lock spent on waiting as a 29-bit unsigned int.
-  //        This is set by the lock holder to indicate how long it waited on
-  //        the lock before eventually acquiring it. The number of cycles is
-  //        encoded as a 29-bit unsigned int, or in the case that the current
-  //        holder did not wait but another waiter is queued, the LSB
-  //        (kSpinLockSleeper) is set. The implementation does not explicitly
-  //        track the number of queued waiters beyond this. It must always be
-  //        assumed that waiters may exist if the current holder was required to
-  //        queue.
+  // bit[3:31] is non-zero iff a waiter may be sleeping in the kernel, in which
+  //        case the holder must wake a waiter when it releases the lock.  The
+  //        value is a 29-bit truncated CycleClock timestamp of when the
+  //        current hold first had a sleeping waiter: set by the first waiter
+  //        to go to sleep during the hold, or at acquisition if the holder
+  //        itself slept while acquiring the lock.  Because unlock() clears
+  //        these bits and wakes only one waiter without a sleeper count, a
+  //        woken sleeper must conservatively keep them non-zero on acquisition
+  //        in case other sleepers remain (which cannot observe the new hold).
+  //        The holder uses this at unlock to report for how long its critical
+  //        section blocked other threads; if the woken thread was the last
+  //        sleeper, it reports its own hold once before its unlock() clears the
+  //        bits.
   //
   // Invariant: if the lock is not held, the value is either 0 or
   // kSpinLockCooperative.
   static constexpr uint32_t kSpinLockHeld = 1;
   static constexpr uint32_t kSpinLockCooperative = 2;
   static constexpr uint32_t kSpinLockDisabledScheduling = 4;
-  static constexpr uint32_t kSpinLockSleeper = 8;
-  // Includes kSpinLockSleeper.
   static constexpr uint32_t kWaitTimeMask =
       ~(kSpinLockHeld | kSpinLockCooperative | kSpinLockDisabledScheduling);
 
@@ -230,9 +235,11 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
     return lockword_.load(std::memory_order_relaxed) & kSpinLockCooperative;
   }
 
-  uint32_t TryLockInternal(uint32_t lock_value, uint32_t wait_cycles);
-  void SlowLock() ABSL_ATTRIBUTE_COLD;
-  void SlowUnlock(uint32_t lock_value) ABSL_ATTRIBUTE_COLD;
+  // `sleeper_bits` is 0 or the result of EncodeWaitStart() and is set in the
+  // lock word on a successful acquisition.
+  uint32_t TryLockInternal(uint32_t lock_value, uint32_t sleeper_bits);
+  ABSL_ATTRIBUTE_COLD void SlowLock();
+  ABSL_ATTRIBUTE_COLD void SlowUnlock(uint32_t lock_value);
   uint32_t SpinLoop();
 
   inline bool TryLockImpl() {
@@ -256,21 +263,40 @@ class ABSL_SCOPED_LOCKABLE [[nodiscard]] SpinLockHolder
       ABSL_EXCLUSIVE_LOCK_FUNCTION(l)
       : std::lock_guard<SpinLock>(l) {}
   ABSL_DEPRECATE_AND_INLINE()
-  inline explicit SpinLockHolder(SpinLock* l) ABSL_EXCLUSIVE_LOCK_FUNCTION(l)
+  inline explicit SpinLockHolder(SpinLock* absl_nonnull l)
+      ABSL_EXCLUSIVE_LOCK_FUNCTION(l)
       : SpinLockHolder(*l) {}
 
   inline ~SpinLockHolder() ABSL_UNLOCK_FUNCTION() = default;
 };
 
-// Register a hook for profiling support.
+// Register hooks for profiling support.
 //
-// The function pointer registered here will be called whenever a spinlock is
-// contended.  The callback is given an opaque handle to the contended spinlock
-// and the number of wait cycles.  This is thread-safe, but only a single
-// profiler can be registered.  It is an error to call this function multiple
-// times with different arguments.
-void RegisterSpinLockProfiler(void (*fn)(const void* lock,
-                                         int64_t wait_cycles));
+// The callbacks are given an opaque handle to the spinlock and a number of
+// cycles as measured by //absl/base/internal/cycleclock.h, which
+// may not be real "cycle" counts.  Registration is thread-safe, but only a
+// single profiler can be registered for each hook.  It is an error to call
+// these functions multiple times with different arguments.
+//
+// The function registered with RegisterSpinLockProfiler() is called when a
+// spinlock is released after a contended hold, i.e. when at least one other
+// thread went to sleep waiting for the releasing thread to release the lock.
+// `wait_cycles` is the time elapsed since the first such thread went to sleep:
+// approximately the duration for which the releasing thread's critical section
+// blocked other threads.  Unlike Mutex, the number of blocked threads is not
+// known, so this is not the sum of their waits; that sum is reported by the
+// lock profiler below.
+void RegisterSpinLockProfiler(void (*absl_nonnull fn)(
+    const void* absl_nonnull lock, int64_t wait_cycles));
+
+// The function registered with RegisterSpinLockLockProfiler() is called when a
+// thread acquires a spinlock that it could not acquire by spinning.
+// `wait_cycles` is the time for which the acquiring thread was blocked,
+// measured from the point at which it gave up spinning.  Acquisitions that
+// spinning resolves are not reported, so this undercounts the time spent
+// waiting for spinlocks by at most one spin per acquisition.
+void RegisterSpinLockLockProfiler(void (*absl_nonnull fn)(
+    const void* absl_nonnull lock, int64_t wait_cycles));
 
 //------------------------------------------------------------------------------
 // Public interface ends here.
@@ -279,7 +305,7 @@ void RegisterSpinLockProfiler(void (*fn)(const void* lock,
 // If (result & kSpinLockHeld) == 0, then *this was successfully locked.
 // Otherwise, returns last observed value for lockword_.
 inline uint32_t SpinLock::TryLockInternal(uint32_t lock_value,
-                                          uint32_t wait_cycles) {
+                                          uint32_t sleeper_bits) {
   if ((lock_value & kSpinLockHeld) != 0) {
     return lock_value;
   }
@@ -295,7 +321,7 @@ inline uint32_t SpinLock::TryLockInternal(uint32_t lock_value,
 
   if (!lockword_.compare_exchange_strong(
           lock_value,
-          kSpinLockHeld | lock_value | wait_cycles | sched_disabled_bit,
+          kSpinLockHeld | lock_value | sleeper_bits | sched_disabled_bit,
           std::memory_order_acquire, std::memory_order_relaxed)) {
     SchedulingGuard::EnableRescheduling(sched_disabled_bit != 0);
   }

@@ -84,7 +84,7 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
   // non-wasm imports). For imported functions, this value equals the respective
   // entry in the module's dispatch_table_for_imports.
   // Torque code should use the '.implicit_arg' macro to access the value.
-  protected_implicit_arg:
+  const protected_implicit_arg:
       ProtectedPointer<WasmTrustedInstanceData|WasmImportData>;
   // The external (JS) representation of this function reference.
   external: JSFunction|Undefined;
@@ -95,11 +95,11 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
   // {protected_implicit_arg} is a {WasmImportData} describing that importing
   // module.
   // For WasmCapiFunctions: -1.
-  function_index: Smi;
+  const function_index: Smi;
   // The call target, stored as a WasmCodePointer in this trusted object.
-  raw_call_target: WasmCodePointer;
+  const call_target: WasmCodePointer;
   @if(WASM_CODE_POINTER_NEEDS_PADDING) optional_padding: uint32;
-  sig: RawFunctionSigPtr;
+  const sig: RawFunctionSigPtr;
 }
 
 extern operator '.implicit_arg' macro LoadImplicitArgFromWasmInternalFunction(
@@ -110,7 +110,7 @@ extern operator '.implicit_arg' macro LoadImplicitArgFromWasmInternalFunction(
 @cppObjectLayoutDefinition
 extern class WasmFuncRef extends HeapObject {
   // Note: Torque code uses the '.internal' macro below to access the reference.
-  trusted_internal: TrustedPointer<WasmInternalFunction>;
+  const trusted_internal: TrustedPointer<WasmInternalFunction>;
 }
 
 extern operator '.internal' macro LoadWasmInternalFunctionFromFuncRef(
@@ -166,7 +166,7 @@ extern class WasmResumeData extends HeapObject {
 
 @cppObjectLayoutDefinition
 extern class WasmSuspenderObject extends ExposedTrustedObject {
-  stack: ExternalPointer;
+  stack: RawPtr;
   parent: ProtectedPointer<WasmSuspenderObject>;
   promise: JSPromise|Undefined;
   resume: JSObject|Undefined;

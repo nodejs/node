@@ -10,10 +10,10 @@ namespace internal {
 
 // Helper functions to load external startup data.
 //
-// This is meant as a convenience for stand-alone binaries like d8, cctest,
-// unittest. A V8 embedder would likely either handle startup data on their
+// This is meant as a convenience for stand-alone binaries like d8 and
+// v8_unittests. A V8 embedder would likely either handle startup data on their
 // own or just disable the feature if they don't want to handle it at all,
-// while tools like cctest need to work in either configuration.
+// while tools like v8_unittests need to work in either configuration.
 
 void InitializeExternalStartupData(const char* directory_path);
 void InitializeExternalStartupDataFromFile(const char* snapshot_blob);

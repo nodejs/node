@@ -1,0 +1,4 @@
+Regression test for issue 2318: evaluate near stack overflow.
+Paused count > 0: true
+Has exception: true
+Exception: RangeError

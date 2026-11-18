@@ -238,8 +238,8 @@ class ObjectHashTableTest {
   const ObjectHashTableTest* operator->() const { return this; }
 
   void insert(InternalIndex entry, int key, int value) {
-    table_->set(table_->EntryToIndex(entry), Smi::FromInt(key));
-    table_->set(table_->EntryToIndex(entry) + 1, Smi::FromInt(value));
+    table_->set(ObjectHashTable::EntryToIndex(entry), Smi::FromInt(key));
+    table_->set(ObjectHashTable::EntryToIndex(entry) + 1, Smi::FromInt(value));
   }
 
   int lookup(int key, Isolate* isolate) {
@@ -249,7 +249,7 @@ class ObjectHashTableTest {
 
   int capacity() { return table_->Capacity(); }
 
-  void Rehash() { table_->Rehash(); }
+  void Rehash(Isolate* isolate) { table_->Rehash(isolate); }
 
  private:
   Tagged<ObjectHashTable> table_;
@@ -264,7 +264,7 @@ TEST_F(DictionaryTest, HashTableRehash) {
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(InternalIndex(i), i * i, i);
     }
-    t->Rehash();
+    t->Rehash(isolate());
     for (int i = 0; i < capacity - 1; i++) {
       CHECK_EQ(i, t->lookup(i * i, isolate()));
     }
@@ -277,7 +277,7 @@ TEST_F(DictionaryTest, HashTableRehash) {
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(InternalIndex(i), i * i, i);
     }
-    t->Rehash();
+    t->Rehash(isolate());
     for (int i = 0; i < capacity / 2; i++) {
       CHECK_EQ(i, t->lookup(i * i, isolate()));
     }
@@ -286,9 +286,9 @@ TEST_F(DictionaryTest, HashTableRehash) {
 
 #ifdef DEBUG
 TEST_F(DictionaryTest, ObjectHashTableCausesGC) {
-  i::v8_flags.stress_compaction = false;
+  i::v8_flags.stress_compaction.Set(false);
   // For SimulateFullSpace in TestHashMapDoesNotCauseGC.
-  i::v8_flags.stress_concurrent_allocation = false;
+  i::v8_flags.stress_concurrent_allocation.Set(false);
   TestHashMapDoesNotCauseGC(ObjectHashTable::New(isolate(), 1));
 }
 #endif

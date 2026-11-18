@@ -1,0 +1,15 @@
+Tests breaking on breakpoints inside a generator with yield*.
+function* f() {
+  #yield* g();                    // B1
+  if (break_count !== 2) throw new Error('Expected break_count === 2');  // B2
+
+  yield* g();                    // B1
+  #if (break_count !== 2) throw new Error('Expected break_count === 2');  // B2
+  return 1;                      // B3
+
+  if (break_count !== 2) throw new Error('Expected break_count === 2');  // B2
+  #return 1;                      // B3
+}
+
+hasException: false
+break_count: 3

@@ -252,7 +252,7 @@ TEST_F(ThreadTerminationTest, TerminateBigIntMultiplication) {
 }
 
 TEST_F(ThreadTerminationTest, TerminateOptimizedBigIntMultiplication) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   TestTerminatingFromCurrentThread(
       "function foo(a, b) { return a * b; }"
       "%PrepareFunctionForOptimization(foo);"
@@ -277,7 +277,7 @@ TEST_F(ThreadTerminationTest, TerminateBigIntDivision) {
 }
 
 TEST_F(ThreadTerminationTest, TerminateOptimizedBigIntDivision) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   TestTerminatingFromCurrentThread(
       "function foo(a, b) { return a / b; }"
       "%PrepareFunctionForOptimization(foo);"
@@ -306,6 +306,136 @@ TEST_F(ThreadTerminationTest, TerminateBigIntFromString) {
       "terminate();\n"
       "BigInt(a);\n"
       "fail();\n");
+}
+
+TEST_F(ThreadTerminationTest, TerminateGetBigIntDescription) {
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  Local<Value> val = RunJS("1n << (64n * 20000n)");
+  CHECK(val->IsBigInt());
+  Local<BigInt> bigint = val.As<BigInt>();
+  CHECK(!i_isolate()->has_exception());
+
+  isolate()->TerminateExecution();
+
+  Local<String> desc = debug::GetBigIntDescription(isolate(), bigint);
+  CHECK(!desc.IsEmpty());
+  CHECK_GT(desc->Length(), 0);
+  CHECK(!i_isolate()->has_exception());
+
+  // Subsequent JS execution must be terminated, proving termination was
+  // preserved.
+  {
+    TryCatch try_catch(isolate());
+    MaybeLocal<Value> res = TryRunJS("1 + 1");
+    CHECK(res.IsEmpty());
+    CHECK(try_catch.HasTerminated());
+  }
+
+  // Cancel termination for cleanup and value verification.
+  isolate()->CancelTerminateExecution();
+  CHECK(!isolate()->IsExecutionTerminating());
+  CHECK(!i_isolate()->has_exception());
+
+  // Verify that the description matches the BigInt value.
+  context->Global()->Set(context, NewString("bigint"), bigint).Check();
+  context->Global()->Set(context, NewString("desc"), desc).Check();
+  Local<Value> check = RunJS("desc === '0x' + bigint.toString(16) + 'n'");
+  CHECK(check->IsTrue());
+  Local<Value> parsed = RunJS("BigInt(desc.slice(0, -1)) === bigint");
+  CHECK(parsed->IsTrue());
+
+  val = RunJS("-(1n << (64n * 20000n))");
+  CHECK(val->IsBigInt());
+  bigint = val.As<BigInt>();
+  isolate()->TerminateExecution();
+  desc = debug::GetBigIntDescription(isolate(), bigint);
+  CHECK(!desc.IsEmpty());
+  CHECK(!i_isolate()->has_exception());
+  isolate()->CancelTerminateExecution();
+  context->Global()->Set(context, NewString("bigint"), bigint).Check();
+  context->Global()->Set(context, NewString("desc"), desc).Check();
+  check = RunJS("desc === '-0x' + (-bigint).toString(16) + 'n'");
+  CHECK(check->IsTrue());
+  parsed = RunJS("-BigInt(desc.slice(1, -1)) === bigint");
+  CHECK(parsed->IsTrue());
+
+  // When an external TryCatch is active during an interrupted
+  // GetBigIntDescription call, it should not be left in a terminated state,
+  // while subsequent JS execution should still terminate.
+  {
+    TryCatch try_catch(isolate());
+    isolate()->TerminateExecution();
+    desc = debug::GetBigIntDescription(isolate(), bigint);
+    CHECK(!desc.IsEmpty());
+    CHECK(!i_isolate()->has_exception());
+    CHECK(!try_catch.HasTerminated());
+    CHECK(!try_catch.HasCaught());
+    CHECK(try_catch.CanContinue());
+
+    MaybeLocal<Value> res = TryRunJS("1 + 1");
+    CHECK(res.IsEmpty());
+    CHECK(try_catch.HasTerminated());
+    try_catch.Reset();
+    isolate()->CancelTerminateExecution();
+  }
+}
+
+TEST_F(ThreadTerminationTest, TerminateGetBigIntStringValue) {
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  Local<Value> val = RunJS("1n << (64n * 20000n)");
+  CHECK(val->IsBigInt());
+  Local<BigInt> bigint = val.As<BigInt>();
+  CHECK(!i_isolate()->has_exception());
+
+  isolate()->TerminateExecution();
+
+  Local<String> str = debug::GetBigIntStringValue(isolate(), bigint);
+  CHECK(!str.IsEmpty());
+  CHECK_GT(str->Length(), 0);
+  CHECK(!i_isolate()->has_exception());
+
+  // Subsequent JS execution must be terminated, proving termination was
+  // preserved.
+  {
+    TryCatch try_catch(isolate());
+    MaybeLocal<Value> res = TryRunJS("1 + 1");
+    CHECK(res.IsEmpty());
+    CHECK(try_catch.HasTerminated());
+  }
+
+  // Cancel termination for cleanup and value verification.
+  isolate()->CancelTerminateExecution();
+  CHECK(!isolate()->IsExecutionTerminating());
+  CHECK(!i_isolate()->has_exception());
+
+  // Verify that the string value matches the BigInt value.
+  context->Global()->Set(context, NewString("bigint"), bigint).Check();
+  context->Global()->Set(context, NewString("str"), str).Check();
+  Local<Value> check = RunJS("str === '0x' + bigint.toString(16)");
+  CHECK(check->IsTrue());
+  Local<Value> parsed = RunJS("BigInt(str) === bigint");
+  CHECK(parsed->IsTrue());
+
+  val = RunJS("-(1n << (64n * 20000n))");
+  CHECK(val->IsBigInt());
+  bigint = val.As<BigInt>();
+  isolate()->TerminateExecution();
+  str = debug::GetBigIntStringValue(isolate(), bigint);
+  CHECK(!str.IsEmpty());
+  CHECK(!i_isolate()->has_exception());
+  isolate()->CancelTerminateExecution();
+  context->Global()->Set(context, NewString("bigint"), bigint).Check();
+  context->Global()->Set(context, NewString("str"), str).Check();
+  check = RunJS("str === '-0x' + (-bigint).toString(16)");
+  CHECK(check->IsTrue());
+  parsed = RunJS("-BigInt(str.slice(1)) === bigint");
+  CHECK(parsed->IsTrue());
 }
 
 void LoopGetProperty(const FunctionCallbackInfo<Value>& info) {
@@ -585,7 +715,7 @@ TEST_F(ThreadTerminationTest, TerminationInInnerTryCall) {
 }
 
 TEST_F(ThreadTerminationTest, TerminateAndTryCall) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   HandleScope scope(isolate());
   Local<ObjectTemplate> global = CreateGlobalTemplate(
       isolate(), TerminateCurrentThread, DoLoopCancelTerminate);
@@ -632,7 +762,7 @@ class ConsoleImpl : public cppgc::GarbageCollected<ConsoleImpl>,
 };
 
 TEST_F(ThreadTerminationTest, TerminateConsole) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   ConsoleImpl* console_impl = cppgc::MakeGarbageCollected<ConsoleImpl>(
       isolate()->GetCppHeap()->GetAllocationHandle());
   debug::SetConsoleDelegate(isolate(), console_impl);
@@ -660,7 +790,7 @@ TEST_F(ThreadTerminationTest, TerminateConsole) {
 }
 
 TEST_F(ThreadTerminationTest, TerminationClearArrayJoinStack) {
-  internal::v8_flags.allow_natives_syntax = true;
+  internal::v8_flags.allow_natives_syntax.Set(true);
   HandleScope scope(isolate());
   Local<ObjectTemplate> global_template =
       CreateGlobalTemplate(isolate(), TerminateCurrentThread, DoLoopNoCall);
@@ -746,12 +876,13 @@ class TerminatorSleeperThread : public base::Thread {
 };
 
 TEST_F(ThreadTerminationTest, TerminateRegExp) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   // We want to be stuck regexp execution, so no fallback to linear-time
   // engine.
   // TODO(mbid,v8:10765): Find a way to test interrupt support of the
   // experimental engine.
-  i::v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks = false;
+  i::v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks.Set(
+      false);
 
   HandleScope scope(isolate());
   Local<ObjectTemplate> global = CreateGlobalTemplate(

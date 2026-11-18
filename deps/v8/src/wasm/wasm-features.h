@@ -11,10 +11,10 @@
 
 #include <compare>
 #include <iosfwd>
+#include <span>
 #include <string>
 
 #include "src/base/logging.h"
-#include "src/base/small-vector.h"
 #include "src/common/globals.h"
 // The feature flags are declared in their own header.
 #include "src/flags/feature-flags.h"
@@ -96,7 +96,6 @@ class WasmEnabledFeatures : public base::EnumSet<WasmEnabledFeature> {
 #undef LIST_FEATURE
   }
   static inline constexpr WasmEnabledFeatures None() { return {}; }
-  static inline constexpr WasmEnabledFeatures ForAsmjs() { return {}; }
   // Retuns optional features that are enabled by flags, plus features that are
   // not enabled by a flag and are always on.
   static V8_EXPORT_PRIVATE WasmEnabledFeatures FromFlags();
@@ -164,8 +163,6 @@ enum class CompileTimeImport {
   kTextEncoder,
   kTextDecoder,
   kJsPrototypes,
-  // Not really an import, but needs the same handling as compile-time imports.
-  kDisableDenormalFloats,
 };
 
 inline std::ostream& operator<<(std::ostream& os, CompileTimeImport imp) {
@@ -195,7 +192,7 @@ class CompileTimeImports {
   }
 
   bool empty() const { return bits_.empty(); }
-  bool has_string_constants(base::Vector<const uint8_t> name) const {
+  bool has_string_constants(std::span<const uint8_t> name) const {
     return bits_.contains(CompileTimeImport::kStringConstants) &&
            constants_module_.size() == name.size() &&
            std::equal(name.begin(), name.end(), constants_module_.begin());
@@ -205,7 +202,6 @@ class CompileTimeImports {
   auto operator<=>(const CompileTimeImports& other) const = default;
 
   void Add(CompileTimeImport imp) { bits_.Add(imp); }
-  void Remove(CompileTimeImport imp) { bits_.Remove(imp); }
 
   std::string& constants_module() { return constants_module_; }
   const std::string& constants_module() const { return constants_module_; }

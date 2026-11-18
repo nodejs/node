@@ -27,28 +27,28 @@ void JSIteratorHelper::set_state(JSIteratorHelperState value) {
 }
 
 Tagged<JSReceiver> JSIteratorHelperSimple::underlying_iterator_object() const {
-  return underlying_iterator_object_.load();
+  return underlying_iterator_.object_.load();
 }
 
 void JSIteratorHelperSimple::set_underlying_iterator_object(
     Tagged<JSReceiver> value, WriteBarrierMode mode) {
-  underlying_iterator_object_.store(this, value, mode);
+  underlying_iterator_.object_.store(this, value, mode);
 }
 
 Tagged<JSAny> JSIteratorHelperSimple::underlying_iterator_next() const {
-  return underlying_iterator_next_.load();
+  return underlying_iterator_.next_.load();
 }
 
 void JSIteratorHelperSimple::set_underlying_iterator_next(
     Tagged<JSAny> value, WriteBarrierMode mode) {
-  underlying_iterator_next_.store(this, value, mode);
+  underlying_iterator_.next_.store(this, value, mode);
 }
 
-Tagged<JSReceiver> JSIteratorMapHelper::mapper() const {
+Tagged<JSCallable> JSIteratorMapHelper::mapper() const {
   return mapper_.load();
 }
 
-void JSIteratorMapHelper::set_mapper(Tagged<JSReceiver> value,
+void JSIteratorMapHelper::set_mapper(Tagged<JSCallable> value,
                                      WriteBarrierMode mode) {
   mapper_.store(this, value, mode);
 }
@@ -60,11 +60,11 @@ void JSIteratorMapHelper::set_counter(Tagged<Number> value,
   counter_.store(this, value, mode);
 }
 
-Tagged<JSReceiver> JSIteratorFilterHelper::predicate() const {
+Tagged<JSCallable> JSIteratorFilterHelper::predicate() const {
   return predicate_.load();
 }
 
-void JSIteratorFilterHelper::set_predicate(Tagged<JSReceiver> value,
+void JSIteratorFilterHelper::set_predicate(Tagged<JSCallable> value,
                                            WriteBarrierMode mode) {
   predicate_.store(this, value, mode);
 }
@@ -96,11 +96,11 @@ void JSIteratorDropHelper::set_remaining(Tagged<Number> value,
   remaining_.store(this, value, mode);
 }
 
-Tagged<JSReceiver> JSIteratorFlatMapHelper::mapper() const {
+Tagged<JSCallable> JSIteratorFlatMapHelper::mapper() const {
   return mapper_.load();
 }
 
-void JSIteratorFlatMapHelper::set_mapper(Tagged<JSReceiver> value,
+void JSIteratorFlatMapHelper::set_mapper(Tagged<JSCallable> value,
                                          WriteBarrierMode mode) {
   mapper_.store(this, value, mode);
 }
@@ -115,21 +115,21 @@ void JSIteratorFlatMapHelper::set_counter(Tagged<Number> value,
 }
 
 Tagged<JSReceiver> JSIteratorFlatMapHelper::inner_iterator_object() const {
-  return inner_iterator_object_.load();
+  return inner_iterator_.object_.load();
 }
 
 void JSIteratorFlatMapHelper::set_inner_iterator_object(
     Tagged<JSReceiver> value, WriteBarrierMode mode) {
-  inner_iterator_object_.store(this, value, mode);
+  inner_iterator_.object_.store(this, value, mode);
 }
 
 Tagged<JSAny> JSIteratorFlatMapHelper::inner_iterator_next() const {
-  return inner_iterator_next_.load();
+  return inner_iterator_.next_.load();
 }
 
 void JSIteratorFlatMapHelper::set_inner_iterator_next(Tagged<JSAny> value,
                                                       WriteBarrierMode mode) {
-  inner_iterator_next_.store(this, value, mode);
+  inner_iterator_.next_.store(this, value, mode);
 }
 
 Tagged<FixedArray> JSIteratorConcatHelper::iterables() const {
@@ -188,6 +188,55 @@ Tagged<FixedArray> JSIteratorZipKeyedHelper::keys() const {
 void JSIteratorZipKeyedHelper::set_keys(Tagged<FixedArray> value,
                                         WriteBarrierMode mode) {
   keys_.store(this, value, mode);
+}
+
+Tagged<Smi> JSIteratorChunksHelper::chunk_size() const {
+  return chunk_size_.load();
+}
+
+void JSIteratorChunksHelper::set_chunk_size(Tagged<Smi> value) {
+  chunk_size_.store(this, value);
+}
+
+Tagged<Smi> JSIteratorWindowsHelper::window_size() const {
+  return window_size_.load();
+}
+
+void JSIteratorWindowsHelper::set_window_size(Tagged<Smi> value) {
+  window_size_.store(this, value);
+}
+
+JSIteratorWindowsHelperMode JSIteratorWindowsHelper::mode() const {
+  return static_cast<JSIteratorWindowsHelperMode>(mode_.load().value());
+}
+
+void JSIteratorWindowsHelper::set_mode(JSIteratorWindowsHelperMode value) {
+  mode_.store(this, Smi::From31BitPattern(static_cast<int>(value)));
+}
+
+Tagged<FixedArray> JSIteratorWindowsHelper::buffer() const {
+  return buffer_.load();
+}
+
+void JSIteratorWindowsHelper::set_buffer(Tagged<FixedArray> value,
+                                         WriteBarrierMode mode) {
+  buffer_.store(this, value, mode);
+}
+
+Tagged<Smi> JSIteratorWindowsHelper::element_count() const {
+  return element_count_.load();
+}
+
+void JSIteratorWindowsHelper::set_element_count(Tagged<Smi> value) {
+  element_count_.store(this, value);
+}
+
+Tagged<Smi> JSIteratorWindowsHelper::start_index() const {
+  return start_index_.load();
+}
+
+void JSIteratorWindowsHelper::set_start_index(Tagged<Smi> value) {
+  start_index_.store(this, value);
 }
 
 }  // namespace internal

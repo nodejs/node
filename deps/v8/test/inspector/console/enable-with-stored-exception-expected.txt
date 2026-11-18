@@ -1,0 +1,9 @@
+Checks that Console.enable skips stored exceptions.
+Storing messages while both domains are disabled.
+Enabling Console.
+Console: before exception
+Console: after exception
+Logging a live console message.
+Console: live message
+Enabling Runtime.
+Runtime exception: Uncaught Error: stored exception

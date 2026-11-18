@@ -8,6 +8,7 @@
 #include "include/cppgc/heap.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-local-handle.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/objects/js-objects.h"
 #include "test/unittests/heap/heap-utils.h"
 

@@ -23,6 +23,18 @@ bool HeapLayout::InYoungGenerationForStickyMarkbits(const MemoryChunk* chunk,
 }
 
 // static
+bool TrustedHeapLayout::InYoungGenerationForStickyMarkbits(
+    Tagged<HeapObject> object) {
+  CHECK(v8_flags.sticky_mark_bits.value());
+  Isolate* isolate = Isolate::Current();
+  MutablePage* page = MutablePage::FromHeapObject(isolate, object);
+  return !page->IsOnlyOldOrMajorMarkingOn() &&
+         !MarkingBitmap::MarkBitFromAddress(isolate, page->marking_bitmap(),
+                                            object.address())
+              .template Get<AccessMode::ATOMIC>();
+}
+
+// static
 void HeapLayout::CheckYoungGenerationConsistency(const MemoryChunk* chunk) {
   // Young generation objects should only be found in to space when the GC is
   // not currently running.

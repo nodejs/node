@@ -1,0 +1,2 @@
+Tests that local debug-evaluate works for REPL let re-declarations.
+x in foo: 42

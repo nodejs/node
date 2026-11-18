@@ -1,0 +1,5 @@
+Test that side-effect check is not bypassed in optimized code.
+fail("wrapper1()"): EvalError
+fail("wrapper2(true)"): EvalError
+fail("%PrepareFunctionForOptimization(wrapper2); %OptimizeFunctionOnNextCall(wrapper2); wrapper2(true)"): EvalError
+fail("%FinalizeOptimization(); wrapper2(true);"): EvalError

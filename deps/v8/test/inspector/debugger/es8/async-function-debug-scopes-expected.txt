@@ -1,0 +1,31 @@
+Tests async function debug scopes.
+(AsyncFunctionExpression) Local 1 passed
+(AsyncFunctionExpression) Local 1 --- resume normal passed
+(AsyncFunctionExpression) Local 1 --- resume throw passed
+(AsyncFunctionExpression) Local 2 passed
+(AsyncFunctionExpression) Local 2 --- resume normal passed
+(AsyncFunctionExpression) Local 2 --- resume throw passed
+(AsyncFunctionExpression) Local 3 passed
+(AsyncFunctionExpression) Local 3 --- resume normal passed
+(AsyncFunctionExpression) Local 3 --- resume throw passed
+(AsyncFunctionExpression) Local 4 passed
+(AsyncFunctionExpression) Local 4 --- resume normal passed
+(AsyncFunctionExpression) Local 4 --- resume throw passed
+(AsyncFunctionExpression) Local 5 passed
+(AsyncFunctionExpression) Local 5 --- resume normal passed
+(AsyncFunctionExpression) Local 5 --- resume throw passed
+(AsyncFunctionExpression) Local 6 passed
+(AsyncFunctionExpression) Local 6 --- resume normal passed
+(AsyncFunctionExpression) Local 6 --- resume throw passed
+(AsyncFunctionExpression) Local 7 passed
+(AsyncFunctionExpression) Local 7 --- resume normal passed
+(AsyncFunctionExpression) Local 7 --- resume throw passed
+(AsyncFunctionExpression) With passed
+(AsyncFunctionExpression) With --- resume normal passed
+(AsyncFunctionExpression) With --- resume throw passed
+(AsyncFunctionExpression) Closure 1 passed
+(AsyncFunctionExpression) Closure 1 --- resume normal passed
+(AsyncFunctionExpression) Closure 1 --- resume throw passed
+(AsyncFunctionExpression) Catch block 1 passed
+(AsyncFunctionExpression) Catch block 1 --- resume normal passed
+(AsyncFunctionExpression) Catch block 1 --- resume throw passed

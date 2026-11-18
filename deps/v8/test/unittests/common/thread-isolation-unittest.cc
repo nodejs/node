@@ -8,10 +8,12 @@
 namespace v8 {
 namespace internal {
 
+using JitAllocationType = ThreadIsolation::JitAllocationType;
+
 void InitializeThreadIsolation() {
   // We don't provide a pkey allocator for the tests in this file, so we need to
   // disable the force_memory_protection_keys flag.
-  v8_flags.force_memory_protection_keys = false;
+  v8_flags.force_memory_protection_keys.Set(false);
   ThreadIsolation::Initialize(nullptr);
 }
 
@@ -55,14 +57,18 @@ TEST(ThreadIsolation, JitAllocation) {
   Address address2 = address1 + size;
   ThreadIsolation::RegisterJitPage(address2, size);
 
-  ThreadIsolation::RegisterJitAllocationForTesting(address2 + size - 1, 1);
-  ThreadIsolation::RegisterJitAllocationForTesting(address1, 1);
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      address2 + size - 1, 1, JitAllocationType::kInstructionStream);
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      address1, 1, JitAllocationType::kInstructionStream);
   // An allocation spanning two pages.
-  ThreadIsolation::RegisterJitAllocationForTesting(address2 - 1, 2);
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      address2 - 1, 2, JitAllocationType::kInstructionStream);
 
   ThreadIsolation::UnregisterJitPage(address1, size);
   // The spanning allocation should've been released, try to reuse the memory.
-  ThreadIsolation::RegisterJitAllocationForTesting(address2, 1);
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      address2, 1, JitAllocationType::kInstructionStream);
   ThreadIsolation::UnregisterJitPage(address2, size);
 }
 
@@ -73,7 +79,10 @@ TEST(ThreadIsolation, CatchOOBJitAllocation) {
   size_t size = 0x1000;
   ThreadIsolation::RegisterJitPage(address1, size);
   EXPECT_DEATH_IF_SUPPORTED(
-      { ThreadIsolation::RegisterJitAllocationForTesting(address1 + size, 1); },
+      {
+        ThreadIsolation::RegisterJitAllocationForTesting(
+            address1 + size, 1, JitAllocationType::kInstructionStream);
+      },
       "");
   ThreadIsolation::UnregisterJitPage(address1, size);
 }
@@ -90,14 +99,16 @@ TEST(ThreadIsolation, MergeJitPages) {
   ThreadIsolation::RegisterJitPage(address1, size);
   ThreadIsolation::RegisterJitPage(address3, size);
 
-  ThreadIsolation::RegisterJitAllocationForTesting(address1, 3 * size);
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      address1, 3 * size, JitAllocationType::kInstructionStream);
   ThreadIsolation::UnregisterJitAllocationForTesting(address1, 3 * size);
 
   // Test merge in both directions
   ThreadIsolation::UnregisterJitPage(address2, size);
   ThreadIsolation::RegisterJitPage(address2, size);
 
-  ThreadIsolation::RegisterJitAllocationForTesting(address1, 3 * size);
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      address1, 3 * size, JitAllocationType::kInstructionStream);
   ThreadIsolation::UnregisterJitAllocationForTesting(address1, 3 * size);
 
   ThreadIsolation::UnregisterJitPage(address2, size);
@@ -116,11 +127,16 @@ TEST(ThreadIsolation, FreeRange) {
   ThreadIsolation::RegisterJitPage(address2, size);
   ThreadIsolation::RegisterJitPage(address3, size);
 
-  ThreadIsolation::RegisterJitAllocationForTesting(address2 - 1, 1);
-  ThreadIsolation::RegisterJitAllocationForTesting(address2, 1);
-  ThreadIsolation::RegisterJitAllocationForTesting(address2 + 1, size - 2);
-  ThreadIsolation::RegisterJitAllocationForTesting(address3 - 1, 1);
-  ThreadIsolation::RegisterJitAllocationForTesting(address3, 1);
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      address2 - 1, 1, JitAllocationType::kInstructionStream);
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      address2, 1, JitAllocationType::kInstructionStream);
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      address2 + 1, size - 2, JitAllocationType::kInstructionStream);
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      address3 - 1, 1, JitAllocationType::kInstructionStream);
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      address3, 1, JitAllocationType::kInstructionStream);
 
   {
     WritableJitPage jit_page(address2, size);
@@ -157,7 +173,8 @@ TEST(ThreadIsolation, InvalidFreeRange) {
   size_t size = 0x1000;
   ThreadIsolation::RegisterJitPage(address1, size);
 
-  ThreadIsolation::RegisterJitAllocationForTesting(address1, 2);
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      address1, 2, JitAllocationType::kInstructionStream);
 
   {
     WritableJitPage jit_page(address1, size);
@@ -168,6 +185,101 @@ TEST(ThreadIsolation, InvalidFreeRange) {
   }
 
   ThreadIsolation::UnregisterJitPage(address1, size);
+}
+
+TEST(ThreadIsolation, TryLookupStartOfJitAllocationAt) {
+  InitializeThreadIsolation();
+
+  Address address1 = 0x4100000;
+  size_t size = 0x1000;
+  Address address2 = address1 + 2 * size;
+  ThreadIsolation::RegisterJitPage(address1, size);
+  ThreadIsolation::RegisterJitPage(address2, size);
+
+  Address alloc1 = address1 + 0x100;
+  size_t alloc1_size = 0x80;
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      alloc1, alloc1_size, JitAllocationType::kInstructionStream);
+
+  Address alloc2 = address2 + 0x200;
+  size_t alloc2_size = 0x40;
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      alloc2, alloc2_size, JitAllocationType::kInstructionStream);
+
+  Address wasm_alloc = address1 + 0x300;
+  size_t wasm_alloc_size = 0x60;
+  ThreadIsolation::RegisterJitAllocationForTesting(
+      wasm_alloc, wasm_alloc_size, JitAllocationType::kWasmCode);
+
+  // Outside any JIT page.
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(
+                address1 - 1, JitAllocationType::kInstructionStream),
+            std::nullopt);
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(
+                address1 + size, JitAllocationType::kInstructionStream),
+            std::nullopt);
+
+  // Inside JIT page 1, outside alloc1.
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(
+                address1, JitAllocationType::kInstructionStream),
+            std::nullopt);
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(
+                alloc1 - 1, JitAllocationType::kInstructionStream),
+            std::nullopt);
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(
+                alloc1 + alloc1_size, JitAllocationType::kInstructionStream),
+            std::nullopt);
+
+  // Inside alloc1.
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(
+                alloc1, JitAllocationType::kInstructionStream),
+            alloc1);
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(
+                alloc1 + 1, JitAllocationType::kInstructionStream),
+            alloc1);
+  EXPECT_EQ(
+      ThreadIsolation::TryLookupStartOfJitAllocationAt(
+          alloc1 + alloc1_size - 1, JitAllocationType::kInstructionStream),
+      alloc1);
+  EXPECT_EQ(ThreadIsolation::StartOfJitAllocationAt(
+                alloc1, JitAllocationType::kInstructionStream),
+            alloc1);
+
+  // Looking for kInstructionStream skips Wasm allocations.
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(
+                wasm_alloc, JitAllocationType::kInstructionStream),
+            std::nullopt);
+  EXPECT_EQ(ThreadIsolation::StartOfJitAllocationAt(
+                wasm_alloc, JitAllocationType::kInstructionStream),
+            std::nullopt);
+
+  // Explicit type lookup succeeds for matching type.
+  EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(
+                wasm_alloc, JitAllocationType::kWasmCode),
+            wasm_alloc);
+  EXPECT_EQ(ThreadIsolation::StartOfJitAllocationAt(
+                wasm_alloc, JitAllocationType::kWasmCode),
+            wasm_alloc);
+
+  // While page 1 is locked (e.g., on the interrupted thread), looking up on
+  // page 1 returns std::nullopt instead of deadlocking, while looking up on
+  // page 2 still succeeds.
+  {
+    WritableJitPage locked_page1(address1, size);
+    EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(
+                  alloc1, JitAllocationType::kInstructionStream),
+              std::nullopt);
+    EXPECT_EQ(ThreadIsolation::TryLookupStartOfJitAllocationAt(
+                  alloc2 + 10, JitAllocationType::kInstructionStream),
+              alloc2);
+  }
+
+  ThreadIsolation::UnregisterJitAllocationForTesting(wasm_alloc,
+                                                     wasm_alloc_size);
+  ThreadIsolation::UnregisterJitAllocationForTesting(alloc1, alloc1_size);
+  ThreadIsolation::UnregisterJitAllocationForTesting(alloc2, alloc2_size);
+  ThreadIsolation::UnregisterJitPage(address1, size);
+  ThreadIsolation::UnregisterJitPage(address2, size);
 }
 
 }  // namespace internal

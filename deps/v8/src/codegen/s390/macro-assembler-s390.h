@@ -1161,8 +1161,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void BindExceptionHandler(Label* label) { bind(label); }
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object, uint16_t argument_count,
-                      Register scratch = r0);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count, Register scratch = r0);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
@@ -1550,6 +1550,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressTagged(Register destination, MemOperand field_operand);
   void DecompressTagged(Register destination, Register source);
   void DecompressTagged(const Register& destination, Tagged_t immediate);
+
+  // Loads a field containing an off-heap ("external") pointer and untags it if
+  // necessary.
+  void LoadExternalPointerField(Register destination, MemOperand field_operand,
+                                ExternalPointerTagRange tag_range,
+                                Register isolate_root = no_reg);
 
   // CountLeadingZeros will corrupt the scratch register pair (eg. r0:r1)
   void CountLeadingZerosU32(Register dst, Register src,

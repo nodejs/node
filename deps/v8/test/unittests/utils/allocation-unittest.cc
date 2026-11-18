@@ -4,18 +4,23 @@
 
 #include "src/utils/allocation.h"
 
-#include "test/unittests/test-utils.h"
-
 #if V8_OS_POSIX
 #include <setjmp.h>
 #include <signal.h>
 #include <unistd.h>
 #endif  // V8_OS_POSIX
 
+#include <limits>
+#include <vector>
+
+#include "src/zone/accounting-allocator.h"
+#include "src/zone/zone-segment.h"
+#include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+namespace allocation_unittest {
 
 // TODO(eholk): Add a windows version of permissions tests.
 #if V8_OS_POSIX
@@ -232,5 +237,87 @@ TEST_F(AllocationTest, ResizeMemory) {
   // memory.
   CHECK_EQ(*byte_address, 0);
 }
+
+TEST_F(AllocationTest, BoundedPageAllocatorInvalidSizes) {
+  v8::PageAllocator* page_allocator = v8::internal::GetPlatformPageAllocator();
+  constexpr size_t kReservationSize = 10 * NormalPage::kPageSize;
+
+  VirtualMemory reservation(
+      page_allocator, kReservationSize, v8::PageAllocator::AllocationHint(),
+      NormalPage::kPageSize, PageAllocator::Permission::kReadWrite);
+
+  base::BoundedPageAllocator bpa(
+      page_allocator, reservation.address(), kReservationSize,
+      NormalPage::kPageSize,
+      base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized,
+      base::PageFreeingMode::kMakeInaccessible);
+
+  const size_t invalid_sizes[] = {
+      0, kReservationSize + NormalPage::kPageSize,
+      std::numeric_limits<size_t>::max(),
+      static_cast<size_t>(-static_cast<intptr_t>(NormalPage::kPageSize))};
+
+  for (size_t invalid_size : invalid_sizes) {
+    CHECK_NULL(bpa.AllocatePages(nullptr, invalid_size, NormalPage::kPageSize,
+                                 PageAllocator::Permission::kReadWrite));
+    CHECK(!bpa.AllocatePagesAt(bpa.begin(), invalid_size,
+                               PageAllocator::Permission::kReadWrite));
+    CHECK(!bpa.ReserveForSharedMemoryMapping(
+        reinterpret_cast<void*>(bpa.begin()), invalid_size));
+    CHECK(!bpa.FreePages(reinterpret_cast<void*>(bpa.begin()), invalid_size));
+    CHECK(!bpa.ReleasePages(reinterpret_cast<void*>(bpa.begin()), invalid_size,
+                            0));
+  }
+
+  // ReleasePages with new_size >= size should fail gracefully.
+  CHECK(!bpa.ReleasePages(reinterpret_cast<void*>(bpa.begin()),
+                          NormalPage::kPageSize, NormalPage::kPageSize));
+  CHECK(!bpa.ReleasePages(reinterpret_cast<void*>(bpa.begin()),
+                          NormalPage::kPageSize, 2 * NormalPage::kPageSize));
+
+  // The allocator should remain fully functional and uncorrupted.
+  void* allocated =
+      bpa.AllocatePages(nullptr, NormalPage::kPageSize, NormalPage::kPageSize,
+                        PageAllocator::Permission::kReadWrite);
+  CHECK_NOT_NULL(allocated);
+  CHECK(bpa.FreePages(allocated, NormalPage::kPageSize));
+}
+
+// ASAN isn't configured to return nullptr, so skip all of these tests.
+#if !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) && \
+    !defined(THREAD_SANITIZER)
+
+// We use |AllocateAtLeast| in the accounting allocator, so we check only that
+// we have _at least_ the expected amount of memory allocated.
+TEST_F(AllocationTest, AccountingAllocatorCurrentAndMax) {
+  v8::internal::AccountingAllocator allocator;
+  static constexpr size_t kAllocationSizes[] = {51, 231, 27};
+  std::vector<v8::internal::Segment*> segments;
+  CHECK_EQ(0, allocator.GetCurrentMemoryUsage());
+  CHECK_EQ(0, allocator.GetMaxMemoryUsage());
+  size_t expected_current = 0;
+  size_t expected_max = 0;
+  for (size_t size : kAllocationSizes) {
+    segments.push_back(allocator.AllocateSegment(size));
+    CHECK_NOT_NULL(segments.back());
+    CHECK_LE(size, segments.back()->total_size());
+    expected_current += segments.back()->total_size();
+    if (expected_current > expected_max) expected_max = expected_current;
+    CHECK_EQ(expected_current, allocator.GetCurrentMemoryUsage());
+    CHECK_EQ(expected_max, allocator.GetMaxMemoryUsage());
+  }
+  for (auto* segment : segments) {
+    expected_current -= segment->total_size();
+    allocator.ReturnSegment(segment);
+    CHECK_EQ(expected_current, allocator.GetCurrentMemoryUsage());
+  }
+  CHECK_EQ(expected_max, allocator.GetMaxMemoryUsage());
+  CHECK_EQ(0, allocator.GetCurrentMemoryUsage());
+}
+
+#endif  // !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) &&
+        // !defined(THREAD_SANITIZER)
+
+}  // namespace allocation_unittest
 }  // namespace internal
 }  // namespace v8

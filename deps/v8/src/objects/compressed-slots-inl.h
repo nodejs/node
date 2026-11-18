@@ -30,13 +30,6 @@ bool CompressedObjectSlot::contains_map_value(Address raw_value) const {
          static_cast<uint32_t>(static_cast<Tagged_t>(raw_value));
 }
 
-bool CompressedObjectSlot::Relaxed_ContainsMapValue(Address raw_value) const {
-  DCHECK(!V8_MAP_PACKING_BOOL);
-  AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
-  return static_cast<uint32_t>(value) ==
-         static_cast<uint32_t>(static_cast<Tagged_t>(raw_value));
-}
-
 Tagged<Object> CompressedObjectSlot::operator*() const {
   Tagged_t value = *location();
   return Tagged<Object>(TCompressionScheme::DecompressTagged(value));

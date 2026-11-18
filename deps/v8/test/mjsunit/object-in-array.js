@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-lazy-feedback-allocation --allow-natives-syntax
+// Flags: --no-lazy-feedback-allocation --allow-natives-syntax --fast-null-proto-literals
 
 // The expected token (has to be a SMI so that we get SMI_ELEMENTS when
 // it's in an array):
@@ -192,7 +192,7 @@ test(
   assertEquals(0, o2[0].a());
 }
 
-// Dictionary mode object in array:
+// Null prototype object (with properties, hence fast mode) in array:
 {
   function createObjectWithNullProtoInArray() {
     return [{__proto__: null, b: T}];
@@ -200,6 +200,20 @@ test(
   test(createObjectWithNullProtoInArray,
        (o) => o[0].b, (o) => o[0].b = T2);
   const o1 = createObjectWithNullProtoInArray();
+  assertTrue(%HasFastProperties(o1[0]));
+  assertEquals(null, Object.getPrototypeOf(o1[0]));
+}
+
+// Dictionary mode object (empty null prototype literal) in array:
+{
+  function createEmptyObjectWithNullProtoInArray() {
+    return [{__proto__: null}];
+  }
+  // The literal has no properties, so check for the presence of one that the
+  // setter adds; `undefined` as the expected token would fall back to T.
+  test(createEmptyObjectWithNullProtoInArray,
+       (o) => 'b' in o[0], (o) => o[0].b = T2, false);
+  const o1 = createEmptyObjectWithNullProtoInArray();
   assertFalse(%HasFastProperties(o1[0]));
   assertEquals(null, Object.getPrototypeOf(o1[0]));
 }

@@ -39,16 +39,24 @@ int FreeSpace::Size() { return size(kRelaxedLoad); }
 
 Tagged<FreeSpace> FreeSpace::next() const {
   DCHECK(IsValid(Isolate::Current()->heap()));
+  Tagged<FreeSpace> next;
 #ifdef V8_EXTERNAL_CODE_SPACE
   intptr_t diff_to_next{next_.Relaxed_Load().value()};
   if (diff_to_next == 0) {
     return {};
   }
   Address next_ptr = ptr() + diff_to_next * kObjectAlignment;
-  return UncheckedCast<FreeSpace>(Tagged<Object>(next_ptr));
+  next = UncheckedCast<FreeSpace>(Tagged<Object>(next_ptr));
 #else
-  return next_.Relaxed_Load();
+  next = next_.Relaxed_Load();
+  if (next.is_null()) {
+    return {};
+  }
 #endif  // V8_EXTERNAL_CODE_SPACE
+  // A FreeSpace can only point to another FreeSpace object on the same page.
+  SBXCHECK_EQ(MemoryChunk::FromAddress(ptr()),
+              MemoryChunk::FromAddress(next.ptr()));
+  return next;
 }
 
 void FreeSpace::SetNext(const Heap* heap,

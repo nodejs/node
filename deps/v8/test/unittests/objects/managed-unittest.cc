@@ -256,4 +256,38 @@ TEST_F(ManagedTest, CollectAcrossIsolates) {
   CHECK_EQ(1, deleted);
 }
 
+TEST_F(ManagedTest, TrustedManaged) {
+  int deleted = 0;
+  {
+    HandleScope scope(isolate());
+    auto shared = std::make_shared<DeleteCounter>(&deleted);
+    DeleteCounter* expected = shared.get();
+    CHECK_EQ(1, shared.use_count());
+
+    DirectHandle<TrustedManaged<DeleteCounter>> trusted_managed =
+        TrustedManaged<DeleteCounter>::From(isolate(), 0, shared);
+    CHECK_EQ(2, shared.use_count());
+    CHECK_EQ(expected, trusted_managed->raw(DisallowGarbageCollection{}));
+    CHECK_EQ(expected, trusted_managed->unsafe_raw());
+    CHECK_EQ(2, shared.use_count());
+    {
+      std::shared_ptr<DeleteCounter> copy = trusted_managed->get();
+      CHECK_EQ(expected, copy.get());
+      CHECK_EQ(3, shared.use_count());
+    }
+    CHECK_EQ(2, shared.use_count());
+
+    shared.reset();
+    CHECK_EQ(0, deleted);
+    InvokeMemoryReducingMajorGCs(isolate());
+    CHECK_EQ(0, deleted);
+    CHECK_EQ(expected, trusted_managed->raw(DisallowGarbageCollection{}));
+    CHECK_EQ(expected, trusted_managed->unsafe_raw());
+  }
+
+  DisableConservativeStackScanningScopeForTesting scope(isolate()->heap());
+  InvokeMemoryReducingMajorGCs(isolate());
+  CHECK_EQ(1, deleted);
+}
+
 }  // namespace v8::internal

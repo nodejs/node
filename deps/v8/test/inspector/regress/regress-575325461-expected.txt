@@ -1,0 +1,21 @@
+Checks that custom formatters cannot return huge JSONML arrays.
+
+Running test: setUp
+
+Running test: testHugeHeader
+error: Custom Formatter Failed: Uncaught JSONML is too large
+no custom preview
+
+Running test: testNestedHeader
+error: Custom Formatter Failed: Uncaught JSONML is too large
+no custom preview
+
+Running test: testHugeBody
+{
+    bodyGetterId : <bodyGetterId>
+    header : ["span","huge-body"]
+}
+error: Custom Formatter Failed: Uncaught JSONML is too large
+{
+    type : undefined
+}

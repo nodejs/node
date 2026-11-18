@@ -19,3 +19,7 @@ Don't crash when evaluating `this` in class instance initializer
         }
     }
 }
+  function id(x) { return x; }
+  #new class tmp {
+    #foo = id(42);
+

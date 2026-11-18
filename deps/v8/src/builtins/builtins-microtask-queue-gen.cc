@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/codegen/code-stub-assembler-inl.h"
+#include "src/execution/messages.h"
 #include "src/execution/microtask-queue.h"
 #include "src/handles/handle-scope-implementer.h"
 #include "src/objects/js-generator-inl.h"
@@ -496,14 +497,55 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // kAsyncFunctionAwait: resume the async function with kNext.
     BIND(&kind_async_function_await);
     {
-      ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+      TVARIABLE(Object, var_resume_exception);
+      Label if_resume_exception(this, Label::kDeferred);
       StoreObjectFieldNoWriteBarrier(generator,
                                      offsetof(JSGeneratorObject, resume_mode_),
                                      SmiConstant(JSGeneratorObject::kNext));
-      CallBuiltin(Builtin::kResumeGeneratorTrampoline, microtask_context, value,
-                  generator);
+      {
+        ScopedExceptionHandler resume_handler(this, &if_resume_exception,
+                                              &var_resume_exception);
+        CallBuiltin(Builtin::kResumeGeneratorTrampoline, microtask_context,
+                    value, generator);
+      }
+      Goto(&done);
+
+      BIND(&if_resume_exception);
+      {
+        // The async function body itself is wrapped in a try-catch, so only a
+        // StackOverflow thrown in ResumeGeneratorTrampoline, the callee entry
+        // prologue, or an OSR entry prologue (which precedes exception handler
+        // setup) can reach this handler.
+#ifdef DEBUG
+        CSA_DCHECK(this, SmiNotEqual(
+                             LoadObjectField<Smi>(
+                                 generator,
+                                 offsetof(JSGeneratorObject, continuation_)),
+                             SmiConstant(JSGeneratorObject::kGeneratorClosed)));
+        CSA_DCHECK(this, TaggedIsNotSmi(var_resume_exception.value()));
+        CSA_DCHECK(this, HasInstanceType(CAST(var_resume_exception.value()),
+                                         JS_ERROR_TYPE));
+        TNode<Object> message =
+            GetProperty(microtask_context, CAST(var_resume_exception.value()),
+                        isolate()->factory()->message_string());
+        TNode<String> expected = StringConstant(
+            MessageFormatter::TemplateString(MessageTemplate::kStackOverflow));
+        CSA_DCHECK(this, TaggedEqual(CallRuntime(Runtime::kStringEqual,
+                                                 NoContextConstant(), message,
+                                                 expected),
+                                     TrueConstant()));
+#endif
+        // Clear the pending message since the exception is converted into a
+        // promise rejection rather than propagating as an uncaught exception.
+        SetPendingMessage(TheHoleConstant());
+        StoreObjectFieldNoWriteBarrier(
+            generator, offsetof(JSGeneratorObject, continuation_),
+            SmiConstant(JSGeneratorObject::kGeneratorClosed));
+        CallBuiltin(Builtin::kAsyncFunctionReject, microtask_context, generator,
+                    var_resume_exception.value());
+        Goto(&done);
+      }
     }
-    Goto(&done);
 
     BIND(&if_exception);
     {

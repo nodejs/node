@@ -16,7 +16,7 @@ grep \
     --no-filename \
     --recursive \
     --fixed-strings "$symbols" \
-    -- "$v8_root/src" "$v8_root/test/cctest" \
+    -- "$v8_root/src" "$v8_root/test/unittests" \
 | sort \
 | uniq -u \
 | sed -e 's/.*/Heap symbol "&" seems to be unused./'

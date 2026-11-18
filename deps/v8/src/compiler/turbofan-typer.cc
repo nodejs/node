@@ -127,7 +127,6 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_CHECKED_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
       IF_WASM(SIMPLIFIED_WASM_OP_LIST, DECLARE_IMPOSSIBLE_CASE)
       MACHINE_SIMD128_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
-      IF_SIMD256(MACHINE_SIMD256_OP_LIST, DECLARE_IMPOSSIBLE_CASE)
       MACHINE_UNOP_32_LIST(DECLARE_IMPOSSIBLE_CASE)
       DECLARE_IMPOSSIBLE_CASE(Word32Xor)
       DECLARE_IMPOSSIBLE_CASE(Word32Sar)
@@ -180,7 +179,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(LoadImmutable)
       DECLARE_IMPOSSIBLE_CASE(StorePair)
       DECLARE_IMPOSSIBLE_CASE(Store)
-      DECLARE_IMPOSSIBLE_CASE(StoreIndirectPointer)
+      DECLARE_IMPOSSIBLE_CASE(StoreTrustedPointer)
       DECLARE_IMPOSSIBLE_CASE(StackSlot)
       DECLARE_IMPOSSIBLE_CASE(Word32Popcnt)
       DECLARE_IMPOSSIBLE_CASE(Word64Popcnt)
@@ -214,7 +213,6 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(TryTruncateFloat64ToInt32)
       DECLARE_IMPOSSIBLE_CASE(TryTruncateFloat64ToUint32)
       DECLARE_IMPOSSIBLE_CASE(ChangeInt32ToFloat64)
-      DECLARE_IMPOSSIBLE_CASE(BitcastWord32ToWord64)
       DECLARE_IMPOSSIBLE_CASE(ChangeInt32ToInt64)
       DECLARE_IMPOSSIBLE_CASE(ChangeInt64ToFloat64)
       DECLARE_IMPOSSIBLE_CASE(ChangeUint32ToFloat64)
@@ -1529,8 +1527,7 @@ Type Typer::Visitor::TypeJSCreateGeneratorObject(Node* node) {
 }
 
 Type Typer::Visitor::TypeJSCreateClosure(Node* node) {
-  SharedFunctionInfoRef shared =
-      JSCreateClosureNode{node}.Parameters().shared_info();
+  SharedFunctionInfoRef shared = JSCreateClosureNode{node}.shared_info();
   if (IsClassConstructor(shared.kind())) {
     return Type::ClassConstructor();
   } else {

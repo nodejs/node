@@ -268,70 +268,89 @@ DirectHandle<String> CallSiteInfo::GetScriptHash(
 
 namespace {
 
-MaybeHandle<String> FormatEvalOrigin(Isolate* isolate,
-                                     DirectHandle<Script> script) {
-  Handle<Object> sourceURL(script->GetNameOrSourceURL(), isolate);
-  if (IsString(*sourceURL)) return Cast<String>(sourceURL);
-
-  IncrementalStringBuilder builder(isolate);
-  builder.AppendCStringLiteral("eval at ");
-  if (script->has_eval_from_shared()) {
-    DirectHandle<SharedFunctionInfo> eval_shared(script->eval_from_shared(),
-                                                 isolate);
-    auto eval_name = SharedFunctionInfo::DebugName(isolate, eval_shared);
-    if (eval_name->length() != 0) {
-      builder.AppendString(eval_name);
-    } else {
-      builder.AppendCStringLiteral("<anonymous>");
-    }
-    if (IsScript(eval_shared->script())) {
-      DirectHandle<Script> eval_script(Cast<Script>(eval_shared->script()),
-                                       isolate);
-      builder.AppendCStringLiteral(" (");
-      if (eval_script->has_eval_origin()) {
-        // Eval script originated from another eval.
-        DirectHandle<String> str;
-        ASSIGN_RETURN_ON_EXCEPTION(isolate, str,
-                                   FormatEvalOrigin(isolate, eval_script));
-        builder.AppendString(str);
-      } else {
-        // eval script originated from "real" source.
-        DirectHandle<Object> eval_script_name(eval_script->name(), isolate);
-        if (IsString(*eval_script_name)) {
-          builder.AppendString(Cast<String>(eval_script_name));
-          Script::PositionInfo info;
-          if (Script::GetPositionInfo(eval_script,
-                                      Script::GetEvalPosition(isolate, script),
-                                      &info, Script::OffsetFlag::kNoOffset)) {
-            builder.AppendCharacter(':');
-            builder.AppendInt(info.line + 1);
-            builder.AppendCharacter(':');
-            builder.AppendInt(info.column + 1);
-          }
-        } else {
-          builder.AppendCStringLiteral("unknown source");
-        }
-      }
-      builder.AppendCharacter(')');
-    }
-  } else {
-    builder.AppendCStringLiteral("<anonymous>");
+void AppendEvalOrigin(Isolate* isolate, DirectHandle<Script> script,
+                      IncrementalStringBuilder* builder) {
+  DirectHandle<Object> source_url(script->GetNameOrSourceURL(), isolate);
+  if (IsString(*source_url)) {
+    builder->AppendString(Cast<String>(source_url));
+    return;
   }
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+
+  DirectHandle<Script> current_script = script;
+  int nesting = 0;
+  while (!builder->HasOverflowed()) {
+    builder->AppendCStringLiteral("eval at ");
+    if (!current_script->has_eval_from_shared()) {
+      builder->AppendCStringLiteral("<anonymous>");
+      break;
+    }
+    DirectHandle<SharedFunctionInfo> eval_shared(
+        current_script->eval_from_shared(), isolate);
+    DirectHandle<String> eval_name =
+        SharedFunctionInfo::DebugName(isolate, eval_shared);
+    if (eval_name->length() != 0) {
+      builder->AppendString(eval_name);
+    } else {
+      builder->AppendCStringLiteral("<anonymous>");
+    }
+    if (!IsScript(eval_shared->script())) break;
+
+    DirectHandle<Script> eval_script(Cast<Script>(eval_shared->script()),
+                                     isolate);
+    builder->AppendCStringLiteral(" (");
+    ++nesting;
+    if (eval_script->has_eval_origin()) {
+      // Eval script originated from another eval.
+      DirectHandle<Object> eval_source_url(eval_script->GetNameOrSourceURL(),
+                                           isolate);
+      if (IsString(*eval_source_url)) {
+        builder->AppendString(Cast<String>(eval_source_url));
+        break;
+      }
+      current_script = eval_script;
+      continue;
+    }
+
+    // eval script originated from "real" source.
+    DirectHandle<Object> eval_script_name(eval_script->name(), isolate);
+    if (IsString(*eval_script_name)) {
+      builder->AppendString(Cast<String>(eval_script_name));
+      Script::PositionInfo info;
+      if (Script::GetPositionInfo(
+              eval_script, Script::GetEvalPosition(isolate, current_script),
+              &info, Script::OffsetFlag::kNoOffset)) {
+        builder->AppendCharacter(':');
+        builder->AppendInt(info.line + 1);
+        builder->AppendCharacter(':');
+        builder->AppendInt(info.column + 1);
+      }
+    } else {
+      builder->AppendCStringLiteral("unknown source");
+    }
+    break;
+  }
+  for (int i = 0; i < nesting && !builder->HasOverflowed(); ++i) {
+    builder->AppendCharacter(')');
+  }
 }
 
 }  // namespace
 
 // static
-Handle<PrimitiveHeapObject> CallSiteInfo::GetEvalOrigin(
+MaybeDirectHandle<PrimitiveHeapObject> CallSiteInfo::GetEvalOrigin(
     DirectHandle<CallSiteInfo> info) {
-  auto isolate = Isolate::Current();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<Script> script;
   if (!GetScript(isolate, info).ToHandle(&script) ||
       !script->has_eval_origin()) {
     return isolate->factory()->undefined_value();
   }
-  return FormatEvalOrigin(isolate, script).ToHandleChecked();
+  DirectHandle<Object> source_url(script->GetNameOrSourceURL(), isolate);
+  if (IsString(*source_url)) return Cast<String>(source_url);
+
+  IncrementalStringBuilder builder(isolate);
+  AppendEvalOrigin(isolate, script, &builder);
+  return builder.Finish();
 }
 
 // static
@@ -524,8 +543,7 @@ DirectHandle<Object> CallSiteInfo::GetMethodName(
 
   // ES2015 gives getters and setters name prefixes which must
   // be stripped to find the property name.
-  if (name->HasOneBytePrefix(base::CStrVector("get ")) ||
-      name->HasOneBytePrefix(base::CStrVector("set "))) {
+  if (name->HasOneBytePrefix("get ") || name->HasOneBytePrefix("set ")) {
     name = isolate->factory()->NewProperSubString(name, 4, name->length());
   } else if (name->length() == 0) {
     // The function doesn't have a meaningful "name" property, however
@@ -619,7 +637,8 @@ DirectHandle<Object> CallSiteInfo::GetWasmModuleName(
 
 // static
 int CallSiteInfo::GetSourcePosition(DirectHandle<CallSiteInfo> info) {
-  if (info->flags() & kIsSourcePositionComputed) {
+  Flags flags = info->flags();
+  if (flags.is_source_position_computed()) {
     return info->code_offset_or_source_position();
   }
   DCHECK(!info->IsPromiseAll());
@@ -628,7 +647,7 @@ int CallSiteInfo::GetSourcePosition(DirectHandle<CallSiteInfo> info) {
   int source_position =
       ComputeSourcePosition(info, info->code_offset_or_source_position());
   info->set_code_offset_or_source_position(source_position);
-  info->set_flags(info->flags() | kIsSourcePositionComputed);
+  info->set_flags(flags.with_is_source_position_computed(true));
   return source_position;
 }
 
@@ -653,7 +672,7 @@ bool CallSiteInfo::ComputeLocation(DirectHandle<CallSiteInfo> info,
   if (!shared->IsSubjectToDebugging()) return false;
   Handle<Script> script(Cast<Script>(shared->script()), isolate);
   if (IsUndefined(script->source())) return false;
-  if (info->flags() & kIsSourcePositionComputed ||
+  if (info->flags().is_source_position_computed() ||
       (shared->HasBytecodeArray() &&
        shared->GetBytecodeArray(isolate)->HasSourcePositionTable())) {
     int pos = GetSourcePosition(info);
@@ -743,7 +762,10 @@ void AppendFileLocation(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
   DirectHandle<Object> script_name_or_source_url(
       frame->GetScriptNameOrSourceURL(), isolate);
   if (!IsString(*script_name_or_source_url) && frame->IsEval()) {
-    builder->AppendString(Cast<String>(CallSiteInfo::GetEvalOrigin(frame)));
+    DirectHandle<Script> script =
+        CallSiteInfo::GetScript(isolate, frame).ToHandleChecked();
+    DCHECK(script->has_eval_origin());
+    AppendEvalOrigin(isolate, script, builder);
     // Expecting source position to follow.
     builder->AppendCStringLiteral(", ");
   }
@@ -946,10 +968,11 @@ void SerializeCallSiteInfo(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
 }
 
 MaybeDirectHandle<String> SerializeCallSiteInfo(
-    Isolate* isolate, DirectHandle<CallSiteInfo> frame) {
+    Isolate* isolate, DirectHandle<CallSiteInfo> frame,
+    ShouldThrow should_throw) {
   IncrementalStringBuilder builder(isolate);
   SerializeCallSiteInfo(isolate, frame, &builder);
-  return builder.Finish();
+  return builder.Finish(should_throw);
 }
 
 }  // namespace v8::internal

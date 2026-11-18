@@ -5,7 +5,7 @@ include_rules = [
   "+src/compiler",
 ]
 specific_include_rules = {
-  "maglev-graph-builder\.h": [
+  "maglev-graph-builder\\.h": [
     "+src/interpreter/interpreter-intrinsics.h",
   ],
 }

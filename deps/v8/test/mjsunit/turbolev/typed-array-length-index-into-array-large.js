@@ -11,7 +11,7 @@
 
 // Use a top-level HOLEY_SMI_ELEMENTS array so that the test function doesn't
 // get confused about unexpected ElementsKinds in configs which don't have
-// mementos.
+// allocation site tracking.
 let b = [];
 b[10] = 0;
 

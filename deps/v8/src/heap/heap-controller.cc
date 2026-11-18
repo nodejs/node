@@ -230,7 +230,7 @@ HeapLimitBounds HeapLimits::AtMostCurrentLimits() const {
 HeapLimits::HeapLimits(Heap* heap, const ResourceConstraints& constraints,
                        size_t max_old_generation_size,
                        size_t initial_old_generation_size)
-    : heap_(heap), tracing_track_(heap_->tracing_track()) {
+    : heap_(heap) {
   initial_old_generation_size_ = initial_old_generation_size;
   initial_max_old_generation_size_ = max_old_generation_size;
   SetMaximumSizes(max_old_generation_size,
@@ -265,13 +265,14 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
 
   TRACE_COUNTER(
       TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-      perfetto::CounterTrack("NewSpaceTargetCapacity", tracing_track_),
+      perfetto::CounterTrack("NewSpaceTargetCapacity", heap_->tracing_track()),
       new_space_capacity);
+  TRACE_COUNTER(
+      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+      perfetto::CounterTrack("OldGenerationSpeed", heap_->tracing_track()),
+      v8_gc_speed.value_or(0.0));
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                perfetto::CounterTrack("OldGenerationSpeed", tracing_track_),
-                v8_gc_speed.value_or(0.0));
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                perfetto::CounterTrack("EmbedderSpeed", tracing_track_),
+                perfetto::CounterTrack("EmbedderSpeed", heap_->tracing_track()),
                 embedder_gc_speed.value_or(0.0));
 
   const size_t old_gen_consumed_bytes_at_last_gc =
@@ -421,13 +422,14 @@ void HeapLimits::SetAllocationLimit(size_t new_old_generation_allocation_limit,
                                     size_t new_global_allocation_limit,
                                     const char* reason) {
   CHECK_GE(new_global_allocation_limit, new_old_generation_allocation_limit);
+  TRACE_COUNTER("v8.memory",
+                perfetto::CounterTrack("OldGenerationAllocationLimit",
+                                       heap_->tracing_track()),
+                new_old_generation_allocation_limit);
   TRACE_COUNTER(
       "v8.memory",
-      perfetto::CounterTrack("OldGenerationAllocationLimit", tracing_track_),
-      new_old_generation_allocation_limit);
-  TRACE_COUNTER("v8.memory",
-                perfetto::CounterTrack("GlobalAllocationLimit", tracing_track_),
-                new_global_allocation_limit);
+      perfetto::CounterTrack("GlobalAllocationLimit", heap_->tracing_track()),
+      new_global_allocation_limit);
 
   old_generation_allocation_limit_.store(new_old_generation_allocation_limit,
                                          std::memory_order_relaxed);

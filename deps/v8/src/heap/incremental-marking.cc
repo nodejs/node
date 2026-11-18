@@ -18,6 +18,7 @@
 #include "src/heap/base/incremental-marking-schedule.h"
 #include "src/heap/base/unsafe-json-emitter.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
@@ -340,7 +341,6 @@ void IncrementalMarking::StartMarkingMinor() {
       minor_collector_->local_marking_worklists();
 
   marking_mode_ = MarkingMode::kMinorMarking;
-  heap_->SetIsMarkingFlag(true);
   heap_->SetIsMinorMarkingFlag(true);
 
   {
@@ -515,20 +515,7 @@ bool IncrementalMarking::Stop() {
   current_local_marking_worklists_ = nullptr;
   current_trace_id_.reset();
 
-  if (isolate()->has_shared_space() && !isolate()->is_shared_space_isolate()) {
-    // When disabling local incremental marking in a client isolate (= worker
-    // isolate), the marking barrier needs to stay enabled when incremental
-    // marking in the shared heap is running.
-    const bool is_marking = isolate()
-                                ->shared_space_isolate()
-                                ->heap()
-                                ->incremental_marking()
-                                ->IsMajorMarking();
-    heap_->SetIsMarkingFlag(is_marking);
-  } else {
-    heap_->SetIsMarkingFlag(false);
-  }
-
+  heap_->SetIsMarkingFlag(false);
   heap_->SetIsMinorMarkingFlag(false);
   is_compacting_ = false;
   FinishBlackAllocation();
@@ -545,27 +532,6 @@ bool IncrementalMarking::Stop() {
   schedule_.reset();
 
   return true;
-}
-
-size_t IncrementalMarking::OldGenerationSizeOfObjects() const {
-  // TODO(v8:14140): This is different to Heap::OldGenerationSizeOfObjects() in
-  // that it only considers shared space for the shared space isolate. Consider
-  // adjusting the Heap version.
-  const bool is_shared_space_isolate =
-      heap_->isolate()->is_shared_space_isolate();
-  size_t total = 0;
-  PagedSpaceIterator spaces(heap_);
-  for (PagedSpace* space = spaces.Next(); space != nullptr;
-       space = spaces.Next()) {
-    if (space->identity() == SHARED_SPACE && !is_shared_space_isolate) continue;
-    total += space->SizeOfObjects();
-  }
-  total += heap_->lo_space()->SizeOfObjects();
-  total += heap_->code_lo_space()->SizeOfObjects();
-  if (heap_->shared_lo_space() && is_shared_space_isolate) {
-    total += heap_->shared_lo_space()->SizeOfObjects();
-  }
-  return total;
 }
 
 bool IncrementalMarking::ShouldWaitForTask() {
@@ -684,7 +650,7 @@ size_t IncrementalMarking::GetScheduledBytes(StepOrigin step_origin) {
   FetchBytesMarkedConcurrently();
   // TODO(v8:14140): Consider the size including young generation here as well
   // as the full marker marks both the young and old generations.
-  size_t estimated_live_bytes = OldGenerationSizeOfObjects();
+  size_t estimated_live_bytes = heap_->OldGenerationSizeOfObjects();
   if (v8_flags.incremental_marking_unified_schedule) {
     estimated_live_bytes += CppHeap::From(heap_->cpp_heap())->used_size();
   }

@@ -1,0 +1,90 @@
+Tests scopes in functions and generators.
+--- Local 1 ---
+Function:
+Scope chain: local, global
+Scope 0 content: {}
+Generator:
+Scope chain: local, global
+Scope 0 content: {}
+--- Local 2 ---
+Function:
+Scope chain: local, global
+Scope 0 content: {"a":1}
+Generator:
+Scope chain: local, global
+Scope 0 content: {"a":1}
+--- Local 3 ---
+Function:
+Scope chain: local, global
+Scope 0 content: {"a":1,"x":3}
+Generator:
+Scope chain: local, global
+Scope 0 content: {"a":1,"x":3}
+--- Local 4 ---
+Function:
+Scope chain: local, global
+Scope 0 content: {"a":1,"b":2,"x":3,"y":4}
+Generator:
+Scope chain: local, global
+Scope 0 content: {"a":1,"b":2,"x":3,"y":4}
+--- Local 5 ---
+Function:
+Scope chain: local, global
+Scope 0 content: {}
+Generator:
+Scope chain: local, global
+Scope 0 content: {}
+--- Local 6 ---
+Function:
+Scope chain: local, global
+Scope 0 content: {"i":5}
+Generator:
+Scope chain: local, global
+Scope 0 content: {"i":5}
+--- Local 7 ---
+Function:
+Scope chain: local, global
+Scope 0 content: {"a":1,"b":2,"i":5,"j":6,"x":3,"y":4}
+Generator:
+Scope chain: local, global
+Scope 0 content: {"a":1,"b":2,"i":5,"j":6,"x":3,"y":4}
+--- With ---
+Function:
+Scope chain: with, with, local, global
+Scope 0 content: {"b":2}
+Scope 1 content: {"a":1}
+Generator:
+Scope chain: with, with, local, global
+Scope 0 content: {"b":2}
+Scope 1 content: {"a":1}
+--- Closure 1 ---
+Function:
+Scope chain: local, closure, global
+Scope 1 content: {"a":1}
+Generator:
+Scope chain: local, closure, global
+Scope 1 content: {"a":1}
+--- The full monty ---
+Function:
+Scope chain: with, with, local, with, closure, closure, global
+Scope 0 content: {"b":16}
+Scope 1 content: {"a":15}
+Scope 2 content: {"x":14}
+Scope 3 content: {"j":13}
+Scope 4 content: {"a":1,"b":2,"i":11,"j":12,"x":9,"y":10}
+Scope 5 content: {"a":1,"b":2,"f":"function","i":5,"j":6,"x":3,"y":4}
+Generator:
+Scope chain: with, with, local, with, closure, closure, global
+Scope 0 content: {"b":16}
+Scope 1 content: {"a":15}
+Scope 2 content: {"x":14}
+Scope 3 content: {"j":13}
+Scope 4 content: {"a":1,"b":2,"i":11,"j":12,"x":9,"y":10}
+Scope 5 content: {"a":1,"b":2,"f":"function","i":5,"j":6,"x":3,"y":4}
+--- Catch block 1 ---
+Function:
+Scope chain: catch, local, global
+Scope 0 content: {"e":"Exception"}
+Generator:
+Scope chain: catch, local, global
+Scope 0 content: {"e":"Exception"}

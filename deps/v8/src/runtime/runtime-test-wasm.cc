@@ -9,6 +9,7 @@
 #include "src/api/api.h"
 #include "src/base/memory.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/unique-array.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
@@ -96,17 +97,15 @@ void ThrowRangeException(v8::Isolate* isolate, const char* message) {
   isolate->ThrowException(NewRangeException(isolate, message));
 }
 
-bool WasmModuleOverride(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(ValidateCallbackInfo(info));
-  if (IsWasmCompileAllowed(info.GetIsolate(), info[0], false)) return false;
-  ThrowRangeException(info.GetIsolate(), "Sync compile not allowed");
+bool WasmModuleOverride(v8::Isolate* isolate, v8::Local<v8::Value> source) {
+  if (IsWasmCompileAllowed(isolate, source, false)) return false;
+  ThrowRangeException(isolate, "Sync compile not allowed");
   return true;
 }
 
-bool WasmInstanceOverride(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(ValidateCallbackInfo(info));
-  if (IsWasmInstantiateAllowed(info.GetIsolate(), info[0], false)) return false;
-  ThrowRangeException(info.GetIsolate(), "Sync instantiate not allowed");
+bool WasmInstanceOverride(v8::Isolate* isolate, v8::Local<v8::Value> source) {
+  if (IsWasmInstantiateAllowed(isolate, source, false)) return false;
+  ThrowRangeException(isolate, "Sync instantiate not allowed");
   return true;
 }
 
@@ -548,7 +547,7 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
           IsWasmStringViewIter(*value) || IsForeign(*value)) {
         return CrashUnlessFuzzing(isolate);
       }
-      value = wasm::WasmToJSObject(isolate, value);
+      value = wasm::WasmToJSObject(isolate, value, wasm::kUnshareStrings);
       DCHECK(IsPrimitiveHeapObject(*value) || IsJSReceiver(*value));
     }
     externalized_values->set(i, *value);
@@ -778,7 +777,7 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
   }
   // Create and compile the wasm module.
   wasm::ErrorThrower thrower(isolate, "CreateWasmObject");
-  base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(module_bytes);
+  base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(module_bytes);
   wasm::WasmEngine* engine = wasm::GetWasmEngine();
   MaybeDirectHandle<WasmModuleObject> maybe_module_object = engine->SyncCompile(
       isolate, wasm::WasmEnabledFeatures(), wasm::CompileTimeImports(),
@@ -1100,8 +1099,10 @@ RUNTIME_FUNCTION(Runtime_BuildRefTypeBitfield) {
 // builds (to save binary size). Hence also skip the runtime function in
 // official builds.
 #ifdef V8_WASM_RANDOM_FUZZERS
-RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
-  if (v8_flags.jitless) {
+namespace {
+Tagged<Object> GenerateRandomWasmModule(Isolate* isolate, RuntimeArguments args,
+                                        bool for_revec) {
+  if (v8_flags.jitless || (for_revec && !wasm::CheckHardwareSupportsSimd())) {
     return CrashUnlessFuzzing(isolate);
   }
   HandleScope scope{isolate};
@@ -1142,23 +1143,28 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
     }
   }
 
-  // Avoid generating SIMD if the CPU does not support it, or it's disabled via
-  // flags. Otherwise, do not limit the generated expressions and types.
-  constexpr auto kAllOptions =
-      wasm::fuzzing::WasmModuleGenerationOptions::All();
-  constexpr auto kNoSimdOptions = wasm::fuzzing::WasmModuleGenerationOptions{
-      {wasm::fuzzing::WasmModuleGenerationOption::kGenerateWasmGC}};
-  static_assert(
-      (kNoSimdOptions |
-       wasm::fuzzing::WasmModuleGenerationOptions{
-           {wasm::fuzzing::WasmModuleGenerationOption::kGenerateSIMD}}) ==
-      kAllOptions);
-  auto options =
-      wasm::CheckHardwareSupportsSimd() ? kAllOptions : kNoSimdOptions;
+  base::Vector<const uint8_t> module_bytes;
+  if (for_revec) {
+    module_bytes = wasm::fuzzing::GenerateWasmModuleForRevec(
+        &temporary_zone, base::VectorOf(input_bytes));
+  } else {
+    // Avoid generating SIMD if the CPU does not support it, or it's disabled
+    // via flags. Otherwise, do not limit the generated expressions and types.
+    constexpr auto kAllOptions =
+        wasm::fuzzing::WasmModuleGenerationOptions::All();
+    constexpr auto kNoSimdOptions = wasm::fuzzing::WasmModuleGenerationOptions{
+        {wasm::fuzzing::WasmModuleGenerationOption::kGenerateWasmGC}};
+    static_assert(
+        (kNoSimdOptions |
+         wasm::fuzzing::WasmModuleGenerationOptions{
+             {wasm::fuzzing::WasmModuleGenerationOption::kGenerateSIMD}}) ==
+        kAllOptions);
+    auto options =
+        wasm::CheckHardwareSupportsSimd() ? kAllOptions : kNoSimdOptions;
 
-  base::Vector<const uint8_t> module_bytes =
-      wasm::fuzzing::GenerateRandomWasmModule(&temporary_zone, options,
-                                              base::VectorOf(input_bytes));
+    module_bytes = wasm::fuzzing::GenerateRandomWasmModule(
+        &temporary_zone, options, base::VectorOf(input_bytes));
+  }
 
   // Fuzzers can set `--wasm-max-module-size` to small values and then call
   // %WasmGenerateRandomModule() (see https://crbug.com/382816108).
@@ -1171,7 +1177,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
       wasm::GetWasmEngine()->SyncCompile(isolate,
                                          wasm::WasmEnabledFeatures::FromFlags(),
                                          wasm::CompileTimeImports{}, &thrower,
-                                         base::OwnedCopyOf(module_bytes));
+                                         base::UniqueCopyOf(module_bytes));
   if (thrower.error()) {
     FATAL(
         "wasm::GenerateRandomWasmModule produced a module which did not "
@@ -1179,6 +1185,15 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
         thrower.error_msg());
   }
   return *maybe_module_object.ToHandleChecked();
+}
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
+  return GenerateRandomWasmModule(isolate, args, false);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmGenerateRandomRevecModule) {
+  return GenerateRandomWasmModule(isolate, args, true);
 }
 #endif  // V8_WASM_RANDOM_FUZZERS
 

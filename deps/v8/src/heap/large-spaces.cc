@@ -180,7 +180,7 @@ void OldLargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
 #endif  // DEBUG
   static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page);
   page->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
-  AddPage(page, static_cast<size_t>(page->GetObject()->Size()));
+  AddPage(page, page->GetObject()->SafeSize().value());
   page->SetOldGenerationPageFlags(
       heap()->incremental_marking()->marking_mode());
 }
@@ -204,22 +204,22 @@ void LargeObjectSpace::RemovePage(LargePage* page) {
 
 void LargeObjectSpace::ShrinkPageToObjectSize(LargePage* page,
                                               Tagged<HeapObject> object,
-                                              size_t object_size) {
+                                              SafeHeapObjectSize object_size) {
   MemoryChunk* chunk = page->Chunk();
 #ifdef DEBUG
   DCHECK_EQ(object, page->GetObject());
-  DCHECK_EQ(object_size, page->GetObject()->Size());
+  DCHECK_EQ(object_size.value(), page->GetObject()->SafeSize().value());
   DCHECK(!page->is_executable());
 #endif  // DEBUG
 
   const size_t used_committed_size =
-      ::RoundUp(chunk->Offset(object.address()) + object_size,
+      ::RoundUp(chunk->Offset(object.address()) + object_size.value(),
                 MemoryAllocator::GetCommitPageSize());
 
   // Object shrunk since last GC.
-  if (object_size < page->area_size()) {
-    page->ClearOutOfLiveRangeSlots(object.address() + object_size);
-    const Address new_area_end = page->area_start() + object_size;
+  if (object_size.value() < page->area_size()) {
+    page->ClearOutOfLiveRangeSlots(object.address() + object_size.value());
+    const Address new_area_end = page->area_start() + object_size.value();
 
     // Object shrunk enough that we can even free some OS pages.
     if (used_committed_size < page->size()) {
@@ -236,7 +236,7 @@ void LargeObjectSpace::ShrinkPageToObjectSize(LargePage* page,
   }
 
   DCHECK_EQ(used_committed_size, page->size());
-  DCHECK_EQ(object_size, page->area_size());
+  DCHECK_EQ(object_size.value(), page->area_size());
 }
 
 void LargeObjectSpace::UpdateAccountingAfterResizingObject(
@@ -398,7 +398,7 @@ void NewLargeObjectSpace::FreeDeadObjects(
       RemovePage(page);
       heap()->memory_allocator()->Free(free_mode, page);
     } else {
-      surviving_object_size += static_cast<size_t>(object->Size());
+      surviving_object_size += object->SafeSize().value();
     }
   }
   // Right-trimming does not update the objects_size_ counter. We are lazily

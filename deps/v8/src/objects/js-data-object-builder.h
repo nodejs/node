@@ -106,10 +106,15 @@ class JSDataObjectBuilder {
     kNormalHeapNumbers,
     kHeapNumbersGuaranteedUniquelyOwned
   };
+  // If `prototype` is non-null, the object is created with that prototype
+  // instead of the one of the object literal root map (Object.prototype).
+  // The prototype transition is applied to the root map before any property
+  // transitions, so that the resulting map stays in fast mode.
   JSDataObjectBuilder(Isolate* isolate, ElementsKind elements_kind,
                       int expected_named_properties,
                       DirectHandle<Map> expected_final_map,
-                      HeapNumberMode heap_number_mode);
+                      HeapNumberMode heap_number_mode,
+                      DirectHandle<JSPrototype> prototype = {});
 
   // Builds and returns an object whose properties are based on a property
   // iterator.
@@ -182,6 +187,8 @@ class JSDataObjectBuilder {
 
   DirectHandle<Map> expected_final_map_ = {};
   int property_count_in_expected_final_map_ = 0;
+
+  DirectHandle<JSPrototype> prototype_ = {};
 };
 
 }  // namespace internal

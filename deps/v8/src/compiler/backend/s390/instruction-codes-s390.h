@@ -161,6 +161,7 @@ namespace compiler {
   V(S390_StoreWord16)                       \
   V(S390_StoreWord32)                       \
   V(S390_StoreWord64)                       \
+  V(S390_AtomicStoreCompressTagged)         \
   V(S390_StoreReverse16)                    \
   V(S390_StoreReverse32)                    \
   V(S390_StoreReverse64)                    \

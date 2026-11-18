@@ -406,11 +406,7 @@ class Trace {
   bool GetStoredPosition(int reg, int* cp_offset) const;
   // These set methods and AdvanceCurrentPositionInTrace should be used only on
   // new traces - the intention is that traces are immutable after creation.
-  void add_action(ActionNode* new_action) {
-    DCHECK(action_ == nullptr);  // Otherwise we lose an action.
-    action_ = new_action;
-    flags_ = HasAnyActionsField::update(flags_, true);
-  }
+  void add_action(ActionNode* new_action);
   // Clears any inherited parked-position grant; see parked_grant() for when
   // an alternative must do this.
   void reset_parked_grant() {
@@ -559,6 +555,11 @@ class FrequencyCollator {
     total_samples_++;
   }
 
+  // Replaces the sampled frequencies with a static table of typical subject
+  // string frequencies, so that generated code does not depend on the subject
+  // (see --regexp-static-frequencies).
+  void UseStaticFrequencies();
+
   // Does not measure in percent, but rather per-128 (the table size from the
   // regexp macro assembler).
   int Frequency(int in_character) {
@@ -577,6 +578,7 @@ class FrequencyCollator {
         : counter_(0), character_(character) {}
 
     void Increment() { counter_++; }
+    void Add(int n) { counter_ += n; }
     int counter() { return counter_; }
     int character() { return character_; }
 
@@ -644,12 +646,7 @@ class V8_EXPORT_PRIVATE Compiler {
   // - Wrapping the body of the regexp in capture 0.
   // - Inserting the implicit .* before/after the regexp if necessary.
   // - If the input is a one-byte string, filtering out nodes that can't match.
-  // - Fixing up regexp matches that start within a surrogate pair.
   Node* PreprocessRegExp(CompileData* data, bool is_one_byte);
-
-  // If the regexp matching starts within a surrogate pair, step back to the
-  // lead surrogate and start matching from there.
-  Node* OptionallyStepBackToLeadSurrogate(Node* on_success);
 
   struct WorkItem {
     Node* node;

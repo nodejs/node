@@ -1,0 +1,58 @@
+diff --git a/src/runtime/runtime.cc b/src/runtime/runtime.cc
+index 1ef30be09a1..8331c6df048 100644
+--- a/src/runtime/runtime.cc
++++ b/src/runtime/runtime.cc
+@@ -194,7 +194,7 @@ bool Runtime::MayAllocate(FunctionId id) {
+   }
+ }
+ 
+-bool Runtime::IsEnabledForFuzzing(FunctionId id) {
++bool Runtime::IsAllowedForFuzzing(FunctionId id) {
+   CHECK(v8_flags.fuzzing);
+ 
+   // In general, all runtime functions meant for testing should also be exposed
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 59b656e4b45..6400863a02d 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -1009,7 +1009,7 @@ class V8_EXPORT_PRIVATE Runtime : public AllStatic {
+   static bool MayAllocate(FunctionId id);
+ 
+   // Check if a runtime function with the given {id} is enabled for fuzzing.
+-  static bool IsEnabledForFuzzing(FunctionId id);
++  static bool IsAllowedForFuzzing(FunctionId id);
+ 
+   // Get the intrinsic function with the given name.
+   static const Function* FunctionForName(const unsigned char* name, int length);
+diff --git a/src/sandbox/js-dispatch-table.h b/src/sandbox/js-dispatch-table.h
+index ee58c6b4367..b41566a3c74 100644
+--- a/src/sandbox/js-dispatch-table.h
++++ b/src/sandbox/js-dispatch-table.h
+@@ -140,7 +140,8 @@ struct JSDispatchEntry {
+   // On x64, the entry is 32 bytes to support full 57-bit (LA57) pointers.
+   // Following the entrypoint word, the second word contains the tagged Code
+   // object pointer, the third word contains the marking bit and 16-bit
+-  // parameter count, and the fourth word is unused padding:
++  // parameter count, and the fourth word stores the 64-bit invocation counter
++  // call_count_:
+   //
+   // +----------------------------------------------------------+
+   // | Bits 63 ... 0                                            |
+@@ -150,7 +151,7 @@ struct JSDispatchEntry {
+   // |  Unused              |  Marking bit  |  Parameter count  |
+   // +----------------------+---------------+-------------------+
+   // | Bits 63 ... 0                                            |
+-  // |  Padding (unused)                                        |
++  // |  Invocation count (call_count_)                          |
+   // +----------------------------------------------------------+
+   //
+   // On the other 64 bit architectures the second word of the entry contains (1)
+@@ -185,7 +186,7 @@ struct JSDispatchEntry {
+   std::atomic<Address> encoded_word_;
+ 
+ #if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+-  [[maybe_unused]] uint64_t padding_;
++  std::atomic<uint64_t> call_count_;
+ #elif defined(V8_TARGET_ARCH_32_BIT)
+   // TODO(olivf): Investigate if we could shrink the entry size on 32bit
+   // platforms to 12 bytes.

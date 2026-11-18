@@ -392,6 +392,16 @@ TEST(FlatHashSet, IsDefaultHash) {
   EXPECT_EQ(HashtableDebugAccess<flat_hash_set<int>>::kIsAbslHash, true);
   EXPECT_EQ(HashtableDebugAccess<flat_hash_set<std::string>>::kIsAbslHash,
             true);
+  EXPECT_EQ(HashtableDebugAccess<flat_hash_set<std::wstring>>::kIsAbslHash,
+            true);
+  EXPECT_EQ(HashtableDebugAccess<flat_hash_set<int*>>::kIsAbslHash, true);
+  EXPECT_EQ(
+      HashtableDebugAccess<flat_hash_set<std::unique_ptr<int>>>::kIsAbslHash,
+      true);
+  using TransparentStringHashSet =
+      flat_hash_set<std::string,
+                    absl::TransparentHash<std::string, std::string_view>>;
+  EXPECT_EQ(HashtableDebugAccess<TransparentStringHashSet>::kIsAbslHash, true);
 
   struct Hash {
     size_t operator()(size_t i) const { return i; }

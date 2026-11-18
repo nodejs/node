@@ -20,6 +20,7 @@
 #include "src/objects/map.h"
 #include "src/objects/string.h"
 #include "src/roots/static-roots.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {

@@ -120,7 +120,6 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> raw = *obj;
     DCHECK(!IsInstructionStream(raw));
-    if (SerializeHotObject(raw)) return;
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
   }
 
@@ -143,8 +142,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     info->RemoveCallbackRedirectionForSerialization(isolate());
     function_template_infos_.Push(*info);
   } else if (IsScript(*obj) && Cast<Script>(obj)->IsUserJavaScript()) {
-    Cast<Script>(obj)->set_context_data(
-        ReadOnlyRoots(isolate()).uninitialized_symbol());
+    Cast<Script>(obj)->set_is_embedded(true);
   } else if (IsSharedFunctionInfo(*obj)) {
     // Clear inferred name for native functions.
     auto shared = Cast<SharedFunctionInfo>(obj);
@@ -174,6 +172,7 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   isolate()->heap()->IterateWeakRoots(
       this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
   SerializeDeferredObjects();
+  OptimizeBackReferences();
   Pad();
 }
 
@@ -191,7 +190,8 @@ void StartupSerializer::SerializeStrongReferences(
   isolate->heap()->IterateSmiRoots(this);
   isolate->heap()->IterateRoots(
       this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak,
-                                    SkipRoot::kTracedHandles});
+                                    SkipRoot::kTracedHandles,
+                                    SkipRoot::kReadOnlyBuiltins});
 }
 
 SerializedHandleChecker::SerializedHandleChecker(

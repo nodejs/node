@@ -479,18 +479,17 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ MacroAssembler::Branch(&end, ne, res, Operand(zero_reg),
                             Label::Distance::kNear);
   {
+    // Both inputs are sign-extended, which MulOverflow32 above relies on as
+    // well, so their bitwise or is negative exactly when one of them is.
     Register maybeNegative = scratch;
     __ Or(maybeNegative, left, Operand(right));
-    // TODO(Vladimir Kempik): consider usage of bexti instruction if Zbs
-    // extension is available
-    __ And(maybeNegative, maybeNegative, Operand(0x80000000));  // 1 << 31
     // If one of them is negative, we must have a -0 result, which is non-int32,
     // so deopt.
     // TODO(leszeks): Consider splitting these deopts to have distinct deopt
     // reasons. Otherwise, the reason has to match the above.
     __ RecordComment("-- Jump to eager deopt if the result is negative zero");
     Label* deopt_label = __ GetDeoptLabel(this, DeoptimizeReason::kOverflow);
-    __ MacroAssembler::Branch(deopt_label, ne, maybeNegative,
+    __ MacroAssembler::Branch(deopt_label, lt, maybeNegative,
                               Operand(zero_reg));
   }
 
@@ -584,10 +583,6 @@ void Int32ModulusWithOverflow::SetValueLocationConstraints() {
 }
 void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
-  // If AreAliased(lhs, rhs):
-  //   deopt if lhs < 0  // Minus zero.
-  //   0
-  //
   // Using same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
@@ -614,16 +609,6 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // For the modulus algorithm described above, lhs and rhs must not alias
   // each other.
-  if (lhs == rhs) {
-    // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
-    // allows one deopt reason per IR.
-    Label* deopt = __ GetDeoptLabel(this, DeoptimizeReason::kDivisionByZero);
-    __ RecordComment("-- Jump to eager deopt");
-    __ MacroAssembler::Branch(deopt, less, lhs, Operand(zero_reg));
-    __ Move(out, zero_reg);
-    return;
-  }
-
   DCHECK(!AreAliased(lhs, rhs));
 
   ZoneLabelRef done(masm);
@@ -837,8 +822,14 @@ void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   DoubleRegister input = ToDoubleRegister(ValueInput());
   DoubleRegister result = ToDoubleRegister(this->result());
-  __ fcvt_s_d(result, input);
-  __ fcvt_d_s(result, result);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  DoubleRegister scratch = temps.AcquireScratchDouble();
+  // fcvt_s_d/fcvt_d_s turn every NaN into the positive canonical NaN. Copy
+  // the sign back from the input, matching CodeGenerator's kRiscvCvtSD and
+  // kRiscvCvtDS. For non-NaN values the sign is already correct.
+  __ fcvt_s_d(scratch, input);
+  __ fcvt_d_s(scratch, scratch);
+  __ fsgnj_d(result, scratch, input);
 }
 
 void Float64Round::GenerateCode(MaglevAssembler* masm,
@@ -1022,7 +1013,9 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
     __ bind(&limit_not_zero);
   }
   Label index_no_oob;
-  __ SignExtendWord(index, index);
+  // {index} is sign-extended, so a negative index is a huge unsigned value
+  // and fails the check below.
+  __ AssertSignExtended(index);
   __ MacroAssembler::Branch(&index_no_oob, ult, index, Operand(limit),
                             Label::Distance::kNear);
   __ EmitEagerDeopt(this, DeoptimizeReason::kOutOfBounds);
@@ -1103,7 +1096,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
     save_register_state.DefineSafepoint();
   }
-  __ MacroAssembler::Branch(*done);
+  __ Jump(*done);
 }
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
@@ -1187,14 +1180,17 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ LeaveFrame(StackFrame::MAGLEV);
 
   // If actual is bigger than formal, then we should use it to free up the stack
-  // arguments.
-  Label corrected_args_count;
-  __ MacroAssembler::Branch(&corrected_args_count, gt, actual_params_size,
-                            Operand(formal_params_size),
-                            Label::Distance::kNear);
-  __ Move(actual_params_size, formal_params_size);
+  // arguments. Both counts include the receiver, so without formal parameters
+  // the actual count is never smaller.
+  if (formal_params_size > 1) {
+    Label corrected_args_count;
+    __ MacroAssembler::Branch(&corrected_args_count, gt, actual_params_size,
+                              Operand(formal_params_size),
+                              Label::Distance::kNear);
+    __ Move(actual_params_size, formal_params_size);
+    __ bind(&corrected_args_count);
+  }
 
-  __ bind(&corrected_args_count);
   // Drop receiver + arguments according to dynamic arguments size.
   __ DropArguments(actual_params_size);
   __ Ret();

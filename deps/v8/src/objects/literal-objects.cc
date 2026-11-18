@@ -9,7 +9,7 @@
 #include "src/builtins/accessors.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
-#include "src/heap/factory.h"
+#include "src/heap/factory-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -100,14 +100,24 @@ void AddToDescriptorArrayTemplate(
       SetAccessorPlaceholderIndices(*pair, value_kind, Cast<Smi>(*value));
       d = Descriptor::AccessorConstant(name, pair, DONT_ENUM);
     }
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    if (descriptor_array_template->number_of_descriptors() ==
+        DescriptorArray::kMaxElementsForLinearSearch) {
+      DescriptorArray::EnsureLookupTable(isolate, descriptor_array_template);
+    }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     descriptor_array_template->Append(&d);
 
   } else {
     // Entry found, update it.
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     int sorted_index = descriptor_array_template->GetDetails(entry).pointer();
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     if (value_kind == ClassBoilerplate::kData) {
       Descriptor d = Descriptor::DataConstant(name, value, DONT_ENUM);
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
       d.SetSortedKeyIndex(sorted_index);
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
       descriptor_array_template->Set(entry, &d);
     } else {
       DCHECK(value_kind == ClassBoilerplate::kGetter ||
@@ -122,7 +132,9 @@ void AddToDescriptorArrayTemplate(
         DirectHandle<AccessorPair> new_pair =
             isolate->factory()->NewAccessorPair();
         Descriptor d = Descriptor::AccessorConstant(name, new_pair, DONT_ENUM);
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
         d.SetSortedKeyIndex(sorted_index);
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
         descriptor_array_template->Set(entry, &d);
         pair = *new_pair;
       }
@@ -558,6 +570,12 @@ class ObjectDescriptor {
       Descriptor d = is_accessor
                          ? Descriptor::AccessorConstant(name, value, attribs)
                          : Descriptor::DataConstant(name, value, attribs);
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+      if (descriptor_array_template_->number_of_descriptors() ==
+          DescriptorArray::kMaxElementsForLinearSearch) {
+        DescriptorArray::EnsureLookupTable(isolate, descriptor_array_template_);
+      }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
       descriptor_array_template_->Append(&d);
     }
   }
@@ -614,7 +632,11 @@ class ObjectDescriptor {
             next_enumeration_index_);
       }
     } else {
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+      DCHECK(descriptor_array_template_->VerifyLookupTable());
+#else
       DCHECK(descriptor_array_template_->IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     }
   }
 
@@ -807,20 +829,14 @@ Handle<ClassBoilerplate> ClassBoilerplate::New(IsolateT* isolate,
   static_desc.Finalize(isolate);
   instance_desc.Finalize(isolate);
 
-  auto result = Cast<ClassBoilerplate>(
-      factory->NewStruct(CLASS_BOILERPLATE_TYPE, allocation));
-
-  result->set_arguments_count(dynamic_argument_index);
-
-  result->set_static_properties_template(*static_desc.properties_template());
-  result->set_static_elements_template(*static_desc.elements_template());
-  result->set_static_computed_properties(*static_desc.computed_properties());
-
-  result->set_instance_properties_template(
-      *instance_desc.properties_template());
-  result->set_instance_elements_template(*instance_desc.elements_template());
-  result->set_instance_computed_properties(
-      *instance_desc.computed_properties());
+  Handle<ClassBoilerplate> result = indirect_handle(
+      factory->template New<ClassBoilerplate>(
+          allocation, dynamic_argument_index, static_desc.properties_template(),
+          static_desc.elements_template(), static_desc.computed_properties(),
+          instance_desc.properties_template(),
+          instance_desc.elements_template(),
+          instance_desc.computed_properties()),
+      isolate);
 
   return scope.CloseAndEscape(result);
 }

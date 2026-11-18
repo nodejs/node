@@ -15,13 +15,16 @@
 #define LLVM_LIBC_SHARED_MATH_STATIC_ROUNDING_EXPF_H
 
 #include "shared/libc_common.h"
+#include "src/__support/macros/config.h"
 #include "src/__support/math/expf_integer_eval.h"
 
 namespace LIBC_NAMESPACE_DECL {
 namespace shared {
+namespace static_rounding {
 
 using math::static_rounding::expf;
 
+} // namespace static_rounding
 } // namespace shared
 } // namespace LIBC_NAMESPACE_DECL
 

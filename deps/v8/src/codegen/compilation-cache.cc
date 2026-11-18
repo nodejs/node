@@ -156,8 +156,8 @@ CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
 void CompilationCacheScript::Put(
     Handle<String> source, DirectHandle<SharedFunctionInfo> function_info) {
   Handle<CompilationCacheTable> table = GetTable();
-  table_ = *CompilationCacheTable::PutScript(table, source, kNullMaybeHandle,
-                                             function_info, isolate());
+  table_ = *CompilationCacheTable::PutScript(table, source, function_info,
+                                             isolate());
 }
 
 void CompilationCacheEval::UpdateEval(

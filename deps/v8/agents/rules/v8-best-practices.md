@@ -30,9 +30,30 @@ When proposing a fix, ensure the code adheres to V8 standards:
 - **Cross-Feature Awareness**: Understand how optimizations interact with core
   V8 features like Lazy Compilation, Ignition bytecode generation, and
   TurboFan/Maglev optimizations.
+- **Fail Fast Over Defensive Workarounds**: Never introduce defensive
+  programming patterns to paper over unexpected compiler states or invariant
+  violations (e.g., silent early returns, fallback dummy values, defensive
+  clamping, or non-exhaustive switch `default: break;`). If an invariant is
+  expected to hold, assert it via `DCHECK` or `CHECK` so that violations are
+  caught immediately by debug builds and fuzzers rather than masked.
+- **Encapsulation**: Encapsulate data-structure mutations as methods on the
+  owning class rather than duplicating low-level steps across callers.
 - **Mandatory Reproducer Rule**: Unless explicitly specified otherwise by the
   user, **every single bug fix in V8 MUST be uploaded with a working reproducer
-  (regression test)**. Uploading just the fix alone is NEVER acceptable.
+  (regression test)**. Uploading just the fix alone is NEVER acceptable. Always
+  verify that every regression test (and every test case within it) a) actually
+  exercises the specific code path/fix being tested and b) fails without the fix
+  (for `%OptimizeFunctionOnNextCall` tests targeting Maglev, omit
+  `--optimize-on-next-call-optimizes-to-maglev` from `// Flags:` in the test
+  file and verify failure under `--variants=stress_maglev`).
+- **Documentation Sync Requirement**: Whenever a CL changes V8 architecture,
+  data structures, object layouts, pipeline passes, bytecodes/IR nodes, flags,
+  or cross-tier invariants (or adds a feature or bug fix that invalidates or
+  expands a concept covered in `docs/`), search `docs/` (`git --no-pager grep`
+  across `docs/` or run the `doc-invalidation-checker` skill) and update the
+  relevant `.md` file(s) in the same CL. Keep `docs/security/triaging.md`
+  unchanged unless explicitly requested by the user, as it is maintained
+  manually.
 
 ## Technical Guardrails & Guidelines
 
@@ -41,9 +62,17 @@ When proposing a fix, ensure the code adheres to V8 standards:
   a missing definition, you are likely missing an `#include` for a `-inl.h`
   file. You can only include `-inl.h` files from other `-inl.h` files and `.cc`
   files.
-- **Cleanup Constraint**: Keep diffs small by changing only the code intended
-  for the task. Propose cleanups to nearby code as a separate patch to keep the
-  current change focused.
+- **`.cc` vs. `.h` Placement & Anonymous Namespaces**: Place non-trivial,
+  non-hot method definitions in the corresponding `.cc` file rather than inline
+  in `.h`, and place file-local helpers that do not need `this` in an anonymous
+  `namespace {}` in the `.cc` file rather than as private class methods.
+- **Pre-Upload Diff Self-Review**: Inspect `git diff` before uploading to ensure
+  minimal diff noise, tight local variable scopes (declaring variables at first
+  use), clean regression tests, and synchronized `docs/` updates for any
+  modified invariants, classes, passes, or flags.
+- **Cleanup Constraint**: Keep diffs small by changing only the code and `docs/`
+  documentation intended for the task. Propose cleanups to nearby unrelated code
+  as a separate patch to keep the current change focused.
 - **Supported Architectures**: For most changes and bug fixes, it is fine to
   omit not officially supported architectures and only implement or fix the main
   four: `ia32`, `x64`, `arm`, and `arm64`. Architectures without official Google
@@ -61,6 +90,13 @@ When proposing a fix, ensure the code adheres to V8 standards:
 - **Match test configuration to build:** Ensure you are running tests against
   the correct build type (e.g., run mjsunit from out/x64.debug if you built
   x64.debug).
+- **Relocating or copying `d8` binaries (`icudtl.dat` and
+  `snapshot_blob.bin`):** `d8` resolves `icudtl.dat` and `snapshot_blob.bin`
+  relative to the executable directory. When comparing baseline vs. modified
+  `d8` across commits, either use a separate build directory (e.g.,
+  `out/x64.release-baseline`) or, if copying `out/<config>/d8` to a scratch
+  directory, also copy (do not symlink) `icudtl.dat` and `snapshot_blob.bin`
+  alongside the copied binary.
 - **Check surrounding code for conventions:** Before adding new code, always
   study the existing patterns, naming conventions, and architectural choices in
   the file and directory you are working in.

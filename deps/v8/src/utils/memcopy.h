@@ -41,16 +41,21 @@ inline void MemCopyAndSwitchEndianness(void* dst, const void* src,
 
 // Copies words from |src| to |dst|. The data spans must not overlap.
 // |src| and |dst| must be TWord-size aligned.
-template <typename T>
-inline void CopyImpl(T* dst_ptr, const T* src_ptr, size_t count) {
-  constexpr int kTWordSize = sizeof(T);
+template <typename T, typename U>
+inline void CopyImpl(T* dst_ptr, const T* src_ptr, U count) {
+  static_assert(std::is_unsigned_v<U>);
+  static_assert(sizeof(U) >= sizeof(uint32_t));
+  constexpr U kTWordSize = sizeof(T);
 #ifdef DEBUG
   Address dst = reinterpret_cast<Address>(dst_ptr);
   Address src = reinterpret_cast<Address>(src_ptr);
   DCHECK(IsAligned(dst, kTWordSize));
   DCHECK(IsAligned(src, kTWordSize));
 #endif
-  MemCopy(dst_ptr, src_ptr, count * kTWordSize);
+  // Preserve the domain of `count`. This ensures that e.g. `uint32_t` counts
+  // stay within `uint32_t` byte range for security reasons.
+  const U byte_size = count * kTWordSize;
+  MemCopy(dst_ptr, src_ptr, byte_size);
 }
 
 // Copies `count` system words from `src` to `dst`.  The data spans must not
@@ -61,8 +66,10 @@ inline void CopyWords(Address dst, const Address src, size_t count) {
 }
 
 // Copies `count` tagged words from `src` to `dst`.  The data spans must not
-// overlap. `src` and `dst` must be kTaggedSize-aligned.
-inline void CopyTagged(Address dst, const Address src, size_t count) {
+// overlap. `src` and `dst` must be kTaggedSize-aligned. The size is passed as
+// `uint32_t` as tagged copies are only used for on-heap objects which never
+// exceed the 32-bit range.
+inline void CopyTagged(Address dst, const Address src, uint32_t count) {
   CopyImpl(reinterpret_cast<Tagged_t*>(dst),
            reinterpret_cast<const Tagged_t*>(src), count);
 }

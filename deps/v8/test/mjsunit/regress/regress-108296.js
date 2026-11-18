@@ -40,7 +40,7 @@ function f(k, a, b) {
 %PrepareFunctionForOptimization(f);
 var a = {};
 
-// Make sure that foo is a CONSTANT_FUNCTION but not be pretenured.
+// Make sure that foo is a CONSTANT_FUNCTION in new space.
 a.foo = function() {
   return function() {};
 }();

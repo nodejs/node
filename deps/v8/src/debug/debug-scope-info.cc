@@ -121,7 +121,8 @@ using VariableLocationBits = base::BitField<VariableLocation, 0, 4, uint16_t>;
 using VariableModeBits = VariableLocationBits::Next<VariableMode, 4>;
 using IsSyntheticBit = VariableModeBits::Next<bool, 1>;
 using IsReceiverBit = IsSyntheticBit::Next<bool, 1>;
-static_assert(IsReceiverBit::kLastUsedBit < 16);
+using IsHoleInitializationElidedBit = IsReceiverBit::Next<bool, 1>;
+static_assert(IsHoleInitializationElidedBit::kLastUsedBit < 16);
 
 // Encodes receiver, arguments, or function variable allocation info into a
 // 32-bit word:
@@ -444,6 +445,8 @@ DebugVariableInfo DebugScriptScope::variable(int index) const {
       .initializer_position = entry.initializer_position,
       .is_synthetic = IsSyntheticBit::decode(entry.location_mode_flags),
       .is_receiver = IsReceiverBit::decode(entry.location_mode_flags),
+      .is_hole_initialization_elided =
+          IsHoleInitializationElidedBit::decode(entry.location_mode_flags),
   };
 }
 
@@ -640,11 +643,16 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
       // Variable::IsReceiver() asserts IsParameter() in debug builds.
       bool is_receiver = var->IsParameter() && var->IsReceiver();
       // LINT.ThenChange(/src/ast/variables.h:VariableIsReceiver)
+      bool is_hole_initialization_elided =
+          var->initialization_flag() == kNeedsInitialization &&
+          !var->binding_needs_init();
       uint16_t var_flags = 0;
       var_flags = VariableLocationBits::update(var_flags, var->location());
       var_flags = VariableModeBits::update(var_flags, var->mode());
       var_flags = IsSyntheticBit::update(var_flags, is_synthetic);
       var_flags = IsReceiverBit::update(var_flags, is_receiver);
+      var_flags = IsHoleInitializationElidedBit::update(
+          var_flags, is_hole_initialization_elided);
 
       writer.Write<DebugVariableEntry>(DebugVariableEntry{
           .slot_index = var->index(),
@@ -745,6 +753,15 @@ std::optional<DebugScriptScope> FindClosureScope(
   return std::nullopt;
 }
 
+std::optional<DebugScriptScope> FindClosureScope(
+    DirectHandle<DebugScriptScopeInfo> info,
+    Tagged<SharedFunctionInfo> shared) {
+  ScopeType scope_type = shared->scope_info()->scope_type();
+  if (scope_type != FUNCTION_SCOPE) return DebugScriptScope::FromIndex(info, 0);
+  return FindClosureScope(info, shared->StartPosition(), shared->EndPosition(),
+                          scope_type);
+}
+
 namespace {
 
 // Visits all descendants of `scope` and narrows `*best` down to the scope with
@@ -753,6 +770,7 @@ void NarrowToInnermostScope(DebugScriptScope scope, int position,
                             DebugScriptScope* best) {
   for (std::optional<DebugScriptScope> child = scope.first_child();
        child.has_value(); child = child->next_sibling()) {
+    if (child->is_function_scope()) continue;
     // Update `*best` if `child` contains `position` and is a tighter fit than
     // the currently best scope. Generators have the same source position as
     // the scope they belong to, so we also check for equality.
@@ -772,6 +790,28 @@ DebugScriptScope FindInnermostScope(DebugScriptScope closure_scope,
   DebugScriptScope best = closure_scope;
   NarrowToInnermostScope(closure_scope, position, &best);
   return best;
+}
+
+std::optional<DebugScriptScope> FindEvalOuterScope(
+    Isolate* isolate, DirectHandle<Script> script) {
+  if (script->compilation_kind() != Script::CompilationKind::kDirectEval ||
+      !script->has_eval_from_shared()) {
+    return std::nullopt;
+  }
+  DirectHandle<SharedFunctionInfo> outer_shared(script->eval_from_shared(),
+                                                isolate);
+  if (!IsScript(outer_shared->script())) return std::nullopt;
+  DirectHandle<Script> outer_script(Cast<Script>(outer_shared->script()),
+                                    isolate);
+  Handle<DebugScriptScopeInfo> outer_info =
+      EnsureDebugScriptScopeInfo(isolate, outer_script);
+  if (outer_info.is_null()) return std::nullopt;
+
+  std::optional<DebugScriptScope> closure_scope =
+      FindClosureScope(outer_info, *outer_shared);
+  if (!closure_scope.has_value()) return std::nullopt;
+  return FindInnermostScope(*closure_scope,
+                            Script::GetEvalPosition(isolate, script));
 }
 
 #ifdef VERIFY_HEAP
@@ -888,6 +928,30 @@ void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
   }
 }
 #endif  // VERIFY_HEAP
+
+bool IsDebuggerVisibleParent(const DebugScriptScope& child,
+                             const DebugScriptScope& parent) {
+  if (!parent.is_hidden()) return true;
+  if (parent.variable_count() == 0) return false;
+
+  for (int p = 0; p < parent.variable_count(); ++p) {
+    DebugVariableInfo parent_var = parent.variable(p);
+    if (parent_var.is_synthetic) continue;
+
+    bool redeclared = false;
+    for (int c = 0; c < child.variable_count(); ++c) {
+      DebugVariableInfo child_var = child.variable(c);
+      if (child_var.is_synthetic) continue;
+      if (child_var.name == parent_var.name) {
+        redeclared = true;
+        break;
+      }
+    }
+    if (!redeclared) return true;
+  }
+
+  return false;
+}
 
 }  // namespace internal
 }  // namespace v8

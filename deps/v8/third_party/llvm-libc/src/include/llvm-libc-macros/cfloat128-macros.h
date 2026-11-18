@@ -14,12 +14,12 @@
 // Currently, the complex variant of C23 `_Float128` type is only defined as a
 // built-in type in GCC 7 or later, for C and in GCC 13 or later, for C++. For
 // clang, the complex variant of `__float128` is defined instead, and only on
-// x86-64 targets for clang 11 or later.
+// x86-64 targets for clang 18.1 or later.
 //
 // TODO: Update the complex variant of C23 `_Float128` type detection again when
 // clang supports it.
 #ifdef __clang__
-#if (__clang_major__ >= 11) &&                                                 \
+#if (__clang_major__ * 100 + __clang_minor__ >= 1801) &&                       \
     (defined(__FLOAT128__) || defined(__SIZEOF_FLOAT128__))
 // Use _Complex __float128 type. clang uses __SIZEOF_FLOAT128__ or __FLOAT128__
 // macro to notify the availability of __float128 type:

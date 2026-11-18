@@ -486,11 +486,6 @@ void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
   GotoIf(TaggedIsSmi(obj), if_cannot_be_held_weakly);
   TNode<Uint16T> instance_type = LoadMapInstanceType(LoadMap(CAST(obj)));
   GotoIfNot(IsJSReceiverInstanceType(instance_type), &check_symbol_key);
-  // TODO(v8:12547) Shared structs and arrays should only be able to point
-  // to shared values in weak collections. For now, disallow them as weak
-  // collection keys.
-  GotoIf(IsAlwaysSharedSpaceJSObjectInstanceType(instance_type),
-         if_cannot_be_held_weakly);
 #if V8_ENABLE_WEBASSEMBLY
   GotoIf(IsWasmObjectInstanceType(instance_type), &check_not_in_shared_space);
 #endif
@@ -506,7 +501,7 @@ void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
   Bind(&check_symbol_key);
   GotoIfNot(IsSymbolInstanceType(instance_type), if_cannot_be_held_weakly);
   TNode<Uint32T> flags = LoadSymbolFlags(CAST(obj));
-  Branch(Word32And(flags, Symbol::IsInPublicSymbolTableBit::kMask),
+  Branch(Word32And(flags, Symbol::Flags::IsInPublicSymbolTableBit::kMask),
          if_cannot_be_held_weakly, &end);
 
   Bind(&end);
@@ -2750,9 +2745,9 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::GetHash(
   Goto(&return_result);
   Bind(&if_symbol);
   CSA_DCHECK(this, IsSymbol(key));
-  CSA_DCHECK(this, Word32BinaryNot(
-                       Word32And(LoadSymbolFlags(CAST(key)),
-                                 Symbol::IsInPublicSymbolTableBit::kMask)));
+  CSA_DCHECK(this, Word32BinaryNot(Word32And(
+                       LoadSymbolFlags(CAST(key)),
+                       Symbol::Flags::IsInPublicSymbolTableBit::kMask)));
   var_hash = Signed(ChangeUint32ToWord(LoadNameHashAssumeComputed(CAST(key))));
   Goto(&return_result);
   Bind(&return_result);
@@ -3213,7 +3208,7 @@ TF_BUILTIN(WeakMapPrototypeSet, WeakCollectionsBuiltinsAssembler) {
       CallBuiltin(Builtin::kWeakCollectionSet, context, receiver, key, value));
 
   BIND(&throw_invalid_key);
-  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey, key);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey);
 }
 
 TF_BUILTIN(WeakMapPrototypeGetOrInsert, WeakCollectionsBuiltinsAssembler) {
@@ -3241,7 +3236,7 @@ TF_BUILTIN(WeakMapPrototypeGetOrInsert, WeakCollectionsBuiltinsAssembler) {
   Return(value.value());
 
   BIND(&throw_invalid_key);
-  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey, key);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey);
 }
 
 TF_BUILTIN(WeakMapPrototypeGetOrInsertComputed,
@@ -3276,7 +3271,7 @@ TF_BUILTIN(WeakMapPrototypeGetOrInsertComputed,
   Return(value);
 
   BIND(&throw_invalid_key);
-  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey, key);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey);
 }
 
 TF_BUILTIN(WeakSetPrototypeAdd, WeakCollectionsBuiltinsAssembler) {
@@ -3294,7 +3289,7 @@ TF_BUILTIN(WeakSetPrototypeAdd, WeakCollectionsBuiltinsAssembler) {
                      TrueConstant()));
 
   BIND(&throw_invalid_value);
-  ThrowTypeError(context, MessageTemplate::kInvalidWeakSetValue, value);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakSetValue);
 }
 
 TF_BUILTIN(WeakSetPrototypeDelete, CodeStubAssembler) {

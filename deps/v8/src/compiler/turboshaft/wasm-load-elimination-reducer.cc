@@ -99,6 +99,9 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kWasmAllocateArray:
         ProcessWasmAllocateArray(op_idx, op.Cast<WasmAllocateArrayOp>());
         break;
+      case Opcode::kWasmAllocateStruct:
+        ProcessWasmAllocateStruct(op_idx, op.Cast<WasmAllocateStructOp>());
+        break;
       case Opcode::kStringAsWtf16:
         ProcessStringAsWtf16(op_idx, op.Cast<StringAsWtf16Op>());
         break;
@@ -113,10 +116,6 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // TODO(14108): We'll probably want to handle WasmTypeCast as
         // a "load-like" instruction too, to eliminate repeated casts.
         ProcessAssertNotNull(op_idx, op.Cast<AssertNotNullOp>());
-        break;
-      case Opcode::kAllocate:
-        // Create new non-alias.
-        ProcessAllocate(op_idx, op.Cast<AllocateOp>());
         break;
       case Opcode::kCall:
         // Invalidate state (+ maybe invalidate aliases).
@@ -141,13 +140,6 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
           memory_.InvalidateMutableSharedBase();
         }
         break;
-      case Opcode::kCatchBlockBegin:
-        // Throwing an exception can have arbitrary side effects (e.g., via
-        // debugger pause-on-exception), even when the throwing operation itself
-        // does not have `can_write` effects on its non-throwing path.
-        memory_.InvalidateMaybeAliasing();
-        break;
-
       case Opcode::kGlobalSet:
         InvalidateIfAlias(op.Cast<GlobalSetOp>().value());
         break;
@@ -156,6 +148,10 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kMemoryFill:
         // These should never operate on GC objects.
       case Opcode::kAssumeMap:
+      case Opcode::kCatchBlockBegin:
+        // Throwing ops handle their own side effects, and Debug::OnException
+        // skips pausing on optimized Wasm frames (and lazy-deoptimizes
+        // optimized JS frames).
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
       case Opcode::kCheckException:
@@ -182,6 +178,11 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kComparison:
       case Opcode::kTrapIf:
       case Opcode::kWasmTrap:
+      case Opcode::kIsNull:
+      case Opcode::kIsRootConstant:
+      case Opcode::kWasmTypeCheck:
+      case Opcode::kWasmTypeAnnotation:
+      case Opcode::kWasmTypeCast:
         // We explicitly break for these opcodes so that we don't call
         // InvalidateAllNonAliasingInputs on their inputs, since they don't
         // really create aliases. (and also, they don't write so it's
@@ -191,6 +192,8 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
 
       case Opcode::kDeoptimize:
       case Opcode::kReturn:
+      case Opcode::kTailCall:
+      case Opcode::kUnreachable:
         // We explicitly break for these opcodes so that we don't call
         // InvalidateAllNonAliasingInputs on their inputs, since they are block
         // terminators without successors, meaning that it's not useful for the
@@ -328,10 +331,7 @@ void WasmLoadEliminationAnalyzer::ProcessStructSet(OpIndex op_idx,
   }
 
   // Updating aliases if the value stored was known as non-aliasing.
-  OpIndex value = set.value();
-  if (non_aliasing_objects_.HasKeyFor(value)) {
-    non_aliasing_objects_.Set(value, false);
-  }
+  InvalidateIfAlias(set.value());
 }
 
 void WasmLoadEliminationAnalyzer::ProcessStructAtomicRMW(
@@ -341,6 +341,9 @@ void WasmLoadEliminationAnalyzer::ProcessStructAtomicRMW(
   memory_.Invalidate(op);
   // See ProcessStructGet/Set.
   memory_.InvalidateMutableSharedBase();
+
+  // Updating aliases if the value stored was known as non-aliasing.
+  InvalidateIfAlias(op.value());
 }
 
 void WasmLoadEliminationAnalyzer::ProcessArrayAtomicRMW(
@@ -349,11 +352,14 @@ void WasmLoadEliminationAnalyzer::ProcessArrayAtomicRMW(
   // the state because array atomic operations could be used to sync among
   // threads.
   memory_.InvalidateMutableSharedBase();
+
+  // Updating aliases if the value stored was known as non-aliasing.
+  InvalidateIfAlias(op.value());
 }
 
 void WasmLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
                                               const LoadOp& op) {
-  if (op.kind.is_atomic && v8_flags.wasm_shared) {
+  if (op.kind.is_atomic() && v8_flags.wasm_shared) {
     // Despite this being unrelated to struct operations, we have to invalidate
     // the state because linear-memory atomic operations could be used to sync
     // among threads.
@@ -363,7 +369,7 @@ void WasmLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
 
 void WasmLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
                                                const StoreOp& op) {
-  if (op.kind.is_atomic && v8_flags.wasm_shared) {
+  if (op.kind.is_atomic() && v8_flags.wasm_shared) {
     // Despite this being unrelated to struct operations, we have to invalidate
     // the state because linear-memory atomic operations could be used to sync
     // among threads.
@@ -393,6 +399,9 @@ void WasmLoadEliminationAnalyzer::ProcessArraySet(OpIndex op_idx,
     // among threads.
     memory_.InvalidateMutableSharedBase();
   }
+
+  // Updating aliases if the value stored was known as non-aliasing.
+  InvalidateIfAlias(op.value());
 }
 
 void WasmLoadEliminationAnalyzer::ProcessArrayLength(
@@ -418,6 +427,11 @@ void WasmLoadEliminationAnalyzer::ProcessWasmAllocateArray(
   non_aliasing_objects_.Set(op_idx, true);
   static constexpr int offset = wle::kArrayLengthFieldIndex;
   memory_.InsertLoadLike(op_idx, offset, alloc.length());
+}
+
+void WasmLoadEliminationAnalyzer::ProcessWasmAllocateStruct(
+    OpIndex op_idx, const WasmAllocateStructOp& alloc) {
+  non_aliasing_objects_.Set(op_idx, true);
 }
 
 void WasmLoadEliminationAnalyzer::ProcessStringAsWtf16(
@@ -518,11 +532,12 @@ void WasmLoadEliminationAnalyzer::InvalidateAllNonAliasingInputs(
 }
 
 void WasmLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
+  op_idx = memory_.ResolveBase(op_idx);
   if (auto key = non_aliasing_objects_.TryGetKeyFor(op_idx);
       key.has_value() && non_aliasing_objects_.Get(*key)) {
-    // An known non-aliasing object was passed as input to the Call; the Call
-    // could create aliases, so we have to consider going forward that this
-    // object could actually have aliases.
+    // A known non-aliasing object was passed as input to an operation that
+    // could create aliases (such as a Call or Store), so we have to consider
+    // going forward that this object could actually have aliases.
     non_aliasing_objects_.Set(*key, false);
   }
 }
@@ -537,6 +552,7 @@ void WasmLoadEliminationAnalyzer::DcheckWordBinop(OpIndex op_idx,
                                                   const WordBinopOp& binop) {
 #ifdef DEBUG
   auto check = [&](V<Word> left, V<Word> right) {
+    left = memory_.ResolveBase(left);
     if (auto key = non_aliasing_objects_.TryGetKeyFor(left);
         key.has_value() && non_aliasing_objects_.Get(*key)) {
       int64_t cst;
@@ -550,12 +566,6 @@ void WasmLoadEliminationAnalyzer::DcheckWordBinop(OpIndex op_idx,
 #endif
 }
 
-void WasmLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
-                                                  const AllocateOp&) {
-  // In particular, this handles {struct.new}.
-  non_aliasing_objects_.Set(op_idx, true);
-}
-
 OpIndex WasmLoadEliminationAnalyzer::MaybeReplacePhi(const PhiOp& phi) {
   base::Vector<const OpIndex> inputs = phi.inputs();
   // This copies some of the functionality of {RequiredOptimizationReducer}:
@@ -567,7 +577,7 @@ OpIndex WasmLoadEliminationAnalyzer::MaybeReplacePhi(const PhiOp& phi) {
   DCHECK_GT(inputs.size(), 0);
 
   bool same_inputs = true;
-  OpIndex first = memory_.ResolveBase(inputs.first());
+  OpIndex first = memory_.ResolveBase(inputs.front());
   for (const OpIndex& input : inputs.SubVectorFrom(1)) {
     if (memory_.ResolveBase(input) != first) {
       same_inputs = false;

@@ -1,0 +1,2 @@
+Tests regress-514362.
+Frames: bar, foo, wrap, (anonymous)

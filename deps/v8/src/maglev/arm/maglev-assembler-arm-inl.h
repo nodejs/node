@@ -645,6 +645,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
   vmov(dst, base::Double(n.get_bits()));
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  if (TryLoadRoot(dst, obj)) return;
   MacroAssembler::Move(dst, obj);
 }
 inline void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
@@ -789,6 +790,7 @@ inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat64(
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
   // No 64-bit registers.
+  Move(dst, src);
 }
 inline void MaglevAssembler::NegateInt32(Register val) {
   rsb(val, val, Operand(0));
@@ -1011,12 +1013,14 @@ inline void MaglevAssembler::Jump(Label* target, Label::Distance) {
   // Any eager deopts should go through JumpIf to enable us to support the
   // `--deopt-every-n-times` stress mode. See EmitEagerDeoptStress.
   DCHECK(!IsDeoptLabel(target));
-  b(target);
+  MacroAssembler::b(target);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::JumpToDeopt(Label* target) {
   DCHECK(IsDeoptLabel(target));
-  b(target);
+  MacroAssembler::b(target);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::EmitEagerDeoptStress(Label* target) {
@@ -1028,7 +1032,7 @@ inline void MaglevAssembler::EmitEagerDeoptStress(Label* target) {
 
 inline void MaglevAssembler::JumpIf(Condition cond, Label* target,
                                     Label::Distance) {
-  b(target, cond);
+  b(cond, target);
 }
 
 inline void MaglevAssembler::JumpIfRoot(Register with, RootIndex index,

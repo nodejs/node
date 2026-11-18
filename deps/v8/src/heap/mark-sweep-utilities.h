@@ -13,13 +13,10 @@
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/spaces.h"
-#include "src/objects/string-forwarding-table.h"
 #include "src/objects/visitors.h"
 
 namespace v8 {
 namespace internal {
-
-class MainMarkingVisitor;
 
 #ifdef VERIFY_HEAP
 class MarkingVerifierBase : public ObjectVisitorWithCageBases,
@@ -81,23 +78,6 @@ class ExternalStringTableCleanerVisitor final : public RootVisitor {
 
  private:
   Heap* heap_;
-};
-
-class StringForwardingTableCleanerBase {
- protected:
-  explicit StringForwardingTableCleanerBase(Heap* heap);
-
-  // Dispose external resource, if it wasn't disposed already.
-  // We can have multiple entries of the same external resource in the string
-  // forwarding table (i.e. concurrent externalization of a string with the
-  // same resource), therefore we keep track of already disposed resources to
-  // not dispose a resource more than once.
-  void DisposeExternalResource(StringForwardingTable::Record* record);
-
-  Isolate* const isolate_;
-  NonAtomicMarkingState* const marking_state_;
-  MainMarkingVisitor* const marking_visitor_;
-  std::unordered_set<Address> disposed_resources_;
 };
 
 bool IsCppHeapMarkingFinished(Heap* heap,

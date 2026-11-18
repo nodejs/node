@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --maglev-object-tracking --maglev
+// Flags: --allow-natives-syntax --maglev
 
 let f64 = new Float64Array(1);
 f64[0] = 4;

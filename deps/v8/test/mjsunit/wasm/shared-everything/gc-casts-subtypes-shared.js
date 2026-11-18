@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-shared --harmony-struct
+// Flags: --wasm-shared
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -415,7 +415,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   let sharedExternRef = wasmRefNullType(kWasmExternRef).shared();
   let sharedNullExternRef = wasmRefNullType(kWasmNullExternRef).shared();
-  let sharedObj = new (new SharedStructType(["prop"]));
 
   builder.addFunction('testExternRef',
       makeSig([sharedExternRef], [kWasmI32, kWasmI32]))
@@ -441,13 +440,11 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals([1, 0], wasm.testExternRef(undefined));
   assertEquals([1, 0], wasm.testExternRef(1));
   assertEquals([1, 0], wasm.testExternRef("test"));
-  assertEquals([1, 0], wasm.testExternRef(sharedObj));
 
   assertEquals([1, 1], wasm.testNullExternRef(null));
   assertEquals([1, 0], wasm.testNullExternRef(undefined));
   assertEquals([1, 0], wasm.testNullExternRef(1));
   assertEquals([1, 0], wasm.testNullExternRef("test"));
-  assertEquals([1, 0], wasm.testNullExternRef(sharedObj));
 })();
 
 (function RefCastExternRef() {
@@ -491,23 +488,18 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.castToExternRef(null));
   assertEquals(undefined, wasm.castToExternRef(undefined));
   assertEquals(1, wasm.castToExternRef(1));
-  let obj = new (new SharedStructType(["prop"]));
-  assertSame(obj, wasm.castToExternRef(obj));
 
   assertTraps(kTrapIllegalCast, () => wasm.castToNullExternRef(null));
   assertTraps(kTrapIllegalCast, () => wasm.castToNullExternRef(undefined));
   assertTraps(kTrapIllegalCast, () => wasm.castToNullExternRef(1));
-  assertTraps(kTrapIllegalCast, () => wasm.castToNullExternRef(obj));
 
   assertSame(null, wasm.castNullToExternRef(null));
   assertEquals(undefined, wasm.castNullToExternRef(undefined));
   assertEquals(1, wasm.castNullToExternRef(1));
-  assertSame(obj, wasm.castNullToExternRef(obj));
 
   assertSame(null, wasm.castNullToNullExternRef(null));
   assertTraps(kTrapIllegalCast, () => wasm.castNullToNullExternRef(undefined));
   assertTraps(kTrapIllegalCast, () => wasm.castNullToNullExternRef(1));
-  assertTraps(kTrapIllegalCast, () => wasm.castNullToNullExternRef(obj));
 })();
 
 (function BrOnCastExternRef() {
@@ -650,47 +642,38 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   let instance = builder.instantiate();
   let wasm = instance.exports;
-  let obj = new (new SharedStructType(["prop"]));
 
   assertEquals(0, wasm.castToExternRef(null));
   assertEquals(1, wasm.castToExternRef(undefined));
   assertEquals(1, wasm.castToExternRef(1));
-  assertEquals(1, wasm.castToExternRef(obj));
 
   assertEquals(0, wasm.castToNullExternRef(null));
   assertEquals(0, wasm.castToNullExternRef(undefined));
   assertEquals(0, wasm.castToNullExternRef(1));
-  assertEquals(0, wasm.castToNullExternRef(obj));
 
   assertEquals(1, wasm.castNullToExternRef(null));
   assertEquals(1, wasm.castNullToExternRef(undefined));
   assertEquals(1, wasm.castNullToExternRef(1));
-  assertEquals(1, wasm.castNullToExternRef(obj));
 
   assertEquals(1, wasm.castNullToNullExternRef(null));
   assertEquals(0, wasm.castNullToNullExternRef(undefined));
   assertEquals(0, wasm.castNullToNullExternRef(1));
-  assertEquals(0, wasm.castNullToNullExternRef(obj));
 
   assertEquals(1, wasm.castFailToExternRef(null));
   assertEquals(0, wasm.castFailToExternRef(undefined));
   assertEquals(0, wasm.castFailToExternRef(1));
-  assertEquals(0, wasm.castFailToExternRef(obj));
 
   assertEquals(1, wasm.castFailToNullExternRef(null));
   assertEquals(1, wasm.castFailToNullExternRef(undefined));
   assertEquals(1, wasm.castFailToNullExternRef(1));
-  assertEquals(1, wasm.castFailToNullExternRef(obj));
 
   assertEquals(0, wasm.castFailNullToExternRef(null));
   assertEquals(0, wasm.castFailNullToExternRef(undefined));
   assertEquals(0, wasm.castFailNullToExternRef(1));
-  assertEquals(0, wasm.castFailNullToExternRef(obj));
 
   assertEquals(0, wasm.castFailNullToNullExternRef(null));
   assertEquals(1, wasm.castFailNullToNullExternRef(undefined));
   assertEquals(1, wasm.castFailNullToNullExternRef(1));
-  assertEquals(1, wasm.castFailNullToNullExternRef(obj));
 })();
 
 (function RefTestAnyRefHierarchy() {

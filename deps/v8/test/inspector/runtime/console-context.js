@@ -135,5 +135,27 @@ InspectorTest.runAsyncTestSuite([
           ({params: {args}}) => InspectorTest.logMessage(args)),
     ]);
     await Protocol.Runtime.disable();
+  },
+
+  async function testConsoleAssertInConsoleContext() {
+    await Protocol.Runtime.enable();
+    Protocol.Runtime.evaluate({
+      expression: `
+        var assertContext = console.context('assert-context');
+        assertContext.assert(true);
+        assertContext.assert(true, '%s', {
+          toString() {
+            throw new Error('Should not format when condition is true');
+          }
+        });
+        assertContext.assert(false, 'failed %s', 'assertion');
+      `,
+    });
+    var {params: {context, args}} =
+        await Protocol.Runtime.onceConsoleAPICalled();
+    InspectorTest.log(context);
+    InspectorTest.logMessage(args);
+    await Protocol.Runtime.evaluate({expression: 'console.clear()'});
+    await Protocol.Runtime.disable();
   }
 ]);

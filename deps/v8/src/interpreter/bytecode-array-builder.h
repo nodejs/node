@@ -180,6 +180,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadAsyncIteratorProperty(Register object,
                                                   int feedback_slot);
 
+  // Named load property of the @@dispose symbol.
+  BytecodeArrayBuilder& LoadDisposeProperty(Register object, int feedback_slot);
+
   // Store properties. Flag for NeedsSetFunctionName() should
   // be in the accumulator.
   BytecodeArrayBuilder& DefineKeyedOwnPropertyInLiteral(
@@ -601,6 +604,21 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   void SetExpressionAsStatementPosition(Expression* expr,
                                         bool is_breakable = true) {
+    // A binary comma expression is positioned at its right operand, which the
+    // parser uses as the end of the preceding arrow function parameter's
+    // initializer. As a statement, it starts at its leftmost operand instead,
+    // which can also be nested in the first operand of an n-ary one.
+    while (true) {
+      if (expr->IsBinaryOperation() &&
+          expr->AsBinaryOperation()->op() == Token::kComma) {
+        expr = expr->AsBinaryOperation()->left();
+      } else if (expr->IsNaryOperation() &&
+                 expr->AsNaryOperation()->op() == Token::kComma) {
+        expr = expr->AsNaryOperation()->first();
+      } else {
+        break;
+      }
+    }
     SetStatementPosition(expr->position(), is_breakable);
   }
 

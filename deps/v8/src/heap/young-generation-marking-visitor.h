@@ -11,8 +11,6 @@
 #include "src/heap/heap-visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/marking-worklist.h"
-#include "src/heap/pending-allocations.h"
-#include "src/heap/pretenuring-handler.h"
 
 namespace v8 {
 namespace internal {
@@ -35,11 +33,7 @@ class YoungGenerationMarkingVisitor final
     kReadWrite,
   };
 
-  YoungGenerationMarkingVisitor(
-      Heap* heap,
-      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
-      YoungPendingAllocations::Snapshot* young_pending_allocations_snapshot =
-          nullptr);
+  explicit YoungGenerationMarkingVisitor(Heap* heap);
 
   ~YoungGenerationMarkingVisitor() override;
 
@@ -66,11 +60,6 @@ class YoungGenerationMarkingVisitor final
                               MaybeObjectSlot p) final {
     VisitPointersImpl(host, p, p + 1);
   }
-
-  // Visitation specializations used for collecting pretenuring feedback.
-  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  V8_INLINE size_t VisitJSObjectSubclass(Tagged<Map> map, Tagged<T> object,
-                                         MaybeObjectSize);
 
   V8_INLINE size_t VisitEphemeronHashTable(Tagged<Map> map,
                                            Tagged<EphemeronHashTable> table,
@@ -126,10 +115,6 @@ class YoungGenerationMarkingVisitor final
   Isolate* const isolate_;
   MarkingWorklists::Local marking_worklists_local_;
   EphemeronRememberedSet::TableList::Local ephemeron_table_list_local_;
-  PretenuringHandler* const pretenuring_handler_;
-  PretenuringHandler::PretenuringFeedbackMap* const local_pretenuring_feedback_;
-  const YoungPendingAllocations::Snapshot* const
-      young_pending_allocations_snapshot_;
   const bool shortcut_strings_;
 };
 

@@ -415,9 +415,6 @@ BlockProcessResult MaglevPrintingVisitor::PreProcessBasicBlock(
       if (loop_effects->context_slot_written.size()) {
         os_ << " c" << loop_effects->context_slot_written.size();
       }
-      if (loop_effects->objects_written.size()) {
-        os_ << " o" << loop_effects->objects_written.size();
-      }
       if (loop_effects->keys_cleared.size()) {
         os_ << " k" << loop_effects->keys_cleared.size();
       }
@@ -434,11 +431,9 @@ namespace {
 
 void PrintInputLocationAndAdvance(std::ostream& os, ValueNode* node,
                                   InputLocation*& input_location) {
-  if (InlinedAllocation* allocation = node->TryCast<InlinedAllocation>()) {
-    if (allocation->HasBeenAnalysed() && allocation->HasBeenElided()) {
-      os << "(elided)";
-      return;
-    }
+  if (node->TryGetVirtualObject()) {
+    os << "(elided)";
+    return;
   }
   if (input_location) {
     os << input_location->operand();
@@ -542,22 +537,32 @@ void PrintSingleDeoptFrame(
 }
 
 namespace {
-void PrintVirtualObject(std::ostream& os, VirtualObject* vobj) {
+void PrintVirtualObject(std::ostream& os, const VirtualObject* vobj,
+                        const VirtualObjectAncestors* ancestors = nullptr) {
+  VirtualObjectAncestors next_ancestors{vobj, ancestors};
   os << "[";
   bool is_first = true;
   vobj->ForEachSlot(
       [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) -> bool {
+        value_node = value_node->UnwrapIdentities();
         switch (desc.type) {
           case maglev::vobj::FieldType::kTagged:
           case maglev::vobj::FieldType::kTrustedPointer:
           case maglev::vobj::FieldType::kInt32:
-          case maglev::vobj::FieldType::kFloat64: {
+          case maglev::vobj::FieldType::kUint32:
+          case maglev::vobj::FieldType::kFloat64:
+          case maglev::vobj::FieldType::kHoleyFloat64: {
             if (!is_first) os << ",";
             is_first = false;
             os << PrintNodeLabel(value_node);
-            if (VirtualObject* nested = value_node->TryCast<VirtualObject>()) {
-              os << "=VO";
-              PrintVirtualObject(os, nested);
+            if (const VirtualObject* nested =
+                    value_node->TryGetDeoptVirtualObject()) {
+              if (next_ancestors.Contains(nested)) {
+                os << "=<cycle>";
+              } else {
+                os << "=VO";
+                PrintVirtualObject(os, nested, &next_ancestors);
+              }
             }
             break;
           }
@@ -576,12 +581,18 @@ void PrintVirtualObjects(std::ostream& os, std::vector<BasicBlock*> targets,
   PrintVerticalArrows(os, targets);
   PrintPadding(os, max_node_id, 0);
   os << "  │       VOs : { ";
-  const VirtualObjectList& virtual_objects = frame.GetVirtualObjects();
-  for (auto vo : virtual_objects) {
-    os << PrintNodeLabel(vo) << "=";
-    PrintVirtualObject(os, vo);
-    os << ";";
-  }
+  base::SmallVector<const VirtualObject*, 8> seen;
+  frame.ForEachValue([&](ValueNode* node) {
+    if (!node) return;
+    if (const VirtualObject* vo = node->TryGetDeoptVirtualObject()) {
+      if (std::find(seen.begin(), seen.end(), vo) == seen.end()) {
+        seen.push_back(vo);
+        os << PrintNodeLabel(vo) << "=";
+        PrintVirtualObject(os, vo);
+        os << ";";
+      }
+    }
+  });
   os << "}\n";
 }
 

@@ -215,6 +215,110 @@ void BaselineAssembler::SmiAddConstantAndJumpIfOverflow(
     __ movq(value, tmp);
   }
 }
+
+void BaselineAssembler::SmiAddSubAndJumpIfOverflow(
+    Register output, Register lhs, Tagged<Smi> rhs, Operation operation,
+    Label* overflow, Label::Distance distance) {
+  DCHECK(IsInlineSmiArithmeticBinaryOperationSupported(operation));
+
+  ScratchRegisterScope scope(this);
+  Register result = scope.AcquireScratch();
+  if (SmiValuesAre31Bits()) {
+    __ movl(result, lhs);
+    switch (operation) {
+      case Operation::kAdd:
+        __ addl(result, Immediate(rhs));
+        break;
+      case Operation::kSubtract:
+        __ subl(result, Immediate(rhs));
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ j(kOverflow, overflow, distance);
+    __ movl(output, result);
+  } else {
+    DCHECK(SmiValuesAre32Bits());
+    Register tmp = scope.AcquireScratch();
+    __ Move(tmp, rhs);
+    __ movq(result, lhs);
+    switch (operation) {
+      case Operation::kAdd:
+        __ addq(result, tmp);
+        break;
+      case Operation::kSubtract:
+        __ subq(result, tmp);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ j(kOverflow, overflow, distance);
+    __ movq(output, result);
+  }
+}
+
+void BaselineAssembler::SmiBitwiseOp(Register lhs, Tagged<Smi> rhs,
+                                     Operation operation) {
+  DCHECK(IsInlineSmiBitwiseBinaryOperationSupported(operation));
+
+  if (SmiValuesAre31Bits()) {
+    switch (operation) {
+      case Operation::kShiftRight: {
+        const int shift = rhs.value() & 31;
+        if (shift == 0) return;
+        // Shift the tagged value, then clear the bit shifted into the Smi tag.
+        static_assert(kSmiTag == 0);
+        __ sarl(lhs, Immediate(shift));
+        __ andl(lhs, Immediate(~kSmiTagMask));
+        break;
+      }
+      case Operation::kBitwiseAnd:
+        __ andl(lhs, Immediate(rhs));
+        break;
+      case Operation::kBitwiseOr:
+        __ orl(lhs, Immediate(rhs));
+        break;
+      case Operation::kBitwiseXor:
+        __ xorl(lhs, Immediate(rhs));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    DCHECK(SmiValuesAre32Bits());
+    ScratchRegisterScope scope(this);
+    Register tmp = scope.AcquireScratch();
+    switch (operation) {
+      case Operation::kShiftRight: {
+        const int shift = rhs.value() & 31;
+        if (shift == 0) return;
+        // Combine untagging with the shift, then restore the Smi tag and
+        // padding.
+        __ sarq(lhs, Immediate(kSmiShiftSize + kSmiTagSize + shift));
+        __ shlq(lhs, Immediate(kSmiShiftSize + kSmiTagSize));
+        break;
+      }
+      case Operation::kBitwiseAnd: {
+        __ Move(tmp, rhs);
+        __ andq(lhs, tmp);
+        break;
+      }
+      case Operation::kBitwiseOr: {
+        __ Move(tmp, rhs);
+        __ orq(lhs, tmp);
+        break;
+      }
+      case Operation::kBitwiseXor: {
+        __ Move(tmp, rhs);
+        __ xorq(lhs, tmp);
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
@@ -372,22 +476,73 @@ struct PushAllHelper<Arg, Args...> {
   }
 };
 
+// Counts the number of stack slots that pushing {args...} will occupy. An
+// interpreter::RegisterList contributes one slot per register; every other
+// value contributes exactly one slot.
+template <typename... Args>
+struct CountPushHelper;
+template <>
+struct CountPushHelper<> {
+  static int Count() { return 0; }
+};
+template <typename Arg, typename... Args>
+struct CountPushHelper<Arg, Args...> {
+  static int Count(Arg arg, Args... args) {
+    return 1 + CountPushHelper<Args...>::Count(args...);
+  }
+};
+template <typename... Args>
+struct CountPushHelper<interpreter::RegisterList, Args...> {
+  static int Count(interpreter::RegisterList list, Args... args) {
+    return list.register_count() + CountPushHelper<Args...>::Count(args...);
+  }
+};
+
+// With V8_X64_16BYTE_STACK_ALIGNMENT, every group of values pushed by
+// BaselineAssembler::Push/PushReverse is rounded up to an even number of
+// slots by pushing one padding slot BEFORE the first value, i.e. the padding
+// ends up at the HIGHEST address of the group (same convention as arm64).
+inline void MaybePushPadding(BaselineAssembler* basm, int push_count) {
+  if (ShouldPadArguments(push_count)) {
+    basm->masm()->PushTaggedStackPadding();
+  }
+}
+
 }  // namespace detail
 
 template <typename... T>
 int BaselineAssembler::Push(T... vals) {
-  return detail::PushAllHelper<T...>::Push(this, vals...);
+  // We have to count the pushes first, to decide whether to add padding before
+  // the first push.
+  int push_count = detail::CountPushHelper<T...>::Count(vals...);
+  detail::MaybePushPadding(this, push_count);
+  int pushed = detail::PushAllHelper<T...>::Push(this, vals...);
+  DCHECK_EQ(push_count, pushed);
+  return pushed;
 }
 
 template <typename... T>
 void BaselineAssembler::PushReverse(T... vals) {
+  // As in Push, the padding (if any) goes before the first pushed value, which
+  // for PushReverse is the last element of {vals}. This keeps the padding at
+  // the highest address, above the last JS argument.
+  int push_count = detail::CountPushHelper<T...>::Count(vals...);
+  detail::MaybePushPadding(this, push_count);
   detail::PushAllHelper<T...>::PushReverse(this, vals...);
 }
 
 template <typename... T>
 void BaselineAssembler::Pop(T... registers) {
   (__ Pop(registers), ...);
+  // Undo the padding that a matching Push(...) of the same number of values
+  // inserted before its first value (see detail::MaybePushPadding). The
+  // padding sits above the popped values, so it is dropped last.
+  if (ShouldPadArguments(static_cast<int>(sizeof...(registers)))) {
+    __ DropStackPadding();
+  }
 }
+
+void BaselineAssembler::PushUnpadded(Register reg) { __ Push(reg); }
 
 void BaselineAssembler::LoadTaggedField(Register output, Register source,
                                         int offset) {

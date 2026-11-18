@@ -4,10 +4,9 @@
 
 #include "src/execution/local-isolate.h"
 
-#include "src/base/fpu.h"
+#include "src/base/thread-id.h"
 #include "src/bigint/bigint.h"
 #include "src/execution/isolate.h"
-#include "src/execution/thread-id.h"
 #include "src/handles/handles-inl.h"
 #include "src/logging/local-logger.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -15,12 +14,13 @@
 namespace v8 {
 namespace internal {
 
-LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind)
+LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind,
+                           v8::base::Stack::StackSlot stack_start)
     : HiddenLocalFactory(isolate),
-      heap_(isolate->heap(), kind),
+      heap_(isolate->heap(), kind, nullptr, stack_start),
       isolate_(isolate),
       logger_(new LocalLogger(isolate)),
-      thread_id_(ThreadId::Current()),
+      thread_id_(base::ThreadId::Current()),
       stack_limit_(kind == ThreadKind::kMain
                        ? isolate->stack_guard()->real_climit()
                        : GetCurrentStackPosition() - v8_flags.stack_size * KB)
@@ -29,9 +29,6 @@ LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind)
       default_locale_(isolate->DefaultLocale())
 #endif
 {
-  // LocalIsolate owning threads need to make sure to match the isolate's FPU
-  // state.
-  DCHECK_EQ(base::FPU::GetFlushDenormals(), isolate->flush_denormals());
 #ifdef V8_RUNTIME_CALL_STATS
   if (kind == ThreadKind::kMain) {
     runtime_call_stats_ = isolate->counters()->runtime_call_stats();

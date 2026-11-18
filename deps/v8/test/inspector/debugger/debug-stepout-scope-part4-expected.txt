@@ -1,0 +1,2 @@
+Check that ScopeIterator can properly recreate the scope at every point when stepping through functions (part 4).
+Total pauses: 182

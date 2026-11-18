@@ -1,0 +1,22 @@
+Tests stepping into and out of generators.
+debugger;
+for (var num of g()) {}
+for (var num of g()) {}
+for (var i = 0; i < 3; ++i) {
+for (var i = 0; i < 3; ++i) {
+yield i;
+for (var i = 0; i < 3; ++i) {
+for (var i = 0; i < 3; ++i) {
+yield i;
+for (var i = 0; i < 3; ++i) {
+for (var i = 0; i < 3; ++i) {
+}
+i.next();
+for (var i = 0; i < 3; ++i) {
+for (var i = 0; i < 3; ++i) {
+yield i;
+for (var i = 0; i < 3; ++i) {
+for (var i = 0; i < 3; ++i) {
+yield i;
+i.next();
+yields: 4

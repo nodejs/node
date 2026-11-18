@@ -690,8 +690,8 @@ std::unique_ptr<Coverage> Coverage::CollectWasmData(Isolate* isolate) {
   size_t i_name = 0;
   for (CoverageScript& script : *result) {
     for (CoverageFunction& function : script.functions) {
-      function.name = isolate->factory()->InternalizeString(
-          function_names[i_name].c_str(), function_names[i_name].length());
+      function.name =
+          isolate->factory()->InternalizeUtf8String(function_names[i_name]);
       i_name++;
     }
   }

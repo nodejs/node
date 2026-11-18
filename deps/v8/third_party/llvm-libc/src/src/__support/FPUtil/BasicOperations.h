@@ -281,6 +281,16 @@ LIBC_INLINE constexpr int issignaling_impl(const T &x) {
 }
 
 template <typename T, cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
+LIBC_INLINE constexpr int iscanonical_impl(const T &x) {
+  if constexpr (get_fp_type<T>() == FPType::X86_Binary80) {
+    FPBits<T> sx(x);
+    // The explicit integer bit is set exactly when the exponent is nonzero.
+    return sx.get_implicit_bit() == (sx.get_biased_exponent() != 0);
+  }
+  return 1;
+}
+
+template <typename T, cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
 LIBC_INLINE constexpr int canonicalize(T &cx, const T &x) {
   FPBits<T> sx(x);
   if constexpr (get_fp_type<T>() == FPType::X86_Binary80) {
@@ -318,7 +328,7 @@ LIBC_INLINE constexpr int canonicalize(T &cx, const T &x) {
         cx = FPBits<T>::quiet_nan(sx.sign(), sx.get_explicit_mantissa())
                  .get_val();
         raise_except_if_required(FE_INVALID);
-        return 1;
+        return 0;
       } else
         cx = x;
     } else if (exponent == 0 && bit63)
@@ -331,13 +341,13 @@ LIBC_INLINE constexpr int canonicalize(T &cx, const T &x) {
       cx =
           FPBits<T>::quiet_nan(sx.sign(), sx.get_explicit_mantissa()).get_val();
       raise_except_if_required(FE_INVALID);
-      return 1;
+      return 0;
     } else
       cx = x;
   } else if (LIBC_UNLIKELY(sx.is_signaling_nan())) {
     cx = FPBits<T>::quiet_nan(sx.sign(), sx.get_explicit_mantissa()).get_val();
     raise_except_if_required(FE_INVALID);
-    return 1;
+    return 0;
   } else
     cx = x;
   return 0;

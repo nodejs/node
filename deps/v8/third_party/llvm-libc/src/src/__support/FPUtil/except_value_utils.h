@@ -9,15 +9,20 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_FPUTIL_EXCEPT_VALUE_UTILS_H
 #define LLVM_LIBC_SRC___SUPPORT_FPUTIL_EXCEPT_VALUE_UTILS_H
 
-#include "FEnvImpl.h"
-#include "FPBits.h"
-#include "cast.h"
-#include "rounding_mode.h"
+#include "hdr/errno_macros.h"
+#include "hdr/fenv_macros.h"
 #include "src/__support/CPP/optional.h"
+#include "src/__support/CPP/type_traits.h"
+#include "src/__support/FPUtil/FEnvImpl.h"
+#include "src/__support/FPUtil/FPBits.h"
+#include "src/__support/FPUtil/cast.h"
+#include "src/__support/FPUtil/rounding_mode.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h" // LIBC_UNLIKELY
 #include "src/__support/macros/properties/cpu_features.h"
 #include "src/__support/macros/properties/types.h"
+#include "src/__support/sign.h"
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -194,6 +199,67 @@ round_result_slightly_up(float16 value_rn) {
 #endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
 }
 #endif
+
+// Set errno = ERANGE, raise FE_OVERFLOW | FE_INEXACT if required, and return
+// the rounded overflow result (+/-inf or +/-max_normal) for the active
+// rounding mode.
+template <typename T>
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT T set_overflow(Sign sign = Sign::POS) {
+  static_assert(cpp::is_floating_point_v<T>, "Must be a floating point type.");
+  if (cpp::is_constant_evaluated())
+    return FPBits<T>::inf(sign).get_val();
+
+  fputil::set_errno_if_required(ERANGE);
+#if defined(LIBC_MATH_HAS_NO_EXCEPT) &&                                        \
+    defined(LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY)
+  return FPBits<T>::inf(sign).get_val();
+#else
+  if constexpr (internal::HAS_HW_FPU<T>) {
+    return internal::OVERFLOW_FACTOR<T> *
+           internal::OVERFLOW_VAL<T>[sign.is_neg()];
+  } else {
+    fputil::raise_overflow_except_if_required<T>();
+#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+    int rounding = fputil::quick_get_round();
+    if (rounding == FE_TOWARDZERO ||
+        (rounding == FE_DOWNWARD && sign.is_pos()) ||
+        (rounding == FE_UPWARD && sign.is_neg()))
+      return FPBits<T>::max_normal(sign).get_val();
+#endif // !LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+    return FPBits<T>::inf(sign).get_val();
+  }
+#endif
+}
+
+// Set errno = ERANGE, raise FE_UNDERFLOW | FE_INEXACT if required, and return
+// the rounded underflow result (+/-0.0 or +/-min_subnormal) for the active
+// rounding mode.
+template <typename T>
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT T set_underflow(Sign sign = Sign::POS) {
+  static_assert(cpp::is_floating_point_v<T>, "Must be a floating point type.");
+  if (cpp::is_constant_evaluated())
+    return FPBits<T>::zero(sign).get_val();
+
+  fputil::set_errno_if_required(ERANGE);
+#if defined(LIBC_MATH_HAS_NO_EXCEPT) &&                                        \
+    defined(LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY)
+  return FPBits<T>::zero(sign).get_val();
+#else
+  if constexpr (internal::HAS_HW_FPU<T>) {
+    return internal::UNDERFLOW_FACTOR<T> *
+           internal::UNDERFLOW_VAL<T>[sign.is_neg()];
+  } else {
+    fputil::raise_underflow_except_if_required<T>();
+#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+    int rounding = fputil::quick_get_round();
+    if ((rounding == FE_UPWARD && sign.is_pos()) ||
+        (rounding == FE_DOWNWARD && sign.is_neg()))
+      return FPBits<T>::min_subnormal(sign).get_val();
+#endif // !LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+    return FPBits<T>::zero(sign).get_val();
+  }
+#endif
+}
 
 } // namespace fputil
 

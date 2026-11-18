@@ -1,0 +1,14 @@
+tunables (set with "tunables": {name: value} in --config or --tunable=name=value,...):
+  codegen.any_iterable.max_pairs                       = 3        (default 3, range 0..16)  most entries of a new Map
+  flags.always_osr                                     = 0.025    (default 0.025, range 0..1)  probability of --always-osr
+  flags.always_osr_from_maglev                         = 0.1      (default 0.1, range 0..1)  Turbolev profile: probability of --always-osr-from-maglev
+  flags.always_sparkplug                               = 0.025    (default 0.025, range 0..1)  probability of --always-sparkplug
+  flags.assert_types                                   = 0        (default 0, range 0..1)  probability of --assert-types
+  flags.concurrent_recompilation_delay                 = 0.04     (default 0.04, range 0..1)  Turbolev profile: probability of --concurrent-recompilation-delay=N: a delay of N ms for each concurrent compilation job
+  flags.concurrent_recompilation_delay_max             = 500      (default 500, range 0..10000)  largest N of --concurrent-recompilation-delay=N
+  flags.future                                         = 0.8      (default 0.8, range 0..1)  probability of --future: the staged V8 features
+  flags.jit_fuzzing                                    = 0.8      (default 0.8, range 0..1)  probability of --jit-fuzzing: lower tier-up thresholds
+  flags.maglev_as_top_tier                             = 0.5      (default 0.5, range 0..1)  Maglev profile: probability of --maglev-as-top-tier, when the d8 flags of the configuration have --no-turbofan
+  flags.maglev_assert                                  = 0.2      (default 0.2, range 0..1)  probability of --maglev-assert
+  flags.scavenger_chaos_mode                           = 0.1      (default 0.1, range 0..1)  probability of --scavenger-chaos-mode, together with --scavenger-chaos-mode-threshold=N
+  flags.scavenger_chaos_mode_threshold_max             = 100      (default 100, range 0..100)  largest N of --scavenger-chaos-mode-threshold=N

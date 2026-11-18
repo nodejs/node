@@ -404,6 +404,7 @@ void TestOutParameter(Isolate* isolate) {
 }
 
 class JSDispatchHandleMember;
+class CppHeapPointerMember;
 template <typename T, typename CompressionScheme>
 class TaggedMember;
 
@@ -412,13 +413,20 @@ JSDispatchHandleMember* ReturnRawJSDispatchHandleMember(Isolate* isolate) {
   return nullptr;
 }
 
-JSDispatchHandle* ReturnRawJSDispatchHandle(Isolate* isolate) {
+JSDispatchHandle ReturnRawJSDispatchHandle(Isolate* isolate) {
   CauseGCManaged(42, isolate);
-  return nullptr;
+  return kNullJSDispatchHandle;
+}
+
+ExternalPointerHandle ReturnRawExternalPointerHandle(Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  return kNullExternalPointerHandle;
 }
 
 void DummyTakePointers(JSDispatchHandleMember* a, JSDispatchHandleMember* b) {}
-void DummyTakePointers2(JSDispatchHandle* a, JSDispatchHandle* b) {}
+void DummyTakeHandles(JSDispatchHandle a, JSDispatchHandle b) {}
+void DummyTakeExternalPointerHandles(ExternalPointerHandle a,
+                                     ExternalPointerHandle b) {}
 
 void TestJSDispatchHandleMemberEvalOrder(Isolate* isolate) {
   // Should cause warning.
@@ -428,8 +436,14 @@ void TestJSDispatchHandleMemberEvalOrder(Isolate* isolate) {
 
 void TestJSDispatchHandleEvalOrder(Isolate* isolate) {
   // Should cause warning.
-  DummyTakePointers2(ReturnRawJSDispatchHandle(isolate),
-                     ReturnRawJSDispatchHandle(isolate));
+  DummyTakeHandles(ReturnRawJSDispatchHandle(isolate),
+                   ReturnRawJSDispatchHandle(isolate));
+}
+
+void TestExternalPointerHandleEvalOrder(Isolate* isolate) {
+  // Should cause warning.
+  DummyTakeExternalPointerHandles(ReturnRawExternalPointerHandle(isolate),
+                                  ReturnRawExternalPointerHandle(isolate));
 }
 
 void TestTaggedMemberDeadVar(TaggedMember<Object, void> raw_member,
@@ -446,11 +460,86 @@ void TestJSDispatchHandleMemberDeadVar(JSDispatchHandleMember* raw_member,
   USE(raw_member);
 }
 
-void TestJSDispatchHandleDeadVar(JSDispatchHandle* raw_handle,
+void TestJSDispatchHandleDeadVar(JSDispatchHandle raw_handle,
                                  Isolate* isolate) {
   CauseGCManaged(42, isolate);
   // Should cause warning.
   USE(raw_handle);
+}
+
+void TestExternalPointerHandleDeadVar(ExternalPointerHandle raw_handle,
+                                      Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_handle);
+}
+
+void TestCppHeapPointerHandleDeadVar(CppHeapPointerHandle raw_handle,
+                                     Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_handle);
+}
+
+void TestTrustedPointerHandleDeadVar(TrustedPointerHandle raw_handle,
+                                     Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_handle);
+}
+
+void TestExternalPointerSlotDeadVar(ExternalPointerSlot raw_slot,
+                                    Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_slot);
+}
+
+void TestCppHeapPointerSlotDeadVar(CppHeapPointerSlot raw_slot,
+                                   Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_slot);
+}
+
+void TestExternalPointerMemberDeadVar(
+    ExternalPointerMember<kAnyExternalPointerTagRange>* raw_member,
+    Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_member);
+}
+
+void TestTrustedPointerMemberDeadVar(
+    TrustedPointerMember<ExposedTrustedObject, kAllTrustedPointerTags>*
+        raw_member,
+    Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_member);
+}
+
+void TestCppHeapPointerMemberDeadVar(CppHeapPointerMember* raw_member,
+                                     Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_member);
+}
+
+void TestTableHandleSafePatterns(ExternalPointerHandle raw_handle,
+                                 ExternalPointerHandle* out_handle,
+                                 JSDispatchHandle* out_dispatch_handle,
+                                 Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Reassigning a table handle after GC should make it live again.
+  raw_handle = kNullExternalPointerHandle;
+  USE(raw_handle);
+  // Global constexpr handle constants and Handle* out-parameters should not
+  // warn.
+  USE(kNullExternalPointerHandle);
+  USE(kNullJSDispatchHandle);
+  USE(out_handle);
+  USE(out_dispatch_handle);
 }
 
 void TestTaggedMemberPtrDeadVar(TaggedMember<Object, void>* raw_member,

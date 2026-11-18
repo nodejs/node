@@ -1,0 +1,6 @@
+Tests regress-3717.
+  function g(p) {
+    #return 1;
+  }
+
+breakCount: 1

@@ -19,11 +19,12 @@
   'wasm/*': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
-['variant in (jitless, nooptimization)', {
+['not has_turbofan or variant in (jitless, nooptimization)', {
+  'deopt-now-fuzzing': [SKIP],
   'js-wasm-wrapper-inlining-lazy-deopt': [SKIP],
   'js-wasm-wrapper-inlining-eager-deopt': [SKIP],
   'js-wasm-wrapper-inlining-type-combos': [SKIP],
-}],  # variant in (jitless, nooptimization)
+}],  # not has_turbofan or variant in (jitless, nooptimization)
 
 ['variant == jitless', {
   # Deopt tests are not supported in jitless mode.
@@ -42,7 +43,6 @@
 
 ['official_build', {
   'wasm/crash/failed-type-assertion': [SKIP],
-  'wasm/crash/invalid-wasm-code-space-size': [SKIP],
   'wasm/crash/regress-481074858': [SKIP],
   'wasm/regress-509312806': [SKIP],
 }], # official_build
@@ -74,5 +74,12 @@
   # in standard release builds.
   'wasm-in-js-inlining-turboshaft-opt': [SKIP],
 }],
+
+['verify_predictable', {
+  # These tests exit early (--version or sandbox-testing crash handler) without
+  # printing the allocation hash required by predictable_wrapper.py.
+  'd8-version': [SKIP],
+  'wasm/regress-509312806': [SKIP],
+}],  # 'verify_predictable'
 
 ]

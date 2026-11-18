@@ -855,7 +855,6 @@ class IsSpeculativeBinopMatcher final : public TestNodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (TestNodeMatcher::MatchAndExplain(node, listener) &&
-            // TODO(bmeurer): The type parameter is currently ignored.
             PrintMatchAndExplain(NumberOperationHintOf(node->op()), "hints",
                                  hint_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "lhs",
@@ -870,7 +869,6 @@ class IsSpeculativeBinopMatcher final : public TestNodeMatcher {
 
  private:
   const Matcher<NumberOperationHint> hint_matcher_;
-  const Matcher<Type> type_matcher_;
   const Matcher<Node*> lhs_matcher_;
   const Matcher<Node*> rhs_matcher_;
   const Matcher<Node*> effect_matcher_;

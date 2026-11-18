@@ -8,6 +8,8 @@
 
 #if V8_TARGET_ARCH_IA32
 
+#include <array>
+
 #include "src/base/compiler-specific.h"
 #include "src/base/strings.h"
 #include "src/codegen/ia32/fma-instr.h"
@@ -235,7 +237,7 @@ class DisassemblerIA32 {
   uint8_t vex_byte1_;
   uint8_t vex_byte2_;  // only for 3 bytes vex prefix
   InstructionTable* instruction_table_;
-  v8::base::EmbeddedVector<char, 128> tmp_buffer_;
+  std::array<char, 128> tmp_buffer_;
   unsigned int tmp_buffer_pos_;
   Disassembler::UnimplementedOpcodeAction unimplemented_opcode_action_;
 
@@ -380,7 +382,8 @@ class DisassemblerIA32 {
 };
 
 void DisassemblerIA32::AppendToBuffer(const char* format, ...) {
-  v8::base::Vector<char> buf = tmp_buffer_ + tmp_buffer_pos_;
+  v8::base::Vector<char> buf =
+      v8::base::VectorOf(tmp_buffer_) + tmp_buffer_pos_;
   va_list args;
   va_start(args, format);
   int result = v8::base::VSNPrintF(buf, format, args);
@@ -2850,7 +2853,7 @@ int DisassemblerIA32::InstructionDecode(v8::base::Vector<char> out_buffer,
     outp += v8::base::SNPrintF(out_buffer + outp, "  ");
   }
 
-  outp += v8::base::SNPrintF(out_buffer + outp, " %s", tmp_buffer_.begin());
+  outp += v8::base::SNPrintF(out_buffer + outp, " %s", tmp_buffer_.data());
   return instr_len;
 }
 
@@ -2867,7 +2870,7 @@ static const char* const xmm_regs[8] = {"xmm0", "xmm1", "xmm2", "xmm3",
 
 const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
-  return tmp_buffer_.begin();
+  return tmp_buffer_.data();
 }
 
 const char* NameConverter::NameOfConstant(uint8_t* addr) const {
@@ -2911,7 +2914,7 @@ void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
   for (uint8_t* pc = begin; pc < end;) {
-    v8::base::EmbeddedVector<char, 128> buffer;
+    std::array<char, 128> buffer;
     buffer[0] = '\0';
     uint8_t* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
@@ -2924,7 +2927,7 @@ void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
     for (int i = 6 - (pc - prev_pc); i >= 0; i--) {
       fprintf(f, "  ");
     }
-    fprintf(f, "  %s\n", buffer.begin());
+    fprintf(f, "  %s\n", buffer.data());
   }
 }
 

@@ -10,13 +10,14 @@
 
 namespace v8::internal::wasm {
 
-namespace {
-
-V8_INLINE bool EquivalentIndices(ModuleTypeIndex index1, ModuleTypeIndex index2,
-                                 const WasmModule* module) {
+bool EquivalentIndices(ModuleTypeIndex index1, ModuleTypeIndex index2,
+                       const WasmModule* module) {
   if (index1 == index2) return true;
+  if (!index1.valid() || !index2.valid()) return false;
   return module->canonical_type_id(index1) == module->canonical_type_id(index2);
 }
+
+namespace {
 
 bool ValidStructSubtypeDefinition(ModuleTypeIndex subtype_index,
                                   ModuleTypeIndex supertype_index,
@@ -46,7 +47,8 @@ bool ValidStructSubtypeDefinition(ModuleTypeIndex subtype_index,
     // and the supertype's descriptor must be a declared supertype of the
     // subtype's descriptor.
     if (!super_def.descriptor.valid()) return false;
-    if (module->supertype(sub_def.descriptor) != super_def.descriptor) {
+    if (!EquivalentIndices(module->supertype(sub_def.descriptor),
+                           super_def.descriptor, module)) {
       return false;
     }
   } else {
@@ -57,7 +59,8 @@ bool ValidStructSubtypeDefinition(ModuleTypeIndex subtype_index,
     // If a type is a descriptor, its supertype must also be a descriptor, and
     // must describe a declared supertype of the subtype's described type.
     if (!super_def.describes.valid()) return false;
-    if (module->supertype(sub_def.describes) != super_def.describes) {
+    if (!EquivalentIndices(module->supertype(sub_def.describes),
+                           super_def.describes, module)) {
       return false;
     }
   } else {
@@ -150,8 +153,6 @@ StandardType UpcastToStandardType(ValueTypeBase type) {
   V(None, Struct)                                                              \
   V(Array, Eq)                                                                 \
   V(None, Array)                                                               \
-  V(I31, Eq)                                                                   \
-  V(None, I31)                                                                 \
   V(String, Any)                                                               \
   V(None, String)                                                              \
   /* funcref hierarchy */                                                      \
@@ -175,7 +176,7 @@ static constexpr std::array<GenericKind, kNumStandardTypes>
   if (static_cast<size_t>(StandardType::k##name) == i) { \
     return GenericKind::k##name;                         \
   }
-      FOREACH_GENERIC_TYPE(ENTRY)
+      FOREACH_STANDARD_GENERIC_TYPE(ENTRY)
 #undef ENTRY
       // Numeric types fall through to here. We won't use these values.
       return GenericKind::kVoid;
@@ -198,7 +199,7 @@ constexpr int NotInSubtypeRelation(StandardType type) {
 }
 static constexpr uint32_t kNumNonTrivial =
 #define CASE(name, ...) (NotInSubtypeRelation(StandardType::k##name) ? 0 : 1) +
-    FOREACH_GENERIC_TYPE(CASE)
+    FOREACH_STANDARD_GENERIC_TYPE(CASE)
 // We could include numeric types here, but they don't have nontrivial
 // subtyping relations anyway.
 #undef CASE
@@ -212,7 +213,7 @@ enum class CondensedIndices : int {
   k##name,                  \
       k##name##AdjustNext = \
           k##name - NotInSubtypeRelation(StandardType::k##name),
-  FOREACH_GENERIC_TYPE(ENTRY)
+  FOREACH_STANDARD_GENERIC_TYPE(ENTRY)
 #undef ENTRY
 };
 static constexpr uint8_t kNotRelatedSentinel = 0xFF;
@@ -228,7 +229,7 @@ constexpr uint8_t ComputeCondensedIndex(StandardType type) {
   case StandardType::k##name:                                   \
     if (NotInSubtypeRelation(type)) return kNotRelatedSentinel; \
     return static_cast<uint8_t>(CondensedIndices::k##name);
-    FOREACH_GENERIC_TYPE(CASE)
+    FOREACH_STANDARD_GENERIC_TYPE(CASE)
 #undef CASE
   }
   UNREACHABLE();
@@ -237,7 +238,7 @@ constexpr StandardType ComputeStandardType(uint8_t condensed_index) {
 #define CASE(name, ...)                                                \
   if (ComputeCondensedIndex(StandardType::k##name) == condensed_index) \
     return StandardType::k##name;
-  FOREACH_GENERIC_TYPE(CASE)
+  FOREACH_STANDARD_GENERIC_TYPE(CASE)
 #undef CASE
   UNREACHABLE();
 }
@@ -368,7 +369,7 @@ HeapType NullSentinelImpl(HeapType type) {
 
 bool IsGenericSubtypeOfIndexedTypes(ValueTypeBase type) {
   DCHECK(type.is_generic());
-  GenericKind kind = type.generic_kind();
+  GenericKind kind = ToGenericKind(type.standard_type());
   return IsNullKind(kind) || kind == GenericKind::kBottom;
 }
 
@@ -407,6 +408,7 @@ std::optional<bool> IsSubtypeOf_CommonImpl(ValueTypeBase subtype,
 
   if (subtype.is_bottom()) return true;
   if (subtype.is_shared() != supertype.is_shared()) return false;
+  if (subtype.can_be_i31() && !supertype.can_be_i31()) return false;
   if (supertype.has_index()) {
     if (subtype.has_index()) {
       // Only exact types can possibly be subtypes of other exact types.
@@ -489,6 +491,7 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
   if (type1 == type2) return true;
   if (!type1.has_index() || !type2.has_index()) return type1 == type2;
   if (type1.nullability() != type2.nullability()) return false;
+  if (type1.can_be_i31() != type2.can_be_i31()) return false;
   if (type1.is_exact() != type2.is_exact()) return false;
 
   DCHECK(type1.has_index() && module->has_type(type1.ref_index()) &&
@@ -503,6 +506,7 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
   if (type1 == type2 && module1 == module2) return true;
   if (!type1.has_index() || !type2.has_index()) return type1 == type2;
   if (type1.nullability() != type2.nullability()) return false;
+  if (type1.can_be_i31() != type2.can_be_i31()) return false;
   if (type1.is_exact() != type2.is_exact()) return false;
 
   DCHECK(type1.has_index() && module1->has_type(type1.ref_index()) &&
@@ -575,7 +579,7 @@ HeapType CommonAncestorWithAbstract(HeapType heap1, HeapType heap2) {
   return HeapType::Generic(ToGenericKind(generic_ancestor), is_shared);
 }
 
-Exactness UnionExactness(ValueType type1, ValueType type2,
+Exactness UnionExactness(HeapType type1, HeapType type2,
                          const WasmModule* module) {
   // The union of two types could be exact in these cases:
   // - if both types are exact and the same type index
@@ -607,11 +611,15 @@ V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
   }
   Nullability nullability =
       type1.is_nullable() || type2.is_nullable() ? kNullable : kNonNullable;
-  Exactness exactness = UnionExactness(type1, type2, module);
-  HeapType heap1 = type1.heap_type();
-  HeapType heap2 = type2.heap_type();
+  bool can_be_i31 = type1.can_be_i31() || type2.can_be_i31();
+  HeapType heap1 = type1.heap_type().AsNonI31();
+  HeapType heap2 = type2.heap_type().AsNonI31();
+  Exactness exactness = UnionExactness(heap1, heap2, module);
   if (heap1 == heap2) {
-    return {type1.AsNullable(nullability).AsExactIfIndexed(exactness), module};
+    return {type1.AsNullable(nullability)
+                .AsCanBeI31(can_be_i31)
+                .AsExactIfIndexed(exactness),
+            module};
   }
   HeapType result_type = kWasmBottom;
   if (heap1.is_abstract_ref()) {
@@ -625,7 +633,9 @@ V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
   // HeapType should be "normalized" to kWasmBottom ValueType.
   DCHECK_NE(result_type, kWasmBottom);
   if (result_type.is_top()) return {kWasmTop, module};
-  return {ValueType::RefMaybeNull(result_type, nullability).AsExact(exactness),
+  return {ValueType::RefMaybeNull(result_type, nullability)
+              .AsCanBeI31(can_be_i31)
+              .AsExact(exactness),
           module};
 }
 
@@ -636,26 +646,34 @@ TypeInModule Intersection(ValueType type1, ValueType type2,
   if (!type1.is_ref() || !type2.is_ref()) {
     return {type1 == type2 ? type1 : kWasmBottom, module};
   }
+  if (type1.is_shared() != type2.is_shared()) {
+    return {kWasmBottom, module};
+  }
   Nullability nullability =
       type1.is_nullable() && type2.is_nullable() ? kNullable : kNonNullable;
-  // non-nullable null type is not a valid type.
-  if (nullability == kNonNullable &&
-      (type1.is_none_type() || type2.is_none_type())) {
+  bool can_be_i31 = type1.can_be_i31() && type2.can_be_i31();
+  HeapType heap1 = type1.heap_type().AsNonI31();
+  HeapType heap2 = type2.heap_type().AsNonI31();
+  // A none-type without null and without i31 is uninhabited.
+  if (nullability == kNonNullable && !can_be_i31 &&
+      (heap1.is_none_type() || heap2.is_none_type())) {
     return {kWasmBottom, module};
   }
-  if (IsHeapSubtypeOf(type1.heap_type(), type2.heap_type(), module)) {
-    return TypeInModule{type1.AsNullable(nullability), module};
+  if (IsHeapSubtypeOf(heap1, heap2, module)) {
+    return TypeInModule{type1.AsNullable(nullability).AsCanBeI31(can_be_i31),
+                        module};
   }
-  if (IsHeapSubtypeOf(type2.heap_type(), type1.heap_type(), module)) {
-    return TypeInModule{type2.AsNullable(nullability), module};
+  if (IsHeapSubtypeOf(heap2, heap1, module)) {
+    return TypeInModule{type2.AsNullable(nullability).AsCanBeI31(can_be_i31),
+                        module};
   }
-  if (nullability == kNonNullable) {
+  if (nullability == kNonNullable && !can_be_i31) {
     return {kWasmBottom, module};
   }
-  // Check for common null representation.
+  // Check for common null/none representation.
   ValueType null_type1 = ToNullSentinel({type1, module});
   if (null_type1 == ToNullSentinel({type2, module})) {
-    return {null_type1, module};
+    return {null_type1.AsNullable(nullability).AsCanBeI31(can_be_i31), module};
   }
   return {kWasmBottom, module};
 }

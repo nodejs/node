@@ -50,6 +50,7 @@
 #define V8_EXECUTION_RISCV_SIMULATOR_RISCV_H_
 
 // globals.h defines USE_SIMULATOR.
+#include <array>
 #include <functional>
 
 #include "src/base/float16.h"
@@ -77,6 +78,7 @@ typedef unsigned __uint128_t __attribute__((__mode__(__TI__)));
 // Running with a simulator.
 
 #include "src/base/hashmap.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constants-arch.h"
 #include "src/execution/simulator-base.h"
@@ -553,6 +555,14 @@ class Simulator : public SimulatorBase {
   template <typename T>
   T FMaxMinHelper(T a, T b, MaxMinKind kind);
 
+  // Fused multiply-add of three Float16 operands with a single rounding to
+  // Float16. The intermediate computation is done in double precision, whose
+  // 53-bit significand is far more than the 2*11+2 bits needed to make the
+  // additional rounding innocuous (avoids the double rounding that a float
+  // intermediate would introduce). Returns the canonical quiet NaN and raises
+  // the invalid operation flag for signaling NaNs / invalid operations.
+  uint16_t F16FmaHelper(Float16 a, Float16 b, Float16 c);
+
   // IEEE 754-2019 minimum/maximum for Zfa extension (fminm/fmaxm).
   template <typename T>
   T FMaxMinMHelper(T a, T b, MaxMinKind kind);
@@ -661,6 +671,17 @@ class Simulator : public SimulatorBase {
   void PushShadowStack(uintptr_t value);
   uintptr_t PopShadowStack(uintptr_t value);
   uintptr_t SwapShadowStack(uintptr_t value, int nest);
+
+  // Manage instruction tracing.
+  bool InstructionTracingEnabled() const { return instruction_tracing_; }
+  void SetInstructionTracing(bool enabled) {
+    instruction_tracing_ = enabled;
+    UpdateInstructionChecks();
+  }
+  void ToggleInstructionTracing() {
+    instruction_tracing_ = !instruction_tracing_;
+    UpdateInstructionChecks();
+  }
 
  private:
   enum special_values {
@@ -949,40 +970,41 @@ class Simulator : public SimulatorBase {
     for (int i = VRegisterValue::kChunks - 1; i >= 0; i--) {
       const char* format =
           i != VRegisterValue::kChunks - 1 ? "_%016" PRIx64 : "%016" PRIx64;
-      int written = SNPrintF(trace_buf_.SubVector(offset, trace_buf_.size()),
-                             format, value.chunks[i]);
+      int written = SNPrintF(
+          base::VectorOf(trace_buf_).SubVector(offset, trace_buf_.size()),
+          format, value.chunks[i]);
       offset += written;
     }
     return offset;
   }
 
   inline void rvv_trace_vd() {
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       int offset = snprintf_vreg(rvv_vd_reg());
-      SNPrintF(trace_buf_.SubVector(offset, trace_buf_.size()),
+      SNPrintF(base::VectorOf(trace_buf_).SubVector(offset, trace_buf_.size()),
                " (%" PRId64 ")", icount_);
     }
   }
 
   inline void rvv_trace_vs1() {
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       printf_vreg(rvv_vs1_reg());
     }
   }
 
   inline void rvv_trace_vs2() {
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       printf_vreg(rvv_vs2_reg());
     }
   }
   inline void rvv_trace_v0() {
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       printf_vreg(v0);
     }
   }
 
   inline void rvv_trace_rs1() {
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       PrintF("\t%s:0x%016" PRIx64 "\n",
              v8::internal::Registers::Name(static_cast<int>(rs1_reg())),
              (uint64_t)(get_register(rs1_reg())));
@@ -990,12 +1012,12 @@ class Simulator : public SimulatorBase {
   }
 
   inline void rvv_trace_status() {
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       size_t i = 0;
       for (; i < trace_buf_.size(); i++) {
         if (trace_buf_[i] == '\0') break;
       }
-      SNPrintF(trace_buf_.SubVector(i, trace_buf_.size()),
+      SNPrintF(base::VectorOf(trace_buf_).SubVector(i, trace_buf_.size()),
                "  sew:%s lmul:%s vstart:%" PRId64 " vl:%" PRId64, rvv_sew_s(),
                rvv_lmul_s(), rvv_vstart(), rvv_vl());
     }
@@ -1253,6 +1275,10 @@ class Simulator : public SimulatorBase {
 
   // Executes one instruction.
   void InstructionDecode(Instruction* instr);
+  void DecodeInstruction(Instruction* instr);
+  void ExecuteWithChecks(Instruction* instr);
+  // Sets instruction_checks_, which Execute tests before each instruction.
+  void UpdateInstructionChecks();
 
   // ICache.
   static void CheckICache(base::CustomMatcherHashMap* i_cache,
@@ -1289,8 +1315,8 @@ class Simulator : public SimulatorBase {
   // Floating-point control and status register.
   uint32_t FCSR_;
 
-  base::Vector<uintptr_t> shadow_stack_ =
-      base::Vector<uintptr_t>::New(kInitialShadowStackSize);
+  base::UniqueArray<uintptr_t> shadow_stack_ =
+      base::UniqueArray<uintptr_t>::New(kInitialShadowStackSize);
   size_t csr_ssp_ = shadow_stack_.size();  // Shadow stack pointer
   int64_t ss_mismatch_count_ = 0;
 
@@ -1329,11 +1355,15 @@ class Simulator : public SimulatorBase {
   static const int kAdditionalStackMargin = 20 * KB;
 
   bool pc_modified_;
+  // Take a copy of the v8 simulator tracing flag because flags are frozen after
+  // start.
+  bool instruction_tracing_ = v8_flags.trace_sim;
+  bool instruction_checks_ = true;
   int64_t icount_;
   sreg_t* watch_address_ = nullptr;
   sreg_t watch_value_ = 0;
   int break_count_;
-  base::EmbeddedVector<char, 256> trace_buf_;
+  std::array<char, 256> trace_buf_;
 
   // Debugger input.
   char* last_debugger_input_;

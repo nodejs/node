@@ -110,7 +110,7 @@ HeapStatistics HeapStatisticsCollector::CollectDetailedStatistics(
   }
 
   // Resident set size may be smaller than the than the recorded size in
-  // `StatsCollector` due to discarded memory that is tracked on page level.
+  // `StatsCollector` due to purged memory that is tracked on page level.
   // This only holds before we account for pooled memory.
   DCHECK_GE(heap->stats_collector()->allocated_memory_size(),
             stats.resident_size_bytes);
@@ -150,8 +150,7 @@ bool HeapStatisticsCollector::VisitNormalPage(NormalPage& page) {
 
   current_page_stats_ = InitializePage(current_space_stats_);
   current_page_stats_->committed_size_bytes = kPageSize;
-  current_page_stats_->resident_size_bytes =
-      kPageSize - page.discarded_memory();
+  current_page_stats_->resident_size_bytes = kPageSize - page.purged_memory();
   return false;
 }
 

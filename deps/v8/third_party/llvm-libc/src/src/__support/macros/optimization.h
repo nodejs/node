@@ -16,17 +16,24 @@
 
 // We use a template to implement likely/unlikely to make sure that we don't
 // accidentally pass an integer.
+// Note that `__builtin_expect` requires the second argument to be a constant
+// expression.
 namespace LIBC_NAMESPACE_DECL {
 namespace details {
 template <typename T>
-LIBC_INLINE constexpr bool expects_bool_condition(T value, T expected) {
-  return __builtin_expect(value, expected);
+LIBC_ALWAYS_INLINE constexpr bool expects_bool_condition(T value) = delete;
+
+template <>
+LIBC_ALWAYS_INLINE constexpr bool expects_bool_condition<bool>(bool value) {
+  return value;
 }
 } // namespace details
 } // namespace LIBC_NAMESPACE_DECL
-#define LIBC_LIKELY(x) LIBC_NAMESPACE::details::expects_bool_condition(x, true)
+#define LIBC_LIKELY(x)                                                         \
+  (__builtin_expect(LIBC_NAMESPACE::details::expects_bool_condition((x)), true))
 #define LIBC_UNLIKELY(x)                                                       \
-  LIBC_NAMESPACE::details::expects_bool_condition(x, false)
+  (__builtin_expect(LIBC_NAMESPACE::details::expects_bool_condition((x)),      \
+                    false))
 
 #if defined(LIBC_COMPILER_IS_CLANG)
 #define LIBC_LOOP_NOUNROLL _Pragma("nounroll")
@@ -69,6 +76,9 @@ LIBC_INLINE constexpr bool expects_bool_condition(T value, T expected) {
 
 #if ((LIBC_MATH) & LIBC_MATH_SMALL_TABLES)
 #define LIBC_MATH_HAS_SMALL_TABLES
+#define LIBC_MATH_SMALL_TABLES_INLINE LIBC_NOINLINE LIBC_INLINE
+#else
+#define LIBC_MATH_SMALL_TABLES_INLINE LIBC_ALWAYS_INLINE
 #endif
 
 #if ((LIBC_MATH) & LIBC_MATH_INTERMEDIATE_COMP_IN_FLOAT)
@@ -86,5 +96,17 @@ LIBC_INLINE constexpr bool expects_bool_condition(T value, T expected) {
 #if ((LIBC_MATH) & LIBC_MATH_ASSUME_ROUND_NEAREST_ONLY)
 #define LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
 #endif
+
+// Helper macros to compare math implementation namespace tokens in #if
+// directives (e.g. when LIBC_MATH_<FUNC>_IMPL is overridden via -D).
+#define LIBC_MATH_IMPL_ID_double_eval 1
+#define LIBC_MATH_IMPL_ID_float_eval 2
+#define LIBC_MATH_IMPL_ID_float_eval_cr_rn 3
+#define LIBC_MATH_IMPL_ID_integer_eval 4
+#define LIBC_MATH_IMPL_CONCAT_INNER(a, b) a##b
+#define LIBC_MATH_IMPL_CONCAT(a, b) LIBC_MATH_IMPL_CONCAT_INNER(a, b)
+#define LIBC_MATH_IMPL_IS(impl, target)                                        \
+  (LIBC_MATH_IMPL_CONCAT(LIBC_MATH_IMPL_ID_, impl) ==                          \
+   LIBC_MATH_IMPL_CONCAT(LIBC_MATH_IMPL_ID_, target))
 
 #endif // LLVM_LIBC_SRC___SUPPORT_MACROS_OPTIMIZATION_H

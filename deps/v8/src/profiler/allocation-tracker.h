@@ -128,11 +128,14 @@ class AllocationTracker {
 
  private:
   unsigned AddFunctionInfo(Tagged<SharedFunctionInfo> info, SnapshotObjectId id,
-                           Isolate* isolate);
-  String::LineEndsVector& GetOrCreateLineEnds(Tagged<Script> script,
-                                              Isolate* isolate);
-  Script::PositionInfo GetScriptPositionInfo(Tagged<Script> script,
-                                             Isolate* isolate, int start);
+                           Isolate* isolate,
+                           const DisallowGarbageCollection& no_gc);
+  String::LineEndsVector& GetOrCreateLineEnds(
+      Tagged<Script> script, Isolate* isolate,
+      const DisallowGarbageCollection& no_gc);
+  Script::PositionInfo GetScriptPositionInfo(
+      Tagged<Script> script, Isolate* isolate, int start,
+      const DisallowGarbageCollection& no_gc);
   unsigned functionInfoIndexForVMState(StateTag state);
 
   static const int kMaxAllocationTraceLength = 64;
@@ -147,7 +150,8 @@ class AllocationTracker {
   using ScriptId = int;
   class ScriptData {
    public:
-    ScriptData(Tagged<Script>, Isolate*, AllocationTracker*);
+    ScriptData(Tagged<Script>, Isolate*, AllocationTracker*,
+               const DisallowGarbageCollection& no_gc);
     ~ScriptData();
     String::LineEndsVector& line_ends() { return line_ends_; }
 

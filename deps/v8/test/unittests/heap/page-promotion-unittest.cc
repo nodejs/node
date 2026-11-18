@@ -36,16 +36,16 @@ TEST_F(PagePromotionTest, PagePromotion_NewToOld) {
   if (i::v8_flags.single_generation) return;
   if (!i::v8_flags.incremental_marking) return;
   if (!i::v8_flags.page_promotion) return;
-  v8_flags.page_promotion_threshold = 0;
+  v8_flags.page_promotion_threshold.Set(0);
   // Parallel evacuation messes with fragmentation in a way that objects that
   // should be copied in semi space are promoted to old space because of
   // fragmentation.
-  v8_flags.parallel_compaction = false;
+  v8_flags.parallel_compaction.Set(false);
   // Parallel scavenge introduces too much fragmentation.
-  v8_flags.parallel_scavenge = false;
+  v8_flags.parallel_scavenge.Set(false);
   // We cannot optimize for size as we require a new space with more than one
   // page.
-  v8_flags.optimize_for_size = false;
+  v8_flags.optimize_for_size.Set(false);
 
   ManualGCScope manual_gc_scope(isolate());
 

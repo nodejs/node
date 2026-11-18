@@ -1,0 +1,2 @@
+Test that stepping works correctly with bytecode scaling prefix.
+breakCount: 7

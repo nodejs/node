@@ -246,8 +246,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
   callee.Return(static_cast<int>(desc->ReturnCount()), returns.get());
 
-  OptimizedCompilationInfo info(base::ArrayVector("testing"), &zone,
-                                CodeKind::WASM_FUNCTION);
+  OptimizedCompilationInfo info("testing", &zone, CodeKind::WASM_FUNCTION);
   wasm::WasmCompilationResult wasm_result =
       Pipeline::GenerateWasmCodeForTesting(
           &info, i_isolate, desc, callee.graph(),
@@ -299,7 +298,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   caller.Return(ret);
 
   // Call the wrapper.
-  OptimizedCompilationInfo wrapper_info(base::ArrayVector("wrapper"), &zone,
+  OptimizedCompilationInfo wrapper_info("wrapper", &zone,
                                         CodeKind::FOR_TESTING);
   DirectHandle<Code> wrapper_code =
       Pipeline::GenerateCodeForTesting(

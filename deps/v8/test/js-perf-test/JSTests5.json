@@ -546,20 +546,6 @@
       ]
     },
     {
-      "name": "Inspector",
-      "path": ["Inspector"],
-      "main": "run.js",
-      "resources": [ "debugger.js", "runtime.js" ],
-      "flags": ["--enable-inspector","--allow-natives-syntax"],
-      "results_regexp": "^%s\\-Inspector\\(Score\\): (.+)$",
-      "tests": [
-        {"name": "Debugger.paused"},
-        {"name": "Runtime.evaluate(String16Cstor)"},
-        {"name": "Debugger.getPossibleBreakpoints"},
-        {"name": "AsyncStacksInstrumentation"}
-      ]
-    },
-    {
       "name": "Parsing",
       "path": ["Parsing"],
       "main": "run.js",

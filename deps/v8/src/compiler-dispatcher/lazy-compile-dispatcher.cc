@@ -7,7 +7,6 @@
 #include <atomic>
 
 #include "include/v8-platform.h"
-#include "src/base/fpu.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/codegen/compiler.h"
@@ -25,6 +24,7 @@
 #include "src/parsing/scanner.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
+#include "src/tracing/trace-event.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 namespace v8 {
@@ -420,8 +420,6 @@ void LazyCompileDispatcher::ScheduleIdleTaskFromAnyThread(
 }
 
 void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
-  base::FlushDenormalsScope flush_denormals_scope(isolate_->flush_denormals());
-
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
               "V8.LazyCompileDispatcherDoBackgroundWork");
 

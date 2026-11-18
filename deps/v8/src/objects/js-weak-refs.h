@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_WEAK_REFS_H_
 
 #include "src/base/bit-field.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/tagged-field.h"
 #include "src/objects/union.h"
@@ -27,8 +28,8 @@ V8_OBJECT class JSFinalizationRegistry : public JSObject {
   inline void set_native_context(Tagged<NativeContext> value,
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<JSReceiver> cleanup() const;
-  inline void set_cleanup(Tagged<JSReceiver> value,
+  inline Tagged<JSCallable> cleanup() const;
+  inline void set_cleanup(Tagged<JSCallable> value,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<WeakCell, Undefined>> active_cells() const;
@@ -48,8 +49,16 @@ V8_OBJECT class JSFinalizationRegistry : public JSObject {
       Tagged<UnionOf<JSFinalizationRegistry, Undefined>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using ScheduledForCleanupBit = First<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(scheduled_for_cleanup, ScheduledForCleanupBit)
+  };
+
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   DECL_PRINTER(JSFinalizationRegistry)
   EXPORT_DECL_VERIFIER(JSFinalizationRegistry)
@@ -102,25 +111,16 @@ V8_OBJECT class JSFinalizationRegistry : public JSObject {
   V8_EXPORT_PRIVATE void RemoveCellFromUnregisterTokenMap(
       Isolate* isolate, Tagged<WeakCell> weak_cell);
 
-  // Bitfields in flags.
-  using ScheduledForCleanupBit = base::BitField<bool, 0, 1, uint32_t>;
-  enum Flag : uint32_t {
-    kNone = 0,
-    kScheduledForCleanup = ScheduledForCleanupBit::kMask,
-  };
-  using Flags = base::Flags<Flag>;
-  static constexpr int kFlagCount = 1;
-
   static const int kHeaderSize;
 
  public:
   TaggedMember<NativeContext> native_context_;
-  TaggedMember<JSReceiver> cleanup_;
+  TaggedMember<JSCallable> cleanup_;
   TaggedMember<UnionOf<WeakCell, Undefined>> active_cells_;
   TaggedMember<UnionOf<WeakCell, Undefined>> cleared_cells_;
   TaggedMember<Object> key_map_;
   TaggedMember<UnionOf<JSFinalizationRegistry, Undefined>> next_dirty_;
-  TaggedMember<Smi> flags_;
+  SmiBitFieldMember<Flags> flags_;
 
   friend class Heap;
   friend class TorqueGeneratedJSFinalizationRegistryAsserts;

@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_REGISTER_ALLOCATION_PHASE_H_
 #define V8_COMPILER_TURBOSHAFT_REGISTER_ALLOCATION_PHASE_H_
 
+#include "src/base/synchronization-point-support.h"
 #ifdef BUILTIN_BLOCK_POSITION
 #include "src/compiler/backend/block-position.h"
 #endif
@@ -92,16 +93,6 @@ struct AllocateSimd128RegistersPhase {
     RegAllocator allocator(data->register_allocation_data(),
                            RegisterKind::kSimd128, temp_zone);
     allocator.AllocateRegisters();
-  }
-};
-
-struct DecideSpillingModePhase {
-  DECL_TURBOSHAFT_PHASE_CONSTANTS_WITH_LEGACY_NAME(DecideSpillingMode)
-  static constexpr bool kOutputIsTraceableGraph = false;
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    OperandAssigner assigner(data->register_allocation_data());
-    assigner.DecideSpillingMode();
   }
 };
 
@@ -200,10 +191,10 @@ struct JumpThreadingPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS_WITH_LEGACY_NAME(JumpThreading)
   static constexpr bool kOutputIsTraceableGraph = false;
 
-  void Run(PipelineData* data, Zone* temp_zone, bool frame_at_start) {
+  void Run(PipelineData* data, Zone* temp_zone) {
     ZoneVector<RpoNumber> result(temp_zone);
-    if (JumpThreading::ComputeForwarding(temp_zone, &result, data->sequence(),
-                                         frame_at_start)) {
+    if (JumpThreading::ComputeForwarding(temp_zone, &result,
+                                         data->sequence())) {
       JumpThreading::ApplyForwarding(temp_zone, result, data->sequence());
     }
   }
@@ -217,6 +208,10 @@ struct AssembleCodePhase {
     CodeGenerator* code_generator = data->code_generator();
     DCHECK_NOT_NULL(code_generator);
     code_generator->AssembleCode();
+    if (data->broker() != nullptr) {
+      code_generator->PrepareCodeOnBackground(data->broker()->local_isolate());
+    }
+    SYNCHRONIZATION_POINT_TEST_ONLY("TurboshaftAfterAssembleCode");
   }
 };
 

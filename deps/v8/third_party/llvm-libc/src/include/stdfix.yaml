@@ -82,6 +82,22 @@ functions:
     arguments:
       - type: accum
     guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: expuhk
+    standards:
+      - stdc_ext
+      - llvm_libc_stdfix_ext
+    return_type: unsigned short accum
+    arguments:
+      - type: unsigned short accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: expuk
+    standards:
+      - stdc_ext
+      - llvm_libc_stdfix_ext
+    return_type: unsigned accum
+    arguments:
+      - type: unsigned accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
   - name: hrbits
     standards:
       - stdc_ext
@@ -678,6 +694,70 @@ functions:
       - type: unsigned accum
     guard: LIBC_COMPILER_HAS_FIXED_POINT
   - name: diviulk
+    standards:
+      - stdc_ext
+    return_type: unsigned long int
+    arguments:
+      - type: unsigned long int
+      - type: unsigned long accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: mulir
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: int
+      - type: fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: mulilr
+    standards:
+      - stdc_ext
+    return_type: long int
+    arguments:
+      - type: long int
+      - type: long fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: mulik
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: int
+      - type: accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: mulilk
+    standards:
+      - stdc_ext
+    return_type: long int
+    arguments:
+      - type: long int
+      - type: long accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: muliur
+    standards:
+      - stdc_ext
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+      - type: unsigned fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: muliulr
+    standards:
+      - stdc_ext
+    return_type: unsigned long int
+    arguments:
+      - type: unsigned long int
+      - type: unsigned long fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: muliuk
+    standards:
+      - stdc_ext
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+      - type: unsigned accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: muliulk
     standards:
       - stdc_ext
     return_type: unsigned long int

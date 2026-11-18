@@ -1,0 +1,2 @@
+Tests takeHeapSnapshot without crash.
+Heap snapshot taken.

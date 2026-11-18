@@ -3,7 +3,7 @@ include_rules = [
 ]
 
 specific_include_rules = {
-  "libplatform\.h": [
+  "libplatform\\.h": [
     "+libplatform/v8-tracing.h",
   ],
 }

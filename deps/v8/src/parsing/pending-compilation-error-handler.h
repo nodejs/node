@@ -80,6 +80,7 @@ class PendingCompilationErrorHandler {
   void clear_unidentifiable_error() {
     has_pending_error_ = false;
     unidentifiable_error_ = false;
+    has_invalid_string_length_error_ = false;
   }
   bool has_error_unidentifiable_by_preparser() const {
     return unidentifiable_error_;
@@ -188,6 +189,7 @@ class PendingCompilationErrorHandler {
   bool has_pending_error_ = false;
   bool stack_overflow_ = false;
   bool unidentifiable_error_ = false;
+  bool has_invalid_string_length_error_ = false;
 
   MessageDetails error_details_;
 

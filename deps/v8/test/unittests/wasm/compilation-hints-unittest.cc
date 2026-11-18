@@ -46,7 +46,7 @@ class WasmCompilationHintsBuilder {
   }
 
   void AddExport(const char* name, uint32_t index) {
-    builder_.AddExport(base::CStrVector(name), kExternalFunction, index);
+    builder_.AddExport(name, kExternalFunction, index);
   }
 
   void CompileModule() {
@@ -64,7 +64,7 @@ class WasmCompilationHintsBuilder {
   void CheckResult(uint32_t function_index, int32_t expected, int32_t arg0,
                    int32_t arg1) {
     const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
-    DCHECK(EquivalentNumericSig(sig, sigs.i_ii()));
+    DCHECK(EquivalentNumericSig(sig, TestSignatures::i_ii()));
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg0);
     packer.Push(arg1);
@@ -78,7 +78,6 @@ class WasmCompilationHintsBuilder {
     return trusted_instance_data_;
   }
 
-  TestSignatures sigs;
 
  private:
   uint8_t DefineFunctionImpl(WasmFunctionBuilder* fun,
@@ -139,7 +138,7 @@ TEST_F(WasmCompilationHintsUnittest, RecoverCompilationHints) {
                                                  5);
   v8::Context::New(reinterpret_cast<v8::Isolate*>(isolate()))->Enter();
   WasmCompilationHintsBuilder builder(isolate(), zone());
-  HeapType module_sig_i_i = builder.DefineSignature(builder.sigs.i_i());
+  HeapType module_sig_i_i = builder.DefineSignature(TestSignatures::i_i());
   uint8_t inc = builder.DefineFunction(
       module_sig_i_i.ref_index(), {},
       {WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_I32V_1(1)), WASM_END});
@@ -148,7 +147,7 @@ TEST_F(WasmCompilationHintsUnittest, RecoverCompilationHints) {
       {WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_I32V_1(1)), WASM_END});
 
   uint8_t caller = builder.DefineFunction(
-      builder.sigs.i_ii(), {ValueType::RefNull(module_sig_i_i)},
+      TestSignatures::i_ii(), {ValueType::RefNull(module_sig_i_i)},
       // clang-format off
       {kExprLocalGet, 0,
        kExprIf, kVoidCode,

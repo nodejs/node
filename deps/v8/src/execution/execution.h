@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_EXECUTION_H_
 #define V8_EXECUTION_EXECUTION_H_
 
+#include "include/v8-object.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 
@@ -47,7 +48,9 @@ class Execution final : public AllStatic {
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> New(
       Isolate* isolate, DirectHandle<Object> constructor,
       DirectHandle<Object> new_target,
-      base::Vector<const DirectHandle<Object>> args);
+      base::Vector<const DirectHandle<Object>> args,
+      SideEffectType overrider_side_effect_type =
+          SideEffectType::kHasSideEffect);
 
   // Call a function, just like Call(), but handle don't report exceptions
   // externally.

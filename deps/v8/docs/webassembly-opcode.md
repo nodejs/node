@@ -85,7 +85,7 @@ By adding our new instruction in `FOREACH_SIMPLE_OPCODE`, we are skipping a [fai
 
 ## Writing a test for the new opcode { #test }
 
-Wasm tests can be found in [`test/cctest/wasm/`](https://cs.chromium.org/chromium/src/v8/test/cctest/wasm/). Let’s take a look at [`test/cctest/wasm/test-run-wasm.cc`](https://cs.chromium.org/chromium/src/v8/test/cctest/wasm/test-run-wasm.cc), where many “simple” opcodes are tested.
+Wasm tests can be found in [`test/unittests/wasm/`](https://cs.chromium.org/chromium/src/v8/test/unittests/wasm/). Let’s take a look at [`test/unittests/wasm/run-wasm-unittest.cc`](https://cs.chromium.org/chromium/src/v8/test/unittests/wasm/run-wasm-unittest.cc), where many “simple” opcodes are tested.
 
 There are many examples in this file that we can follow. The general setup is:
 
@@ -98,11 +98,11 @@ There are many examples in this file that we can follow. The general setup is:
 Here’s a simple test for our new opcode:
 
 ```diff
-diff --git a/test/cctest/wasm/test-run-wasm.cc b/test/cctest/wasm/test-run-wasm.cc
+diff --git a/test/unittests/wasm/run-wasm-unittest.cc b/test/unittests/wasm/run-wasm-unittest.cc
 index 26df61ceb8..b1ee6edd71 100644
---- a/test/cctest/wasm/test-run-wasm.cc
-+++ b/test/cctest/wasm/test-run-wasm.cc
-@@ -28,6 +28,15 @@ namespace test_run_wasm {
+--- a/test/unittests/wasm/run-wasm-unittest.cc
++++ b/test/unittests/wasm/run-wasm-unittest.cc
+@@ -28,6 +28,15 @@ namespace v8::internal::wasm {
  #define RET(x) x, kExprReturn
  #define RET_I8(x) WASM_I32V_2(x), kExprReturn
 
@@ -111,7 +111,7 @@ index 26df61ceb8..b1ee6edd71 100644
 +WASM_EXEC_TEST(Int32Add1) {
 +  WasmRunner<int32_t> r(execution_tier);
 +  // 10 + 1
-+  BUILD(r, WASM_I32_ADD1(WASM_I32V_1(10)));
++  r.Build({WASM_I32_ADD1(WASM_I32V_1(10))});
 +  CHECK_EQ(11, r.Call());
 +}
 +
@@ -123,9 +123,9 @@ index 26df61ceb8..b1ee6edd71 100644
 Run the test:
 
 ```
-$ tools/dev/gm.py x64.debug 'cctest/test-run-wasm-simd/RunWasmTurbofan_I32Add1'
+$ tools/dev/gm.py x64.debug 'unittests/RunWasmTest.RunWasmTurbofan_Int32Add1'
 ...
-=== cctest/test-run-wasm/RunWasmTurbofan_Int32Add1 ===
+=== unittests/RunWasmTest.RunWasmTurbofan_Int32Add1 ===
 #
 # Fatal error in ../../src/compiler/wasm-compiler.cc, line 988
 # Unsupported opcode 0xee:i32.add1
@@ -272,7 +272,7 @@ index 461aef0023..95251934ce 100644
 Running the test again now gives us a different failure:
 
 ```
-=== cctest/test-run-wasm/RunWasmTurbofan_Int32Add1 ===
+=== unittests/RunWasmTest.RunWasmTurbofan_Int32Add1 ===
 #
 # Fatal error in ../../src/compiler/backend/instruction-selector.cc, line 2072
 # Unexpected operator #289:Int32Add1 @ node #7
@@ -393,9 +393,9 @@ index 61c3a45a16..9c37ed7464 100644
 For now we leave our code generation empty, and we can run the test to make sure everything compiles:
 
 ```
-=== cctest/test-run-wasm/RunWasmTurbofan_Int32Add1 ===
+=== unittests/RunWasmTest.RunWasmTurbofan_Int32Add1 ===
 #
-# Fatal error in ../../test/cctest/wasm/test-run-wasm.cc, line 37
+# Fatal error in ../../test/unittests/wasm/run-wasm-unittest.cc, line 37
 # Check failed: 11 == r.Call() (11 vs. 10).
 ```
 
@@ -427,7 +427,7 @@ And this makes the test pass:
 Luckily for us `addl` is already implemented. If our new opcode required writing a new assembly instruction implementation, we would add it to [`src/compiler/backend/x64/assembler-x64.cc`](https://cs.chromium.org/chromium/src/v8/src/codegen/x64/assembler-x64.cc), where the assembly instruction is encoded into bytes and emitted.
 
 :::note
-**Tip:** To inspect the generated code, we can pass `--print-code` to `cctest`.
+**Tip:** To inspect the generated code, we can pass `--print-code` to `v8_unittests`.
 :::
 
 ## Other architectures

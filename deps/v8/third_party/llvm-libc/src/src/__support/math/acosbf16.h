@@ -35,6 +35,14 @@ LIBC_INLINE bfloat16 acosbf16(bfloat16 x) {
   uint16_t x_u = xbits.uintval();
   uint16_t x_abs = x_u & 0x7fff;
   bool sign = (x_u >> 15);
+
+  // For |x| <= 2^-12, 0x1.92p0 < acos(x) < 0x1.93p0: the lower bound is
+  // a bfloat16 value and the upper bound is the midpoint to its successor.
+  // Thus acos(x) rounds like pi/2 in every rounding mode.  Return before
+  // squaring x or evaluating the polynomial to avoid intermediate underflow.
+  if (LIBC_UNLIKELY(x_abs <= 0x3980))
+    return fputil::cast<bfloat16>(PI_2);
+
   float xf = x;
 
   float xf_abs = (xf < 0 ? -xf : xf);
@@ -42,12 +50,7 @@ LIBC_INLINE bfloat16 acosbf16(bfloat16 x) {
 
   // case 1: x <= 0.5
   if (x_abs <= 0x3F00) {
-    // |x| = {0}
-    if (LIBC_UNLIKELY(x_abs == 0))
-      return fputil::cast<bfloat16>(PI_2);
-
-    float xp = fputil::cast<float>(asin_internal::asin_eval(x_sq));
-    float result = xf * fputil::multiply_add(x_sq, xp, 1.0f);
+    float result = xf * asin_internal::asin_eval_float(x_sq);
     return fputil::cast<bfloat16>(PI_2 - result);
   }
 
@@ -66,11 +69,7 @@ LIBC_INLINE bfloat16 acosbf16(bfloat16 x) {
     // and acos(x) = acos(|x|) for x >= 0, pi - acos(|x|) for x < 0
     float t = fputil::multiply_add<float>(xf_abs, -0.5f, 0.5f);
     float t_sqrt = fputil::sqrt<float>(t);
-    // TODO: Use bfloat16 version for inv_trigf_utils_internals after they are
-    // available Tracking issue :
-    // https://github.com/llvm/llvm-project/issues/202079
-    float tp = fputil::cast<float>(asin_internal::asin_eval(t));
-    float asin_sqrt_t = t_sqrt * (fputil::multiply_add(t, tp, 1.0f));
+    float asin_sqrt_t = t_sqrt * asin_internal::asin_eval_float(t);
 
     return fputil::cast<bfloat16>(
         (sign) ? fputil::multiply_add(asin_sqrt_t, -2.0f, PI)

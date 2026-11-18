@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/bits.h"
+#include "src/base/platform/mutex.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
@@ -102,8 +103,9 @@ size_t BackingStore::GetWasmReservationSize(HasGuardRegions has_guard_regions,
 }
 
 // The backing store for a Wasm shared memory remembers all the isolates
-// with which it has been shared.
+// with which it has been shared, and serializes concurrent grow operations.
 struct SharedWasmMemoryData {
+  base::Mutex grow_mutex_;
   std::vector<Isolate*> isolates_;
 };
 
@@ -325,6 +327,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
 
   auto gc_retry = [&](const auto& fn) {
     if (fn()) return true;
+    if (isolate == nullptr) return false;
     // Collect garbage and retry.
     did_retry = true;
     return isolate->heap()->allocator()->RetryCustomAllocate(
@@ -514,19 +517,18 @@ std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(
 // Returns the previous number of pages on success.
 std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
                                                           size_t delta_pages,
-                                                          size_t max_pages) {
+                                                          size_t max_pages,
+                                                          GrowMode mode) {
   // This function grows wasm memory by
   // * changing the permissions of additional {delta_pages} pages to kReadWrite;
   // * increment {byte_length_};
   //
-  // As this code is executed concurrently, the following steps are executed:
-  // 1) Read the current value of {byte_length_};
-  // 2) Change the permission of all pages from {buffer_start_} to
-  //    {byte_length_} + {delta_pages} * {page_size} to kReadWrite;
-  //    * This operation may be executed racefully. The OS takes care of
-  //      synchronization.
-  // 3) Try to update {byte_length_} with a compare_exchange;
-  // 4) Repeat 1) to 3) until the compare_exchange in 3) succeeds;
+  // Concurrent grows of shared Wasm memory are serialized via {grow_mutex_} in
+  // {SharedWasmMemoryData}. Without serialization, a racing grow could set
+  // {kReadWrite} permissions on pages beyond {byte_length_} and then fail if
+  // another grow succeeded in between and caused it to exceed {max_pages},
+  // leaving out-of-bounds pages accessible to Wasm trap-handler loads/stores
+  // and potentially non-zeroed for subsequent grows.
   //
   // The result of this function is the {byte_length_} before growing in pages.
   // The result of this function appears like the result of an RMW-update on
@@ -539,49 +541,43 @@ std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
   //   also have kReadWrite permission.
   // * {byte_length_} is always lower or equal than the amount of memory with
   //   permissions set to kReadWrite;
-  //     * This is guaranteed by incrementing {byte_length_} with a
-  //       compare_exchange after changing the permissions.
-  //     * This invariant is the reason why we cannot use a fetch_add.
+  //     * This is guaranteed by incrementing {byte_length_} after changing the
+  //       permissions.
   DCHECK(is_wasm_memory());
   max_pages = std::min(max_pages, byte_capacity_ / wasm::kWasmPageSize);
 
-  // Do a compare-exchange loop, because we also need to adjust page
-  // permissions. Note that multiple racing grows both try to set page
-  // permissions for the entire range (to be RW), so the operating system
-  // should deal with that raciness. We know we succeeded when we can
-  // compare/swap the old length with the new length.
-  size_t old_length = byte_length_.load(std::memory_order_relaxed);
-
-  if (delta_pages == 0) {
-    return {old_length / wasm::kWasmPageSize};  // degenerate grow.
-  }
-  if (delta_pages > max_pages) return {};       // would never work.
-
-  size_t new_length = 0;
-  while (true) {
-    size_t current_pages = old_length / wasm::kWasmPageSize;
-
-    // Check if we have exceed the supplied maximum.
-    if (current_pages > (max_pages - delta_pages)) return {};
-
-    new_length = (current_pages + delta_pages) * wasm::kWasmPageSize;
-
-    // Try to adjust the permissions on the memory.
-    if (!i::SetPermissions(GetPlatformPageAllocator(), buffer_start_,
-                           new_length, PageAllocator::kReadWrite)) {
-      // This is a nondeterministic failure; mark as such in the WasmEngine (for
-      // differential fuzzing).
-      wasm::WasmEngine::set_had_nondeterminism();
-      return {};
-    }
-    if (byte_length_.compare_exchange_weak(old_length, new_length,
-                                           std::memory_order_acq_rel)) {
-      // Successfully updated both the length and permissions.
-      break;
-    }
+  std::optional<base::MutexGuard> mutex_guard;
+  if (is_shared()) {
+    mutex_guard.emplace(&get_shared_wasm_memory_data()->grow_mutex_);
   }
 
-  return {old_length / wasm::kWasmPageSize};
+  size_t old_length = byte_length_.load(std::memory_order_seq_cst);
+  size_t current_pages = old_length / wasm::kWasmPageSize;
+  DCHECK_LE(current_pages, max_pages);
+
+  // Check if we have exceeded the supplied maximum.
+  if (mode == GrowMode::kGrowBy && delta_pages > max_pages - current_pages) {
+    return {};
+  }
+  size_t new_pages =
+      mode == GrowMode::kGrowTo ? delta_pages : current_pages + delta_pages;
+  if (new_pages <= current_pages) return {current_pages};
+  if (new_pages > max_pages) return {};
+
+  size_t new_length = new_pages * wasm::kWasmPageSize;
+
+  // Try to adjust the permissions on the memory.
+  std::shared_ptr<PageAllocator> page_allocator = get_page_allocator();
+  if (!i::SetPermissions(page_allocator.get(), buffer_start_, new_length,
+                         PageAllocator::kReadWrite)) {
+    // This is a nondeterministic failure; mark as such in the WasmEngine (for
+    // differential fuzzing).
+    wasm::WasmEngine::set_had_nondeterminism();
+    return {};
+  }
+
+  byte_length_.store(new_length, std::memory_order_seq_cst);
+  return {current_pages};
 }
 
 void BackingStore::BroadcastSharedWasmMemoryGrow(Isolate* isolate) const {
@@ -621,11 +617,14 @@ BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
 
   size_t new_committed_length = new_committed_pages * page_size;
   DCHECK_LE(new_byte_length, new_committed_length);
-  DCHECK(!is_shared());
+  SBXCHECK(!is_shared());
+  SBXCHECK(is_resizable_by_js());
 
   // Validate the new length against the out-of-sandbox capacity to prevent
   // an in-sandbox corruption from bypassing bounds checks.
   SBXCHECK_LE(new_byte_length, max_byte_length_);
+
+  std::shared_ptr<PageAllocator> page_allocator = get_page_allocator();
 
   if (new_byte_length < byte_length_) {
     // Zero the memory so that in case the buffer is grown later, we have
@@ -648,7 +647,7 @@ BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
     if (new_committed_pages < old_committed_pages) {
       size_t old_committed_length = old_committed_pages * page_size;
       if (!i::SetPermissions(
-              GetPlatformPageAllocator(),
+              page_allocator.get(),
               reinterpret_cast<uint8_t*>(buffer_start_) + new_committed_length,
               old_committed_length - new_committed_length,
               PageAllocator::kNoAccess)) {
@@ -669,7 +668,7 @@ BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
   }
 
   // Try to adjust the permissions on the memory.
-  if (!i::SetPermissions(GetPlatformPageAllocator(), buffer_start_,
+  if (!i::SetPermissions(page_allocator.get(), buffer_start_,
                          new_committed_length, PageAllocator::kReadWrite)) {
     return kFailure;
   }
@@ -690,11 +689,14 @@ BackingStore::ResizeOrGrowResult BackingStore::GrowInPlace(
 
   size_t new_committed_length = new_committed_pages * page_size;
   DCHECK_LE(new_byte_length, new_committed_length);
-  DCHECK(is_shared());
+  SBXCHECK(is_shared());
+  SBXCHECK(is_resizable_by_js() || is_wasm_memory());
 
   // Validate the new length against the out-of-sandbox capacity to prevent
   // an in-sandbox corruption from bypassing bounds checks.
   SBXCHECK_LE(new_byte_length, max_byte_length_);
+
+  std::shared_ptr<PageAllocator> page_allocator = get_page_allocator();
 
   // See comment in GrowWasmMemoryInPlace.
   // GrowableSharedArrayBuffer.prototype.grow can be called from several
@@ -718,7 +720,7 @@ BackingStore::ResizeOrGrowResult BackingStore::GrowInPlace(
     }
 
     // Try to adjust the permissions on the memory.
-    if (!i::SetPermissions(GetPlatformPageAllocator(), buffer_start_,
+    if (!i::SetPermissions(page_allocator.get(), buffer_start_,
                            new_committed_length, PageAllocator::kReadWrite)) {
       return kFailure;
     }
@@ -781,6 +783,19 @@ SharedWasmMemoryData* BackingStore::get_shared_wasm_memory_data() const {
   auto shared_wasm_memory_data = type_specific_data_.shared_wasm_memory_data;
   CHECK(shared_wasm_memory_data);
   return shared_wasm_memory_data;
+}
+
+std::shared_ptr<v8::PageAllocator> BackingStore::get_page_allocator() const {
+#ifdef V8_ENABLE_SANDBOX
+  auto page_allocator = page_allocator_.lock();
+  CHECK_NOT_NULL(page_allocator);
+  return page_allocator;
+#else
+  // Use the aliasing constructor with an empty shared_ptr so no control block
+  // is allocated and the singleton platform PageAllocator is not owned.
+  return std::shared_ptr<v8::PageAllocator>(
+      std::shared_ptr<v8::PageAllocator>{}, GetPlatformPageAllocator());
+#endif
 }
 
 namespace {
@@ -921,7 +936,6 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
 
     Tagged<WasmMemoryObject> memory_object = Cast<WasmMemoryObject>(obj);
 
-    memory_object->UpdateInstances(isolate);
     if (Tagged<JSArrayBuffer> shared_ab;
         TryCast<JSArrayBuffer>(memory_object->array_buffer(), &shared_ab) &&
         !shared_ab->is_resizable_by_js()) {

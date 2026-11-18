@@ -27,7 +27,7 @@ void CrossHeapRememberedSet::RememberReferenceIfNeeded(
 
 void CrossHeapRememberedSet::Reset(Isolate& isolate) {
   for (auto& h : remembered_v8_to_cppgc_references_) {
-    isolate.global_handles()->Destroy(h.location());
+    GlobalHandles::Destroy(h.location());
   }
   remembered_v8_to_cppgc_references_.clear();
   remembered_v8_to_cppgc_references_.shrink_to_fit();

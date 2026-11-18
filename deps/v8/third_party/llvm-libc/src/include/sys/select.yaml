@@ -1,20 +1,17 @@
 header: sys/select.h
 standards:
   - posix
-macros:
-  - macro_name: FD_SETSIZE
-    macro_header: sys-select-macros.h
+merge_yaml_files:
+  - select-time.yaml
 types:
-  - type_name: struct_timeval
   - type_name: struct_timespec
   - type_name: suseconds_t
   - type_name: sigset_t
   - type_name: time_t
-  - type_name: fd_set
 enums: []
 objects: []
 functions:
-  - name: select
+  - name: pselect
     standards:
       - posix
     return_type: int
@@ -23,4 +20,5 @@ functions:
       - type: fd_set *__restrict
       - type: fd_set *__restrict
       - type: fd_set *__restrict
-      - type: struct timeval *__restrict
+      - type: const struct timespec *__restrict
+      - type: const sigset_t *__restrict

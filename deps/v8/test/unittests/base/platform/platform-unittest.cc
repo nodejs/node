@@ -6,9 +6,11 @@
 
 #include <cstdio>
 #include <cstring>
+#include <limits>
 
 #include "include/v8-function.h"
 #include "src/base/build_config.h"
+#include "src/base/page-allocator.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -74,6 +76,30 @@ TEST(OS, RemapPages) {
     EXPECT_EQ(0, memcmp(remapped_data, data, size));
 
     OS::Free(remapped_data, size);
+  }
+}
+
+TEST(OS, GetRandomMmapAddr) {
+  PageAllocator allocator;
+  const size_t commit_page_size = allocator.CommitPageSize();
+  const size_t alloc_page_size = allocator.AllocatePageSize();
+  // Large enough (> 10 MB icudtl.dat) that a hint near UINTPTR_MAX on 32-bit
+  // builds would overflow TASK_SIZE and cause mmap() to fail with EINVAL.
+  constexpr size_t kLargeAllocSize = 64 * 1024 * 1024;
+  constexpr size_t kMinHeadroom = 256 * 1024 * 1024;
+  ASSERT_EQ(0u, kLargeAllocSize % alloc_page_size);
+
+  for (int i = 0; i < 256; ++i) {
+    void* hint = allocator.GetRandomMmapAddr();
+    uintptr_t addr = reinterpret_cast<uintptr_t>(hint);
+    EXPECT_EQ(0u, addr % commit_page_size);
+    EXPECT_LE(addr, std::numeric_limits<uintptr_t>::max() - kMinHeadroom);
+#if !defined(V8_OS_FUCHSIA)
+    void* pages = allocator.AllocatePages(
+        hint, kLargeAllocSize, alloc_page_size, PageAllocator::kNoAccess);
+    ASSERT_NE(nullptr, pages);
+    EXPECT_TRUE(allocator.FreePages(pages, kLargeAllocSize));
+#endif
   }
 }
 

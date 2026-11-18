@@ -13,11 +13,10 @@
 #include "src/__support/CPP/bit.h"
 #include "src/__support/CPP/limits.h" // CHAR_BIT
 #include "src/__support/CPP/type_traits.h"
-#include "src/__support/macros/attributes.h"   // LIBC_INLINE
+#include "src/__support/fixed_point/fx_rep.h"
+#include "src/__support/macros/attributes.h" // LIBC_INLINE
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h" // LIBC_UNLIKELY
-
-#include "fx_rep.h"
 
 #ifdef LIBC_COMPILER_HAS_FIXED_POINT
 

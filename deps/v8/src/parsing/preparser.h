@@ -11,6 +11,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/pending-compilation-error-handler.h"
+#include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser-logger.h"
 
 namespace v8 {
@@ -23,8 +24,6 @@ namespace internal {
 // responsible for creating these dummy objects. It provides a similar kind of
 // interface as AstNodeFactory, so ParserBase doesn't need to care which one is
 // used.
-
-class PreparseDataBuilder;
 
 class PreParserIdentifier {
  public:
@@ -90,7 +89,8 @@ class PreParserExpression {
   }
 
   static PreParserExpression Default() {
-    return PreParserExpression(TypeField::encode(kExpression));
+    return PreParserExpression(TypeField::encode(kExpression) |
+                               ExpressionTypeField::encode(kDefaultExpression));
   }
 
   static PreParserExpression FromIdentifier(const PreParserIdentifier& id) {
@@ -144,6 +144,12 @@ class PreParserExpression {
     return PreParserExpression(
         TypeField::encode(kExpression) |
         ExpressionTypeField::encode(kPrivateReferenceExpression));
+  }
+
+  static PreParserExpression OptionalChainPrivateReference() {
+    return PreParserExpression(
+        TypeField::encode(kExpression) |
+        ExpressionTypeField::encode(kOptionalChainPrivateReferenceExpression));
   }
 
   static PreParserExpression Call() {
@@ -221,7 +227,9 @@ class PreParserExpression {
     return TypeField::decode(code_) == kExpression &&
            (ExpressionTypeField::decode(code_) == kPrivateReferenceExpression ||
             ExpressionTypeField::decode(code_) ==
-                kThisPrivateReferenceExpression);
+                kThisPrivateReferenceExpression ||
+            ExpressionTypeField::decode(code_) ==
+                kOptionalChainPrivateReferenceExpression);
   }
 
   bool IsCall() const {
@@ -280,11 +288,13 @@ class PreParserExpression {
   };
 
   enum ExpressionType {
+    kDefaultExpression,
     kThisExpression,
     kThisPropertyExpression,
     kThisPrivateReferenceExpression,
     kPropertyExpression,
     kPrivateReferenceExpression,
+    kOptionalChainPrivateReferenceExpression,
     kCallExpression,
     kCallEvalExpression,
     kSuperCallReference,
@@ -521,7 +531,7 @@ class PreParserFactory {
   PreParserExpression NewOptionalChain(const PreParserExpression& expr) {
     // Needed to track `delete a?.#b` early errors
     if (expr.IsPrivateReference()) {
-      return PreParserExpression::PrivateReference();
+      return PreParserExpression::OptionalChainPrivateReference();
     }
     return PreParserExpression::Default();
   }
@@ -943,6 +953,47 @@ class PreParser : public ParserBase<PreParser> {
   bool AllowsLazyParsingWithoutUnresolvedVariables() const { return false; }
   bool parse_lazily() const { return false; }
 
+  // No-op in PreParser (parse_lazily() is always false).
+  class V8_NODISCARD LazyParsingScope {
+   public:
+    explicit LazyParsingScope(PreParser*) {}
+  };
+
+  // Records simple-parameter block-body arrow functions as skippable in
+  // PreparseData when preparsing an enclosing function.
+  class V8_NODISCARD SkippableArrowFunctionScope {
+   public:
+    SkippableArrowFunctionScope(PreParser* preparser,
+                                DeclarationScope* function_scope,
+                                bool is_skippable)
+        : preparser_(preparser),
+          function_scope_(function_scope),
+          data_gathering_scope_(preparser),
+          is_skippable_(is_skippable &&
+                        preparser->preparse_data_builder_ != nullptr) {
+      if (is_skippable_) {
+        data_gathering_scope_.Start(function_scope);
+      }
+    }
+
+    void Finish(int function_literal_id) {
+      if (is_skippable_) {
+        // PreParser does not call RecordParameter for arrow heads, and Parser
+        // ignores num_parameters/function_length when skipping arrow bodies.
+        DCHECK_EQ(0, function_scope_->num_parameters());
+        data_gathering_scope_.SetSkippableFunction(
+            function_scope_, /*function_length=*/0,
+            preparser_->GetLastInfoId() - function_literal_id);
+      }
+    }
+
+   private:
+    PreParser* preparser_;
+    DeclarationScope* function_scope_;
+    PreparseDataBuilder::DataGatheringScope data_gathering_scope_;
+    bool is_skippable_;
+  };
+
   PendingCompilationErrorHandler* pending_error_handler() {
     return pending_error_handler_;
   }
@@ -1198,7 +1249,7 @@ class PreParser : public ParserBase<PreParser> {
     bool has_default_constructor = !class_info->has_seen_constructor;
     // Account for the default constructor.
     if (has_default_constructor) {
-      bool has_extends = class_info->extends.IsNull();
+      bool has_extends = !class_info->extends.IsNull();
       FunctionKind kind = has_extends ? FunctionKind::kDefaultDerivedConstructor
                                       : FunctionKind::kDefaultBaseConstructor;
       AddSyntheticFunctionDeclaration(kind, pos);
@@ -1297,9 +1348,6 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserExpression& expression) {}
   V8_INLINE static void InferFunctionName() {}
 
-  V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
-      const PreParserExpression& left, const PreParserExpression& right) {}
-
   V8_INLINE bool ShortcutLiteralBinaryExpression(PreParserExpression* x,
                                                  const PreParserExpression& y,
                                                  Token::Value op, int pos) {
@@ -1356,15 +1404,16 @@ class PreParser : public ParserBase<PreParser> {
     return init_block;
   }
 
-  V8_INLINE StatementT DesugarLexicalBindingsInForStatement(
+  V8_INLINE StatementT DesugarLetBindingsInForStatement(
       PreParserStatement loop, PreParserStatement init,
       const PreParserExpression& cond, PreParserStatement next,
       PreParserStatement body, Scope* inner_scope, const ForInfo& for_info) {
-    // See Parser::DesugarLexicalBindingsInForStatement.
+    // See Parser::DesugarLetBindingsInForStatement.
+    DCHECK_GT(for_info.bound_names.length(), 0);
+    DCHECK_EQ(for_info.parsing_result.descriptor.mode, VariableMode::kLet);
     for (auto name : for_info.bound_names) {
       bool was_added;
-      DeclareVariableName(name, for_info.parsing_result.descriptor.mode,
-                          inner_scope, &was_added);
+      DeclareVariableName(name, VariableMode::kLet, inner_scope, &was_added);
     }
     return loop;
   }
@@ -1483,6 +1532,9 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserExpression NewTargetExpression(int pos) {
+    scope()->NewUnresolved(factory()->ast_node_factory(),
+                           ast_value_factory()->dot_new_target_string(), pos,
+                           NORMAL_VARIABLE);
     return PreParserExpression::Default();
   }
 
@@ -1547,11 +1599,11 @@ class PreParser : public ParserBase<PreParser> {
                                  class_info->autoaccessor_count++),
         VariableMode::kConst, scope, &was_added);
     DCHECK(was_added);
-    FunctionKind kind = is_static ? FunctionKind::kGetterFunction
-                                  : FunctionKind::kStaticGetterFunction;
+    FunctionKind kind = is_static ? FunctionKind::kStaticGetterFunction
+                                  : FunctionKind::kGetterFunction;
     AddSyntheticFunctionDeclaration(kind, pos + 1);
-    kind = is_static ? FunctionKind::kSetterFunction
-                     : FunctionKind::kStaticSetterFunction;
+    kind = is_static ? FunctionKind::kStaticSetterFunction
+                     : FunctionKind::kSetterFunction;
     AddSyntheticFunctionDeclaration(kind, pos + 2);
     return factory()->NewClassLiteralProperty(
         key, value, ClassLiteralProperty::Kind::AUTO_ACCESSOR, is_static,

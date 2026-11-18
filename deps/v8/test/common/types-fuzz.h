@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_TEST_CCTEST_TYPES_H_
-#define V8_TEST_CCTEST_TYPES_H_
+#ifndef V8_TEST_COMMON_TYPES_FUZZ_H_
+#define V8_TEST_COMMON_TYPES_FUZZ_H_
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/js-heap-broker.h"
@@ -271,4 +271,4 @@ class Types {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_TEST_COMMON_TYPES_FUZZ_H_

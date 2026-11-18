@@ -50,9 +50,8 @@ class RecomputePhiUseHintsProcessor {
     // unregistered top frame is Phi-free (e.g. the FunctionEntryStackCheck
     // frame, which is never registered but has no Phis at function entry).
     // TODO(victorgomes): Move this check to the Maglev verifier and make frame
-    // registration a global invariant (kept live across escape analysis and the
-    // classic-Maglev LICM frame rewrites), so it can run at every pipeline
-    // point instead of only here.
+    // registration a global invariant (kept live across escape analysis), so it
+    // can run at every pipeline point instead of only here.
     auto references_phi = [](const auto* deopt_info) {
       bool found = false;
       deopt_info->ForEachInput([&](ValueNode* input) {
@@ -177,13 +176,7 @@ class RecomputePhiUseHintsProcessor {
           use_repr = UseRepresentationFromValue(
               node->Cast<ValueNode>()->value_representation());
         } else if (node->Is<ReturnedValue>()) {
-          ValueNode* unwrapped = node->input_node(0);
-          while (unwrapped->Is<ReturnedValue>()) {
-            unwrapped = unwrapped->input_node(0);
-          }
-          DCHECK(!unwrapped->is_conversion());
-          use_repr =
-              UseRepresentationFromValue(unwrapped->value_representation());
+          use_repr = UseRepresentationFromValue(phi->value_representation());
         } else if (IsTruncatingToInt32(node->opcode())) {
           use_repr = UseRepresentation::kTruncatedInt32;
         } else if (node->Is<NumberToString>()) {
@@ -231,159 +224,6 @@ class RecomputePhiUseHintsProcessor {
     UNREACHABLE();
   }
 #undef TRACE_PHI_USE_HINTS
-};
-
-// Optimizations involving loops which cannot be done at graph building time.
-// Currently mainly loop invariant code motion.
-class LoopOptimizationProcessor {
- public:
-  explicit LoopOptimizationProcessor(MaglevCompilationInfo* info)
-      : zone(info->zone()) {
-    was_deoptimized =
-        info->toplevel_compilation_unit()->feedback().was_once_deoptimized();
-  }
-
-  void PreProcessGraph(Graph* graph) {}
-  void PostPhiProcessing() {}
-
-  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
-    return BlockProcessResult::kContinue;
-  }
-  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
-    current_block = block;
-    if (current_block->is_loop()) {
-      loop_effects = current_block->state()->AsLoopHeader()->loop_effects();
-      if (loop_effects) return BlockProcessResult::kContinue;
-    } else {
-      // TODO(olivf): Some dominance analysis would allow us to keep loop
-      // effects longer than just the first block of the loop.
-      loop_effects = nullptr;
-    }
-    return BlockProcessResult::kSkip;
-  }
-
-  bool IsLoopPhi(Node* input) {
-    DCHECK(current_block->is_loop());
-    if (auto phi = input->TryCast<Phi>()) {
-      if (phi->is_loop_phi() && phi->merge_state() == current_block->state()) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  bool CanHoist(Node* candidate) {
-    DCHECK_EQ(candidate->input_count(), 1);
-    DCHECK(current_block->is_loop());
-    ValueNode* input = candidate->input(0).node();
-    DCHECK(!IsLoopPhi(input));
-    // For hoisting an instruction we need:
-    // * Inputs live before the loop (i.e., not defined inside the loop).
-    // * No hoisting over checks (done eagerly by clearing loop_effects).
-    // A resumable loop is also entered through resume edges that bypass its
-    // header, so it might not have a forward edge to hoist into at all.
-    if (current_block->state()->is_resumable_loop()) return false;
-    DCHECK_EQ(current_block->predecessor_count(), 2);
-    BasicBlock* loop_entry = current_block->forward_predecessor();
-    if (loop_entry->successors().size() != 1) {
-      return false;
-    }
-    if (IsConstantNode(input->opcode())) return true;
-    return input->owner() != current_block;
-  }
-
-  ProcessResult Process(LoadContextSlotNoCells* ltf,
-                        const ProcessingState& state) {
-    DCHECK(loop_effects);
-    ValueNode* object = ltf->ValueInput().node();
-    if (IsLoopPhi(object)) {
-      return ProcessResult::kContinue;
-    }
-    auto key = std::tuple{object, ltf->offset()};
-    if (!loop_effects->may_have_aliasing_contexts &&
-        !loop_effects->unstable_aspects_cleared &&
-        !loop_effects->context_slot_written.count(key) && CanHoist(ltf)) {
-      return ProcessResult::kHoist;
-    }
-    return ProcessResult::kContinue;
-  }
-
-  ProcessResult Process(LoadTaggedField* ltf, const ProcessingState& state) {
-    if (ltf->property_key().type() != PropertyKey::kName) {
-      return ProcessResult::kContinue;
-    }
-    return ProcessNamedLoad(ltf, ltf->ValueInput().node(), ltf->property_key());
-  }
-
-  ProcessResult Process(StringLength* len, const ProcessingState& state) {
-    return ProcessNamedLoad(len, len->StringInput().node(),
-                            PropertyKey::StringLength());
-  }
-
-  ProcessResult Process(LoadTypedArrayLength* len,
-                        const ProcessingState& state) {
-    return ProcessNamedLoad(len, len->ValueInput().node(),
-                            PropertyKey::TypedArrayLength());
-  }
-
-  ProcessResult ProcessNamedLoad(Node* load, ValueNode* object,
-                                 PropertyKey name) {
-    DCHECK(!load->properties().can_deopt());
-    if (!loop_effects) return ProcessResult::kContinue;
-    if (IsLoopPhi(object)) {
-      return ProcessResult::kContinue;
-    }
-    if (!loop_effects->unstable_aspects_cleared &&
-        !loop_effects->keys_cleared.count(name) &&
-        !loop_effects->objects_written.count(object) && CanHoist(load)) {
-      return ProcessResult::kHoist;
-    }
-    return ProcessResult::kContinue;
-  }
-
-  ProcessResult Process(CheckMaps* maps, const ProcessingState& state) {
-    DCHECK(loop_effects);
-    // Hoisting a check out of a loop can cause it to trigger more than actually
-    // needed (i.e., if the loop is executed 0 times). This could lead to
-    // deoptimization loops as there is no feedback to learn here. Thus, we
-    // abort this optimization if the function deoptimized previously. Also, if
-    // hoisting of this check fails we need to abort (and not continue) to
-    // ensure we are not hoisting other instructions over it.
-    if (was_deoptimized) return ProcessResult::kSkipBlock;
-    ValueNode* object = maps->ReceiverInput().node();
-    if (IsLoopPhi(object)) {
-      return ProcessResult::kSkipBlock;
-    }
-    if (!loop_effects->unstable_aspects_cleared &&
-        !loop_effects->elements_kind_transitioned && CanHoist(maps)) {
-      if (auto j = current_block->predecessor_at(0)
-                       ->control_node()
-                       ->TryCast<CheckpointedJump>()) {
-        maps->SetEagerDeoptInfo(
-            zone, zone->New<DeoptFrame>(j->eager_deopt_info()->top_frame()),
-            maps->eager_deopt_info()->feedback_to_update());
-        return ProcessResult::kHoist;
-      }
-    }
-    return ProcessResult::kSkipBlock;
-  }
-
-  template <typename NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState& state) {
-    // Ensure we are not hoisting over checks.
-    if (node->properties().can_eager_deopt()) {
-      loop_effects = nullptr;
-      return ProcessResult::kSkipBlock;
-    }
-    return ProcessResult::kContinue;
-  }
-
-  void PostProcessGraph(Graph* graph) {}
-
-  Zone* zone;
-  BasicBlock* current_block;
-  const LoopEffects* loop_effects;
-  bool was_deoptimized;
 };
 
 template <typename NodeT>
@@ -675,11 +515,7 @@ class ReachableExceptionHandlerTracker {
 
  private:
   BlockProcessResult AbortBlock(BasicBlock* block) {
-    ControlNode* control = block->reset_control_node();
-    block->RemovePredecessorFollowing(control);
-    control->OverwriteWith<Abort>()->set_reason(AbortReason::kUnreachable);
-    block->set_deferred(true);
-    block->set_control_node(control);
+    block->OverwriteControlWithAbort(AbortReason::kUnreachable);
     block->mark_dead();
     graph_->set_may_have_unreachable_blocks();
     return BlockProcessResult::kSkip;

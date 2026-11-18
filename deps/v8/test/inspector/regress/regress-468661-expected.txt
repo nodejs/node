@@ -1,0 +1,44 @@
+Tests regress-468661.
+
+  #debugger; // Break 0.
+
+
+i: ReferenceError
+
+  for (let i=#0; // Break 1.
+       i < 1;   // Break 2.  // Break 6.
+
+i: ReferenceError
+  for (let i=0; // Break 1.
+       i #< 1;   // Break 2.  // Break 6.
+       i++) {   // Break 5.
+
+i: 0
+       i++) {   // Break 5.
+    let key = #i; // Break 3.
+    sum += key;   // Break 4.
+
+i: 0
+    let key = i; // Break 3.
+    #sum += key;   // Break 4.
+  }
+
+i: 0
+       i < 1;   // Break 2.  // Break 6.
+       i#++) {   // Break 5.
+    let key = i; // Break 3.
+
+i: 0
+  for (let i=0; // Break 1.
+       i #< 1;   // Break 2.  // Break 6.
+       i++) {   // Break 5.
+
+i: 1
+  }
+#} // Break 7.
+
+
+i: ReferenceError
+testRun()#
+
+i: ReferenceError

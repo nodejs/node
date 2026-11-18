@@ -55,7 +55,7 @@ ABSL_NAMESPACE_BEGIN
 //   MyTestClock test_clock(SATURDAY);
 //   IsWeekend(test_clock);
 //
-class Clock {
+class ABSL_DLL Clock {
  public:
   // Returns a reference to the global realtime clock.
   // The returned clock is thread-safe.

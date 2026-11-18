@@ -13,6 +13,7 @@
 #define LLVM_LIBC_SRC___SUPPORT_MACROS_PROPERTIES_CPU_FEATURES_H
 
 #include "architectures.h"
+#include "compiler.h"
 
 #if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC)
 #define LIBC_TARGET_CPU_HAS_FULLFP16
@@ -40,21 +41,26 @@
 #define LIBC_TARGET_CPU_HAS_MOPS
 #endif
 
-#if defined(__SSE2__)
+#if defined(__SSE2__) || defined(_M_X64) ||                                    \
+    (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
 #define LIBC_TARGET_CPU_HAS_SSE2
 #define LIBC_TARGET_CPU_HAS_FPU_FLOAT
 #define LIBC_TARGET_CPU_HAS_FPU_DOUBLE
+#if defined(__SSE2__)
 #define LIBC_TARGET_CPU_GENERIC_VECTOR_SIZE_MAX 128
 #endif
+#endif
 
-#if defined(__SSE4_2__)
+#if defined(__SSE4_2__) || defined(__AVX__)
 #define LIBC_TARGET_CPU_HAS_SSE4_2
 #endif
 
 #if defined(__AVX__)
 #define LIBC_TARGET_CPU_HAS_AVX
+#ifndef LIBC_COMPILER_IS_MSVC
 #undef LIBC_TARGET_CPU_GENERIC_VECTOR_SIZE_MAX
 #define LIBC_TARGET_CPU_GENERIC_VECTOR_SIZE_MAX 256
+#endif
 #endif
 
 #if defined(__AVX2__)
@@ -63,8 +69,10 @@
 
 #if defined(__AVX512F__)
 #define LIBC_TARGET_CPU_HAS_AVX512F
+#ifndef LIBC_COMPILER_IS_MSVC
 #undef LIBC_TARGET_CPU_GENERIC_VECTOR_SIZE_MAX
 #define LIBC_TARGET_CPU_GENERIC_VECTOR_SIZE_MAX 512
+#endif
 #endif
 
 #if defined(__AVX512BW__)
@@ -88,11 +96,18 @@
 #define LIBC_TARGET_CPU_HAS_ARM_FPU_DOUBLE
 #define LIBC_TARGET_CPU_HAS_FPU_DOUBLE
 #endif // LIBC_TARGET_CPU_HAS_ARM_FPU_DOUBLE
+#elif defined(_M_ARM64) || defined(_M_ARM64EC)
+#define LIBC_TARGET_CPU_HAS_ARM_FPU_FLOAT
+#define LIBC_TARGET_CPU_HAS_FPU_FLOAT
+#define LIBC_TARGET_CPU_HAS_ARM_FPU_DOUBLE
+#define LIBC_TARGET_CPU_HAS_FPU_DOUBLE
 #endif // __ARM_FP
 
-#if defined(__ARM_NEON)
+#if defined(__ARM_NEON) || defined(_M_ARM64) || defined(_M_ARM64EC)
 #define LIBC_TARGET_CPU_HAS_ARM_NEON
+#if defined(__ARM_NEON)
 #define LIBC_TARGET_CPU_GENERIC_VECTOR_SIZE_MAX 512
+#endif
 #endif
 
 #if defined(__riscv_flen)
@@ -120,7 +135,9 @@
 #define LIBC_TARGET_CPU_HAS_FPU_DOUBLE
 #endif
 
-#if defined(__ARM_FEATURE_FMA) || (defined(__AVX2__) && defined(__FMA__)) ||   \
+#if defined(__ARM_FEATURE_FMA) || defined(_M_ARM64) || defined(_M_ARM64EC) ||  \
+    (defined(__AVX2__) && defined(__FMA__)) ||                                 \
+    (defined(LIBC_COMPILER_IS_MSVC) && defined(__AVX2__)) ||                   \
     defined(__NVPTX__) || defined(__AMDGPU__) || defined(__riscv_flen) ||      \
     defined(__SPIRV__)
 #define LIBC_TARGET_CPU_HAS_FMA

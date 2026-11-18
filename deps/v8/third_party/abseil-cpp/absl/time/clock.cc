@@ -271,7 +271,7 @@ static int64_t GetCurrentTimeNanosFromKernel(uint64_t last_cycleclock,
   return current_time_nanos_from_system;
 }
 
-static int64_t GetCurrentTimeNanosSlowPath() ABSL_ATTRIBUTE_COLD;
+ABSL_ATTRIBUTE_COLD static int64_t GetCurrentTimeNanosSlowPath();
 
 // Read the contents of *atomic into *sample.
 // Each field is read atomically, but to maintain atomicity between fields,
@@ -399,9 +399,9 @@ static uint64_t SafeDivideAndScale(uint64_t a, uint64_t b) {
   return quotient;
 }
 
-static uint64_t UpdateLastSample(
+ABSL_ATTRIBUTE_COLD static uint64_t UpdateLastSample(
     uint64_t now_cycles, uint64_t now_ns, uint64_t delta_cycles,
-    const struct TimeSample* sample) ABSL_ATTRIBUTE_COLD;
+    const struct TimeSample* sample);
 
 // The slow path of GetCurrentTimeNanos().  This is taken while gathering
 // initial samples, when enough time has elapsed since the last sample, and if

@@ -13,7 +13,6 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-ir.h"
-#include "src/maglev/maglev-known-node-aspects.h"
 #include "src/utils/ostreams.h"
 
 namespace v8::internal::maglev {
@@ -50,9 +49,6 @@ inline std::ostream& operator<<(std::ostream& os, const TraceColor color) {
 
 struct TraceBytecode {
   interpreter::BytecodeArrayIterator& iterator;
-};
-struct TraceVirtualObjects {
-  const VirtualObjectList& virtual_objects;
 };
 
 // Trace graph building helpers.
@@ -174,14 +170,6 @@ class TraceLogger {
         << PrintNodeLabel(tag.node) << ": "
         << PrintNode(tag.node, kHasRegallocData, kSkipTargets)
         << TraceColor::kReset;
-    return *this;
-  }
-
-  TraceLogger& operator<<(const TraceVirtualObjects& tag) {
-    for (const VirtualObject* vo : tag.virtual_objects) {
-      GetCurrentGraphLabeller()->PrintNodeLabel(os_, vo, false);
-      os_ << "; ";
-    }
     return *this;
   }
 

@@ -26,8 +26,14 @@ typedef _Float128 float128;
 // notify the availability of __float128.
 // clang also uses __FLOAT128__ macro to notify the availability of __float128
 // type: https://reviews.llvm.org/D15120
+// Disable on x86_64 Clang version less than 18.1 due to issue passing
+// __float128 via varargs prior to
+// https://github.com/llvm/llvm-project/pull/75156.
+#if !(defined(__clang__) &&                                                    \
+      (__clang_major__ * 100 + __clang_minor__ < 1801) && defined(__x86_64__))
 #define LIBC_TYPES_HAS_NATIVE_FLOAT128
 typedef __float128 float128;
+#endif // !(Clang < 18.1 on x86_64)
 #elif (LDBL_MANT_DIG == 113)
 #define LIBC_TYPES_HAS_NATIVE_FLOAT128
 typedef long double float128;

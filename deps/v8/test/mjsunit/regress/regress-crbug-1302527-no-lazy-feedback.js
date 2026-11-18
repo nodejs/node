@@ -3,5 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --no-lazy-feedback-allocation
+// Flags: --no-js-nonextensible-applies-to-private
 
 d8.file.execute('test/mjsunit/regress/regress-crbug-1302527.js');

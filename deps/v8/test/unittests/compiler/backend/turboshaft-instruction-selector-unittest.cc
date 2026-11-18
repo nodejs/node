@@ -51,8 +51,12 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
   // Initialize an instruction sequence.
   InstructionBlocks* instruction_blocks =
       InstructionSequence::InstructionBlocksFor(test_->zone(), graph);
-  InstructionSequence sequence(test_->isolate(), test_->zone(),
-                               instruction_blocks);
+  bool is_wasm = false;
+#if V8_ENABLE_WEBASSEMBLY
+  is_wasm = call_descriptor()->IsAnyWasmFunctionCall();
+#endif  // V8_ENABLE_WEBASSEMBLY
+  InstructionSequence sequence(is_wasm ? nullptr : test_->isolate(),
+                               test_->zone(), instruction_blocks);
 
   TickCounter tick_counter;
   size_t max_unoptimized_frame_height = 0;
@@ -62,7 +66,8 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
       InstructionSelector::kEnableSwitchJumpTable, &tick_counter, nullptr,
       &max_unoptimized_frame_height, &max_pushed_argument_count,
       source_position_mode, features, scheduling_mode,
-      InstructionSelector::kEnableRootsRelativeAddressing,
+      is_wasm ? InstructionSelector::kDisableRootsRelativeAddressing
+              : InstructionSelector::kEnableRootsRelativeAddressing,
       InstructionSelector::kDisableTraceTurboJson,
       InstructionSelector::kNoDeterministicNan);
 
@@ -297,6 +302,27 @@ TARGET_TEST_P(TurboshaftInstructionSelectorPhiTest, Referenceness) {
   EXPECT_EQ(s.IsReference(phi), s.IsReference(param1));
 }
 
+TARGET_TEST_P(TurboshaftInstructionSelectorPhiTest, SingleInput) {
+  const MachineType type = GetParam();
+  StreamBuilder m(this, type, type);
+  OpIndex param0 = m.Parameter(0);
+  Block* a = m.NewBlock();
+  m.Goto(a);
+  m.Bind(a);
+  OpIndex phi = m.Phi(type.representation(), param0);
+  m.Return(phi);
+  Stream s = m.Build(kAllInstructions);
+  EXPECT_TRUE(s.BlockAt(1)->phis().empty());
+  ASSERT_EQ(3U, s.size());
+  EXPECT_EQ(kArchNop, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(param0), s.ToVreg(s[0]->OutputAt(0)));
+  EXPECT_EQ(kArchJmp, s[1]->arch_opcode());
+  EXPECT_EQ(kArchRet, s[2]->arch_opcode());
+  ASSERT_EQ(2U, s[2]->InputCount());
+  EXPECT_EQ(s.ToVreg(param0), s.ToVreg(s[2]->InputAt(1)));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     TurboshaftInstructionSelectorTest, TurboshaftInstructionSelectorPhiTest,
     ::testing::Values(MachineType::Float64(), MachineType::Int8(),
@@ -305,6 +331,100 @@ INSTANTIATE_TEST_SUITE_P(
                       MachineType::Uint32(), MachineType::Int64(),
                       MachineType::Uint64(), MachineType::Pointer(),
                       MachineType::AnyTagged()));
+
+TARGET_TEST_F(TurboshaftInstructionSelectorTest,
+              DeoptimizeWithWrappedConstantInputs) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::AnyTagged());
+  OpIndex closure = m.Parameter(0);
+
+  OpIndex c_i32 = m.Word32Constant(42);
+  OpIndex c_f64 = m.Float64Constant(3.5);
+  OpIndex c_undef = m.UndefinedConstant();
+  OpIndex c_opt_out = m.HeapConstant(isolate()->factory()->optimized_out());
+  OpIndex c_smi_word = m.WordPtrConstant(Smi::FromInt(19).ptr());
+#if V8_TARGET_ARCH_64_BIT
+  OpIndex c_u32_pos = m.Word32Constant(0x70000001);
+  OpIndex c_i64 = m.Int64Constant(0x123456789abcdef0LL);
+  OpIndex c_neg_i32 = m.Word32Constant(-7);
+#endif
+
+  Block* merge = m.NewBlock();
+  m.Goto(merge);
+  m.Bind(merge);
+
+  OpIndex phi_undef = m.Phi(MachineRepresentation::kTagged, c_undef);
+  OpIndex phi_i32 = m.Phi(MachineRepresentation::kWord32, c_i32);
+  OpIndex phi_f64 = m.Phi(MachineRepresentation::kFloat64, c_f64);
+  OpIndex phi_opt_out = m.Phi(MachineRepresentation::kTagged, c_opt_out);
+  OpIndex smi_cast = m.BitcastWordPtrToSmi(c_smi_word);
+
+  FrameStateData::Builder builder;
+  // Closure
+  builder.AddInput(MachineType::AnyTagged(), closure);
+  // Context (uses FrameStateInputKind::kStackSlot)
+  builder.AddInput(MachineType::AnyTagged(), phi_undef);
+  // Locals (use FrameStateInputKind::kAny)
+  builder.AddInput(MachineType::Int32(), phi_i32);
+  builder.AddInput(MachineType::Float64(), phi_f64);
+  builder.AddInput(MachineType::AnyTagged(), phi_opt_out);
+  builder.AddInput(MachineType::AnyTagged(), smi_cast);
+#if V8_TARGET_ARCH_64_BIT
+  builder.AddInput(MachineType::Int64(), m.ChangeUint32ToUint64(c_u32_pos));
+  builder.AddInput(MachineType::Int32(), m.TruncateWord64ToWord32(c_i64));
+  builder.AddInput(MachineType::Int64(), m.ChangeInt32ToInt64(c_neg_i32));
+#endif
+  const int local_count = static_cast<int>(builder.Inputs().size()) - 2;
+  // Accumulator
+  builder.AddUnusedRegister();
+
+  const FrameStateInfo* frame_state_info = zone()->New<FrameStateInfo>(
+      BytecodeOffset(0), OutputFrameStateCombine::Ignore(),
+      m.GetFrameStateFunctionInfo(0, local_count));
+  V<EagerFrameState> frame_state = m.FrameState<EagerFrameState>(
+      builder.Inputs(), builder.inlined(),
+      builder.AllocateFrameStateData(*frame_state_info, zone()));
+  m.Deoptimize(frame_state, DeoptimizeReason::kUnknown, FeedbackSource());
+
+  Stream s = m.Build(kAllExceptNopInstructions);
+  const Instruction* deopt_instr = nullptr;
+  for (size_t i = 0; i < s.size(); ++i) {
+    if (s[i]->arch_opcode() == kArchDeoptimize) {
+      deopt_instr = s[i];
+      break;
+    }
+  }
+  ASSERT_NE(nullptr, deopt_instr);
+  // Input 0: deopt state id; Input 1: closure; Input 2: context;
+  // Inputs 3..: locals.
+  ASSERT_EQ(static_cast<size_t>(3 + local_count), deopt_instr->InputCount());
+  EXPECT_EQ(s.ToVreg(closure), s.ToVreg(deopt_instr->InputAt(1)));
+
+  for (size_t i = 2; i <= 6; ++i) {
+    EXPECT_TRUE(deopt_instr->InputAt(i)->IsImmediate());
+  }
+  EXPECT_TRUE(IsUndefined(*s.ToHeapObject(deopt_instr->InputAt(2))));
+  EXPECT_EQ(42, s.ToInt32(deopt_instr->InputAt(3)));
+  EXPECT_EQ(3.5, s.ToFloat64(deopt_instr->InputAt(4)));
+  EXPECT_EQ(int{FrameStateDescriptor::kImpossibleValue},
+            s.ToInt32(deopt_instr->InputAt(5)));
+#if V8_TARGET_ARCH_64_BIT
+  EXPECT_EQ(static_cast<int64_t>(Smi::FromInt(19).ptr()),
+            s.ToInt64(deopt_instr->InputAt(6)));
+#else
+  EXPECT_EQ(static_cast<int32_t>(Smi::FromInt(19).ptr()),
+            s.ToInt32(deopt_instr->InputAt(6)));
+#endif
+  // Which integer conversions fold to an identity rename (and therefore become
+  // immediates in the deopt input list) depends on the target backend.
+#if V8_TARGET_ARCH_X64
+  EXPECT_EQ(0x70000001LL, s.ToInt64(deopt_instr->InputAt(7)));
+#elif V8_TARGET_ARCH_ARM64
+  EXPECT_EQ(static_cast<int32_t>(0x9abcdef0u),
+            s.ToInt32(deopt_instr->InputAt(8)));
+#elif V8_TARGET_ARCH_LOONG64
+  EXPECT_EQ(-7LL, s.ToInt64(deopt_instr->InputAt(9)));
+#endif
+}
 
 // TODO(dmercadier): port following tests to Turboshaft.
 #if 0
@@ -327,8 +447,7 @@ TARGET_TEST_F(TurboshaftInstructionSelectorTest, CallJSFunctionWithDeopt) {
   ZoneVector<MachineType> empty_type(zone());
 
   auto call_descriptor = Linkage::GetJSCallDescriptor(
-      zone(), false, 1,
-      CallDescriptor::kNeedsFrameState | CallDescriptor::kCanUseRoots);
+      zone(), false, 1, CallDescriptor::kNeedsFrameState);
 
   // Build frame state for the state before the call.
   Node* parameters = m.AddNode(

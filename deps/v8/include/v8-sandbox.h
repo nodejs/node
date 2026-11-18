@@ -71,6 +71,10 @@ enum class CppHeapPointerTag : uint16_t {
   kFirstNonWrappableTag = 0x7000,
 
   kFirstV8InternalNonWrappableTag = kFirstNonWrappableTag,
+  // The cppgc object holding the resource of an external string. Exposed here
+  // because the inline fast paths of v8::String::GetExternalStringResource*()
+  // read it; must match the V8-internal definition of the tag.
+  kExternalStringResourceTag = 0x7003,
   kLastV8InternalNonWrappableTag = 0x70ff,
 
   kFirstEmbedderNonWrappableTag = 0x7100,

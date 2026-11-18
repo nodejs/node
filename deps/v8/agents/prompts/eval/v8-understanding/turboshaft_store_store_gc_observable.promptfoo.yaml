@@ -1,0 +1,50 @@
+description: >-
+  Verify v8-understanding helps locate and fix Turboshaft StoreStoreElimination
+  GC-observable initializing/transitioning store elimination and loop backedge
+  base invalidation.
+owner: leszeks@chromium.org
+prompts:
+  - >-
+    Investigate and fix two correctness bugs in Turboshaft's store-store
+    elimination pass (`StoreStoreEliminationPhase`): (1) when an earlier store
+    at the same offset is overwritten after an intervening operation that
+    requires a consistent heap (GC-observable state), the backward store
+    analysis is eliminating the earlier store even when it is an initializing or
+    map-transitioning store; and (2) when finishing backward analysis of a loop
+    header, the analysis fails to invalidate base pointers allocated inside the
+    loop body before sealing the snapshot table, allowing stores in a later
+    iteration to eliminate stores to a previous iteration's allocation. Fix both
+    issues in `src/` (skip C++ compilation and test execution).
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 600
+      skills:
+        - v8-understanding
+      changes:
+        - apply: >-
+            agents/prompts/eval/v8-understanding/turboshaft_store_store_gc_observable.patch
+tests:
+  - assert:
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_changes.py:check_files_changed
+        config:
+          files:
+            - src/compiler/turboshaft/store-store-elimination-reducer-inl.h
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_changes.py:check_file_content
+        config:
+          files:
+            - path: src/compiler/turboshaft/store-store-elimination-reducer-inl.h
+              present:
+                - 'maybe_initializing_or_transitioning'
+                - 'MarkStoreAsUnobservable'
+                - 'InvalidateBasesInRange'
+    metadata:
+      category: turboshaft-store-store-elimination
+      tags:
+        - docs
+        - turboshaft
+        - gc

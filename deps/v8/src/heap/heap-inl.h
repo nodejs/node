@@ -65,7 +65,7 @@ Tagged<T> ForwardingAddress(Tagged<T> heap_obj) {
 Isolate* Heap::isolate() const { return Isolate::FromHeap(this); }
 
 bool Heap::IsMainThread() const {
-  return isolate()->thread_id() == ThreadId::Current();
+  return isolate()->thread_id() == base::ThreadId::Current();
 }
 
 uint64_t Heap::external_memory() const {
@@ -74,10 +74,12 @@ uint64_t Heap::external_memory() const {
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                     \
-  Tagged<Type> Heap::name() {                                    \
-    return TrustedCast<Type>(                                    \
-        Tagged<Object>(roots_table()[RootIndex::k##CamelName])); \
+#define ROOT_ACCESSOR(Type, name, CamelName)                    \
+  Tagged<Type> Heap::name() {                                   \
+    Tagged<Object> obj =                                        \
+        Tagged<Object>(roots_table()[RootIndex::k##CamelName]); \
+    DCHECK_WITH_SANDBOX_ACCESS(NullOrIs<Type>(obj));            \
+    return UncheckedCast<Type>(obj);                            \
   }
 
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
@@ -140,6 +142,13 @@ void Heap::SetFunctionsMarkedForManualOptimization(Tagged<Object> hash_table) {
       hash_table.ptr();
 }
 
+void Heap::SetFunctionsMarkedForDisabledEagerInlining(
+    Tagged<Object> hash_table) {
+  DCHECK(IsObjectHashTable(hash_table) || IsUndefined(hash_table));
+  roots_table()[RootIndex::kFunctionsMarkedForDisabledEagerInlining] =
+      hash_table.ptr();
+}
+
 void Heap::SetSmiStringCache(Tagged<SmiStringCache> cache) {
   set_smi_string_cache(cache);
 }
@@ -167,7 +176,8 @@ void Heap::SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts) {
 void Heap::SetWasmSharedCanonicalRtts(Tagged<WeakFixedArray> rtts) {
   set_wasm_shared_canonical_rtts(rtts);
 }
-void Heap::SetJSToWasmWrappers(Tagged<WeakFixedArray> js_to_wasm_wrappers) {
+void Heap::SetJSToWasmWrappers(
+    Tagged<ProtectedWeakFixedArray> js_to_wasm_wrappers) {
   set_js_to_wasm_wrappers(js_to_wasm_wrappers);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -220,12 +230,6 @@ void Heap::RegisterExternalString(Tagged<String> string) {
   DCHECK(IsExternalString(string));
   DCHECK(!IsThinString(string));
   external_string_table_.AddString(string);
-}
-
-void Heap::FinalizeExternalString(Tagged<String> string) {
-  DCHECK(IsExternalString(string));
-  Tagged<ExternalString> ext_string = Cast<ExternalString>(string);
-  ext_string->DisposeResource(isolate());
 }
 
 Address Heap::NewSpaceTop() {
@@ -294,9 +298,9 @@ Heap* Heap::FromWritableHeapObject(Tagged<HeapObject> obj) {
   return heap;
 }
 
-void Heap::CopyBlock(Address dst, Address src, size_t byte_size) {
-  DCHECK(IsAligned(byte_size, kTaggedSize));
-  CopyTagged(dst, src, byte_size / kTaggedSize);
+void Heap::CopyBlock(Address dst, Address src, SafeHeapObjectSize byte_size) {
+  DCHECK(IsAligned(byte_size.value(), kTaggedSize));
+  CopyTagged(dst, src, byte_size.value() / kTaggedSize);
 }
 
 bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
@@ -312,7 +316,7 @@ bool Heap::IsPendingAllocation(Tagged<HeapObject> object) {
   bool result = IsPendingAllocationInternal(object);
   if (v8_flags.trace_pending_allocations && result) {
     StdoutStream{} << "Pending allocation: " << std::hex << "0x" << object.ptr()
-                   << "\n";
+                   << std::dec << "\n";
   }
   return result;
 }

@@ -1,0 +1,2 @@
+Tests regress-4309-2.
+i: 5

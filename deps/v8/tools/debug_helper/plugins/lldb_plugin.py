@@ -12,6 +12,7 @@ import lldb
 
 from v8dbg.commands import debug_helper_lib_warning
 from v8dbg.commands import dispatch_v8_command
+from v8dbg.hints import resolve_heap_hints
 from v8dbg.shared_bridge import get_bridge
 
 _VERBOSE = os.environ.get("V8_DEBUG_HELPER_VERBOSE", "") != ""
@@ -45,9 +46,11 @@ def _make_read_memory(process):
 class _LldbResolver:
   """Resolves symbols, memory, and type offsets through LLDB."""
 
-  def __init__(self, target, process):
+  def __init__(self, target, process, thread=None):
     self._target = target
     self._process = process
+    # Thread-local lookups use `thread`, or the selected thread.
+    self._thread = thread
     self._ptr_size = target.GetAddressByteSize() if target else 8
 
   def read_pointer(self, addr):
@@ -68,13 +71,13 @@ class _LldbResolver:
   def debug_symbol_address(self, name):
     """Resolve the address of the variable `name` using debug info.
 
-    For a TLS variable this is the address of the selected thread's copy.
+    For a TLS variable this is the address of the resolver thread's copy.
     """
     if not self._target:
       return None
     # Scope the lookup to a frame so that TLS variables resolve against the
-    # selected thread.
-    frame = self._selected_frame()
+    # resolver's thread.
+    frame = self._thread_frame()
     if frame is None:
       return None
     try:
@@ -92,9 +95,9 @@ class _LldbResolver:
     return int(load_addr)
 
   def symbol_address(self, name):
-    """Resolve the address of the variable `name` for the selected thread.
+    """Resolve the address of the variable `name` for the resolver's thread.
 
-    For a TLS variable this is the address of the selected thread's copy.
+    For a TLS variable this is the address of the resolver thread's copy.
     """
     addr = self.debug_symbol_address(name)
     if addr is not None:
@@ -145,11 +148,12 @@ class _LldbResolver:
     _log(f"cannot resolve the address of {name}")
     return None
 
-  def _selected_frame(self):
+  def _thread_frame(self):
     if not self._process:
       return None
-    thread = self._process.GetSelectedThread()
-    frame = thread.GetSelectedFrame() if thread else None
+    thread = self._thread or self._process.GetSelectedThread()
+    # Registers such as the thread pointer are only available from frame 0.
+    frame = thread.GetFrameAtIndex(0) if thread else None
     if not frame or not frame.IsValid():
       return None
     return frame
@@ -175,7 +179,7 @@ class _LldbResolver:
     return None if addr == lldb.LLDB_INVALID_ADDRESS else int(addr)
 
   def _elf_tls_symbol_address(self, module, tls_offset):
-    """Compute the address of an ELF TLS symbol in the selected thread.
+    """Compute the address of an ELF TLS symbol in the resolver's thread.
 
     lldb does not resolve TLS minimal symbols itself, so derive the address
     from the thread pointer register and the module's TLS segment layout.
@@ -194,9 +198,9 @@ class _LldbResolver:
     if not exe_module or not exe_module.IsValid() or module != exe_module:
       _log("TLS symbol is not in the main executable, skipping")
       return None
-    frame = self._selected_frame()
+    frame = self._thread_frame()
     if frame is None:
-      _log("no selected frame to read the thread pointer from")
+      _log("no frame to read the thread pointer from")
       return None
 
     # Reconstruct the PT_TLS segment size and alignment from the sections.
@@ -252,7 +256,7 @@ class _LldbResolver:
   _MAX_PTHREADS = 4096
 
   def _macho_tls_symbol_address(self, module, descriptor_addr):
-    """Compute the address of a Mach-O TLS symbol in the selected thread.
+    """Compute the address of a Mach-O TLS symbol in the resolver's thread.
 
     lldb does not resolve TLS minimal symbols itself, so derive the address
     from the TSD area scanned from libpthread's global thread list and
@@ -306,7 +310,7 @@ class _LldbResolver:
     return self._macho_tls_from_thunk_call(descriptor_addr)
 
   def _macho_selected_pthread_tsd(self):
-    """Find the selected thread's TSD area by scanning libpthread's global
+    """Find the resolver thread's TSD area by scanning libpthread's global
     thread list.
     """
     # https://github.com/apple-oss-distributions/libpthread/blob/42d026d/src/types_internal.h
@@ -392,11 +396,11 @@ class _LldbResolver:
     return None
 
   def _macho_tls_from_thunk_call(self, descriptor_addr):
-    """Call the descriptor's dyld thunk in the inferior, pinned to the selected
-    thread so the result belongs to it rather than whichever thread lldb picks.
-    This only works in live processes.
+    """Call the descriptor's dyld thunk in the inferior, pinned to the
+    resolver's thread so the result belongs to it rather than whichever thread
+    lldb picks. This only works in live processes.
     """
-    frame = self._selected_frame()
+    frame = self._thread_frame()
     if frame is None:
       return None
     if not self.read_pointer(descriptor_addr):
@@ -473,6 +477,21 @@ def _evaluate_address_in_lldb(target, frame, text):
   return int(raw)
 
 
+# LLDB formats frames one at a time. Cache the hints of the current stop
+# and thread instead of resolving them for every frame.
+_last_hints = (None, None)
+
+
+def _heap_hints_for_frame(frame, target, process):
+  global _last_hints
+  thread = frame.GetThread()
+  key = (process.GetUniqueID(), thread.GetThreadID(), process.GetStopID())
+  if _last_hints[0] != key:
+    resolver = _LldbResolver(target, process, thread)
+    _last_hints = (key, resolve_heap_hints(resolver))
+  return _last_hints[1]
+
+
 def frame_annotation(frame, _unused):
   """Return the V8 JS suffix for one LLDB frame, or an empty string."""
   try:
@@ -492,7 +511,8 @@ def frame_annotation(frame, _unused):
     if fp == lldb.LLDB_INVALID_ADDRESS:
       return ""
     bridge = get_bridge(target.GetAddressByteSize())
-    return bridge.frame_suffix(fp, read_memory)
+    hints = _heap_hints_for_frame(frame, target, process)
+    return bridge.frame_suffix(fp, read_memory, hints)
   except Exception:
     if _VERBOSE:
       traceback.print_exc()
@@ -507,11 +527,19 @@ def cmd_v8(debugger, command, result, _internal_dict):
 
     - inspect -- Inspect the heap object at <addr> with the V8 inspector.
 
-      v8 inspect <addr> [--type T] [--depth N] [--array-length N]
+      v8 inspect <addr>|this|[N]|<param-name> [--type T] [--depth N] [--array-length N]
 
+      * this / [N] / <param-name>: inspect the receiver or an argument of
+        the selected JS frame instead of a raw address.
       * --type T: treat the object as if it has type T (e.g. `v8::internal::JSArray`).
       * --depth N: limit recursive inspection depth to N (default: 1).
       * --array-length N: for arrays, inspect up to N elements (default: 16).
+
+    - args -- Print the receiver and the arguments of a JS frame.
+
+      v8 args [frame#]
+
+      * frame#: the frame to show (default: the selected frame).
 
     - isolate -- Print the current Isolate address of the selected thread.
 

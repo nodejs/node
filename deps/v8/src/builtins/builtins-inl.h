@@ -26,12 +26,12 @@ constexpr Builtin Builtins::RecordWrite(SaveFPRegsMode fp_mode) {
 }
 
 // static
-constexpr Builtin Builtins::IndirectPointerBarrier(SaveFPRegsMode fp_mode) {
+constexpr Builtin Builtins::TrustedPointerBarrier(SaveFPRegsMode fp_mode) {
   switch (fp_mode) {
     case SaveFPRegsMode::kIgnore:
-      return Builtin::kIndirectPointerBarrierIgnoreFP;
+      return Builtin::kTrustedPointerBarrierIgnoreFP;
     case SaveFPRegsMode::kSave:
-      return Builtin::kIndirectPointerBarrierSaveFP;
+      return Builtin::kTrustedPointerBarrierSaveFP;
   }
   UNREACHABLE();
 }

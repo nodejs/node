@@ -48,8 +48,6 @@ namespace internal {
   T(AwaitNotInDebugEvaluate,                                                   \
     "await can not be used when evaluating code "                              \
     "while paused in the debugger")                                            \
-  T(AtomicsMutexNotOwnedByCurrentThread,                                       \
-    "Atomics.Mutex is not owned by the current agent")                         \
   T(AtomicsOperationNotAllowed, "% cannot be called in this context")          \
   T(BadRoundingType, "RoundingType is not fractionDigits")                     \
   T(BadSortComparisonFunction,                                                 \
@@ -102,8 +100,6 @@ namespace internal {
   T(DebuggerType, "Debugger: Parameters have wrong types.")                    \
   T(DeclarationMissingInitializer, "Missing initializer in % declaration")     \
   T(DefineDisallowed, "Cannot define property %, object is not extensible")    \
-  T(DefineDisallowedFixedLayout,                                               \
-    "Cannot define property %, object has fixed layout")                       \
   T(TypedArrayDetachedErrorOperation,                                          \
     "Cannot perform % on a detached ArrayBuffer")                              \
   T(TypedArrayOOBErrorOperation,                                               \
@@ -150,6 +146,9 @@ namespace internal {
   T(IteratorReduceNoInitial,                                                   \
     "Reduce of a done iterator with no initial value")                         \
   T(IteratorResultNotAnObject, "Iterator result % is not an object")           \
+  T(InvalidIteratorWindowsMode,                                                \
+    "Iterator.prototype.windows: undersized must be 'only-full' or "           \
+    "'allow-partial'")                                                         \
   T(InvalidIteratorZipMode,                                                    \
     "% mode must be 'shortest', 'longest', or 'strict'")                       \
   T(IteratorZipStrictMismatch,                                                 \
@@ -171,6 +170,7 @@ namespace internal {
   T(ListFormatBadParameters, "Incorrect ListFormat information provided")      \
   T(MapperFunctionNonCallable, "flatMap mapper function is not callable")      \
   T(MethodInvokedOnWrongType, "Method invoked on an object that is not %.")    \
+  T(MustBeInteger, "% must be an integer")                                     \
   T(NoAccess, "no access")                                                     \
   T(NonCallableInInstanceOfCheck,                                              \
     "Right-hand side of 'instanceof' is not callable")                         \
@@ -217,7 +217,6 @@ namespace internal {
   T(NotInt32OrBigInt64TypedArray,                                              \
     "% is not an int32 or BigInt64 typed array.")                              \
   T(NotSharedTypedArray, "% is not a shared typed array.")                     \
-  T(ObjectFixedLayout, "Cannot add property %, object has fixed layout")       \
   T(ObjectGetterExpectingFunction,                                             \
     "Object.prototype.__defineGetter__: Expecting function")                   \
   T(ObjectGetterCallable, "Getter must be a function: %")                      \
@@ -355,8 +354,6 @@ namespace internal {
     "small")                                                                   \
   T(SharedArrayBufferSpeciesThis,                                              \
     "SharedArrayBuffer subclass returned this from species constructor")       \
-  T(SharedStructTypeRegistryMismatch,                                          \
-    "SharedStructType registered as '%' does not match")                       \
   T(StaticPrototype,                                                           \
     "Classes may not have a static property named 'prototype'")                \
   T(StrictCannotCreateProperty, "Cannot create property '%' on % '%'")         \
@@ -415,7 +412,7 @@ namespace internal {
   T(ArrayBufferAllocationFailed, "Array buffer allocation failed")             \
   T(Invalid, "Invalid % : %")                                                  \
   T(InvalidArrayLength, "Invalid array length")                                \
-  T(InvalidAtomicAccessIndex, "Invalid atomic access index")                   \
+  T(InvalidAtomicAccessIndex, "Invalid atomic access index: %")                \
   T(InvalidCalendar, "Invalid calendar specified: %")                          \
   T(InvalidCodePoint, "Invalid code point %")                                  \
   T(InvalidCountValue, "Invalid count value: %")                               \
@@ -424,7 +421,7 @@ namespace internal {
   T(InvalidDataViewLength, "Invalid DataView length %")                        \
   T(InvalidOffset, "Start offset % is outside the bounds of the buffer")       \
   T(InvalidHint, "Invalid hint: %")                                            \
-  T(InvalidIndex, "Invalid value: not (convertible to) a safe integer")        \
+  T(InvalidIndex, "Invalid value %: not (convertible to) a safe integer")      \
   T(InvalidLanguageTag, "Invalid language tag: %")                             \
   T(InvalidWeakMapKey, "Invalid value used as weak map key")                   \
   T(InvalidWeakSetValue, "Invalid value used in weak set")                     \
@@ -453,9 +450,6 @@ namespace internal {
   T(ToPrecisionFormatRange,                                                    \
     "toPrecision() argument must be between 1 and 100")                        \
   T(ToRadixFormatRange, "toString() radix argument must be between 2 and 36")  \
-  T(SharedArraySizeOutOfRange, "SharedArray length out of range")              \
-  T(StructFieldCountOutOfRange,                                                \
-    "Struct field count out of range (maximum of 999 allowed)")                \
   T(TypedArraySetOffsetOutOfBounds, "offset is out of bounds")                 \
   T(TypedArraySetSourceTooLarge, "Source is too large")                        \
   T(TypedArrayTooLargeToSort,                                                  \
@@ -466,6 +460,7 @@ namespace internal {
   T(MustBePositive, "% must be positive")                                      \
   T(ArgumentIsNotUndefinedOrInteger,                                           \
     "% argument must be undefined or an integer")                              \
+  T(IteratorChunkOrWindowSizeRange, "%: % must be between 1 and 2**32-1")      \
   /* SyntaxError */                                                            \
   T(AmbiguousExport,                                                           \
     "The requested module '%' contains conflicting star exports for name '%'") \
@@ -784,7 +779,9 @@ namespace internal {
   T(SuppressedErrorDuringDisposal, "An error was suppressed during disposal")  \
   T(ExpectAnObjectWithUsing,                                                   \
     "An object is expected with `using` "                                      \
-    "declarations")
+    "declarations")                                                            \
+  T(DefineDisallowedPrivateMethod,                                             \
+    "Cannot add private methods of class %, object is not extensible")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,

@@ -318,7 +318,7 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
         // Truncated value of anything divided by 0 is 0.
         __ j(not_equal, &right_is_neg);
         __ xorl(rax, rax);
-        __ jmp(*done);
+        __ Jump(*done);
 
         // Return -left if right = -1.
         // This avoids a hardware exception if left = INT32_MIN.
@@ -329,7 +329,7 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
         __ cmpl(right, Immediate(-1));
         __ j(not_equal, *do_division);
         __ negl(rax);
-        __ jmp(*done);
+        __ Jump(*done);
       },
       do_division, done, right);
 
@@ -447,11 +447,7 @@ void Int32ModulusWithOverflow::SetValueLocationConstraints() {
 
 void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
-  // If AreAliased(lhs, rhs):
-  //   deopt if lhs < 0  // Minus zero.
-  //   0
-  //
-  // Otherwise, use the same algorithm as in MachineLoweringReducer:
+  // Use the same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
   //     deopt if rhs == 0
@@ -473,17 +469,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   static constexpr DeoptimizeReason deopt_reason =
       DeoptimizeReason::kDivisionByZero;
 
-  if (lhs == rhs) {
-    // For the modulus algorithm described above, lhs and rhs must not alias
-    // each other.
-    __ testl(lhs, lhs);
-    // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
-    // allows one deopt reason per IR.
-    __ EmitEagerDeoptIf(negative, deopt_reason, this);
-    __ Move(ToRegister(result()), 0);
-    return;
-  }
-
+  // For the modulus algorithm described above, lhs and rhs must not alias
+  // each other.
   DCHECK(!AreAliased(lhs, rhs, rax, rdx));
 
   ZoneLabelRef done(masm);
@@ -529,7 +516,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   // {rhs} is power of 2.
   __ andl(mask, lhs);
   __ movl(ToRegister(result()), mask);
-  __ jmp(*done, Label::kNear);
+  __ Jump(*done, Label::kNear);
 
   __ bind(&rhs_not_power_of_2);
   // `divl(divisor)` divides rdx:rax by the divisor and stores the
@@ -940,11 +927,11 @@ void Float64MinMaxHelper(MaglevAssembler* masm, DoubleRegister left_and_out,
 
   __ bind(&left_is_min);
   left_is_min_code();
-  __ jmp(&done);
+  __ Jump(&done);
 
   __ bind(&right_is_min);
   right_is_min_code();
-  __ jmp(&done);
+  __ Jump(&done);
 
   __ bind(&has_nan);
   __ Pcmpeqd(left_and_out, left_and_out);
@@ -1046,12 +1033,11 @@ void ChangeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
 }
 void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
                                                const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(ValueInput());
   // A Float64 value could contain a NaN with the bit pattern that has a special
   // interpretation in the HoleyFloat64 representation, so we need to canicalize
   // those before changing representation.
-  __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-  __ Subsd(value, kScratchDoubleReg);
+  __ CanonicalizeNaN(ToDoubleRegister(result()),
+                     ToDoubleRegister(ValueInput()));
 }
 
 void Float64ToSilencedFloat64::SetValueLocationConstraints() {
@@ -1060,11 +1046,10 @@ void Float64ToSilencedFloat64::SetValueLocationConstraints() {
 }
 void Float64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(ValueInput());
   // The hole value is a signalling NaN, so just silence it to get the
   // float64 value.
-  __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-  __ Subsd(value, kScratchDoubleReg);
+  __ CanonicalizeNaN(ToDoubleRegister(this->result()),
+                     ToDoubleRegister(ValueInput()));
 }
 
 void UnsafeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
@@ -1106,7 +1091,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
     save_register_state.DefineSafepoint();
   }
-  __ jmp(*done);
+  __ Jump(*done);
 }
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,

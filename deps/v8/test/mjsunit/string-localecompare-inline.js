@@ -113,6 +113,27 @@ check(long_a, long_b, -1);
 check(long_b, long_a, +1);
 check(long_a, long_a, 0);
 
+// --- 4-byte chunk boundaries across all byte positions.
+// Build strings via Array.join("") so lengths >= 13 stay flat SeqOneByteStrings
+// instead of ConsStrings/SlicedStrings.
+for (const len of [3, 4, 5, 6, 8, 9, 16, 32]) {
+  const chars = Array.from("callsign".repeat(4).slice(0, len));
+  const base = chars.join("");
+  check(base, chars.join(""), 0);
+  for (let pos = 0; pos < len; pos++) {
+    const pre = chars.slice(0, pos).join("");
+    const suf = chars.slice(pos + 1).join("");
+    check([pre, "a", suf].join(""), [pre, "b", suf].join(""), -1);
+    check([pre, "a", suf].join(""), [pre, "A", suf].join(""), -1);
+    check([pre, "\xff", suf].join(""), [pre, "a", suf].join(""), +1);
+    if (pos + 1 < len) {
+      const suf2 = chars.slice(pos + 2).join("");
+      check([pre, "az", suf2].join(""), [pre, "ba", suf2].join(""), -1);
+      check([pre, "ba", suf2].join(""), [pre, "az", suf2].join(""), +1);
+    }
+  }
+}
+
 // Tagged-equal long string (pointer-eq path after type guards).
 const long_eq = "Aircraft ".repeat(8);
 check(long_eq, long_eq, 0);

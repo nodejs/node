@@ -76,6 +76,14 @@ v8::Local<v8::String> toV8StringInternalized(v8::Isolate*, const char*);
 v8::Local<v8::String> toV8String(v8::Isolate*, const StringView&);
 // TODO(dgozman): rename to toString16.
 String16 toProtocolString(v8::Isolate*, v8::Local<v8::String>);
+// Converts a v8::String to String16 truncated to at most |maxLength| UTF-16
+// code units (appending U+2026 '…' when truncated, without splitting a UTF-16
+// surrogate pair). Copies only the prefix via v8::String::Write so arbitrarily
+// large JS strings (e.g. Symbol.toStringTag values up to
+// v8::String::kMaxLength) never materialize large intermediate String16
+// allocations on the C++ heap.
+String16 toProtocolStringTruncated(v8::Isolate*, v8::Local<v8::String>,
+                                   size_t maxLength);
 String16 toProtocolStringWithTypeCheck(v8::Isolate*, v8::Local<v8::Value>);
 V8_EXPORT_PRIVATE String16 toString16(const StringView&);
 V8_EXPORT_PRIVATE StringView toStringView(const String16&);

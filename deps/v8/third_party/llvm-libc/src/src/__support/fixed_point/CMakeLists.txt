@@ -5,8 +5,9 @@ add_header_library(
   DEPENDS
     libc.hdr.stdint_proxy
     libc.include.llvm-libc-macros.stdfix_macros
-    libc.src.__support.macros.attributes
     libc.src.__support.CPP.type_traits
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
 )
 
 add_header_library(
@@ -15,13 +16,15 @@ add_header_library(
     fx_bits.h
   DEPENDS
     .fx_rep
+    libc.hdr.stdint_proxy
     libc.include.llvm-libc-macros.stdfix_macros
-    libc.src.__support.macros.attributes
-    libc.src.__support.macros.null_check
-    libc.src.__support.macros.optimization
-    libc.src.__support.CPP.type_traits
     libc.src.__support.CPP.bit
     libc.src.__support.CPP.limits
+    libc.src.__support.CPP.type_traits
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
+    libc.src.__support.macros.null_check
+    libc.src.__support.macros.optimization
     libc.src.__support.math_extras
     libc.src.__support.uint128
 )
@@ -33,9 +36,10 @@ add_header_library(
   DEPENDS
     .fx_rep
     libc.include.llvm-libc-macros.stdfix_macros
-    libc.src.__support.macros.attributes
-    libc.src.__support.macros.optimization
     libc.src.__support.CPP.bit
     libc.src.__support.CPP.limits
     libc.src.__support.CPP.type_traits
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
+    libc.src.__support.macros.optimization
 )

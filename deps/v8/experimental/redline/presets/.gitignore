@@ -1,0 +1,4 @@
+# The root .gitignore ignores maglev*.json and turbo*.json (trace files).
+# These two are presets, not traces.
+!maglev.json
+!turbolev.json

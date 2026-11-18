@@ -1,0 +1,3 @@
+Regression test for crbug.com/572276137.
+results: 42,42,42,42,42,42,42,42,42,42,42,42,42,42,42
+paused_count: 20

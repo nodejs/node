@@ -1,0 +1,12 @@
+Tests stepping into microtasks.
+paused at: debugger; // Break 0.
+paused at: return exception || 1 // Break 1.
+paused at: ; // Break 2. StepOver.
+paused at: throw new Error; // Break 3.
+paused at: return break_count // Break 4.
+paused at: ; // Break 5.
+paused at: finalize(); // Break 6. StepOver.
+paused at: return 0 // Break 7.
+paused at: ; // Break 8. StepOut.
+paused at: if (expected_breaks !== break_count) { // Break 9. StepOut.
+Total breaks: 10

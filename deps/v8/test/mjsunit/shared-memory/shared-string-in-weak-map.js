@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --shared-string-table --allow-natives-syntax --stress-compaction --expose-gc
+// Flags: --shared-strings --allow-natives-syntax --stress-compaction --expose-gc
 
-const val1 = "some value";
+const val1 = %ShareObject("some value");
 assertTrue(%IsSharedString(val1));
 
 const wm = new WeakMap();

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/execution/thread-id.h"
+#include "src/base/thread-id.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -35,12 +35,12 @@ namespace internal {
 using ThreadsTest = TestWithIsolate;
 
 // {ThreadId} must be trivially copyable to be stored in {std::atomic}.
-ASSERT_TRIVIALLY_COPYABLE(i::ThreadId);
-using AtomicThreadId = std::atomic<i::ThreadId>;
+ASSERT_TRIVIALLY_COPYABLE(base::ThreadId);
 
 class ThreadIdValidationThread : public base::Thread {
  public:
-  ThreadIdValidationThread(base::Thread* thread_to_start, AtomicThreadId* refs,
+  ThreadIdValidationThread(base::Thread* thread_to_start,
+                           std::vector<base::ThreadId>* refs,
                            unsigned int thread_no, base::Semaphore* semaphore)
       : Thread(Options("ThreadRefValidationThread")),
         refs_(refs),
@@ -49,12 +49,12 @@ class ThreadIdValidationThread : public base::Thread {
         semaphore_(semaphore) {}
 
   void Run() override {
-    i::ThreadId thread_id = i::ThreadId::Current();
+    base::ThreadId thread_id = base::ThreadId::Current();
     CHECK(thread_id.IsValid());
     for (int i = 0; i < thread_no_; i++) {
-      CHECK_NE(refs_[i].load(std::memory_order_relaxed), thread_id);
+      CHECK_NE((*refs_)[i], thread_id);
     }
-    refs_[thread_no_].store(thread_id, std::memory_order_relaxed);
+    (*refs_)[thread_no_] = thread_id;
     if (thread_to_start_ != nullptr) {
       CHECK(thread_to_start_->Start());
     }
@@ -62,7 +62,7 @@ class ThreadIdValidationThread : public base::Thread {
   }
 
  private:
-  AtomicThreadId* const refs_;
+  std::vector<base::ThreadId>* const refs_;
   const int thread_no_;
   base::Thread* const thread_to_start_;
   base::Semaphore* const semaphore_;
@@ -71,13 +71,13 @@ class ThreadIdValidationThread : public base::Thread {
 TEST_F(ThreadsTest, ThreadIdValidation) {
   constexpr int kNThreads = 100;
   std::unique_ptr<ThreadIdValidationThread> threads[kNThreads];
-  AtomicThreadId refs[kNThreads];
+  std::vector<base::ThreadId> refs(kNThreads, base::ThreadId::Invalid());
   base::Semaphore semaphore(0);
   for (int i = kNThreads - 1; i >= 0; i--) {
     ThreadIdValidationThread* prev =
         i == kNThreads - 1 ? nullptr : threads[i + 1].get();
     threads[i] =
-        std::make_unique<ThreadIdValidationThread>(prev, refs, i, &semaphore);
+        std::make_unique<ThreadIdValidationThread>(prev, &refs, i, &semaphore);
   }
   CHECK(threads[0]->Start());
   for (int i = 0; i < kNThreads; i++) {

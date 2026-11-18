@@ -89,6 +89,13 @@ class RiscvOperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
+  InstructionOperand UseUniqueOperand(OpIndex node, InstructionCode opcode) {
+    if (CanBeImmediate(node, opcode)) {
+      return UseImmediate(node);
+    }
+    return UseUniqueRegister(node);
+  }
+
   // Use the zero register if the node has the immediate value zero, otherwise
   // assign a register.
   InstructionOperand UseRegisterOrImmediateZero(OpIndex node) {
@@ -98,6 +105,8 @@ class RiscvOperandGenerator final : public OperandGenerator {
         return UseRegister(node);
       }
       if ((constant->IsIntegral() && constant->integral() == 0) ||
+          (constant->kind == ConstantOp::Kind::kSmi &&
+           constant->smi().value() == 0) ||
           (constant->kind == ConstantOp::Kind::kFloat32 &&
            constant->float32().get_bits() == 0) ||
           (constant->kind == ConstantOp::Kind::kFloat64 &&
@@ -506,7 +515,10 @@ void VisitFloat64Compare(InstructionSelector* selector, OpIndex node,
     VisitCompare(selector, kRiscvCmpD, g.UseRegister(lhs), g.UseImmediate(rhs),
                  cont);
   } else if (selector->MatchZero(lhs)) {
-    VisitCompare(selector, kRiscvCmpD, g.UseImmediate(lhs), g.UseRegister(rhs),
+    // Keep the immediate on the right-hand side so that input 0 of the
+    // emitted compare is always a register, like VisitFloat32Compare.
+    cont->Commute();
+    VisitCompare(selector, kRiscvCmpD, g.UseRegister(rhs), g.UseImmediate(lhs),
                  cont);
   } else {
     VisitCompare(selector, kRiscvCmpD, g.UseRegister(lhs), g.UseRegister(rhs),

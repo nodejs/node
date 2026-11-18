@@ -147,11 +147,11 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   var module = new WebAssembly.Module(builder.toBuffer());
   var mem_1 = new WebAssembly.Memory({initial: 1});
   var mem_2 = new WebAssembly.Memory({initial: 1});
-  var view_1 = new Int32Array(mem_1.buffer);
-  var view_2 = new Int32Array(mem_2.buffer);
+  var view_1 = new DataView(mem_1.buffer);
+  var view_2 = new DataView(mem_2.buffer);
 
-  view_1[0] = 42;
-  view_2[0] = 1000;
+  view_1.setInt32(0, 42, true);
+  view_2.setInt32(0, 1000, true);
 
   var outval_1;
   var outval_2;
@@ -204,10 +204,10 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 
   var mem_1 = new WebAssembly.Memory({initial: 1});
   var mem_2 = new WebAssembly.Memory({initial: 1});
-  var view_1 = new Int32Array(mem_1.buffer);
-  var view_2 = new Int32Array(mem_2.buffer);
-  view_1[0] = 1;
-  view_2[0] = 1000;
+  var view_1 = new DataView(mem_1.buffer);
+  var view_2 = new DataView(mem_2.buffer);
+  view_1.setInt32(0, 1, true);
+  view_2.setInt32(0, 1000, true);
 
   var module = new WebAssembly.Module(builder.toBuffer());
   var i1 = new WebAssembly.Instance(module, {'': {memory: mem_1}});

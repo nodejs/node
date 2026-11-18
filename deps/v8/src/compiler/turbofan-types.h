@@ -87,9 +87,9 @@ namespace compiler {
 // over types. For example, constructors are injective and subtyping is a
 // complete partial order.
 //
-// See test/cctest/test-types.cc for a comprehensive executable specification,
-// especially with respect to the properties of the more exotic 'temporal'
-// constructors and predicates (those prefixed 'Now').
+// See test/unittests/compiler/types-unittest.cc for a comprehensive executable
+// specification, especially with respect to the properties of the more exotic
+// 'temporal' constructors and predicates (those prefixed 'Now').
 //
 //
 // IMPLEMENTATION

@@ -7,9 +7,9 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
+#include "src/base/thread-id.h"
 #include "src/builtins/builtins-definitions.h"
 #include "src/execution/isolate.h"
-#include "src/execution/thread-id.h"
 #include "src/logging/log-inl.h"
 #include "src/logging/log.h"
 

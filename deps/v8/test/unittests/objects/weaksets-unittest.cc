@@ -74,7 +74,7 @@ static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
 }  // namespace
 
 TEST_F(WeakSetsTest, WeakSet_Weakness) {
-  v8_flags.incremental_marking = false;
+  v8_flags.incremental_marking.Set(false);
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
   IndirectHandle<JSWeakSet> weakset = AllocateJSWeakSet();
@@ -166,8 +166,8 @@ TEST_F(WeakSetsTest, WeakSet_Shrinking) {
 // by other paths are correctly recorded in the slots buffer.
 TEST_F(WeakSetsTest, WeakSet_Regress2060a) {
   if (!i::v8_flags.compact) return;
-  v8_flags.compact_on_every_full_gc = true;
-  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.compact_on_every_full_gc.Set(true);
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SimulateFullSpace.
   ManualGCScope manual_gc_scope(i_isolate());
   Factory* factory = i_isolate()->factory();
   Heap* heap = i_isolate()->heap();
@@ -205,11 +205,11 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060a) {
 // other strong paths are correctly recorded in the slots buffer.
 TEST_F(WeakSetsTest, WeakSet_Regress2060b) {
   if (!i::v8_flags.compact) return;
-  v8_flags.compact_on_every_full_gc = true;
+  v8_flags.compact_on_every_full_gc.Set(true);
 #ifdef VERIFY_HEAP
-  v8_flags.verify_heap = true;
+  v8_flags.verify_heap.Set(true);
 #endif
-  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SimulateFullSpace.
 
   ManualGCScope manual_gc_scope(i_isolate());
   Factory* factory = i_isolate()->factory();

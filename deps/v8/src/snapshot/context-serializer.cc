@@ -79,6 +79,7 @@ void ContextSerializer::Serialize(Tagged<Context>* o,
     sink_.Put(kSynchronize, "Finished with api wrapper fields data");
   }
 
+  OptimizeBackReferences();
   Pad();
 }
 
@@ -127,10 +128,9 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   {
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> raw = *obj;
-    if (SerializeHotObject(raw)) return;
     if (SerializeRoot(raw)) return;
-    if (SerializeBackReference(raw)) return;
     if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
+    if (SerializeBackReference(raw)) return;
   }
 
   if (startup_serializer_->SerializeUsingSharedHeapObjectCache(&sink_, obj)) {

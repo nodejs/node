@@ -223,8 +223,7 @@ def build_file_list(options):
   result = []
   gn_files = [
       ("BUILD.gn", re.compile(r'"([^"]*?\.cc)"'), ""),
-      ("test/cctest/BUILD.gn", re.compile(r'"(test-[^"]*?\.cc)"'),
-       Path("test/cctest/")),
+      # TODO(crbug.com/548296797): Wire test/unittests/BUILD.gn into gcmole.
   ]
   gn_re = re.compile(fr"### gcmole\((all|{options.v8_target_cpu})\) ###(.*?)\]",
                      re.MULTILINE | re.DOTALL)

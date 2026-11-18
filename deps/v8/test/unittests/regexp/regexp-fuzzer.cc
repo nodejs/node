@@ -20,7 +20,7 @@ class RegExpTest : public fuzztest::PerFuzzTestFixtureAdapter<TestWithContext> {
         isolate_(isolate()),
         i_isolate_(reinterpret_cast<i::Isolate*>(isolate_)),
         factory_(i_isolate_->factory()) {
-    internal::v8_flags.expose_gc = true;
+    internal::v8_flags.expose_gc.Set(true);
   }
   ~RegExpTest() override = default;
 
@@ -116,7 +116,7 @@ void RegExpTest<T>::RunRegExp(const std::string& regexp_input,
 
   // Convert input string.
   i::MaybeDirectHandle<i::String> maybe_source =
-      factory_->NewStringFromUtf8(v8::base::CStrVector(regexp_input.c_str()));
+      factory_->NewStringFromUtf8(regexp_input);
   i::DirectHandle<i::String> source;
   if (!maybe_source.ToHandle(&source)) {
     i_isolate_->clear_exception();

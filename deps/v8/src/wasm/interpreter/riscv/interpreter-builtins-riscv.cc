@@ -217,7 +217,7 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
       function_data,
       FieldMemOperand(shared_function_info,
                       offsetof(SharedFunctionInfo, trusted_function_data_)),
-      kWasmExportedFunctionDataIndirectPointerTag);
+      kWasmExportedFunctionDataTrustedPointerTag);
   shared_function_info = no_reg;
 
   LoadWasmInstanceFromFunctionData(masm, function_data, wasm_instance);
@@ -607,8 +607,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ LoadWord(flags, FieldMemOperand(shared_function_info,
                                      offsetof(SharedFunctionInfo, flags_)));
   __ Branch(&receiver_undefined, ne, flags,
-            Operand(SharedFunctionInfo::IsNativeBit::kMask |
-                    SharedFunctionInfo::IsStrictBit::kMask));
+            Operand(SharedFunctionInfo::Flags::IsNativeBit::kMask |
+                    SharedFunctionInfo::Flags::IsStrictBit::kMask));
   FREE_REG(flags);
   __ LoadGlobalProxy(receiver);
   __ Branch(&calculate_js_function_arity);

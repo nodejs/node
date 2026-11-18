@@ -1,0 +1,64 @@
+[workspace]
+auto-update-stale = true
+
+[git]
+auto-local-bookmark = false
+write-change-id-header = true
+
+[gerrit]
+default-remote = "origin"
+default-remote-branch = "main"
+
+[revset-aliases]
+"trunk()" = "main@origin"
+"immutable_heads()" = "remote_bookmarks() | tags()"
+
+[aliases]
+# Gerrit CL URL preview matching Chromium
+# ("6a6a6964" = ASCII "jjid" padding 32-hex jj UUID to 40-hex Gerrit Change-Id)
+"gerrit-url" = [
+  "log",
+  "--no-graph",
+  "-T",
+  '"https://chromium-review.googlesource.com/q/" ++ if(trailers.contains_key("Change-Id"), trailers.filter(|t| t.key() == "Change-Id").map(|t| t.value()), "I" ++ change_id.normal_hex() ++ "6a6a6964") ++ "\n"'
+]
+
+# Chromium-style porcelain aliases
+"v8-sync"   = ["util", "exec", "--", "bash", "-c", """
+jj git fetch
+jj rebase -b 'mutable() & ::@' -d 'trunk()' --skip-emptied
+""", ""]
+"sync"      = ["v8-sync"]
+
+# Runs `jj fix` on the stack, then pushes to Gerrit
+"v8-upload" = ["util", "exec", "--", "bash", "-c", """
+rev="@"
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "-r" ]; then rev="$arg"; break; fi
+  prev="$arg"
+done
+jj fix -s "mutable()::($rev)"
+jj gerrit upload "$@"
+""", ""]
+"upload"    = ["v8-upload"]
+
+[fix.tools.google3format]
+enabled = false
+# If you're not using the google-internal jj, this will complain that
+# google3format is an invalid fix tool because it has no command/patterns
+command = ["/dev/null"]
+patterns = ["null"]
+
+# The source of truth for formatters is depot_tools' git_cl.py
+# Mirror plain `git cl format`: C++ only on changed lines (clang-format-diff),
+# no JS (V8 doesn't set FORMAT_JS). `git cl format --stdin-filename` formats
+# whole files, so it's only used where `git cl format` does too (GN).
+[fix.tools.clang-format]
+command = ["clang_format.py", "--assume-filename=$path"]
+line-range-arg = "--lines=$first:$last"
+patterns = ["glob:'**/*.cc'", "glob:'**/*.h'"]
+
+[fix.tools.git-cl-format]
+command = ["git", "cl", "format", "--stdin-filename=$path"]
+patterns = ["glob:'**/*.gn'", "glob:'**/*.gni'"]

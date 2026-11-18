@@ -6,11 +6,7 @@
 #define V8_D8_HARDWARE_WATCHPOINTS_H_
 
 #include "include/v8config.h"
-
-#if defined(V8_ENABLE_MEMORY_CORRUPTION_API) && defined(V8_OS_LINUX) && \
-    V8_TARGET_ARCH_X64
-#define V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
-#endif
+#include "src/sandbox/testing.h"
 
 namespace v8 {
 

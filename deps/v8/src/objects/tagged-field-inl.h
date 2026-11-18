@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/smi.h"
 #include "src/objects/tagged.h"
 
 namespace v8 {
@@ -49,6 +50,55 @@ Tagged_t TaggedMember<T, CompressionScheme>::full_to_tagged(Address value) {
 #else
   return value;
 #endif
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<Smi> value) {
+  static_assert(is_subtype_v<Smi, T>);
+  store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<Smi> value,
+                                                 RelaxedStoreTag) {
+  static_assert(is_subtype_v<Smi, T>);
+  Relaxed_Store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(
+    Tagged<ClearedWeakValue> value) {
+  static_assert(is_subtype_v<ClearedWeakValue, T>);
+  store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+template <typename U>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<ReadOnly<U>> value)
+  requires(is_subtype_v<ReadOnly<U>, T>)
+{
+  store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+template <typename U>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<ReadOnly<U>> value,
+                                                 RelaxedStoreTag)
+  requires(is_subtype_v<ReadOnly<U>, T>)
+{
+  Relaxed_Store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(
+    const AllocationWitness& witness, Tagged<T> value) {
+  store(witness.object(), value, witness.write_barrier_mode());
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(
+    const AllocationWitness& witness, Tagged<T> value, RelaxedStoreTag) {
+  Relaxed_Store(witness.object(), value, witness.write_barrier_mode());
 }
 
 template <typename T, typename CompressionScheme>
@@ -93,42 +143,6 @@ void TaggedMember<T, CompressionScheme>::Release_Store(HeapObject* host,
 }
 
 template <typename T, typename CompressionScheme>
-Tagged<T> TaggedMember<T, CompressionScheme>::SeqCst_Load() const {
-  return Tagged<T>(
-      tagged_to_full(AsAtomicTagged::SeqCst_Load(this->ptr_location())));
-}
-
-template <typename T, typename CompressionScheme>
-void TaggedMember<T, CompressionScheme>::SeqCst_Store(HeapObject* host,
-                                                      Tagged<T> value,
-                                                      WriteBarrierMode mode) {
-  SeqCst_Store_no_write_barrier(value);
-  WriteBarrier(host, value, mode);
-}
-
-template <typename T, typename CompressionScheme>
-Tagged<T> TaggedMember<T, CompressionScheme>::SeqCst_Swap(
-    HeapObject* host, Tagged<T> value, WriteBarrierMode mode) {
-  Tagged<T> old_value(tagged_to_full(AsAtomicTagged::SeqCst_Swap(
-      this->ptr_location(), full_to_tagged(value.ptr()))));
-  WriteBarrier(host, value, mode);
-  return old_value;
-}
-
-template <typename T, typename CompressionScheme>
-Tagged<T> TaggedMember<T, CompressionScheme>::SeqCst_CompareAndSwap(
-    HeapObject* host, Tagged<T> expected_value, Tagged<T> value,
-    WriteBarrierMode mode) {
-  Tagged<T> old_value(tagged_to_full(AsAtomicTagged::SeqCst_CompareAndSwap(
-      this->ptr_location(), full_to_tagged(expected_value.ptr()),
-      full_to_tagged(value.ptr()))));
-  if (old_value == expected_value) {
-    WriteBarrier(host, value, mode);
-  }
-  return old_value;
-}
-
-template <typename T, typename CompressionScheme>
 void TaggedMember<T, CompressionScheme>::store_no_write_barrier(
     Tagged<T> value) {
 #ifdef V8_ATOMIC_OBJECT_FIELD_WRITES
@@ -150,13 +164,6 @@ void TaggedMember<T, CompressionScheme>::Release_Store_no_write_barrier(
     Tagged<T> value) {
   AsAtomicTagged::Release_Store(this->ptr_location(),
                                 full_to_tagged(value.ptr()));
-}
-
-template <typename T, typename CompressionScheme>
-void TaggedMember<T, CompressionScheme>::SeqCst_Store_no_write_barrier(
-    Tagged<T> value) {
-  AsAtomicTagged::SeqCst_Store(this->ptr_location(),
-                               full_to_tagged(value.ptr()));
 }
 
 template <typename T, typename CompressionScheme>
@@ -182,6 +189,38 @@ void TaggedMember<T, CompressionScheme>::WriteBarrier(HeapObject* host,
     }
   }
 #endif
+}
+
+template <typename Group>
+SmiBitFieldMember<Group>::SmiBitFieldMember(Group value) {
+  store(value);
+}
+
+template <typename Group>
+SmiBitFieldMember<Group>::SmiBitFieldMember(Group value, RelaxedStoreTag) {
+  Relaxed_Store(value);
+}
+
+template <typename Group>
+Group SmiBitFieldMember<Group>::load() const {
+  return Group(Smi::To31BitPattern(TaggedMember<Smi>::load()));
+}
+
+template <typename Group>
+void SmiBitFieldMember<Group>::store(Group value) {
+  store_no_write_barrier(
+      Smi::From31BitPattern(static_cast<int>(value.value())));
+}
+
+template <typename Group>
+Group SmiBitFieldMember<Group>::Relaxed_Load() const {
+  return Group(Smi::To31BitPattern(TaggedMember<Smi>::Relaxed_Load()));
+}
+
+template <typename Group>
+void SmiBitFieldMember<Group>::Relaxed_Store(Group value) {
+  Relaxed_Store_no_write_barrier(
+      Smi::From31BitPattern(static_cast<int>(value.value())));
 }
 
 // static
@@ -385,50 +424,6 @@ TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_Load(
   return PtrType(tagged_to_full(value));
 }
 
-// static
-template <typename T, int kFieldOffset, typename CompressionScheme>
-void TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_Store(
-    Tagged<HeapObject> host, PtrType value) {
-  Address ptr = value.ptr();
-  DCHECK_NE(kFieldOffset, offsetof(HeapObject, map_));
-  AsAtomicTagged::SeqCst_Store(location(host), full_to_tagged(ptr));
-}
-
-// static
-template <typename T, int kFieldOffset, typename CompressionScheme>
-void TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_Store(
-    Tagged<HeapObject> host, int offset, PtrType value) {
-  Address ptr = value.ptr();
-  DCHECK_NE(kFieldOffset + offset, offsetof(HeapObject, map_));
-  AsAtomicTagged::SeqCst_Store(location(host, offset), full_to_tagged(ptr));
-}
-
-// static
-template <typename T, int kFieldOffset, typename CompressionScheme>
-typename TaggedField<T, kFieldOffset, CompressionScheme>::PtrType
-TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_Swap(
-    Tagged<HeapObject> host, int offset, PtrType value) {
-  Address ptr = value.ptr();
-  DCHECK_NE(kFieldOffset + offset, offsetof(HeapObject, map_));
-  AtomicTagged_t old_value =
-      AsAtomicTagged::SeqCst_Swap(location(host, offset), full_to_tagged(ptr));
-  return PtrType(tagged_to_full(old_value));
-}
-
-// static
-template <typename T, int kFieldOffset, typename CompressionScheme>
-typename TaggedField<T, kFieldOffset, CompressionScheme>::PtrType
-TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_CompareAndSwap(
-    Tagged<HeapObject> host, int offset, PtrType old, PtrType value) {
-  Address ptr = value.ptr();
-  Address old_ptr = old.ptr();
-  DCHECK_NE(kFieldOffset + offset, offsetof(HeapObject, map_));
-  AtomicTagged_t old_value = AsAtomicTagged::SeqCst_CompareAndSwap(
-      location(host, offset), full_to_tagged(old_ptr), full_to_tagged(ptr));
-  return TaggedField<T, kFieldOffset, CompressionScheme>::PtrType(
-      tagged_to_full(old_value));
-}
-
 JSDispatchHandle JSDispatchHandleMember::Relaxed_Load() const {
   return JSDispatchHandle(static_cast<JSDispatchHandle::underlying_type>(
       storage_.load(std::memory_order_relaxed)));
@@ -443,10 +438,10 @@ void JSDispatchHandleMember::Relaxed_Clear() {
   storage_.store(0, std::memory_order_relaxed);
 }
 
-void JSDispatchHandleMember::Relaxed_Store(HeapObject* host,
+void JSDispatchHandleMember::Release_Store(HeapObject* host,
                                            JSDispatchHandle handle,
                                            WriteBarrierMode mode) {
-  storage_.store(handle.value(), std::memory_order_relaxed);
+  storage_.store(handle.value(), std::memory_order_release);
   WriteBarrier::ForJSDispatchHandle(host, handle, mode);
 }
 

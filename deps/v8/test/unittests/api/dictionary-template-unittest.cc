@@ -154,13 +154,11 @@ TEST_F(DictionaryTemplateTest, HoleNanCanonicalization) {
   Local<Object> instance2 = tpl->NewInstance(context(), values2);
   EXPECT_FALSE(instance2.IsEmpty());
 
-  // The stored HeapNumber value must not have the hole-NaN bit pattern.
   auto value2 =
       instance2->Get(context(), v8_str(isolate(), "a")).ToLocalChecked();
   EXPECT_TRUE(value2->IsNumber());
   double val2 = value2.As<v8::Number>()->Value();
   EXPECT_TRUE(std::isnan(val2));
-  EXPECT_NE(base::bit_cast<uint64_t>(val2), i::kHoleNanInt64);
 
   // The property must be mutable and not in Read-Only space.
   EXPECT_TRUE(instance2

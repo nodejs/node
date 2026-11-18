@@ -1,0 +1,9 @@
+Tests scope visibility and blocklist behavior for hidden for-let scopes.
+--- testObjectLiteralSuper (b/578889024) ---
+Scope types: ["local","block","block","closure","global"]
+Initializer scope type: block
+Initializer scope x = 1
+eval x: 1
+--- testShadowedStackLocal (b/578890113) ---
+eval typeof x: undefined
+eval x threw: ReferenceError: x is not defined

@@ -15,6 +15,8 @@
 #define LLVM_LIBC_SHARED_STATIC_ROUNDING_MATH_H
 
 #include "shared/libc_common.h"
+#include "shared/math/static_rounding/exp10f.h"
+#include "shared/math/static_rounding/exp2f.h"
 #include "shared/math/static_rounding/expf.h"
 
 #endif // LLVM_LIBC_SHARED_STATIC_ROUNDING_MATH_H

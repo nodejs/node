@@ -353,9 +353,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
   friend class PagedSpaceAllocatorPolicy;
-
-  // Used in cctest.
-  friend class heap::HeapTester;
 };
 
 class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {

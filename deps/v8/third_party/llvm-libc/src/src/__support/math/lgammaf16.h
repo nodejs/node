@@ -13,12 +13,18 @@
 
 #ifdef LIBC_TYPES_HAS_FLOAT16
 
+#include "hdr/errno_macros.h"
+#include "hdr/fenv_macros.h"
+#include "hdr/stdint_proxy.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/NearestIntegerOperations.h"
 #include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/cast.h"
+#include "src/__support/FPUtil/except_value_utils.h"
+#include "src/__support/FPUtil/is_integer.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
 #include "src/__support/macros/properties/types.h"
@@ -53,7 +59,7 @@ LIBC_INLINE float16 lgammaf16(float16 x) {
     return FPBits::inf().get_val();
   }
 
-  if (LIBC_UNLIKELY(is_integer(x))) {
+  if (LIBC_UNLIKELY(fputil::is_integer(x))) {
     if (xbits.is_neg()) {
       // pole -> +Inf
       fputil::raise_except_if_required(FE_DIVBYZERO);
@@ -103,6 +109,11 @@ LIBC_INLINE float16 lgammaf16(float16 x) {
     else
       lgamma_val = poly_val - lg_ln(abs_xd);
   } else if (x_abs > 0x42BEu) { // 3.3710938
+    // For x >= 8184.0f16, lgamma(x) >= 65549.73 > 65520, overflowing float16
+    // in all rounding modes.
+    if (LIBC_UNLIKELY(!xbits.is_neg() && x_abs >= 0x6ffeu))
+      return fputil::set_overflow<float16>();
+
     double log_abs_xd = lg_ln(abs_xd);
     // lgamma(x) = (x-0.5)*log(x) - x + log(2*pi)/2 + Bernoulli corrections
     //  Stirling base: (x-0.5)*(log(x)-1) + (log(2*pi)-1)/2
@@ -206,8 +217,10 @@ LIBC_INLINE float16 lgammaf16(float16 x) {
   }
 
   float16 result = fputil::cast<float16>(lgamma_val);
-  if (LIBC_UNLIKELY(fputil::FPBits<float16>(result).is_inf()))
+  if (LIBC_UNLIKELY(FPBits(result).is_inf())) {
+    fputil::raise_overflow_except_if_required<float16>();
     fputil::set_errno_if_required(ERANGE);
+  }
   return result;
 }
 

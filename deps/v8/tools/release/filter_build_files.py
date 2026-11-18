@@ -25,9 +25,7 @@ EXECUTABLE_FILES = [
 ]
 
 # Additional executable files added only to ref archive type.
-REFBUILD_EXECUTABLE_FILES = [
-  'cctest',
-]
+REFBUILD_EXECUTABLE_FILES = []
 
 SUPPLEMENTARY_FILES = [
   'icudtl.dat',

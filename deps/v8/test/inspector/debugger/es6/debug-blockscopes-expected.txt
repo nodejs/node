@@ -1,0 +1,58 @@
+Test block scopes in V8 debugger.
+--- Local block 1 ---
+Scope chain: local, script, global
+Scope 0 content: {}
+--- Local 2 ---
+Scope chain: local, script, global
+Scope 0 content: {"a":1}
+--- Local 3 ---
+Scope chain: local, script, global
+Scope 0 content: {"a":1,"x":3}
+--- Local 4 ---
+Scope chain: local, script, global
+Scope 0 content: {"a":1,"b":2,"x":3,"y":4}
+--- Local 5 ---
+Scope chain: block, local, script, global
+Scope 0 content: {"x":5}
+Scope 1 content: {"a":1}
+--- Local 6 ---
+Scope chain: block, local, script, global
+Scope 0 content: {"x":6,"y":7}
+Scope 1 content: {"a":1}
+--- Local 7 ---
+Scope chain: block, local, script, global
+Scope 0 content: {"x":8}
+Scope 1 content: {"a":1}
+--- Closure 1 ---
+Scope chain: local, block, closure, script, global
+Scope 0 content: {}
+Scope 2 content: {"a":1,"x":2,"y":3}
+--- For loop 1 ---
+Scope chain: block, local, script, global
+Scope 0 content: {"x":"y"}
+--- For loop 2 ---
+Scope chain: block, block, local, script, global
+Scope 0 content: {"x":3}
+Scope 1 content: {"x":"y"}
+--- For loop 3 ---
+Scope chain: block, local, script, global
+Scope 0 content: {"x":3}
+Scope 1 content: {}
+--- For loop 4 ---
+Scope chain: block, block, local, script, global
+Scope 0 content: {"x":5}
+Scope 1 content: {"x":3}
+Scope 2 content: {}
+--- For loop 5 ---
+Scope chain: block, local, script, global
+Scope 0 content: {"x":3,"y":5}
+Scope 1 content: {}
+--- Uninitialized 1 ---
+Scope chain: block, local, script, global
+x is present in scope: true
+x value is unavailable: true
+--- Block scopes shadowing 1 ---
+Evaluated i: 5
+--- Block scopes shadowing 2 ---
+Evaluated i: 0
+Evaluated j: 5
