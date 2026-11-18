@@ -55,7 +55,15 @@ assert.throws(() => writeFileSync(testPath, 'test'), {
   name: 'URIError',
 });
 
-writeFileSync(testPathBuffer, 'test');
+
+try {
+  writeFileSync(testPathBuffer, 'test');
+} catch (e) {
+  // ZFS with utf8only=on (default) rejects non-UTF-8 file names
+  if (e.code === 'EILSEQ')
+    common.skip('test requires filesystem that accepts non-UTF-8 names');
+  throw e;
+}
 assert.ok(existsSync(testPathBuffer));
 
 // Using fileURLToPath fails because the URL contains non-Unicode
