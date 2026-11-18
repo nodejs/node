@@ -844,7 +844,10 @@ ignored by the decompression classes.
   empty dictionary by default)
 * `info` {boolean} (If `true`, returns an object with `buffer` and `engine`.)
 * `maxOutputLength` {integer} Limits output size when using
-  [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
+  [convenience methods][]. On streaming instances created via
+  `zlib.create*Decompress()`, this option bounds per-chunk internal buffer
+  growth rather than cumulative stream output. **Default:**
+  [`buffer.kMaxLength`][]
 * `rejectGarbageAfterEnd` {boolean} If `true`, decompression fails when
   trailing input is detected after the end of the compressed stream. This
   includes unreadable bytes and, when decompressing gzip, additional gzip
@@ -879,7 +882,10 @@ Each Brotli-based class takes an `options` object. All options are optional.
 * `chunkSize` {integer} **Default:** `16 * 1024`
 * `params` {Object} Key-value object containing indexed [Brotli parameters][].
 * `maxOutputLength` {integer} Limits output size when using
-  [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
+  [convenience methods][]. On streaming instances created via
+  `zlib.create*Decompress()`, this option bounds per-chunk internal buffer
+  growth rather than cumulative stream output. **Default:**
+  [`buffer.kMaxLength`][]
 * `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
 * `rejectGarbageAfterEnd` {boolean} If `true`, decompression fails when
   input remains after the first complete compressed stream. **Default:** `false`
@@ -2294,7 +2300,10 @@ Each Zstd-based class takes an `options` object. All options are optional.
   must be a non-negative safe integer and must match the input size when
   compression finishes. Only applicable to Zstd compressors.
 * `maxOutputLength` {integer} Limits output size when using
-  [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
+  [convenience methods][]. On streaming instances created via
+  `zlib.create*Decompress()`, this option bounds per-chunk internal buffer
+  growth rather than cumulative stream output. **Default:**
+  [`buffer.kMaxLength`][]
 * `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
 * `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer} Optional dictionary used
   to improve compression efficiency when compressing or decompressing data that
@@ -2810,6 +2819,75 @@ with `callback(error, result)`.
 
 Every method has a `*Sync` counterpart, which accept the same arguments, but
 without a callback.
+
+Unlike [convenience methods][], streaming decompressors (`zlib.createGunzip()`,
+`zlib.createBrotliDecompress()`, `zlib.createZstdDecompress()`, and related
+classes) do not enforce a cumulative output limit via `maxOutputLength`. To cap
+total decoded bytes across a stream, count chunk lengths inside a
+[`pipeline()`][] [`stream.Transform`][] stage:
+
+```mjs
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { createGunzip } from 'node:zlib';
+
+function createDecodedByteLimit(maxTotalBytes) {
+  let total = 0;
+  return new Transform({
+    transform(chunk, _encoding, callback) {
+      total += chunk.length;
+      if (total > maxTotalBytes) {
+        const err = new RangeError(
+          `Decoded output exceeded ${maxTotalBytes} bytes`,
+        );
+        callback(err);
+        return;
+      }
+      callback(null, chunk);
+    },
+  });
+}
+
+await pipeline(
+  source,
+  createGunzip(),
+  createDecodedByteLimit(64 * 1024),
+  destination,
+);
+```
+
+```cjs
+const { Transform } = require('node:stream');
+const { pipeline } = require('node:stream/promises');
+const { createGunzip } = require('node:zlib');
+
+function createDecodedByteLimit(maxTotalBytes) {
+  let total = 0;
+  return new Transform({
+    transform(chunk, _encoding, callback) {
+      total += chunk.length;
+      if (total > maxTotalBytes) {
+        const err = new RangeError(
+          `Decoded output exceeded ${maxTotalBytes} bytes`,
+        );
+        callback(err);
+        return;
+      }
+      callback(null, chunk);
+    },
+  });
+}
+
+pipeline(
+  source,
+  createGunzip(),
+  createDecodedByteLimit(64 * 1024),
+  destination,
+).catch((err) => {
+  console.error('An error occurred:', err);
+  process.exitCode = 1;
+});
+```
 
 ### `zlib.brotliCompress(buffer[, options], callback)`
 
