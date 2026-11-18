@@ -329,6 +329,14 @@ if (common.hasCrypto) {
     common.mustSucceed((stdout) => {
       assert.match(stdout, /[0-9a-f]{32}/i);
     }));
+  child.execFile(process.execPath, ['-e', 'console.log(typeof crypto.randomBytes) // comment'],
+                 common.mustSucceed((stdout) => {
+                   assert.strictEqual(stdout, 'function\n');
+                 }));
+  child.execFile(process.execPath, ['-p', 'typeof crypto.randomBytes // comment'],
+                 common.mustSucceed((stdout) => {
+                   assert.strictEqual(stdout, 'function\n');
+                 }));
 }
 // Assert that overriding crypto works.
 child.exec(
