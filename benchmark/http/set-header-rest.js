@@ -6,8 +6,15 @@ const http = require('http');
 const bench = common.createBenchmark(main, {
   headers: [2, 12],
   values: ['static', 'dynamic'],
+  // 'many' rotates through more unique names than the validation cache holds.
+  names: ['fixed', 'many'],
   duration: 5,
 });
+
+const manyNames = [];
+for (let i = 0; i < 1024; i++) {
+  manyNames.push(`X-Custom-Header-${i}`);
+}
 
 const restHeaders = [
   ['Content-Type', 'application/json; charset=utf-8'],
@@ -24,14 +31,18 @@ const restHeaders = [
   ['X-Request-Id', '00000000'],
 ];
 
-function main({ headers, values, duration }) {
+function main({ headers, values, names, duration }) {
   const list = restHeaders.slice(0, headers);
   const body = '{"ok":true}';
   let id = 0;
+  let next = 0;
 
   const server = http.createServer((req, res) => {
     for (const { 0: name, 1: value } of list) {
-      res.setHeader(name, values === 'dynamic' ? `${value}-${id}` : value);
+      res.setHeader(
+        names === 'many' ? manyNames[next++ % manyNames.length] : name,
+        values === 'dynamic' ? `${value}-${id}` : value,
+      );
     }
     id++;
     res.end(body);

@@ -4,6 +4,21 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
+{
+  // Rotate the name cache through several generations.
+  const msg = new http.OutgoingMessage();
+  for (let i = 0; i < 1000; i++) {
+    msg.setHeader(`X-Many-${i}`, 'v');
+  }
+  msg.setHeader('X-Many-0', 'evicted');
+  msg.setHeader('X-Many-999', 'cached');
+  assert.strictEqual(msg.getHeader('x-many-0'), 'evicted');
+  assert.strictEqual(msg.getHeader('x-many-999'), 'cached');
+  assert.throws(() => {
+    msg.setHeader('Bad Header', 'v');
+  }, { code: 'ERR_INVALID_HTTP_TOKEN' });
+}
+
 const server = http.createServer(common.mustCall((req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Test', 'valid-value');
