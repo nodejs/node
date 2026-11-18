@@ -3366,8 +3366,8 @@ disabled.
 
 ### `ERR_TLS_RENEGOTIATION_UNSUPPORTED`
 
-An attempt was made to renegotiate TLS, but the TLS implementation does not
-support caller-initiated renegotiation.
+An attempt was made to renegotiate TLS, or to allow renegotiation on a server,
+but the TLS implementation does not support it.
 
 <a id="ERR_TLS_REQUIRED_SERVER_NAME"></a>
 
