@@ -629,6 +629,20 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
 #undef SET
 
+  // ngtcp2 only asserts this range. With assertions compiled out, a value
+  // below the minimum gives the congestion controller an initial window it
+  // cannot work with: zero makes it divide by zero as soon as the connection
+  // is created.
+  if (options.max_payload_size < NGTCP2_MAX_UDP_PAYLOAD_SIZE ||
+      options.max_payload_size > NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE) {
+    THROW_ERR_INVALID_ARG_VALUE(env,
+                                "The maxPayloadSize option must be between "
+                                "%d and %d",
+                                NGTCP2_MAX_UDP_PAYLOAD_SIZE,
+                                NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE);
+    return Nothing<Options>();
+  }
+
   // RFC 9000 Section 10.2 requires the draining period to be at least 3x PTO.
   static const uint8_t kMinDrainingPeriodMultiplier = 3;
   options.draining_period_multiplier = std::max(

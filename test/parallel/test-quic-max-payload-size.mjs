@@ -5,7 +5,7 @@
 // We verify by checking that more packets are needed to transfer
 // the same amount of data compared to the default.
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import { dump } from 'node:stream/iter';
 
@@ -55,3 +55,18 @@ const smallPkts = await transferAndGetPacketCount(1200);
 // The key assertion: the option is accepted and data transfers correctly.
 assert.ok(defaultPkts > 0n);
 assert.ok(smallPkts > 0n);
+
+// Both ends of the supported range work, as a number and as a bigint.
+for (const maxPayloadSize of [1200n, 65527, 65527n]) {
+  assert.ok(await transferAndGetPacketCount(maxPayloadSize) > 0n);
+}
+
+// Anything outside of the range is rejected before a session is created.
+for (const maxPayloadSize of [0, 0n, 1199, 1199n, 65528, 65528n]) {
+  const expected = {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: 'The maxPayloadSize option must be between 1200 and 65527',
+  };
+  await assert.rejects(listen(mustNotCall(), { maxPayloadSize }), expected);
+  await assert.rejects(connect('127.0.0.1:1', { maxPayloadSize }), expected);
+}
