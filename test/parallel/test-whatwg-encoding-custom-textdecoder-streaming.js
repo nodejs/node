@@ -35,3 +35,29 @@ for (const [encoding, encoded] of Object.entries(octets)) {
     assert.strictEqual(out, string);
   }
 }
+
+// https://github.com/nodejs/node/issues/67561
+// A U+FEFF that follows bytes held over from a previous streaming call must
+// be kept: only the first scalar value the decoder outputs is checked for a
+// BOM, and the held-over bytes already produced output (U+20AC here).
+{
+  const decoder = new TextDecoder();
+  assert.strictEqual(
+    decoder.decode(new Uint8Array([0xe2, 0x82]), { stream: true }), '');
+  assert.strictEqual(
+    decoder.decode(new Uint8Array([0xac, 0xef, 0xbb, 0xbf]), { stream: true }),
+    '€\uFEFF');
+}
+
+// Same, with the BOM itself split across the two calls: the first call's
+// held-over bytes complete to a BOM (stripped, BOM seen), so a second BOM
+// at the start of the remaining bytes must be kept.
+{
+  const decoder = new TextDecoder();
+  assert.strictEqual(
+    decoder.decode(new Uint8Array([0xef, 0xbb]), { stream: true }), '');
+  assert.strictEqual(
+    decoder.decode(new Uint8Array([0xbf, 0xef, 0xbb, 0xbf, 0x61]),
+                   { stream: true }),
+    '\uFEFFa');
+}
