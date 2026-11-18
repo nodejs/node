@@ -93,9 +93,18 @@ class KnaMap {
   // place for surviving entries.
   template <typename Pred>
   size_t EraseIf(Pred&& pred) {
-    return std::erase_if(map_, [&](value_type& entry) {
-      return pred(entry.first, entry.second);
-    });
+    // Not std::erase_if: libstdc++ before 12.3 passes the predicate a const
+    // reference (https://gcc.gnu.org/PR107850), but `pred` mutates Value&.
+    size_t erased = 0;
+    for (auto it = map_.begin(); it != map_.end();) {
+      if (pred(it->first, it->second)) {
+        it = map_.erase(it);
+        ++erased;
+      } else {
+        ++it;
+      }
+    }
+    return erased;
   }
 
   // Visits all entries in ascending key order, allowing `fn(const Key&,
