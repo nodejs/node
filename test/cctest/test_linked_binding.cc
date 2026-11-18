@@ -443,6 +443,42 @@ TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingThrowsTest) {
   CHECK_EQ(RunScript(isolate_, run_script), "init failed");
 }
 
+void InitializeExportsThenThrowingBinding(v8::Local<v8::Object> exports,
+                                          v8::Local<v8::Value> module,
+                                          v8::Local<v8::Context> context,
+                                          void* priv) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Object> new_exports = v8::Object::New(isolate);
+  CHECK(new_exports
+            ->Set(context,
+                  v8::String::NewFromUtf8Literal(isolate, "key"),
+                  v8::String::NewFromUtf8Literal(isolate, "value"))
+            .FromJust());
+  CHECK(module.As<v8::Object>()
+            ->Set(context,
+                  v8::String::NewFromUtf8Literal(isolate, "exports"),
+                  new_exports)
+            .FromJust());
+  isolate->ThrowException(v8::Exception::Error(
+      v8::String::NewFromUtf8Literal(isolate, "init failed")));
+}
+
+TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingExportsThenThrowsTest) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env test_env{handle_scope, argv};
+
+  AddLinkedBinding(*test_env,
+                   "local_linked_exports_throws",
+                   InitializeExportsThenThrowingBinding,
+                   nullptr);
+
+  const char* run_script =
+      "try { process._linkedBinding('local_linked_exports_throws').key; }"
+      " catch (err) { err.message; }";
+  CHECK_EQ(RunScript(isolate_, run_script), "init failed");
+}
+
 napi_value InitializeThrowingNapiBinding(napi_env env, napi_value exports) {
   CHECK_EQ(napi_throw_error(env, nullptr, "init failed"), napi_ok);
   return nullptr;
