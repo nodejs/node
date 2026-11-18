@@ -145,6 +145,13 @@ pool completions of the other `node::Environment`s that become due in those
 loop iterations run normally, including their JavaScript; only the
 `node::Environment` being freed can no longer call into JavaScript.
 
+Do not call `node::FreeEnvironment()` from a callback of the loop that it
+runs. This includes timer and I/O callbacks, and JavaScript code or addon
+functions that they run. A libuv loop must not run inside one of its own
+callbacks. If you call `node::FreeEnvironment()` from such a callback, it can
+wait forever. Call it after the loop stops running, for example after
+`node::SpinEventLoop()` returns.
+
 In order to set up a `v8::Isolate`, an `v8::ArrayBuffer::Allocator` needs
 to be provided. One possible choice is the default Node.js allocator, which
 can be created through `node::ArrayBufferAllocator::Create()`. Using the Node.js
