@@ -7,13 +7,19 @@ const http = require('http');
 {
   // Rotate the name cache through several generations.
   const msg = new http.OutgoingMessage();
-  for (let i = 0; i < 1000; i++) {
+  for (let i = 0; i < 5000; i++) {
     msg.setHeader(`X-Many-${i}`, 'v');
   }
   msg.setHeader('X-Many-0', 'evicted');
-  msg.setHeader('X-Many-999', 'cached');
+  msg.setHeader('X-Many-4999', 'cached');
   assert.strictEqual(msg.getHeader('x-many-0'), 'evicted');
-  assert.strictEqual(msg.getHeader('x-many-999'), 'cached');
+  assert.strictEqual(msg.getHeader('x-many-4999'), 'cached');
+  // Names that were not admitted to the cache still validate values.
+  for (let i = 0; i < 8; i++) {
+    assert.throws(() => {
+      msg.setHeader(`X-Uncached-${i}`, 'bad\u0007value');
+    }, { code: 'ERR_INVALID_CHAR' });
+  }
   assert.throws(() => {
     msg.setHeader('Bad Header', 'v');
   }, { code: 'ERR_INVALID_HTTP_TOKEN' });
