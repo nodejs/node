@@ -29,46 +29,41 @@ const responseTrailers = Buffer.concat([
   Buffer.from([1]), Buffer.from('0'),
 ]);
 const streamId = 1;
+const startRequest = 'start of request';
+const continueRequest = 'more of request';
 
-// Connect to an HTTP/2 server (raw socket), start writing a POST request,
-// receive the first chunk, then return the live request and server socket.
-async function connect() {
-  const server = net.createServer();
+async function startServer(code) {
+  const server = net.createServer(common.mustCall((socket) => {
+    // Client request -> response frames flow for the server:
+    const replies = [
+      [startRequest, [
+        new h2test.HeadersFrame(streamId, responseHeaders),
+        new h2test.DataFrame(streamId, first),
+      ]],
+      [continueRequest, [
+        new h2test.DataFrame(streamId, last),
+        new h2test.HeadersFrame(streamId, responseTrailers, 0, true),
+        new h2test.RstStreamFrame(streamId, code),
+      ]],
+    ];
+
+    let received = Buffer.alloc(0);
+    socket.on('error', () => {});
+    socket.on('data', (chunk) => {
+      received = Buffer.concat([received, chunk]);
+      while (replies.length > 0 && received.includes(replies[0][0])) {
+        const [, frames] = replies.shift();
+        socket.write(Buffer.concat(frames.map((frame) => frame.data)));
+      }
+    });
+
+    // Write settings to start the session:
+    socket.write(new h2test.SettingsFrame().data);
+    socket.write(new h2test.SettingsFrame(true).data);
+  }));
   server.listen(0);
   await once(server, 'listening');
-  const clientSession =
-    http2.connect(`http://localhost:${server.address().port}`);
-  const [serverSocket] = await once(server, 'connection');
-  serverSocket.on('error', () => {});
-  serverSocket.resume();
-  serverSocket.write(new h2test.SettingsFrame().data);
-  serverSocket.write(new h2test.SettingsFrame(true).data);
-  await once(clientSession, 'connect');
-
-  const request = clientSession.request({ ':method': 'POST' });
-  request.on('error', common.mustNotCall());
-  request.write('request remains open');
-  serverSocket.write(Buffer.concat([
-    new h2test.HeadersFrame(streamId, responseHeaders).data,
-    new h2test.DataFrame(streamId, first).data,
-  ]));
-  await once(request, 'response');
-
-  const close = () => {
-    clientSession.destroy();
-    serverSocket.destroy();
-    server.close();
-  };
-
-  return { request, serverSocket, close };
-}
-
-function finishResponse(serverSocket, code) {
-  serverSocket.write(Buffer.concat([
-    new h2test.DataFrame(streamId, last).data,
-    new h2test.HeadersFrame(streamId, responseTrailers, 0, true).data,
-    new h2test.RstStreamFrame(streamId, code).data,
-  ]));
+  return server;
 }
 
 (async () => {
@@ -76,14 +71,20 @@ function finishResponse(serverSocket, code) {
     http2.constants.NGHTTP2_NO_ERROR,
     http2.constants.NGHTTP2_CANCEL,
   ]) {
-    // Start the request
-    const { request, serverSocket, close } = await connect();
+    const server = await startServer(code);
+    const session = http2.connect(`http://localhost:${server.address().port}`);
+    const request = session.request({ ':method': 'POST' });
+    request.on('error', common.mustNotCall());
+    request.on('response', common.mustCall());
+
+    // Read the first response chunk, then stop reading.
+    request.write(startRequest);
     const [chunk] = await once(request, 'data');
     assert.deepStrictEqual(chunk, first);
     request.pause();
 
-    // End with a last response chunk + trailers + RST_STREAM
-    finishResponse(serverSocket, code);
+    // Trigger the last response chunk + trailers + RST_STREAM.
+    request.write(continueRequest);
     const [trailers] = await once(request, 'trailers');
     assert.strictEqual(trailers['grpc-status'], '0');
 
@@ -99,6 +100,8 @@ function finishResponse(serverSocket, code) {
     request.resume();
     await once(request, 'close');
     assert.deepStrictEqual(Buffer.concat(chunks), last);
-    close();
+
+    session.destroy();
+    server.close();
   }
 })().then(common.mustCall());
