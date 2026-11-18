@@ -4858,6 +4858,55 @@ Type: Documentation-only
 `node:util`'s `util.TextDecoder` and `util.TextEncoder` are deprecated.
 Use global `TextDecoder` and `TextEncoder` instead.
 
+### DEP0213: TLS renegotiation
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67532
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+TLS renegotiation is deprecated and will be disabled by default in future.
+This functionality will be largely removed in a subsequent release. Only a
+client accepting server-initiated renegotiation requests is expected to
+remain supported, and on an opt-in basis for legacy server compatibility.
+
+This only affects TLS 1.2. TLS 1.3 removed renegotiation from the standard,
+and so this has never been supported.
+
+Avoid using TLS renegotiation. A server that needs a client certificate should
+request it in the initial configuration, with the `requestCert` option of
+[`tls.createServer()`][]. A client that needs to change the configuration of
+an existing connection should create a new connection.
+
+This affects multiple TLS APIs:
+
+* Node.js TLS clients needing to initiate renegotiation locally, or accept
+  renegotiation requested by the server, should opt in by setting the
+  `allowRenegotiation` option of [`tls.connect()`][].
+* Node.js TLS servers needing to initiate renegotiation locally, or accept
+  renegotiation requested by the client, should opt in by setting the
+  `allowRenegotiation` option of [`tls.createServer()`][].
+  If renegotiation by clients is removed in future, setting this option to
+  `true` on a server will throw an error.
+* In either case, initiating renegotiation ([`tlsSocket.renegotiate()`][])
+  should be avoided by using alternative mechanisms. When renegotiation is
+  disabled by default this method will only work on connections created
+  with the `allowRenegotiation` option, and will throw an error if not.
+  If initiating renegotiation is removed in future, this method will throw
+  an error.
+* Using [`tlsSocket.disableRenegotiation()`][] to disable renegotiation will
+  no longer be necessary when it is disabled by default. This will become a
+  no-op in most configurations.
+* The `tls.CLIENT_RENEG_LIMIT` and `tls.CLIENT_RENEG_WINDOW` properties which
+  limit renegotiation will become unused in default configurations.
+  If renegotiation by clients is removed in future these are likely to be
+  removed.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
@@ -4983,8 +5032,11 @@ Use global `TextDecoder` and `TextEncoder` instead.
 [`tls.SecureContext`]: tls.md#tlscreatesecurecontextoptions
 [`tls.TLSSocket`]: tls.md#class-tlstlssocket
 [`tls.checkServerIdentity()`]: tls.md#tlscheckserveridentityhostname-cert
+[`tls.connect()`]: tls.md#tlsconnectoptions-callback
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
 [`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
+[`tlsSocket.disableRenegotiation()`]: tls.md#tlssocketdisablerenegotiation
+[`tlsSocket.renegotiate()`]: tls.md#tlssocketrenegotiateoptions-callback
 [`url.format()`]: url.md#urlformaturlobject
 [`url.format(urlString)`]: url.md#urlformaturlstring
 [`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost
