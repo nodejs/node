@@ -512,10 +512,11 @@ added: REPLACEME
 
 * `fd` {integer} The file descriptor number to try and guess the type of.
 
-* Returns: {string|null}
+* Returns: {string}
 
-Returns the type of the file descriptor passed in, or `null` if the provided file descriptor
-is invalid.
+Returns the type of the file descriptor passed in. If `fd` is not a non-negative
+32-bit integer, an [`ERR_INVALID_FD`][] error is thrown. If `fd` does not refer
+to an open file descriptor, `'UNKNOWN'` is returned.
 A common use case for this function is checking whether standard input is passed into your process,
 and if it is, if it can be consumed by the process. For example, on Unix systems, if the type is `TTY`, it means
 you can prompt the user for new data while the process is running, and if it's `FILE` or `PIPE`, it means there is data
@@ -1396,6 +1397,7 @@ The following process scheduling constants are exported by
 
 [Android building]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#android
 [EUID]: https://en.wikipedia.org/wiki/User_identifier#Effective_user_ID
+[`ERR_INVALID_FD`]: errors.md#err_invalid_fd
 [`SystemError`]: errors.md#class-systemerror
 [`process.arch`]: process.md#processarch
 [`process.platform`]: process.md#processplatform
