@@ -18,7 +18,8 @@ const fullpath = Buffer.concat([root, filebuff]);
 try {
   fs.closeSync(fs.openSync(fullpath, 'w+'));
 } catch (e) {
-  if (e.code === 'EINVAL')
+  // EILSEQ: ZFS with utf8only=on (default) rejects non-UTF-8 file names
+  if (e.code === 'EINVAL' || e.code === 'EILSEQ')
     common.skip('test requires filesystem that supports UCS2');
   throw e;
 }
