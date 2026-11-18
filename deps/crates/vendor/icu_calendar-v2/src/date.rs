@@ -8,7 +8,7 @@ use crate::options::DateFromFieldsOptions;
 use crate::options::{DateAddOptions, DateDifferenceOptions};
 use crate::types::{CyclicYear, EraYear, IsoWeekOfYear};
 use crate::week::{RelativeUnit, WeekCalculator, WeekOf};
-use crate::{types, Calendar, Iso};
+use crate::{Calendar, Iso, types};
 #[cfg(feature = "alloc")]
 use alloc::rc::Rc;
 #[cfg(feature = "alloc")]
@@ -170,9 +170,9 @@ impl<A: AsCalendar> Date<A> {
     /// # Examples
     ///
     /// ```rust
-    /// use icu::calendar::types::{Month, YearInput};
     /// use icu::calendar::Date;
     /// use icu::calendar::Iso;
+    /// use icu::calendar::types::{Month, YearInput};
     ///
     /// // Example: creation of ISO date from integers.
     /// let date_iso = Date::try_new(1970.into(), Month::new(1), 2, Iso)
@@ -211,9 +211,9 @@ impl<A: AsCalendar> Date<A> {
     /// # Examples
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::cal::Gregorian;
     /// use icu::calendar::types::DateFields;
-    /// use icu::calendar::Date;
     ///
     /// let mut fields = DateFields::default();
     /// fields.extended_year = Some(2000);
@@ -246,7 +246,7 @@ impl<A: AsCalendar> Date<A> {
     /// described on the [`Date`] type instead clamping the result:
     ///
     /// ```rust
-    /// use icu::calendar::{types::RataDie, Date, Gregorian};
+    /// use icu::calendar::{Date, Gregorian, types::RataDie};
     ///
     /// let rd = RataDie::new(1_000_000_000);
     /// assert_ne!(Date::from_rata_die(rd, Gregorian).to_rata_die(), rd);
@@ -415,8 +415,8 @@ impl<A: AsCalendar> Date<A> {
     /// # Examples
     ///
     /// ```
-    /// use icu::calendar::types::DateDuration;
     /// use icu::calendar::Date;
+    /// use icu::calendar::types::DateDuration;
     ///
     /// let d1 = Date::try_new_iso(2020, 1, 1).unwrap();
     /// let d2 = Date::try_new_iso(2025, 10, 2).unwrap();
@@ -431,9 +431,9 @@ impl<A: AsCalendar> Date<A> {
     /// Reversing the order of parameters does not necessarily produce the inverse result:
     ///
     /// ```
+    /// use icu::calendar::Date;
     /// use icu::calendar::options::{DateDifferenceOptions, DateDurationUnit};
     /// use icu::calendar::types::DateDuration;
-    /// use icu::calendar::Date;
     ///
     /// let d1 = Date::try_new_iso(2025, 9, 30).unwrap();
     /// let d2 = Date::try_new_iso(2025, 10, 31).unwrap();
@@ -528,8 +528,8 @@ impl Date<Iso> {
     /// # Examples
     ///
     /// ```
-    /// use icu::calendar::types::IsoWeekOfYear;
     /// use icu::calendar::Date;
+    /// use icu::calendar::types::IsoWeekOfYear;
     ///
     /// let date = Date::try_new_iso(2022, 8, 26).unwrap();
     ///
@@ -685,9 +685,9 @@ impl<A> Copy for Date<A> where A: AsCalendar + Copy {}
 mod tests {
     use super::*;
     use crate::{
+        Gregorian,
         cal::{Buddhist, Hebrew},
         types::{Month, Weekday},
-        Gregorian,
     };
 
     #[test]

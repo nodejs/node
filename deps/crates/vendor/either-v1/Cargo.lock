@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "either"
-version = "1.18.0"
+version = "1.19.0"
 dependencies = [
  "serde",
  "serde_json",

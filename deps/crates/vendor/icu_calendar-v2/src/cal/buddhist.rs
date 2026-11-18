@@ -6,9 +6,10 @@ use crate::cal::abstract_gregorian::AbstractGregorian;
 use crate::error::UnknownEraError;
 use crate::preferences::CalendarAlgorithm;
 use crate::{
-    cal::abstract_gregorian::{impl_with_abstract_gregorian, GregorianYears},
+    Date, RangeError,
+    cal::abstract_gregorian::{GregorianYears, impl_with_abstract_gregorian},
     calendar_arithmetic::ArithmeticDate,
-    types, Date, RangeError,
+    types,
 };
 use tinystr::tinystr;
 
@@ -270,6 +271,26 @@ mod test {
 
         for case in cases {
             check_test_case(case);
+        }
+    }
+
+    #[test]
+    fn test_constructor_roundtrip() {
+        let rds = crate::tests::get_interesting_rds();
+        for rd in rds {
+            let date = Date::from_rata_die(rd, Buddhist);
+            let reconstructed = Date::try_new_buddhist(
+                date.year().extended_year(),
+                date.month().ordinal,
+                date.day_of_month().0,
+            )
+            .unwrap();
+            assert_eq!(
+                reconstructed.to_rata_die(),
+                rd,
+                "Buddhist failed for RD {:?}",
+                rd
+            );
         }
     }
 }

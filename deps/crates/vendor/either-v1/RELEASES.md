@@ -1,3 +1,7 @@
+- 1.19.0 - 2026-10-06
+  - Add `is_left_or` and `is_right_or`, by @A4-Tacks (#145)
+  - Add `#[inline]` to fold functions, by @joshtriplett (#147)
+
 - 1.18.0 - 2026-08-20
   - Add trait impls akin to `Itertools::partition_map`, by @cuviper (#144)
     - `Extend<Either<L, R>> for (A, B)`

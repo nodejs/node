@@ -123,7 +123,7 @@ pub(crate) mod parsing {
                 input.parse().map(BinOp::Ge)
             } else if input.peek(Token![+]) {
                 input.parse().map(BinOp::Add)
-            } else if input.peek(Token![-]) {
+            } else if input.peek(Token![-]) && !input.peek(Token![->]) {
                 input.parse().map(BinOp::Sub)
             } else if input.peek(Token![*]) {
                 input.parse().map(BinOp::Mul)
@@ -137,7 +137,7 @@ pub(crate) mod parsing {
                 input.parse().map(BinOp::BitAnd)
             } else if input.peek(Token![|]) {
                 input.parse().map(BinOp::BitOr)
-            } else if input.peek(Token![<]) {
+            } else if input.peek(Token![<]) && !input.peek(Token![<-]) {
                 input.parse().map(BinOp::Lt)
             } else if input.peek(Token![>]) {
                 input.parse().map(BinOp::Gt)

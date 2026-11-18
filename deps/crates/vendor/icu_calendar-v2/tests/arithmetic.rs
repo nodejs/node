@@ -5,10 +5,10 @@
 use std::convert::Infallible;
 
 use icu_calendar::{
+    AsCalendar, Calendar, Date, Iso,
     cal::Hebrew,
     options::{DateAddOptions, DateDifferenceOptions, DateDurationUnit, Overflow},
     types::{DateDuration, Month},
-    AsCalendar, Calendar, Date, Iso,
 };
 
 #[rustfmt::skip]

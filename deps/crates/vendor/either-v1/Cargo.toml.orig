@@ -1,6 +1,6 @@
 [package]
 name = "either"
-version = "1.18.0"
+version = "1.19.0"
 edition = "2021"
 rust-version = "1.63.0"
 

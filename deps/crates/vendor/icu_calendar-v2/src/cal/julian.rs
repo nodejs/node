@@ -10,7 +10,7 @@ use crate::error::{
 use crate::options::DateFromFieldsOptions;
 use crate::options::{DateAddOptions, DateDifferenceOptions};
 use crate::types::DateFields;
-use crate::{types, Calendar, Date, RangeError};
+use crate::{Calendar, Date, RangeError, types};
 use calendrical_calculations::rata_die::RataDie;
 use tinystr::tinystr;
 
@@ -71,6 +71,47 @@ use tinystr::tinystr;
 /// The calendar was used [incorrectly](https://en.wikipedia.org/wiki/Julian_calendar#Leap_year_error)
 /// for a while after adoption, so the first year where the months align with this proleptic
 /// implementation is probably 4 CE.
+///
+/// # Examples
+///
+/// The `Julian` variant of [`AnyCalendar`](crate::AnyCalendar) can be used to implement a date that
+/// switches between [`Julian`] and [`Gregorian`](crate::cal::Gregorian).
+///
+/// ```rust
+/// use icu::calendar::AnyCalendar;
+/// use icu::calendar::AnyCalendarKind;
+/// use icu::calendar::Date;
+/// use icu::calendar::error::RangeError;
+/// use icu::calendar::Gregorian;
+///
+/// fn historical_french_date(year: i32, month: u8, day: u8) -> Result<Date<AnyCalendar>, RangeError> {
+///     if (year, month, day) <= (1582, 10, 4) {
+///         // October 4, 1582 was the last day of the Julian calendar in France
+///         Ok(Date::try_new_julian(year, month, day)?.to_any())
+///     } else if (year, month, day) >= (1582, 10, 15) {
+///         // October 15, 1582 was the first day of the Gregorian calendar in France
+///         Ok(Date::try_new_gregorian(year, month, day)?.to_any())
+///     } else {
+///         // October 5-14 did not exist in France in 1582
+///         Err(RangeError {
+///            field: "day",
+///            value: day.into(),
+///            min: 15,
+///            max: 4
+///         })
+///     }
+/// }
+///
+/// let julian = historical_french_date(1500, 1, 1).unwrap();
+/// let gregorian = historical_french_date(1600, 1, 1).unwrap();
+///
+/// assert_eq!(julian.calendar().kind(), AnyCalendarKind::Julian);
+/// assert_eq!(gregorian.calendar().kind(), AnyCalendarKind::Gregorian);
+///
+/// // Check the resolved dates in the proleptic Gregorian calendar:
+/// assert_eq!(julian.to_calendar(Gregorian), Date::try_new_gregorian(1500, 1, 10).unwrap());
+/// assert_eq!(gregorian.to_calendar(Gregorian), Date::try_new_gregorian(1600, 1, 1).unwrap());
+/// ```
 #[derive(Copy, Clone, Debug, Hash, Default, Eq, PartialEq, PartialOrd, Ord)]
 #[allow(clippy::exhaustive_structs)] // this type is stable
 pub struct Julian;
@@ -505,5 +546,25 @@ mod test {
         Date::try_new_julian(0, 2, 29).unwrap();
         Date::try_new_julian(-4, 2, 29).unwrap();
         Date::try_new_julian(2020, 2, 29).unwrap();
+    }
+
+    #[test]
+    fn test_constructor_roundtrip() {
+        let rds = crate::tests::get_interesting_rds();
+        for rd in rds {
+            let date = Date::from_rata_die(rd, Julian);
+            let reconstructed = Date::try_new_julian(
+                date.year().extended_year(),
+                date.month().ordinal,
+                date.day_of_month().0,
+            )
+            .unwrap();
+            assert_eq!(
+                reconstructed.to_rata_die(),
+                rd,
+                "Julian failed for RD {:?}",
+                rd
+            );
+        }
     }
 }

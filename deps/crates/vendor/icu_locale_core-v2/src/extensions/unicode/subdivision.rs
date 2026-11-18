@@ -25,7 +25,9 @@ impl_tinystr_subtag!(
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::unicode::{subdivision_suffix, SubdivisionSuffix};
+    /// use icu::locale::extensions::unicode::{
+    ///     SubdivisionSuffix, subdivision_suffix,
+    /// };
     ///
     /// let ss: SubdivisionSuffix =
     ///     "sct".parse().expect("Failed to parse a SubdivisionSuffix.");
