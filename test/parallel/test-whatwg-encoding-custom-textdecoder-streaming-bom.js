@@ -30,13 +30,13 @@ for (const [first, second, expected] of cases) {
   }
 }
 
-// A real BOM split across calls is still stripped.
-{
-  const decoder = new TextDecoder();
+// A real BOM split across calls is stripped, unless ignoreBOM is set.
+for (const [ignoreBOM, expected] of [[false, 'ab'], [true, `${BOM}ab`]]) {
+  const decoder = new TextDecoder('utf-8', { ignoreBOM });
   assert.strictEqual(decoder.decode(new Uint8Array([0xEF]), { stream: true }), '');
   assert.strictEqual(
     decoder.decode(new Uint8Array([0xBB, 0xBF, 0x61, 0x62]), { stream: true }),
-    'ab');
+    expected);
   assert.strictEqual(decoder.decode(), '');
 }
 
