@@ -1,4 +1,5 @@
 #include "compile_cache.h"
+#include <span>
 #include <string>
 #include "debug_utils-inl.h"
 #include "env-inl.h"
@@ -336,10 +337,13 @@ ScriptCompiler::CachedData* SerializeCodeCache(Local<Module> mod) {
 // with the baseline tier so far.
 ScriptCompiler::CachedData* SerializeCodeCache(Local<WasmModuleObject> mod) {
   v8::OwnedBuffer code = mod->GetCompiledModule().Serialize();
-  if (code.size == 0) return nullptr;
+  if (code.empty()) return nullptr;
+  std::span<const uint8_t> span = code.as_span();
+  uint8_t* buffer = new uint8_t[span.size()];
+  memcpy(buffer, span.data(), span.size());
   return new ScriptCompiler::CachedData(
-      code.buffer.release(),
-      static_cast<int>(code.size),
+      buffer,
+      static_cast<int>(span.size()),
       ScriptCompiler::CachedData::BufferOwned);
 }
 

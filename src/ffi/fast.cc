@@ -247,7 +247,7 @@ extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
   constexpr uintptr_t kInvalidBuffer = std::numeric_limits<uintptr_t>::max();
   // The trampoline always passes the FastApiCallbackOptions declared in the
   // CFunctionInfo. No HandleScope is active during a Fast API call, and both
-  // ArrayBufferView::Buffer() and the error paths below create handles, so
+  // ArrayBufferView::GetBuffer() and the error paths below create handles, so
   // open one for the whole helper. Otherwise every call leaks handles into
   // the caller's scope.
   v8::Isolate* isolate = options->isolate;

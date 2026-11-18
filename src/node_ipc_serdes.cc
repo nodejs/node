@@ -287,8 +287,9 @@ class IPCDeserializerDelegate : public ValueDeserializer::Delegate {
     // Reuse the backing ArrayBuffer when the data is suitably aligned,
     // otherwise copy into a fresh aligned buffer. Mirrors _readHostObject()
     // in lib/v8.js.
-    if (offset_in_ab % bytes_per_element == 0) {
-      return MakeView(env_, type_index, ab_, offset_in_ab, byte_length);
+    if (ab_->IsArrayBuffer() && offset_in_ab % bytes_per_element == 0) {
+      return MakeView(
+          env_, type_index, ab_.As<ArrayBuffer>(), offset_in_ab, byte_length);
     }
     std::shared_ptr<BackingStore> store =
         ArrayBuffer::NewBackingStore(isolate, byte_length);
