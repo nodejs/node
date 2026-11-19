@@ -38,7 +38,7 @@ class DirHandle : public AsyncWrap {
 
   uv_dir_t* dir_;
   // Multiple entries are read through a single libuv call.
-  std::vector<uv_dirent_t> dirents_;
+  MallocedBuffer<uv_dirent_t> dirents_;
   bool closing_ = false;
   bool closed_ = false;
 };

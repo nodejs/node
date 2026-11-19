@@ -1,5 +1,6 @@
 #include "node_dir.h"
 #include "memory_tracker-inl.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file-inl.h"
 #include "node_process-inl.h"
@@ -273,10 +274,20 @@ void DirHandle::Read(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsNumber());
   uint64_t buffer_size = static_cast<uint64_t>(args[1].As<Number>()->Value());
 
-  if (buffer_size != dir->dirents_.size()) {
-    dir->dirents_.resize(buffer_size);
+  if (buffer_size != dir->dirents_.size) {
+    // options.bufferSize can be as large as 2 ** 32 - 1, so this can fail. On
+    // 32-bit platforms the size in bytes can also overflow size_t, which
+    // UncheckedMalloc() CHECKs.
+    uv_dirent_t* dirents = nullptr;
+    if (buffer_size <= SIZE_MAX / sizeof(uv_dirent_t)) {
+      dirents = UncheckedMalloc<uv_dirent_t>(buffer_size);
+    }
+    if (dirents == nullptr) {
+      return THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    }
+    dir->dirents_ = MallocedBuffer<uv_dirent_t>(dirents, buffer_size);
     dir->dir_->nentries = buffer_size;
-    dir->dir_->dirents = dir->dirents_.data();
+    dir->dir_->dirents = dir->dirents_.data;
   }
 
   if (!args[2]->IsUndefined()) {  // dir.read(encoding, bufferSize, req)
