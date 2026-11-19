@@ -164,45 +164,19 @@ static void OnIfAvailableReject(const FunctionCallbackInfo<Value>& info) {
       info.GetIsolate()->GetCurrentContext(), info[0]));
 }
 
-void LockManager::CleanupStolenLocks(Environment* env) {
-  std::vector<std::u16string> resources_to_clean;
+bool LockManager::CleanupStolenLocks(Environment* env) {
+  std::vector<std::shared_ptr<Lock>> stolen_locks;
 
-  // Iterate held locks and remove entries that were stolen from other envs.
   {
     Mutex::ScopedLock scoped_lock(mutex_);
 
     for (auto resource_iter = held_locks_.begin();
-         resource_iter != held_locks_.end();
-         ++resource_iter) {
+         resource_iter != held_locks_.end();) {
       auto& resource_locks = resource_iter->second;
-      bool has_stolen_from_other_env = false;
-
-      // Check if this resource has stolen locks from other environments
-      for (const auto& lock_ptr : resource_locks) {
-        if (lock_ptr->is_stolen() && lock_ptr->env() != env) {
-          has_stolen_from_other_env = true;
-          break;
-        }
-      }
-
-      if (has_stolen_from_other_env) {
-        resources_to_clean.push_back(resource_iter->first);
-      }
-    }
-  }
-
-  // Clean up resources
-  for (const auto& resource_name : resources_to_clean) {
-    Mutex::ScopedLock scoped_lock(mutex_);
-
-    auto resource_iter = held_locks_.find(resource_name);
-    if (resource_iter != held_locks_.end()) {
-      auto& resource_locks = resource_iter->second;
-
-      // Remove stolen locks from other environments
       for (auto lock_iter = resource_locks.begin();
            lock_iter != resource_locks.end();) {
-        if ((*lock_iter)->is_stolen() && (*lock_iter)->env() != env) {
+        if ((*lock_iter)->is_stolen() && (*lock_iter)->env() == env) {
+          stolen_locks.push_back(*lock_iter);
           lock_iter = resource_locks.erase(lock_iter);
         } else {
           ++lock_iter;
@@ -210,10 +184,25 @@ void LockManager::CleanupStolenLocks(Environment* env) {
       }
 
       if (resource_locks.empty()) {
-        held_locks_.erase(resource_iter);
+        resource_iter = held_locks_.erase(resource_iter);
+      } else {
+        ++resource_iter;
       }
     }
   }
+
+  if (stolen_locks.empty()) return true;
+
+  Local<Context> context = env->context();
+  Local<Value> error = Exception::Error(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "LOCK_STOLEN"));
+  for (const auto& lock : stolen_locks) {
+    if (lock->released_promise()->Reject(context, error).IsNothing()) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**
@@ -225,12 +214,13 @@ void LockManager::ProcessQueue(Environment* env) {
   HandleScope handle_scope(isolate);
   Local<Context> context = env->context();
 
-  // Remove locks that were stolen from this Environment first
-  CleanupStolenLocks(env);
+  // Settle stolen locks on the Environment that owns their V8 handles.
+  if (!CleanupStolenLocks(env)) return;
 
   while (true) {
     std::unique_ptr<LockRequest> grantable_request;
     std::unique_ptr<LockRequest> if_available_request;
+    std::shared_ptr<Lock> granted_lock;
     std::unordered_set<Environment*> other_envs_to_wake;
 
     /**
@@ -308,11 +298,41 @@ void LockManager::ProcessQueue(Environment* env) {
         pending_queue_.erase(queue_iter);
         break;
       }
-    }
 
-    // Wake each environment only once
-    for (Environment* target_env : other_envs_to_wake) {
-      WakeEnvironment(target_env);
+      if (if_available_request) {
+        env->add_refs(-1);
+      }
+
+      if (grantable_request) {
+        env->add_refs(-1);
+        granted_lock =
+            std::make_shared<Lock>(env,
+                                   grantable_request->name(),
+                                   grantable_request->mode(),
+                                   grantable_request->client_id(),
+                                   grantable_request->waiting_promise(),
+                                   grantable_request->released_promise());
+
+        if (grantable_request->steal()) {
+          auto held_locks_iter =
+              held_locks_.find(grantable_request->name());
+          if (held_locks_iter != held_locks_.end()) {
+            for (const auto& existing_lock : held_locks_iter->second) {
+              existing_lock->mark_stolen();
+              other_envs_to_wake.insert(existing_lock->env());
+            }
+          }
+        }
+
+        held_locks_[grantable_request->name()].push_back(granted_lock);
+      }
+
+      // Schedule wakeups while the mutex protects Environment lifetimes.
+      for (Environment* target_env : other_envs_to_wake) {
+        if (target_env != env) {
+          WakeEnvironment(target_env);
+        }
+      }
     }
 
     /**
@@ -398,73 +418,9 @@ void LockManager::ProcessQueue(Environment* env) {
 
     if (!grantable_request) return;
 
-    /**
-     * 1- We grant the lock immediately even if other envs hold it
-     * 2- All existing locks with the same name are marked stolen, their
-     *    released_promise is rejected, and their owners are woken so they
-     *    can observe the rejection
-     * 3- We remove stolen locks that belong to this env right away; other
-     *    envs will clean up in their next queue pass
-     */
-    if (grantable_request->steal()) {
-      std::unordered_set<Environment*> envs_to_notify;
+    if (grantable_request->steal() && !CleanupStolenLocks(env)) return;
 
-      {
-        Mutex::ScopedLock scoped_lock(mutex_);
-        auto held_locks_iter = held_locks_.find(grantable_request->name());
-        if (held_locks_iter != held_locks_.end()) {
-          // Mark existing locks as stolen and collect environments to notify
-          for (auto& existing_lock : held_locks_iter->second) {
-            existing_lock->mark_stolen();
-            envs_to_notify.insert(existing_lock->env());
-
-            Local<Value> error =
-                Exception::Error(FIXED_ONE_BYTE_STRING(isolate, "LOCK_STOLEN"));
-
-            if (existing_lock->released_promise()
-                    ->Reject(context, error)
-                    .IsNothing())
-              return;
-          }
-
-          // Remove stolen locks from current environment immediately
-          for (auto lock_iter = held_locks_iter->second.begin();
-               lock_iter != held_locks_iter->second.end();) {
-            if ((*lock_iter)->env() == env) {
-              lock_iter = held_locks_iter->second.erase(lock_iter);
-            } else {
-              ++lock_iter;
-            }
-          }
-
-          if (held_locks_iter->second.empty()) {
-            held_locks_.erase(held_locks_iter);
-          }
-        }
-      }
-
-      // Wake other environments
-      for (Environment* target_env : envs_to_notify) {
-        if (target_env != env) {
-          WakeEnvironment(target_env);
-        }
-      }
-    }
-
-    // Create and store the new granted lock
-    auto granted_lock =
-        std::make_shared<Lock>(env,
-                               grantable_request->name(),
-                               grantable_request->mode(),
-                               grantable_request->client_id(),
-                               grantable_request->waiting_promise(),
-                               grantable_request->released_promise());
-    {
-      Mutex::ScopedLock scoped_lock(mutex_);
-      held_locks_[grantable_request->name()].push_back(granted_lock);
-    }
-
-    // Create and store the new granted lock
+    // Create the lock passed to the user callback.
     Local<Object> lock_info;
     if (!CreateLockInfoObject(env, *grantable_request).ToLocal(&lock_info)) {
       return;
@@ -624,6 +580,7 @@ void LockManager::Request(const FunctionCallbackInfo<Value>& args) {
         client_id.ToString(),
         steal,
         if_available);
+    env->add_refs(1);
     // Steal requests get priority by going to front of queue
     if (steal) {
       manager->pending_queue_.emplace_front(std::move(lock_request));
@@ -635,6 +592,48 @@ void LockManager::Request(const FunctionCallbackInfo<Value>& args) {
   manager->ProcessQueue(env);
 
   args.GetReturnValue().Set(released_promise->GetPromise());
+}
+
+void LockManager::Cancel(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+
+  CHECK_EQ(args.Length(), 2);
+  CHECK(args[0]->IsPromise());
+
+  Local<Promise> released_promise = args[0].As<Promise>();
+  std::unique_ptr<LockRequest> canceled_request;
+  LockManager* manager = GetCurrent();
+  {
+    Mutex::ScopedLock scoped_lock(manager->mutex_);
+
+    for (auto request_iter = manager->pending_queue_.begin();
+         request_iter != manager->pending_queue_.end();
+         ++request_iter) {
+      if ((*request_iter)->env() == env &&
+          (*request_iter)
+              ->released_promise()
+              ->GetPromise()
+              ->StrictEquals(released_promise)) {
+        canceled_request = std::move(*request_iter);
+        manager->pending_queue_.erase(request_iter);
+        env->add_refs(-1);
+        break;
+      }
+    }
+  }
+
+  if (!canceled_request) {
+    args.GetReturnValue().Set(false);
+    return;
+  }
+
+  USE(RejectBoth(context,
+                 canceled_request->waiting_promise(),
+                 canceled_request->released_promise(),
+                 args[1]));
+  manager->ProcessQueue(env);
+  args.GetReturnValue().Set(true);
 }
 
 void LockManager::Query(const FunctionCallbackInfo<Value>& args) {
@@ -709,16 +708,20 @@ void LockManager::ReleaseLockAndProcessQueue(Environment* env,
                                              std::shared_ptr<Lock> lock,
                                              Local<Value> callback_result,
                                              bool was_rejected) {
+  bool was_stolen;
   {
     Mutex::ScopedLock scoped_lock(mutex_);
-    ReleaseLock(lock.get());
+    was_stolen = lock->is_stolen();
+    if (!was_stolen) {
+      ReleaseLock(lock.get());
+    }
   }
 
   Local<Context> context = env->context();
 
   // For stolen locks, the released_promise was already rejected when marked as
   // stolen.
-  if (!lock->is_stolen()) {
+  if (!was_stolen) {
     if (was_rejected) {
       // Propagate rejection from the user callback
       if (lock->released_promise()
@@ -757,7 +760,10 @@ void LockManager::ReleaseLock(Lock* lock) {
 
 // Wakeup of target Environment's event loop
 void LockManager::WakeEnvironment(Environment* target_env) {
-  if (target_env == nullptr || target_env->is_stopping()) return;
+  if (target_env == nullptr || !registered_envs_.contains(target_env) ||
+      target_env->is_stopping()) {
+    return;
+  }
 
   COUNT_GENERIC_USAGE("LockManager.WakeEnvironment");
 
@@ -767,6 +773,32 @@ void LockManager::WakeEnvironment(Environment* target_env) {
       LockManager::GetCurrent()->ProcessQueue(env_to_wake);
     }
   });
+}
+
+void LockManager::WakeGrantableEnvironments() {
+  std::unordered_map<std::u16string, LockRequest*> first_seen_for_resource;
+  std::unordered_set<Environment*> envs_to_wake;
+
+  for (const auto& request_ptr : pending_queue_) {
+    LockRequest* request = request_ptr.get();
+    auto& first_for_resource = first_seen_for_resource[request->name()];
+    if (first_for_resource == nullptr) {
+      first_for_resource = request;
+    }
+
+    bool should_wait_for_earlier_requests =
+        first_for_resource != request &&
+        (request->mode() == Lock::Mode::Exclusive ||
+         first_for_resource->mode() == Lock::Mode::Exclusive);
+    if ((!should_wait_for_earlier_requests && IsGrantable(request)) ||
+        request->if_available()) {
+      envs_to_wake.insert(request->env());
+    }
+  }
+
+  for (Environment* env : envs_to_wake) {
+    WakeEnvironment(env);
+  }
 }
 
 // Remove all held locks and pending requests that belong to an Environment
@@ -797,6 +829,7 @@ void LockManager::CleanupEnvironment(Environment* env_to_cleanup) {
   for (auto request_iter = pending_queue_.begin();
        request_iter != pending_queue_.end();) {
     if ((*request_iter)->env() == env_to_cleanup) {
+      env_to_cleanup->add_refs(-1);
       request_iter = pending_queue_.erase(request_iter);
     } else {
       ++request_iter;
@@ -805,6 +838,8 @@ void LockManager::CleanupEnvironment(Environment* env_to_cleanup) {
 
   // Finally, remove it from registered_envs_
   registered_envs_.erase(env_to_cleanup);
+
+  WakeGrantableEnvironments();
 }
 
 // Cleanup hook wrapper
@@ -819,6 +854,7 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
   SetMethod(isolate, target, "request", LockManager::Request);
+  SetMethod(isolate, target, "cancel", LockManager::Cancel);
   SetMethod(isolate, target, "query", LockManager::Query);
 
   PropertyAttribute read_only = static_cast<PropertyAttribute>(
@@ -841,6 +877,7 @@ void CreatePerContextProperties(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(LockManager::Request);
+  registry->Register(LockManager::Cancel);
   registry->Register(LockManager::Query);
   registry->Register(OnLockCallbackFulfilled);
   registry->Register(OnLockCallbackRejected);

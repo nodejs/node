@@ -19,8 +19,8 @@ const {
 const resource = `web-locks-no-livelock`;
 
 if (!isMainThread) {
-  // A pending lock request alone does not keep the worker alive, so keep a
-  // message listener until the parent terminates this Environment.
+  // Keep this test focused on wakeups; lock request liveness is tested
+  // separately.
   parentPort.on('message', () => {});
   navigator.locks.request(workerData, () => {});
   parentPort.postMessage('ready');
