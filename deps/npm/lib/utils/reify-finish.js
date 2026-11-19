@@ -18,7 +18,7 @@ const reifyFinish = async (npm, arb) => {
     }
   }
   warnWorkspaceAllowScripts(arb.actualTree)
-  const unreviewedScripts = await checkAllowScripts({ arb, npm })
+  const unreviewedScripts = await checkAllowScripts({ arb, npm, skipExtraneous: true })
   reifyOutput(npm, arb, { unreviewedScripts })
 }
 
