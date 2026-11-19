@@ -87,6 +87,13 @@ flag. For WASI, use the [`--allow-wasi`][] flag. For FFI, use the
 [`--allow-ffi`][] flag. The [`node:ffi`](ffi.md) module is only available in
 builds with FFI support.
 
+Unix domain sockets and Windows named pipes are governed by the network
+permission. Binding, listening on, or connecting to them through `node:net`
+requires [`--allow-net`][] and is not checked against [`--allow-fs-read`][] or
+[`--allow-fs-write`][], even though a Unix domain socket is created as a file
+system entry. Granting [`--allow-net`][] therefore allows creating sockets and
+connecting to local services at any path the operating system permits.
+
 To allow use of OpenSSL STORE loaders, for example to load a private key
 from a {URL} passed to [`crypto.createPrivateKey()`][], use the
 [`--allow-openssl-store`][] flag.
