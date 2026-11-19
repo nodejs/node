@@ -95,6 +95,29 @@ t.test('skips project root, workspace, and linked nodes', async t => {
   t.strictSame(result, [])
 })
 
+t.test('only skips extraneous nodes when requested', async t => {
+  const checkAllowScripts = mockCheck(t)
+  const orphan = {
+    ...node({ name: 'orphan', scripts: { install: 'x' }, isRegistryDependency: false }),
+    extraneous: true,
+    edgesIn: new Set(),
+    parent: null,
+    linksIn: new Set(),
+  }
+  for (const skipExtraneous of [undefined, false, true]) {
+    const result = await checkAllowScripts({
+      arb: arb({ nodes: [orphan], allowScripts: { orphan: false } }),
+      npm: { flatOptions: {} },
+      skipExtraneous,
+    })
+    t.strictSame(
+      result.map(({ node: entry }) => entry),
+      skipExtraneous ? [] : [orphan],
+      `skipExtraneous=${skipExtraneous}`
+    )
+  }
+})
+
 t.test('skips nodes with no install-relevant scripts', async t => {
   const checkAllowScripts = mockCheck(t)
   const result = await checkAllowScripts({

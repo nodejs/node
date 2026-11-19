@@ -28,6 +28,9 @@ Dependency install scripts are blocked by default. Install commands
 silently skip lifecycle scripts for any dependency that does not have a
 matching entry in `allowScripts`, and end with a list of the packages
 whose scripts were skipped so you can review them here.
+These warnings omit disconnected unused entries that installation cannot
+build. Local link targets that can still be rebuilt remain subject to the
+policy.
 
 This command only works inside a project that has a `package.json`. Running
 it with `--global` (`-g`) fails with an `EGLOBAL` error, since global
@@ -62,6 +65,9 @@ unreviewed install scripts.
 
 `ls` is read-only: it lists every package whose install scripts are not yet
 covered by `allowScripts`, without modifying `package.json`.
+This includes unreviewed extraneous packages, which are installed but not
+required by any dependency. These packages can still cause
+`npm rebuild --strict-allow-scripts` to fail.
 
 `prune` removes `allowScripts` entries that no longer match an installed
 package with an install script, either because the package is no longer
