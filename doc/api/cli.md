@@ -2364,7 +2364,7 @@ changes:
     description: SQLite is unflagged but still experimental.
 -->
 
-Disable the experimental [`node:sqlite`][] module.
+Disable the [`node:sqlite`][] module.
 
 ### `--no-experimental-vfs`
 
