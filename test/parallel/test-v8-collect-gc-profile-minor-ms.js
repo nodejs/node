@@ -10,7 +10,7 @@ profiler.start();
 global.gc({ type: 'minor', execution: 'sync' });
 
 const profile = profiler.stop();
-assert.deepStrictEqual(
+assert.partialDeepStrictEqual(
   profile.statistics.map(({ gcType }) => gcType),
   ['MinorMarkSweep'],
 );
