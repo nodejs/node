@@ -1320,6 +1320,9 @@ int Http2Session::OnFrameNotSent(nghttp2_session* handle,
   Debug(session, "frame type %d was not sent, code: %d",
         frame->hd.type, error_code);
 
+  if (frame->hd.type == NGHTTP2_HEADERS)
+    session->HandleInfoHeadersFrame(frame, UV_ECANCELED);
+
   if (error_code == NGHTTP2_ERR_SESSION_CLOSING ||
       error_code == NGHTTP2_ERR_STREAM_CLOSED ||
       error_code == NGHTTP2_ERR_STREAM_CLOSING) {
@@ -1360,6 +1363,9 @@ int Http2Session::OnFrameSent(nghttp2_session* handle,
                               void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
   session->statistics_.frame_sent += 1;
+
+  if (frame->hd.type == NGHTTP2_HEADERS)
+    session->HandleInfoHeadersFrame(frame, 0);
 
   // If nghttp2 has internally terminated the session (e.g. due to a protocol
   // error like oversized frames, padding errors, or HPACK compression
@@ -2005,6 +2011,12 @@ void Http2Session::ClearOutgoing(int status) {
 
   set_sending(false);
 
+  // Completing a request can start the next write. Take the requests that
+  // belong to the write that has just finished before completing any of them,
+  // so that the ones of the next write are left alone.
+  std::vector<OutgoingInfoReq> info_reqs;
+  info_reqs.swap(outgoing_info_reqs_);
+
   if (!outgoing_buffers_.empty()) {
     outgoing_storage_.clear();
     outgoing_length_ = 0;
@@ -2022,6 +2034,11 @@ void Http2Session::ClearOutgoing(int status) {
     }
   }
 
+  for (const OutgoingInfoReq& req : info_reqs) {
+    WriteWrap::FromObject(req.req_wrap)
+        ->Done(req.status != 0 ? req.status : status);
+  }
+
   // Now that we've finished sending queued data, if there are any pending
   // RstStreams we should try sending again and then flush them one by one.
   if (status == 0 && !pending_rst_streams_.empty()) {
@@ -2036,6 +2053,24 @@ void Http2Session::ClearOutgoing(int status) {
         stream->FlushRstStream();
       }
     }
+  }
+}
+
+// Called when nghttp2 has serialized a HEADERS frame, or has given up on
+// sending it. Informational HEADERS frames are always sent before any other
+// HEADERS frame of the same stream, and in the order they were submitted in,
+// so if the stream still has informational headers pending, this frame is the
+// oldest of them. Its request is completed in ClearOutgoing(), once the
+// current write to the underlying stream has finished.
+void Http2Session::HandleInfoHeadersFrame(const nghttp2_frame* frame,
+                                          int status) {
+  BaseObjectPtr<Http2Stream> stream = FindStream(frame->hd.stream_id);
+  if (!stream || stream->info_reqs_.empty()) return;
+  BaseObjectPtr<AsyncWrap> req_wrap = std::move(stream->info_reqs_.front());
+  stream->info_reqs_.pop();
+  if (req_wrap) {
+    outgoing_info_reqs_.push_back(
+        {std::move(req_wrap), std::move(stream), status});
   }
 }
 
@@ -2314,6 +2349,9 @@ bool Http2Session::HasWritesOnSocketForStream(Http2Stream* stream) {
   for (const NgHttp2StreamWrite& wr : outgoing_buffers_) {
     if (wr.stream.get() == stream) return true;
   }
+  for (const OutgoingInfoReq& req : outgoing_info_reqs_) {
+    if (req.stream.get() == stream) return true;
+  }
   return false;
 }
 
@@ -2418,6 +2456,7 @@ Http2Stream::~Http2Stream() {
 void Http2Stream::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("current_headers", current_headers_);
   tracker->TrackField("queue", queue_);
+  tracker->TrackField("info_reqs", info_reqs_);
 }
 
 std::string Http2Stream::diagnostic_name() const {
@@ -2542,6 +2581,7 @@ void Http2Stream::CompleteDestroyCleanup() {
           WriteWrap::FromObject(head.req_wrap)->Done(UV_ECANCELED);
         queue_.pop();
       }
+      CancelPendingInfoRequests();
 
       // We can destroy the stream now if there are no writes for it
       // already on the socket. Otherwise, we'll wait for the garbage collector
@@ -2588,7 +2628,15 @@ int Http2Stream::SubmitResponse(const Http2Headers& headers, int options) {
 
 
 // Submit informational headers for a stream.
-int Http2Stream::SubmitInfo(const Http2Headers& headers) {
+void Http2Stream::CancelPendingInfoRequests() {
+  while (!info_reqs_.empty()) {
+    BaseObjectPtr<AsyncWrap> req_wrap = std::move(info_reqs_.front());
+    info_reqs_.pop();
+    if (req_wrap) WriteWrap::FromObject(req_wrap)->Done(UV_ECANCELED);
+  }
+}
+
+int Http2Stream::SubmitInfo(const Http2Headers& headers, WriteWrap* req_wrap) {
   CHECK(!this->is_destroyed());
   Http2Scope h2scope(this);
   Debug(this, "sending %d informational headers", headers.length());
@@ -2601,6 +2649,12 @@ int Http2Stream::SubmitInfo(const Http2Headers& headers) {
       headers.length(),
       nullptr);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
+  if (ret == 0) {
+    info_reqs_.emplace(req_wrap != nullptr ? req_wrap->GetAsyncWrap()
+                                           : nullptr);
+  } else if (req_wrap != nullptr) {
+    req_wrap->Dispose();
+  }
   return ret;
 }
 
@@ -3309,7 +3363,16 @@ void Http2Stream::Info(const FunctionCallbackInfo<Value>& args) {
 
   Local<Array> headers = args[0].As<Array>();
 
-  args.GetReturnValue().Set(stream->SubmitInfo(Http2Headers(env, headers)));
+  // The optional request object is completed once the HEADERS frame has been
+  // written to the socket.
+  WriteWrap* req_wrap = nullptr;
+  if (args[1]->IsObject()) {
+    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(stream);
+    req_wrap = stream->CreateWriteWrap(args[1].As<Object>());
+  }
+
+  args.GetReturnValue().Set(
+      stream->SubmitInfo(Http2Headers(env, headers), req_wrap));
 }
 
 // Submits trailing headers on the Http2Stream
