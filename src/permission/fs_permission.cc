@@ -176,21 +176,29 @@ void FSPermission::Drop(Environment* env,
 }
 
 void FSPermission::RevokeAccess(PermissionScope perm, const std::string& res) {
-  const std::string path = WildcardIfDir(res);
+  // A grant is stored with a trailing wildcard when the path was a directory
+  // at grant time. The path may have been created, removed or replaced since
+  // then, so match the grant regardless of what the path currently is.
+  const std::string wildcard = res.back() == node::kPathSeparator
+                                   ? res + "*"
+                                   : res + node::kPathSeparator + "*";
+  const auto matches = [&](const std::string& granted) {
+    return granted == res || granted == wildcard;
+  };
+
+  std::vector<std::string>* granted_paths;
   if (perm == PermissionScope::kFileSystemRead) {
-    auto it =
-        std::find(granted_paths_in_.begin(), granted_paths_in_.end(), path);
-    if (it != granted_paths_in_.end()) {
-      granted_paths_in_.erase(it);
-      RebuildTree(PermissionScope::kFileSystemRead);
-    }
+    granted_paths = &granted_paths_in_;
   } else if (perm == PermissionScope::kFileSystemWrite) {
-    auto it =
-        std::find(granted_paths_out_.begin(), granted_paths_out_.end(), path);
-    if (it != granted_paths_out_.end()) {
-      granted_paths_out_.erase(it);
-      RebuildTree(PermissionScope::kFileSystemWrite);
-    }
+    granted_paths = &granted_paths_out_;
+  } else {
+    return;
+  }
+
+  const size_t size = granted_paths->size();
+  std::erase_if(*granted_paths, matches);
+  if (granted_paths->size() != size) {
+    RebuildTree(perm);
   }
 }
 
