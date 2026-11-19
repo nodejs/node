@@ -99,6 +99,33 @@ class HeadersFrame extends Frame {
   }
 }
 
+class DataFrame extends Frame {
+  constructor(id, payload, padlen = 0, final = false) {
+    let len = payload.length;
+    let flags = 0;
+    if (final) flags |= FLAG_EOS;
+    const buffers = [payload];
+    if (padlen > 0) {
+      buffers.unshift(Buffer.from([padlen]));
+      buffers.push(PADDING.slice(0, padlen));
+      len += padlen + 1;
+      flags |= FLAG_PADDED;
+    }
+    super(len, 0, flags, id);
+    buffers.unshift(this[kFrameData]);
+    this[kFrameData] = Buffer.concat(buffers);
+  }
+}
+
+class RstStreamFrame extends Frame {
+  constructor(id, code = 0) {
+    super(4, 3, 0, id);
+    const payload = Buffer.alloc(4);
+    write32BE(payload, 0, code);
+    this[kFrameData] = Buffer.concat([this[kFrameData], payload]);
+  }
+}
+
 class PingFrame extends Frame {
   constructor(ack = false) {
     const buffers = [Buffer.alloc(8)];
@@ -120,7 +147,9 @@ class AltSvcFrame extends Frame {
 module.exports = {
   Frame,
   AltSvcFrame,
+  DataFrame,
   HeadersFrame,
+  RstStreamFrame,
   SettingsFrame,
   PingFrame,
   kFakeRequestHeaders,
