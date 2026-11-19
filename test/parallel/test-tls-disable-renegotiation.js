@@ -23,6 +23,7 @@ tls.DEFAULT_MAX_VERSION = 'TLSv1.2';
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
+  allowRenegotiation: true,
 };
 
 const server = tls.Server(options, common.mustCall((socket) => {
@@ -53,6 +54,7 @@ server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   const options = {
     rejectUnauthorized: false,
+    allowRenegotiation: true,
     port
   };
   const client = tls.connect(options, common.mustCall(() => {

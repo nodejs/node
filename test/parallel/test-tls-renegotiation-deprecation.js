@@ -8,8 +8,8 @@ const { isBoringSSL } = require('../common/crypto');
 if (isBoringSSL)
   common.skip('BoringSSL does not support renegotiation');
 
-// With --pending-deprecation, renegotiation emits a deprecation warning unless
-// it is a client that set allowRenegotiation: true accepting a server's request.
+// Renegotiation emits a deprecation warning, unless it is a client that set
+// allowRenegotiation: true accepting a server's request.
 
 const assert = require('assert');
 const { fork } = require('child_process');
@@ -30,16 +30,7 @@ if (process.argv[2] === 'child') {
     JSON.parse(process.argv[3]);
 
   if (role === 'server') {
-    const server = tls.createServer({
-      ...serverOptions,
-      allowRenegotiation,
-    }, common.mustCall((socket) => {
-      socket.resume();
-      socket.on('close', common.mustCall(() => server.close()));
-    }));
-    server.listen(0, common.mustCall(() => {
-      process.send({ port: server.address().port });
-    }));
+    tls.createServer({ ...serverOptions, allowRenegotiation });
   } else {
     const client = tls.connect({
       port,
@@ -56,7 +47,6 @@ if (process.argv[2] === 'child') {
 
 function start(options, warns) {
   const child = fork(__filename, ['child', JSON.stringify(options)], {
-    execArgv: ['--pending-deprecation'],
     stdio: ['ignore', 'inherit', 'pipe', 'ipc'],
   });
   let stderr = '';
@@ -69,24 +59,13 @@ function start(options, warns) {
       warns,
       stderr);
   }));
-  return child;
-}
-
-function testServer(options, warns) {
-  const child = start({ role: 'server', ...options }, warns);
-  child.on('message', common.mustCall(({ port }) => {
-    const client = tls.connect({
-      port,
-      rejectUnauthorized: false,
-    }, common.mustCall(() => {
-      client.renegotiate({}, common.mustSucceed(() => client.end()));
-    }));
-    client.resume();
-  }));
 }
 
 function testClient(options, warns) {
-  const server = tls.createServer(serverOptions, common.mustCall((socket) => {
+  const server = tls.createServer({
+    ...serverOptions,
+    allowRenegotiation: true,
+  }, common.mustCall((socket) => {
     socket.resume();
     socket.on('close', common.mustCall(() => server.close()));
     if (!options.initiate)
@@ -97,10 +76,10 @@ function testClient(options, warns) {
   }));
 }
 
-// A server completing a renegotiation, whether or not it set the option.
-testServer({ allowRenegotiation: true }, true);
+// A server that allows renegotiation.
+start({ role: 'server', allowRenegotiation: true }, true);
+start({ role: 'server' }, false);
 // Any call to renegotiate().
 testClient({ allowRenegotiation: true, initiate: true }, true);
-// A client accepting the server's request, unless it set the option.
-testClient({ initiate: false }, true);
+// A client accepting the server's request.
 testClient({ allowRenegotiation: true, initiate: false }, false);

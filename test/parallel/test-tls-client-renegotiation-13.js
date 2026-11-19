@@ -21,6 +21,7 @@ connect({
   client: {
     ca: server.ca,
     checkServerIdentity: common.mustCall(),
+    allowRenegotiation: true,
   },
   server: {
     key: server.key,
