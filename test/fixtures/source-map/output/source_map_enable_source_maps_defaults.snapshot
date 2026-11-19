@@ -1,0 +1,3 @@
+Error: an error!
+    at functionD (<project-root>/test/fixtures/source-map/node_modules/error-stack/enclosing-call-site-min.js:1:156)
+    at functionC (<project-root>/test/fixtures/source-map/node_modules/error-stack/enclosing-call-site-min.js:1:97)
