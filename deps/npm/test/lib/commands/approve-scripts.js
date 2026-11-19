@@ -859,3 +859,250 @@ t.test('approve-scripts --all with only bundled deps has nothing to review', asy
   const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
   t.notOk(pkg.allowScripts, 'no allowScripts written')
 })
+
+// Layout produced by install-strategy=linked: the real package lives in the store, node_modules holds a symlink to it, and the hidden lockfile records that isolated layout (npm/cli#9939).
+const setupLinkedProject = (t, { allowScripts, noResolved = false } = {}) => {
+  const storeDir = 'canvas@1.0.0-c2FsdHNhbHRzYWx0c2FsdA'
+  const storeLoc = `node_modules/.store/${storeDir}/node_modules/canvas`
+  const tarUrl = noResolved
+    ? undefined
+    : 'https://registry.npmjs.org/canvas/-/canvas-1.0.0.tgz'
+  const pkg = {
+    name: 'host',
+    version: '1.0.0',
+    dependencies: { canvas: '^1.0.0' },
+  }
+  if (allowScripts !== undefined) {
+    pkg.allowScripts = allowScripts
+  }
+  return {
+    'package.json': JSON.stringify(pkg, null, 2),
+    'package-lock.json': JSON.stringify({
+      name: pkg.name,
+      version: pkg.version,
+      lockfileVersion: 3,
+      requires: true,
+      packages: {
+        '': pkg,
+        'node_modules/canvas': {
+          version: '1.0.0',
+          resolved: tarUrl,
+          hasInstallScript: true,
+        },
+      },
+    }),
+    node_modules: {
+      '.package-lock.json': JSON.stringify({
+        lockfileVersion: 3,
+        requires: true,
+        packages: {
+          [`node_modules/.store/${storeDir}`]: {},
+          [storeLoc]: {
+            version: '1.0.0',
+            resolved: tarUrl,
+            hasInstallScript: true,
+          },
+          'node_modules/canvas': {
+            resolved: storeLoc,
+            link: true,
+          },
+        },
+      }),
+      '.store': {
+        [storeDir]: {
+          node_modules: {
+            canvas: {
+              'package.json': JSON.stringify({
+                name: 'canvas',
+                version: '1.0.0',
+                scripts: { install: 'echo install' },
+              }),
+            },
+          },
+        },
+      },
+      canvas: t.fixture('symlink', `.store/${storeDir}/node_modules/canvas`),
+    },
+  }
+}
+
+// loadActual only trusts the hidden lockfile when it is newer than every dir under node_modules (assertNoNewer allows 10ms), and fixture creation order makes that racy, so bump its mtime past the fixture writes.
+const trustHiddenLockfile = (prefix) => {
+  const future = new Date(Date.now() + 60_000)
+  fs.utimesSync(resolve(prefix, 'node_modules', '.package-lock.json'), future, future)
+}
+
+t.test('approve-scripts <pkg> under linked strategy writes a registry pin, not store paths', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: setupLinkedProject(t),
+  })
+  trustHiddenLockfile(prefix)
+  await npm.exec('approve-scripts', ['canvas'])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { 'canvas@1.0.0': true })
+})
+
+t.test('approve-scripts --all under linked strategy writes a registry pin, not store paths', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: setupLinkedProject(t),
+    config: { all: true },
+  })
+  trustHiddenLockfile(prefix)
+  await npm.exec('approve-scripts', [])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { 'canvas@1.0.0': true })
+})
+
+t.test('approve-scripts --pending is empty when the registry pin covers a linked store package', async t => {
+  const { npm, prefix, joinedOutput } = await mockNpm(t, {
+    prefixDir: setupLinkedProject(t, { allowScripts: { 'canvas@1.0.0': true } }),
+    config: { 'allow-scripts-pending': true },
+  })
+  trustHiddenLockfile(prefix)
+  await npm.exec('approve-scripts', [])
+  t.match(joinedOutput(), /No packages with unreviewed install scripts/)
+})
+
+t.test('deny-scripts under linked strategy writes a name-only deny', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: setupLinkedProject(t),
+  })
+  trustHiddenLockfile(prefix)
+  await npm.exec('deny-scripts', ['canvas'])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { canvas: false })
+})
+
+const setupLocalFileDepProject = (t) => {
+  const pkg = {
+    name: 'host',
+    version: '1.0.0',
+    dependencies: { foo: 'file:./local-foo' },
+  }
+  return {
+    'package.json': JSON.stringify(pkg, null, 2),
+    'package-lock.json': JSON.stringify({
+      name: 'host',
+      version: '1.0.0',
+      lockfileVersion: 3,
+      requires: true,
+      packages: {
+        '': pkg,
+        'local-foo': {
+          name: 'local-foo',
+          version: '1.0.0',
+          hasInstallScript: true,
+        },
+        'node_modules/foo': {
+          resolved: 'local-foo',
+          link: true,
+        },
+      },
+    }),
+    'local-foo': {
+      'package.json': JSON.stringify({
+        name: 'local-foo',
+        version: '1.0.0',
+        scripts: { install: 'echo install' },
+      }),
+    },
+    node_modules: {
+      foo: t.fixture('symlink', '../local-foo'),
+    },
+  }
+}
+
+t.test('approve-scripts <name> finds a local file: dep through its link', async t => {
+  // The Link is named `foo` while its target is named `local-foo`; positional matching must dereference the Link instead of skipping it (npm/cli#9939 review).
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: setupLocalFileDepProject(t),
+  })
+  await npm.exec('approve-scripts', ['foo'])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { 'file:../local-foo': true })
+})
+
+t.test('deny-scripts <name> finds a local file: dep through its link', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: setupLocalFileDepProject(t),
+  })
+  await npm.exec('deny-scripts', ['foo'])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { 'file:../local-foo': false })
+})
+
+t.test('approve-scripts <pkg> under linked strategy without resolved URLs approves by name', async t => {
+  // omit-lockfile-registry-resolved: the store package has no resolved URL, so it cannot be pinned but must still be approved by name via the incoming Link's edge.
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: setupLinkedProject(t, { noResolved: true }),
+  })
+  trustHiddenLockfile(prefix)
+  await npm.exec('approve-scripts', ['canvas'])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { canvas: true })
+})
+
+for (const state of ['missing', 'stale']) {
+  t.test(`prune keeps denies with a ${state} hidden lockfile`, async t => {
+    // With no trusted version, the versioned deny still blocks at runtime, so prune must fail closed and keep it instead of flipping the effective policy to allowed (npm/cli#9941 review).
+    const Arborist = require('@npmcli/arborist')
+    const isScriptAllowed = require('@npmcli/arborist/lib/script-allowed.js')
+    const allowScripts = {
+      canvas: true,
+      'canvas@1.0.0': false,
+    }
+
+    const { npm, prefix } = await mockNpm(t, {
+      prefixDir: setupLinkedProject(t, { allowScripts }),
+      config: { 'install-strategy': 'linked' },
+    })
+
+    const hidden = resolve(prefix, 'node_modules', '.package-lock.json')
+    if (state === 'missing') {
+      fs.unlinkSync(hidden)
+    } else {
+      fs.utimesSync(hidden, new Date(0), new Date(0))
+    }
+
+    t.equal(npm.config.get('omit-lockfile-registry-resolved'), false)
+
+    const arb = new Arborist({ ...npm.flatOptions, path: prefix })
+    const tree = await arb.loadActual()
+    const target = [...tree.inventory.values()]
+      .find(node => !node.isLink && node.name === 'canvas')
+
+    t.ok(target, 'finds the installed target')
+    t.strictSame(
+      isScriptAllowed.getTrustedRegistryIdentity(target),
+      { name: 'canvas', version: null },
+      'recovers the registry name without inventing a trusted version'
+    )
+    t.equal(
+      isScriptAllowed(target, allowScripts),
+      false,
+      'the versioned deny blocks the package before pruning'
+    )
+
+    await npm.exec('install-scripts', ['prune'])
+
+    const pkg = JSON.parse(
+      fs.readFileSync(resolve(prefix, 'package.json'), 'utf8')
+    )
+    t.strictSame(
+      pkg.allowScripts,
+      allowScripts,
+      'pruning preserves both the allow and its active deny exception'
+    )
+    t.equal(
+      isScriptAllowed(target, pkg.allowScripts),
+      false,
+      'the package remains denied after pruning'
+    )
+  })
+}

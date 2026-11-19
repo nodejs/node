@@ -26,6 +26,24 @@ export const EXPANSION_MAX = 100_000;
 // realistic expansion (100k results hitting `EXPANSION_MAX` measure ~1M
 // characters) so legitimate input is unaffected.
 export const EXPANSION_MAX_LENGTH = 4_000_000;
+// `expand_` recurses once per level of brace *nesting* - both when expanding a
+// set's comma members and when re-wrapping a set whose body is a single part.
+// The CVE-2026-14257 fix made the *tail* iterative (recursion on `m.post`, one
+// level per chained group), which left nesting depth unbounded: about 3,100
+// levels of `{{{...a,b...}}}` - only ~6KB of input - exhausted the native stack
+// and crashed the process. `EXPANSION_MAX_DEPTH` bounds how deep the parser
+// will follow nesting. It sits far above any realistic pattern and well below
+// the depth at which the stack runs out.
+export const EXPANSION_MAX_DEPTH = 1_000;
+// Bash keeps a quirk where a brace group followed by a comma set still expands
+// (`{a},b}`). The parser implements it by rewriting the string and restarting
+// the scan, absorbing one `}` per pass. `n` trailing braces therefore cost `n`
+// full passes over a string that itself grows by one `escClose` sentinel each
+// time - quadratic in `n`, with a ~26x constant from the sentinel's length.
+// 128KB of `'{a}' + '}'.repeat(n) + ',z}'` blocked the event loop for 27
+// seconds to produce two results. `EXPANSION_MAX_REWRITES` bounds how many
+// times the scan may restart. Real `{a},b}` input needs a handful.
+export const EXPANSION_MAX_REWRITES = 1_000;
 function numeric(str) {
     return !isNaN(str) ? parseInt(str, 10) : str.charCodeAt(0);
 }
@@ -45,37 +63,52 @@ function unescapeBraces(str) {
         .replace(escCommaPattern, ',')
         .replace(escPeriodPattern, '.');
 }
+// Like `target.push(...items)` but doesn't overflow the stack
+function pushAll(target, items) {
+    for (let i = 0; i < items.length; i++) {
+        target.push(items[i]);
+    }
+}
 /**
  * Basically just str.split(","), but handling cases
  * where we have nested braced sections, which should be
  * treated as individual members, like {a,{b,c},d}
  */
 function parseCommaParts(str) {
-    if (!str) {
-        return [''];
-    }
     const parts = [];
-    const m = balanced('{', '}', str);
-    if (!m) {
-        return str.split(',');
+    // Walk the brace groups iteratively. Recursing on `post` once per group let a
+    // chain of them exhaust the stack - the parsing-side counterpart to
+    // the `expand_` overflow fixed for CVE-2026-14257, and not something `max` or
+    // `maxLength` can bound, since it happens before expansion.
+    //
+    // The part the next chunk continues
+    let carry = '';
+    for (;;) {
+        const m = balanced('{', '}', str);
+        if (!m) {
+            const tail = str.split(',');
+            tail[0] = carry + tail[0];
+            pushAll(parts, tail);
+            return parts;
+        }
+        const { pre, body, post } = m;
+        const p = pre.split(',');
+        p[0] = carry + p[0];
+        p[p.length - 1] += '{' + body + '}';
+        if (!post.length) {
+            pushAll(parts, p);
+            return parts;
+        }
+        carry = p.pop();
+        pushAll(parts, p);
+        str = post;
     }
-    const { pre, body, post } = m;
-    const p = pre.split(',');
-    p[p.length - 1] += '{' + body + '}';
-    const postParts = parseCommaParts(post);
-    if (post.length) {
-        ;
-        p[p.length - 1] += postParts.shift();
-        p.push.apply(p, postParts);
-    }
-    parts.push.apply(parts, p);
-    return parts;
 }
 export function expand(str, options = {}) {
     if (!str) {
         return [];
     }
-    const { max = EXPANSION_MAX, maxLength = EXPANSION_MAX_LENGTH } = options;
+    const { max = EXPANSION_MAX, maxLength = EXPANSION_MAX_LENGTH, maxDepth = EXPANSION_MAX_DEPTH, maxRewrites = EXPANSION_MAX_REWRITES, } = options;
     // I don't know why Bash 4.3 does this, but it does.
     // Anything starting with {} will have the first two bytes preserved
     // but *only* at the top level, so {},a}b will not expand to anything,
@@ -85,7 +118,7 @@ export function expand(str, options = {}) {
     if (str.slice(0, 2) === '{}') {
         str = '\\{\\}' + str.slice(2);
     }
-    return expand_(escapeBraces(str), max, maxLength, true).map(unescapeBraces);
+    return expand_(escapeBraces(str), max, maxLength, maxDepth, 0, maxRewrites, true).map(unescapeBraces);
 }
 function embrace(str) {
     return '{' + str + '}';
@@ -180,7 +213,13 @@ function expandSequence(body, isAlphaSequence, max, maxLength) {
     }
     return N;
 }
-function expand_(str, max, maxLength, isTop) {
+function expand_(str, max, maxLength, maxDepth, depth, maxRewrites, isTop) {
+    // Too deeply nested to keep following: treat the rest as literal, the same
+    // way a group that cannot expand is already handled. Truncating rather than
+    // throwing keeps `expand` total, matching `max` and `maxLength`.
+    if (depth > maxDepth) {
+        return [str];
+    }
     // Consume the string's top-level brace groups left to right, threading a
     // running set of combined prefixes (`acc`). Expanding the tail iteratively -
     // rather than recursing on `m.post` once per group - keeps the native stack
@@ -192,6 +231,9 @@ function expand_(str, max, maxLength, isTop) {
     // comma set - a sequence like `{a..\}` may legitimately yield ''. The drop
     // is on the final strings, so it is applied to whichever `combine` produces
     // them (the one with no brace set left in the tail).
+    // How many times the `{a},b}` rewrite below has restarted the scan. Each pass
+    // re-reads the whole string, so leaving this unbounded is quadratic.
+    let rewrites = 0;
     let dropEmpties = false;
     let firstGroup = true;
     for (;;) {
@@ -216,7 +258,8 @@ function expand_(str, max, maxLength, isTop) {
         const isOptions = m.body.indexOf(',') >= 0;
         if (!isSequence && !isOptions) {
             // {a},b}
-            if (m.post.match(/,(?!,).*\}/)) {
+            if (rewrites < maxRewrites && m.post.match(/,(?!,).*\}/)) {
+                rewrites++;
                 str = m.pre + '{' + m.body + escClose + m.post;
                 isTop = true;
                 continue;
@@ -236,7 +279,7 @@ function expand_(str, max, maxLength, isTop) {
             let n = parseCommaParts(m.body);
             if (n.length === 1 && n[0] !== undefined) {
                 // x{{a,b}}y ==> x{a}y x{b}y
-                n = expand_(n[0], max, maxLength, false).map(embrace);
+                n = expand_(n[0], max, maxLength, maxDepth, depth + 1, maxRewrites, false).map(embrace);
                 //XXX is this necessary? Can't seem to hit it in tests.
                 /* c8 ignore start */
                 if (n.length === 1) {
@@ -262,12 +305,13 @@ function expand_(str, max, maxLength, isTop) {
             values = [];
             let valuesLength = 0;
             outer: for (let j = 0; j < n.length; j++) {
-                const expanded = expand_(n[j], max, maxLength, false);
+                const expanded = expand_(n[j], max, maxLength, maxDepth, depth + 1, maxRewrites, false);
                 for (let k = 0; k < expanded.length; k++) {
                     const v = expanded[k];
                     if (dropsEmpties && !v)
                         continue;
-                    if (values.length >= max || valuesLength + v.length > maxLength) {
+                    if (values.length >= max ||
+                        valuesLength + v.length > maxLength) {
                         break outer;
                     }
                     values.push(v);

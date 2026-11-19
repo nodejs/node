@@ -236,6 +236,8 @@ class Config {
     if (['global', 'user', 'project'].includes(where)) {
       delete raw[key]
     }
+    this.data.get(where)[_valid] = null
+    this.#flatOptions = null
   }
 
   async load () {

@@ -29,7 +29,8 @@ const classifyUnusedEntries = (allowScripts, nodes) => {
       continue
     }
 
-    const matching = nodes.filter(({ node }) => matches(node, key))
+    // Pass deny intent so an unverifiable version fails closed: an active versioned deny must not be classified as unused while its broad allow survives.
+    const matching = nodes.filter(({ node }) => matches(node, key, value === false))
     if (matching.length === 0) {
       removed.push({ key, value, reason: 'not-installed' })
       continue

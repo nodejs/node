@@ -3,6 +3,7 @@ const { load: loadMockNpm } = require('../../../fixtures/mock-npm')
 const MockRegistry = require('@npmcli/mock-registry')
 const path = require('node:path')
 const fs = require('node:fs')
+const { githubIdToken, mockOidc } = require('../../../fixtures/mock-oidc')
 
 const pkg = '@npmcli/test-package'
 const token = 'test-auth-token'
@@ -29,6 +30,32 @@ t.test('stages a package from cwd', async t => {
   registry.nock.post('/-/stage/package/@npmcli%2ftest-package').reply(201, {})
   await npm.exec('stage', ['publish'])
   t.match(joinedOutput(), /\+ @npmcli\/test-package@1\.0\.0 \(staged\)/)
+})
+
+t.test('stages a package with the OIDC exchange token', async t => {
+  const idToken = githubIdToken({ visibility: 'private' })
+  const exchangeToken = 'exchange-token'
+  const { npm, registry } = await mockOidc(t, {
+    packageName: pkg,
+    oidcOptions: { github: true },
+    mockGithubOidcOptions: {
+      audience: 'npm:registry.npmjs.org',
+      idToken,
+    },
+    mockOidcTokenExchangeOptions: {
+      idToken,
+      body: { token: exchangeToken },
+    },
+    publishOptions: {
+      noPut: true,
+    },
+  })
+
+  registry.nock.post('/-/stage/package/@npmcli%2ftest-package')
+    .matchHeader('authorization', `Bearer ${exchangeToken}`)
+    .reply(201, {})
+
+  await npm.exec('stage', ['publish'])
 })
 
 t.test('stages with --dry-run', async t => {

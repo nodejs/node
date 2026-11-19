@@ -33,7 +33,12 @@ const strictAllowScriptsPreflight = async ({ arb, npm, idealTreeOpts }) => {
     tree = arb.actualTree
   }
 
-  const unreviewed = await checkAllowScripts({ arb, npm, tree })
+  const unreviewed = await checkAllowScripts({
+    arb,
+    npm,
+    tree,
+    skipExtraneous: idealTreeOpts !== undefined,
+  })
   if (unreviewed.length === 0) {
     return
   }
