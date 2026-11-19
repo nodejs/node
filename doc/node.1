@@ -2124,6 +2124,10 @@ Any other value will result in colorized output being disabled.
 Enable the module compile cache for the Node.js instance. See the documentation of
 module compile cache for details.
 .
+.It Ev NODE_COMPILE_CACHE_PACKED Ar 1
+When set to 1, the module compile cache stores its entries in a single file per
+cache directory instead of one file per module.
+.
 .It Ev NODE_COMPILE_CACHE_PORTABLE Ar 1
 When set to 1, the module compile cache can be reused across different directory
 locations as long as the module layout relative to the cache directory remains the same,

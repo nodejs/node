@@ -1,5 +1,6 @@
 #include "compile_cache.h"
 #include <string>
+#include <unordered_set>
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_file.h"
@@ -318,9 +319,294 @@ CompileCacheEntry* CompileCacheHandler::GetOrInsert(const uint8_t* code,
 
   // TODO(joyeecheung): if we fail enough times, stop trying for any future
   // files.
-  ReadCacheFile(result);
+  if (packed_) {
+    // A pack miss or mismatch falls back to a loose per-file entry, which is
+    // where PersistPack() puts a few changed entries without rewriting the
+    // pack (see there).
+    if (!ReadFromPack(result)) {
+      ReadCacheFile(result);
+      if (result->cache != nullptr) {
+        loose_hits_.insert(key);
+      }
+    }
+  } else {
+    ReadCacheFile(result);
+  }
 
   return result;
+}
+
+// Used for identifying and verifying a packed compile cache file.
+constexpr uint32_t kPackMagicNumber = 0x8adfdbb3;
+// Per entry: cache key, code size, code hash, cache size, cache hash.
+constexpr size_t kPackEntryHeaderCount = 5;
+// Changed plus loose entries from which a persist rewrites the pack.
+constexpr size_t kPackFoldThreshold = 16;
+
+std::string CompileCacheHandler::pack_filename() const {
+  return compile_cache_dir_ + kPathSeparator + "pack";
+}
+
+// Layout of the pack file:
+//   [uint32_t] magic number
+//   [uint32_t] entry count
+//   per entry:
+//     [uint32_t] cache key   [uint32_t] code size   [uint32_t] code hash
+//     [uint32_t] cache size  [uint32_t] cache hash
+//     .... compile cache content ....
+void CompileCacheHandler::LoadPack() {
+  pack_loaded_ = true;
+  std::string path = pack_filename();
+  if (ReadPackFile(path, &pack_buf_, &pack_index_)) {
+    Debug("[compile cache] loaded pack %s: %d entries\n",
+          path,
+          pack_index_.size());
+  }
+}
+
+// Reads and indexes a whole pack file. On failure, *buf and *index are left
+// empty and the cache behaves as if there were no pack.
+bool CompileCacheHandler::ReadPackFile(
+    const std::string& path,
+    std::unique_ptr<uint8_t[]>* out_buf,
+    std::unordered_map<uint32_t, PackedEntry>* out_index) const {
+  out_buf->reset();
+  out_index->clear();
+  uv_fs_t req;
+  auto defer_req_cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  uv_file file = uv_fs_open(nullptr, &req, path.c_str(), O_RDONLY, 0, nullptr);
+  if (req.result < 0) {
+    Debug("[compile cache] no pack at %s: %s\n", path, uv_strerror(req.result));
+    return false;
+  }
+  uv_fs_req_cleanup(&req);
+  auto defer_close = OnScopeLeave([file]() {
+    uv_fs_t close_req;
+    uv_fs_close(nullptr, &close_req, file, nullptr);
+    uv_fs_req_cleanup(&close_req);
+  });
+
+  if (uv_fs_fstat(nullptr, &req, file, nullptr) < 0) {
+    return false;
+  }
+  size_t size = static_cast<size_t>(req.statbuf.st_size);
+  uv_fs_req_cleanup(&req);
+  if (size < 2 * sizeof(uint32_t)) {
+    return false;
+  }
+
+  std::unique_ptr<uint8_t[]> buf(new uint8_t[size]);
+  size_t got = 0;
+  while (got < size) {
+    uv_buf_t iov =
+        uv_buf_init(reinterpret_cast<char*>(buf.get() + got), size - got);
+    int n = uv_fs_read(nullptr, &req, file, &iov, 1, got, nullptr);
+    uv_fs_req_cleanup(&req);
+    if (n <= 0) {
+      Debug("[compile cache] reading pack %s failed\n", path);
+      return false;
+    }
+    got += n;
+  }
+
+  uint32_t header[2];
+  memcpy(header, buf.get(), sizeof(header));
+  if (header[0] != kPackMagicNumber) {
+    Debug("[compile cache] pack %s: magic number mismatch\n", path);
+    return false;
+  }
+  size_t offset = sizeof(header);
+  for (uint32_t i = 0; i < header[1]; i++) {
+    uint32_t fields[kPackEntryHeaderCount];
+    if (offset + sizeof(fields) > size) {
+      out_index->clear();
+      return false;
+    }
+    memcpy(fields, buf.get() + offset, sizeof(fields));
+    offset += sizeof(fields);
+    if (fields[3] > size - offset) {
+      Debug("[compile cache] pack %s is truncated\n", path);
+      out_index->clear();
+      return false;
+    }
+    (*out_index)[fields[0]] =
+        PackedEntry{fields[1], fields[2], fields[3], fields[4], offset};
+    offset += fields[3];
+  }
+  *out_buf = std::move(buf);
+  return true;
+}
+
+bool CompileCacheHandler::ReadFromPack(CompileCacheEntry* entry) {
+  if (!pack_loaded_) {
+    LoadPack();
+  }
+  Debug("[compile cache] looking up %s %s in pack...",
+        entry->type_name(),
+        entry->source_filename);
+  auto it = pack_index_.find(entry->cache_key);
+  if (it == pack_index_.end()) {
+    Debug(" not found\n");
+    return false;
+  }
+  const PackedEntry& p = it->second;
+  if (p.code_size != entry->code_size || p.code_hash != entry->code_hash) {
+    Debug(" code size or hash mismatch\n");
+    return false;
+  }
+  const uint8_t* src = pack_buf_.get() + p.offset;
+  if (GetHash(reinterpret_cast<const char*>(src), p.cache_size) !=
+      p.cache_hash) {
+    Debug(" cache hash mismatch\n");
+    return false;
+  }
+  uint8_t* data = new uint8_t[p.cache_size];
+  memcpy(data, src, p.cache_size);
+  entry->cache.reset(new ScriptCompiler::CachedData(
+      data, p.cache_size, ScriptCompiler::CachedData::BufferOwned));
+  Debug(" success, size=%d\n", p.cache_size);
+  return true;
+}
+
+// Returns false when the dirty entries should be written as loose per-file
+// entries by the caller, true when the pack was written or nothing changed.
+//
+// Rewriting the pack costs as much as the whole pack, so a few changed entries
+// (a `node -e` script, an edited module) go to loose files like in the
+// per-file layout, and lookups find them after a pack miss. When enough
+// entries are changed or loose, they are folded into a new pack and the loose
+// files this process read are removed.
+bool CompileCacheHandler::PersistPack() {
+  size_t dirty = 0;
+  for (auto& pair : compiler_cache_store_) {
+    auto* entry = pair.second.get();
+    if (entry->cache != nullptr && entry->refreshed && !entry->persisted) {
+      dirty++;
+    }
+  }
+  if (dirty == 0) {
+    Debug("[compile cache] pack unchanged, not writing\n");
+    return true;
+  }
+  if (!pack_index_.empty() && dirty + loose_hits_.size() < kPackFoldThreshold) {
+    Debug("[compile cache] %d changed and %d loose entries, writing loose\n",
+          dirty,
+          loose_hits_.size());
+    return false;
+  }
+
+  // Merge this process's entries with the pack as it is on disk now, not as
+  // it was at the first lookup: a child process (npx -> tsc) may have
+  // written it since. Entries of this process win. Writers that overlap
+  // exactly: last rename wins, and the other's new entries are recompiled
+  // and written by a later run.
+  std::unique_ptr<uint8_t[]> disk_buf;
+  std::unordered_map<uint32_t, PackedEntry> disk_index;
+  ReadPackFile(pack_filename(), &disk_buf, &disk_index);
+
+  struct Out {
+    uint32_t key;
+    uint32_t code_size;
+    uint32_t code_hash;
+    uint32_t cache_size;
+    const uint8_t* data;
+  };
+  std::vector<Out> outs;
+  outs.reserve(compiler_cache_store_.size() + disk_index.size());
+  std::unordered_set<uint32_t> written;
+  for (auto& pair : compiler_cache_store_) {
+    auto* entry = pair.second.get();
+    if (entry->cache == nullptr) continue;
+    outs.push_back({pair.first,
+                    entry->code_size,
+                    entry->code_hash,
+                    static_cast<uint32_t>(entry->cache->length),
+                    entry->cache->data});
+    written.insert(pair.first);
+  }
+  for (auto& pair : disk_index) {
+    if (written.count(pair.first) != 0) continue;
+    const PackedEntry& p = pair.second;
+    outs.push_back({pair.first,
+                    p.code_size,
+                    p.code_hash,
+                    p.cache_size,
+                    disk_buf.get() + p.offset});
+  }
+
+  size_t total = 2 * sizeof(uint32_t);
+  for (const Out& o : outs) {
+    total += kPackEntryHeaderCount * sizeof(uint32_t) + o.cache_size;
+  }
+  std::vector<char> blob(total);
+  char* w = blob.data();
+  uint32_t header[2] = {kPackMagicNumber, static_cast<uint32_t>(outs.size())};
+  memcpy(w, header, sizeof(header));
+  w += sizeof(header);
+  for (const Out& o : outs) {
+    uint32_t fields[kPackEntryHeaderCount] = {
+        o.key,
+        o.code_size,
+        o.code_hash,
+        o.cache_size,
+        GetHash(reinterpret_cast<const char*>(o.data), o.cache_size)};
+    memcpy(w, fields, sizeof(fields));
+    w += sizeof(fields);
+    memcpy(w, o.data, o.cache_size);
+    w += o.cache_size;
+  }
+
+  uv_fs_t mkstemp_req;
+  auto cleanup_mkstemp =
+      OnScopeLeave([&mkstemp_req]() { uv_fs_req_cleanup(&mkstemp_req); });
+  std::string tmp = pack_filename() + ".XXXXXX";
+  int err = uv_fs_mkstemp(nullptr, &mkstemp_req, tmp.c_str(), nullptr);
+  if (err < 0) {
+    Debug("[compile cache] creating temporary pack failed: %s\n",
+          uv_strerror(err));
+    return true;
+  }
+  uv_buf_t buf = uv_buf_init(blob.data(), blob.size());
+  uv_fs_t write_req;
+  err =
+      uv_fs_write(nullptr, &write_req, mkstemp_req.result, &buf, 1, 0, nullptr);
+  uv_fs_req_cleanup(&write_req);
+  uv_fs_t close_req;
+  uv_fs_close(nullptr, &close_req, mkstemp_req.result, nullptr);
+  uv_fs_req_cleanup(&close_req);
+  if (err < 0 || static_cast<size_t>(err) != blob.size()) {
+    Debug("[compile cache] writing pack failed\n");
+    uv_fs_t unlink_req;
+    uv_fs_unlink(nullptr, &unlink_req, mkstemp_req.path, nullptr);
+    uv_fs_req_cleanup(&unlink_req);
+    return true;
+  }
+  uv_fs_t rename_req;
+  err = uv_fs_rename(
+      nullptr, &rename_req, mkstemp_req.path, pack_filename().c_str(), nullptr);
+  uv_fs_req_cleanup(&rename_req);
+  if (err < 0) {
+    Debug("[compile cache] renaming pack failed: %s\n", uv_strerror(err));
+    uv_fs_t unlink_req;
+    uv_fs_unlink(nullptr, &unlink_req, mkstemp_req.path, nullptr);
+    uv_fs_req_cleanup(&unlink_req);
+    return true;
+  }
+  for (auto& pair : compiler_cache_store_) {
+    pair.second->persisted = true;
+    if (loose_hits_.count(pair.first) != 0) {
+      uv_fs_t unlink_req;
+      uv_fs_unlink(
+          nullptr, &unlink_req, pair.second->cache_filename.c_str(), nullptr);
+      uv_fs_req_cleanup(&unlink_req);
+    }
+  }
+  loose_hits_.clear();
+  Debug("[compile cache] wrote pack %s: %d entries, %d bytes\n",
+        pack_filename(),
+        outs.size(),
+        blob.size());
+  return true;
 }
 
 ScriptCompiler::CachedData* SerializeCodeCache(Local<Function> func) {
@@ -436,6 +722,10 @@ void CompileCacheHandler::Persist() {
   DCHECK(!compile_cache_dir_.empty());
   if (read_only_) {
     Debug("[compile cache] read-only, skipping persistence\n");
+    return;
+  }
+
+  if (packed_ && PersistPack()) {
     return;
   }
 
@@ -692,6 +982,12 @@ CompileCacheEnableResult CompileCacheHandler::Enable(
   compile_cache_dir_ = cache_dir_with_tag;
   portable_ = option;
   read_only_ = read_only;
+  std::string packed;
+  if (credentials::SafeGetenv("NODE_COMPILE_CACHE_PACKED", &packed, env) &&
+      packed == "1") {
+    packed_ = true;
+    Debug("[compile cache] using the packed layout\n");
+  }
   if (HasOption(option, EnableOption::PORTABLE)) {
     normalized_key_root_ = NormalizeFileURLOrPath(
         env, key_root.empty() ? compile_cache_dir_ : key_root);

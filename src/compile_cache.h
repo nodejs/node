@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 #include "v8.h"
@@ -119,6 +120,31 @@ class CompileCacheHandler {
  private:
   void ReadCacheFile(CompileCacheEntry* entry);
   static std::vector<char> SerializeEntry(const CompileCacheEntry* entry);
+
+  // Packed layout (NODE_COMPILE_CACHE_PACKED=1): the entries of the cache
+  // directory live in one file, read once at the first lookup and rewritten
+  // on persist when many entries changed, instead of one file opened per
+  // module. A few changed entries are written as loose per-file entries,
+  // which lookups fall back to (see PersistPack()).
+  struct PackedEntry {
+    uint32_t code_size;
+    uint32_t code_hash;
+    uint32_t cache_size;
+    uint32_t cache_hash;
+    size_t offset;  // into pack_buf_
+  };
+  void LoadPack();
+  bool ReadPackFile(const std::string& path,
+                    std::unique_ptr<uint8_t[]>* out_buf,
+                    std::unordered_map<uint32_t, PackedEntry>* out_index) const;
+  bool ReadFromPack(CompileCacheEntry* entry);
+  bool PersistPack();
+  std::string pack_filename() const;
+  bool packed_ = false;
+  bool pack_loaded_ = false;
+  std::unique_ptr<uint8_t[]> pack_buf_;
+  std::unordered_map<uint32_t, PackedEntry> pack_index_;
+  std::unordered_set<uint32_t> loose_hits_;  // keys read from loose files
 
   template <typename T>
   void MaybeSaveImpl(CompileCacheEntry* entry,
