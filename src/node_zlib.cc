@@ -736,6 +736,7 @@ class CompressionStream : public AsyncWrap,
 
  protected:
   CompressionContext* context() { return &ctx_; }
+  bool write_in_progress() const { return write_in_progress_; }
 
   void InitStream(uint32_t* write_result, Local<Function> write_js_callback) {
     write_result_ = write_result;
@@ -877,6 +878,12 @@ class ZlibStream final : public CompressionStream<ZlibContext> {
     if (!args[0]->Int32Value(context).To(&level)) return;
     int strategy;
     if (!args[1]->Int32Value(context).To(&strategy)) return;
+
+    if (wrap->write_in_progress()) {
+      wrap->env()->ThrowError(
+          "Cannot change zlib params while a write is in progress");
+      return;
+    }
 
     AllocScope alloc_scope(wrap);
     const CompressionError err = wrap->context()->SetParams(level, strategy);
