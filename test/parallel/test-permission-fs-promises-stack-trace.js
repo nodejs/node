@@ -16,19 +16,21 @@ const { status, stderr } = spawnSync(
     '-e',
     `
       const assert = require('assert');
-      const { readFile, writeFile, appendFile } = require('fs/promises');
+      const { readFile, writeFile, appendFile, stat } = require('fs/promises');
       const target = ${JSON.stringify(tmpdir.resolve('file'))};
 
       function readCaller() { return readFile(target); }
       function writeCaller() { return writeFile(target, 'data'); }
       function appendCaller() { return appendFile(target, 'data'); }
       async function awaitAppendCaller() { await appendFile(target, 'data'); }
+      async function awaitStatCaller() { await stat(target); }
 
       const cases = [
         [readCaller, /at readCaller /],
         [writeCaller, /at writeCaller /],
         [appendCaller, /at appendCaller /],
         [awaitAppendCaller, /at awaitAppendCaller /],
+        [awaitStatCaller, /at async awaitStatCaller /],
       ];
       let checked = 0;
       for (const [caller, stack] of cases) {
