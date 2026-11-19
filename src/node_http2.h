@@ -347,8 +347,12 @@ class Http2Stream : public AsyncWrap,
   // Initiate a response on this stream.
   int SubmitResponse(const Http2Headers& headers, int options);
 
-  // Submit informational headers for this stream
-  int SubmitInfo(const Http2Headers& headers);
+  // Submit informational headers for this stream. If a request is given, it
+  // is completed once the HEADERS frame has been written to the socket.
+  int SubmitInfo(const Http2Headers& headers, WriteWrap* req_wrap = nullptr);
+
+  // Cancels the requests of informational headers that have not been sent.
+  void CancelPendingInfoRequests();
 
   // Submit trailing headers for this stream
   int SubmitTrailers(const Http2Headers& headers);
@@ -584,6 +588,11 @@ class Http2Stream : public AsyncWrap,
   // waiting to be written out to the socket.
   std::queue<NgHttp2StreamWrite> queue_;
   size_t available_outbound_length_ = 0;
+
+  // One entry per informational HEADERS frame that has been submitted to
+  // nghttp2 but not serialized yet, in submission order. An entry is empty
+  // if no completion callback was requested for that frame.
+  std::queue<BaseObjectPtr<AsyncWrap>> info_reqs_;
 
   Http2StreamListener stream_listener_;
 
@@ -1068,6 +1077,16 @@ class Http2Session : public AsyncWrap,
   struct custom_settings_state remote_custom_settings_;
 
   std::vector<NgHttp2StreamWrite> outgoing_buffers_;
+  // Requests of informational HEADERS frames that are part of the current
+  // write. The stream is retained until the request has been completed,
+  // because the request refers to it. A status of 0 means that the status of
+  // the write to the underlying stream is used.
+  struct OutgoingInfoReq {
+    BaseObjectPtr<AsyncWrap> req_wrap;
+    BaseObjectPtr<Http2Stream> stream;
+    int status;
+  };
+  std::vector<OutgoingInfoReq> outgoing_info_reqs_;
   std::vector<uint8_t> outgoing_storage_;
   size_t outgoing_length_ = 0;
   std::vector<int32_t> pending_rst_streams_;
@@ -1089,6 +1108,7 @@ class Http2Session : public AsyncWrap,
 
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
   void ClearOutgoing(int status);
+  void HandleInfoHeadersFrame(const nghttp2_frame* frame, int status);
   void FinishClose(uint32_t code, bool socket_closed, int write_status = 0);
   void MaybeFinishPendingClose(int status = 0);
 

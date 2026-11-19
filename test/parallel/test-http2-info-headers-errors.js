@@ -4,6 +4,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const assert = require('assert');
 const http2 = require('http2');
 const { internalBinding } = require('internal/test/binding');
 const {
@@ -57,7 +58,11 @@ server.on('stream', common.mustCall((stream, headers) => {
     stream.on('error', errorMustNotCall);
   }
 
-  stream.additionalHeaders({ ':status': 100 });
+  // The callback is called with the same error.
+  stream.additionalHeaders({ ':status': 100 }, common.mustCall((err) => {
+    assert.strictEqual(err.code, currentError.error.code);
+    assert.strictEqual(err.message, currentError.error.message);
+  }));
 }, tests.length));
 
 server.listen(0, common.mustCall(() => runTest(tests.shift())));
