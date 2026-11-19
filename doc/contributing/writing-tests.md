@@ -256,7 +256,7 @@ If test spawns child processes that can not utilize this module but might
 create files in OS's tmpdir, change the `TMPDIR` environment variable for them:
 
 ```js
-spawnSync('/usr/bin/sort', tempFile, {
+spawnSync('/usr/bin/sort', [tempFile], {
   env: { ...process.env, TMPDIR: tmpdir.path },
 });
 
