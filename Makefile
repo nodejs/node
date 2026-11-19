@@ -1310,7 +1310,6 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	find $(TARNAME)/deps/openssl -maxdepth 1 -type f ! -name 'nodejs-openssl.cnf' -exec $(RM) {} +
 	find $(TARNAME)/deps/openssl -mindepth 1 -maxdepth 1 -type d -exec $(RM) -r {} +
 	$(RM) -r $(TARNAME)/deps/perfetto
-	$(RM) -r $(TARNAME)/deps/simdjson
 	$(RM) -r $(TARNAME)/deps/sqlite
 	$(RM) -r $(TARNAME)/deps/uv
 	$(RM) -r $(TARNAME)/deps/uvwasi

@@ -31,7 +31,6 @@ on:
       - deps/ngtcp2/**
       - deps/openssl/*/**
       - deps/perfetto/**
-      - deps/simdjson/**
       - deps/sqlite/**
       - deps/uv/**
       - deps/uvwasi/**
@@ -89,7 +88,6 @@ on:
       - deps/ngtcp2/**
       - deps/openssl/*/**
       - deps/perfetto/**
-      - deps/simdjson/**
       - deps/sqlite/**
       - deps/uv/**
       - deps/uvwasi/**

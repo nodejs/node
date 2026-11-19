@@ -56,10 +56,10 @@ namespace node {
   V(llhttp)                                                                    \
   V(uvwasi)                                                                    \
   V(acorn)                                                                     \
-  V(simdjson)                                                                  \
   V(simdutf)                                                                   \
   V(ada)                                                                       \
   V(nbytes)                                                                    \
+  V(jsonifier)                                                                 \
   V(ngtcp2)                                                                    \
   V(nghttp3)                                                                   \
   NODE_VERSIONS_KEY_AMARO(V)                                                   \

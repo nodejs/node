@@ -26,6 +26,7 @@ on:
           - histogram
           - icu
           - inspector_protocol
+          - jsonifier
           - libffi
           - libuv
           - lief
@@ -38,7 +39,6 @@ on:
           - perfetto
           - postject
           - root-certificates
-          - simdjson
           - sqlite
           - test426-fixtures
           - undici
@@ -176,6 +176,14 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: jsonifier
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-jsonifier.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: libuv
             subsystem: deps
             label: dependencies
@@ -265,14 +273,6 @@ jobs:
             label: crypto, notable-change
             run: |
               node ./tools/dep_updaters/update-root-certs.mjs -v -f "$GITHUB_ENV"
-          - id: simdjson
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-simdjson.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
           - id: sqlite
             subsystem: deps
             label: dependencies, sqlite

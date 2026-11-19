@@ -19,6 +19,7 @@ This a list of all the dependencies:
 * [histogram][]
 * [icu-small][]
 * [inspector\_protocol][inspector_protocol]
+* [jsonifier][]
 * [libffi][]
 * [libuv][]
 * [LIEF][]
@@ -30,7 +31,6 @@ This a list of all the dependencies:
 * [openssl][]
 * [perfetto][]
 * [postject][]
-* [simdjson][]
 * [sqlite][]
 * [undici][]
 * [uvwasi][]
@@ -239,6 +239,14 @@ used for the homonym generic-purpose lossless compression algorithm.
 The [c-ares](https://github.com/c-ares/c-ares) is a C library
 for asynchronous DNS requests.
 
+### jsonifier
+
+The [Jsonifier](https://github.com/nihilai-collective/Jsonifier) dependency is
+a header-only C++ library for fast JSON parsing. Node.js bundles the headers
+from its `node` branch in `deps/jsonifier/include` and uses it to parse JSON:
+`package.json` files through a dedicated parser, and every other internal JSON
+document through the small DOM in `src/node_json.h`.
+
 ### merve
 
 The [merve](https://github.com/nodejs/node/tree/HEAD/deps/merve)
@@ -369,11 +377,6 @@ generate performance traces for Node.js and V8.
 The [postject](https://github.com/nodejs/postject) dependency is used for the
 [Single Executable strategic initiative](https://github.com/nodejs/single-executable).
 
-### simdjson
-
-The [simdjson](https://github.com/simdjson/simdjson) dependency is
-a C++ library for fast JSON parsing.
-
 ### sqlite
 
 The [sqlite](https://github.com/sqlite/sqlite) dependency is
@@ -422,6 +425,7 @@ according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
 [histogram]: #histogram
 [icu-small]: #icu-small
 [inspector_protocol]: #inspector_protocol
+[jsonifier]: #jsonifier
 [libffi]: #libffi
 [libuv]: #libuv
 [lief]: #lief
@@ -440,7 +444,6 @@ according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
 [openssl]: #openssl
 [perfetto]: #perfetto
 [postject]: #postject
-[simdjson]: #simdjson
 [sqlite]: #sqlite
 [undici]: #undici
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml

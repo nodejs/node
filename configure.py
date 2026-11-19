@@ -600,28 +600,6 @@ shared_optgroup.add_argument('--shared-zlib-libpath',
     dest='shared_zlib_libpath',
     help='a directory to search for the shared zlib DLL')
 
-shared_optgroup.add_argument('--shared-simdjson',
-    action='store_true',
-    dest='shared_simdjson',
-    default=None,
-    help='link to a shared simdjson DLL instead of static linking')
-
-shared_optgroup.add_argument('--shared-simdjson-includes',
-    action='store',
-    dest='shared_simdjson_includes',
-    help='directory containing simdjson header files')
-
-shared_optgroup.add_argument('--shared-simdjson-libname',
-    action='store',
-    dest='shared_simdjson_libname',
-    help='alternative lib name to link to [default: %(default)s]')
-
-shared_optgroup.add_argument('--shared-simdjson-libpath',
-    action='store',
-    dest='shared_simdjson_libpath',
-    help='a directory to search for the shared simdjson DLL')
-
-
 shared_optgroup.add_argument('--shared-simdutf',
     action='store_true',
     dest='shared_simdutf',
@@ -3041,7 +3019,6 @@ configure_library('abseil', output, pkgname=[
   'absl_variant',
 ])
 configure_library('ada', output)
-configure_library('simdjson', output)
 configure_library('simdutf', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')

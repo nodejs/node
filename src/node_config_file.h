@@ -10,7 +10,7 @@
 #include <variant>
 #include <vector>
 #include "node_internals.h"
-#include "simdjson.h"
+#include "node_json.h"
 #include "util-inl.h"
 
 namespace node {
@@ -39,17 +39,17 @@ class ConfigReader {
   size_t GetFlagsSize();
 
  private:
-  ParseResult ParseConfigObject(simdjson::ondemand::object* config_object,
+  ParseResult ParseConfigObject(const json::Value& config_object,
                                 const std::string_view& config_path,
                                 bool allow_version_selection);
-  ParseResult ParseNodeVersion(simdjson::ondemand::value* version_value,
+  ParseResult ParseNodeVersion(const json::Value& version_value,
                                const std::string_view& config_path);
-  ParseResult ParseConfigs(simdjson::ondemand::array* configs,
+  ParseResult ParseConfigs(const json::Value& configs,
                            const std::string_view& config_path);
 
   // Parse options for a specific namespace (including nodeOptions for backward
   // compatibility)
-  ParseResult ParseOptions(simdjson::ondemand::object* options_object,
+  ParseResult ParseOptions(const json::Value& options_object,
                            std::unordered_set<std::string>* unique_options,
                            const std::string& namespace_name);
 
@@ -57,7 +57,7 @@ class ConfigReader {
   ParseResult ProcessOptionValue(
       const std::pair<std::string, options_parser::OptionMappingDetails>&
           option_details,
-      simdjson::ondemand::value* option_value,
+      const json::Value& option_value,
       std::vector<std::string>* output);
 
   std::vector<std::string> node_options_;

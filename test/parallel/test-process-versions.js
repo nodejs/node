@@ -20,10 +20,10 @@ const expected_keys = [
   'llhttp',
   'uvwasi',
   'acorn',
-  'simdjson',
   'simdutf',
   'ada',
   'nbytes',
+  'jsonifier',
   'merve',
 ];
 
@@ -82,6 +82,7 @@ assert.match(process.versions.merve, commonTemplate);
 assert.match(process.versions.node, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
 assert.match(process.versions.nbytes, commonTemplate);
+assert.match(process.versions.jsonifier, commonTemplate);
 assert.match(process.versions.zlib, /^\d+(?:\.\d+){1,3}(?:-.*)?$/);
 assert.match(process.versions.zstd, commonTemplate);
 

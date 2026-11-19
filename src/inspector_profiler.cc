@@ -7,6 +7,7 @@
 #include "node_external_reference.h"
 #include "node_file.h"
 #include "node_internals.h"
+#include "node_json.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "v8-inspector.h"
@@ -15,7 +16,6 @@
 #include <limits>
 #include <optional>
 #include <sstream>
-#include "simdjson.h"
 #include "simdutf.h"
 
 namespace node {
@@ -113,18 +113,17 @@ bool StringViewToUTF8(const v8_inspector::StringView& source,
 
 // Return the raw JSON of the profile object in `result`: either the
 // `field` member of `result` or, if `field` is nullptr, `result` itself.
-static std::optional<std::string_view> GetProfile(
-    simdjson::ondemand::object* result, const char* field, const char* type) {
-  simdjson::ondemand::object profile_object;
-  if (field == nullptr) {
-    profile_object = *result;
-  } else if ((*result)[field].get_object().get(profile_object)) {
+static std::optional<std::string_view> GetProfile(const json::Value& result,
+                                                  const char* field,
+                                                  const char* type) {
+  json::Value profile_object = field == nullptr ? result : result.Find(field);
+  if (!profile_object.IsObject()) {
     fprintf(
         stderr, "'%s' from %s profile result is not an Object\n", field, type);
     return std::nullopt;
   }
   std::string_view profile_raw;
-  if (profile_object.raw_json().get(profile_raw)) {
+  if (!profile_object.GetRawJson(&profile_raw)) {
     fprintf(stderr,
             "Cannot get raw string of the 'profile' field from %s profile\n",
             type);
@@ -149,23 +148,17 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
 
   std::vector<char> message_utf8;
   size_t message_utf8_length;
-  if (!StringViewToUTF8(message,
-                        &message_utf8,
-                        &message_utf8_length,
-                        simdjson::SIMDJSON_PADDING)) {
+  if (!StringViewToUTF8(message, &message_utf8, &message_utf8_length, 0)) {
     fprintf(
         stderr, "Failed to convert %s profile message to UTF8 string\n", type);
     return;
   }
 
-  simdjson::ondemand::parser json_parser;
-  simdjson::ondemand::document parsed;
-  simdjson::ondemand::object response;
-  if (json_parser
-          .iterate(
-              message_utf8.data(), message_utf8_length, message_utf8.size())
-          .get(parsed) ||
-      parsed.get_object().get(response)) {
+  json::Document parsed;
+  json::Value response;
+  if (!parsed.Parse(
+          std::string_view(message_utf8.data(), message_utf8_length)) ||
+      !(response = parsed.root()).IsObject()) {
     fprintf(
         stderr, "Failed to parse %s profile result as JSON object:\n", type);
     fprintf(stderr,
@@ -176,7 +169,7 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
   }
 
   uint64_t id;
-  if (response["id"].get_uint64().get(id)) {
+  if (!response.Find("id").GetUint64(&id)) {
     fprintf(stderr, "Cannot retrieve id from %s profile response:\n", type);
     fprintf(stderr,
             "%.*s\n",
@@ -198,9 +191,9 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
           id);
   }
 
-  simdjson::ondemand::object result;
   // Get message.result from the response.
-  if (response["result"].get_object().get(result)) {
+  json::Value result = response.Find("result");
+  if (!result.IsObject()) {
     fprintf(stderr, "Failed to get 'result' from %s profile response:\n", type);
     fprintf(stderr,
             "%.*s\n",
@@ -209,7 +202,7 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
     return;
   }
 
-  auto profile = GetProfile(&result, connection_->profile_field(), type);
+  auto profile = GetProfile(result, connection_->profile_field(), type);
   if (profile.has_value()) {
     connection_->WriteProfile(*profile);
   }

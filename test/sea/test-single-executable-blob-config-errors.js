@@ -43,7 +43,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /INCOMPLETE_ARRAY_OR_OBJECT/,
+      stderr: /Cannot parse JSON from .*invalid\.json: tape_error/,
     });
 }
 
@@ -61,7 +61,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /TRAILING_CONTENT/,
+      stderr: /Cannot parse JSON from .*trailing-content\.json: trailing_content/,
     });
 }
 

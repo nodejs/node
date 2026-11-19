@@ -17,7 +17,6 @@
     merve
     nbytes
     nghttp2
-    simdjson
     simdutf
     uvwasi
     zlib

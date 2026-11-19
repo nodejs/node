@@ -12,7 +12,6 @@ let
     http-parser = [ "libllhttp" ];
     libuv = [ "libuv" ];
     ada = [ "ada" ];
-    simdjson = [ "simdjson" ];
     brotli = [
       "libbrotlidec"
       "libbrotlienc"

@@ -1,0 +1,30 @@
+/*
+ * SPDX-License-Identifier: MIT
+ * Copyright (c) 2026 Nihilai Collective Corp
+ * https://github.com/nihilai-collective/jsonifier
+ * include/jsonifier
+ */
+
+#pragma once
+
+#include <jsonifier-incl/index.hpp>
+
+#if defined(reinterpret_cast)
+	#undef reinterpret_cast
+#endif
+
+#if defined(const_cast)
+	#undef const_cast
+#endif
+
+#if defined(dynamic_cast)
+	#undef dynamic_cast
+#endif
+
+#if defined(memcpy)
+	#undef memcpy
+#endif
+
+#if defined(memmove)
+	#undef memmove
+#endif

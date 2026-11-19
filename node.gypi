@@ -247,8 +247,8 @@
         'dependencies': [ 'deps/merve/merve.gyp:merve' ],
     }],
 
-    [ 'node_shared_simdjson=="false"', {
-        'dependencies': [ 'deps/simdjson/simdjson.gyp:simdjson' ],
+    [ 'node_use_jsonifier=="true"', {
+        'dependencies': [ 'deps/jsonifier/jsonifier.gyp:jsonifier' ],
     }],
 
     [ 'node_shared_simdutf=="false" and node_use_bundled_v8!="false"', {

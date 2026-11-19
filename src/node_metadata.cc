@@ -4,13 +4,13 @@
 #include "amaro_version.h"
 #include "ares.h"
 #include "brotli/encode.h"
+#include "jsonifier_version.h"
 #include "llhttp.h"
 #include "merve.h"
 #include "nbytes.h"
 #include "nghttp2/nghttp2ver.h"
 #include "node.h"
 #include "quic/guard.h"
-#include "simdjson.h"
 #include "simdutf.h"
 #if HAVE_SQLITE
 #include "sqlite3.h"
@@ -167,7 +167,6 @@ Metadata::Versions::Versions() {
   nghttp3 = NGHTTP3_VERSION;
 #endif  // OPENSSL_NO_QUIC
 
-  simdjson = SIMDJSON_VERSION;
   simdutf = SIMDUTF_VERSION;
 #if HAVE_SQLITE
   sqlite = SQLITE_VERSION;
@@ -177,6 +176,7 @@ Metadata::Versions::Versions() {
 #endif  // HAVE_FFI
   ada = ADA_VERSION;
   nbytes = NBYTES_VERSION;
+  jsonifier = JSONIFIER_VERSION;
 }
 
 std::array<std::pair<std::string_view, std::string_view>,

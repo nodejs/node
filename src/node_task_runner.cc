@@ -1,5 +1,5 @@
 #include "node_task_runner.h"
-#include "simdjson.h"
+#include "node_json.h"
 #include "util-inl.h"
 
 #include <regex>  // NOLINT(build/c++11)
@@ -258,16 +258,11 @@ FindPackageJson(const std::filesystem::path& cwd) {
 }
 
 // Prints every "name: command" pair in the scripts object to the given stream.
-static void PrintScripts(FILE* out,
-                         simdjson::ondemand::object& scripts_object) {
-  // Reset the object to iterate from the beginning, in case it was read before.
-  scripts_object.reset();
-  simdjson::ondemand::value value;
-  for (auto field : scripts_object) {
-    std::string_view key_str;
+static void PrintScripts(FILE* out, const json::Value& scripts_object) {
+  for (size_t i = 0; i < scripts_object.size(); ++i) {
+    std::string_view key_str = scripts_object.KeyAt(i);
     std::string_view value_str;
-    if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
-        !value.get_string().get(value_str)) {
+    if (scripts_object.At(i).GetString(&value_str)) {
       fprintf(out,
               "  %.*s: %.*s\n",
               static_cast<int>(key_str.size()),
@@ -306,31 +301,25 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
   //   It always ends with ";" or ":" depending on the platform.
   auto [path, raw_json, path_env_var] = *package_json;
 
-  simdjson::ondemand::parser json_parser;
-  simdjson::ondemand::document document;
-  simdjson::ondemand::object main_object;
-
-  if (json_parser.iterate(raw_json).get(document)) {
+  json::Document document;
+  if (!document.Parse(raw_json)) {
     fprintf(stderr, "Can't parse %s\n", ConvertPathToUTF8(path).c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
   // If document is not an object, throw an error.
-  if (auto root_error = document.get_object().get(main_object)) {
-    if (root_error == simdjson::error_code::INCORRECT_TYPE) {
-      fprintf(stderr,
-              "Root value unexpected not an object for %s\n\n",
-              ConvertPathToUTF8(path).c_str());
-    } else {
-      fprintf(stderr, "Can't parse %s\n", ConvertPathToUTF8(path).c_str());
-    }
+  json::Value main_object = document.root();
+  if (!main_object.IsObject()) {
+    fprintf(stderr,
+            "Root value unexpected not an object for %s\n\n",
+            ConvertPathToUTF8(path).c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
   // If package_json object doesn't have "scripts" field, throw an error.
-  simdjson::ondemand::object scripts_object;
-  if (main_object["scripts"].get_object().get(scripts_object)) {
+  json::Value scripts_object = main_object.Find("scripts");
+  if (!scripts_object.IsObject()) {
     fprintf(stderr,
             "Can't find \"scripts\" field in %s\n",
             ConvertPathToUTF8(path).c_str());
@@ -350,9 +339,9 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
 
   // If the command_id is not found in the scripts object, throw an error.
   std::string_view command;
-  if (auto command_error =
-          scripts_object[command_id].get_string().get(command)) {
-    if (command_error == simdjson::error_code::INCORRECT_TYPE) {
+  json::Value command_value = scripts_object.Find(command_id);
+  if (!command_value.GetString(&command)) {
+    if (command_value) {
       fprintf(stderr,
               "Script \"%.*s\" is unexpectedly not a string for %s\n\n",
               static_cast<int>(command_id.size()),

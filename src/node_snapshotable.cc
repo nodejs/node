@@ -20,6 +20,7 @@
 #include "node_external_reference.h"
 #include "node_file.h"
 #include "node_internals.h"
+#include "node_json.h"
 #include "node_main_instance.h"
 #include "node_metadata.h"
 #include "node_modules.h"
@@ -28,7 +29,6 @@
 #include "node_url.h"
 #include "node_v8.h"
 #include "node_v8_platform-inl.h"
-#include "simdjson.h"
 #include "timers.h"
 
 #if HAVE_INSPECTOR
@@ -946,42 +946,37 @@ std::optional<SnapshotConfig> ReadSnapshotConfig(const char* config_path) {
 
   SnapshotConfig result;
 
-  simdjson::ondemand::parser parser;
-  simdjson::ondemand::document document;
-  simdjson::ondemand::object main_object;
-  simdjson::error_code error =
-      parser.iterate(simdjson::pad(config_content)).get(document);
-
-  if (!error) {
-    error = document.get_object().get(main_object);
-  }
-  if (error) {
+  json::Document document;
+  if (!document.Parse(config_content)) {
     FPrintF(stderr,
             "Cannot parse JSON from %s: %s\n",
             config_path,
-            simdjson::error_message(error));
+            document.error());
+    return std::nullopt;
+  }
+  json::Value main_object = document.root();
+  if (!main_object.IsObject()) {
+    FPrintF(stderr,
+            "Cannot parse JSON from %s: root value is not an object\n",
+            config_path);
     return std::nullopt;
   }
 
-  for (auto field : main_object) {
-    std::string_view key;
-    if (field.unescaped_key().get(key)) {
-      FPrintF(stderr, "Cannot read key from %s\n", config_path);
-      return std::nullopt;
-    }
+  for (size_t i = 0; i < main_object.size(); ++i) {
+    std::string_view key = main_object.KeyAt(i);
+    json::Value value = main_object.At(i);
     if (key == "builder") {
-      std::string builder_path;
-      if (field.value().get_string().get(builder_path) ||
-          builder_path.empty()) {
+      std::string_view builder_path;
+      if (!value.GetString(&builder_path) || builder_path.empty()) {
         FPrintF(stderr,
                 "\"builder\" field of %s is not a non-empty string\n",
                 config_path);
         return std::nullopt;
       }
-      result.builder_script_path = builder_path;
+      result.builder_script_path = std::string(builder_path);
     } else if (key == "withoutCodeCache") {
       bool without_code_cache_value = false;
-      if (field.value().get_bool().get(without_code_cache_value)) {
+      if (!value.GetBool(&without_code_cache_value)) {
         FPrintF(stderr,
                 "\"withoutCodeCache\" field of %s is not a boolean\n",
                 config_path);

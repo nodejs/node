@@ -1,7 +1,7 @@
 #include "node_config_file.h"
 #include "debug_utils-inl.h"
+#include "node_json.h"
 #include "node_version.h"
-#include "simdjson.h"
 
 #include <algorithm>
 #include <cinttypes>
@@ -106,7 +106,7 @@ bool ConfigReader::HasInvalidDefaultConfigFileArgument() const {
 ParseResult ConfigReader::ProcessOptionValue(
     const std::pair<std::string, options_parser::OptionMappingDetails>&
         option_details,
-    simdjson::ondemand::value* option_value,
+    const json::Value& option_value,
     std::vector<std::string>* output) {
   const std::string& option_name = option_details.first;
   const options_parser::OptionType option_type = option_details.second.type;
@@ -114,7 +114,7 @@ ParseResult ConfigReader::ProcessOptionValue(
   switch (option_type) {
     case options_parser::OptionType::kBoolean: {
       bool result;
-      if (option_value->get_bool().get(result)) {
+      if (!option_value.GetBool(&result)) {
         FPrintF(stderr, "Invalid value for %s\n", option_name);
         return ParseResult::InvalidContent;
       }
@@ -132,21 +132,11 @@ ParseResult ConfigReader::ProcessOptionValue(
     }
     // String array can allow both string and array types
     case options_parser::OptionType::kStringList: {
-      simdjson::ondemand::json_type field_type;
-      if (option_value->type().get(field_type)) {
-        return ParseResult::InvalidContent;
-      }
-      switch (field_type) {
-        case simdjson::ondemand::json_type::array: {
-          std::vector<std::string> result;
-          simdjson::ondemand::array raw_imports;
-          if (option_value->get_array().get(raw_imports)) {
-            FPrintF(stderr, "Invalid value for %s\n", option_name);
-            return ParseResult::InvalidContent;
-          }
-          for (auto raw_import : raw_imports) {
+      switch (option_value.type()) {
+        case json::ValueType::kArray: {
+          for (size_t i = 0; i < option_value.size(); ++i) {
             std::string_view import;
-            if (raw_import.get_string(import)) {
+            if (!option_value.At(i).GetString(&import)) {
               FPrintF(stderr, "Invalid value for %s\n", option_name);
               return ParseResult::InvalidContent;
             }
@@ -154,13 +144,10 @@ ParseResult ConfigReader::ProcessOptionValue(
           }
           break;
         }
-        case simdjson::ondemand::json_type::string: {
-          std::string result;
-          if (option_value->get_string(result)) {
-            FPrintF(stderr, "Invalid value for %s\n", option_name);
-            return ParseResult::InvalidContent;
-          }
-          output->push_back(option_name + "=" + result);
+        case json::ValueType::kString: {
+          std::string_view result;
+          CHECK(option_value.GetString(&result));
+          output->push_back(option_name + "=" + std::string(result));
           break;
         }
         default:
@@ -170,17 +157,17 @@ ParseResult ConfigReader::ProcessOptionValue(
       break;
     }
     case options_parser::OptionType::kString: {
-      std::string result;
-      if (option_value->get_string(result)) {
+      std::string_view result;
+      if (!option_value.GetString(&result)) {
         FPrintF(stderr, "Invalid value for %s\n", option_name);
         return ParseResult::InvalidContent;
       }
-      output->push_back(option_name + "=" + result);
+      output->push_back(option_name + "=" + std::string(result));
       break;
     }
     case options_parser::OptionType::kInteger: {
       int64_t result;
-      if (option_value->get_int64().get(result)) {
+      if (!option_value.GetInt64(&result)) {
         FPrintF(stderr, "Invalid value for %s\n", option_name);
         return ParseResult::InvalidContent;
       }
@@ -190,7 +177,7 @@ ParseResult ConfigReader::ProcessOptionValue(
     case options_parser::OptionType::kHostPort:
     case options_parser::OptionType::kUInteger: {
       uint64_t result;
-      if (option_value->get_uint64().get(result)) {
+      if (!option_value.GetUint64(&result)) {
         FPrintF(stderr, "Invalid value for %s\n", option_name);
         return ParseResult::InvalidContent;
       }
@@ -213,7 +200,7 @@ ParseResult ConfigReader::ProcessOptionValue(
 }
 
 ParseResult ConfigReader::ParseOptions(
-    simdjson::ondemand::object* options_object,
+    const json::Value& options_object,
     std::unordered_set<std::string>* unique_options,
     const std::string& namespace_name) {
   // Determine which options map to use and output vector
@@ -237,14 +224,9 @@ ParseResult ConfigReader::ParseOptions(
     }
   }
 
-  simdjson::ondemand::value option_value;
-  std::string_view option_key;
-
-  for (auto field : *options_object) {
-    if (field.unescaped_key().get(option_key) ||
-        field.value().get(option_value)) {
-      return ParseResult::InvalidContent;
-    }
+  for (size_t i = 0; i < options_object.size(); ++i) {
+    std::string_view option_key = options_object.KeyAt(i);
+    json::Value option_value = options_object.At(i);
 
     // The key needs to match the CLI option
     std::string prefix = "--";
@@ -260,7 +242,7 @@ ParseResult ConfigReader::ParseOptions(
       unique_options->insert(option->first);
       // Process the option value based on its type
       ParseResult result =
-          ProcessOptionValue(*option, &option_value, output_vector);
+          ProcessOptionValue(*option, option_value, output_vector);
       if (result != ParseResult::Valid) {
         return result;
       }
@@ -276,10 +258,9 @@ ParseResult ConfigReader::ParseOptions(
 }
 
 ParseResult ConfigReader::ParseNodeVersion(
-    simdjson::ondemand::value* version_value,
-    const std::string_view& config_path) {
+    const json::Value& version_value, const std::string_view& config_path) {
   int64_t version;
-  if (version_value->get_int64().get(version)) {
+  if (!version_value.GetInt64(&version)) {
     FPrintF(stderr,
             "\"nodeVersion\" value unexpected for %s "
             "(should be an integer)\n",
@@ -301,13 +282,11 @@ ParseResult ConfigReader::ParseNodeVersion(
   return ParseResult::Valid;
 }
 
-ParseResult ConfigReader::ParseConfigs(simdjson::ondemand::array* configs,
+ParseResult ConfigReader::ParseConfigs(const json::Value& configs,
                                        const std::string_view& config_path) {
-  size_t index = 0;
-
-  for (auto raw_config : *configs) {
-    simdjson::ondemand::object config_wrapper;
-    if (raw_config.get_object().get(config_wrapper)) {
+  for (size_t index = 0; index < configs.size(); ++index) {
+    json::Value config_wrapper = configs.At(index);
+    if (!config_wrapper.IsObject()) {
       FPrintF(stderr,
               "\"configs[%zu]\" value unexpected for %s "
               "(should be an object)\n",
@@ -316,22 +295,17 @@ ParseResult ConfigReader::ParseConfigs(simdjson::ondemand::array* configs,
       return ParseResult::InvalidContent;
     }
 
-    simdjson::ondemand::value version_value;
-    auto version_error =
-        config_wrapper.find_field_unordered("nodeVersion").get(version_value);
-    if (version_error == simdjson::NO_SUCH_FIELD) {
+    json::Value version_value = config_wrapper.Find("nodeVersion");
+    if (!version_value) {
       FPrintF(stderr,
               "\"configs[%zu].nodeVersion\" is required for %s\n",
               index,
               config_path.data());
       return ParseResult::InvalidContent;
     }
-    if (version_error) {
-      return ParseResult::InvalidContent;
-    }
 
     int64_t version;
-    if (version_value.get_int64().get(version)) {
+    if (!version_value.GetInt64(&version)) {
       FPrintF(stderr,
               "\"configs[%zu].nodeVersion\" value unexpected for %s "
               "(should be an integer)\n",
@@ -341,26 +315,19 @@ ParseResult ConfigReader::ParseConfigs(simdjson::ondemand::array* configs,
     }
 
     if (version != NODE_MAJOR_VERSION) {
-      index++;
       continue;
     }
 
-    simdjson::ondemand::value config_value;
-    auto config_error =
-        config_wrapper.find_field_unordered("config").get(config_value);
-    if (config_error == simdjson::NO_SUCH_FIELD) {
+    json::Value config_value = config_wrapper.Find("config");
+    if (!config_value) {
       FPrintF(stderr,
               "\"configs[%zu].config\" is required for %s\n",
               index,
               config_path.data());
       return ParseResult::InvalidContent;
     }
-    if (config_error) {
-      return ParseResult::InvalidContent;
-    }
 
-    simdjson::ondemand::object selected_config;
-    if (config_value.get_object().get(selected_config)) {
+    if (!config_value.IsObject()) {
       FPrintF(stderr,
               "\"configs[%zu].config\" value unexpected for %s "
               "(should be an object)\n",
@@ -369,7 +336,7 @@ ParseResult ConfigReader::ParseConfigs(simdjson::ondemand::array* configs,
       return ParseResult::InvalidContent;
     }
 
-    return ParseConfigObject(&selected_config, config_path, false);
+    return ParseConfigObject(config_value, config_path, false);
   }
 
   FPrintF(stderr,
@@ -380,10 +347,9 @@ ParseResult ConfigReader::ParseConfigs(simdjson::ondemand::array* configs,
   return ParseResult::InvalidContent;
 }
 
-ParseResult ConfigReader::ParseConfigObject(
-    simdjson::ondemand::object* config_object,
-    const std::string_view& config_path,
-    bool allow_version_selection) {
+ParseResult ConfigReader::ParseConfigObject(const json::Value& config_object,
+                                            const std::string_view& config_path,
+                                            bool allow_version_selection) {
   // Get all available namespaces for validation
   std::vector<std::string> available_namespaces =
       options_parser::MapAvailableNamespaces();
@@ -399,11 +365,9 @@ ParseResult ConfigReader::ParseConfigObject(
   std::unordered_set<std::string> namespaces_with_implicit_flags;
 
   // Iterate through the main object to find all namespaces
-  for (auto field : *config_object) {
-    std::string_view field_name;
-    if (field.unescaped_key().get(field_name)) {
-      return ParseResult::InvalidContent;
-    }
+  for (size_t i = 0; i < config_object.size(); ++i) {
+    std::string_view field_name = config_object.KeyAt(i);
+    json::Value field = config_object.At(i);
 
     std::string namespace_name(field_name);
 
@@ -412,11 +376,7 @@ ParseResult ConfigReader::ParseConfigObject(
     }
 
     if (namespace_name == "nodeVersion") {
-      simdjson::ondemand::value version_value;
-      if (field.value().get(version_value)) {
-        return ParseResult::InvalidContent;
-      }
-      ParseResult result = ParseNodeVersion(&version_value, config_path);
+      ParseResult result = ParseNodeVersion(field, config_path);
       if (result != ParseResult::Valid) {
         return result;
       }
@@ -432,16 +392,14 @@ ParseResult ConfigReader::ParseConfigObject(
         return ParseResult::InvalidContent;
       }
 
-      simdjson::ondemand::array configs;
-      auto field_error = field.value().get_array().get(configs);
-      if (field_error) {
+      if (!field.IsArray()) {
         FPrintF(stderr,
                 "\"configs\" value unexpected for %s "
                 "(should be an array)\n",
                 config_path.data());
         return ParseResult::InvalidContent;
       }
-      ParseResult result = ParseConfigs(&configs, config_path);
+      ParseResult result = ParseConfigs(field, config_path);
       if (result != ParseResult::Valid) {
         return result;
       }
@@ -478,12 +436,8 @@ ParseResult ConfigReader::ParseConfigObject(
       }
     }
 
-    // Get the namespace object
-    simdjson::ondemand::object namespace_object;
-    auto field_error = field.value().get_object().get(namespace_object);
-
     // If namespace value is not an object
-    if (field_error) {
+    if (!field.IsObject()) {
       FPrintF(stderr,
               "\"%s\" value unexpected for %s (should be an object)\n",
               namespace_name,
@@ -492,8 +446,7 @@ ParseResult ConfigReader::ParseConfigObject(
     }
 
     // Process options for this namespace using the unified method
-    ParseResult result =
-        ParseOptions(&namespace_object, &unique_options, namespace_name);
+    ParseResult result = ParseOptions(field, &unique_options, namespace_name);
     if (result != ParseResult::Valid) {
       return result;
     }
@@ -525,34 +478,25 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
   }
 
   // Parse the configuration file
-  simdjson::ondemand::parser json_parser;
-  simdjson::ondemand::document document;
-  if (json_parser.iterate(file_content).get(document)) {
+  json::Document document;
+  if (!document.Parse(file_content)) {
     FPrintF(stderr, "Can't parse %s\n", config_path.data());
     return ParseResult::InvalidContent;
   }
 
   // Validate config is an object
-  simdjson::ondemand::object main_object;
-  auto root_error = document.get_object().get(main_object);
-  if (root_error) {
-    if (root_error == simdjson::error_code::INCORRECT_TYPE) {
-      FPrintF(stderr,
-              "Root value unexpected not an object for %s\n\n",
-              config_path.data());
-    } else {
-      FPrintF(stderr, "Can't parse %s\n", config_path.data());
-    }
+  json::Value main_object = document.root();
+  if (!main_object.IsObject()) {
+    FPrintF(stderr,
+            "Root value unexpected not an object for %s\n\n",
+            config_path.data());
     return ParseResult::InvalidContent;
   }
 
   bool has_configs = false;
   bool has_other_fields = false;
-  for (auto field : main_object) {
-    std::string_view field_name;
-    if (field.unescaped_key().get(field_name)) {
-      return ParseResult::InvalidContent;
-    }
+  for (size_t i = 0; i < main_object.size(); ++i) {
+    std::string_view field_name = main_object.KeyAt(i);
 
     if (field_name == "$schema") {
       continue;
@@ -573,13 +517,7 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
     return ParseResult::InvalidContent;
   }
 
-  // Walk the document again, this time to parse the configuration.
-  document.rewind();
-  if (document.get_object().get(main_object)) {
-    return ParseResult::InvalidContent;
-  }
-
-  return ParseConfigObject(&main_object, config_path, true);
+  return ParseConfigObject(main_object, config_path, true);
 }
 
 std::string ConfigReader::GetNodeOptions() {

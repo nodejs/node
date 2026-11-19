@@ -7,12 +7,12 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "node_json.h"
 #include "node_options.h"
 #include "node_realm-inl.h"
 #include "node_snapshot_builder.h"
 #include "node_union_bytes.h"
 #include "node_v8_platform-inl.h"
-#include "simdjson.h"
 #include "util-inl.h"
 
 #include <memory>
@@ -398,59 +398,56 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
 
   SeaConfig result;
 
-  simdjson::ondemand::parser parser;
-  simdjson::ondemand::document document;
-  simdjson::ondemand::object main_object;
-  simdjson::error_code error =
-      parser.iterate(simdjson::pad(config)).get(document);
-
-  if (!error) {
-    error = document.get_object().get(main_object);
-  }
-  if (error) {
+  json::Document document;
+  if (!document.Parse(config)) {
     FPrintF(stderr,
             "Cannot parse JSON from %s: %s\n",
             config_path,
-            simdjson::error_message(error));
+            document.error());
+    return std::nullopt;
+  }
+  json::Value main_object = document.root();
+  if (!main_object.IsObject()) {
+    FPrintF(stderr,
+            "Cannot parse JSON from %s: root value is not an object\n",
+            config_path);
     return std::nullopt;
   }
 
   bool use_snapshot_value = false;
   bool use_code_cache_value = false;
 
-  for (auto field : main_object) {
-    std::string_view key;
-    if (field.unescaped_key().get(key)) {
-      FPrintF(stderr, "Cannot read key from %s\n", config_path);
-      return std::nullopt;
-    }
+  for (size_t i = 0; i < main_object.size(); ++i) {
+    std::string_view key = main_object.KeyAt(i);
+    json::Value value = main_object.At(i);
+    std::string_view string_value;
     if (key == "main") {
-      if (field.value().get_string().get(result.main_path) ||
-          result.main_path.empty()) {
+      if (!value.GetString(&string_value) || string_value.empty()) {
         FPrintF(stderr,
                 "\"main\" field of %s is not a non-empty string\n",
                 config_path);
         return std::nullopt;
       }
+      result.main_path = string_value;
     } else if (key == "output") {
-      if (field.value().get_string().get(result.output_path) ||
-          result.output_path.empty()) {
+      if (!value.GetString(&string_value) || string_value.empty()) {
         FPrintF(stderr,
                 "\"output\" field of %s is not a non-empty string\n",
                 config_path);
         return std::nullopt;
       }
+      result.output_path = string_value;
     } else if (key == "executable") {
-      if (field.value().get_string().get(result.executable_path) ||
-          result.executable_path.empty()) {
+      if (!value.GetString(&string_value) || string_value.empty()) {
         FPrintF(stderr,
                 "\"executable\" field of %s is not a non-empty string\n",
                 config_path);
         return std::nullopt;
       }
+      result.executable_path = string_value;
     } else if (key == "disableExperimentalSEAWarning") {
       bool disable_experimental_sea_warning;
-      if (field.value().get_bool().get(disable_experimental_sea_warning)) {
+      if (!value.GetBool(&disable_experimental_sea_warning)) {
         FPrintF(
             stderr,
             "\"disableExperimentalSEAWarning\" field of %s is not a Boolean\n",
@@ -461,7 +458,7 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
         result.flags |= SeaFlags::kDisableExperimentalSeaWarning;
       }
     } else if (key == "useSnapshot") {
-      if (field.value().get_bool().get(use_snapshot_value)) {
+      if (!value.GetBool(&use_snapshot_value)) {
         FPrintF(stderr,
                 "\"useSnapshot\" field of %s is not a Boolean\n",
                 config_path);
@@ -471,7 +468,7 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
         result.flags |= SeaFlags::kUseSnapshot;
       }
     } else if (key == "useCodeCache") {
-      if (field.value().get_bool().get(use_code_cache_value)) {
+      if (!value.GetBool(&use_code_cache_value)) {
         FPrintF(stderr,
                 "\"useCodeCache\" field of %s is not a Boolean\n",
                 config_path);
@@ -482,7 +479,7 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
       }
     } else if (key == "useVfs") {
       bool use_vfs;
-      if (field.value().get_bool().get(use_vfs)) {
+      if (!value.GetBool(&use_vfs)) {
         FPrintF(
             stderr, "\"useVfs\" field of %s is not a Boolean\n", config_path);
         return std::nullopt;
@@ -491,54 +488,47 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
         result.flags |= SeaFlags::kEnableVfs;
       }
     } else if (key == "vfsArchive") {
-      std::string_view archive_path;
-      if (field.value().get_string().get(archive_path)) {
+      if (!value.GetString(&string_value)) {
         FPrintF(stderr,
                 "\"vfsArchive\" field of %s is not a string\n",
                 config_path);
         return std::nullopt;
       }
-      result.vfs_archive_path = archive_path;
+      result.vfs_archive_path = string_value;
       result.flags |= SeaFlags::kVfsArchive;
     } else if (key == "assets") {
-      simdjson::ondemand::object assets_object;
-      if (field.value().get_object().get(assets_object)) {
+      if (!value.IsObject()) {
         FPrintF(stderr,
                 "\"assets\" field of %s is not a map of strings\n",
                 config_path);
         return std::nullopt;
       }
-      simdjson::ondemand::value asset_value;
-      for (auto asset_field : assets_object) {
-        std::string_view key_str;
+      for (size_t j = 0; j < value.size(); ++j) {
         std::string_view value_str;
-        if (asset_field.unescaped_key().get(key_str) ||
-            asset_field.value().get(asset_value) ||
-            asset_value.get_string().get(value_str)) {
+        if (!value.At(j).GetString(&value_str)) {
           FPrintF(stderr,
                   "\"assets\" field of %s is not a map of strings\n",
                   config_path);
           return std::nullopt;
         }
 
-        result.assets.emplace(key_str, value_str);
+        result.assets.emplace(value.KeyAt(j), value_str);
       }
 
       if (!result.assets.empty()) {
         result.flags |= SeaFlags::kIncludeAssets;
       }
     } else if (key == "execArgv") {
-      simdjson::ondemand::array exec_argv_array;
-      if (field.value().get_array().get(exec_argv_array)) {
+      if (!value.IsArray()) {
         FPrintF(stderr,
                 "\"execArgv\" field of %s is not an array of strings\n",
                 config_path);
         return std::nullopt;
       }
       std::vector<std::string> exec_argv;
-      for (auto argv : exec_argv_array) {
+      for (size_t j = 0; j < value.size(); ++j) {
         std::string_view argv_str;
-        if (argv.get_string().get(argv_str)) {
+        if (!value.At(j).GetString(&argv_str)) {
           FPrintF(stderr,
                   "\"execArgv\" field of %s is not an array of strings\n",
                   config_path);
@@ -551,18 +541,17 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
         result.exec_argv = std::move(exec_argv);
       }
     } else if (key == "execArgvExtension") {
-      std::string_view extension_str;
-      if (field.value().get_string().get(extension_str)) {
+      if (!value.GetString(&string_value)) {
         FPrintF(stderr,
                 "\"execArgvExtension\" field of %s is not a string\n",
                 config_path);
         return std::nullopt;
       }
-      if (extension_str == "none") {
+      if (string_value == "none") {
         result.exec_argv_extension = SeaExecArgvExtension::kNone;
-      } else if (extension_str == "env") {
+      } else if (string_value == "env") {
         result.exec_argv_extension = SeaExecArgvExtension::kEnv;
-      } else if (extension_str == "cli") {
+      } else if (string_value == "cli") {
         result.exec_argv_extension = SeaExecArgvExtension::kCli;
       } else {
         FPrintF(stderr,
@@ -572,16 +561,15 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
         return std::nullopt;
       }
     } else if (key == "mainFormat") {
-      std::string_view format_str;
-      if (field.value().get_string().get(format_str)) {
+      if (!value.GetString(&string_value)) {
         FPrintF(stderr,
                 "\"mainFormat\" field of %s is not a string\n",
                 config_path);
         return std::nullopt;
       }
-      if (format_str == "commonjs") {
+      if (string_value == "commonjs") {
         result.main_format = ModuleFormat::kCommonJS;
-      } else if (format_str == "module") {
+      } else if (string_value == "module") {
         result.main_format = ModuleFormat::kModule;
       } else {
         FPrintF(stderr,
@@ -591,14 +579,6 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
         return std::nullopt;
       }
     }
-  }
-
-  if (!document.at_end()) {
-    FPrintF(stderr,
-            "Cannot parse JSON from %s: %s\n",
-            config_path,
-            simdjson::error_message(simdjson::TRAILING_CONTENT));
-    return std::nullopt;
   }
 
   if (static_cast<bool>(result.flags & SeaFlags::kUseSnapshot) &&
