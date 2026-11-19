@@ -1,4 +1,4 @@
-/* auto-generated on 2026-07-27 16:10:09 -0400. Do not edit! */
+/* auto-generated on 2026-11-19 15:19:30 -0500. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -30,7 +30,7 @@
 #define ADA_H
 
 /* begin file include/ada/ada_idna.h */
-/* auto-generated on 2026-07-12 20:34:08 -0400. Do not edit! */
+/* auto-generated on 2026-11-19 15:08:48 -0500. Do not edit! */
 /* begin file include/idna.h */
 #ifndef ADA_IDNA_H
 #define ADA_IDNA_H
@@ -150,7 +150,8 @@ bool is_label_valid(std::u32string_view label);
 
 namespace ada::idna {
 
-// Maximum accepted UTF-8 domain length for to_ascii / to_unicode.
+// Maximum accepted UTF-8 domain length for non-ASCII to_ascii input and for
+// to_unicode input.
 // Bounds heap growth under untrusted input (DoS resistance). DNS wire limits
 // are smaller; this allows long Unicode labels used in URL tests/fixtures.
 inline constexpr size_t max_domain_input_bytes = 16384;
@@ -167,8 +168,9 @@ namespace ada::idna {
 // decoding: percent decoding should be done prior to calling this function. We
 // do not remove tabs and spaces, they should have been removed prior to calling
 // this function. We also do not trim control characters. We also assume that
-// the input is not empty. We return "" on error. Inputs longer than
-// max_domain_input_bytes are rejected.
+// the input is not empty. We return "" on error. Non-ASCII inputs longer than
+// max_domain_input_bytes are rejected; ASCII inputs of any length are accepted
+// (they are only lowercased).
 //
 // This function may accept or even produce invalid domains (WHATWG carve-outs).
 std::string to_ascii(std::string_view ut8_string);
@@ -540,6 +542,14 @@ namespace ada {
 #define ADA_INCLUDE_URL_PATTERN 1
 #endif  // ADA_INCLUDE_URL_PATTERN
 
+// When set (the default), NEON all-zero tests use an integer compare. Define
+// it to 0 to reinterpret the bits as a double and compare against 0.0: that
+// avoids a GPR transfer but is incorrect if flush-to-zero is enabled (e.g.,
+// when the application is built with -ffast-math).
+#ifndef ADA_NEON_SAFE_ZERO_CHECK
+#define ADA_NEON_SAFE_ZERO_CHECK 1
+#endif  // ADA_NEON_SAFE_ZERO_CHECK
+
 #endif  // ADA_COMMON_DEFS_H
 /* end file include/ada/common_defs.h */
 #include <cstdint>
@@ -567,6 +577,8 @@ ada_really_inline constexpr bool bit_at(const uint8_t a[], uint8_t i);
 #ifndef ADA_CHARACTER_SETS_INL_H
 #define ADA_CHARACTER_SETS_INL_H
 
+
+#include <cstdint>
 
 /**
  * These functions are not part of our public API and may
@@ -1088,8 +1100,8 @@ ada_really_inline constexpr bool bit_at(const uint8_t a[], const uint8_t i) {
 #define ADA_CHECKERS_INL_H
 
 #include <bit>
+#include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <string_view>
 /* begin file include/ada/checkers.h */
 /**
@@ -1100,6 +1112,7 @@ ada_really_inline constexpr bool bit_at(const uint8_t a[], const uint8_t i) {
 #define ADA_CHECKERS_H
 
 
+#include <cstdint>
 #include <cstring>
 #include <string_view>
 
@@ -1128,20 +1141,6 @@ constexpr char to_lower(char x) noexcept;
  * @attention std::isalpha is not constexpr generally.
  */
 constexpr bool is_alpha(char x) noexcept;
-
-/**
- * @private
- * Check whether a string starts with 0x or 0X. The function is only
- * safe if input.size() >=2.
- *
- * @see has_hex_prefix
- */
-constexpr bool has_hex_prefix_unsafe(std::string_view input);
-/**
- * @private
- * Check whether a string starts with 0x or 0X.
- */
-constexpr bool has_hex_prefix(std::string_view input);
 
 /**
  * @private
@@ -1179,6 +1178,19 @@ inline constexpr bool is_normalized_windows_drive_letter(
  * lowered cased before calling this function) and is not empty.
  */
 ada_really_inline constexpr bool is_ipv4(std::string_view view) noexcept;
+
+/**
+ * @private
+ * Cheap pre-check for the WHATWG "ends in a number" / IPv4-host cases.
+ * False means the host cannot be IPv4: the last label is empty, does not
+ * start with an ASCII digit, or contains a character other than a hex
+ * digit or x/X. True means the slower IPv4 parsers should run.
+ *
+ * Safe on mixed-case input (unlike is_ipv4, which expects a lowercased
+ * host).
+ */
+ada_really_inline constexpr bool last_label_may_be_a_number(
+    std::string_view view) noexcept;
 
 /**
  * @private
@@ -1225,32 +1237,44 @@ constexpr uint64_t ipv4_fast_fail = uint64_t(1) << 32;
 #endif  // ADA_CHECKERS_H
 /* end file include/ada/checkers.h */
 
-#if defined(ADA_AVX512)
+#if defined(ADA_AVX512) && defined(__AVX512VBMI2__)
 #include <immintrin.h>
 #endif
 
 namespace ada::checkers {
 
-constexpr bool has_hex_prefix_unsafe(std::string_view input) {
-  // This is actually efficient code, see has_hex_prefix for the assembly.
-  constexpr bool is_little_endian = std::endian::native == std::endian::little;
-  constexpr uint16_t word0x = 0x7830;
-  uint16_t two_first_bytes =
-      static_cast<uint16_t>(input[0]) |
-      static_cast<uint16_t>((static_cast<uint16_t>(input[1]) << 8));
-  if constexpr (is_little_endian) {
-    two_first_bytes |= 0x2000;
-  } else {
-    two_first_bytes |= 0x020;
-  }
-  return two_first_bytes == word0x;
-}
-
-constexpr bool has_hex_prefix(std::string_view input) {
-  return input.size() >= 2 && has_hex_prefix_unsafe(input);
-}
-
 constexpr bool is_digit(char x) noexcept { return (x >= '0') & (x <= '9'); }
+
+constexpr bool is_ipv4_number_char(char x) noexcept {
+  const unsigned char c = static_cast<unsigned char>(x);
+  return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+         (c >= 'A' && c <= 'F') || c == 'x' || c == 'X';
+}
+
+constexpr bool last_label_may_be_a_number(std::string_view view) noexcept {
+  if (view.empty()) {
+    return false;
+  }
+  const char* start = view.data();
+  const char* end = start + view.size();
+  if (end[-1] == '.') {
+    --end;
+    if (end == start) {
+      return false;
+    }
+  }
+  if (!is_ipv4_number_char(end[-1])) {
+    return false;
+  }
+  const char* label = end;
+  while (label != start && is_ipv4_number_char(label[-1])) {
+    --label;
+  }
+  if (label != start && label[-1] != '.') {
+    return false;
+  }
+  return label != end && is_digit(*label);
+}
 
 constexpr char to_lower(char x) noexcept { return (x | 0x20); }
 
@@ -1325,68 +1349,101 @@ parse_ipv4_decimal_scalar(const char* p, const char* pend) noexcept {
   return ipv4;
 }
 
-#if defined(ADA_AVX512)
-// After SIMD validation: fewer rejection branches on convert.
-ada_really_inline uint64_t
-parse_ipv4_decimal_trusted(const char* p, const char* pend) noexcept {
-  uint32_t ipv4 = 0;
-  for (int i = 0; i < 4; ++i) {
-    uint32_t val = static_cast<uint32_t>(*p - '0');
-    ++p;
-    if (p < pend && static_cast<unsigned char>(*p - '0') <= 9) {
-      if (val == 0) [[unlikely]] {
-        return ipv4_fast_fail;
-      }
-      val = val * 10u + static_cast<uint32_t>(*p - '0');
-      ++p;
-      if (p < pend && static_cast<unsigned char>(*p - '0') <= 9) {
-        val = val * 10u + static_cast<uint32_t>(*p - '0');
-        ++p;
-        if (val > 255u) [[unlikely]] {
-          return ipv4_fast_fail;
-        }
-      }
-    }
-    ipv4 = (ipv4 << 8) | val;
-    if (i < 3) {
-      ++p;  // trusted '.'
-    }
-  }
-  return ipv4;  // trailing-dot already accounted for by caller via pend
-}
-
-// AVX-512 pure-decimal IPv4 (Lemire/Mula-style masked load + parallel checks).
-// No over-read of the source string. Wins when the binary is built with
-// -mavx512bw -mavx512vl (or -march that enables them).
+#if defined(ADA_AVX512) && defined(__AVX512VBMI2__)
+// Table-free AVX-512VL IPv4 parse (simdip parse_ipv4_avx512vl_notab5).
+// Needs VBMI2 for vpcompressb; ADA_AVX512 stays BW+VL (IPv6 does not use
+// VBMI2). Masked load of exactly `len` bytes (no over-read). Digit
+// placement is computed from compressed delimiter positions; octet > 255
+// is a dword compare on the zero-padded reversed digit group, in parallel
+// with the convert. Unusual-but-valid forms (octal, hex, leading zeros,
+// fewer than four parts) return ipv4_fast_fail so the general parser runs.
 ada_really_inline uint64_t try_parse_ipv4_avx512(const char* data,
                                                  size_t len) noexcept {
-  const __mmask16 live = static_cast<__mmask16>((1u << len) - 1u);
-  const __m128i input =
-      _mm_maskz_loadu_epi8(live, reinterpret_cast<const void*>(data));
-  const __mmask16 is_dot =
-      _mm_mask_cmpeq_epi8_mask(live, input, _mm_set1_epi8('.'));
-  const __m128i shifted = _mm_sub_epi8(input, _mm_set1_epi8('0'));
-  const __mmask16 is_digit =
-      _mm_mask_cmplt_epu8_mask(live, shifted, _mm_set1_epi8(10));
-  if ((is_digit | is_dot) != live) {
+  // One trailing dot is WHATWG-legal ("1.2.3.4."); the SIMD kernel is
+  // strict four-group dotted-decimal.
+  if (data[len - 1] == '.') {
+    --len;
+  }
+  if (len > 15) [[unlikely]] {
     return ipv4_fast_fail;
   }
-  const unsigned dot_count =
-      static_cast<unsigned>(_mm_popcnt_u32(static_cast<unsigned>(is_dot)));
-  size_t effective_len = len;
-  if (dot_count == 3) {
-    // ok
-  } else if (dot_count == 4 && data[len - 1] == '.') {
-    effective_len = len - 1;  // strip trailing dot for convert
-  } else {
-    return ipv4_fast_fail;
+
+#if defined(__BMI2__)
+  const uint32_t len_mask = _bzhi_u32(0xFFFFFFFFu, static_cast<unsigned>(len));
+#else
+  const uint32_t len_mask = (1u << static_cast<unsigned>(len)) - 1u;
+#endif
+  const __mmask16 len_k = static_cast<__mmask16>(len_mask);
+  const __m128i dot = _mm_set1_epi8('.');
+  const __m128i v =
+      _mm_mask_loadu_epi8(dot, len_k, reinterpret_cast<const void*>(data));
+
+  const __mmask16 delim = _mm_cmpeq_epi8_mask(v, dot);
+  const uint32_t dots = static_cast<uint32_t>(delim) & len_mask;
+  const uint32_t keep = len_mask & ~dots;
+
+  const __m128i zero = _mm_set1_epi8('0');
+  const __m128i digits = _mm_sub_epi8(v, zero);
+  const __mmask16 is_digit = _mm_cmple_epu8_mask(digits, _mm_set1_epi8(9));
+  // Junk in a digit slot: inside [0, len) yet neither a digit nor a dot.
+  const __mmask16 hole = _kandn_mask16(_kor_mask16(delim, is_digit), len_k);
+  const __m128i v0 = _mm_maskz_mov_epi8(is_digit, digits);
+
+  const __m128i iota =
+      _mm_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+  const __m128i c = _mm_maskz_compress_epi8(delim, iota);
+  const __m128i k_rep =
+      _mm_setr_epi8(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3);
+  const __m128i qi = _mm_shuffle_epi8(c, k_rep);
+  const __m128i prev =
+      _mm_shuffle_epi8(_mm_alignr_epi8(c, _mm_set1_epi8(-1), 15), k_rep);
+  // Reversed group order: lane 4i+j fetches q_i-(j+1), so the dword is
+  // ones | tens<<8 | hundreds<<16, monotone in the decimal value.
+  const __m128i offr = _mm_setr_epi8(-1, -2, -3, -4, -1, -2, -3, -4, -1, -2, -3,
+                                     -4, -1, -2, -3, -4);
+  const __m128i idx = _mm_max_epi8(_mm_add_epi8(qi, offr), prev);
+  const __m128i padded = _mm_shuffle_epi8(v0, idx);
+
+  const __m128i lim =
+      _mm_setr_epi8(5, 5, 2, 0, 5, 5, 2, 0, 5, 5, 2, 0, 5, 5, 2, 0);
+  const __mmask8 over = _mm_cmpgt_epu32_mask(padded, lim);
+  const __m128i wtsr =
+      _mm_setr_epi8(1, 10, 100, 0, 1, 10, 100, 0, 1, 10, 100, 0, 1, 10, 100, 0);
+#if defined(__AVX512VNNI__)
+  const __m128i res = _mm_dpbusd_epi32(_mm_setzero_si128(), padded, wtsr);
+#else
+  const __m128i res =
+      _mm_madd_epi16(_mm_maddubs_epi16(padded, wtsr), _mm_set1_epi16(1));
+#endif
+
+  const __m128i gmin =
+      _mm_setr_epi8(1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  const __m128i gmax =
+      _mm_setr_epi8(2, 2, 2, 2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+  const __m128i gap = _mm_sub_epi8(c, _mm_slli_si128(c, 1));
+  const __mmask16 bad_gap = _mm_cmpgt_epu8_mask(_mm_sub_epi8(gap, gmin), gmax);
+
+  const uint32_t zero_bits =
+      static_cast<uint32_t>(_mm_cmpeq_epi8_mask(v, zero));
+  const uint32_t start_bits = (dots << 1) | 1u;
+
+  const __mmask16 kerr =
+      _kor_mask16(_kor_mask16(hole, static_cast<__mmask16>(over)), bad_gap);
+  const uint32_t gerr = static_cast<uint32_t>(_mm_popcnt_u32(dots) ^ 3u) |
+                        (zero_bits & start_bits & (keep >> 1));
+
+  if ((gerr | static_cast<uint32_t>(kerr)) == 0) [[likely]] {
+    const uint32_t packed =
+        static_cast<uint32_t>(_mm_cvtsi128_si32(_mm_cvtepi32_epi8(res)));
+#if defined(__GNUC__) || defined(__clang__)
+    return static_cast<uint64_t>(__builtin_bswap32(packed));
+#else
+    return static_cast<uint64_t>(_byteswap_ulong(packed));
+#endif
   }
-  // Convert from a tiny stack copy so trusted peeks stay in-bounds.
-  alignas(16) char buf[16]{};
-  std::memcpy(buf, data, effective_len);
-  return parse_ipv4_decimal_trusted(buf, buf + effective_len);
+  return ipv4_fast_fail;
 }
-#endif  // ADA_AVX512
+#endif  // ADA_AVX512 && __AVX512VBMI2__
 
 }  // namespace detail
 
@@ -1394,9 +1451,10 @@ ada_really_inline uint64_t try_parse_ipv4_avx512(const char* data,
  * Fast pure-decimal IPv4 parse. Returns packed address or ipv4_fast_fail.
  * Accepts an optional single trailing dot.
  *
- * On AVX-512BW+VL targets, uses a masked-load SIMD kernel (no source
- * over-read) inspired by Lemire/Mula. Otherwise uses an unrolled scalar path
- * (typically faster than SSE2/NEON pre-validation for these 7-16 byte hosts).
+ * On AVX-512BW+VL+VBMI2 targets, uses a table-free SIMD parse (masked
+ * load, no source over-read) based on parse_ipv4_avx512vl_notab5.
+ * Otherwise uses an unrolled scalar path (typically faster than SSE2/NEON
+ * pre-validation for these 7-16 byte hosts).
  */
 ada_really_inline uint64_t
 try_parse_ipv4_fast(std::string_view input) noexcept {
@@ -1407,7 +1465,7 @@ try_parse_ipv4_fast(std::string_view input) noexcept {
   }
   const char* data = input.data();
 
-#if defined(ADA_AVX512)
+#if defined(ADA_AVX512) && defined(__AVX512VBMI2__)
   return detail::try_parse_ipv4_avx512(data, len);
 #else
   return detail::parse_ipv4_decimal_scalar(data, data + len);
@@ -1477,6 +1535,7 @@ constexpr ada_really_inline void log([[maybe_unused]] Args... args) {
 #define ADA_ENCODING_TYPE_H
 
 #include <string>
+#include <string_view>
 
 namespace ada {
 
@@ -1540,7 +1599,9 @@ ada_warn_unused std::string_view to_string(encoding_type type);
 #define ADA_SCHEME_H
 
 
+#include <cstdint>
 #include <string>
+#include <string_view>
 
 /**
  * @namespace ada::scheme
@@ -1611,6 +1672,8 @@ constexpr ada::scheme::type get_scheme_type(std::string_view scheme) noexcept;
 #endif  // ADA_SCHEME_H
 /* end file include/ada/scheme.h */
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -1745,11 +1808,15 @@ struct url_base {
 #endif
 /* end file include/ada/url_base.h */
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
-#include <optional>
+#include <utility>
 
 #if ADA_DEVELOPMENT_CHECKS
+#include <cstdlib>
 #include <iostream>
 #endif  // ADA_DEVELOPMENT_CHECKS
 
@@ -1983,6 +2050,8 @@ inline int fast_digit_count(uint32_t x) noexcept {
 #ifndef ADA_PARSER_H
 #define ADA_PARSER_H
 
+#include <cstddef>
+#include <cstdint>
 #include <string_view>
 #include <variant>
 
@@ -2014,8 +2083,10 @@ inline int fast_digit_count(uint32_t x) noexcept {
 #define TL_EXPECTED_VERSION_MINOR 1
 #define TL_EXPECTED_VERSION_PATCH 0
 
+#include <cstddef>
 #include <exception>
 #include <functional>
+#include <initializer_list>
 #include <type_traits>
 #include <utility>
 
@@ -4506,8 +4577,11 @@ void swap(expected<T, E>& lhs,
 #ifndef ADA_URL_PATTERN_REGEX_H
 #define ADA_URL_PATTERN_REGEX_H
 
+#include <concepts>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #ifdef ADA_USE_UNSAFE_STD_REGEX_PROVIDER
 #include <regex>
@@ -4516,6 +4590,31 @@ void swap(expected<T, E>& lhs,
 #if ADA_INCLUDE_URL_PATTERN
 namespace ada::url_pattern_regex {
 
+/**
+ * @brief Concept defining the interface for regex engine providers used by
+ * URLPattern.
+ *
+ * A regex provider supplies the regular expression engine used for
+ * pattern compilation and matching.
+ *
+ * Requirements:
+ * - typename T::regex_type: The compiled regex object type.
+ * - T::create_instance(pattern, ignore_case): Compiles the regex pattern
+ * string. Returns std::nullopt if the pattern is invalid or cannot be compiled.
+ * - T::regex_search(input, pattern): Executes a regex search against the input,
+ *     returning a vector of capture group values (with std::nullopt for
+ * unmatched optional groups) or std::nullopt if the input does not match.
+ * - T::regex_match(input, pattern): Returns true if the input matches the
+ * pattern, or false otherwise.
+ *
+ * Exception contract:
+ * Provider methods may throw exceptions (for example, on allocation failure,
+ * input length limits, complexity limits, or internal engine errors). In
+ * environments where C++ exceptions are enabled, exceptions thrown by the
+ * provider will propagate out of URLPattern functions (such as fast_test,
+ * fast_match, test, exec, match, etc.). Providers that prefer non-throwing
+ * operation should handle internal errors and return false or std::nullopt.
+ */
 template <typename T>
 concept regex_concept = requires(T t, std::string_view pattern,
                                  bool ignore_case, std::string_view input) {
@@ -4593,10 +4692,12 @@ enum class errors : uint8_t {
 #endif  // ADA_ERRORS_H
 /* end file include/ada/errors.h */
 
-#include <string_view>
-#include <string>
-#include <optional>
+#include <concepts>
+#include <cstdint>
 #include <iostream>
+#include <optional>
+#include <string>
+#include <string_view>
 
 #if ADA_TESTING
 #include <iostream>
@@ -4778,6 +4879,19 @@ extern template url parse_url_impl<url, true>(std::string_view user_input,
 template <class result_type>
 bool try_parse_simple_absolute(std::string_view input, result_type& out);
 
+/** @private */
+template <class result_type>
+bool finish_simple_absolute_with_port(std::string_view input, result_type& out,
+                                      ada::scheme::type scheme_type,
+                                      uint32_t protocol_end, size_t host_start,
+                                      size_t host_end, size_t host_len,
+                                      bool has_upper);
+
+/** @private */
+template <class result_type>
+bool try_parse_simple_relative(std::string_view input, const result_type& base,
+                               result_type& out);
+
 #if ADA_INCLUDE_URL_PATTERN
 template <url_pattern_regex::regex_concept regex_provider>
 tl::expected<url_pattern<regex_provider>, errors> parse_url_pattern_impl(
@@ -4825,9 +4939,12 @@ tl::expected<url_pattern<regex_provider>, errors> parse_url_pattern_impl(
 #ifndef ADA_IMPLEMENTATION_H
 #define ADA_IMPLEMENTATION_H
 
+#include <cstdint>
+#include <optional>
+#include <span>
 #include <string>
 #include <string_view>
-#include <optional>
+#include <variant>
 
 /* begin file include/ada/url.h */
 /**
@@ -4844,6 +4961,8 @@ tl::expected<url_pattern<regex_provider>, errors> parse_url_pattern_impl(
 #define ADA_URL_H
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -4860,6 +4979,9 @@ tl::expected<url_pattern<regex_provider>, errors> parse_url_pattern_impl(
  */
 #ifndef ADA_URL_COMPONENTS_H
 #define ADA_URL_COMPONENTS_H
+
+#include <cstdint>
+#include <string>
 
 namespace ada {
 
@@ -5306,6 +5428,14 @@ struct url : url_base {
   template <class result_type>
   friend bool ada::parser::try_parse_simple_absolute(std::string_view,
                                                      result_type&);
+  template <class result_type>
+  friend bool ada::parser::finish_simple_absolute_with_port(
+      std::string_view, result_type&, ada::scheme::type, uint32_t, size_t,
+      size_t, size_t, bool);
+  template <class result_type>
+  friend bool ada::parser::try_parse_simple_relative(std::string_view,
+                                                     const result_type&,
+                                                     result_type&);
 
   inline void update_unencoded_base_hash(std::string_view input);
   inline void update_base_hostname(std::string_view input);
@@ -5316,6 +5446,12 @@ struct url : url_base {
   inline void update_base_username(std::string_view input);
   inline void update_base_password(std::string_view input);
   inline void update_base_port(std::optional<uint16_t> input);
+
+  /**
+   * Returns true if growing href by input_len (worst case) could exceed
+   * get_max_input_length(), meaning a rollback snapshot is actually needed.
+   */
+  [[nodiscard]] bool needs_rollback_snapshot(size_t input_len) const noexcept;
 
   /**
    * Sets the host or hostname according to override condition.
@@ -5544,6 +5680,52 @@ ada_warn_unused tl::expected<url_pattern<regex_provider>, errors>
 parse_url_pattern(std::variant<std::string_view, url_pattern_init>&& input,
                   const std::string_view* base_url = nullptr,
                   const url_pattern_options* options = nullptr);
+
+template <url_pattern_regex::regex_concept regex_provider>
+class url_pattern_list;
+
+/**
+ * Compiles a set of URLPattern pathname patterns into an ada::url_pattern_list
+ * (experimental): one structure that answers "which route matches this
+ * pathname, and what are its group values?" without a loop over the
+ * patterns and without executing regular expressions for routes written in
+ * the static / ":param" / "*" subset.
+ *
+ * @tparam regex_provider The regex implementation, as for parse_url_pattern;
+ *         it is used only for routes that need URLPattern regexp semantics.
+ *
+ * @param pathname_patterns URLPattern pathname patterns (valid UTF-8), for
+ *        example "/users/:id". The index of a pattern is the route index
+ *        reported by url_pattern_list::match; duplicates are allowed.
+ * @param base_url Optional pointer to a base URL string (valid UTF-8): each
+ *        pattern is then processed as the pathname of a URLPatternInit with
+ *        that base URL (relative patterns resolve against its path).
+ * @param options Optional pointer to configuration options (ignore_case),
+ *        applied to every route as parse_url_pattern applies them.
+ *
+ * @return A `tl::expected` containing either the compiled list on success,
+ *         or an error code when a pattern is not a valid URLPattern pathname
+ *         pattern (errors::type_error, as the URLPattern constructor).
+ *
+ * @see https://github.com/whatwg/urlpattern/issues/166
+ */
+template <url_pattern_regex::regex_concept regex_provider>
+ada_warn_unused tl::expected<url_pattern_list<regex_provider>, errors>
+parse_url_pattern_list(std::span<const std::string_view> pathname_patterns,
+                       const std::string_view* base_url = nullptr,
+                       const url_pattern_options* options = nullptr);
+
+/**
+ * Compiles the pathname components of existing url_pattern objects into an
+ * ada::url_pattern_list (experimental). Only the pathname component of each
+ * pattern is used; routes that need the regex provider reuse the pattern's
+ * already compiled pathname component. All patterns must share the same
+ * ignore_case setting (errors::type_error otherwise); the pathname is
+ * compiled as for a special-scheme URL.
+ */
+template <url_pattern_regex::regex_concept regex_provider>
+ada_warn_unused tl::expected<url_pattern_list<regex_provider>, errors>
+parse_url_pattern_list(std::span<const url_pattern<regex_provider>> patterns);
 #endif  // ADA_INCLUDE_URL_PATTERN
 
 /**
@@ -5588,10 +5770,13 @@ uint32_t get_max_input_length();
 #endif  // ADA_IMPLEMENTATION_H
 /* end file include/ada/implementation.h */
 
+#include <cstdint>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -5771,7 +5956,8 @@ class url_pattern_component {
 
   // Fast path test that returns true/false without constructing result groups.
   // Uses cached pattern type to skip regex evaluation for simple patterns.
-  bool fast_test(std::string_view input) const noexcept;
+  // Note: Not marked noexcept because the regex provider may throw.
+  bool fast_test(std::string_view input) const;
 
   // Fast path match that returns capture groups without regex for simple
   // patterns. Returns nullopt if pattern doesn't match, otherwise returns
@@ -5808,6 +5994,10 @@ using url_pattern_input = std::variant<std::string_view, url_pattern_init>;
 // A struct providing the URLPattern matching results for all
 // components of a URL. The URLPatternResult API is defined as
 // part of the URLPattern specification.
+//
+// string_view entries in `inputs` that were filled by exec/match
+// point at storage owned by this object and stay valid for its
+// lifetime, including after copy and move.
 struct url_pattern_result {
   std::vector<url_pattern_input> inputs;
   url_pattern_component_result protocol;
@@ -5818,6 +6008,32 @@ struct url_pattern_result {
   url_pattern_component_result pathname;
   url_pattern_component_result search;
   url_pattern_component_result hash;
+
+  url_pattern_result() = default;
+  url_pattern_result(const url_pattern_result& other);
+  url_pattern_result(url_pattern_result&& other) noexcept;
+  url_pattern_result& operator=(const url_pattern_result& other);
+  url_pattern_result& operator=(url_pattern_result&& other) noexcept;
+  ~url_pattern_result() = default;
+
+ private:
+  // At most two strings: the input URL and the optional base URL.
+  // Filled only by store_inputs.
+  std::vector<std::string> owned_strings_{};
+
+  // Point each inputs[] view that aliases `from[i]` at the same
+  // offset inside owned_strings_[i].
+  void rebind_owned_input_views(const std::pair<const char*, size_t>* from,
+                                size_t from_size);
+  // Move inputs + owned_strings_ from other and rebind. other is
+  // left with empty inputs / owned_strings_. Component results are
+  // not touched.
+  void take_inputs(url_pattern_result& other) noexcept;
+  void store_inputs(const url_pattern_input& input,
+                    const std::string_view* base_url = nullptr);
+
+  template <url_pattern_regex::regex_concept regex_provider>
+  friend class url_pattern;
 };
 
 struct url_pattern_options {
@@ -5997,8 +6213,14 @@ class url_pattern {
 #define ADA_URL_PATTERN_HELPERS_H
 
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <tuple>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 #if ADA_INCLUDE_URL_PATTERN
@@ -6089,6 +6311,10 @@ class url_pattern_parser {
   std::string pending_fixed_value{};
   size_t index = 0;
   size_t next_numeric_name = 0;
+  // Names already taken by a part, for the "is a duplicate name" check in
+  // add_part. A linear scan of the part list there is O(n^2) over a pattern
+  // with n named parts (e.g. "/*" repeated); this set keeps it amortized O(1).
+  std::unordered_set<std::string> seen_names{};
 };
 
 // @see https://urlpattern.spec.whatwg.org/#tokenizer
@@ -6342,8 +6568,10 @@ std::string generate_segment_wildcard_regexp(
 #endif
 /* end file include/ada/url_pattern_helpers.h */
 
+#include <cstdint>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 
 namespace ada::parser {
@@ -6426,9 +6654,12 @@ tl::expected<url_pattern<regex_provider>, errors> parse_url_pattern_impl(
   // using ASCII digits then set processedInit["port"] to the empty string.
   // TODO: Optimization opportunity.
   if (scheme::is_special(*processed_init->protocol)) {
-    std::string_view port = processed_init->port.value();
-    if (std::to_string(scheme::get_special_port(*processed_init->protocol)) ==
-        port) {
+    // file is the only special scheme with no default port; get_special_port
+    // returns 0 as its sentinel, so a literal "0" port must not be mistaken for
+    // a default and dropped.
+    uint16_t default_port = scheme::get_special_port(*processed_init->protocol);
+    if (default_port != 0 &&
+        std::to_string(default_port) == processed_init->port.value()) {
       processed_init->port->clear();
     }
   }
@@ -6532,6 +6763,9 @@ tl::expected<url_pattern<regex_provider>, errors> parse_url_pattern_impl(
   auto compile_options = url_pattern_compile_component_options::DEFAULT;
   if (options) {
     compile_options.ignore_case = options->ignore_case;
+    // Recorded on the pattern so that url_pattern::ignore_case() reports the
+    // option it was created with.
+    url_pattern_.ignore_case_ = options->ignore_case;
   }
 
   // TODO: Optimization opportunity: Simplify this if statement.
@@ -6614,6 +6848,10 @@ tl::expected<url_pattern<regex_provider>, errors> parse_url_pattern_impl(
 #ifndef ADA_SCHEME_INL_H
 #define ADA_SCHEME_INL_H
 
+
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
 
 namespace ada::scheme {
 
@@ -6744,6 +6982,8 @@ constexpr ada::scheme::type get_scheme_type(std::string_view scheme) noexcept {
 
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 /**
@@ -6936,9 +7176,11 @@ ada_warn_unused std::string to_string(ada::state s);
 #define ADA_UNICODE_H
 
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
-#include <optional>
 
 /**
  * Unicode operations. These functions are not part of our public API and may
@@ -7187,6 +7429,7 @@ constexpr bool to_lower_ascii(char* input, size_t length) noexcept;
 #define ADA_URL_BASE_INL_H
 
 
+#include <cstdint>
 #include <string>
 #if ADA_REGULAR_VISUAL_STUDIO
 #include <intrin.h>
@@ -7222,9 +7465,14 @@ url_base::scheme_default_port() const noexcept {
 
 
 #include <charconv>
+#include <cstdint>
 #include <cstring>
 #include <optional>
+#include <ostream>
 #include <string>
+#include <string_view>
+#include <system_error>
+#include <utility>
 #if ADA_REGULAR_VISUAL_STUDIO
 #include <intrin.h>
 #endif  // ADA_REGULAR_VISUAL_STUDIO
@@ -7284,15 +7532,18 @@ inline std::ostream& operator<<(std::ostream& out, const ada::url& u) {
         out.host_start += uint32_t(password.size() + 1);
       }
 
-      out.host_end = uint32_t(out.host_start + host->size());
+      // host_start is the '@' when there are credentials, exactly as
+      // url_aggregator reports it, so the host itself begins one byte later.
+      out.host_end = uint32_t(out.host_start + 1 + host->size());
     } else {
       out.username_end = out.host_start;
 
       // Host does not start with "@" if it does not include credentials.
-      out.host_end = uint32_t(out.host_start + host->size()) - 1;
+      out.host_end = uint32_t(out.host_start + host->size());
     }
 
-    running_index = out.host_end + 1;
+    // host_end is one past the host, so it is already the next index.
+    running_index = out.host_end;
   } else {
     // Update host start and end date to the same index, since it does not
     // exist.
@@ -7572,6 +7823,8 @@ ada_really_inline size_t url::parse_port(std::string_view view,
 #define ADA_URL_COMPONENTS_INL_H
 
 
+#include <cstdint>
+
 namespace ada {
 
 [[nodiscard]] constexpr bool url_components::check_offset_consistency()
@@ -7662,6 +7915,8 @@ namespace ada {
 #ifndef ADA_URL_AGGREGATOR_H
 #define ADA_URL_AGGREGATOR_H
 
+#include <cstddef>
+#include <cstdint>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -7972,6 +8227,16 @@ struct url_aggregator : url_base {
       std::string_view, const url_aggregator*);
   template <class result_type>
   friend bool parser::try_parse_simple_absolute(std::string_view, result_type&);
+  template <class result_type>
+  friend bool parser::finish_simple_absolute_with_port(std::string_view,
+                                                       result_type&,
+                                                       ada::scheme::type,
+                                                       uint32_t, size_t, size_t,
+                                                       size_t, bool);
+  template <class result_type>
+  friend bool parser::try_parse_simple_relative(std::string_view,
+                                                const result_type&,
+                                                result_type&);
 
 #if ADA_INCLUDE_URL_PATTERN
   // url_pattern methods
@@ -8037,6 +8302,17 @@ struct url_aggregator : url_base {
    * string, or its scheme is "file".
    */
   [[nodiscard]] constexpr bool cannot_have_credentials_or_port() const;
+
+  /**
+   * @private
+   * Several setters restore a saved copy of the URL when the mutation pushes
+   * the buffer past get_max_input_length(). A setter grows the buffer by at
+   * most input_len * 3 (worst-case percent-encoding) plus a small constant for
+   * delimiters, so this returns false when that upper bound stays within the
+   * limit. It does not account for parse-failure rollbacks, which are
+   * unrelated to the length limit.
+   */
+  [[nodiscard]] bool needs_rollback_snapshot(size_t input_len) const noexcept;
 
   template <bool override_hostname = false>
   bool set_host_or_hostname(std::string_view input);
@@ -8105,6 +8381,11 @@ inline std::ostream& operator<<(std::ostream& out, const url& u);
 #ifndef ADA_UNICODE_INL_H
 #define ADA_UNICODE_INL_H
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <string_view>
+
 /**
  * Unicode operations. These functions are not part of our public API and may
  * change at any time.
@@ -8149,8 +8430,12 @@ ada_really_inline size_t percent_encode_index(const std::string_view input,
 /* end file include/ada/unicode-inl.h */
 
 #include <charconv>
+#include <cstdint>
+#include <cstring>
 #include <ostream>
+#include <string>
 #include <string_view>
+#include <system_error>
 
 namespace ada {
 
@@ -8245,7 +8530,9 @@ ada_really_inline uint32_t url_aggregator::replace_and_resize(
   if (current_length == 0) {
     buffer.insert(start, input);
   } else if (input_size == current_length) {
-    buffer.replace(start, input_size, input);
+    if (input_size != 0) {
+      std::memmove(buffer.data() + start, input.data(), input_size);
+    }
   } else if (input_size < current_length) {
     buffer.erase(start, current_length - input_size);
     buffer.replace(start, input_size, input);
@@ -8324,17 +8611,17 @@ inline void url_aggregator::update_base_search(std::string_view input) {
     }
 
     buffer.append(input);
+  } else if (components.search_start != url_components::omitted) {
+    const uint32_t difference = replace_and_resize(
+        components.search_start + 1, components.hash_start, input);
+    components.hash_start += difference;
   } else {
-    if (components.search_start == url_components::omitted) {
-      components.search_start = components.hash_start;
-    } else {
-      buffer.erase(components.search_start,
-                   components.hash_start - components.search_start);
-      components.hash_start = components.search_start;
+    components.search_start = components.hash_start;
+    buffer.insert(components.search_start, input.size() + 1, '?');
+    if (!input.empty()) {
+      std::memmove(buffer.data() + components.search_start + 1, input.data(),
+                   input.size());
     }
-
-    buffer.insert(components.search_start, "?");
-    buffer.insert(components.search_start + 1, input);
     components.hash_start += uint32_t(input.size() + 1);  // Do not forget `?`
   }
 
@@ -8364,30 +8651,29 @@ inline void url_aggregator::update_base_search(
       buffer.append(input);
     }
   } else {
-    if (components.search_start == url_components::omitted) {
-      components.search_start = components.hash_start;
-    } else {
-      buffer.erase(components.search_start,
-                   components.hash_start - components.search_start);
-      components.hash_start = components.search_start;
+    const size_t idx =
+        ada::unicode::percent_encode_index(input, query_percent_encode_set);
+    std::string encoded;
+    std::string_view replacement = input;
+    if (idx != input.size()) {
+      encoded =
+          ada::unicode::percent_encode(input, query_percent_encode_set, idx);
+      replacement = encoded;
     }
 
-    buffer.insert(components.search_start, "?");
-    size_t idx =
-        ada::unicode::percent_encode_index(input, query_percent_encode_set);
-    if (idx == input.size()) {
-      buffer.insert(components.search_start + 1, input);
-      components.hash_start += uint32_t(input.size() + 1);  // Do not forget `?`
+    if (components.search_start != url_components::omitted) {
+      const uint32_t difference = replace_and_resize(
+          components.search_start + 1, components.hash_start, replacement);
+      components.hash_start += difference;
     } else {
-      buffer.insert(components.search_start + 1, input, 0, idx);
-      input.remove_prefix(idx);
-      // We only create a temporary string if we need percent encoding and
-      // we attempt to create as small a temporary string as we can.
-      std::string encoded =
-          ada::unicode::percent_encode(input, query_percent_encode_set);
-      buffer.insert(components.search_start + idx + 1, encoded);
+      components.search_start = components.hash_start;
+      buffer.insert(components.search_start, replacement.size() + 1, '?');
+      if (!replacement.empty()) {
+        std::memmove(buffer.data() + components.search_start + 1,
+                     replacement.data(), replacement.size());
+      }
       components.hash_start +=
-          uint32_t(encoded.size() + idx + 1);  // Do not forget `?`
+          uint32_t(replacement.size() + 1);  // Do not forget `?`
     }
   }
 
@@ -8591,16 +8877,14 @@ inline void url_aggregator::update_base_password(const std::string_view input) {
   uint32_t difference = uint32_t(input.size());
 
   if (password_exists) {
-    uint32_t current_length =
-        components.host_start - components.username_end - 1;
-    buffer.erase(components.username_end + 1, current_length);
-    difference -= current_length;
+    difference = replace_and_resize(components.username_end + 1,
+                                    components.host_start, input);
   } else {
-    buffer.insert(components.username_end, ":");
+    buffer.insert(components.username_end, input.size() + 1, ':');
+    std::memmove(buffer.data() + components.username_end + 1, input.data(),
+                 input.size());
     difference++;
   }
-
-  buffer.insert(components.username_end + 1, input);
   components.host_start += difference;
 
   // The following line is required to add "@" to hostname. When updating
@@ -9288,9 +9572,11 @@ void url_aggregator::update_host_to_base_host(const std::string_view input) {
 #ifndef ADA_URL_SEARCH_PARAMS_H
 #define ADA_URL_SEARCH_PARAMS_H
 
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace ada {
@@ -9547,7 +9833,9 @@ struct url_search_params_iter {
 
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <optional>
 #include <ranges>
 #include <string>
@@ -9565,8 +9853,10 @@ template <typename T, ada::url_search_params_iter_type Type>
 url_search_params url_search_params_iter<T, Type>::EMPTY;
 
 inline void url_search_params::reset(std::string_view input) {
+  // input may point into params.
+  const std::string copy(input);
   params.clear();
-  initialize(input);
+  initialize(copy);
 }
 
 inline void url_search_params::initialize(std::string_view input) {
@@ -9581,7 +9871,15 @@ inline void url_search_params::initialize(std::string_view input) {
     return;
   }
 
-  params.reserve(size_t(std::count(input.begin(), input.end(), '&')) + 1);
+  // count('&')+1 is an upper bound on the pairs the loop below keeps
+  // (empty segments are skipped). It is one character count, which is
+  // the reserve the parse path already paid for. An input of only '&'
+  // would reserve N+1 pairs and store nothing; skip that.
+  const size_t ampersands = size_t(std::count(input.begin(), input.end(), '&'));
+  if (ampersands == input.size()) {
+    return;
+  }
+  params.reserve(ampersands + 1);
 
   auto process_key_value = [&](const std::string_view current) {
     const auto equal = current.find('=');
@@ -9847,8 +10145,13 @@ url_search_params_entries_iter::next() {
 
 
 #include <algorithm>
+#include <cstddef>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
+#include <vector>
 
 #if ADA_INCLUDE_URL_PATTERN
 namespace ada {
@@ -9863,6 +10166,127 @@ inline bool url_pattern_init::operator==(const url_pattern_init& other) const {
 inline bool url_pattern_component_result::operator==(
     const url_pattern_component_result& other) const {
   return input == other.input && groups == other.groups;
+}
+
+inline void url_pattern_result::rebind_owned_input_views(
+    const std::pair<const char*, size_t>* from, size_t from_size) {
+  // A view the caller pushed into `inputs` does not alias `from` and
+  // is left unchanged.
+  for (auto& value : inputs) {
+    auto* sv = std::get_if<std::string_view>(&value);
+    if (sv == nullptr) {
+      continue;
+    }
+    for (size_t i = 0; i < from_size && i < owned_strings_.size(); ++i) {
+      const char* const begin = from[i].first;
+      const char* const end = begin + from[i].second;
+      if (sv->data() >= begin && sv->data() <= end &&
+          static_cast<size_t>(end - sv->data()) >= sv->size()) {
+        const size_t off = static_cast<size_t>(sv->data() - begin);
+        value = std::string_view(owned_strings_[i].data() + off, sv->size());
+        break;
+      }
+    }
+  }
+}
+
+inline void url_pattern_result::take_inputs(
+    url_pattern_result& other) noexcept {
+  // SSO buffers change address when a std::string is moved, so the
+  // source addresses have to be captured first. store_inputs never
+  // owns more than two strings, which keeps this noexcept.
+  std::pair<const char*, size_t> from[2];
+  const size_t n =
+      other.owned_strings_.size() < 2 ? other.owned_strings_.size() : 2;
+  for (size_t i = 0; i < n; ++i) {
+    from[i] = {other.owned_strings_[i].data(), other.owned_strings_[i].size()};
+  }
+  inputs = std::move(other.inputs);
+  owned_strings_ = std::move(other.owned_strings_);
+  rebind_owned_input_views(from, n);
+  other.inputs.clear();
+  other.owned_strings_.clear();
+}
+
+inline void url_pattern_result::store_inputs(const url_pattern_input& input,
+                                             const std::string_view* base_url) {
+  owned_strings_.clear();
+  inputs.clear();
+  // inputs[] holds views into owned_strings_, so it must not reallocate
+  // (and move SSO buffers) after the first view is taken.
+  owned_strings_.reserve(2);
+  if (std::holds_alternative<std::string_view>(input)) {
+    owned_strings_.emplace_back(std::get<std::string_view>(input));
+    inputs.emplace_back(std::string_view(owned_strings_.back()));
+  } else {
+    inputs.emplace_back(std::get<url_pattern_init>(input));
+  }
+  if (base_url != nullptr) {
+    owned_strings_.emplace_back(*base_url);
+    inputs.emplace_back(std::string_view(owned_strings_.back()));
+  }
+}
+
+inline url_pattern_result::url_pattern_result(const url_pattern_result& other)
+    : inputs(other.inputs),
+      protocol(other.protocol),
+      username(other.username),
+      password(other.password),
+      hostname(other.hostname),
+      port(other.port),
+      pathname(other.pathname),
+      search(other.search),
+      hash(other.hash),
+      owned_strings_(other.owned_strings_) {
+  // `other` is unchanged, so its buffers are still the ones inputs
+  // may point at.
+  std::pair<const char*, size_t> from[2];
+  const size_t n =
+      other.owned_strings_.size() < 2 ? other.owned_strings_.size() : 2;
+  for (size_t i = 0; i < n; ++i) {
+    from[i] = {other.owned_strings_[i].data(), other.owned_strings_[i].size()};
+  }
+  rebind_owned_input_views(from, n);
+}
+
+inline url_pattern_result::url_pattern_result(
+    url_pattern_result&& other) noexcept
+    : inputs(),
+      protocol(std::move(other.protocol)),
+      username(std::move(other.username)),
+      password(std::move(other.password)),
+      hostname(std::move(other.hostname)),
+      port(std::move(other.port)),
+      pathname(std::move(other.pathname)),
+      search(std::move(other.search)),
+      hash(std::move(other.hash)),
+      owned_strings_() {
+  take_inputs(other);
+}
+
+inline url_pattern_result& url_pattern_result::operator=(
+    const url_pattern_result& other) {
+  if (this != &other) {
+    url_pattern_result tmp(other);
+    *this = std::move(tmp);
+  }
+  return *this;
+}
+
+inline url_pattern_result& url_pattern_result::operator=(
+    url_pattern_result&& other) noexcept {
+  if (this != &other) {
+    protocol = std::move(other.protocol);
+    username = std::move(other.username);
+    password = std::move(other.password);
+    hostname = std::move(other.hostname);
+    port = std::move(other.port);
+    pathname = std::move(other.pathname);
+    search = std::move(other.search);
+    hash = std::move(other.hash);
+    take_inputs(other);
+  }
+  return *this;
 }
 
 template <url_pattern_regex::regex_concept regex_provider>
@@ -10054,7 +10478,7 @@ url_pattern_component<regex_provider>::compile(
 
 template <url_pattern_regex::regex_concept regex_provider>
 bool url_pattern_component<regex_provider>::fast_test(
-    std::string_view input) const noexcept {
+    std::string_view input) const {
   // Fast path for simple patterns - avoid regex evaluation
   // Using if-else for better branch prediction on common cases
   if (type == url_pattern_component_type::FULL_WILDCARD) {
@@ -10154,8 +10578,11 @@ result<bool> url_pattern<regex_provider>::test(
                            search_view, *apply_result->hash);
   }
 
-  // URL string input path
-  result<url_aggregator> base_url;
+  // URL string input path.
+  // Let baseURL be null. A default-constructed result holds a value (an
+  // empty URL), and a relative input would then resolve against it. Start
+  // from an error so "no base given" means no value.
+  result<url_aggregator> base_url = tl::unexpected(errors::type_error);
   if (base_url_string) {
     base_url = ada::parse<url_aggregator>(*base_url_string, nullptr);
     if (!base_url) {
@@ -10203,10 +10630,6 @@ result<std::optional<url_pattern_result>> url_pattern<regex_provider>::match(
   std::string pathname{};
   std::string search{};
   std::string hash{};
-
-  // Let inputs be an empty list.
-  // Append input to inputs.
-  std::vector inputs{input};
 
   // If input is a URLPatternInit then:
   if (std::holds_alternative<url_pattern_init>(input)) {
@@ -10271,8 +10694,10 @@ result<std::optional<url_pattern_result>> url_pattern<regex_provider>::match(
   } else {
     ADA_ASSERT_TRUE(std::holds_alternative<std::string_view>(input));
 
-    // Let baseURL be null.
-    result<url_aggregator> base_url;
+    // Let baseURL be null. A default-constructed result holds a value (an
+    // empty URL), and a relative input would then resolve against it. Start
+    // from an error so "no base given" means no value.
+    result<url_aggregator> base_url = tl::unexpected(errors::type_error);
 
     // If baseURLString was given, then:
     if (base_url_string) {
@@ -10285,9 +10710,6 @@ result<std::optional<url_pattern_result>> url_pattern<regex_provider>::match(
                 *base_url_string);
         return std::nullopt;
       }
-
-      // Append baseURLString to inputs.
-      inputs.emplace_back(*base_url_string);
     }
 
     url_aggregator* base_url_value =
@@ -10399,8 +10821,9 @@ result<std::optional<url_pattern_result>> url_pattern<regex_provider>::match(
 
   // Let result be a new URLPatternResult.
   auto result = url_pattern_result{};
-  // Set result["inputs"] to inputs.
-  result.inputs = std::move(inputs);
+  // Set result["inputs"] to inputs. Copy URL / base URL text into the
+  // result so inputs[] string_views outlive the caller's arguments.
+  result.store_inputs(input, base_url_string);
   // Set result["protocol"] to the result of creating a component match result
   // given urlPattern's protocol component, protocol, and protocolExecResult.
   result.protocol = protocol_component.create_component_match_result(
@@ -10456,8 +10879,13 @@ result<std::optional<url_pattern_result>> url_pattern<regex_provider>::match(
 #ifndef ADA_URL_PATTERN_HELPERS_INL_H
 #define ADA_URL_PATTERN_HELPERS_INL_H
 
+#include <cstddef>
+#include <cstdint>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 
 #if ADA_INCLUDE_URL_PATTERN
@@ -11131,9 +11559,10 @@ std::optional<errors> url_pattern_parser<F>::add_part(
     next_numeric_name++;
   }
   // If the result of running is a duplicate name given parser and name is
-  // true, then throw a TypeError.
-  if (std::ranges::any_of(
-          parts, [&name](const auto& part) { return part.name == name; })) {
+  // true, then throw a TypeError. Tracked in a set so this stays O(1): a
+  // linear scan of the part list here is O(n^2) over a pattern string with n
+  // named parts (e.g. "/*" repeated), an algorithmic-complexity DoS.
+  if (!name.empty() && !seen_names.insert(name).second) {
     return errors::type_error;
   }
   // Let encoded prefix be the result of running parser's encoding callback
@@ -11596,6 +12025,1151 @@ constructor_string_parser<regex_provider>::parse(std::string_view input) {
 #endif  // ADA_INCLUDE_URL_PATTERN
 #endif
 /* end file include/ada/url_pattern_helpers-inl.h */
+/* begin file include/ada/url_pattern_list.h */
+/**
+ * @file url_pattern_list.h
+ * @brief Compiled set-level matching over URLPattern pathname patterns.
+ *
+ * `ada::url_pattern_list` answers the question "which of my N routes matches
+ * this pathname, and what are the parameter values?" in a single walk
+ * instead of a loop of N `url_pattern::exec` calls. The whole route set is
+ * compiled once, by ada::parse_url_pattern_list, into a segment trie with
+ * per-node dispatch (direct compares for small fanouts, a first-byte index
+ * at the root, perfect-hash projection for wide nodes). Matching a pathname
+ * against the compiled set is allocation-free and does not execute any
+ * regular expression for routes written in the common static / ":param" /
+ * "*" subset; other routes are matched through the regex provider, exactly
+ * as ada::url_pattern does.
+ *
+ * This implements the route-set ("URLPatternList") use case discussed in
+ * https://github.com/whatwg/urlpattern/issues/166 for the pathname component.
+ *
+ * Correctness does not depend on the fast path: inputs or routes that exceed
+ * the fast-path limits (documented on the constants in
+ * `ada::url_pattern_list_limits`) are matched by a sequential fallback with
+ * identical priority semantics, never rejected and never answered wrongly.
+ *
+ * @see https://urlpattern.spec.whatwg.org/
+ */
+#ifndef ADA_URL_PATTERN_LIST_H
+#define ADA_URL_PATTERN_LIST_H
+
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#if ADA_INCLUDE_URL_PATTERN
+namespace ada {
+
+/**
+ * The limits of the url_pattern_list fast path. None of them changes what a
+ * list matches: routes and inputs beyond a limit are matched by a sequential
+ * fallback with identical semantics.
+ * @namespace ada::url_pattern_list_limits
+ */
+namespace url_pattern_list_limits {
+
+/**
+ * Maximum number of captures (":param" groups plus one trailing "*" group)
+ * a route may declare and still be compiled into the fast path. Routes with
+ * more groups are matched by the sequential fallback; their match is still
+ * correct, but only the first `max_captures_per_route` captures are reported
+ * (see url_pattern_list_match_result::captures_truncated).
+ */
+inline constexpr uint32_t max_captures_per_route = 8;
+
+/**
+ * Maximum number of '/'-separated segments an input pathname may have and
+ * still be matched by the fast path. Longer inputs fall back to the
+ * sequential matcher and are still matched correctly.
+ */
+inline constexpr uint32_t max_fast_path_segments = 24;
+
+/**
+ * Maximum input pathname length (bytes) accepted by the fast path; segment
+ * offsets are tracked in 16-bit integers internally. Longer inputs fall back
+ * to the sequential matcher and are still matched correctly.
+ */
+inline constexpr uint32_t max_fast_path_pathname_length = 4096;
+
+/**
+ * Maximum number of pattern segments a route may have and still be compiled
+ * into the trie fast path. Deeper routes are matched by the sequential
+ * fallback with identical semantics.
+ */
+inline constexpr uint32_t max_trie_pattern_segments = 16;
+
+/**
+ * Maximum number of routes in a url_pattern_list (a node's static child
+ * count is a uint16_t).
+ */
+inline constexpr size_t max_routes = 65535;
+
+/**
+ * Maximum number of challenger table entries. The table grows with the
+ * product of overlapping auxiliary and trie routes.
+ */
+inline constexpr size_t max_aux_entries = 1u << 20;
+
+}  // namespace url_pattern_list_limits
+
+/**
+ * The result of url_pattern_list::match. A winning route reports its group
+ * values in one of two forms, mirroring url_pattern_list::group_names():
+ *
+ * - Routes in the static / ":param" / "*" subset report zero-allocation
+ *   captures: (offset, length) slices of the pathname passed to match, in
+ *   capture order (":param" groups left to right, then the "*" group).
+ *   `regexp_route` is false and `regexp_groups` is empty.
+ * - Routes matched through the regex provider (patterns with custom regexp
+ *   groups or "?" / "+" / "*" modifiers) report the group values the
+ *   provider's regex_search returned, exactly as url_pattern::exec would for
+ *   the pathname component: `regexp_route` is true, `regexp_groups[i]` is the
+ *   value of group_names(route_index)[i] (nullopt for a group that did not
+ *   participate), and capture_count is 0.
+ *
+ * Routes with more than url_pattern_list_limits::max_captures_per_route
+ * groups report only the first max_captures_per_route slices and set
+ * captures_truncated.
+ */
+struct url_pattern_list_match_result {
+  /** One capture: an (offset, length) slice of the matched pathname. */
+  struct capture {
+    uint32_t offset = 0;
+    uint32_t length = 0;
+  };
+  /** Index of the winning route in the creation order, or -1 for no match. */
+  int32_t route_index = -1;
+  /** Number of valid entries in captures. */
+  uint32_t capture_count = 0;
+  /** True when the route has more groups than could be reported as slices. */
+  bool captures_truncated = false;
+  /** True when the winning route was matched through the regex provider; its
+   * group values are in regexp_groups. */
+  bool regexp_route = false;
+  std::array<capture, url_pattern_list_limits::max_captures_per_route>
+      captures{};
+  /** Group values of a regexp route, as returned by the provider. */
+  std::vector<std::optional<std::string>> regexp_groups{};
+
+  [[nodiscard]] bool has_match() const noexcept { return route_index >= 0; }
+};
+
+/**
+ * @private
+ * The compiled tables url_pattern_list::match walks, and the inline matcher
+ * over them (url_pattern_list-inl.h). Nothing here is part of the supported
+ * API. The route-set compiler that produces these tables is not part of the
+ * public headers at all (src/url_pattern_list_compiler.h).
+ * @namespace ada::url_pattern_list_detail
+ */
+namespace url_pattern_list_detail {
+
+/** @private One trie node. Nodes with a projection dispatch keep their hash
+ * payload in a separate hash_record, so the common 0/1/direct nodes stay at
+ * 24 bytes. */
+struct node_record {
+  // First static edge (edges are laid out per node, contiguously).
+  int32_t first_child = 0;
+  // Child node index, -2 - route (pure-leaf shortcut), or -1.
+  int32_t param_child = -1;
+  // Route index of a "*" ending at this prefix, or -1.
+  int32_t wild_route = -1;
+  // Route ending exactly here, or -1.
+  int32_t terminal_route = -1;
+  uint16_t n_static = 0;
+  // 0 none, 1 direct compares, 2 projection, 3 linear scan, 4 first-byte
+  // index (root only).
+  uint8_t dispatch = 0;
+  // 1 if the node still has a param/wildcard alternative to backtrack to.
+  uint8_t has_alternative = 0;
+  // Index of the node's hash_record (dispatch == 2 only).
+  uint32_t hash_index = 0;
+};
+
+/** @private Projection-dispatch payload of a hashed node. */
+struct hash_record {
+  uint64_t multiplier = 0;
+  uint32_t slot_base = 0;
+  // Witness plan: 3 nibble ids | count << 12 | use_len << 14.
+  uint16_t witness_plan = 0;
+  // Slot table size == 1 << slot_bits.
+  uint8_t slot_bits = 0;
+  uint8_t reserved = 0;
+};
+
+/** @private One static edge; keys <= 16 bytes verify from the packed
+ * windows alone. */
+struct edge_record {
+  // Key bytes [0, min(8, len)), little-endian, zero-padded.
+  uint64_t prefix = 0;
+  // Key bytes [max(0, len - 8), len), little-endian, zero-padded.
+  uint64_t suffix = 0;
+  // Child node index; negative values encode -2 - route pure-leaf shortcuts.
+  int32_t node = -1;
+  // Full key in the blob (read only when key_length > 16).
+  uint32_t key_offset = 0;
+  uint16_t key_length = 0;
+};
+
+/** @private How one route of the set is matched. */
+enum class route_mode : uint8_t {
+  // Compiled into the trie fast path.
+  trie = 0,
+  // Safe static/":param"/"*" syntax beyond a fast-path build limit: matched
+  // by the sequential segment matcher.
+  sequential = 1,
+  // Needs URLPattern regexp semantics: matched through the regex provider.
+  regexp = 2,
+};
+
+/** @private Everything the matcher knows about one route after a hit. */
+struct route_record {
+  // Packed per-segment kinds, two bits per segment, most significant first;
+  // (kind_sequence, kind_length, route index) compared as a tuple is the
+  // specificity order.
+  uint64_t kind_sequence = 0;
+  // Sequential-mode routes: their segments in the segment table.
+  uint32_t segment_first = 0;
+  uint32_t segment_count = 0;
+  // Auxiliary routes that can outrank this route when it wins the fast
+  // path: a range of the aux table (usually empty).
+  uint32_t challenger_first = 0;
+  uint32_t challenger_count = 0;
+  // Ordinal among the regexp-mode routes, or -1.
+  int32_t regexp_component = -1;
+  uint8_t kind_length = 0;
+  route_mode mode = route_mode::sequential;
+  // Trie-mode routes: capture positions.
+  uint8_t n_params = 0;
+  uint8_t wild = 0;
+  std::array<uint8_t, url_pattern_list_limits::max_captures_per_route>
+      param_positions{};
+};
+
+/** @private One pattern segment of a sequential-mode route. */
+struct segment_record {
+  uint32_t text_offset = 0;
+  uint32_t text_length = 0;
+  // 0 literal, 1 ":param", 2 "*".
+  uint8_t kind = 0;
+};
+
+/**
+ * @private
+ * The compiled route set: one arena holding every table, addressed by
+ * section offsets, plus the per-route group names. Sections are 8-byte
+ * aligned; the blob is zero-padded by 8 bytes so short key windows can be
+ * loaded whole.
+ */
+struct compiled_routes {
+  std::vector<uint8_t> arena{};
+  std::vector<std::vector<std::string>> group_names{};
+  uint32_t nodes_offset = 0;
+  uint32_t hashes_offset = 0;
+  uint32_t edges_offset = 0;
+  uint32_t slots_offset = 0;
+  uint32_t blob_offset = 0;
+  uint32_t routes_offset = 0;
+  uint32_t segments_offset = 0;
+  uint32_t aux_offset = 0;
+  uint32_t root_index_offset = 0;
+  uint32_t n_routes = 0;
+  // All auxiliary routes (regexp mode and sequential mode) in insertion
+  // order: the aux table's first n_aux_all entries; challenger ranges
+  // follow.
+  uint32_t n_aux_all = 0;
+  uint8_t ignore_case = 0;
+
+  template <typename T>
+  [[nodiscard]] const T* section(uint32_t offset) const noexcept {
+    return reinterpret_cast<const T*>(arena.data() + offset);
+  }
+};
+
+/** @private Result of the fast-path engine or of the sequential matcher. */
+struct engine_result {
+  using capture = url_pattern_list_match_result::capture;
+  int32_t route = -1;
+  uint32_t capture_count = 0;
+  // False when the input exceeded a fast-path limit and the caller must run
+  // the sequential fallback over the whole route set.
+  bool within_fast_path = true;
+  bool captures_truncated = false;
+  std::array<capture, url_pattern_list_limits::max_captures_per_route>
+      captures{};
+};
+
+/**
+ * @private
+ * Parses and compiles a set of pathname patterns (already base-URL
+ * processed). Routes that need the regex provider come back with
+ * route_record::regexp_component set to their ordinal in insertion order;
+ * the caller compiles those components and fills their group names.
+ */
+tl::expected<compiled_routes, errors> compile_pathname_patterns(
+    std::span<const std::string> patterns, bool ignore_case);
+
+/**
+ * @private
+ * Sequential reference matcher for one non-regexp route of the compiled set;
+ * matches any input (no fast-path limits) with the same semantics as the
+ * compiled engine. With `fold_input`, input bytes are ASCII case-folded on
+ * the fly (the compiled literals are already folded). On a match, fills
+ * `result` (route index is NOT set) and returns true.
+ */
+bool match_route_sequential(const compiled_routes& tables, uint32_t route,
+                            std::string_view pathname, bool fold_input,
+                            engine_result& result) noexcept;
+
+/**
+ * @private
+ * True when the bytes [p, p + n) hold no line terminator. A "*" segment
+ * compiles to "(.*)" in the URLPattern regexp, and "." in an ECMAScript
+ * regular expression does not match LF or CR, so a wildcard may not capture
+ * past one. Deliberately not inlined into the walk (it costs the static and
+ * ":param" paths, which never run it), and deliberately defined in
+ * url_pattern_list.cpp rather than here: MSVC's ada_never_inline carries no
+ * inline linkage, so a definition in this header is emitted in every
+ * translation unit.
+ */
+bool wildcard_tail_ok(const char* p, uint32_t n) noexcept;
+
+/**
+ * @private
+ * Cheap pre-check for a regexp-mode route before running the provider: the
+ * part of the route's segment shape that is certain (see the compiler's
+ * approximate_kind_sequence) must fit the pathname -- its anchored literal
+ * segments, and its exact segment count when every group is a ":name"
+ * segment wildcard. False proves the regular expression cannot match.
+ */
+bool match_regexp_shape(const compiled_routes& tables, uint32_t route,
+                        std::string_view pathname, bool fold_input) noexcept;
+
+/**
+ * @private
+ * True when route `a` (at insertion index `a_index`) outranks route `b` (at
+ * `b_index`): lexicographically smaller kind sequence, insertion order as the
+ * tiebreak.
+ */
+constexpr bool outranks(uint64_t a_sequence, uint32_t a_length, size_t a_index,
+                        uint64_t b_sequence, uint32_t b_length,
+                        size_t b_index) noexcept {
+  if (a_sequence != b_sequence) {
+    return a_sequence < b_sequence;
+  }
+  if (a_length != b_length) {
+    return a_length < b_length;
+  }
+  return a_index < b_index;
+}
+
+}  // namespace url_pattern_list_detail
+
+template <url_pattern_regex::regex_concept regex_provider>
+class url_pattern_list;
+
+/**
+ * @private
+ * url_pattern_list befriends these two specializations, so they have to be
+ * declared before it: a friend declaration that redeclares the function
+ * template instead is not matched by every compiler we support (Apple clang
+ * 15 rejects the resulting member access). The documented declarations are
+ * in implementation.h, next to parse_url_pattern, and carry the default
+ * arguments: this header includes url_pattern.h, which includes
+ * implementation.h, so those declarations are always seen first, and a
+ * function template may not gain default arguments in a later declaration.
+ */
+template <url_pattern_regex::regex_concept regex_provider>
+ada_warn_unused tl::expected<url_pattern_list<regex_provider>, errors>
+parse_url_pattern_list(std::span<const std::string_view> pathname_patterns,
+                       const std::string_view* base_url,
+                       const url_pattern_options* options);
+
+/** @private See above. */
+template <url_pattern_regex::regex_concept regex_provider>
+ada_warn_unused tl::expected<url_pattern_list<regex_provider>, errors>
+parse_url_pattern_list(std::span<const url_pattern<regex_provider>> patterns);
+
+/**
+ * @brief A compiled set of URLPattern pathname patterns with one-shot
+ * matching.
+ *
+ * Build once with ada::parse_url_pattern_list, then call match() per
+ * request. Matching within the fast-path limits is allocation-free and
+ * regex-free for routes written in the static / ":param" / "*" subset; other
+ * routes are matched through the regex provider (the same regex_search call
+ * url_pattern::exec makes) and still participate in the priority order.
+ *
+ * Match priority is specificity order, not registration order: routes are
+ * compared by their per-segment kind sequence (literal < ":param" < "*",
+ * lexicographically from the first segment), with insertion order breaking
+ * ties. This is the priority scheme of find-my-way (Fastify) and Express-
+ * style routers. Whether a standardized URLPatternList should instead use
+ * pure first-match-in-insertion-order semantics is an open question; the
+ * compiled representation supports either, and the priority rule is
+ * deliberately centralized in url_pattern_list_detail::outranks.
+ *
+ * Scope (v1): the pathname component only. Other URL components are treated
+ * as fully wildcarded; match() takes an already-extracted pathname (for
+ * example ada::url_aggregator::get_pathname()). Inputs are matched as given
+ * and are expected to be in canonical (percent-encoded) form; the pattern
+ * side is canonicalized by the URLPattern pattern parser at creation. The
+ * subset follows the URLPattern regexp it stands for: a ":param" segment
+ * ("[^/]+?") is one non-empty segment, and a "*" tail ("(.*)") matches any
+ * bytes except the line terminators LF and CR, which "." never matches.
+ *
+ * With url_pattern_options::ignore_case, regexp routes are compiled through
+ * the provider with the flag set (as url_pattern does), and the static /
+ * ":param" / "*" subset compares literal segments with ASCII case folding,
+ * which is what a case-insensitive regular expression does over the ASCII
+ * text of a canonical pathname.
+ *
+ * @tparam regex_provider The regex implementation used only for routes that
+ *         need URLPattern regexp semantics. Must satisfy
+ *         url_pattern_regex::regex_concept.
+ */
+template <url_pattern_regex::regex_concept regex_provider>
+class url_pattern_list {
+ public:
+  url_pattern_list() = default;
+
+  /**
+   * Matches a pathname against the set and returns the winning route with
+   * its captures (see url_pattern_list_match_result). The fast path is
+   * allocation-free; inputs beyond the fast-path limits are matched by the
+   * sequential fallback with identical semantics.
+   */
+  [[nodiscard]] url_pattern_list_match_result match(
+      std::string_view pathname) const;
+
+  /** Number of routes in the set. */
+  [[nodiscard]] size_t size() const noexcept { return patterns_.size(); }
+
+  /** The pathname pattern string the route at `route_index` was created
+   * from (after base URL processing, if a base URL was given). */
+  [[nodiscard]] std::string_view pattern(size_t route_index) const
+      ada_lifetime_bound {
+    return patterns_[route_index];
+  }
+
+  /**
+   * Capture group names of the route at `route_index`, in the order of
+   * url_pattern_list_match_result::captures / regexp_groups ("*" groups have
+   * numeric names, per URLPattern).
+   */
+  [[nodiscard]] const std::vector<std::string>& group_names(
+      size_t route_index) const ada_lifetime_bound {
+    return compiled_.group_names[route_index];
+  }
+
+  /** The ignore_case option the set was created with. */
+  [[nodiscard]] bool ignore_case() const noexcept {
+    return compiled_.ignore_case != 0;
+  }
+
+  friend tl::expected<url_pattern_list, errors>
+  parse_url_pattern_list<regex_provider>(
+      std::span<const std::string_view> pathname_patterns,
+      const std::string_view* base_url, const url_pattern_options* options);
+
+  friend tl::expected<url_pattern_list, errors> parse_url_pattern_list<
+      regex_provider>(std::span<const url_pattern<regex_provider>> patterns);
+
+ private:
+  /** @private Compiles the (already processed) pattern strings; the regexp
+   * components are then supplied by the caller in insertion order. */
+  static tl::expected<url_pattern_list, errors> create(
+      std::vector<std::string>&& pathname_patterns, bool ignore_case);
+
+  /** @private Tests one auxiliary route (sequential or regexp mode) and,
+   * when it matches and outranks `best`, replaces `best` with it. `probe`
+   * is the (possibly case-folded) pathname for the sequential matcher,
+   * `pathname` the original for the provider. */
+  void consider_route(
+      uint32_t route_index, std::string_view pathname, std::string_view probe,
+      bool fold_input, url_pattern_list_detail::engine_result& best,
+      std::vector<std::optional<std::string>>& best_groups) const;
+
+  /** @private The pattern strings, by route index. */
+  std::vector<std::string> patterns_{};
+  /** @private The compiled tables. */
+  url_pattern_list_detail::compiled_routes compiled_{};
+  /** @private Compiled pathname components of the regexp-mode routes, in
+   * insertion order. */
+  std::vector<url_pattern_component<regex_provider>> regexp_components_{};
+};
+
+}  // namespace ada
+#endif  // ADA_INCLUDE_URL_PATTERN
+#endif  // ADA_URL_PATTERN_LIST_H
+/* end file include/ada/url_pattern_list.h */
+/* begin file include/ada/url_pattern_list-inl.h */
+/**
+ * @file url_pattern_list-inl.h
+ * @brief The url_pattern_list matcher (inline) and the class template's
+ * member definitions.
+ *
+ * The walk over the compiled tables lives here, as ada_really_inline
+ * functions, so that it inlines into url_pattern_list::match; the route-set
+ * compiler that builds the tables is in its own translation unit
+ * (src/url_pattern_list.cpp) and is not part of the public headers.
+ */
+#ifndef ADA_URL_PATTERN_LIST_INL_H
+#define ADA_URL_PATTERN_LIST_INL_H
+
+
+#include <bit>
+#include <cstdint>
+#include <cstring>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#if ADA_NEON
+#include <arm_neon.h>
+#endif
+
+#if ADA_INCLUDE_URL_PATTERN
+namespace ada::url_pattern_list_detail {
+
+// ---- byte helpers ----------------------------------------------------------
+
+// Unaligned 8-byte little-endian load; all 8 bytes must be readable. The
+// byte-assembly fallback keeps big-endian targets correct (the compiler
+// lowers it to a single load plus byte swap).
+ada_really_inline uint64_t load8_le(const char* p) noexcept {
+  if constexpr (std::endian::native == std::endian::little) {
+    uint64_t x;
+    std::memcpy(&x, p, 8);
+    return x;
+  } else {
+    uint64_t x = 0;
+    for (uint32_t j = 0; j < 8; j++) {
+      x |= static_cast<uint64_t>(static_cast<uint8_t>(p[j])) << (8 * j);
+    }
+    return x;
+  }
+}
+
+// Bytes [0, n) of p packed little-endian, zero-padded; reads exactly n
+// bytes (n < 8). This is the byte-compare path for short tails.
+ada_really_inline uint64_t gather_le(const char* p, uint32_t n) noexcept {
+  uint64_t x = 0;
+  for (uint32_t j = 0; j < n; j++) {
+    x |= static_cast<uint64_t>(static_cast<uint8_t>(p[j])) << (8 * j);
+  }
+  return x;
+}
+
+// Mask selecting the low n bytes, 1 <= n <= 7.
+constexpr uint64_t low_bytes_mask(uint32_t n) noexcept {
+  return ~0ull >> (64 - 8 * n);
+}
+
+// ASCII case folding of n bytes from src into dst (the compiler vectorizes
+// this loop). Only ASCII letters change: canonical pathnames are ASCII, and
+// this is what a case-insensitive regular expression does over them.
+inline void ascii_fold(const char* src, uint32_t n, char* dst) noexcept {
+  for (uint32_t i = 0; i < n; i++) {
+    const uint8_t c = static_cast<uint8_t>(src[i]);
+    dst[i] = static_cast<char>(c | ((c >= 'A' && c <= 'Z') ? 0x20u : 0u));
+  }
+}
+
+// ---- witness machinery -----------------------------------------------------
+// Projection dispatch for wide trie nodes. A witness id names a feature of a
+// byte string:
+//   0..7   the byte at absolute offset id           (0 when out of range)
+//   8..15  the byte at offset id-8 counted from the end
+// A projection is three witness bytes plus the length packed into one
+// uint64; a perfect multiplier turns it into a slot index. Builder and
+// matcher call the same accessors and the same packing, so a slot table
+// cannot disagree with the gather that reads it.
+
+constexpr uint8_t length_byte(uint32_t len) noexcept {
+  return len < 255u ? static_cast<uint8_t>(len) : static_cast<uint8_t>(255);
+}
+
+constexpr uint8_t witness_byte(const char* p, uint32_t len,
+                               uint8_t id) noexcept {  // ids 0..15
+  uint32_t o = id & 7u;
+  bool in = o < len;
+  uint32_t pos = (id & 8u) ? len - 1u - o : o;  // wraps when !in; masked then
+  pos = in ? pos : 0u;
+  uint8_t v = len ? static_cast<uint8_t>(p[pos]) : static_cast<uint8_t>(0);
+  return in ? v : static_cast<uint8_t>(0);
+}
+
+constexpr uint64_t pack_projection(uint8_t f0, uint8_t f1, uint8_t f2,
+                                   uint8_t f3) noexcept {
+  return (static_cast<uint64_t>(f0) << 24) | (static_cast<uint64_t>(f1) << 16) |
+         (static_cast<uint64_t>(f2) << 8) | static_cast<uint64_t>(f3);
+}
+
+// Perfect-multiplier slot index; b <= 12 everywhere, so the shift is in
+// range and the product needs no modulus.
+constexpr uint64_t slot_of(uint64_t proj, uint64_t multiplier,
+                           uint8_t b) noexcept {
+  return (proj * multiplier) >> (64 - b);
+}
+
+// Fixed-shape projection of one string: always 3 witness bytes plus the
+// length. Duplicated ids add no information but keep the gather uniform.
+constexpr uint64_t project(const char* p, uint32_t len,
+                           uint16_t plan) noexcept {
+  return pack_projection(
+      witness_byte(p, len, static_cast<uint8_t>(plan & 15u)),
+      witness_byte(p, len, static_cast<uint8_t>((plan >> 4) & 15u)),
+      witness_byte(p, len, static_cast<uint8_t>((plan >> 8) & 15u)),
+      length_byte(len));
+}
+
+// ---- segment scan ----------------------------------------------------------
+
+// Splits the pathname into segments in one pass, in place: only segment
+// starts are recorded, with a sentinel soff[nseg] = ulen + 1 so that
+// seg_len(i) == soff[i + 1] - soff[i] - 1. Returns the segment count, or 0
+// when the input has more than max_fast_path_segments segments (the caller
+// falls back to the sequential matcher). Requires ulen >= 1 and
+// url[0] == '/'.
+//
+// Two implementations with the same contract: the portable SWAR scan (8
+// bytes per step, an exact zero-byte test on x ^ '/'-fill with no false
+// positives, bytes >= 0x80 included, and a byte-exact partial load for the
+// tail, so the input is never over-read), and on AArch64 a NEON scan for
+// inputs of 16 bytes or more (16 bytes per step, the '/' compare narrowed
+// to one nibble per byte, the last block overlapping the previous one so
+// the input is never over-read). The 1k+ pathname benchmark in the PR
+// discussion is what keeps the NEON scan: it is faster at every length and
+// 3-4x faster past 1 KB.
+struct segment_emitter {
+  uint16_t* soff;
+  uint32_t nseg = 0;
+  uint32_t start = 1;
+  // One segment start per set bit of `lanes`; a lane is 1 << shift bits
+  // wide (8 for the SWAR masks, 4 for the NEON nibble masks).
+  ada_really_inline bool emit(uint64_t lanes, uint32_t base,
+                              unsigned shift) noexcept {
+    using url_pattern_list_limits::max_fast_path_segments;
+    while (lanes) {
+      const uint32_t pos =
+          base + (static_cast<uint32_t>(std::countr_zero(lanes)) >> shift);
+      if (nseg >= max_fast_path_segments) {
+        return false;
+      }
+      soff[nseg++] = static_cast<uint16_t>(start);
+      start = pos + 1;
+      lanes &= lanes - 1;
+    }
+    return true;
+  }
+  ada_really_inline uint32_t finish(uint32_t ulen) noexcept {
+    using url_pattern_list_limits::max_fast_path_segments;
+    if (nseg >= max_fast_path_segments) {
+      return 0;
+    }
+    soff[nseg++] = static_cast<uint16_t>(start);
+    soff[nseg] = static_cast<uint16_t>(ulen + 1);  // sentinel
+    return nseg;
+  }
+};
+
+ada_really_inline uint32_t scan_segments_swar(const char* url, uint32_t ulen,
+                                              uint16_t* soff) noexcept {
+  constexpr uint64_t slashes = 0x2F2F2F2F2F2F2F2Full;
+  constexpr uint64_t low7 = 0x7F7F7F7F7F7F7F7Full;
+  // Bit 7 of every byte of x that is zero, exactly: (b & 0x7F) + 0x7F has
+  // bit 7 set iff the low bits are non-zero, b itself has it set iff b is
+  // >= 0x80, and no lane can carry into its neighbour.
+  const auto zero_lanes = [](uint64_t x) noexcept {
+    return ~(((x & low7) + low7) | x | low7);
+  };
+  segment_emitter out{soff};
+  uint32_t i = 1;
+  for (; i + 8 <= ulen; i += 8) {
+    const uint64_t lanes = zero_lanes(load8_le(url + i) ^ slashes);
+    if (lanes != 0 && !out.emit(lanes, i, 3)) {
+      return 0;
+    }
+  }
+  if (i < ulen) {  // tail of 1..7 bytes: zero padding is never a '/'
+    const uint64_t lanes = zero_lanes(gather_le(url + i, ulen - i) ^ slashes);
+    if (lanes != 0 && !out.emit(lanes, i, 3)) {
+      return 0;
+    }
+  }
+  return out.finish(ulen);
+}
+
+#if ADA_NEON
+ada_really_inline uint32_t scan_segments_neon(const char* url, uint32_t ulen,
+                                              uint16_t* soff) noexcept {
+  // Requires ulen >= 16.
+  const uint8x16_t slash = vdupq_n_u8('/');
+  // One bit per byte lane that holds a '/': compare, narrow each 16-bit
+  // pair to its high nibble, keep bit 0 of every nibble.
+  const auto slash_lanes = [&](const char* p) noexcept {
+    const uint8x16_t v = vld1q_u8(reinterpret_cast<const uint8_t*>(p));
+    const uint64_t nibbles =
+        vget_lane_u64(vreinterpret_u64_u8(vshrn_n_u16(
+                          vreinterpretq_u16_u8(vceqq_u8(v, slash)), 4)),
+                      0);
+    return nibbles & 0x1111111111111111ull;
+  };
+  segment_emitter out{soff};
+  uint32_t i = 0;
+  for (; i + 16 <= ulen; i += 16) {
+    uint64_t lanes = slash_lanes(url + i);
+    if (i == 0) {
+      lanes &= ~0xFull;  // the leading '/' is not a separator
+    }
+    if (lanes != 0 && !out.emit(lanes, i, 2)) {
+      return 0;
+    }
+  }
+  if (i < ulen) {  // overlapped last block: drop the lanes already scanned
+    const uint32_t off = ulen - 16;
+    const uint64_t lanes = slash_lanes(url + off) & (~0ull << ((i - off) * 4));
+    if (lanes != 0 && !out.emit(lanes, off, 2)) {
+      return 0;
+    }
+  }
+  return out.finish(ulen);
+}
+#endif  // ADA_NEON
+
+ada_really_inline uint32_t scan_segments(const char* url, uint32_t ulen,
+                                         uint16_t* soff) noexcept {
+#if ADA_NEON
+  if (ulen >= 16) {
+    return scan_segments_neon(url, ulen, soff);
+  }
+#endif
+  return scan_segments_swar(url, ulen, soff);
+}
+
+// ---- verify / dispatch -----------------------------------------------------
+
+// One input segment prepared for dispatch: its bytes, its length, and how
+// many bytes are readable from p (to the end of the pathname).
+struct segment_ref {
+  const char* p;
+  uint32_t len;
+  uint32_t avail;
+};
+
+// Segment-vs-edge compare. Keys of 8..16 bytes verify from two whole-word
+// loads inside the segment; shorter keys from one masked load when the
+// input has 8 readable bytes, else from a byte gather (short tails such as
+// "42" or "me"); longer keys through memcmp against the blob. An empty key
+// (a pattern such as "/users/") matches exactly the empty segment.
+ada_really_inline bool verify_edge(const edge_record& e, const segment_ref& s,
+                                   const char* blob) noexcept {
+  const uint32_t len = s.len;
+  if (len != e.key_length) {
+    return false;
+  }
+  if (len == 0) {
+    return true;
+  }
+  if (len > 16) {
+    return std::memcmp(s.p, blob + e.key_offset, len) == 0;
+  }
+  if (len >= 8) {
+    return ((load8_le(s.p) ^ e.prefix) |
+            (load8_le(s.p + len - 8) ^ e.suffix)) == 0;
+  }
+  const uint64_t x = s.avail >= 8 ? (load8_le(s.p) & low_bytes_mask(len))
+                                  : gather_le(s.p, len);
+  return x == e.prefix;
+}
+
+// The typed view of the arena the walk reads; derived once per match.
+struct table_view {
+  const node_record* nodes;
+  const hash_record* hashes;
+  const edge_record* edges;
+  const uint8_t* slots;
+  const char* blob;
+  const uint16_t* root_index;
+};
+
+ada_really_inline table_view view_of(const compiled_routes& r) noexcept {
+  return table_view{r.section<node_record>(r.nodes_offset),
+                    r.section<hash_record>(r.hashes_offset),
+                    r.section<edge_record>(r.edges_offset),
+                    r.section<uint8_t>(r.slots_offset),
+                    r.section<char>(r.blob_offset),
+                    r.section<uint16_t>(r.root_index_offset)};
+}
+
+// Static-child dispatch: returns the child ordinal within the node or -1.
+// Correctness never depends on the projection or the index: the candidate
+// is always confirmed by a full segment compare, so a bad table can only
+// cost time, never change an answer.
+ada_really_inline int32_t dispatch_static(const table_view& t,
+                                          const node_record& nd,
+                                          const segment_ref& s) noexcept {
+  const edge_record* e = t.edges + nd.first_child;
+  switch (nd.dispatch) {
+    case 0:
+      return -1;
+    case 1: {  // direct: up to 8 compares, each gated by the key length
+      for (uint32_t j = 0; j < nd.n_static; j++) {
+        if (verify_edge(e[j], s, t.blob)) {
+          return static_cast<int32_t>(j);
+        }
+      }
+      return -1;
+    }
+    case 2: {  // projection: gather -> multiply -> slot -> verify
+      const hash_record& h = t.hashes[nd.hash_index];
+      const uint64_t proj = project(s.p, s.len, h.witness_plan);
+      const uint8_t ord =
+          t.slots[h.slot_base + slot_of(proj, h.multiplier, h.slot_bits)];
+      if (ord == 0xFF) {
+        return -1;
+      }
+      return verify_edge(e[ord], s, t.blob) ? static_cast<int32_t>(ord) : -1;
+    }
+    case 4: {  // root first-byte index: jump to the run of children that
+               // share the segment's first byte (children are sorted by it)
+      if (s.len == 0) {
+        return -1;  // no first byte; an indexed root has no empty key
+      }
+      const uint8_t b = static_cast<uint8_t>(s.p[0]);
+      uint32_t j = t.root_index[b];
+      if (j == 0xFFFF) {
+        return -1;
+      }
+      for (; j < nd.n_static && static_cast<uint8_t>(e[j].prefix & 0xFFu) == b;
+           j++) {
+        if (verify_edge(e[j], s, t.blob)) {
+          return static_cast<int32_t>(j);
+        }
+      }
+      return -1;
+    }
+    default: {  // linear demotion rung (also carries fanout > 254)
+      for (uint32_t j = 0; j < nd.n_static; j++) {
+        if (verify_edge(e[j], s, t.blob)) {
+          return static_cast<int32_t>(j);
+        }
+      }
+      return -1;
+    }
+  }
+}
+
+// ---- the match residual ----------------------------------------------------
+
+// Matches `pathname` against the compiled tables. When the input is out of
+// the fast-path contract, returns with within_fast_path == false and no
+// answer; the caller falls back to the sequential matcher.
+ada_really_inline void match_compiled(const compiled_routes& r, const char* url,
+                                      uint32_t ulen,
+                                      engine_result& out) noexcept {
+  using url_pattern_list_limits::max_fast_path_pathname_length;
+  using url_pattern_list_limits::max_fast_path_segments;
+  out = engine_result{};
+  if (ulen == 0 || url[0] != '/' || ulen > max_fast_path_pathname_length) {
+    out.within_fast_path = false;  // the sequential fallback decides
+    return;
+  }
+  const table_view t = view_of(r);
+  const route_record* routes = r.section<route_record>(r.routes_offset);
+
+  // Segment scan; overflow means the input is beyond the fast path.
+  uint16_t soff[max_fast_path_segments + 1];
+  const uint32_t nseg = scan_segments(url, ulen, soff);
+  if (nseg == 0) {
+    out.within_fast_path = false;
+    return;
+  }
+  const auto seg_len = [&](uint32_t i) {
+    return static_cast<uint32_t>(soff[i + 1]) - soff[i] - 1u;
+  };
+  const auto seg_ref = [&](uint32_t i) {
+    const uint32_t off = soff[i];
+    return segment_ref{url + off, seg_len(i), ulen - off};
+  };
+
+  // Trie walk with an explicit bounded backtrack stack. Every node offers
+  // the same three alternatives in the compiled priority order (static
+  // child, param child, wildcard); a backtrack record stores the resume
+  // point, and a record is pushed only when the node still has an untried
+  // alternative, so the stack never exceeds the walk depth. Edges encoded
+  // as -2 - route are pure-leaf shortcuts.
+  enum alternative : uint16_t {
+    alt_static = 0,
+    alt_param = 1,
+    alt_wild = 2,
+    alt_none = 3
+  };
+  struct backtrack {
+    int32_t node;
+    uint16_t i;
+    uint16_t resume;
+  };
+  backtrack stack[max_fast_path_segments + 1];
+  uint32_t sp = 0;
+  int32_t node = 0;
+  uint32_t i = 0;
+  uint32_t alt = alt_static;
+  int32_t route = -1;
+  uint32_t wild_from = 0;
+  bool wild = false;
+  for (;;) {
+    const node_record& nd = t.nodes[static_cast<size_t>(node)];
+    if (alt == alt_static) {
+      if (i == nseg) {
+        if (nd.terminal_route >= 0) {
+          route = nd.terminal_route;
+          break;
+        }
+        alt = alt_none;
+      } else {
+        const int32_t ord = dispatch_static(t, nd, seg_ref(i));
+        if (ord >= 0) {
+          const int32_t nxt = t.edges[static_cast<size_t>(nd.first_child) +
+                                      static_cast<size_t>(ord)]
+                                  .node;
+          if (nxt >= 0) {
+            if (nd.has_alternative) {
+              stack[sp++] = {node, static_cast<uint16_t>(i), alt_param};
+            }
+            node = nxt;
+            i++;
+            continue;
+          }
+          // Pure-leaf shortcut.
+          if (i + 1 == nseg) {
+            route = -2 - nxt;
+            break;
+          }
+          alt = alt_param;  // dead end: fall through to this node's fallbacks
+        } else {
+          alt = alt_param;
+        }
+      }
+    }
+    if (alt == alt_param) {
+      const int32_t pc = nd.param_child;
+      if (pc != -1 && seg_len(i) > 0) {
+        if (pc >= 0) {
+          if (nd.wild_route >= 0) {
+            stack[sp++] = {node, static_cast<uint16_t>(i), alt_wild};
+          }
+          node = pc;
+          i++;
+          alt = alt_static;
+          continue;
+        }
+        // Pure-leaf param shortcut.
+        if (i + 1 == nseg) {
+          route = -2 - pc;
+          break;
+        }
+        alt = alt_wild;  // only the wildcard remains here
+      } else {
+        alt = alt_wild;
+      }
+    }
+    if (alt == alt_wild) {
+      if (nd.wild_route >= 0 &&
+          wildcard_tail_ok(url + soff[i], ulen - soff[i])) {
+        route = nd.wild_route;
+        wild_from = i;
+        wild = true;
+        break;
+      }
+      // No alternative left at this node: resume from the backtrack stack
+      // (alt is overwritten by the popped record).
+    }
+    if (sp == 0) {
+      break;  // nothing to resume: miss
+    }
+    --sp;
+    node = stack[sp].node;
+    i = stack[sp].i;
+    alt = stack[sp].resume;
+  }
+
+  out.route = route;
+  if (route >= 0) {  // capture extraction: params first, wildcard tail last
+    const route_record& rm = routes[static_cast<size_t>(route)];
+    uint32_t nc = 0;
+    for (uint32_t k = 0; k < rm.n_params; k++) {
+      const uint32_t p = rm.param_positions[k];
+      out.captures[nc++] = {soff[p], seg_len(p)};
+    }
+    if (wild) {
+      out.captures[nc++] = {soff[wild_from], ulen - soff[wild_from]};
+    }
+    out.capture_count = nc;
+  }
+}
+
+}  // namespace ada::url_pattern_list_detail
+
+namespace ada {
+
+template <url_pattern_regex::regex_concept regex_provider>
+tl::expected<url_pattern_list<regex_provider>, errors>
+url_pattern_list<regex_provider>::create(
+    std::vector<std::string>&& pathname_patterns, bool ignore_case) {
+  url_pattern_list list{};
+  list.patterns_ = std::move(pathname_patterns);
+  auto compiled = url_pattern_list_detail::compile_pathname_patterns(
+      list.patterns_, ignore_case);
+  if (!compiled) {
+    return tl::unexpected(compiled.error());
+  }
+  list.compiled_ = std::move(*compiled);
+  return list;
+}
+
+template <url_pattern_regex::regex_concept regex_provider>
+void url_pattern_list<regex_provider>::consider_route(
+    uint32_t route_index, std::string_view pathname, std::string_view probe,
+    bool fold_input, url_pattern_list_detail::engine_result& best,
+    std::vector<std::optional<std::string>>& best_groups) const {
+  namespace detail = url_pattern_list_detail;
+  const detail::route_record* routes =
+      compiled_.section<detail::route_record>(compiled_.routes_offset);
+  const detail::route_record& candidate = routes[route_index];
+  // Only test candidates that would outrank the current best.
+  if (best.route >= 0) {
+    const detail::route_record& current =
+        routes[static_cast<size_t>(best.route)];
+    if (!detail::outranks(candidate.kind_sequence, candidate.kind_length,
+                          route_index, current.kind_sequence,
+                          current.kind_length,
+                          static_cast<size_t>(best.route))) {
+      return;
+    }
+  }
+  if (candidate.mode == detail::route_mode::regexp) {
+    // A route whose certain segment shape does not fit the input cannot
+    // match at all: skip the provider.
+    if (!detail::match_regexp_shape(compiled_, route_index, probe,
+                                    fold_input)) {
+      return;
+    }
+    // URLPattern's own test/exec split: regex_match answers yes/no (this is
+    // what rejects a non-matching route cheaply; a regex_search miss can
+    // cost a scan over every start position), and regex_search then
+    // produces the group values exactly as url_pattern::exec does.
+    const url_pattern_component<regex_provider>& component =
+        regexp_components_[static_cast<size_t>(candidate.regexp_component)];
+    if (!component.fast_test(pathname)) {
+      return;
+    }
+    auto groups = component.fast_match(pathname);
+    if (groups) {
+      best = detail::engine_result{};
+      best.route = static_cast<int32_t>(route_index);
+      best_groups = std::move(*groups);
+    }
+  } else {
+    detail::engine_result scratch{};
+    if (detail::match_route_sequential(compiled_, route_index, probe,
+                                       fold_input, scratch)) {
+      scratch.route = static_cast<int32_t>(route_index);
+      best = scratch;
+      best_groups.clear();
+    }
+  }
+}
+
+template <url_pattern_regex::regex_concept regex_provider>
+url_pattern_list_match_result url_pattern_list<regex_provider>::match(
+    std::string_view pathname) const {
+  namespace detail = url_pattern_list_detail;
+  using url_pattern_list_limits::max_fast_path_pathname_length;
+  // A default-constructed list (or one compiled from no routes) has no
+  // tables. Walking them would dereference section pointers into an empty
+  // arena.
+  if (patterns_.empty() || compiled_.arena.empty()) {
+    return {};
+  }
+  // With ignore_case the compiled literals are ASCII-folded, so the fast
+  // path probes a folded copy of the input (offsets are unchanged, so the
+  // captures still slice the original). Inputs beyond the fast-path length
+  // are folded on the fly by the sequential matcher instead.
+  char folded[max_fast_path_pathname_length];
+  std::string_view probe = pathname;
+  bool fold_input = false;
+  if (compiled_.ignore_case) {
+    if (pathname.size() <= max_fast_path_pathname_length) {
+      detail::ascii_fold(pathname.data(),
+                         static_cast<uint32_t>(pathname.size()), folded);
+      probe = std::string_view(folded, pathname.size());
+    } else {
+      fold_input = true;
+    }
+  }
+  detail::engine_result best{};
+  std::vector<std::optional<std::string>> best_groups{};
+  detail::match_compiled(compiled_, probe.data(),
+                         static_cast<uint32_t>(probe.size()), best);
+  const uint32_t* aux = compiled_.section<uint32_t>(compiled_.aux_offset);
+  if (!best.within_fast_path) {
+    // The input exceeds a fast-path limit (length, segment count, or no
+    // leading '/'): the sequential fallback matches every route with
+    // identical priority semantics.
+    best = detail::engine_result{};
+    for (size_t i = 0; i < patterns_.size(); i++) {
+      consider_route(static_cast<uint32_t>(i), pathname, probe, fold_input,
+                     best, best_groups);
+    }
+  } else if (best.route >= 0) {
+    // A fast-path winner is final except for the auxiliary routes recorded
+    // at creation as able to outrank it (usually none).
+    const detail::route_record& winner =
+        compiled_.section<detail::route_record>(
+            compiled_.routes_offset)[static_cast<size_t>(best.route)];
+    for (uint32_t k = 0; k < winner.challenger_count; k++) {
+      consider_route(aux[winner.challenger_first + k], pathname, probe,
+                     fold_input, best, best_groups);
+    }
+  } else {
+    // A fast-path miss: any auxiliary route may still match.
+    for (uint32_t k = 0; k < compiled_.n_aux_all; k++) {
+      consider_route(aux[k], pathname, probe, fold_input, best, best_groups);
+    }
+  }
+  url_pattern_list_match_result result{};
+  result.route_index = best.route;
+  if (best.route >= 0) {
+    const detail::route_record& winner =
+        compiled_.section<detail::route_record>(
+            compiled_.routes_offset)[static_cast<size_t>(best.route)];
+    if (winner.mode == detail::route_mode::regexp) {
+      result.regexp_route = true;
+      result.regexp_groups = std::move(best_groups);
+    } else {
+      result.capture_count = best.capture_count;
+      result.captures_truncated = best.captures_truncated;
+      result.captures = best.captures;
+    }
+  }
+  return result;
+}
+
+}  // namespace ada
+#endif  // ADA_INCLUDE_URL_PATTERN
+#endif  // ADA_URL_PATTERN_LIST_INL_H
+/* end file include/ada/url_pattern_list-inl.h */
 
 // Public API
 /* begin file include/ada/ada_version.h */
@@ -11606,14 +13180,14 @@ constructor_string_parser<regex_provider>::parse(std::string_view input) {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "4.0.0"
+#define ADA_VERSION "4.1.1"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 4,
-  ADA_VERSION_MINOR = 0,
-  ADA_VERSION_REVISION = 0,
+  ADA_VERSION_MINOR = 1,
+  ADA_VERSION_REVISION = 1,
 };
 
 }  // namespace ada
@@ -11629,8 +13203,13 @@ enum {
 
 
 
-#include <variant>
+#include <cstddef>
+#include <span>
+#include <string>
 #include <string_view>
+#include <utility>
+#include <variant>
+#include <vector>
 
 namespace ada {
 
@@ -11642,6 +13221,94 @@ parse_url_pattern(std::variant<std::string_view, url_pattern_init>&& input,
                   const url_pattern_options* options) {
   return parser::parse_url_pattern_impl<regex_provider>(std::move(input),
                                                         base_url, options);
+}
+
+template <url_pattern_regex::regex_concept regex_provider>
+ada_warn_unused tl::expected<url_pattern_list<regex_provider>, errors>
+parse_url_pattern_list(std::span<const std::string_view> pathname_patterns,
+                       const std::string_view* base_url,
+                       const url_pattern_options* options) {
+  std::vector<std::string> processed;
+  processed.reserve(pathname_patterns.size());
+  for (const std::string_view pattern : pathname_patterns) {
+    if (base_url == nullptr) {
+      processed.emplace_back(pattern);
+      continue;
+    }
+    // With a base URL, each pattern is processed exactly as the pathname of
+    // a URLPatternInit would be: a relative pattern is resolved against the
+    // base URL's path (and an unparsable base URL is a type error).
+    url_pattern_init init{};
+    init.pathname = std::string(pattern);
+    init.base_url = std::string(*base_url);
+    auto result = url_pattern_init::process(
+        init, url_pattern_init::process_type::pattern);
+    if (!result) {
+      return tl::unexpected(result.error());
+    }
+    processed.push_back(std::move(result->pathname).value_or(std::string{}));
+  }
+  const bool ignore_case = options != nullptr && options->ignore_case;
+  auto list = url_pattern_list<regex_provider>::create(std::move(processed),
+                                                       ignore_case);
+  if (!list) {
+    return list;
+  }
+  // Routes outside the static/":param"/"*" subset are compiled as a
+  // URLPattern pathname component through the provider, with the same
+  // options parse_url_pattern would use (ignore_case included).
+  auto compile_options = url_pattern_compile_component_options::PATHNAME;
+  compile_options.ignore_case = ignore_case;
+  const url_pattern_list_detail::route_record* routes =
+      list->compiled_.template section<url_pattern_list_detail::route_record>(
+          list->compiled_.routes_offset);
+  for (size_t i = 0; i < list->patterns_.size(); i++) {
+    if (routes[i].regexp_component < 0) {
+      continue;
+    }
+    auto component = url_pattern_component<regex_provider>::compile(
+        list->patterns_[i], url_pattern_helpers::canonicalize_pathname,
+        compile_options);
+    if (!component) {
+      return tl::unexpected(component.error());
+    }
+    list->compiled_.group_names[i] = component->group_name_list;
+    list->regexp_components_.push_back(std::move(*component));
+  }
+  return list;
+}
+
+template <url_pattern_regex::regex_concept regex_provider>
+ada_warn_unused tl::expected<url_pattern_list<regex_provider>, errors>
+parse_url_pattern_list(std::span<const url_pattern<regex_provider>> patterns) {
+  std::vector<std::string> texts;
+  texts.reserve(patterns.size());
+  const bool ignore_case = !patterns.empty() && patterns[0].ignore_case();
+  for (const url_pattern<regex_provider>& pattern : patterns) {
+    if (pattern.ignore_case() != ignore_case) {
+      return tl::unexpected(errors::type_error);  // one flag per list
+    }
+    texts.emplace_back(pattern.get_pathname());
+  }
+  auto list =
+      url_pattern_list<regex_provider>::create(std::move(texts), ignore_case);
+  if (!list) {
+    return list;
+  }
+  // Routes outside the subset reuse the pattern's already compiled pathname
+  // component: no second create_instance through the provider.
+  const url_pattern_list_detail::route_record* routes =
+      list->compiled_.template section<url_pattern_list_detail::route_record>(
+          list->compiled_.routes_offset);
+  for (size_t i = 0; i < patterns.size(); i++) {
+    if (routes[i].regexp_component < 0) {
+      continue;
+    }
+    list->compiled_.group_names[i] =
+        patterns[i].pathname_component.group_name_list;
+    list->regexp_components_.push_back(patterns[i].pathname_component);
+  }
+  return list;
 }
 #endif  // ADA_INCLUDE_URL_PATTERN
 
