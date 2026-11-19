@@ -15,13 +15,20 @@ const { collectUnreviewedScripts } = require('@npmcli/arborist/lib/unreviewed-sc
 // `includeWhenIgnored` keeps listing unreviewed packages even when
 // ignore-scripts is set, so approve/deny can show what you'd move from a
 // blanket ignore-scripts to an allowlist. Execution callers leave it false.
-const checkAllowScripts = async ({ arb, npm, tree, includeWhenIgnored = false }) =>
+const checkAllowScripts = async ({
+  arb,
+  npm,
+  tree,
+  includeWhenIgnored = false,
+  skipExtraneous = false,
+}) =>
   collectUnreviewedScripts({
     tree: tree || arb.actualTree,
     policy: arb.options?.allowScripts || null,
     ignoreScripts: !!arb.options?.ignoreScripts,
     dangerouslyAllowAllScripts: !!npm?.flatOptions?.dangerouslyAllowAllScripts,
     includeWhenIgnored,
+    skipExtraneous,
   })
 
 module.exports = checkAllowScripts
