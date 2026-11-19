@@ -39,6 +39,7 @@ let opened = 0;
 // First uni stream opens immediately.
 const s1 = await clientSession.createUnidirectionalStream({
   body: encoder.encode('uni 1'),
+  waitUntilAvailable: false,
 });
 
 // eslint-disable-next-line node-core/must-call-assert
