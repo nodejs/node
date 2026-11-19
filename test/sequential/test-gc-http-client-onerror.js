@@ -1,12 +1,10 @@
 'use strict';
 // Flags: --expose-gc
 // just like test-gc-http-client.js,
-// but with an on('error') handler that does nothing.
+// but with an on('error') handler that rethrows.
 
 const common = require('../common');
 const { onGC } = require('../common/gc');
-
-const cpus = require('os').availableParallelism();
 
 function serverHandler(req, res) {
   req.resume();
@@ -15,23 +13,23 @@ function serverHandler(req, res) {
 }
 
 const http = require('http');
-const numRequests = 36;
-let createClients = true;
-let done = 0;
+// Keep the number of in-flight requests small and fixed. Opening too many
+// connections at once can overflow the listen queue (capped at 128 on macOS),
+// and the kernel then resets connections that are still being established.
+const concurrency = 8;
+const numRequests = 64;
 let count = 0;
+let done = 0;
 let countGC = 0;
 
 const server = http.createServer(serverHandler);
 server.listen(0, common.mustCall(() => {
-  for (let i = 0; i < cpus; i++)
-    getAll(numRequests);
+  for (let i = 0; i < concurrency; i++)
+    getNext();
 }));
 
-function getAll(requestsRemaining) {
-  if (!createClients)
-    return;
-
-  if (requestsRemaining <= 0)
+function getNext() {
+  if (count >= numRequests)
     return;
 
   const req = http.get({
@@ -42,13 +40,14 @@ function getAll(requestsRemaining) {
 
   count++;
   onGC(req, { ongc });
-
-  setImmediate(getAll, requestsRemaining - 1);
 }
 
 function cb(res) {
   res.resume();
-  done++;
+  res.on('end', () => {
+    done++;
+    getNext();
+  });
 }
 
 function onerror(err) {
@@ -62,16 +61,14 @@ function ongc() {
 setImmediate(status);
 
 function status() {
-  if (done > 0) {
-    createClients = false;
+  if (done === numRequests) {
     global.gc();
-    console.log(`done/collected/total: ${done}/${countGC}/${count}`);
-    if (countGC === count) {
+    console.log(`done/collected/total: ${done}/${countGC}/${numRequests}`);
+    if (countGC === numRequests) {
       server.close();
-    } else {
-      setImmediate(status);
+      return;
     }
-  } else {
-    setImmediate(status);
   }
+
+  setImmediate(status);
 }
