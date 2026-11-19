@@ -357,16 +357,26 @@ void LibuvStreamWrap::HasPendingRead(const FunctionCallbackInfo<Value>& args) {
 
   if (!wrap->IsAlive() || wrap->IsClosing()) return;
 
-#ifdef _WIN32
-  // Only TCP sockets can be probed with recv() on Windows.
-  if (!wrap->is_tcp()) return;
-#else
   if (!wrap->is_tcp() && !wrap->is_named_pipe()) return;
-#endif
 
   uv_os_fd_t fd;
   if (uv_fileno(reinterpret_cast<uv_handle_t*>(wrap->stream()), &fd) != 0)
     return;
+
+#ifdef _WIN32
+  if (wrap->is_named_pipe()) {
+    // Named pipes cannot be probed with recv(): ask the pipe how many bytes
+    // are waiting. A failing probe (e.g. a broken pipe) counts as pending so
+    // the socket is not reused.
+    DWORD bytes_available = 0;
+    if (!PeekNamedPipe(fd, nullptr, 0, nullptr, &bytes_available, nullptr)) {
+      args.GetReturnValue().Set(true);
+      return;
+    }
+    args.GetReturnValue().Set(bytes_available > 0);
+    return;
+  }
+#endif
 
   char c;
 #ifdef _WIN32
