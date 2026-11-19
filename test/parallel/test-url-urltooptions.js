@@ -36,6 +36,44 @@ assert.strictEqual(copiedOpts.search, undefined);
 assert.strictEqual(copiedOpts.hash, undefined);
 assert.strictEqual(copiedOpts.href, undefined);
 
+// A genuine URL instance can still be extended with own enumerable properties
+// (e.g. extra request options) and those properties are carried through.
+const extendedUrl = new URL('http://user:pass@foo.bar.com:21/aaa/zzz?l=24#test');
+extendedUrl.headers = { foo: 'Bar' };
+extendedUrl.method = 'POST';
+const extendedOpts = urlToHttpOptions(extendedUrl);
+assert.deepStrictEqual(extendedOpts.headers, { foo: 'Bar' });
+assert.strictEqual(extendedOpts.method, 'POST');
+
+// A duck-typed object that satisfies `isURL()` (truthy `href` and `protocol`,
+// `auth`/`path` absent) must not be able to smuggle transport/connection
+// options (e.g. `socketPath`) into the request options. Only genuine WHATWG
+// URL instances may carry additional own enumerable properties.
+const duckTypedUrl = {
+  href: 'http://safe-webhook.com/verify',
+  protocol: 'http:',
+  hostname: 'safe-webhook.com',
+  pathname: '/v1.41/version',
+  port: '',
+  username: '',
+  password: '',
+  search: '',
+  hash: '',
+  socketPath: '/var/run/docker.sock',
+  method: 'GET',
+  headers: { 'Content-Type': 'application/json' },
+  agent: false,
+};
+const duckTypedOpts = urlToHttpOptions(duckTypedUrl);
+assert.strictEqual(duckTypedOpts.socketPath, undefined);
+assert.strictEqual(duckTypedOpts.method, undefined);
+assert.strictEqual(duckTypedOpts.headers, undefined);
+assert.strictEqual(duckTypedOpts.agent, undefined);
+// URL-derived fields are still populated from the duck-typed object.
+assert.strictEqual(duckTypedOpts.hostname, 'safe-webhook.com');
+assert.strictEqual(duckTypedOpts.path, '/v1.41/version');
+assert.strictEqual(duckTypedOpts.protocol, 'http:');
+
 // Test when passed an invalid argument
 assert.throws(() => {
   urlToHttpOptions('http://127.0.0.1');
