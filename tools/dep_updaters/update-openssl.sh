@@ -13,7 +13,8 @@ download() {
   LATEST_TAG_NAME="$("$NODE" --input-type=module <<'EOF'
 const res = await fetch('https://api.github.com/repos/openssl/openssl/git/matching-refs/tags/openssl-3.5');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
-const releases = await res.json()
+const releases = (await res.json())
+  .sort(({ ref: a }, { ref: b }) => a.localeCompare(b, 'en', { numeric: true }));
 const latest = releases.at(-1);
 if(!latest) throw new Error(`Could not find latest release`);
 console.log(latest.ref.replace('refs/tags/',''));
