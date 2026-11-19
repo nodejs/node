@@ -1268,11 +1268,18 @@ BaseObjectPtr<Session> Endpoint::Connect(
     return {};
   }
 
+  AddSession(config.scid, session);
+
+  // Send the first flight before marking the session as wrapped. If the
+  // session closes during that send (no usable cipher suite or group, an
+  // expired handshake timeout), FinishClose() has to destroy it directly
+  // instead of calling into JavaScript, which has no QuicSession for it yet.
+  { Session::SendPendingDataScope send_scope(session); }
+  if (session->is_destroyed()) return {};
+
   // Marking a session as "wrapped" means that the reference has been
   // (or will be) passed out to JavaScript.
-  Session::SendPendingDataScope send_scope(session);
   session->set_wrapped();
-  AddSession(config.scid, session);
   return session;
 }
 
