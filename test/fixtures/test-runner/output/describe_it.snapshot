@@ -230,7 +230,6 @@ ok 27 - immediate resolve pass
         <node-internal-frames>
         new Promise (<anonymous>)
         <node-internal-frames>
-        Array.map (<anonymous>)
       ...
     # Subtest: mixing describe/it and test should work
     ok 2 - mixing describe/it and test should work
@@ -516,7 +515,6 @@ not ok 56 - custom inspect symbol that throws fail
         <node-internal-frames>
         new Promise (<anonymous>)
         <node-internal-frames>
-        Array.map (<anonymous>)
       ...
     # Subtest: sync throw fails at second
     not ok 2 - sync throw fails at second
@@ -529,8 +527,6 @@ not ok 56 - custom inspect symbol that throws fail
       code: 'ERR_TEST_FAILURE'
       stack: |-
         TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:311:11)
-        <node-internal-frames>
-        async Promise.all (index 0)
         <node-internal-frames>
       ...
     1..2
@@ -605,8 +601,6 @@ not ok 59 - describe async throw fails
       failureType: 'testTimeoutFailure'
       error: 'test timed out after 5ms'
       code: 'ERR_TEST_FAILURE'
-      stack: |-
-        async Promise.all (index 0)
       ...
     # Subtest: timed out callback test
     not ok 2 - timed out callback test
