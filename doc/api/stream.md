@@ -2338,10 +2338,10 @@ stopped by having passed a `signal` option and aborting the related
 `return`. In either case the stream will be destroyed.
 
 `forEach` is implemented on top of [`readable.map`][]: with the default
-`concurrency` of `1`, chunks are processed strictly one at a time, and the
-next chunk is not read from the stream until the promise returned by `fn` for
-the previous chunk has settled. Set `concurrency` to a value greater than `1`
-to allow up to that many invocations of `fn` to run at the same time.
+`concurrency` of `1`, `forEach` waits for the promise returned by `fn`
+to settle before calling `fn` for the next chunk. Set `concurrency` to a value
+greater than `1` to allow up to that many invocations of `fn` to run at the same
+time.
 
 This method is different from listening to the [`'data'`][] event in that it
 uses the [`readable`][] event in the underlying machinery and can limit the
