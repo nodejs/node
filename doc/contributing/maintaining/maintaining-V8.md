@@ -354,22 +354,38 @@ above. A better strategy is to
 4. Refloat (cherry-pick) all the patches from list computed in 1) as necessary.
    Some of the patches may no longer be necessary.
 
-To audit for floating patches:
-
-```bash
-git log --oneline deps/v8
-```
-
-To replace the copy of V8 in Node.js, use the [`git-node`][] tool. For example,
-if you want to replace the copy of V8 in Node.js with the branch-head for V8 5.1
-branch:
+To audit for floating patches, use `git node v8 list-patches` with the
+target V8 release line. For example, before upgrading to V8 15.7:
 
 ```bash
 cd $NODE_DIR
-git node v8 major --branch=5.1-lkgr
+git node v8 list-patches --target=15.7
+```
+
+It lists every V8 patch floated since the last V8 import, and whether the
+target line already contains each one. See [`git-node-v8-list-patches`][] for
+how to read the output.
+
+To replace the copy of V8 in Node.js, use the [`git-node`][] tool. For example,
+if you want to replace the copy of V8 in Node.js with the branch-head for V8
+15.7 branch:
+
+```bash
+cd $NODE_DIR
+git node v8 major --branch=15.7-lkgr
 ```
 
 This should be followed up with manual refloating of all relevant patches.
+
+After refloating, run `list-patches` on the upgrade branch to verify the
+result:
+
+```bash
+git node v8 list-patches --base=HEAD --check-diff
+```
+
+Check that the listed patches match the ones the earlier run marked to refloat,
+and that each cherry-pick's diff matches its upstream commit.
 
 ## Proposal: Using a fork repository to track upstream V8
 
@@ -419,6 +435,7 @@ This would require some tooling to:
 [V8TemplateUpstreamBug]: https://bugs.chromium.org/p/v8/issues/entry?template=Node.js%20upstream%20bug
 [`@node-core/utils`]: https://github.com/nodejs/node-core-utils#Install
 [`git-node-v8-backport`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-v8-backport-sha
+[`git-node-v8-list-patches`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-v8-list-patches
 [`git-node-v8-minor`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-v8-minor
 [`git-node-v8`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-v8
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-v8
