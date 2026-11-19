@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <sstream>
+#include <vector>
 
 namespace node {
 
@@ -22,6 +23,11 @@ HeapProfileOptions ParseHeapProfileOptions(
     const v8::FunctionCallbackInfo<v8::Value>& args);
 
 bool SerializeHeapProfile(v8::Isolate* isolate, std::ostringstream& out_stream);
+
+v8::MaybeLocal<v8::Array> HeapProfileSamplesToV8Value(
+    v8::Isolate* isolate,
+    v8::Local<v8::Context> context,
+    const std::vector<v8::AllocationProfile::Sample>& samples);
 
 struct CpuProfileOptions {
   int sampling_interval_us = 0;

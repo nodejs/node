@@ -1058,6 +1058,82 @@ class WorkerHeapProfileTaker final : public AsyncWrap {
   SET_SELF_SIZE(WorkerHeapProfileTaker)
 };
 
+void Worker::SetHeapProfileSampleInterval(
+    const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  Environment* env = w->env();
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsNumber());
+  uint64_t interval = static_cast<uint64_t>(args[0].As<Number>()->Value());
+
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_heap_profile_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+  BaseObjectPtr<WorkerHeapProfileTaker> taker =
+      MakeDetachedBaseObject<WorkerHeapProfileTaker>(env, wrap);
+  bool queued = w->RequestInterrupt([taker = std::move(taker), env, interval](
+                                       Environment* worker_env) mutable {
+    auto* profiler = worker_env->isolate()->GetHeapProfiler();
+    profiler->SetSamplingHeapProfilerInterval(interval);
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker)](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+          Local<Value> argv[] = {Null(isolate)};
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+  if (queued) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
+void Worker::GetHeapProfileSamples(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  Environment* env = w->env();
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_heap_profile_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+  BaseObjectPtr<WorkerHeapProfileTaker> taker =
+      MakeDetachedBaseObject<WorkerHeapProfileTaker>(env, wrap);
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker), env](
+                                          Environment* worker_env) mutable {
+    auto* profiler = worker_env->isolate()->GetHeapProfiler();
+    auto samples = profiler->GetSamplingHeapProfilerSamples();
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker), samples = std::move(samples)](
+            Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+          Local<Value> argv[] = {Null(isolate), Undefined(isolate)};
+          if (!HeapProfileSamplesToV8Value(isolate, env->context(), samples)
+                   .ToLocal(&argv[1])) {
+            return;
+          }
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
 void Worker::StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
@@ -1513,6 +1589,12 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "stopCpuProfile", Worker::StopCpuProfile);
     SetProtoMethod(isolate, w, "startHeapProfile", Worker::StartHeapProfile);
     SetProtoMethod(isolate, w, "stopHeapProfile", Worker::StopHeapProfile);
+    SetProtoMethod(isolate,
+                   w,
+                   "setHeapProfileSampleInterval",
+                   Worker::SetHeapProfileSampleInterval);
+    SetProtoMethod(
+        isolate, w, "getHeapProfileSamples", Worker::GetHeapProfileSamples);
 
     SetConstructorFunction(isolate, target, "Worker", w);
   }
@@ -1626,6 +1708,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::StopCpuProfile);
   registry->Register(Worker::StartHeapProfile);
   registry->Register(Worker::StopHeapProfile);
+  registry->Register(Worker::SetHeapProfileSampleInterval);
+  registry->Register(Worker::GetHeapProfileSamples);
 }
 
 }  // anonymous namespace
