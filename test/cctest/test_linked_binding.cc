@@ -499,3 +499,31 @@ TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiThrowsTest) {
       " 'not thrown'; } catch (err) { err.message; }";
   CHECK_EQ(RunScript(isolate_, run_script), "init failed");
 }
+
+napi_value InitializeExportsThenThrowingNapiBinding(napi_env env,
+                                                   napi_value exports) {
+  napi_value new_exports;
+  napi_value value;
+  CHECK_EQ(napi_create_object(env, &new_exports), napi_ok);
+  CHECK_EQ(napi_create_string_utf8(env, "value", NAPI_AUTO_LENGTH, &value),
+           napi_ok);
+  CHECK_EQ(napi_set_named_property(env, new_exports, "key", value), napi_ok);
+  CHECK_EQ(napi_throw_error(env, nullptr, "init failed"), napi_ok);
+  return new_exports;
+}
+
+TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiExportsThrowsTest) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env test_env{handle_scope, argv};
+
+  AddLinkedBinding(*test_env,
+                   "local_linked_napi_exports_throws",
+                   InitializeExportsThenThrowingNapiBinding,
+                   NAPI_VERSION);
+
+  const char* run_script =
+      "try { process._linkedBinding('local_linked_napi_exports_throws').key; }"
+      " catch (err) { err.message; }";
+  CHECK_EQ(RunScript(isolate_, run_script), "init failed");
+}
