@@ -4,6 +4,7 @@ const { join } = require('node:path')
 const { depth } = require('treeverse')
 const crypto = require('node:crypto')
 const { IsolatedNode, IsolatedLink } = require('../isolated-classes.js')
+const { carryRegistryPackageName } = require('../registry-package-name.js')
 
 // generate short hash key based on the dependency tree starting at this node
 const getKey = (startNode) => {
@@ -51,6 +52,7 @@ module.exports = cls => class IsolatedReifier extends cls {
       resolved: node.resolved,
       root,
     })
+    carryRegistryPackageName(node, newChild)
     // XXX top is from place-dep not lib/node.js
     newChild.top = { path: this.idealGraph.localPath }
     root.children.set(newChild.location, newChild)
@@ -186,6 +188,7 @@ module.exports = cls => class IsolatedReifier extends cls {
   }
 
   async #assignCommonProperties (node, result, populateDeps = true) {
+    carryRegistryPackageName(node, result)
     result.root = this.idealGraph
     // XXX does anything need this?
     result.id = this.counter++

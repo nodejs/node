@@ -35,6 +35,7 @@ const promiseAllRejectLate = require('promise-all-reject-late')
 const { callLimit: promiseCallLimit } = require('promise-call-limit')
 const optionalSet = require('../optional-set.js')
 const calcDepFlags = require('../calc-dep-flags.js')
+const { getRegistryPackageName } = require('../registry-package-name.js')
 const { saveTypeMap, hasSubKey } = require('../add-rm-pkg-deps.js')
 const { IsolatedNode, IsolatedLink } = require('../isolated-classes.js')
 
@@ -774,7 +775,8 @@ module.exports = cls => class Reifier extends cls {
       if (node.resolved) {
         const registryResolved = this.#registryResolved(node.resolved)
         if (registryResolved) {
-          res = `${node.name}@${registryResolved}`
+          const packageName = getRegistryPackageName(node) || node.name
+          res = `${packageName}@${registryResolved}`
         }
       } else if (node.package.name && node.version) {
         res = `${node.package.name}@${node.version}`
