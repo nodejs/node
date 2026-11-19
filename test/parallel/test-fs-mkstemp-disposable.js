@@ -76,17 +76,22 @@ if (isMainThread) {
   process.chdir(tmpdir.path);
   const first = fs.mkstempSync('first.');
   const second = fs.mkstempSync('second.');
+  const thirdBuf = fs.mkstempSync(Buffer.from('third-buf.'));
 
   const fullFirstPath = path.join(tmpdir.path, first.path);
   const fullSecondPath = path.join(tmpdir.path, second.path);
+  const fullThirdPath = path.join(tmpdir.path, thirdBuf.path.toString());
 
   assert(fs.existsSync(fullFirstPath));
   assert(fs.existsSync(fullSecondPath));
+  assert(fs.existsSync(fullThirdPath));
 
   process.chdir(otherDir);
   second.remove();
+  thirdBuf.remove();
 
   assert(!fs.existsSync(fullSecondPath));
+  assert(!fs.existsSync(fullThirdPath));
 
   process.chdir(tmpdir.path);
   first.remove();
@@ -200,17 +205,22 @@ async function promisesChdirDoesNotAffectRemoval() {
   process.chdir(tmpdir.path);
   const first = await fsPromises.mkstemp('first-p.');
   const second = await fsPromises.mkstemp('second-p.');
+  const thirdBuf = await fsPromises.mkstemp(Buffer.from('third-p-buf.'));
 
   const fullFirstPath = path.join(tmpdir.path, first.path);
   const fullSecondPath = path.join(tmpdir.path, second.path);
+  const fullThirdPath = path.join(tmpdir.path, thirdBuf.path.toString());
 
   assert(fs.existsSync(fullFirstPath));
   assert(fs.existsSync(fullSecondPath));
+  assert(fs.existsSync(fullThirdPath));
 
   process.chdir(otherDir);
   await second.remove();
+  await thirdBuf.remove();
 
   assert(!fs.existsSync(fullSecondPath));
+  assert(!fs.existsSync(fullThirdPath));
 
   process.chdir(tmpdir.path);
   await first.remove();

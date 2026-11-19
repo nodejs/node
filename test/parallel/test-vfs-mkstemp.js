@@ -43,8 +43,20 @@ const vfs = require('node:vfs');
     assert.ok(myVfs.statSync(file.path).isFile());
     file.remove();
     assert.throws(() => myVfs.statSync(file.path), { code: 'ENOENT' });
+    assert.throws(() => myVfs.closeSync(file.fd), { code: 'EBADF' });
     file.remove(); // idempotent
   }
+
+  myVfs.promises.mkstemp('/tmp-disp-prom-').then(common.mustCall(async (file) => {
+    assert.strictEqual(typeof file.remove, 'function');
+    assert.strictEqual(typeof file[Symbol.asyncDispose], 'function');
+    assert.ok(myVfs.statSync(file.path).isFile());
+    assert.strictEqual(typeof file.fd, 'number');
+    await file.remove();
+    assert.throws(() => myVfs.statSync(file.path), { code: 'ENOENT' });
+    assert.throws(() => myVfs.closeSync(file.fd), { code: 'EBADF' });
+    await file.remove(); // idempotent
+  }));
 }
 
 // node:fs on a mounted path
