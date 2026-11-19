@@ -10,8 +10,16 @@ Run `./configure` first. The set of dependencies that end up in the binary, and
 the toolchain versions, are read from `config.gypi`.
 
 ```bash
-make sbom       # write out/Release/node-v<version>-sbom.json
+make sbom       # write out/Release/node-<process.version>-sbom.json
 make test-sbom  # validate the SBOM written by `make sbom`
+```
+
+The version in the file name and in the SBOM matches `process.version`,
+including `-pre`, `-alpha.*` and `./configure --tag=` suffixes. To write
+elsewhere, set `SBOM_OUTPUT`:
+
+```bash
+make sbom SBOM_OUTPUT=path/to/node.sbom.json
 ```
 
 The script can also be run directly:

@@ -48,11 +48,41 @@ def parse_config_gypi(path):
   return json.loads(json_text).get('variables', {})
 
 
+def _read_node_version_header(root):
+  return (root / 'src/node_version.h').read_text(encoding='utf-8')
+
+
 def get_node_version(root):
-  header = (root / 'src/node_version.h').read_text(encoding='utf-8')
+  header = _read_node_version_header(root)
   parts = [re.search(rf'#define\s+NODE_{part}_VERSION\s+(\d+)', header).group(1)
            for part in ('MAJOR', 'MINOR', 'PATCH')]
   return '.'.join(parts)
+
+
+def get_node_full_version(root, config_vars):
+  """Return `process.version` without the leading "v".
+
+  Mirrors the NODE_TAG logic in src/node_version.h, including a
+  `./configure --tag=` override recorded in config.gypi.
+  """
+  version = get_node_version(root)
+  tag = config_vars.get('node_tag')
+  if tag:
+    return version + tag
+
+  header = _read_node_version_header(root)
+
+  def macro(name):
+    match = re.search(rf'^#define\s+{name}\s+(\d+)', header, re.MULTILINE)
+    return match.group(1) if match else None
+
+  if macro('NODE_VERSION_IS_RELEASE') != '1':
+    return version + '-pre'
+  alpha = [macro(f'NODE_ALPHA_{part}_VERSION')
+           for part in ('MAJOR', 'MINOR', 'PATCH')]
+  if None in alpha:
+    return version
+  return f'{version}-alpha.' + '.'.join(alpha)
 
 
 # ---------------------------------------------------------------------------
@@ -921,7 +951,12 @@ def main():
                            'a new one')
   args = parser.parse_args()
 
-  node_version = get_node_version(REPO_ROOT)
+  config_path = REPO_ROOT / 'config.gypi'
+  if args.validate and not config_path.exists():
+    config_vars = {}
+  else:
+    config_vars = parse_config_gypi(config_path)
+  node_version = get_node_full_version(REPO_ROOT, config_vars)
   output_path = args.output or (
     REPO_ROOT / 'out/Release' / f'node-v{node_version}-sbom.json')
 
@@ -929,7 +964,6 @@ def main():
     validate_sbom(output_path)
     return
 
-  config_vars = parse_config_gypi(REPO_ROOT / 'config.gypi')
   doc = generate_sbom(config_vars, node_version)
   output_path.parent.mkdir(parents=True, exist_ok=True)
   output_path.write_text(json.dumps(doc, indent=2) + '\n', encoding='utf-8')
