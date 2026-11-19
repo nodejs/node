@@ -8,7 +8,9 @@ const zlib = require('zlib');
 {
   function testFastPath() {
     const expected = 0xd87f7e0c; // zlib.crc32('test', 0)
-    assert.strictEqual(zlib.crc32('test', 0), expected);
+    // Only ArrayBufferViews take the fast path; strings use the regular
+    // binding, since reading them may allocate.
+    assert.strictEqual(zlib.crc32(Buffer.from('test'), 0), expected);
     return expected;
   }
 

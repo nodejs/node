@@ -35,10 +35,15 @@ assert.strictEqual(URL.canParse('https://example.org'), true);
   testFastPaths();
   eval('%OptimizeFunctionOnNextCall(URL.canParse)');
   testFastPaths();
+  // The interpreter only saw the slow binding's -1, so the first optimized
+  // call deopts on the `result === 1` compare after its first fast call.
+  // Optimize again; this time both overloads take the fast path.
+  eval('%OptimizeFunctionOnNextCall(URL.canParse)');
+  testFastPaths();
 
   if (common.isDebug) {
     const { getV8FastApiCallCount } = internalBinding('debug');
-    assert.strictEqual(getV8FastApiCallCount('url.canParse'), 1);
+    assert.strictEqual(getV8FastApiCallCount('url.canParse'), 2);
     assert.strictEqual(getV8FastApiCallCount('url.canParse.withBase'), 1);
   }
 }
