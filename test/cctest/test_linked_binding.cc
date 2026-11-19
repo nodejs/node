@@ -501,7 +501,7 @@ TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiThrowsTest) {
 }
 
 napi_value InitializeExportsThenThrowingNapiBinding(napi_env env,
-                                                   napi_value exports) {
+                                                    napi_value exports) {
   napi_value new_exports;
   napi_value value;
   CHECK_EQ(napi_create_object(env, &new_exports), napi_ok);
