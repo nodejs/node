@@ -27,9 +27,19 @@ jobs:
       matrix: ${{ steps.query.outputs.matrix }}
     steps:
       - id: query
+        # Explicit bash enables pipefail so jq cannot hide a failed curl.
+        shell: bash
         run: |
-          matrix=$(curl -s https://raw.githubusercontent.com/nodejs/Release/refs/heads/main/schedule.json | jq -c --arg now "$(date +%Y-%m-%d)" '[with_entries(select(.value.end > $now and .value.start < $now)) | keys[] | ltrimstr("v") | tonumber] + ["latest-nightly"]')
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          {
+            printf 'matrix='
+            curl -fsSL https://github.com/nodejs/Release/raw/HEAD/schedule.json \
+            | jq -Mrc --arg now "$(date +%Y-%m-%d)" '
+              [
+                with_entries(select(.value.end > $now and .value.start < $now))
+                | keys[]
+                | ltrimstr("v") | tonumber
+              ] + ["latest-nightly"]'
+          } >> "$GITHUB_OUTPUT"
   report:
     needs:
       - collect-versions

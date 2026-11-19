@@ -230,14 +230,15 @@ jobs:
       - name: Collect matrix of support OpenSSL versions
         id: query
         run: |
-          echo "matrix=$(
+          {
+            printf 'matrix='
             nix-instantiate --eval --strict --json -E "
               let
                 matrix = import $TAR_DIR/tools/nix/openssl-matrix.nix {};
               in
               builtins.map (attr: { inherit attr; inherit (builtins.getAttr attr matrix) name; }) (builtins.attrNames matrix)
             "
-          )" >> "$GITHUB_OUTPUT"
+          } >> "$GITHUB_OUTPUT"
 
   # Builds and tests Node.js with shared libraries against every supported
   # OpenSSL release version available in the repo-pinned nixpkgs. The default
