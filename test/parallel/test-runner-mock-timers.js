@@ -338,6 +338,36 @@ describe('Mock Timers Test Suite', () => {
         nodeTimers.clearTimeout();
         nodeTimers.clearTimeout(null);
       });
+
+      it('clearing a timer from before a reset does not remove a new timer', (t) => {
+        t.mock.timers.enable({ apis: ['setTimeout'] });
+        const stale = globalThis.setTimeout(common.mustNotCall(), 1000);
+        t.mock.timers.reset();
+
+        t.mock.timers.enable({ apis: ['setTimeout'] });
+        const fn = t.mock.fn();
+        globalThis.setTimeout(fn, 10);
+        globalThis.clearTimeout(stale);
+        t.mock.timers.runAll();
+
+        assert.strictEqual(fn.mock.callCount(), 1);
+      });
+
+      it('clearing a timer from another MockTimers instance does not remove a timer', (t) => {
+        const { MockTracker } = require('internal/test_runner/mock/mock');
+        const other = new MockTracker();
+        other.timers.enable({ apis: ['setTimeout'] });
+        const stale = globalThis.setTimeout(common.mustNotCall(), 1000);
+        other.reset();
+
+        t.mock.timers.enable({ apis: ['setTimeout'] });
+        const fn = t.mock.fn();
+        globalThis.setTimeout(fn, 10);
+        globalThis.clearTimeout(stale);
+        t.mock.timers.runAll();
+
+        assert.strictEqual(fn.mock.callCount(), 1);
+      });
     });
 
     describe('setInterval Suite', () => {
