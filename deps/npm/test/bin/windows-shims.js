@@ -177,7 +177,9 @@ t.test('run shims', t => {
     chmodSync(join(path, shim), 0o755)
   }
 
-  const { ProgramFiles = '/', SystemRoot = '/', NYC_CONFIG, WINDOWS_SHIMS_TEST } = process.env
+  const {
+    ProgramFiles = '/', SystemRoot = '/', NYC_CONFIG, WINDOWS_SHIMS_TEST, CYGWIN_ROOT,
+  } = process.env
   const skipDefault = WINDOWS_SHIMS_TEST || process.platform === 'win32'
     ? null : 'test not relevant on platform'
 
@@ -188,12 +190,16 @@ t.test('run shims', t => {
     git: join(ProgramFiles, 'Git', 'bin', 'bash.exe'),
     'user git': join(ProgramFiles, 'Git', 'usr', 'bin', 'bash.exe'),
     wsl: join(SystemRoot, 'System32', 'bash.exe'),
-    cygwin: resolve(SystemRoot, '/', 'cygwin64', 'bin', 'bash.exe'),
+    cygwin: CYGWIN_ROOT && join(CYGWIN_ROOT, 'bin', 'bash.exe'),
   }).map(([name, cmd]) => {
     let match = {}
     const skip = { reason: skipDefault, fail: WINDOWS_SHIMS_TEST }
-    const isBash = cmd.endsWith('bash.exe')
+    const isBash = name === 'cygwin' || cmd.endsWith('bash.exe')
     const testName = `${name} ${isBash ? 'bash' : ''}`.trim()
+
+    if (!skip.reason && name === 'cygwin' && !CYGWIN_ROOT) {
+      skip.reason = 'CYGWIN_ROOT is not set'
+    }
 
     if (!skip.reason) {
       if (isBash) {
