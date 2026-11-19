@@ -678,6 +678,16 @@
             }
         },
         {
+            "href": "http://example.net:8080",
+            "new_value": "example.com:0",
+            "expected": {
+                "href": "http://example.com:0/",
+                "host": "example.com:0",
+                "hostname": "example.com",
+                "port": "0"
+            }
+        },
+        {
             "comment": "Port number is unchanged if not specified",
             "href": "http://example.net:8080",
             "new_value": "example.com:",
@@ -695,6 +705,16 @@
             "expected": {
                 "href": "http://example.net/",
                 "host": "example.net"
+            }
+        },
+        {
+            "href": "http://example.net:8080/path",
+            "new_value": ":example.com:15",
+            "expected": {
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
             }
         },
         {
@@ -1063,6 +1083,16 @@
                 "href": "file:///x",
                 "host": "",
                 "hostname": "",
+                "port": ""
+            }
+        },
+        {
+            "href": "file:///x",
+            "new_value": "example.net",
+            "expected": {
+                "href": "file://example.net/x",
+                "host": "example.net",
+                "hostname": "example.net",
                 "port": ""
             }
         },
@@ -1520,6 +1550,16 @@
             }
         },
         {
+            "href": "file:///x",
+            "new_value": "example.net",
+            "expected": {
+                "href": "file://example.net/x",
+                "host": "example.net",
+                "hostname": "example.net",
+                "port": ""
+            }
+        },
+        {
             "href": "sc://test@test/",
             "new_value": "",
             "expected": {
@@ -1691,6 +1731,16 @@
                 "host": "example.net",
                 "hostname": "example.net",
                 "port": ""
+            }
+        },
+        {
+            "href": "http://example.net:8080",
+            "new_value": "0",
+            "expected": {
+                "href": "http://example.net:0/",
+                "host": "example.net:0",
+                "hostname": "example.net",
+                "port": "0"
             }
         },
         {
@@ -2032,6 +2082,14 @@
             "expected": {
                 "href": "https://example.net/home#nav",
                 "pathname": "/home"
+            }
+        },
+        {
+            "href": "https://example.net/home#nav",
+            "new_value": "",
+            "expected": {
+                "href": "https://example.net/#nav",
+                "pathname": "/"
             }
         },
         {

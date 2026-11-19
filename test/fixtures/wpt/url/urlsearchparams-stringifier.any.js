@@ -143,3 +143,25 @@ test(() => {
 
     assert_equals(params.toString(), "a%0Ab=c%0Dd&e%0A%0Df=g%0D%0Ah");
 }, 'URLSearchParams must not do newline normalization');
+
+test(() => {
+  for (let i = 0; i <= 0xFF; i++) {
+    const c = String.fromCodePoint(i);
+    let expected;
+    if (c === ' ') {
+      expected = '+';
+    } else if (/[*\-._0-9A-Za-z]/.test(c)) {
+      expected = c;
+    } else {
+      expected =
+          Array
+              .from(new TextEncoder().encode(c),
+                    b => '%' + b.toString(16).toUpperCase().padStart(2, '0'))
+              .join('');
+    }
+    const params = new URLSearchParams();
+    params.append(c, c);
+    assert_equals(params.toString(), `${expected}=${expected}`,
+                  `U+${i.toString(16).toUpperCase().padStart(4, '0')}`);
+  }
+}, 'Serialize U+0000 to U+00FF');

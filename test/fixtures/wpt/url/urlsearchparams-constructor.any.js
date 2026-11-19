@@ -19,6 +19,15 @@ test(function () {
     assert_equals(params.toString(), "a=b")
 }, 'URLSearchParams constructor, remove leading "?"')
 
+test(function() {
+  var params = new URLSearchParams('??a=b')
+  assert_equals(params.toString(), '%3Fa=b')
+  params = new URLSearchParams('?')
+  assert_equals(params.toString(), '')
+  params = new URLSearchParams('??')
+  assert_equals(params.toString(), '%3F=')
+}, 'URLSearchParams constructor, remove only one leading "?"')
+
 test(() => {
     var params = new URLSearchParams(DOMException);
     assert_equals(params.toString(), "INDEX_SIZE_ERR=1&DOMSTRING_SIZE_ERR=2&HIERARCHY_REQUEST_ERR=3&WRONG_DOCUMENT_ERR=4&INVALID_CHARACTER_ERR=5&NO_DATA_ALLOWED_ERR=6&NO_MODIFICATION_ALLOWED_ERR=7&NOT_FOUND_ERR=8&NOT_SUPPORTED_ERR=9&INUSE_ATTRIBUTE_ERR=10&INVALID_STATE_ERR=11&SYNTAX_ERR=12&INVALID_MODIFICATION_ERR=13&NAMESPACE_ERR=14&INVALID_ACCESS_ERR=15&VALIDATION_ERR=16&TYPE_MISMATCH_ERR=17&SECURITY_ERR=18&NETWORK_ERR=19&ABORT_ERR=20&URL_MISMATCH_ERR=21&QUOTA_EXCEEDED_ERR=22&TIMEOUT_ERR=23&INVALID_NODE_TYPE_ERR=24&DATA_CLONE_ERR=25")
@@ -131,6 +140,20 @@ test(function() {
 }, 'Parse encoded +');
 
 test(function() {
+  var params = new URLSearchParams('a=b%2Bc');
+  assert_equals(params.get('a'), 'b+c');
+  params = new URLSearchParams('a%2Bb=c');
+  assert_equals(params.get('a+b'), 'c');
+}, 'Parse %2B');
+
+test(function() {
+  var params = new URLSearchParams('=');
+  assert_true(params.has(''));
+  assert_equals(params.get(''), '');
+  assert_equals(params.toString(), '=');
+}, 'Parse =');
+
+test(function() {
     var params = new URLSearchParams('a=b c');
     assert_equals(params.get('a'), 'b c');
     params = new URLSearchParams('a b=c');
@@ -195,6 +218,18 @@ test(function() {
     assert_throws_js(TypeError, function() { new URLSearchParams([[1]]); });
     assert_throws_js(TypeError, function() { new URLSearchParams([[1,2,3]]); });
 }, "Constructor with sequence of sequences of strings");
+
+test(function() {
+  var params = new URLSearchParams([[1, 2], ['a', 'b']]);
+  assert_equals(params.toString(), '1=2&a=b');
+}, 'Constructor with sequence of sequences of non-strings');
+
+test(function() {
+  var params = new URLSearchParams({1: 2, 'a': 'b'});
+  assert_equals(params.toString(), '1=2&a=b');
+  params = new URLSearchParams({false: true, 0: 'foo'});
+  assert_equals(params.toString(), '0=foo&false=true');
+}, 'Constructor with record of non-strings, in property order');
 
 [
   { "input": {"+": "%C2"}, "output": [["+", "%C2"]], "name": "object with +" },

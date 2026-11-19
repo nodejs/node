@@ -29,8 +29,15 @@ function runTests(testData) {
     }, "URL's constructor's base argument: " + name)
 
     self.test(() => {
-      const url = new URL("about:blank")
+      const original = "http://user:pass@example.com:8080/path?query#fragment"
+      const url = new URL(original)
       assert_throws_js(TypeError, () => url.href = test.input)
+      const expected = new URL(original)
+      for (const property of ["href", "origin", "protocol", "username", "password", "host", "hostname", "port", "pathname", "search", "hash"]) {
+        assert_equals(url[property], expected[property], property)
+      }
+      url.hash = "changed"
+      assert_equals(url.href, "http://user:pass@example.com:8080/path?query#changed")
     }, "URL's href: " + name)
 
     // The following use cases resolve the URL input relative to the current
