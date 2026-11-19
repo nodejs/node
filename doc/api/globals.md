@@ -1298,7 +1298,8 @@ incomplete byte sequences occurring at the end of the `input` are buffered
 internally and emitted after the next call to `textDecoder.decode()`.
 
 If `textDecoder.fatal` is `true`, decoding errors that occur will result in a
-`TypeError` being thrown.
+`TypeError` being thrown, and the decoder is reset so that the next call starts
+fresh.
 
 ### `textDecoder.encoding`
 
