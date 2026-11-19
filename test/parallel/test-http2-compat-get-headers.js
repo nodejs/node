@@ -33,7 +33,7 @@ const server = http2.createServer(common.mustCall((request, response) => {
   const headers = response.getHeaders();
   assert.deepStrictEqual(headers, expected);
   assert.deepStrictEqual(Object.keys(headers), Object.keys(expected));
-  assert.strictEqual(headers['set-cookie'], cookies);
+  assert.strictEqual(headers['set-cookie'], response.getHeader('set-cookie'));
   assert.notStrictEqual(response.getHeaders(), headers);
 
   headers['x-first'] = 'changed';
@@ -42,8 +42,9 @@ const server = http2.createServer(common.mustCall((request, response) => {
   assert.deepStrictEqual(response.getHeaders(), expected);
 
   headers['set-cookie'].push('third=value');
-  assert.strictEqual(response.getHeader('set-cookie'), cookies);
+  assert.strictEqual(response.getHeader('set-cookie'), headers['set-cookie']);
   assert.strictEqual(response.getHeader('set-cookie').length, 3);
+  expected['set-cookie'] = [...cookies, 'third=value'];
 
   response.removeHeader('X-First');
   response.setHeader('X-First', 'replacement');

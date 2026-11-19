@@ -47,6 +47,14 @@ server.listen(0, common.mustCall(function() {
     ]);
     assert.strictEqual(response.hasHeader(real), true);
 
+    // appendHeader() must not mutate an array passed to setHeader().
+    const values = Object.freeze(['a', 'b']);
+    response.setHeader('x-array', values);
+    response.appendHeader('x-array', 'c');
+    assert.deepStrictEqual(values, ['a', 'b']);
+    assert.deepStrictEqual(response.getHeader('x-array'), ['a', 'b', 'c']);
+    response.removeHeader('x-array');
+
     response.removeHeader(denormalised);
     assert.strictEqual(response.hasHeader(denormalised), false);
     assert.strictEqual(response.hasHeader(real), false);
