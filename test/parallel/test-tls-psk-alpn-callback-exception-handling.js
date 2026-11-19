@@ -114,7 +114,7 @@ describe('TLS callback exception handling', () => {
     await promise;
   });
 
-  it('newSession synchronous error emits error', {
+  it('newSession synchronous error destroys the socket', {
     skip: isBoringSSL &&
       'BoringSSL does not trigger the TLS 1.3 newSession callback in this test',
   }, async (t) => {
@@ -123,40 +123,37 @@ describe('TLS callback exception handling', () => {
       cert: fixtures.readKey('agent2-cert.pem'),
       sessionTimeout: 3600,
     });
-    const agent = new https.Agent({
-      keepAlive: false,
-      keepAliveMsecs: 10_000,
-      maxSockets: 5,
-    });
-
     t.after(() => {
-      agent.destroy();
       server.close();
     });
 
-    const { promise, resolve } = createTestPromise();
+    const { promise, resolve, reject } = createTestPromise();
 
     const expectedError = new Error();
-    server.on('newSession', common.mustCall(() => {
-      setImmediate(resolve);
+    server.on('newSession', common.mustCallAtLeast(() => {
       throw expectedError;
-    }, 2));
+    }));
 
-    server.on('error', common.mustCall((e) => {
-      assert.strictEqual(e, expectedError);
-    }, 2));
+    server.on('secureConnection', common.mustCall((socket) => {
+      socket.on('error', common.mustCall((err) => {
+        try {
+          assert.strictEqual(err, expectedError);
+          assert.strictEqual(socket.destroyed, true);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      }));
+    }));
 
     await new Promise((res) => server.listen(0, res));
 
-    // We might need one or two requests to trigger the `resumeSession` event
     const clientOptions = {
       port: server.address().port,
       host: '127.0.0.1',
       rejectUnauthorized: false,
     };
-    // First connection: Establish a session
     const socket = tls.connect(clientOptions, common.mustCall(() => {
-    // Close immediately to allow session resumption on next connect
       socket.end();
     }));
 
