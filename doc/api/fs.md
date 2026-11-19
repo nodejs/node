@@ -1488,7 +1488,12 @@ The glob implementation supports the following pattern syntax:
 | `+(pattern)` | Matches one or more occurrences of the pattern.  |
 | `*(pattern)` | Matches zero or more occurrences of the pattern. |
 | `?(pattern)` | Matches zero or one occurrence of the pattern.   |
+| `@(pattern)` | Matches exactly one occurrence of the pattern.   |
 | `!(pattern)` | Matches anything except the pattern.             |
+
+Extended glob patterns apply within a single path segment and cannot
+contain `/`. To match across segments, use brace expansion instead, for
+example `a{,/b}`.
 
 #### Examples
 
