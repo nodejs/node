@@ -1,9 +1,10 @@
 #include "node_profiling.h"
 
 #include "json_utils.h"
-#include "util.h"
+#include "util-inl.h"
 
 #include <memory>
+#include <string_view>
 
 namespace node {
 
@@ -64,6 +65,7 @@ bool SerializeHeapProfile(Isolate* isolate, std::string& out) {
     writer.json_keyvalue("nodeId", sample.node_id);
     writer.json_keyvalue("ordinal", static_cast<double>(sample.sample_id));
     writer.json_keyvalue("isLive", sample.is_live);
+    writer.json_keyvalue("sampleInterval", sample.sample_interval);
     writer.json_end();
   }
   writer.json_arrayend();
@@ -74,6 +76,42 @@ bool SerializeHeapProfile(Isolate* isolate, std::string& out) {
 
   writer.json_end();
   return true;
+}
+
+v8::MaybeLocal<v8::Array> HeapProfileSamplesToV8Value(
+    Isolate* isolate,
+    v8::Local<v8::Context> context,
+    const std::vector<AllocationProfile::Sample>& samples) {
+  static constexpr std::string_view names[] = {
+      "size",
+      "objectSize",
+      "objectCount",
+      "nodeId",
+      "ordinal",
+      "isLive",
+      "sampleInterval",
+  };
+  auto tmpl = v8::DictionaryTemplate::New(isolate, names);
+  v8::LocalVector<Value> result(isolate);
+  result.reserve(samples.size());
+  for (const auto& sample : samples) {
+    v8::MaybeLocal<Value> values[] = {
+        v8::Number::New(isolate, sample.size * sample.count),
+        v8::Number::New(isolate, sample.size),
+        v8::Integer::NewFromUnsigned(isolate, sample.count),
+        v8::Integer::NewFromUnsigned(isolate, sample.node_id),
+        v8::Number::New(isolate, static_cast<double>(sample.sample_id)),
+        v8::Boolean::New(isolate, sample.is_live),
+        v8::Number::New(isolate, static_cast<double>(sample.sample_interval)),
+    };
+    v8::Local<v8::Object> object;
+    if (!NewDictionaryInstanceNullProto(context, tmpl, values)
+             .ToLocal(&object)) {
+      return {};
+    }
+    result.emplace_back(object);
+  }
+  return v8::Array::New(isolate, result.data(), result.size());
 }
 
 HeapProfileOptions ParseHeapProfileOptions(
