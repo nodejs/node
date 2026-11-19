@@ -1,8 +1,9 @@
 'use strict';
 
 // pipe() calls dest.write(). The fast path of a flowing pipe must not go
-// around a write() replaced on the instance or overridden in a subclass,
-// as compression middleware does to the response it wraps.
+// around a write() replaced on the instance, overridden in a subclass, as
+// compression middleware does to the response it wraps, or patched on
+// Writable.prototype, as APM tools do.
 
 const common = require('../common');
 const assert = require('assert');
@@ -58,5 +59,23 @@ function source() {
   const dest = new Counting();
   source().pipe(dest).on('finish', common.mustCall(() => {
     assert.strictEqual(dest.calls, CHUNKS);
+  }));
+}
+
+{
+  const dest = new Writable({
+    write(chunk, encoding, callback) {
+      callback();
+    },
+  });
+  const write = Writable.prototype.write;
+  let calls = 0;
+  Writable.prototype.write = function(chunk, encoding, callback) {
+    if (this === dest) calls++;
+    return write.call(this, chunk, encoding, callback);
+  };
+  source().pipe(dest).on('finish', common.mustCall(() => {
+    Writable.prototype.write = write;
+    assert.strictEqual(calls, CHUNKS);
   }));
 }
