@@ -53,7 +53,7 @@ class OSSLContext final {
   bool set_alpn_protocols(std::string_view protocols) const;
   bool set_hostname(std::string_view hostname) const;
   bool set_verify_hostname(std::string_view hostname) const;
-  bool set_early_data_enabled() const;
+  bool set_early_data_enabled(bool enabled) const;
   bool set_transport_params(const ngtcp2_vec& tp) const;
 
   bool get_early_data_accepted() const;
@@ -64,7 +64,7 @@ class OSSLContext final {
   // ticket was set successfully and the ticket supports early data.
   bool set_session_ticket(const ncrypto::SSLSessionPointer& ticket);
 
-  bool ConfigureServer() const;
+  bool ConfigureServer(bool enable_early_data) const;
   bool ConfigureClient() const;
 
   void reset();

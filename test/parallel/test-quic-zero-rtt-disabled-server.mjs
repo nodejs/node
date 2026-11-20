@@ -22,71 +22,114 @@ const cert = fixtures.readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
 const alpn = ['quic-test'];
 
-// Use the same tokenSecret for both servers so the token is valid.
-const tokenSecret = randomBytes(16);
+{
+  // Use the same tokenSecret for both servers so the token is valid.
+  const tokenSecret = randomBytes(16);
 
-let savedTicket;
-let savedToken;
-const gotTicket = Promise.withResolvers();
-const gotToken = Promise.withResolvers();
+  let savedTicket;
+  let savedToken;
+  const gotTicket = Promise.withResolvers();
+  const gotToken = Promise.withResolvers();
 
-// First server: enableEarlyData: true (default) to generate a valid ticket.
-const serverEndpoint1 = await listen((serverSession) => {
-  serverSession.onstream = async (stream) => {
-    for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
-    stream.writer.endSync();
-    await stream.closed;
+  // First server: enableEarlyData: true (default) to generate a valid ticket.
+  const serverEndpoint1 = await listen((serverSession) => {
+    serverSession.onstream = async (stream) => {
+      for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+      stream.writer.endSync();
+      await stream.closed;
+      serverSession.close();
+    };
+  }, {
+    sni,
+    alpn,
+    endpoint: { tokenSecret },
+  });
+
+  const cs1 = await connect(serverEndpoint1.address, {
+    alpn: 'quic-test',
+    verifyPeer: 'manual',
+    onsessionticket(ticket) {
+      savedTicket = ticket;
+      gotTicket.resolve();
+    },
+    onnewtoken(token) {
+      savedToken = token;
+      gotToken.resolve();
+    },
+  });
+  await Promise.all([cs1.opened, gotTicket.promise, gotToken.promise]);
+  await cs1.close();
+  await serverEndpoint1.close();
+
+  // Second server: enableEarlyData: false — rejects 0-RTT.
+  const serverEndpoint2 = await listen(async (serverSession) => {
+    await serverSession.opened;
     serverSession.close();
-  };
-}, {
-  sni,
-  alpn,
-  endpoint: { tokenSecret },
-});
+    await serverSession.closed;
+  }, {
+    sni,
+    alpn,
+    enableEarlyData: false,
+    endpoint: { tokenSecret },
+    onerror: mustNotCall(),
+  });
 
-const cs1 = await connect(serverEndpoint1.address, {
-  alpn: 'quic-test',
-  verifyPeer: 'manual',
-  onsessionticket(ticket) {
-    savedTicket = ticket;
-    gotTicket.resolve();
-  },
-  onnewtoken(token) {
-    savedToken = token;
-    gotToken.resolve();
-  },
-});
-await Promise.all([cs1.opened, gotTicket.promise, gotToken.promise]);
-await cs1.close();
-await serverEndpoint1.close();
+  const cs2 = await connect(serverEndpoint2.address, {
+    alpn: 'quic-test',
+    verifyPeer: 'manual',
+    sessionTicket: savedTicket,
+    token: savedToken,
+  });
 
-// Second server: enableEarlyData: false — rejects 0-RTT.
-const serverEndpoint2 = await listen(async (serverSession) => {
-  await serverSession.opened;
-  serverSession.close();
-  await serverSession.closed;
-}, {
-  sni,
-  alpn,
-  enableEarlyData: false,
-  endpoint: { tokenSecret },
-  onerror: mustNotCall(),
-});
+  // The deferred handshake needs a send to trigger. Use sendDatagram
+  // since it's simpler than a stream for this test.
+  await cs2.sendDatagram(new Uint8Array([1]));
 
-const cs2 = await connect(serverEndpoint2.address, {
-  alpn: 'quic-test',
-  verifyPeer: 'manual',
-  sessionTicket: savedTicket,
-  token: savedToken,
-});
+  const info2 = await cs2.opened;
+  assert.strictEqual(info2.earlyDataAttempted, true);
+  assert.strictEqual(info2.earlyDataAccepted, false);
 
-// The deferred handshake needs a send to trigger. Use sendDatagram
-// since it's simpler than a stream for this test.
-await cs2.sendDatagram(new Uint8Array([1]));
+  await cs2.closed;
+  await serverEndpoint2.close();
+}
 
-const info2 = await cs2.opened;
-assert.strictEqual(info2.earlyDataAttempted, true);
-assert.strictEqual(info2.earlyDataAccepted, false);
+// A server with early data disabled must issue tickets that do not permit
+// 0-RTT. Reusing the ticket on the same endpoint must fall back to 1-RTT.
+{
+  const ticketReady = Promise.withResolvers();
+  const endpoint = await listen(() => {}, {
+    sni,
+    alpn,
+    enableEarlyData: false,
+    onerror: mustNotCall(),
+  });
 
-await cs2.closed;
-await serverEndpoint2.close();
+  const client = await connect(endpoint.address, {
+    alpn: 'quic-test',
+    verifyPeer: 'manual',
+    onsessionticket(ticket) {
+      ticketReady.resolve(ticket);
+    },
+  });
+
+  await client.opened;
+  const ticket = await ticketReady.promise;
+  await client.close();
+
+  const client2 = await connect(endpoint.address, {
+    alpn: 'quic-test',
+    verifyPeer: 'manual',
+    sessionTicket: ticket,
+  });
+
+  await client2.createUnidirectionalStream({
+    body: 'hello from 0-RTT',
+  });
+
+  const info = await client2.opened;
+  assert.strictEqual(info.earlyDataAttempted, false);
+  assert.strictEqual(info.earlyDataAccepted, false);
+
+  await client2.close();
+  await endpoint.close();
+}
