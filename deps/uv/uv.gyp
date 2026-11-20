@@ -142,6 +142,7 @@
     ],
     'uv_sources_solaris': [
       'src/unix/no-proctitle.c',
+      'src/unix/random-getrandom.c',
       'src/unix/sunos.c',
     ],
     'uv_sources_bsd_common': [
@@ -208,6 +209,7 @@
               '-liphlpapi',
               '-lpsapi',
               '-lshell32',
+              '-lsynchronization',
               '-luser32',
               '-luserenv',
               '-luuid',
