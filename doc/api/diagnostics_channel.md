@@ -2021,6 +2021,20 @@ added: v16.18.0
 
 Emitted when a new thread is created.
 
+##### Event: `'worker_threads.main.registry'`
+
+* `threadIds` {number\[]} A snapshot of the registered worker thread IDs.
+
+Emitted only on the main thread whenever the worker thread registry changes,
+including workers created by other workers. Each event contains a snapshot of
+the registered worker thread IDs. The main thread's ID (`0`) is not included.
+
+The registry tracks workers through their internal messaging ports. Registration
+can occur before a worker is online. Removal occurs when the parent thread
+processes the worker's exit and can be delayed if the parent thread is blocked.
+Consequently, a snapshot does not guarantee that every listed worker is ready or
+still running.
+
 #### SQLite
 
 <!-- YAML
