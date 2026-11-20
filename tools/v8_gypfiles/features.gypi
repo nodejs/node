@@ -294,6 +294,9 @@
     # ReadOnlySpace.
     'v8_enable_extensible_ro_snapshot%': 1,
 
+    # Use the encoding of undefined in double values.
+    'v8_enable_undefined_double%': 1,
+
     # Variables from v8.gni
 
     # Enable ECMAScript Internationalization API. Enabling this feature will
@@ -523,6 +526,9 @@
       }],
       ['v8_enable_extensible_ro_snapshot==1', {
         'defines': ['V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT',],
+      }],
+      ['v8_enable_undefined_double==1', {
+        'defines': ['V8_ENABLE_UNDEFINED_DOUBLE',],
       }],
       ['v8_enable_leaptiering==1', {
         'defines': ['V8_ENABLE_LEAPTIERING',],
