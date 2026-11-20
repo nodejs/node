@@ -469,6 +469,35 @@ void LockManager::ProcessQueue(Environment* env) {
       }
     }
 
+    // Until settlement takes over, an early return must undo the grant.
+    bool release_on_failure = true;
+    auto rollback_grant = OnScopeLeave([&] {
+      if (!release_on_failure) return;
+
+      {
+        Mutex::ScopedLock scoped_lock(mutex_);
+        ReleaseLock(granted_lock.get());
+        if (pending_queue_.empty()) return;
+
+        std::unordered_set<Environment*> envs_to_wake;
+        for (const auto& request : pending_queue_) {
+          Environment* target_env = request->env();
+          if (target_env != env && request->name() == granted_lock->name() &&
+              envs_to_wake.insert(target_env).second) {
+            WakeEnvironment(target_env);
+          }
+        }
+      }
+
+      // An early return can also leave requests for other names unprocessed.
+      // Keep this Environment alive for one more queue pass.
+      if (env->can_call_into_js()) {
+        env->SetImmediate([this](Environment* env) {
+          if (env->can_call_into_js()) ProcessQueue(env);
+        });
+      }
+    });
+
     // Create the lock info object.
     Local<Object> lock_info;
     if (!CreateLockInfoObject(env, *grantable_request).ToLocal(&lock_info)) {
@@ -543,6 +572,7 @@ void LockManager::ProcessQueue(Environment* env) {
       // Lock granted: waiting_promise resolves now with the promise returned
       // by the callback; on_fulfilled/on_rejected will release the lock when
       // that promise settles.
+      release_on_failure = false;
       if (grantable_request->waiting_promise()
               ->Resolve(context, callback_result)
               .IsNothing()) {
@@ -563,6 +593,7 @@ void LockManager::ProcessQueue(Environment* env) {
         // callback
         return;
       }
+      release_on_failure = false;
     }
   }
 }
