@@ -8,12 +8,14 @@
 // only, ignored when the key is not encrypted.
 
 import { hasCrypto, mustNotCall, skip } from '../common/index.mjs';
+import tmpdir from '../common/tmpdir.js';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+tmpdir.refresh();
 
 if (!hasCrypto) {
   skip('missing crypto');
@@ -29,7 +31,7 @@ const PASSPHRASE = 'correct horse battery staple';
 
 // Generate an encrypted key and a matching self-signed certificate rather
 // than checking a fixture in, so the passphrase is visible in the test.
-const dir = mkdtempSync(join(tmpdir(), 'dtls-passphrase-'));
+const dir = mkdtempSync(tmpdir.resolve('dtls-passphrase-'));
 let encryptedKey;
 let encryptedCert;
 try {
