@@ -553,6 +553,59 @@ suite('Statement.prototype.expandedSQL', () => {
   });
 });
 
+suite('Statement.prototype.returnsData', () => {
+  test('returns true for statements that return data', (t) => {
+    using db = new Database(':memory:');
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    t.assert.strictEqual(db.prepare('SELECT * FROM storage').returnsData, true);
+    t.assert.strictEqual(db.prepare('SELECT 1').returnsData, true);
+    t.assert.strictEqual(db.prepare('PRAGMA user_version').returnsData, true);
+    t.assert.strictEqual(
+      db.prepare('INSERT INTO storage VALUES (?, ?) RETURNING key').returnsData,
+      true,
+    );
+    t.assert.strictEqual(
+      db.prepare('UPDATE storage SET val = ? RETURNING *').returnsData,
+      true,
+    );
+    t.assert.strictEqual(
+      db.prepare('DELETE FROM storage RETURNING val').returnsData,
+      true,
+    );
+  });
+
+  test('returns false for statements that do not return data', (t) => {
+    using db = new Database(':memory:');
+    t.assert.strictEqual(
+      db.prepare('CREATE TABLE storage(key TEXT, val TEXT)').returnsData,
+      false,
+    );
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    t.assert.strictEqual(
+      db.prepare('INSERT INTO storage VALUES (?, ?)').returnsData,
+      false,
+    );
+    t.assert.strictEqual(
+      db.prepare('UPDATE storage SET val = ?').returnsData,
+      false,
+    );
+    t.assert.strictEqual(
+      db.prepare('DELETE FROM storage').returnsData,
+      false,
+    );
+  });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new Database(':memory:');
+    const stmt = db.prepare('SELECT 1');
+    stmt.close();
+    t.assert.throws(() => stmt.returnsData, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+});
+
 suite('Statement.prototype.stat()', () => {
   const counters = [
     'fullscanStep', 'sort', 'autoindex', 'vmStep', 'reprepare',
