@@ -78,6 +78,10 @@ extern char **environ;
 # include <grp.h>
 #endif
 
+#if defined(__linux__) && !defined(__ANDROID__)
+# include <sched.h>
+#endif
+
 #if defined(__MVS__)
 # include "zos-base.h"
 #endif
@@ -488,6 +492,14 @@ static void uv__spawn_init_can_use_setsid(void) {
 #endif
 
 
+#if defined(__linux__) && !defined(__ANDROID__)
+static int uv__spawn_probe_clone_vm(void* arg) {
+  (void) arg;
+  posix_spawn_works = 1;
+  return 0;
+}
+#endif
+
 static void uv__spawn_init_posix_spawn(void) {
 #if defined(__OpenBSD__)
   /* Always use fork(). Its posix_spawn() works different from other
@@ -498,7 +510,15 @@ static void uv__spawn_init_posix_spawn(void) {
 #if !defined(__linux__) && !defined(_AIX) && !defined(__PASE__)
   posix_spawn_works = 1;
 #elif !defined(__ANDROID__)
+#if defined(__linux__)
+  /* Only used once (guarded by uv_once), while the parent is suspended. */
+  static long stack[2048];
+#endif
+  sigset_t signewset;
+  sigset_t sigoldset;
   pid_t pid;
+  pid_t r;
+  int options;
   int status;
 #if defined(__GLIBC__) && !defined(__UCLIBC__)
   const char* version;
@@ -513,18 +533,40 @@ static void uv__spawn_init_posix_spawn(void) {
 #endif
 
   /* Probe whether vfork()/clone(CLONE_VM) correctly shares the address space,
-   * i.e. a write by the child before _exit() is visible to the parent once it
-   * resumes.  On Linux vfork() is equivalent to
-   * clone(CLONE_VM|CLONE_VFORK|SIGCHLD). On QEMU and WSL1, CLONE_VM is broken,
-   * resulting in glibc errors if we try to use posix_spawn(). */
+   * i.e. a write by the child before it exits is visible to the parent once
+   * it resumes. On QEMU and WSL1, CLONE_VM is broken, resulting in glibc
+   * errors if we try to use posix_spawn().
+   *
+   * On Linux, use clone() with a termination signal of 0 rather than vfork(),
+   * so the probe does not raise a SIGCHLD that user code could observe, and
+   * reap it with __WCLONE.
+   *
+   * Block all signals in the child: it shares our memory and TLS, so a signal
+   * handler running there could corrupt our state or overflow its stack. */
   posix_spawn_works = 0;
+  sigfillset(&signewset);
+  if (pthread_sigmask(SIG_BLOCK, &signewset, &sigoldset) != 0)
+    abort();
+#if defined(__linux__)
+  pid = clone(uv__spawn_probe_clone_vm,
+              stack + ARRAY_SIZE(stack),
+              CLONE_VM | CLONE_VFORK,
+              NULL);
+  options = __WCLONE;
+#else
   pid = vfork();
   if (pid == 0) {
     posix_spawn_works = 1;
     _exit(0);
   }
+  options = 0;
+#endif
+  if (pthread_sigmask(SIG_SETMASK, &sigoldset, NULL) != 0)
+    abort();
   if (pid > 0)
-    waitpid(pid, &status, 0);
+    do
+      r = waitpid(pid, &status, options);
+    while (r == -1 && errno == EINTR);
 #endif
 
   /* Try to locate all new functions at runtime.
