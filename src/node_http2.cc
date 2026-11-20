@@ -1479,7 +1479,8 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
   // into those buffers.
   // The typical case is actually the exception here; Http2StreamListeners
   // know about the HTTP2 session associated with this stream, so they know
-  // about the larger from-socket read buffer, so they do not require copying.
+  // about the larger from-socket read buffer, so they usually do not require
+  // copying.
   do {
     uv_buf_t buf = stream->EmitAlloc(len);
     ssize_t avail = len;
@@ -1580,6 +1581,13 @@ int Http2Session::OnNghttpError(nghttp2_session* handle,
   return 0;
 }
 
+// A DATA chunk is passed to JavaScript as a slice of the socket read buffer
+// only if that buffer is at most this many times larger than the chunk.
+// Smaller chunks are copied, so that a queued Buffer cannot keep alive a
+// socket read made mostly of other frames or padding. With the default
+// limits, full-size DATA frames in a full socket read are still sliced.
+static constexpr size_t kMaxDataChunkSliceRatio = 4;
+
 uv_buf_t Http2StreamListener::OnStreamAlloc(size_t size) {
   // See the comments in Http2Session::OnDataChunkReceived
   // (which is the only possible call site for this method).
@@ -1598,6 +1606,21 @@ void Http2StreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
     return;
   }
 
+  // Verify that the data is inside the current read buffer.
+  size_t offset = buf.base - session->stream_buf_.base;
+  CHECK_LE(offset, session->stream_buf_.len);
+  CHECK_LE(offset + buf.len, session->stream_buf_.len);
+
+  if (static_cast<size_t>(nread) * kMaxDataChunkSliceRatio <
+      session->stream_buf_.len) {
+    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+        env->isolate(), nread, BackingStoreInitializationMode::kUninitialized);
+    memcpy(bs->Data(), buf.base, nread);
+    stream->CallJSOnreadMethod(
+        nread, ArrayBuffer::New(env->isolate(), std::move(bs)), 0);
+    return;
+  }
+
   Local<ArrayBuffer> ab;
   if (session->stream_buf_ab_.IsEmpty()) {
     ab = ArrayBuffer::New(env->isolate(),
@@ -1610,12 +1633,6 @@ void Http2StreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   // There is a single large array buffer for the entire data read from the
   // network; create a slice of that array buffer and emit it as the
   // received data buffer.
-  size_t offset = buf.base - session->stream_buf_.base;
-
-  // Verify that the data offset is inside the current read buffer.
-  CHECK_LE(offset, session->stream_buf_.len);
-  CHECK_LE(offset + buf.len, session->stream_buf_.len);
-
   stream->CallJSOnreadMethod(nread, ab, offset);
 }
 
@@ -2336,8 +2353,8 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
                             static_cast<unsigned int>(nread));
 
   // Store this so we can create an ArrayBuffer for read data from it.
-  // DATA frames will be emitted as slices of that ArrayBuffer to avoid having
-  // to copy memory.
+  // Large DATA frames will be emitted as slices of that ArrayBuffer to avoid
+  // having to copy memory.
   stream_buf_allocation_ = std::move(bs);
 
   ConsumeHTTP2Data();
