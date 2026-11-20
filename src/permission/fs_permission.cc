@@ -176,21 +176,21 @@ void FSPermission::Drop(Environment* env,
 }
 
 void FSPermission::RevokeAccess(PermissionScope perm, const std::string& res) {
-  const std::string path = WildcardIfDir(res);
-  if (perm == PermissionScope::kFileSystemRead) {
-    auto it =
-        std::find(granted_paths_in_.begin(), granted_paths_in_.end(), path);
-    if (it != granted_paths_in_.end()) {
-      granted_paths_in_.erase(it);
-      RebuildTree(PermissionScope::kFileSystemRead);
-    }
-  } else if (perm == PermissionScope::kFileSystemWrite) {
-    auto it =
-        std::find(granted_paths_out_.begin(), granted_paths_out_.end(), path);
-    if (it != granted_paths_out_.end()) {
-      granted_paths_out_.erase(it);
-      RebuildTree(PermissionScope::kFileSystemWrite);
-    }
+  if (perm != PermissionScope::kFileSystemRead &&
+      perm != PermissionScope::kFileSystemWrite) {
+    return;
+  }
+  std::string wildcard = res;
+  if (wildcard.back() != node::kPathSeparator) {
+    wildcard += node::kPathSeparator;
+  }
+  wildcard += '*';
+  auto& paths = perm == PermissionScope::kFileSystemRead ? granted_paths_in_
+                                                         : granted_paths_out_;
+  if (std::erase_if(paths, [&](const std::string& p) {
+        return p == res || p == wildcard;
+      }) > 0) {
+    RebuildTree(perm);
   }
 }
 
