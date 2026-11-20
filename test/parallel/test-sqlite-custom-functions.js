@@ -323,13 +323,13 @@ suite('Database.prototype.function()', () => {
     });
 
     test('empty buffers are returned as empty blobs, not NULL', () => {
-      const db = new Database(':memory:');
+      using db = new Database(':memory:');
       db.function('retEmptyArrayBuffer', () => new ArrayBuffer(0));
       db.function('retEmptySharedArrayBuffer', () => new SharedArrayBuffer(0));
       db.function('retEmptyUint8Array', () => {
         return new Uint8Array(new ArrayBuffer(0));
       });
-      const stmt = db.prepare(`SELECT
+      using stmt = db.prepare(`SELECT
         typeof(retEmptyArrayBuffer()) AS arrayBufferType,
         typeof(retEmptySharedArrayBuffer()) AS sharedArrayBufferType,
         typeof(retEmptyUint8Array()) AS uint8ArrayType,

@@ -132,25 +132,25 @@ suite('Statement with empty buffers', () => {
 
   for (const [displayName, createBuffer] of emptyBuffers) {
     test(`${displayName} binds as an empty blob, not NULL`, (t) => {
-      const db = new Database(':memory:');
-      t.after(() => { db.close(); });
+      using db = new Database(':memory:');
       db.exec('CREATE TABLE test (data BLOB NOT NULL)');
       const buffer = createBuffer();
       // Anonymous binding
       {
-        const stmt = db.prepare('SELECT typeof(?) AS type');
+        using stmt = db.prepare('SELECT typeof(?) AS type');
         t.assert.strictEqual(stmt.get(buffer).type, 'blob');
       }
       // Named binding (object)
       {
-        const stmt = db.prepare('SELECT typeof($data) AS type');
+        using stmt = db.prepare('SELECT typeof($data) AS type');
         t.assert.strictEqual(stmt.get({ '$data': buffer }).type, 'blob');
       }
       // Insert into a NOT NULL column and read it back
       {
-        db.prepare('INSERT INTO test VALUES (?)').run(buffer);
-        const row = db.prepare('SELECT data FROM test').get();
-        t.assert.deepStrictEqual(row.data, new Uint8Array());
+        using insert = db.prepare('INSERT INTO test VALUES (?)');
+        insert.run(buffer);
+        using select = db.prepare('SELECT data FROM test');
+        t.assert.deepStrictEqual(select.get().data, new Uint8Array());
       }
     });
   }
