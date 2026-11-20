@@ -3233,6 +3233,7 @@ The available scopes are:
 * `env` - Environment variables
 * `openssl.store` - Loading keys through OpenSSL STORE loaders
 * `worker` - Worker thread spawning operation
+* `green-thread` - Green thread starting operations
 * `net` - Network operations
 * `inspector` - Inspector operations
 * `wasi` - WASI operations
@@ -3300,6 +3301,7 @@ The available scopes are the same as [`process.permission.has()`][]:
   environment. A reference ending with `*` is not accepted
 * `openssl.store` - Loading keys through OpenSSL STORE loaders
 * `worker` - Worker thread spawning operation
+* `green-thread` - Green thread starting operations
 * `net` - Network operations
 * `inspector` - Inspector operations
 * `wasi` - WASI operations

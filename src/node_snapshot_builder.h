@@ -39,6 +39,13 @@ class NODE_EXTERN_PRIVATE SnapshotBuilder {
   // If nullptr is returned, the binary is not built with embedded
   // snapshot.
   static const SnapshotData* GetEmbeddedSnapshotData();
+  // The snapshot that green threads in isolate groups of their own start
+  // from. nullptr if the binary is not built with it.
+  static const v8::StartupData* GetEmbeddedGreenSnapshot();
+  // The snapshot that green threads in V8's default isolate group start
+  // from, if isolates in it use the embedded snapshot. nullptr if the binary
+  // is not built with it.
+  static const v8::StartupData* GetEmbeddedGreenDefaultGroupSnapshot();
   static void InitializeIsolateParams(const SnapshotData* data,
                                       v8::Isolate::CreateParams* params);
 

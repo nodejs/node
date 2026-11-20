@@ -207,17 +207,23 @@ void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
   delete allocator;
 }
 
-void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
+uint64_t GetMemoryForHeapDefaults() {
   const uint64_t constrained_memory = uv_get_constrained_memory();
-  const uint64_t total_memory = constrained_memory > 0 ?
-      std::min(uv_get_total_memory(), constrained_memory) :
-      uv_get_total_memory();
-  if (total_memory > 0 &&
-      params->constraints.max_old_generation_size_in_bytes() == 0) {
-    // V8 defaults to 700MB or 1.4GB on 32 and 64 bit platforms respectively.
-    // This default is based on browser use-cases. Tell V8 to configure the
-    // heap based on the actual physical memory.
-    params->constraints.ConfigureDefaults(total_memory, 0);
+  return constrained_memory > 0
+             ? std::min(uv_get_total_memory(), constrained_memory)
+             : uv_get_total_memory();
+}
+
+void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
+  // Querying the memory reads files, so only do it if it's needed.
+  if (params->constraints.max_old_generation_size_in_bytes() == 0) {
+    const uint64_t total_memory = GetMemoryForHeapDefaults();
+    if (total_memory > 0) {
+      // V8 defaults to 700MB or 1.4GB on 32 and 64 bit platforms
+      // respectively. This default is based on browser use-cases. Tell V8 to
+      // configure the heap based on the actual physical memory.
+      params->constraints.ConfigureDefaults(total_memory, 0);
+    }
   }
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
@@ -342,14 +348,14 @@ bool IsFirstSnapshotBlob(const char* data) {
   return first_snapshot_recorded && data == first_snapshot_blob.data;
 }
 
-// TODO(joyeecheung): we may want to expose this, but then we need to be
-// careful about what we override in the params.
-Isolate* NewIsolate(Isolate::CreateParams* params,
-                    uv_loop_t* event_loop,
-                    MultiIsolatePlatform* platform,
-                    const SnapshotData* snapshot_data,
-                    const IsolateSettings& settings) {
-  IsolateGroup group = GetOrCreateIsolateGroup();
+template <typename RegisterFn>
+static Isolate* NewIsolateImpl(Isolate::CreateParams* params,
+                               MultiIsolatePlatform* platform,
+                               const SnapshotData* snapshot_data,
+                               const IsolateSettings& settings,
+                               const IsolateGroup& group,
+                               bool use_first_snapshot,
+                               RegisterFn register_isolate) {
   Isolate* isolate = Isolate::Allocate(group);
   if (isolate == nullptr) return nullptr;
 
@@ -357,11 +363,11 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
     SnapshotBuilder::InitializeIsolateParams(snapshot_data, params);
   }
 
-  UseFirstSnapshot(params);
+  if (use_first_snapshot) UseFirstSnapshot(params);
 
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
-  platform->RegisterIsolate(isolate, event_loop);
+  register_isolate(isolate);
 
   // Ensure that there is always a CppHeap.
   if (settings.cpp_heap == nullptr) {
@@ -376,6 +382,40 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
   SetIsolateUpForNode(isolate, settings);
 
   return isolate;
+}
+
+// TODO(joyeecheung): we may want to expose this, but then we need to be
+// careful about what we override in the params.
+Isolate* NewIsolate(Isolate::CreateParams* params,
+                    uv_loop_t* event_loop,
+                    MultiIsolatePlatform* platform,
+                    const SnapshotData* snapshot_data,
+                    const IsolateSettings& settings) {
+  return NewIsolateImpl(params,
+                        platform,
+                        snapshot_data,
+                        settings,
+                        GetOrCreateIsolateGroup(),
+                        true,
+                        [&](Isolate* isolate) {
+                          platform->RegisterIsolate(isolate, event_loop);
+                        });
+}
+
+Isolate* NewIsolate(Isolate::CreateParams* params,
+                    IsolatePlatformDelegate* delegate,
+                    MultiIsolatePlatform* platform,
+                    const IsolateSettings& settings,
+                    const IsolateGroup& group,
+                    bool use_first_snapshot) {
+  return NewIsolateImpl(
+      params,
+      platform,
+      nullptr,
+      settings,
+      group,
+      use_first_snapshot,
+      [&](Isolate* isolate) { platform->RegisterIsolate(isolate, delegate); });
 }
 
 Isolate* NewIsolate(ArrayBufferAllocator* allocator,
@@ -1168,6 +1208,7 @@ void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
   env->set_stopping(true);
   env->set_can_call_into_js(false);
   env->stop_sub_worker_contexts();
+  const bool green_threads_disposed = green_thread::TerminateAll();
   env->isolate()->DumpAndResetStats();
   // The tracing agent could be in the process of writing data using the
   // threadpool. Stop it before shutting down libuv. The rest of the tracing
@@ -1179,7 +1220,7 @@ void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
   // And make sure V8Platform don not call into Libuv threadpool, see Dispose
   // in node_v8_platform-inl.h
   uv_library_shutdown();
-  DisposePlatform();
+  if (green_threads_disposed) DisposePlatform();
 
 #if HAVE_OPENSSL
   crypto::CleanupCachedRootCertificates();

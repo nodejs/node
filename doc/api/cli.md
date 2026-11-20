@@ -366,6 +366,39 @@ When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
 
+### `--allow-green-threads`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+When using the [Permission Model][], the process will not be able to start
+[green threads][] by default. Attempts to create a `GreenThread`, or to call
+`setWarmPoolSize()`, will throw an `ERR_ACCESS_DENIED` exception unless the
+user explicitly passes the `--allow-green-threads` flag when starting Node.js.
+
+Unlike [`--allow-worker`][], this doesn't grant code more than the permission
+model allows: green threads can't use any Node.js API, and only have what the
+host passes them.
+
+Example:
+
+```js
+const { GreenThread } = require('node:green_threads');
+new GreenThread('postMessage(1);');
+```
+
+```console
+$ node --permission --allow-fs-read=* --experimental-green-threads index.js
+Error: Access to this API has been restricted. Use --allow-green-threads to manage permissions.
+    at new GreenThread (node:green_threads:350:20) {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'GreenThreads'
+}
+```
+
 ### `--allow-inspector`
 
 <!-- YAML
@@ -1489,6 +1522,16 @@ added:
 
 Enable exposition of [EventSource Web API][] on the global scope.
 
+### `--experimental-green-threads`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable the experimental [`node:green_threads`][] module.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -2609,6 +2652,7 @@ following permissions are restricted:
 * Environment variables - manageable through [`--allow-env`][] flag
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
+* Green threads - manageable through [`--allow-green-threads`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
 * Addons - manageable through [`--allow-addons`][] flag
 * FFI - manageable through [`--allow-ffi`](#--allow-ffi) flag
@@ -4210,6 +4254,20 @@ The `NODE_EXTRA_CA_CERTS` environment variable is only read when the Node.js
 process is first launched. Changing the value at runtime using
 `process.env.NODE_EXTRA_CA_CERTS` has no effect on the current process.
 
+### `NODE_GREEN_THREADS_POOL_SIZE=size`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Set the number of OS threads that [green threads][] are scheduled onto to
+`size`. Values above `1024` mean `1024`, and values that aren't positive
+integers are ignored. By default, the pool has as many threads as
+[`os.availableParallelism()`][], up to `8`. The pool is created when the first
+green thread starts, so the variable has to be set before then.
+
 ### `NODE_ICU_DATA=file`
 
 <!-- YAML
@@ -4276,6 +4334,7 @@ one is included in the list below.
 * `--allow-fs-read`
 * `--allow-fs-vfs`
 * `--allow-fs-write`
+* `--allow-green-threads`
 * `--allow-inspector`
 * `--allow-net`
 * `--allow-openssl-store`
@@ -4310,6 +4369,7 @@ one is included in the list below.
 * `--experimental-detect-module`
 * `--experimental-dtls`
 * `--experimental-eventsource`
+* `--experimental-green-threads`
 * `--experimental-import-meta-resolve`
 * `--experimental-import-text`
 * `--experimental-json-modules`
@@ -4947,6 +5007,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--allow-env`]: #--allow-env
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
+[`--allow-green-threads`]: #--allow-green-threads
 [`--allow-net`]: #--allow-net
 [`--allow-openssl-store`]: #--allow-openssl-store
 [`--allow-wasi`]: #--allow-wasi
@@ -4999,9 +5060,11 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`inspector.open()`]: inspector.md#inspectoropenport-host-wait
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
+[`node:green_threads`]: green_threads.md
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
 [`node:vfs`]: vfs.md
+[`os.availableParallelism()`]: os.md#osavailableparallelism
 [`permission.drop()`]: permissions.md#permissiondropscope-reference
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`session.connectToMainThread()`]: inspector.md#sessionconnecttomainthread
@@ -5026,6 +5089,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [environment_variables]: #environment-variables-1
 [filtering tests by name]: test.md#filtering-tests-by-name
 [global setup and teardown]: test.md#global-setup-and-teardown
+[green threads]: green_threads.md
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [module compile cache]: module.md#module-compile-cache

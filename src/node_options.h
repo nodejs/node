@@ -214,6 +214,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(experimental_bench) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_eventsource) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_ffi) = HAVE_FFI;
+  DEFINE_BOOL_FIELD(experimental_green_threads) = false;
   DEFINE_BOOL_FIELD(experimental_web_worker) = true;
   DEFINE_BOOL_FIELD(experimental_websocket) = true;
   DEFINE_BOOL_FIELD(experimental_sqlite) = HAVE_SQLITE;
@@ -241,6 +242,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(allow_ffi) = false;
   DEFINE_BOOL_FIELD(allow_openssl_store) = false;
   DEFINE_BOOL_FIELD(allow_worker_threads) = false;
+  DEFINE_BOOL_FIELD(allow_green_threads) = false;
   DEFINE_BOOL_FIELD(experimental_vm_modules) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(expose_internals) = false;
   DEFINE_BOOL_FIELD(force_node_api_uncaught_exceptions_policy) = false;

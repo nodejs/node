@@ -232,6 +232,28 @@ Paths delimited by comma (\fB,\fR) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
 Examples can be found in the File System Permissions documentation.
 .
+.It Fl -allow-green-threads
+When using the Permission Model, the process will not be able to start
+green threads by default. Attempts to create a \fBGreenThread\fR, or to call
+\fBsetWarmPoolSize()\fR, will throw an \fBERR_ACCESS_DENIED\fR exception unless the
+user explicitly passes the \fB--allow-green-threads\fR flag when starting Node.js.
+Unlike \fB--allow-worker\fR, this doesn't grant code more than the permission
+model allows: green threads can't use any Node.js API, and only have what the
+host passes them.
+Example:
+.Bd -literal
+const { GreenThread } = require('node:green_threads');
+new GreenThread('postMessage(1);');
+.Ed
+.Bd -literal
+$ node --permission --allow-fs-read=* --experimental-green-threads index.js
+Error: Access to this API has been restricted. Use --allow-green-threads to manage permissions.
+    at new GreenThread (node:green_threads:350:20) {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'GreenThreads'
+}
+.Ed
+.
 .It Fl -allow-inspector
 When using the Permission Model, the process will not be able to connect
 through inspector protocol.
@@ -873,6 +895,9 @@ dtls documentation for details.
 .It Fl -experimental-eventsource
 Enable exposition of EventSource Web API on the global scope.
 .
+.It Fl -experimental-green-threads
+Enable the experimental \fBnode:green_threads\fR module.
+.
 .It Fl -experimental-import-meta-resolve
 Enable experimental \fBimport.meta.resolve()\fR parent URL support, which allows
 passing a second \fBparentURL\fR argument for contextual resolution.
@@ -1340,6 +1365,8 @@ Environment variables - manageable through \fB--allow-env\fR flag
 Child Process - manageable through \fB--allow-child-process\fR flag
 .It
 Worker Threads - manageable through \fB--allow-worker\fR flag
+.It
+Green threads - manageable through \fB--allow-green-threads\fR flag
 .It
 WASI - manageable through \fB--allow-wasi\fR flag
 .It
@@ -2161,6 +2188,14 @@ The \fBNODE_EXTRA_CA_CERTS\fR environment variable is only read when the Node.js
 process is first launched. Changing the value at runtime using
 \fBprocess.env.NODE_EXTRA_CA_CERTS\fR has no effect on the current process.
 .
+.It Ev NODE_GREEN_THREADS_POOL_SIZE Ar size
+
+Set the number of OS threads that green threads are scheduled onto to
+\fBsize\fR. Values above \fB1024\fR mean \fB1024\fR, and values that aren't positive
+integers are ignored. By default, the pool has as many threads as
+\fBos.availableParallelism()\fR, up to \fB8\fR. The pool is created when the first
+green thread starts, so the variable has to be set before then.
+.
 .It Ev NODE_ICU_DATA Ar file
 Data path for ICU (\fBIntl\fR object) data. Will extend linked-in data when compiled
 with small-icu support.
@@ -2210,6 +2245,8 @@ one is included in the list below.
 \fB--allow-fs-vfs\fR
 .It
 \fB--allow-fs-write\fR
+.It
+\fB--allow-green-threads\fR
 .It
 \fB--allow-inspector\fR
 .It
@@ -2278,6 +2315,8 @@ one is included in the list below.
 \fB--experimental-dtls\fR
 .It
 \fB--experimental-eventsource\fR
+.It
+\fB--experimental-green-threads\fR
 .It
 \fB--experimental-import-meta-resolve\fR
 .It

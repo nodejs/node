@@ -175,6 +175,10 @@
               ],
               "description": "allow permissions to write in the filesystem"
             },
+            "allow-green-threads": {
+              "type": "boolean",
+              "description": "allow green threads when any permissions are set"
+            },
             "allow-inspector": {
               "type": "boolean",
               "description": "allow use of inspector when any permissions are set"
@@ -358,6 +362,10 @@
             "experimental-global-navigator": {
               "type": "boolean",
               "description": "expose experimental Navigator API on the global scope"
+            },
+            "experimental-green-threads": {
+              "type": "boolean",
+              "description": "experimental node:green_threads module"
             },
             "experimental-import-meta-resolve": {
               "type": "boolean",
@@ -1025,6 +1033,10 @@
                 }
               ],
               "description": "allow permissions to write in the filesystem"
+            },
+            "allow-green-threads": {
+              "type": "boolean",
+              "description": "allow green threads when any permissions are set"
             },
             "allow-inspector": {
               "type": "boolean",

@@ -381,11 +381,48 @@ v8::IsolateGroup GetOrCreateIsolateGroup();
 
 // The blob every isolate is created from, see NewIsolate(). It is never freed.
 bool IsFirstSnapshotBlob(const char* data);
+// The memory that SetIsolateCreateParamsForNode() configures the heap of
+// isolates for: the total memory, or the constrained memory if it's less.
+// Reads files, on some platforms.
+uint64_t GetMemoryForHeapDefaults();
 v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
                         uv_loop_t* event_loop,
                         MultiIsolatePlatform* platform,
                         const SnapshotData* snapshot_data = nullptr,
                         const IsolateSettings& settings = {});
+// Like the overload above, but registers the isolate with `delegate` as its
+// foreground task runner instead of binding it to a libuv loop, and creates
+// it in `group`. Unless `use_first_snapshot` is true, `params` is used as is,
+// which means V8's own startup snapshot if it has no snapshot blob. All
+// isolates in a group must use the same snapshot.
+v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
+                        IsolatePlatformDelegate* delegate,
+                        MultiIsolatePlatform* platform,
+                        const IsolateSettings& settings,
+                        const v8::IsolateGroup& group,
+                        bool use_first_snapshot);
+namespace green_thread {
+// Terminates all green threads in the process and waits until their isolates
+// are disposed.
+// Returns false if green threads were abandoned, because they didn't stop
+// when asked to. Their isolates are never disposed, so V8 and the platform
+// must then not be disposed either.
+bool TerminateAll();
+
+// The snapshot that green threads in isolate groups of their own start
+// from: V8's snapshot, with a context in which their runtime is
+// bootstrapped. For node_mksnapshot. Empty if this build doesn't support
+// isolate groups, or creating it failed.
+v8::StartupData CreateSnapshotBlob(MultiIsolatePlatform* platform);
+// The snapshot that green threads in V8's default isolate group start from
+// when isolates in it use `node_snapshot`, Node.js' own: V8's snapshot, with
+// a context in which their runtime is bootstrapped, and the read-only heap
+// of `node_snapshot`. For node_mksnapshot, after `node_snapshot` is created.
+// Empty if creating it failed.
+v8::StartupData CreateDefaultGroupSnapshotBlob(
+    MultiIsolatePlatform* platform, const v8::StartupData& node_snapshot);
+}  // namespace green_thread
+
 // This overload automatically picks the right 'main_script_id' if no callback
 // was provided by the embedder.
 v8::MaybeLocal<v8::Value> StartExecution(
