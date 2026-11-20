@@ -277,8 +277,8 @@ bool OSSLContext::set_verify_hostname(std::string_view hostname) const {
   }
 }
 
-bool OSSLContext::set_early_data_enabled() const {
-  return SSL_set_quic_tls_early_data_enabled(*this, 1) == 1;
+bool OSSLContext::set_early_data_enabled(bool enabled) const {
+  return SSL_set_quic_tls_early_data_enabled(*this, enabled) == 1;
 }
 
 bool OSSLContext::set_transport_params(const ngtcp2_vec& tp) const {
@@ -303,10 +303,10 @@ bool OSSLContext::set_session_ticket(const ncrypto::SSLSessionPointer& ticket) {
   return SSL_SESSION_get_max_early_data(ticket.get()) != 0;
 }
 
-bool OSSLContext::ConfigureServer() const {
+bool OSSLContext::ConfigureServer(bool enable_early_data) const {
   if (ngtcp2_crypto_ossl_configure_server_session(*this) != 0) return false;
   SSL_set_accept_state(*this);
-  return set_early_data_enabled();
+  return set_early_data_enabled(enable_early_data);
 }
 
 bool OSSLContext::ConfigureClient() const {
@@ -904,7 +904,8 @@ void TLSSession::Initialize(
 
   switch (ctx.side()) {
     case Side::SERVER: {
-      if (!ossl_context_.ConfigureServer()) [[unlikely]] {
+      if (!ossl_context_.ConfigureServer(options.enable_early_data))
+          [[unlikely]] {
         validation_error_ = "Failed to configure server session";
         ossl_context_.reset();
         return;
@@ -952,7 +953,7 @@ void TLSSession::Initialize(
             ngtcp2_vec rtp = sessionTicket.transport_params();
             if (ngtcp2_conn_decode_and_set_0rtt_transport_params(
                     *session_, rtp.base, rtp.len) == 0) {
-              if (!ossl_context_.set_early_data_enabled()) {
+              if (!ossl_context_.set_early_data_enabled(true)) {
                 validation_error_ = "Failed to enable early data";
                 ossl_context_.reset();
                 return;
