@@ -39,6 +39,7 @@ struct ArrayBufferList final {
   V8_EXPORT_PRIVATE bool ContainsSlow(ArrayBufferExtension* extension) const;
 
  private:
+  void AppendWithKnownAge(ArrayBufferExtension* extension, size_t bytes);
   ArrayBufferExtension* head_ = nullptr;
   ArrayBufferExtension* tail_ = nullptr;
   // Bytes are approximate as they may be subtracted eagerly, while the
@@ -66,6 +67,10 @@ class ArrayBufferSweeper final {
 
   // Track the given ArrayBufferExtension.
   void Append(ArrayBufferExtension* extension);
+  unsigned AttachPreparedNodeCopies(
+      DirectHandle<FixedArray> wrappers,
+      std::unique_ptr<v8::BackingStore>* stores, unsigned count, size_t size,
+      const std::shared_ptr<NodeCopyStoreRecycler>& recycler);
 
   void Resize(ArrayBufferExtension* extension, int64_t delta);
 
@@ -91,6 +96,7 @@ class ArrayBufferSweeper final {
 
   // Finishes sweeping if it is already done.
   void FinishIfDone();
+  void AppendToList(ArrayBufferExtension* extension, size_t bytes);
   void Finish();
 
   void UpdateApproximateBytes(int64_t delta, ArrayBufferExtension::Age age);

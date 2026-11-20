@@ -4,6 +4,8 @@
 
 #include "src/builtins/builtins-typed-array-gen.h"
 
+#include "src/builtins/small-byte-copy-gen.h"
+
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
@@ -39,13 +41,122 @@ void TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
 // TODO(bmeurer,v8:4153): Rename this and maybe fix up the implementation a bit.
 TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
     TNode<Context> context) {
+  TNode<JSArrayBuffer> buffer = UncheckedCast<JSArrayBuffer>(
+      Allocate(JSArrayBuffer::kSizeWithEmbedderFields));
+  SmallByteCopyAssembler(state()).InitializeEmptyOnHeapBuffer(context, buffer);
+  return buffer;
+}
+
+TNode<JSTypedArray> SmallByteCopyAssembler::TryAllocatePrivateByteView(
+    TNode<Context> context, TNode<Map> map, TNode<UintPtrT> length,
+    Label* generic) {
+  GotoIfNot(BoolConstant(kSystemPointerSize == 8 &&
+                         !V8_COMPRESS_POINTERS_8GB_BOOL &&
+                         v8_flags.enable_allocation_folding &&
+                         !v8_flags.single_generation &&
+                         !v8_flags.sticky_mark_bits), generic);
+  GotoIfUnsupportedByteViewMap(map, generic);
+  CSA_DCHECK(this, UintPtrLessThanOrEqual(length, UintPtrConstant(1024)));
+  CSA_DCHECK(this, UintPtrLessThanOrEqual(
+                       length, UintPtrConstant(JSTypedArray::kMaxSizeInHeap)));
+  constexpr int buffer_offset =
+      ALIGN_TO_ALLOCATION_ALIGNMENT(JSTypedArray::kSizeWithEmbedderFields);
+  constexpr int elements_offset = buffer_offset +
+      ALIGN_TO_ALLOCATION_ALIGNMENT(JSArrayBuffer::kSizeWithEmbedderFields);
+  TNode<IntPtrT> raw_size = IntPtrAdd(Signed(length), IntPtrConstant(
+      elements_offset + OFFSET_OF_DATA_START(ByteArray)));
+  TNode<IntPtrT> size = AlignToAllocationAlignment(
+      WordAnd(IntPtrAdd(raw_size, IntPtrConstant(kObjectAlignmentMask)),
+              IntPtrConstant(~kObjectAlignmentMask)));
+  auto top = Load<IntPtrT>(IsolateField(IsolateFieldId::kNewAllocationInfoTop));
+  auto limit = Load<IntPtrT>(
+      IsolateField(IsolateFieldId::kNewAllocationInfoLimit));
+  GotoIfNot(UintPtrLessThan(top, limit), generic);
+  GotoIfNot(UintPtrLessThan(size, IntPtrSub(limit, top)), generic);
+  TNode<JSTypedArray> view =
+      UncheckedCast<JSTypedArray>(AllocateInNewSpace(size));
+  TNode<IntPtrT> base = BitcastTaggedToWord(view);
+  TNode<JSArrayBuffer> buffer = UncheckedCast<JSArrayBuffer>(BitcastWordToTagged(
+      IntPtrAdd(base, IntPtrConstant(buffer_offset))));
+  TNode<ByteArray> elements = UncheckedCast<ByteArray>(BitcastWordToTagged(
+      IntPtrAdd(base, IntPtrConstant(elements_offset))));
+
+  InitializeEmptyOnHeapBuffer(context, buffer);
+  StoreMapNoWriteBarrier(elements, RootIndex::kByteArrayMap);
+  StoreObjectFieldNoWriteBarrier(elements, offsetof(ByteArray, length_),
+                                 TruncateIntPtrToInt32(Signed(length)));
+#if TAGGED_SIZE_8_BYTES
+  StoreObjectFieldNoWriteBarrier(elements, offsetof(ByteArray, optional_padding_),
+                                 Uint32Constant(0));
+#endif
+  StoreMapNoWriteBarrier(view, map);
+  StoreObjectFieldRoot(view, offsetof(JSReceiver, properties_or_hash_),
+                       RootIndex::kEmptyFixedArray);
+  StoreObjectFieldNoWriteBarrier(view, offsetof(JSObject, elements_), elements);
+  StoreObjectFieldNoWriteBarrier(view, offsetof(JSArrayBufferView, buffer_),
+                                 buffer);
+  StoreObjectFieldNoWriteBarrier(view, offsetof(JSArrayBufferView, bit_field_),
+                                 Uint32Constant(0));
+#if TAGGED_SIZE_8_BYTES
+  StoreObjectFieldNoWriteBarrier(view, offsetof(JSArrayBufferView, optional_padding_),
+                                 Uint32Constant(0));
+#endif
+  StoreJSArrayBufferViewByteOffset(view, UintPtrConstant(0));
+  StoreJSArrayBufferViewByteLength(view, length);
+  StoreBoundedSizeToObject(view, offsetof(JSTypedArray, raw_length_), length);
+  SetJSTypedArrayOnHeapDataPtr(view, elements, UintPtrConstant(0));
+  SetupTypedArrayEmbedderFields(view);
+  return view;
+}
+
+void SmallByteCopyAssembler::GotoIfUnsupportedByteViewMap(TNode<Map> map,
+                                                         Label* generic) {
+  GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(map), JS_TYPED_ARRAY_TYPE),
+            generic);
+  GotoIfNot(IntPtrEqual(LoadMapInobjectPropertiesStartInWords(map),
+                        IntPtrConstant(JSTypedArray::kSizeWithEmbedderFields /
+                                       kTaggedSize)), generic);
+  GotoIf(IsDictionaryMap(map), generic);
+  GotoIf(IsSetWord32<Map::Bits3::ConstructionCounterBits>(LoadMapBitField3(map)),
+         generic);
+  GotoIfNot(WordEqual(TimesTaggedSize(LoadMapInstanceSizeInWords(map)),
+                      IntPtrConstant(JSTypedArray::kSizeWithEmbedderFields)),
+            generic);
+}
+
+TNode<JSTypedArray> SmallByteCopyAssembler::TryAllocateExternalByteView(
+    TNode<Map> map, TNode<JSArrayBuffer> buffer, TNode<UintPtrT> length,
+    Label* generic) {
+  GotoIfUnsupportedByteViewMap(map, generic);
+  auto view = UncheckedCast<JSTypedArray>(
+      AllocateInNewSpace(IntPtrConstant(JSTypedArray::kSizeWithEmbedderFields)));
+  StoreMapNoWriteBarrier(view, map);
+  StoreObjectFieldRoot(view, offsetof(JSReceiver, properties_or_hash_),
+                       RootIndex::kEmptyFixedArray);
+  StoreObjectFieldRoot(view, offsetof(JSObject, elements_),
+                       RootIndex::kEmptyByteArray);
+  StoreObjectField(view, offsetof(JSArrayBufferView, buffer_), buffer);
+  StoreObjectFieldNoWriteBarrier(view, offsetof(JSArrayBufferView, bit_field_),
+                                 Uint32Constant(0));
+#if TAGGED_SIZE_8_BYTES
+  StoreObjectFieldNoWriteBarrier(
+      view, offsetof(JSArrayBufferView, optional_padding_), Uint32Constant(0));
+#endif
+  StoreJSArrayBufferViewByteOffset(view, UintPtrConstant(0));
+  StoreJSArrayBufferViewByteLength(view, length);
+  StoreBoundedSizeToObject(view, offsetof(JSTypedArray, raw_length_), length);
+  SetJSTypedArrayOffHeapDataPtr(view, LoadJSArrayBufferBackingStorePtr(buffer),
+                                UintPtrConstant(0));
+  SetupTypedArrayEmbedderFields(view);
+  return view;
+}
+
+void SmallByteCopyAssembler::InitializeEmptyOnHeapBuffer(
+    TNode<Context> context, TNode<JSArrayBuffer> buffer) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map = CAST(LoadContextElementNoCell(
       native_context, Context::ARRAY_BUFFER_MAP_INDEX));
   TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
-
-  TNode<JSArrayBuffer> buffer = UncheckedCast<JSArrayBuffer>(
-      Allocate(JSArrayBuffer::kSizeWithEmbedderFields));
   StoreMapNoWriteBarrier(buffer, map);
   StoreObjectFieldNoWriteBarrier(buffer, offsetof(JSArray, properties_or_hash_),
                                  empty_fixed_array);
@@ -93,7 +204,6 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
     // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
     StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));
   }
-  return buffer;
 }
 
 TF_BUILTIN(TypedArrayBaseConstructor, TypedArrayBuiltinsAssembler) {
@@ -250,19 +360,11 @@ TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
 TorqueStructTypedArrayElementsInfo
 TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(TNode<Map> map) {
   TNode<Int32T> elements_kind = LoadMapElementsKind(map);
-  TVARIABLE(UintPtrT, var_size_log2);
-  TVARIABLE(Map, var_map);
-  ReadOnlyRoots roots(isolate());
-
-  DispatchTypedArrayByElementsKind(
-      elements_kind,
-      [&](ElementsKind kind, int size, int typed_array_fun_index) {
-        DCHECK_GT(size, 0);
-        var_size_log2 = UintPtrConstant(ElementsKindToShiftSize(kind));
-      });
-
-  return TorqueStructTypedArrayElementsInfo{var_size_log2.value(),
-                                            elements_kind};
+  CSA_CHECK(this, IsElementsKindInRange(
+      elements_kind, FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
+      LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
+  return {ChangeUint32ToWord(ElementsKindToElementByteShift(elements_kind)),
+          elements_kind};
 }
 
 TNode<JSFunction> TypedArrayBuiltinsAssembler::GetDefaultConstructor(

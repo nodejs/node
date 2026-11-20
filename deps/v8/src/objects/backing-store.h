@@ -231,6 +231,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
  private:
   friend class GlobalBackingStoreRegistry;
+  friend class NodeInlineBackingStore;
 
   enum Flag {
     kIsShared,
