@@ -800,6 +800,95 @@ TEST_IMPL(spawn_stdio_high_fd) {
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
+
+static void spawn_inherit_nonblock_alloc(uv_handle_t* handle,
+                                        size_t suggested_size,
+                                        uv_buf_t* buf) {
+  buf->base = output + output_used;
+  buf->len = 1;
+}
+
+
+static int spawn_inherit_nonblock(uv_stdio_flags flags, int missing) {
+  uv_stdio_container_t* stdio;
+  uv_pipe_t pipe;
+  int fds[2];
+  int child_fd;
+  int before;
+  int r;
+
+  init_process_options("spawn_helper1", exit_cb);
+  ASSERT_OK(uv_pipe(fds, UV_NONBLOCK_PIPE, 0));
+  ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe, 0));
+  ASSERT_OK(uv_pipe_open(&pipe, fds[0]));
+  before = fcntl(fds[0], F_GETFL);
+  ASSERT_GE(before, 0);
+  ASSERT_NE(0, before & O_NONBLOCK);
+
+  /* Exercise an upward remapping to a nonstandard child descriptor. */
+  child_fd = fds[0] + 1;
+  ASSERT_GT(child_fd, 2);
+  stdio = calloc(child_fd + 1, sizeof(*stdio));
+  ASSERT_NOT_NULL(stdio);
+  stdio[child_fd].flags = flags;
+  if (flags == UV_INHERIT_STREAM)
+    stdio[child_fd].data.stream = (uv_stream_t*) &pipe;
+  else
+    stdio[child_fd].data.fd = fds[0];
+  options.stdio = stdio;
+  options.stdio_count = child_fd + 1;
+  if (missing)
+    options.file = "./test-file-does-not-exist";
+
+  r = uv_spawn(uv_default_loop(), &process, &options);
+  if (missing) {
+    ASSERT_EQ(UV_ENOENT, r);
+    uv_close((uv_handle_t*) &process, close_cb);
+  } else {
+    ASSERT_OK(r);
+  }
+  ASSERT_EQ(before, fcntl(fds[0], F_GETFL));
+  free(stdio);
+
+  /* Fill the one-byte buffer so the reader tries again while the writer is
+   * still open. A short read or EOF would hide a blocking descriptor. */
+  ASSERT_OK(uv_read_start((uv_stream_t*) &pipe,
+                          spawn_inherit_nonblock_alloc,
+                          on_read));
+  ASSERT_EQ(1, write(fds[1], "x", 1));
+  ASSERT_EQ(1, uv_run(uv_default_loop(), UV_RUN_NOWAIT));
+  ASSERT_EQ(1, output_used);
+  ASSERT_EQ('x', output[0]);
+
+  ASSERT_OK(close(fds[1]));
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT_EQ(!missing, exit_cb_called);
+  ASSERT_EQ(2, close_cb_called);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+
+TEST_IMPL(spawn_inherit_stream_nonblock) {
+  return spawn_inherit_nonblock(UV_INHERIT_STREAM, 0);
+}
+
+
+TEST_IMPL(spawn_inherit_stream_nonblock_fails) {
+  return spawn_inherit_nonblock(UV_INHERIT_STREAM, 1);
+}
+
+
+TEST_IMPL(spawn_inherit_fd_nonblock) {
+  return spawn_inherit_nonblock(UV_INHERIT_FD, 0);
+}
+
+
+TEST_IMPL(spawn_inherit_fd_nonblock_fails) {
+  return spawn_inherit_nonblock(UV_INHERIT_FD, 1);
+}
+
 #endif
 
 

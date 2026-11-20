@@ -716,9 +716,10 @@ static int uv__spawn_set_posix_spawn_file_actions(
     if (err != 0)
       goto error;
 
-    /* Make sure the fd is marked as blocking (state shared between child
-     * and parent). */
-    uv__nonblock_fcntl(pipes[fd][1], 0);
+    /* Make sure standard descriptors are blocking (state shared between
+     * child and parent). Leave other inherited descriptors unchanged. */
+    if (fd <= 2)
+      uv__nonblock_fcntl(pipes[fd][1], 0);
   }
 
   /* Finally, close all the superfluous descriptors */
