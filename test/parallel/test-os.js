@@ -42,6 +42,8 @@ const is = {
 process.env.TMPDIR = '/tmpdir';
 process.env.TMP = '/tmp';
 process.env.TEMP = '/temp';
+
+/* eslint-disable no-restricted-syntax */
 if (common.isWindows) {
   assert.strictEqual(os.tmpdir(), '/temp');
   process.env.TEMP = '';
@@ -72,6 +74,7 @@ if (common.isWindows) {
   process.env.TMPDIR = '/';
   assert.strictEqual(os.tmpdir(), '/');
 }
+/* eslint-enable no-restricted-syntax */
 
 const endianness = os.endianness();
 is.string(endianness);
@@ -250,7 +253,7 @@ assert.strictEqual(`${os.homedir}`, os.homedir());
 assert.strictEqual(`${os.release}`, os.release());
 assert.strictEqual(`${os.type}`, os.type());
 assert.strictEqual(`${os.endianness}`, os.endianness());
-assert.strictEqual(`${os.tmpdir}`, os.tmpdir());
+assert.strictEqual(`${os.tmpdir}`, os.tmpdir()); // eslint-disable-line no-restricted-syntax
 assert.strictEqual(`${os.arch}`, os.arch());
 assert.strictEqual(`${os.platform}`, os.platform());
 assert.strictEqual(`${os.version}`, os.version());
