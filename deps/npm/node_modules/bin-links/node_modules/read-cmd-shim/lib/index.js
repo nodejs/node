@@ -24,7 +24,7 @@ const extractPathFromCmd = cmdshimContents => {
 }
 
 const extractPathFromCygwin = cmdshimContents => {
-  const matches = cmdshimContents.match(/"[$]basedir[/]([^"]+?)"\s+"[$]@"/)
+  const matches = cmdshimContents.match(/"[$]basedir(?:_win)?[/]([^"]+?)"\s+"[$]@"/)
   return matches && matches[1]
 }
 
