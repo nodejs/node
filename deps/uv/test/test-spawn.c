@@ -936,6 +936,49 @@ TEST_IMPL(spawn_inherit_fd_nonblock_fails) {
   return spawn_inherit_nonblock(UV_INHERIT_FD, 1);
 }
 
+
+TEST_IMPL(spawn_inherit_fd_cloexec) {
+  uv_stdio_container_t* stdio;
+  uv_pipe_t pipe;
+  char fd_arg[32];
+  int fds[2];
+  int flags;
+
+  init_process_options("spawn_helper5", exit_cb);
+  ASSERT_OK(uv_pipe(fds, UV_NONBLOCK_PIPE, 0));
+  ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe, 0));
+  ASSERT_OK(uv_pipe_open(&pipe, fds[0]));
+  flags = fcntl(fds[1], F_GETFD);
+  ASSERT_GE(flags, 0);
+  ASSERT_NE(0, flags & FD_CLOEXEC);
+
+  /* The child inherits a close-on-exec descriptor under the number it has in
+   * the parent, like stdio after uv_disable_stdio_inheritance(). */
+  stdio = calloc(fds[1] + 1, sizeof(*stdio));
+  ASSERT_NOT_NULL(stdio);
+  stdio[fds[1]].flags = UV_INHERIT_FD;
+  stdio[fds[1]].data.fd = fds[1];
+  options.stdio = stdio;
+  options.stdio_count = fds[1] + 1;
+  snprintf(fd_arg, sizeof(fd_arg), "%d", fds[1]);
+  args[2] = fd_arg;
+  args[3] = "ignored";
+
+  ASSERT_OK(uv_spawn(uv_default_loop(), &process, &options));
+  ASSERT_EQ(flags, fcntl(fds[1], F_GETFD));
+  ASSERT_OK(close(fds[1]));
+  free(stdio);
+
+  ASSERT_OK(uv_read_start((uv_stream_t*) &pipe, on_alloc, on_read));
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT_EQ(1, exit_cb_called);
+  ASSERT_EQ(2, close_cb_called);
+  ASSERT_OK(strcmp("fourth stdio!\n", output));
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
 #endif
 
 

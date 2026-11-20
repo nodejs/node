@@ -94,6 +94,9 @@ extern char **environ;
 
 static uv_once_t posix_spawn_init_once = UV_ONCE_INIT;
 static int posix_spawn_can_use_setsid;
+#if defined(__linux__)
+static int posix_spawn_dup2_keeps_cloexec;
+#endif
 static volatile int posix_spawn_works;
 
 static struct uv__posix_spawn_fncs_s {
@@ -530,6 +533,11 @@ static void uv__spawn_init_posix_spawn(void) {
   version = gnu_get_libc_version();
   if (version[0] == '2' && version[1] == '.' && atoi(version + 2) < 24)
     return;
+
+  /* Before glibc 2.29, a dup2 file action with equal descriptors leaves
+   * FD_CLOEXEC set, see uv__spawn_set_posix_spawn_file_actions(). */
+  if (version[0] == '2' && version[1] == '.' && atoi(version + 2) < 29)
+    posix_spawn_dup2_keeps_cloexec = 1;
 #endif
 
   /* Probe whether vfork()/clone(CLONE_VM) correctly shares the address space,
@@ -705,6 +713,21 @@ static int uv__spawn_set_posix_spawn_file_actions(
    * descriptors intact for stream setup and cleanup. */
   for (fd = 0; fd < stdio_count; fd++)
     child_fds[fd] = pipes[fd][1];
+
+#if defined(__linux__)
+  /* A descriptor that keeps its number is inherited with
+   * posix_spawn_file_actions_adddup2(fd, fd). Before glibc 2.29 that does not
+   * clear FD_CLOEXEC, so the child would lose a descriptor that is
+   * close-on-exec in the parent. Use fork() instead. */
+  if (posix_spawn_dup2_keeps_cloexec) {
+    for (fd = 0; fd < stdio_count; fd++) {
+      if (child_fds[fd] == fd) {
+        err = ENOSYS;
+        goto error;
+      }
+    }
+  }
+#endif
 
   /* First duplicate low numbered fds, since it's not safe to duplicate them,
    * they could get replaced. Example: swapping stdout and stderr; without
