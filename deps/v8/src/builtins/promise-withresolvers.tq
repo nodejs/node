@@ -17,6 +17,13 @@ transitioning javascript builtin PromiseWithResolvers(
       MessageTemplate::kCalledOnNonObject, 'Promise.withResolvers');
 
   // 2. Let promiseCapability be ? NewPromiseCapability(C).
+  const nativeContext = LoadNativeContext(context);
+  if (receiver ==
+      *NativeContextSlot(nativeContext, ContextSlot::PROMISE_FUNCTION_INDEX)) {
+    const promise = NewJSPromise();
+    const pair = CreatePromiseResolvingFunctions(promise, False, nativeContext);
+    return AllocatePromiseWithResolversResult(promise, pair.resolve, pair.reject);
+  }
   const capability = NewPromiseCapability(receiver, False);
 
   // 3. Let obj be OrdinaryObjectCreate(%Object.prototype%).
