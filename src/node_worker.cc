@@ -1077,7 +1077,7 @@ void Worker::SetHeapProfileSampleInterval(
   BaseObjectPtr<WorkerHeapProfileTaker> taker =
       MakeDetachedBaseObject<WorkerHeapProfileTaker>(env, wrap);
   bool queued = w->RequestInterrupt([taker = std::move(taker), env, interval](
-                                       Environment* worker_env) mutable {
+                                        Environment* worker_env) mutable {
     auto* profiler = worker_env->isolate()->GetHeapProfiler();
     profiler->SetSamplingHeapProfilerInterval(interval);
     env->SetImmediateThreadsafe(
@@ -1109,13 +1109,13 @@ void Worker::GetHeapProfileSamples(const FunctionCallbackInfo<Value>& args) {
   }
   BaseObjectPtr<WorkerHeapProfileTaker> taker =
       MakeDetachedBaseObject<WorkerHeapProfileTaker>(env, wrap);
-  bool scheduled = w->RequestInterrupt([taker = std::move(taker), env](
-                                          Environment* worker_env) mutable {
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
     auto* profiler = worker_env->isolate()->GetHeapProfiler();
     auto samples = profiler->GetSamplingHeapProfilerSamples();
     env->SetImmediateThreadsafe(
-        [taker = std::move(taker), samples = std::move(samples)](
-            Environment* env) mutable {
+        [taker = std::move(taker),
+         samples = std::move(samples)](Environment* env) mutable {
           Isolate* isolate = env->isolate();
           HandleScope handle_scope(isolate);
           Context::Scope context_scope(env->context());
