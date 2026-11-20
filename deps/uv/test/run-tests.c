@@ -160,19 +160,20 @@ static int maybe_run_test(int argc, char **argv) {
 
   if (strcmp(argv[1], "spawn_helper5") == 0) {
     const char out[] = "fourth stdio!\n";
+    int fd = argc > 2 ? atoi(argv[2]) : 3;
     notify_parent_process();
     {
 #ifdef _WIN32
       DWORD bytes;
-      WriteFile((HANDLE) _get_osfhandle(3), out, sizeof(out) - 1, &bytes, NULL);
+      WriteFile((HANDLE) _get_osfhandle(fd), out, sizeof(out) - 1, &bytes, NULL);
 #else
       ssize_t r;
 
       do
-        r = write(3, out, sizeof(out) - 1);
+        r = write(fd, out, sizeof(out) - 1);
       while (r == -1 && errno == EINTR);
 
-      fsync(3);
+      fsync(fd);
 #endif
     }
     return 1;

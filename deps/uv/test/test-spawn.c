@@ -753,6 +753,56 @@ TEST_IMPL(spawn_stdio_greater_than_3) {
 }
 
 
+#ifndef _WIN32
+TEST_IMPL(spawn_stdio_high_fd) {
+  uv_stdio_container_t* stdio;
+  uv_pipe_t pipe;
+  char fd_arg[32];
+  int sentinel;
+  int flags;
+  int fd;
+
+  init_process_options("spawn_helper5", exit_cb);
+  ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe, 0));
+
+  fd = open("/dev/null", O_RDONLY | O_NONBLOCK);
+  ASSERT_GE(fd, 0);
+  sentinel = fcntl(fd, F_DUPFD, 64);
+  ASSERT_GE(sentinel, 64);
+  ASSERT_OK(close(fd));
+  flags = fcntl(sentinel, F_GETFL);
+  ASSERT_GE(flags, 0);
+
+  stdio = calloc(sentinel, sizeof(*stdio));
+  ASSERT_NOT_NULL(stdio);
+  stdio[sentinel - 1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  stdio[sentinel - 1].data.stream = (uv_stream_t*) &pipe;
+  options.stdio = stdio;
+  options.stdio_count = sentinel;
+  snprintf(fd_arg, sizeof(fd_arg), "%d", sentinel - 1);
+  args[2] = fd_arg;
+  args[3] = "ignored";
+
+  /* The child must move the low pipe fd aside before mapping it to the high
+   * stdio slot. That temporary child fd must not affect the parent. */
+  ASSERT_OK(uv_spawn(uv_default_loop(), &process, &options));
+  ASSERT_EQ(flags, fcntl(sentinel, F_GETFL));
+  ASSERT_OK(close(sentinel));
+  free(stdio);
+
+  /* EOF also proves that the parent closed its copy of the child endpoint. */
+  ASSERT_OK(uv_read_start((uv_stream_t*) &pipe, on_alloc, on_read));
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT_EQ(1, exit_cb_called);
+  ASSERT_EQ(2, close_cb_called);
+  ASSERT_OK(strcmp("fourth stdio!\n", output));
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+#endif
+
+
 int spawn_tcp_server_helper(void) {
   uv_tcp_t tcp;
   uv_os_sock_t handle;
