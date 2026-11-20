@@ -3767,15 +3767,18 @@ changes:
     `readableHighWaterMark` and `writableHighWaterMark`. This affects
     `highWaterMark` property of both `IncomingMessage` and `ServerResponse`.
     **Default:** See [`stream.getDefaultHighWaterMark()`][].
-  * `httpValidation` {string} Controls HTTP header value validation strictness
-    for incoming requests. Accepted values are:
-    * `'strict'`: Strictest validation; rejects any non-ASCII or control
-      characters in header values.
-    * `'relaxed'`: Allows a limited set of non-ASCII characters in header
-      values, aligning with the
-      [Fetch specification](https://fetch.spec.whatwg.org/).
-    * `'insecure'`: Disables all header value validation (equivalent to
-      `insecureHTTPParser: true`).
+  * `httpValidation` {string} Controls how strictly HTTP header values are
+    validated, both in incoming requests and in outgoing responses. Accepted
+    values are:
+    * `'strict'`: Rejects control characters other than horizontal tab, and
+      characters outside the `latin1` range.
+    * `'relaxed'`: Also allows control characters other than NUL, CR, and LF,
+      aligning with the [Fetch specification](https://fetch.spec.whatwg.org/).
+    * `'insecure'`: Equivalent to `insecureHTTPParser: true`. Incoming
+      requests are parsed with all [`--insecure-http-parser`][] leniency
+      flags, which disables their header value validation. Outgoing header
+      values are validated as in `'relaxed'` mode, so NUL, CR, and LF are
+      still rejected.
       Cannot be used together with `insecureHTTPParser`. **Default:** `'strict'`.
   * `insecureHTTPParser` {boolean} If set to `true`, it will use an HTTP parser
     with leniency flags enabled. Using the insecure parser should be avoided.
@@ -4097,15 +4100,18 @@ changes:
     request to. **Default:** `'localhost'`.
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
     `hostname` will be used if both `host` and `hostname` are specified.
-  * `httpValidation` {string} Controls HTTP header value validation strictness
-    for outgoing requests. Accepted values are:
-    * `'strict'`: Strictest validation; rejects any non-ASCII or control
-      characters in header values.
-    * `'relaxed'`: Allows a limited set of non-ASCII characters in header
-      values, aligning with the
-      [Fetch specification](https://fetch.spec.whatwg.org/).
-    * `'insecure'`: Disables all header value validation (equivalent to
-      `insecureHTTPParser: true`).
+  * `httpValidation` {string} Controls how strictly HTTP header values are
+    validated, both in outgoing requests and in incoming responses. Accepted
+    values are:
+    * `'strict'`: Rejects control characters other than horizontal tab, and
+      characters outside the `latin1` range.
+    * `'relaxed'`: Also allows control characters other than NUL, CR, and LF,
+      aligning with the [Fetch specification](https://fetch.spec.whatwg.org/).
+    * `'insecure'`: Equivalent to `insecureHTTPParser: true`. Incoming
+      responses are parsed with all [`--insecure-http-parser`][] leniency
+      flags, which disables their header value validation. Outgoing header
+      values are validated as in `'relaxed'` mode, so NUL, CR, and LF are
+      still rejected.
       Cannot be used together with `insecureHTTPParser`. **Default:** `'strict'`.
   * `insecureHTTPParser` {boolean} If set to `true`, it will use an HTTP parser
     with leniency flags enabled. Using the insecure parser should be avoided.
