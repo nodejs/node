@@ -167,6 +167,15 @@ function oneTo5Async() {
         name: 'AbortError',
       }, `${op} should abort with pre-aborted abort controller`).then(common.mustCall());
     }
+    {
+      // Support for pre-aborted AbortSignal on an empty stream
+      assert.rejects(Readable.from([])[op](
+        common.mustNotCall(),
+        { signal: AbortSignal.abort() }
+      ), {
+        name: 'AbortError',
+      }, `${op} should abort with pre-aborted signal on empty stream`).then(common.mustCall());
+    }
   }
 }
 {

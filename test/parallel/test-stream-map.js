@@ -358,3 +358,13 @@ function createDependentPromises(n) {
   const stream = Readable.from([1, 2, 3, 4, 5]).map((x) => x);
   assert.strictEqual(stream.readable, true);
 }
+
+{
+  // Already aborted AbortSignal on an empty stream
+  const stream = Readable.from([]).map(common.mustNotCall(), {
+    signal: AbortSignal.abort(),
+  });
+  assert.rejects(stream.toArray(), {
+    name: 'AbortError',
+  }).then(common.mustCall());
+}
