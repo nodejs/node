@@ -22,6 +22,9 @@ struct PlatformWorkerData {
   Mutex* platform_workers_mutex;
   ConditionVariable* platform_workers_ready;
   int* pending_platform_workers;
+  Mutex* running_workers_mutex;
+  ConditionVariable* worker_exited;
+  int* running_workers;
   int id;
   PlatformDebugLogLevel debug_log_level;
 };
@@ -83,6 +86,11 @@ static void PlatformWorkerThread(void* data) {
       pending_worker_tasks->Lock().NotifyOfOutstandingCompletion();
     }
   }
+
+  // See WorkerThreadsTaskRunner::Shutdown().
+  Mutex::ScopedLock lock(*worker_data->running_workers_mutex);
+  (*worker_data->running_workers)--;
+  worker_data->worker_exited->Signal(lock);
 }
 
 static int GetActualThreadPoolSize(int thread_pool_size) {
@@ -261,6 +269,9 @@ WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(
                            &platform_workers_mutex,
                            &platform_workers_ready,
                            &pending_platform_workers,
+                           &running_workers_mutex_,
+                           &worker_exited_,
+                           &running_workers_,
                            i,
                            debug_log_level_});
     std::unique_ptr<uv_thread_t> t { new uv_thread_t() };
@@ -270,6 +281,8 @@ WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(
     }
     worker_data.release();
     threads_.push_back(std::move(t));
+    Mutex::ScopedLock running_lock(running_workers_mutex_);
+    running_workers_++;
   }
 
   // Wait for platform workers to initialize before continuing with the
@@ -300,9 +313,22 @@ void WorkerThreadsTaskRunner::BlockingDrain() {
   pending_worker_tasks_.Lock().BlockingDrain();
 }
 
-void WorkerThreadsTaskRunner::Shutdown() {
+void WorkerThreadsTaskRunner::Shutdown(
+    const std::function<void()>& on_stalled) {
   pending_worker_tasks_.Lock().Stop();
   delayed_task_scheduler_->Stop();
+  if (on_stalled) {
+    /* Workers take no new tasks after Stop(), so this only waits for the
+     * tasks that are already running. */
+    constexpr uint64_t kStalledTimeoutNs = 10 * 1000 * 1000;
+    Mutex::ScopedLock lock(running_workers_mutex_);
+    while (running_workers_ > 0) {
+      if (worker_exited_.TimedWait(lock, kStalledTimeoutNs) == UV_ETIMEDOUT) {
+        Mutex::ScopedUnlock unlock(lock);
+        on_stalled();
+      }
+    }
+  }
   for (size_t i = 0; i < threads_.size(); i++) {
     CHECK_EQ(0, uv_thread_join(threads_[i].get()));
   }
@@ -523,10 +549,27 @@ void NodePlatform::AddIsolateFinishedCallback(Isolate* isolate,
   it->second.second->AddShutdownCallback(cb, data);
 }
 
-void NodePlatform::Shutdown() {
+void NodePlatform::Shutdown(Isolate* isolate) {
   if (has_shut_down_) return;
   has_shut_down_ = true;
-  worker_thread_task_runner_->Shutdown();
+  std::shared_ptr<PerIsolatePlatformData> per_isolate;
+  if (isolate != nullptr) {
+    Mutex::ScopedLock lock(per_isolate_mutex_);
+    auto it = per_isolate_.find(isolate);
+    if (it != per_isolate_.end()) per_isolate = it->second.second;
+  }
+  if (per_isolate) {
+    worker_thread_task_runner_->Shutdown([&]() {
+      /* V8 posts a foreground task when a worker has to wait for a GC, but
+       * the isolate will not run its tasks or be torn down anymore, so do the
+       * GC here. Discarding the tasks lets the next request be told apart. */
+      if (per_isolate->DiscardForegroundTasks()) {
+        isolate->LowMemoryNotification();
+      }
+    });
+  } else {
+    worker_thread_task_runner_->Shutdown();
+  }
 
   {
     Mutex::ScopedLock lock(per_isolate_mutex_);
@@ -602,6 +645,13 @@ void NodePlatform::DrainTasks(Isolate* isolate) {
     // that critical user-blocking tasks are not lost.
     worker_thread_task_runner_->BlockingDrain();
   } while (per_isolate->FlushForegroundTasksInternal());
+}
+
+bool PerIsolatePlatformData::DiscardForegroundTasks() {
+  // Destroy the tasks after releasing the queue lock.
+  std::vector<std::unique_ptr<TaskQueueEntry>> tasks =
+      foreground_tasks_.Lock().PopAll();
+  return !tasks.empty();
 }
 
 bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
