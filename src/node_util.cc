@@ -192,6 +192,8 @@ static void IsArrayBufferViewImmutable(
     const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsArrayBufferView());
   Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
+  // Deserialization can restore immutable buffers even when the JavaScript
+  // getter is disabled.
   // On-heap views cannot have immutable backing storage.
   args.GetReturnValue().Set(view->HasBuffer() && view->Buffer()->IsImmutable());
 }

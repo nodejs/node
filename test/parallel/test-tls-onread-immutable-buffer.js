@@ -9,6 +9,7 @@ const assert = require('assert');
 const tls = require('tls');
 const { once } = require('events');
 const { test } = require('node:test');
+const { inspect } = require('util');
 const fixtures = require('../common/fixtures');
 
 if (typeof ArrayBuffer.prototype.transferToImmutable !== 'function')
@@ -36,6 +37,27 @@ for (const factory of [false, true]) {
     assert.deepStrictEqual([...target], [0, 0, 0, 0]);
   });
 }
+
+test('reject an immutable TLS onread buffer with a throwing custom inspector', {
+  timeout: common.platformTimeout(5000),
+}, async (t) => {
+  const buffer = new Uint8Array(new ArrayBuffer(4).transferToImmutable());
+  buffer[inspect.custom] = common.mustNotCall('inspect the onread buffer');
+  const socket = new tls.TLSSocket(undefined, {
+    onread: {
+      buffer,
+      callback: common.mustNotCall(),
+    },
+  });
+  t.after(() => socket.destroy());
+  socket.on('error', common.expectsError({
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_VALUE',
+  }));
+  socket.on('close', common.mustCall());
+  await new Promise((resolve) => socket.once('close', resolve));
+  assert.strictEqual(socket.destroyed, true);
+});
 
 test('reject an immutable TLS replacement buffer', {
   timeout: common.platformTimeout(5000),
