@@ -1367,6 +1367,9 @@ variables which configure Node.js][environment_variables], such as `NODE_OPTIONS
 are parsed and applied. If the same variable is defined in the environment and
 in the file, the value from the environment takes precedence.
 
+The flag is only recognized before the script. Arguments after the script name
+or after `--` are passed to the script and are not read as Node.js options.
+
 You can pass multiple `--env-file` arguments. Subsequent files override
 pre-existing variables defined in previous files.
 
