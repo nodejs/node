@@ -229,6 +229,53 @@ TEST_IMPL(spawn_fails_check_for_waitpid_cleanup) {
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
+
+
+static void count_handle_cb(uv_handle_t* handle, void* arg) {
+  (*(int*) arg)++;
+}
+
+
+/* A spawn that fails while it sets up the child's stdio leaves the process
+ * handle in the loop's handle queue, so that uv_close(), which is required
+ * after a failed spawn too, takes it off exactly once, also with handles
+ * initialized before and after it. */
+TEST_IMPL(spawn_fails_stdio_close) {
+  uv_loop_t* loop;
+  uv_timer_t before;
+  uv_timer_t after;
+  uv_tcp_t not_a_pipe;
+  uv_stdio_container_t stdio[2];
+  int walked;
+
+  loop = uv_default_loop();
+  ASSERT_OK(uv_timer_init(loop, &before));
+  ASSERT_OK(uv_tcp_init(loop, &not_a_pipe));
+
+  init_process_options("", fail_cb);
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_IGNORE;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*) &not_a_pipe;
+  options.stdio_count = 2;
+
+  ASSERT_EQ(UV_EINVAL, uv_spawn(loop, &process, &options));
+  uv_close((uv_handle_t*) &process, NULL);
+  ASSERT_OK(uv_timer_init(loop, &after));
+  uv_close((uv_handle_t*) &not_a_pipe, NULL);
+  ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+
+  walked = 0;
+  uv_walk(loop, count_handle_cb, &walked);
+  ASSERT_EQ(2, walked);
+
+  uv_close((uv_handle_t*) &before, NULL);
+  uv_close((uv_handle_t*) &after, NULL);
+  ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+
+  MAKE_VALGRIND_HAPPY(loop);
+  return 0;
+}
 #endif
 
 
