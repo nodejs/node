@@ -24,6 +24,7 @@
 #include "handle_wrap.h"
 #include "node.h"
 #include "node_external_reference.h"
+#include "path.h"
 #include "permission/permission.h"
 #include "string_bytes.h"
 
@@ -80,6 +81,14 @@ class FSEventWrap: public HandleWrap {
   // The path being watched, used to re-check read permission for the
   // descendants reported by libuv when the permission model is enabled.
   std::string watched_path_;
+  // Whether the watched path is a directory. The names reported for a watched
+  // file are the file itself, so they are not checked as descendants.
+  bool watched_is_dir_ = true;
+  // The path that read permission was checked on, and that the reported
+  // entries are checked against. It is the canonical path, or the equivalent
+  // form of it that goes through a system symbolic link (see
+  // SystemAliasForm()).
+  std::string check_path_;
 };
 
 
@@ -140,6 +149,64 @@ void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
   new FSEventWrap(env, args.This());
 }
 
+namespace {
+
+// Returns the canonical absolute form of `path`, or just its absolute form if
+// it cannot be resolved.
+std::string ResolveWatchedPath(Environment* env, const char* path) {
+  uv_fs_t req;
+  int err = uv_fs_realpath(nullptr, &req, path, nullptr);
+  std::string resolved;
+  if (err == 0 && req.ptr != nullptr) {
+    resolved = static_cast<const char*>(req.ptr);
+  }
+  uv_fs_req_cleanup(&req);
+  if (!resolved.empty()) return resolved;
+  return node::PathResolve(env, {std::string_view(path)});
+}
+
+#ifdef __APPLE__
+// On macOS, `/var`, `/tmp` and `/etc` are symbolic links to directories below
+// `/private`. If `canonical` is below one of those directories, return the
+// same path spelled with the link, which is the form a user normally grants.
+// The link must really resolve to that directory. Any other symbolic link is
+// not considered.
+std::string SystemAliasForm(const std::string& canonical) {
+  static constexpr std::pair<const char*, const char*> kAliases[] = {
+      {"/var", "/private/var"},
+      {"/tmp", "/private/tmp"},
+      {"/etc", "/private/etc"},
+  };
+  for (const auto& [alias, target] : kAliases) {
+    const std::string_view dir(target);
+    if (canonical.compare(0, dir.size(), dir) != 0) continue;
+    if (canonical.size() != dir.size() && canonical[dir.size()] != '/') {
+      continue;
+    }
+    uv_fs_t req;
+    bool matches = uv_fs_realpath(nullptr, &req, alias, nullptr) == 0 &&
+                   req.ptr != nullptr &&
+                   std::string_view(static_cast<const char*>(req.ptr)) == dir;
+    uv_fs_req_cleanup(&req);
+    if (matches) return alias + canonical.substr(dir.size());
+  }
+  return std::string();
+}
+#endif
+
+bool IsDirectory(const std::string& path) {
+  uv_fs_t req;
+  int err = uv_fs_stat(nullptr, &req, path.c_str(), nullptr);
+  // If the path cannot be inspected, assume a directory so that the names of
+  // the reported entries are still checked.
+  bool is_dir = err != 0 || (static_cast<const uv_stat_t*>(req.ptr)->st_mode &
+                             S_IFMT) == S_IFDIR;
+  uv_fs_req_cleanup(&req);
+  return is_dir;
+}
+
+}  // namespace
+
 // wrap.start(filename, persistent, recursive, encoding)
 void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -155,7 +222,30 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(*path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, *path);
-  wrap->watched_path_ = *path;
+  // Resolve the path once. The permission check, the events and the watch
+  // itself all use this canonical path, so a relative path or a symbolic link
+  // that changes after this point has no effect.
+  std::string resolved = ResolveWatchedPath(env, *path);
+  std::string check_path = resolved;
+  if (env->permission()->enabled() &&
+      !env->permission()->is_granted(
+          env, permission::PermissionScope::kFileSystemRead, resolved)) {
+#ifdef __APPLE__
+    std::string alias = SystemAliasForm(resolved);
+    if (!alias.empty() &&
+        env->permission()->is_granted(
+            env, permission::PermissionScope::kFileSystemRead, alias)) {
+      check_path = std::move(alias);
+    }
+#endif
+    if (check_path == resolved) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env, permission::PermissionScope::kFileSystemRead, resolved);
+    }
+  }
+  wrap->check_path_ = check_path;
+  wrap->watched_path_ = resolved;
+  wrap->watched_is_dir_ = IsDirectory(resolved);
 
   unsigned int flags = 0;
   if (args[2]->IsTrue())
@@ -168,7 +258,8 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(err);
   }
 
-  err = uv_fs_event_start(&wrap->handle_, OnEvent, *path, flags);
+  err = uv_fs_event_start(
+      &wrap->handle_, OnEvent, wrap->watched_path_.c_str(), flags);
   wrap->MarkAsInitialized();
 
   if (err != 0) {
@@ -227,9 +318,12 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   // descendants that fall outside the granted read scope (for example a nested
   // path under an exact, non-wildcard grant). Do not leak those names; report
   // the event without a filename instead.
-  if (filename != nullptr && env->permission()->enabled()) {
-    std::string full_path = wrap->watched_path_;
-    full_path += kPathSeparator;
+  if (filename != nullptr && wrap->watched_is_dir_ &&
+      env->permission()->enabled()) {
+    std::string full_path = wrap->check_path_;
+    if (full_path.empty() || full_path.back() != kPathSeparator) {
+      full_path += kPathSeparator;
+    }
     full_path += filename;
     if (!env->permission()->is_granted(
             env, permission::PermissionScope::kFileSystemRead, full_path)) {

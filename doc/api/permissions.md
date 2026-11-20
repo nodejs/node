@@ -547,6 +547,13 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
   permission model enabled, you must ensure that no paths to which access has
   been granted contain relative symbolic links.
 
+* [`fs.watch()`][] resolves the path to its canonical form when the watch
+  starts, and throws `ERR_ACCESS_DENIED` if that path is not within the paths
+  that access has been granted to, for example when a symbolic link in a
+  granted directory points outside of it. On macOS, `/var`, `/tmp` and `/etc`
+  are treated as their `/private` counterparts; no other symbolic link is
+  followed outside of the granted paths.
+
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [`--allow-addons`]: cli.md#--allow-addons
 [`--allow-child-process`]: cli.md#--allow-child-process
@@ -567,6 +574,7 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [`--permission`]: cli.md#--permission
 [`--use-env-proxy`]: cli.md#--use-env-proxy
 [`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
+[`fs.watch()`]: fs.md#fswatchfilename-options-listener
 [`npx`]: https://docs.npmjs.com/cli/commands/npx
 [`permission.drop()`]: process.md#processpermissiondropscope-reference
 [`permission.has()`]: process.md#processpermissionhasscope-reference
