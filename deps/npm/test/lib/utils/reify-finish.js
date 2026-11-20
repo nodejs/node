@@ -23,8 +23,11 @@ const mockReififyFinish = async (t, { actualTree = {}, otherDirs = {}, ...config
     config,
   })
 
+  let reportedScripts
   const reifyFinish = tmock(t, '{LIB}/utils/reify-finish.js', {
-    '{LIB}/utils/reify-output.js': () => {},
+    '{LIB}/utils/reify-output.js': (_npm, _arb, { unreviewedScripts }) => {
+      reportedScripts = unreviewedScripts
+    },
   })
 
   await reifyFinish(mock.npm, {
@@ -39,6 +42,7 @@ const mockReififyFinish = async (t, { actualTree = {}, otherDirs = {}, ...config
 
   return {
     builtinRc,
+    reportedScripts,
     ...mock,
   }
 }
@@ -49,6 +53,31 @@ t.test('ok by default', async t => {
   })
   t.same(mock.builtinRc.raw, 'key=value')
   t.strictSame(mock.builtinRc.data, { key: 'value' })
+})
+
+t.test('only omits disconnected orphans from post-install reporting', async t => {
+  for (const strict of [false, true]) {
+    await t.test(`strict=${strict}`, async t => {
+      const candidate = (name, properties = {}) => ({
+        name,
+        package: { name, version: '1.0.0', scripts: { install: `echo ${name}` } },
+        extraneous: true,
+        parent: null,
+        linksIn: new Set(),
+        ...properties,
+      })
+      const orphan = candidate('orphan')
+      const attached = candidate('attached', { parent: {} })
+      const linked = candidate('linked', { linksIn: new Set([{}]) })
+      const { reportedScripts } = await mockReififyFinish(t, {
+        'strict-allow-scripts': strict,
+        actualTree: {
+          inventory: new Map([orphan, attached, linked].map(n => [n.name, n])),
+        },
+      })
+      t.strictSame(reportedScripts.map(({ node }) => node), [attached, linked])
+    })
+  }
 })
 
 t.test('should not write if no global npm module', async t => {

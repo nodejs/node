@@ -1,5 +1,6 @@
 const { join } = require('node:path')
 const { depth } = require('treeverse')
+const { getPaths: getBinPaths } = require('bin-links')
 const crypto = require('node:crypto')
 const { IsolatedNode, IsolatedLink } = require('../isolated-classes.js')
 const nameFromFolder = require('@npmcli/name-from-folder')
@@ -435,11 +436,12 @@ module.exports = cls => class IsolatedReifier extends cls {
       return
     }
 
-    if (dep.package.bin) {
-      for (const bn in dep.package.bin) {
-        target.binPaths.push(join(dep.root.localPath, nmFolder, '.bin', bn))
-      }
-    }
+    target.binPaths.push(...getBinPaths({
+      pkg: dep.package,
+      path: join(dep.root.localPath, nmFolder, dep.name),
+      global: false,
+      top: false,
+    }))
 
     const pkg = {
       _id: dep.package._id,

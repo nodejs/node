@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-install-scripts----1222">
+<h1 id="----npm-install-scripts----1223">
     <span>npm-install-scripts</span>
-    <span class="version">@12.2.2</span>
+    <span class="version">@12.2.3</span>
 </h1>
 <span class="description">Manage install-script approvals for dependencies</span>
 </header>
@@ -215,7 +215,10 @@ sources). This is the recommended way to maintain that field.</p>
 <p>Dependency install scripts are blocked by default. Install commands
 silently skip lifecycle scripts for any dependency that does not have a
 matching entry in <code>allowScripts</code>, and end with a list of the packages
-whose scripts were skipped so you can review them here.</p>
+whose scripts were skipped so you can review them here.
+These warnings omit disconnected unused entries that installation cannot
+build. Local link targets that can still be rebuilt remain subject to the
+policy.</p>
 <p>This command only works inside a project that has a <code>package.json</code>. Running
 it with <code>--global</code> (<code>-g</code>) fails with an <code>EGLOBAL</code> error, since global
 installs (<code>npm install -g</code>) and one-off executions (<code>npm exec</code> / <code>npx</code>) have
@@ -242,7 +245,10 @@ entry), which survives <code>npm install-scripts approve --all</code> and exclud
 package from any future blanket approval. <code>--all</code> denies every package with
 unreviewed install scripts.</p>
 <p><code>ls</code> is read-only: it lists every package whose install scripts are not yet
-covered by <code>allowScripts</code>, without modifying <code>package.json</code>.</p>
+covered by <code>allowScripts</code>, without modifying <code>package.json</code>.
+This includes unreviewed extraneous packages, which are installed but not
+required by any dependency. These packages can still cause
+<code>npm rebuild --strict-allow-scripts</code> to fail.</p>
 <p><code>prune</code> removes <code>allowScripts</code> entries that no longer match an installed
 package with an install script, either because the package is no longer
 installed (a transitive dependency changed, or a pinned <code>pkg@1.2.3</code> was
