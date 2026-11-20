@@ -56,7 +56,7 @@ const vfs = require('node:vfs');
     assert.throws(() => myVfs.statSync(file.path), { code: 'ENOENT' });
     assert.throws(() => myVfs.closeSync(file.fd), { code: 'EBADF' });
     await file.remove(); // idempotent
-  }));
+  })).then(common.mustCall());
 }
 
 // node:fs on a mounted path
