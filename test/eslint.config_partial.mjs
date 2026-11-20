@@ -121,6 +121,10 @@ export default [
           selector: 'VariableDeclarator[init.type="Identifier"][init.name=/^(assert|fixtures)$/]',
           message: 'Do not destructure or rename `assert` nor `fixtures`',
         },
+        {
+          selector: 'CallExpression[callee.object.name="os"][callee.property.name="tmpdir"], CallExpression[callee.name="tmpdir"]',
+          message: 'Do not use `os.tmpdir`, prefer the `common/tmpdir` module.',
+        },
         ...((fixturesSpecifier) => [
           {
             selector: `ImportDeclaration[source.value=${fixturesSpecifier.toString().replace('(\\.js)?', '\\.mjs')}]:not(${[

@@ -1,15 +1,14 @@
 'use strict';
 
 require('../common');
-
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const fs = require('fs');
-const path = require('path');
-const os = require('os');
 
-const missing = path.join(
-  os.tmpdir(),
+tmpdir.refresh();
+
+const missing = tmpdir.resolve(
   `node-fs-negative-zero-${process.pid}`,
   'entry',
 );
