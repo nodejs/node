@@ -1558,8 +1558,11 @@ class MaglevFrameTranslationBuilder {
     }
     switch (object->type()) {
       case VirtualObject::kHeapNumber:
-        // Handled above.
-        UNREACHABLE();
+        translation_array_builder_->BeginCapturedObject(2);
+        translation_array_builder_->StoreLiteral(
+            GetDeoptLiteral(*object->map().object()));
+        BuildHeapNumber(object->number());
+        return;
       case VirtualObject::kConsString:
         return BuildConsString(object, input_location, virtual_objects);
       case VirtualObject::kFixedDoubleArray:
