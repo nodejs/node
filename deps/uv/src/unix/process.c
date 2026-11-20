@@ -37,6 +37,10 @@
 #include <paths.h>
 #include <dlfcn.h>
 
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
+#include <gnu/libc-version.h>  /* gnu_get_libc_version() */
+#endif
+
 #if defined(__PASE__)
 #define _PATH_DEFPATH "/QOpenSys/pkgs/bin:/QOpenSys/usr/bin:/usr/bin"
 #elif defined(_AIX)
@@ -496,6 +500,17 @@ static void uv__spawn_init_posix_spawn(void) {
 #elif !defined(__ANDROID__)
   pid_t pid;
   int status;
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
+  const char* version;
+
+  /* Before glibc 2.24, posix_spawn() does not report exec() failures (it
+   * returns 0 and the child exits with status 127), and it also exits the
+   * child with status 127 if any signal in the sigdefault set can't be reset,
+   * such as SIGKILL. Use fork() there instead. */
+  version = gnu_get_libc_version();
+  if (version[0] == '2' && version[1] == '.' && atoi(version + 2) < 24)
+    return;
+#endif
 
   /* Probe whether vfork()/clone(CLONE_VM) correctly shares the address space,
    * i.e. a write by the child before _exit() is visible to the parent once it
