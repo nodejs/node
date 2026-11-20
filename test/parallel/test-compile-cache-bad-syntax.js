@@ -3,7 +3,7 @@
 // This tests NODE_COMPILE_CACHE works.
 
 require('../common');
-const { spawnSyncAndExit } = require('../common/child_process');
+const { spawnSyncAndExit } = require('../common/compile-cache');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
