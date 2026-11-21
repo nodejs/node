@@ -3928,6 +3928,9 @@ The `assert.CallTracker` API has been removed.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67489
+    description: Deprecation revoked.
   - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/49609
     description: Runtime deprecation.
@@ -3936,10 +3939,14 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: Deprecation revoked
 
-Calling [`util.promisify`][] on a function that returns a `Promise` will ignore
-the result of said promise, which can lead to unhandled promise rejections.
+Calling [`util.promisify`][] on a function that returns a `Promise` used to
+ignore the result of said promise, which could lead to unhandled promise
+rejections. The deprecation was revoked because this is a likely mistake rather
+than use of a deprecated API. Rejections of the returned `Promise` are now
+forwarded to the promise returned by the promisified function, and a regular
+process warning with the code `PROMISIFY_RETURNED_PROMISE` is emitted instead.
 
 ### DEP0175: `util.toUSVString`
 
