@@ -87,6 +87,7 @@ extern "C" const char U_DATA_API SMALL_ICUDATA_ENTRY_POINT[];
 
 namespace node {
 
+using v8::ArrayBufferView;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -96,7 +97,9 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::SharedArrayBuffer;
 using v8::String;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace i18n {
@@ -313,8 +316,33 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
         ABORT();
     }
 
-    result = tfn(env, EncodingName(fromEncoding), EncodingName(toEncoding),
-                 input.data(), input.length(), &status);
+    const char* source = input.data();
+    const size_t source_length = input.length();
+
+    // Another thread can write to a SharedArrayBuffer while it is being
+    // transcoded. The simdutf converters size their output in one pass over
+    // the source and fill it in a second one, so they need a copy that cannot
+    // change in between. ArrayBufferView::CopyContents() reads shared memory
+    // with atomic loads, so a SharedArrayBuffer passed in directly gets a view.
+    Local<ArrayBufferView> view;
+    if (args[0]->IsArrayBufferView()) {
+      view = args[0].As<ArrayBufferView>();
+    } else if (args[0]->IsSharedArrayBuffer()) {
+      view = Uint8Array::New(args[0].As<SharedArrayBuffer>(), 0, source_length);
+    }
+    std::unique_ptr<char[]> source_copy;
+    if (!view.IsEmpty() && view->Buffer()->IsSharedArrayBuffer()) {
+      source_copy = std::make_unique_for_overwrite<char[]>(source_length);
+      view->CopyContents(source_copy.get(), source_length);
+      source = source_copy.get();
+    }
+
+    result = tfn(env,
+                 EncodingName(fromEncoding),
+                 EncodingName(toEncoding),
+                 source,
+                 source_length,
+                 &status);
   } else {
     status = U_ILLEGAL_ARGUMENT_ERROR;
   }

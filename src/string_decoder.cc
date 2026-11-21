@@ -260,12 +260,26 @@ void DecodeData(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(decoder);
 
   CHECK(args[1]->IsArrayBufferView());
-  ArrayBufferViewContents<char> content(args[1].As<ArrayBufferView>());
+  Local<ArrayBufferView> view = args[1].As<ArrayBufferView>();
+  ArrayBufferViewContents<char> content(view);
+  const char* data = content.data();
   size_t length = content.length();
 
+  // Another thread can write to a SharedArrayBuffer while it is being decoded.
+  // UTF-8 decoding sizes the string in one pass over the input and fills it in
+  // a second one, so it needs a copy that cannot change in between.
+  std::unique_ptr<char[]> data_copy;
+  if (view->Buffer()->IsSharedArrayBuffer()) {
+    data_copy.reset(new (std::nothrow) char[length]);
+    if (!data_copy) {
+      return THROW_ERR_MEMORY_ALLOCATION_FAILED(args.GetIsolate());
+    }
+    view->CopyContents(data_copy.get(), length);
+    data = data_copy.get();
+  }
+
   Local<String> ret;
-  if (decoder->DecodeData(args.GetIsolate(), content.data(), &length)
-          .ToLocal(&ret)) {
+  if (decoder->DecodeData(args.GetIsolate(), data, &length).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
