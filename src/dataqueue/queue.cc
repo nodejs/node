@@ -34,6 +34,10 @@ class NonIdempotentDataQueueReader;
 class EntryImpl : public DataQueue::Entry {
  public:
   virtual std::shared_ptr<DataQueue::Reader> get_reader() = 0;
+  // Status to report when get_reader() returns nullptr. Negative values
+  // are libuv errors. The default is "invalid" for a reader that cannot
+  // say why it failed.
+  virtual int reader_error() const { return UV_EINVAL; }
 };
 
 class DataQueueImpl final : public DataQueue,
@@ -282,12 +286,10 @@ class IdempotentDataQueueReader final
 
     auto current_reader = getCurrentReader();
     if (current_reader == nullptr) {
-      // Getting the current reader for an entry could fail for several
-      // reasons. For an FdEntry, for instance, getting the reader may
-      // fail if the file has been modified since the FdEntry was created.
-      // We handle the case simply by erroring.
-      std::move(next)(UV_EINVAL, nullptr, 0, [](uint64_t) {});
-      return UV_EINVAL;
+      auto& entry = data_queue_->entries_[current_index_.value()];
+      int err = static_cast<EntryImpl&>(*entry).reader_error();
+      std::move(next)(err, nullptr, 0, [](uint64_t) {});
+      return err;
     }
 
     CHECK(!pull_pending_);
@@ -461,8 +463,10 @@ class NonIdempotentDataQueueReader final
 
     auto current_reader = getCurrentReader();
     if (current_reader == nullptr) {
-      std::move(next)(UV_EINVAL, nullptr, 0, [](uint64_t) {});
-      return UV_EINVAL;
+      auto& entry = data_queue_->entries_.front();
+      int err = static_cast<EntryImpl&>(*entry).reader_error();
+      std::move(next)(err, nullptr, 0, [](uint64_t) {});
+      return err;
     }
 
     // If we got here, we have an entry to read from.
@@ -923,6 +927,8 @@ class FdEntry final : public EntryImpl {
 
   Environment* env() const { return env_; }
 
+  int reader_error() const override { return open_error_; }
+
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(FdEntry)
   SET_SELF_SIZE(FdEntry)
@@ -933,6 +939,7 @@ class FdEntry final : public EntryImpl {
   uv_stat_t stat_;
   uint64_t start_ = 0;
   uint64_t end_ = 0;
+  int open_error_ = UV_EINVAL;
 
   bool is_modified(const uv_stat_t& other) {
     return other.st_size != stat_.st_size ||
@@ -961,8 +968,13 @@ class FdEntry final : public EntryImpl {
       auto cleanup = OnScopeLeave([&] { uv_fs_req_cleanup(&req); });
       int file =
           uv_fs_open(nullptr, &req, entry->path_->out(), O_RDONLY, 0, nullptr);
-      if (file < 0 || FdEntry::CheckModified(entry, file)) {
+      if (file < 0) {
+        entry->open_error_ = file;
+        return nullptr;
+      }
+      if (FdEntry::CheckModified(entry, file)) {
         uv_fs_close(nullptr, &req, file, nullptr);
+        entry->open_error_ = UV_EINVAL;
         return nullptr;
       }
       Realm* realm = entry->env()->principal_realm();

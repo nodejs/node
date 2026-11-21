@@ -111,7 +111,7 @@
   },
   "semantics/interface-objects/001.worker.js": {
     "fail": {
-      "note": "Canvas, XHR, PromiseRejectionEvent, ProgressEvent, the File API reader classes and IndexedDB are not implemented",
+      "note": "Canvas, XHR, PromiseRejectionEvent, FileList, and IndexedDB are not implemented",
       "expected": [
         "The ImageData interface object should be exposed.",
         "The ImageBitmap interface object should be exposed.",
@@ -120,13 +120,10 @@
         "The TextMetrics interface object should be exposed.",
         "The Path2D interface object should be exposed.",
         "The PromiseRejectionEvent interface object should be exposed.",
+        "The FileList interface object should be exposed.",
         "The XMLHttpRequestEventTarget interface object should be exposed.",
         "The XMLHttpRequestUpload interface object should be exposed.",
         "The XMLHttpRequest interface object should be exposed.",
-        "The ProgressEvent interface object should be exposed.",
-        "The FileList interface object should be exposed.",
-        "The FileReader interface object should be exposed.",
-        "The FileReaderSync interface object should be exposed.",
         "The IDBRequest interface object should be exposed.",
         "The IDBOpenDBRequest interface object should be exposed.",
         "The IDBVersionChangeEvent interface object should be exposed.",
