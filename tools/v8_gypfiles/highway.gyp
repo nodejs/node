@@ -31,6 +31,12 @@
           ['v8_target_arch=="arm" and arm_version==7', {
             'defines': ['HWY_BROKEN_EMU128=0',],
           }],
+          # rv64gc has no SIMD baseline. With GCC before 16 Highway would fall back to
+          # HWY_SCALAR, where hw::FixedTag<uint8_t, 16> in V8's json-stringifier.cc does
+          # not compile, so use EMU128 as above.
+          ['v8_target_arch=="riscv64"', {
+            'defines': ['HWY_BROKEN_EMU128=0',],
+          }],
         ],
       },
       'include_dirs': [
