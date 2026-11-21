@@ -305,3 +305,261 @@ const { AsyncLocalStorage } = require('async_hooks');
     );
   }));
 }
+
+// Test 14: Bind normally, rebind with bypassId, unbindStore once marks channel inactive
+{
+  const key = Symbol('rebind-normal-to-bypass');
+  const ch = channel('test-bypass-rebind-normal-to-bypass');
+  const als = new AsyncLocalStorage();
+
+  ch.bindStore(als, (data) => data);
+  assert.strictEqual(ch.hasSubscribers, true);
+
+  // Rebind with bypassId
+  ch.bindStore(als, (data) => data, { bypassId: key });
+  assert.strictEqual(ch.hasSubscribers, true);
+
+  // Outside bypass(key), the store is entered
+  ch.runStores({ value: 1 }, common.mustCall(() => {
+    assert.deepStrictEqual(als.getStore(), { value: 1 });
+  }));
+
+  // Inside bypass(key), the store is skipped
+  bypass(key, common.mustCall(() => {
+    ch.runStores({ value: 1 }, common.mustCall(() => {
+      assert.strictEqual(als.getStore(), undefined);
+    }));
+  }));
+
+  // Unbind once: must completely remove store and make channel inactive
+  const unbound = ch.unbindStore(als);
+  assert.strictEqual(unbound, true);
+  assert.strictEqual(ch.hasSubscribers, false);
+
+  // Store is no longer entered
+  ch.runStores({ value: 1 }, common.mustCall(() => {
+    assert.strictEqual(als.getStore(), undefined);
+  }));
+
+  // Unbinding again returns false
+  assert.strictEqual(ch.unbindStore(als), false);
+}
+
+// Test 15: Bind with bypassId, rebind normally, unbindStore once marks channel inactive
+{
+  const key = Symbol('rebind-bypass-to-normal');
+  const ch = channel('test-bypass-rebind-bypass-to-normal');
+  const als = new AsyncLocalStorage();
+
+  ch.bindStore(als, (data) => data, { bypassId: key });
+  assert.strictEqual(ch.hasSubscribers, true);
+
+  // Rebind without bypassId (normal)
+  ch.bindStore(als, (data) => data);
+  assert.strictEqual(ch.hasSubscribers, true);
+
+  // Inside bypass(key), normal store should now fire (it was rebound to normal)
+  bypass(key, common.mustCall(() => {
+    ch.runStores({ value: 2 }, common.mustCall(() => {
+      assert.deepStrictEqual(als.getStore(), { value: 2 });
+    }));
+  }));
+
+  // Outside bypass(key), normal store fires
+  ch.runStores({ value: 2 }, common.mustCall(() => {
+    assert.deepStrictEqual(als.getStore(), { value: 2 });
+  }));
+
+  // Unbind once: must completely remove store and make channel inactive
+  const unbound = ch.unbindStore(als);
+  assert.strictEqual(unbound, true);
+  assert.strictEqual(ch.hasSubscribers, false);
+
+  // Store is no longer entered
+  ch.runStores({ value: 3 }, common.mustCall(() => {
+    assert.strictEqual(als.getStore(), undefined);
+  }));
+
+  // Unbinding again returns false
+  assert.strictEqual(ch.unbindStore(als), false);
+}
+
+// Test 16: Store is entered exactly once per runStores() after rebind and transform calls verified
+{
+  const key = Symbol('rebind-single-entry');
+  const ch = channel('test-bypass-rebind-single-entry');
+  const als = new AsyncLocalStorage();
+
+  let transformCalls = 0;
+  ch.bindStore(als, (data) => {
+    transformCalls++;
+    return data;
+  });
+
+  // Rebind with bypassId
+  let transformCallsRebound = 0;
+  ch.bindStore(als, (data) => {
+    transformCallsRebound++;
+    return data;
+  }, { bypassId: key });
+
+  ch.runStores({ value: 42 }, common.mustCall(() => {
+    assert.deepStrictEqual(als.getStore(), { value: 42 });
+  }));
+
+  // The original transform must not be called; the rebound transform called exactly once
+  assert.strictEqual(transformCalls, 0);
+  assert.strictEqual(transformCallsRebound, 1);
+
+  // Rebind back to normal
+  let transformCallsRebound2 = 0;
+  ch.bindStore(als, (data) => {
+    transformCallsRebound2++;
+    return data;
+  });
+
+  ch.runStores({ value: 43 }, common.mustCall(() => {
+    assert.deepStrictEqual(als.getStore(), { value: 43 });
+  }));
+
+  assert.strictEqual(transformCalls, 0);
+  assert.strictEqual(transformCallsRebound, 1);
+  assert.strictEqual(transformCallsRebound2, 1);
+
+  ch.unbindStore(als);
+  assert.strictEqual(ch.hasSubscribers, false);
+}
+
+// Test 17: Invalid bypassId on rebind throws ERR_INVALID_ARG_TYPE and preserves earlier binding and refcount
+{
+  const bad = 'invalid-string-key';
+
+  // 1. Earlier binding is normal
+  {
+    const ch = channel('test-bypass-rebind-invalid-normal');
+    const als = new AsyncLocalStorage();
+
+    ch.bindStore(als, (data) => data);
+    assert.strictEqual(ch.hasSubscribers, true);
+
+    assert.throws(
+      () => ch.bindStore(als, (data) => ({ modified: data }), { bypassId: bad }),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError',
+      }
+    );
+
+    // Channel still active, earlier binding intact and entered
+    assert.strictEqual(ch.hasSubscribers, true);
+    ch.runStores({ value: 100 }, common.mustCall(() => {
+      assert.deepStrictEqual(als.getStore(), { value: 100 });
+    }));
+
+    // Unbinding once still properly decrements refcount and marks inactive
+    assert.strictEqual(ch.unbindStore(als), true);
+    assert.strictEqual(ch.hasSubscribers, false);
+  }
+
+  // 2. Earlier binding is bypass
+  {
+    const ch = channel('test-bypass-rebind-invalid-bypass');
+    const als = new AsyncLocalStorage();
+    const key = Symbol('valid-key');
+
+    ch.bindStore(als, (data) => data, { bypassId: key });
+    assert.strictEqual(ch.hasSubscribers, true);
+
+    assert.throws(
+      () => ch.bindStore(als, (data) => ({ modified: data }), { bypassId: bad }),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError',
+      }
+    );
+
+    // Channel still active, earlier bypass binding intact
+    assert.strictEqual(ch.hasSubscribers, true);
+
+    // Outside bypass, store is entered
+    ch.runStores({ value: 200 }, common.mustCall(() => {
+      assert.deepStrictEqual(als.getStore(), { value: 200 });
+    }));
+
+    // Inside bypass with valid key, store is skipped
+    bypass(key, common.mustCall(() => {
+      ch.runStores({ value: 200 }, common.mustCall(() => {
+        assert.strictEqual(als.getStore(), undefined);
+      }));
+    }));
+
+    // Unbinding once still properly decrements refcount and marks inactive
+    assert.strictEqual(ch.unbindStore(als), true);
+    assert.strictEqual(ch.hasSubscribers, false);
+  }
+}
+
+// Test 18: Invalid bypassId on fresh inactive channel leaves channel inactive
+{
+  const bad = 'invalid-string-key';
+
+  // 1. Invalid bypassId passed to subscribe() on fresh inactive channel
+  {
+    const ch = channel('test-bypass-fresh-invalid-subscribe');
+    assert.strictEqual(ch.hasSubscribers, false);
+
+    assert.throws(
+      () => ch.subscribe(() => {}, { bypassId: bad }),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError',
+      }
+    );
+    assert.strictEqual(ch.hasSubscribers, false);
+
+    const key = Symbol('valid-subscribe');
+    const handler = common.mustCall();
+    ch.subscribe(handler, { bypassId: key });
+    assert.strictEqual(ch.hasSubscribers, true);
+
+    ch.publish({});
+
+    assert.strictEqual(ch.unsubscribe(handler), true);
+    assert.strictEqual(ch.hasSubscribers, false);
+
+    const plainHandler = common.mustCall();
+    ch.subscribe(plainHandler);
+    assert.strictEqual(ch.hasSubscribers, true);
+
+    ch.publish({});
+
+    assert.strictEqual(ch.unsubscribe(plainHandler), true);
+    assert.strictEqual(ch.hasSubscribers, false);
+  }
+
+  // 2. Invalid bypassId passed to bindStore() on fresh inactive channel
+  {
+    const ch = channel('test-bypass-fresh-invalid-bind-store');
+    const als = new AsyncLocalStorage();
+    assert.strictEqual(ch.hasSubscribers, false);
+
+    assert.throws(
+      () => ch.bindStore(als, (data) => data, { bypassId: bad }),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError',
+      }
+    );
+    assert.strictEqual(ch.hasSubscribers, false);
+
+    const key = Symbol('valid-bind-store');
+    const handler = common.mustCall();
+    ch.subscribe(handler, { bypassId: key });
+    assert.strictEqual(ch.hasSubscribers, true);
+
+    ch.publish({});
+
+    assert.strictEqual(ch.unsubscribe(handler), true);
+    assert.strictEqual(ch.hasSubscribers, false);
+  }
+}

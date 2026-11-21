@@ -252,6 +252,10 @@ were registered with a matching `bypassId` key. The skip behavior
 also applies to any async continuations (Promises, timers,
 microtasks) within `fn`.
 
+Subscribers and stores registered with `bypassId` run after all
+regular subscribers and stores on the same channel, regardless of
+registration order. This applies to both `publish()` and `runStores()`.
+
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
 import { request } from 'node:http';
@@ -591,6 +595,8 @@ changes:
   * `bypassId` {symbol|Object} An optional identity token. When
     provided, this subscriber will be skipped while
     [`diagnostics_channel.bypass()`][] is active with the same key.
+    Subscribers registered with `bypassId` run after all regular
+    subscribers on the same channel, regardless of registration order.
 
 Register a message handler to subscribe to this channel. This message handler
 will be run synchronously whenever a message is published to the channel. Any
@@ -697,10 +703,14 @@ changes:
   * `bypassId` {symbol|Object} An optional identity token. When
     provided, this bound store will be skipped while
     [`diagnostics_channel.bypass()`][] is active with the same key.
+    Stores registered with `bypassId` run after all regular stores
+    on the same channel, regardless of registration order.
 
 When [`channel.runStores(context, ...)`][] is called, the given context data
 will be applied to any store bound to the channel. If the store has already been
 bound the previous `transform` function will be replaced with the new one.
+Rebinding a store with or without `bypassId` moves it between the regular and
+bypass groups.
 The `transform` function may be omitted to set the given context data as the
 context directly.
 
@@ -933,6 +943,10 @@ dynamically.
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63651
+    description: Added `options.bypassId` parameter.
 -->
 
 * `subscribers` {Object} Set of [TracingChannel Channels][] subscribers
@@ -1418,15 +1432,25 @@ if (wc.hasSubscribers) {
 }
 ```
 
-#### `boundedChannel.subscribe(handlers)`
+#### `boundedChannel.subscribe(handlers[, options])`
 
 <!-- YAML
 added: v26.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63651
+    description: Added `options.bypassId` parameter.
 -->
 
 * `handlers` {Object} Set of channel subscribers
   * `start` {Function} The start event subscriber
   * `end` {Function} The end event subscriber
+* `options` {Object}
+  * `bypassId` {symbol|Object} An optional identity token. When
+    provided, this subscriber will be skipped while
+    [`diagnostics_channel.bypass()`][] is active with the same key.
+    Subscribers registered with `bypassId` run after all regular
+    subscribers on the same channel, regardless of registration order.
 
 Subscribe to the bounded channel events. This is equivalent to calling
 [`channel.subscribe(onMessage)`][] on each channel individually.
