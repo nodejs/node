@@ -246,6 +246,13 @@ typedef uint64_t nghttp3_duration;
 /**
  * @macro
  *
+ * :macro:`NGHTTP3_ERR_MAX_FIELD_SECTION_SIZE_EXCEEDED` indicates that
+ * the incoming field block exceeds max_field_section_size limit.
+ */
+#define NGHTTP3_ERR_MAX_FIELD_SECTION_SIZE_EXCEEDED -113
+/**
+ * @macro
+ *
  * :macro:`NGHTTP3_ERR_QPACK_DECOMPRESSION_FAILED` indicates that a
  * QPACK decompression failed.
  */
@@ -335,6 +342,27 @@ typedef uint64_t nghttp3_duration;
  * that might generating excessive load.
  */
 #define NGHTTP3_ERR_H3_EXCESSIVE_LOAD -610
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_ERR_H3_MESSAGE_ERROR` indicates that HTTP message
+ * was malformed.
+ */
+#define NGHTTP3_ERR_H3_MESSAGE_ERROR -611
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_ERR_WT_SESSION_GONE` indicates that WebTransport
+ * session was terminated or rejected.
+ */
+#define NGHTTP3_ERR_WT_SESSION_GONE -612
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_ERR_WT_BUFFERED_STREAM_REJECTED` indicates that
+ * buffering WebTransport data stream was rejected.
+ */
+#define NGHTTP3_ERR_WT_BUFFERED_STREAM_REJECTED -613
 /**
  * @macro
  *
@@ -503,6 +531,38 @@ typedef uint64_t nghttp3_duration;
  * error code ``QPACK_DECODER_STREAM_ERROR``.
  */
 #define NGHTTP3_QPACK_DECODER_STREAM_ERROR 0x0202
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_WT_BUFFERED_STREAM_REJECTED` is WebTransport error
+ * code ``WT_BUFFERED_STREAM_REJECTED``.
+ */
+#define NGHTTP3_WT_BUFFERED_STREAM_REJECTED 0x3994BD84
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_WT_SESSION_GONE` is WebTransport error code
+ * ``WT_SESSION_GONE``.
+ */
+#define NGHTTP3_WT_SESSION_GONE 0x170D7B68
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_WT_ALPN_ERROR` is WebTransport error code
+ * ``WT_ALPN_ERROR``.
+ *
+ * https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3-15
+ */
+#define NGHTTP3_WT_ALPN_ERROR 0x0817B3DD
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_WT_REQUIREMENTS_NOT_MET` is WebTransport error code
+ * ``WT_REQUIREMENTS_NOT_MET``.
+ *
+ * https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3-15
+ */
+#define NGHTTP3_WT_REQUIREMENTS_NOT_MET 0x212C0D48
 
 /**
  * @functypedef
@@ -719,8 +779,9 @@ NGHTTP3_EXTERN void nghttp3_buf_init(nghttp3_buf *buf);
  * @function
  *
  * `nghttp3_buf_free` frees resources allocated for |buf| using |mem|
- * as memory allocator.  :member:`buf->begin <nghttp3_buf.begin>` must
- * be a heap buffer allocated by |mem|.
+ * as memory allocator.  If :member:`buf->begin <nghttp3_buf.begin>`
+ * points to any memory that is not initialized by `nghttp3_buf_init`,
+ * it must be a heap buffer allocated by |mem|.
  */
 NGHTTP3_EXTERN void nghttp3_buf_free(nghttp3_buf *buf, const nghttp3_mem *mem);
 
@@ -1274,13 +1335,15 @@ NGHTTP3_EXTERN void nghttp3_qpack_encoder_del(nghttp3_qpack_encoder *encoder);
  * written.  An application should write |pbuf| and |rbuf| to the
  * request stream in this order.
  *
- * The buffer pointed by |pbuf|, |rbuf|, and |ebuf| can be empty
- * buffer.  It is fine to pass a buffer initialized by
- * `nghttp3_buf_init(buf) <nghttp3_buf_init>`.  This function
- * allocates memory for these buffers as necessary.  In particular, it
- * frees and expands buffer if the current capacity of buffer is not
- * enough.  If :member:`nghttp3_buf.begin` of any buffer is not NULL,
- * it must be allocated by the same memory allocator passed to
+ * The buffer pointed by |pbuf|, |rbuf|, and |ebuf| must be
+ * initialized by `nghttp3_buf_init`.  Avoid initializing it with zero
+ * values.  Any caller-supplied backing storage must come from the
+ * allocator passed to `nghttp3_qpack_encoder_new`.  This function
+ * allocates memory for these buffers as necessary if it needs more
+ * space in the buffer.  In particular, it frees and expands buffer if
+ * the current capacity of buffer is not enough.  Any dynamically
+ * allocated memory pointed by :member:`nghttp3_buf.begin` must be
+ * allocated by the same memory allocator passed to
  * `nghttp3_qpack_encoder_new`.
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -1386,6 +1449,20 @@ nghttp3_qpack_encoder_get_num_blocked_streams(nghttp3_qpack_encoder *encoder);
  */
 NGHTTP3_EXTERN size_t nghttp3_qpack_encoder_get_num_blocked_streams2(
   const nghttp3_qpack_encoder *encoder);
+
+/**
+ * @function
+ *
+ * `nghttp3_qpack_encoder_set_max_concurrent_streams` tells |encoder|
+ * the maximum number of concurrent request streams that |encoder|
+ * encodes QPACK field block concurrently.  This limits the number of
+ * streams that waits for acknowledgement from the decoder.
+ *
+ * .. version-added:: 1.20.0
+ */
+NGHTTP3_EXTERN void
+nghttp3_qpack_encoder_set_max_concurrent_streams(nghttp3_qpack_encoder *encoder,
+                                                 size_t max_concurrent_streams);
 
 /**
  * @struct
@@ -1698,10 +1775,9 @@ nghttp3_qpack_decoder_set_max_dtable_capacity(nghttp3_qpack_decoder *decoder,
  * @function
  *
  * `nghttp3_qpack_decoder_set_max_concurrent_streams` tells |decoder|
- * the maximum number of concurrent streams that a remote endpoint can
- * open, including both bidirectional and unidirectional streams which
- * potentially receive QPACK encoded HEADERS frame.  This value is
- * used as a hint to limit the length of decoder stream.
+ * the maximum number of concurrent request streams that |decoder|
+ * decodes QPACK field block concurrently.  This value is used as a
+ * hint to limit the length of decoder stream.
  */
 NGHTTP3_EXTERN void
 nghttp3_qpack_decoder_set_max_concurrent_streams(nghttp3_qpack_decoder *decoder,
@@ -1808,8 +1884,7 @@ typedef struct nghttp3_conn nghttp3_conn;
 typedef struct nghttp3_settings {
   /**
    * :member:`max_field_section_size` specifies the maximum header
-   * section (block) size.  nghttp3 library does not enforce this
-   * limit.  Applications are responsible for imposing their own
+   * section (block) size.  Applications should also impose their own
    * limits to protect against resource exhaustion.  See
    * https://datatracker.ietf.org/doc/html/rfc9114#section-4.2.2 for
    * details.
@@ -1900,6 +1975,16 @@ typedef struct nghttp3_settings {
    * .. version-added:: 1.13.0
    */
   nghttp3_qpack_indexing_strat qpack_indexing_strat;
+  /**
+   * :member:`wt_enabled`, if set to nonzero, enables WebTransport.
+   *
+   * https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3-15
+   *
+   * TODO For client, it might be better to always enable
+   * WebTransport.  Only draft version of client needs to send
+   * SETTINGS_WT_ENABLED.
+   */
+  uint8_t wt_enabled;
 } nghttp3_settings;
 
 #define NGHTTP3_PROTO_SETTINGS_V1 1
@@ -1940,6 +2025,12 @@ typedef struct nghttp3_proto_settings {
    * Datagrams (see :rfc:`9297`).
    */
   uint8_t h3_datagram;
+  /**
+   * :member:`wt_enabled`, if set to nonzero, enables WebTransport.
+   *
+   * https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3-15
+   */
+  uint8_t wt_enabled;
 } nghttp3_proto_settings;
 
 /**
@@ -2313,6 +2404,69 @@ typedef int (*nghttp3_stream_close2)(nghttp3_conn *conn, uint32_t flags,
                                      void *conn_user_data,
                                      void *stream_user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_recv_wt_data` is a callback function which is
+ * invoked when data is received on WebTransport data stream.
+ * |session_id| is the WebTransport session ID.  |stream_id| is the
+ * stream ID of the WebTransport data stream.  |data| points to the
+ * received data, and its length is |datalen|.
+ *
+ * The application is responsible for increasing flow control credit
+ * (say, increasing by |datalen| bytes).
+ *
+ * The implementation of this callback must return 0 if it succeeds.
+ * Returning :macro:`NGHTTP3_ERR_CALLBACK_FAILURE` will return to the
+ * caller immediately.  Any values other than 0 is treated as
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`.
+ */
+typedef int (*nghttp3_recv_wt_data)(nghttp3_conn *conn, int64_t session_id,
+                                    int64_t stream_id, const uint8_t *data,
+                                    size_t datalen, void *conn_user_data,
+                                    void *stream_user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_wt_data_stream_open` is a callback function which is
+ * invoked when a remote stream denoted by |stream_id| is identified
+ * as WebTransport data stream that belongs to WebTransport session
+ * identified by |session_id|.  This callback function is called after
+ * WebTransport session is confirmed.
+ *
+ * The implementation of this callback must return 0 if it succeeds.
+ * Returning :macro:`NGHTTP3_ERR_CALLBACK_FAILURE` will return to the
+ * caller immediately.  Any values other than 0 is treated as
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`.
+ */
+typedef int (*nghttp3_wt_data_stream_open)(nghttp3_conn *conn,
+                                           int64_t session_id,
+                                           int64_t stream_id,
+                                           void *conn_user_data,
+                                           void *stream_user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_recv_wt_close_session` is a callback function which
+ * is invoked when WT_CLOSE_SESSION Capsule is received.  The
+ * WebTransport session is identified by |session_id|.
+ * |wt_error_code| is Application Error Code.  The buffer pointed by
+ * |msg| of length |msglen| contains Application Error Message.
+ *
+ * The implementation of this callback must return 0 if it succeeds.
+ * Returning :macro:`NGHTTP3_ERR_CALLBACK_FAILURE` will return to the
+ * caller immediately.  Any values other than 0 is treated as
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`.
+ */
+typedef int (*nghttp3_recv_wt_close_session)(nghttp3_conn *conn,
+                                             int64_t session_id,
+                                             uint32_t wt_error_code,
+                                             const uint8_t *msg, size_t msglen,
+                                             void *conn_user_data,
+                                             void *stream_user_data);
+
 #define NGHTTP3_CALLBACKS_V1 1
 #define NGHTTP3_CALLBACKS_V2 2
 #define NGHTTP3_CALLBACKS_V3 3
@@ -2463,6 +2617,22 @@ typedef struct nghttp3_callbacks {
    * .. version-added:: 1.18.0
    */
   nghttp3_stream_close2 stream_close2;
+  /**
+   * :member:`recv_wt_data` is a callback function which is invoked
+   * when data on WebTransport data stream is received.
+   */
+  nghttp3_recv_wt_data recv_wt_data;
+  /**
+   * :member:`wt_data_stream_open` is a callback function which is
+   * invoked when a remote stream is identified as WebTransport data
+   * stream.
+   */
+  nghttp3_wt_data_stream_open wt_data_stream_open;
+  /**
+   * :member:`recv_wt_close_session` is a callback function which is
+   * invoked when WT_CLOSE_SESSION Capsule is received.
+   */
+  nghttp3_recv_wt_close_session recv_wt_close_session;
 } nghttp3_callbacks;
 
 /**
@@ -2923,6 +3093,8 @@ NGHTTP3_EXTERN int nghttp3_conn_resume_stream(nghttp3_conn *conn,
  *     Stream not found.
  * :macro:`NGHTTP3_ERR_H3_CLOSED_CRITICAL_STREAM`
  *     A critical stream is closed.
+ * :macro:`NGHTTP3_ERR_NOMEM`
+ *     Out of memory.
  * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
  *     User callback failed
  *
@@ -2956,6 +3128,8 @@ NGHTTP3_EXTERN int nghttp3_conn_close_stream(nghttp3_conn *conn,
  *     Stream not found.
  * :macro:`NGHTTP3_ERR_H3_CLOSED_CRITICAL_STREAM`
  *     A critical stream is closed.
+ * :macro:`NGHTTP3_ERR_NOMEM`
+ *     Out of memory.
  * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
  *     User callback failed
  *
@@ -3015,10 +3189,9 @@ nghttp3_conn_set_max_client_streams_bidi(nghttp3_conn *conn,
  * @function
  *
  * `nghttp3_conn_set_max_concurrent_streams` tells |conn| the maximum
- * number of concurrent streams that a remote endpoint can open,
- * including both bidirectional and unidirectional streams which
- * potentially receive QPACK encoded HEADERS frame.  This value is
- * used as a hint to limit the internal resource consumption.
+ * number of concurrent bidirectional streams that a client can open.
+ * This value is used as a hint to limit the internal resource
+ * consumption.
  */
 NGHTTP3_EXTERN void
 nghttp3_conn_set_max_concurrent_streams(nghttp3_conn *conn,
@@ -3091,7 +3264,8 @@ typedef struct nghttp3_data_reader {
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
  * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
- *     The required memory for |nva| of length |nvlen| is too large.
+ *     The required memory for |nva| of length |nvlen| is too large;
+ *     or |nvlen| == 0.
  */
 NGHTTP3_EXTERN int nghttp3_conn_submit_request(
   nghttp3_conn *conn, int64_t stream_id, const nghttp3_nv *nva, size_t nvlen,
@@ -3136,7 +3310,8 @@ NGHTTP3_EXTERN int nghttp3_conn_submit_info(nghttp3_conn *conn,
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
  * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
- *     The required memory for |nva| of length |nvlen| is too large.
+ *     The required memory for |nva| of length |nvlen| is too large;
+ *     or |nvlen| == 0.
  */
 NGHTTP3_EXTERN int nghttp3_conn_submit_response(nghttp3_conn *conn,
                                                 int64_t stream_id,
@@ -3176,6 +3351,9 @@ NGHTTP3_EXTERN int nghttp3_conn_submit_trailers(nghttp3_conn *conn,
  * to stop creating new stream.  After a couple of RTTs later, call
  * `nghttp3_conn_shutdown` to start graceful shutdown.
  *
+ * This function does nothing if `nghttp3_conn_shutdown` has been
+ * called.
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
@@ -3192,6 +3370,8 @@ NGHTTP3_EXTERN int nghttp3_conn_submit_shutdown_notice(nghttp3_conn *conn);
  * RTTs.  After calling this function, the local endpoint starts
  * rejecting new incoming streams.  The existing streams are processed
  * normally.  See also `nghttp3_conn_is_drained`.
+ *
+ * Calling this function more than once does nothing, and returns 0.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -3484,6 +3664,165 @@ NGHTTP3_EXTERN int nghttp3_conn_is_drained(nghttp3_conn *conn);
  * .. version-added:: 1.16.0
  */
 NGHTTP3_EXTERN int nghttp3_conn_is_drained2(const nghttp3_conn *conn);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_submit_wt_request` works like
+ * `nghttp3_conn_submit_request`, but it is specifically tailored for
+ * WebTransport session establishment.  |nva| of length |nvlen|
+ * specifies HTTP request header fields.  They must contain at least
+ * the following fields:
+ *
+ * - :method = "CONNECT"
+ * - :scheme = "https"
+ * - :protocol = "webtransport-h3"
+ * - :authority
+ * - :path
+ *
+ * The application must also set the following settings:
+ *
+ * - :member:`nghttp3_settings.h3_datagram` = 1
+ * - :member:`nghttp3_settings.wt_enabled` = 1
+ *
+ * It also must send the following QUIC transport parameters:
+ *
+ * - max_datagram_frame_size > 0
+ * - reset_stream_at
+ *
+ * The application should wait for SETTINGS frame from server and make
+ * sure that it satisfies server-side requirements for WebTransport.
+ *
+ * After receiving 2xx response from server, WebTransport session is
+ * established.  `nghttp3_conn_open_wt_data_stream` is used to open
+ * WebTransport data streams.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * TBD
+ */
+NGHTTP3_EXTERN int nghttp3_conn_submit_wt_request(nghttp3_conn *conn,
+                                                  int64_t stream_id,
+                                                  const nghttp3_nv *nva,
+                                                  size_t nvlen,
+                                                  void *stream_user_data);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_submit_wt_response` works like
+ * `nghttp3_conn_submit_response`, but it is specifically tailored for
+ * WebTransport session establishment.  |nva| of length |nvlen|
+ * specifies HTTP response header fields.  It must contain 2xx status
+ * code in :status field.
+ *
+ * The application should make sure that the stream denoted by
+ * |stream_id| is a request stream that requests WebTransport session
+ * establishment.  If this function is called inside
+ * :member:`nghttp3_callbacks.end_headers` callback,
+ * `nghttp3_conn_server_confirm_wt_session` is called internally, and
+ * it establishes WebTransport session.  If this function is called
+ * outside of the callback, the application must call
+ * `nghttp3_conn_server_confirm_wt_session` after calling this
+ * function.
+ *
+ * If `nghttp3_conn_submit_response` is used against the WebTransport
+ * upgrade request, it means refusal of the request regardless of HTTP
+ * status code.  The application is responsible to set non-2xx status
+ * code when `nghttp3_conn_submit_response` is used.  If
+ * `nghttp3_conn_submit_response` is called from
+ * :member:`nghttp3_callbacks.end_headers` callback,
+ * :member:`nghttp3_callbacks.stop_sending` callback is automatically
+ * called.  If `nghttp3_conn_submit_response` is called outside of the
+ * :member:`nghttp3_callbacks.end_headers` callback,
+ * :member:`nghttp3_callbacks.stop_sending` is not called
+ * automatically.  The application should tell QUIC stack to send
+ * STOP_SENDING frame to this stream.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * TBD
+ */
+NGHTTP3_EXTERN int nghttp3_conn_submit_wt_response(nghttp3_conn *conn,
+                                                   int64_t stream_id,
+                                                   const nghttp3_nv *nva,
+                                                   size_t nvlen);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_server_confirm_wt_session` establishes WebTransport
+ * session.  This should be called after
+ * `nghttp3_conn_submit_wt_response` call if it is not called inside
+ * `nghttp3_callbacks.end_headers` callback.
+ *
+ * Only server can call this function.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * TBD
+ */
+NGHTTP3_EXTERN int nghttp3_conn_server_confirm_wt_session(nghttp3_conn *conn,
+                                                          int64_t session_id,
+                                                          nghttp3_tstamp ts);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_open_wt_data_stream` opens WebTransport data stream.
+ * |session_id| is the stream ID that established WebTransport
+ * session.  |stream_id| is the stream ID to write data, and it can be
+ * both bidirectional and unidirectional.  |dr| must not be NULL, and
+ * it must have non-NULL callback.
+ *
+ * This function can be also used to start writing to the
+ * bidirectional stream initiated by the remote endpoint.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * TBD
+ */
+NGHTTP3_EXTERN int nghttp3_conn_open_wt_data_stream(
+  nghttp3_conn *conn, int64_t session_id, int64_t stream_id,
+  const nghttp3_data_reader *dr, void *stream_user_data);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_close_wt_session` closes WebTransport session denoted
+ * by |session_id| which is the stream ID that established
+ * WebTransport session.  |wt_error_code| is WebTransport error code.
+ * Upon calling this function, all existing WebTransport data streams
+ * are shutdown.  |msg| of |msglen| bytes is the application error
+ * message, which is optional.  |msglen| must be less than or equal to
+ * 1024.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * TBD
+ */
+NGHTTP3_EXTERN int nghttp3_conn_close_wt_session(nghttp3_conn *conn,
+                                                 int64_t session_id,
+                                                 uint32_t wt_error_code,
+                                                 const uint8_t *msg,
+                                                 size_t msglen);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_get_stream_wt_session_id` returns the WebTransport
+ * session ID of a stream denoted by |stream_id| if it is WebTransport
+ * data stream.  If the stream is not found, it is not a WebTransport
+ * data stream, or it is unable to get session ID, this function
+ * returns -1.
+ */
+NGHTTP3_EXTERN int64_t nghttp3_conn_get_stream_wt_session_id(
+  const nghttp3_conn *conn, int64_t stream_id);
 
 /**
  * @function

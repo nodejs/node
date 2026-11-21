@@ -56,6 +56,12 @@
    that an encoder accepts without completely encoding a single field
    section. */
 #define NGHTTP3_QPACK_MAX_DECODERLEN (4 * 1024)
+/* NGHTTP3_QPACK_MAX_UNACKED_DECODERLEN is the maximum decoder stream
+   length that is kept in the outgoing queue of QPACK decoder stream
+   without being acknowledged by a remote endpoint.  After this limit,
+   the pending decoder stream data stays in a decoder, which has its
+   own limit, until a remote endpoint acknowledges the queued data. */
+#define NGHTTP3_QPACK_MAX_UNACKED_DECODERLEN (16 * 1024)
 
 /* nghttp3_qpack_indexing_mode is a indexing strategy. */
 typedef enum nghttp3_qpack_indexing_mode {
@@ -171,6 +177,9 @@ typedef struct nghttp3_qpack_context {
   /* max_blocked_streams is the maximum number of stream which can be
      blocked. */
   size_t max_blocked_streams;
+  /* max_concurrent_streams is the number of concurrent request
+     streams that are encoded/decoded concurrently. */
+  size_t max_concurrent_streams;
   /* next_absidx is the next absolute index for nghttp3_qpack_entry.
      It is equivalent to insert count. */
   uint64_t next_absidx;
@@ -227,6 +236,10 @@ typedef enum nghttp3_qpack_decoder_stream_opcode {
 /* NGHTTP3_QPACK_ENCODER_FLAG_PENDING_SET_DTABLE_CAP indicates that
    Set Dynamic Table Capacity is required. */
 #define NGHTTP3_QPACK_ENCODER_FLAG_PENDING_SET_DTABLE_CAP 0x01U
+/* NGHTTP3_QPACK_ENCODER_FLAG_NO_INSERT indicates that no new entry is
+   inserted into the dynamic table for the moment, so that no more
+   insert instructions are produced for the encoder stream. */
+#define NGHTTP3_QPACK_ENCODER_FLAG_NO_INSERT 0x02U
 
 struct nghttp3_qpack_encoder {
   nghttp3_qpack_context ctx;
@@ -258,6 +271,13 @@ struct nghttp3_qpack_encoder {
   /* last_max_dtable_update is the dynamic table size last
      requested. */
   size_t last_max_dtable_update;
+  /* decoder_max_dtable_capacity is the maximum dynamic table capacity
+     that the decoder advertised (e.g.,
+     SETTINGS_QPACK_MAX_TABLE_CAPACITY).  Required Insert Count is
+     encoded with MaxEntries derived from this value.  Unlike
+     ctx.hard_max_dtable_capacity, this is not the capacity that this
+     encoder is willing to use. */
+  size_t decoder_max_dtable_capacity;
   /* uninterrupted_decoderlen is the number of bytes read from decoder
      stream without encoding a single field section. */
   size_t uninterrupted_decoderlen;
@@ -286,6 +306,17 @@ void nghttp3_qpack_encoder_init(nghttp3_qpack_encoder *encoder,
 void nghttp3_qpack_encoder_free(nghttp3_qpack_encoder *encoder);
 
 /*
+ * nghttp3_qpack_encoder_set_no_insert tells |encoder| whether it is
+ * allowed to insert new entries into the dynamic table.  If
+ * |no_insert| is nonzero, |encoder| stops inserting new entries, and
+ * thus stops producing insert instructions for the encoder stream,
+ * until this function is called with zero |no_insert|.  The existing
+ * entries can still be referenced.
+ */
+void nghttp3_qpack_encoder_set_no_insert(nghttp3_qpack_encoder *encoder,
+                                         int no_insert);
+
+/*
  * nghttp3_qpack_encoder_encode_nv encodes |nv|.  It writes request
  * stream into |rbuf| and writes encoder stream into |ebuf|.  |nv| is
  * a header field to encode.  |base| is base.  |allow_blocking| is
@@ -307,13 +338,13 @@ int nghttp3_qpack_encoder_encode_nv(nghttp3_qpack_encoder *encoder,
 /* nghttp3_qpack_lookup_result stores a result of table lookup. */
 typedef struct nghttp3_qpack_lookup_result {
   /* index is an index of matched entry.  -1 if no match is made. */
-  nghttp3_ssize index;
+  int64_t index;
   /* name_value_match is nonzero if both name and value are
      matched. */
   int name_value_match;
   /* pb_index is the absolute index of matched post-based dynamic
      table entry.  -1 if no such entry exists. */
-  nghttp3_ssize pb_index;
+  int64_t pb_index;
 } nghttp3_qpack_lookup_result;
 
 /*
@@ -385,7 +416,8 @@ int nghttp3_qpack_encoder_write_dynamic_indexed(
  * nghttp3_qpack_encoder_write_static_indexed writes Literal Header
  * Field With Name Reference to |rbuf|.  |absidx| is an absolute index
  * into static table to reference a name.  |nv| is a header field to
- * encode.
+ * encode.  If |indexing_mode| is NGHTTP3_QPACK_INDEXING_MODE_NEVER, N
+ * bit is set so that intermediaries never index this header field.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -395,13 +427,15 @@ int nghttp3_qpack_encoder_write_dynamic_indexed(
  */
 int nghttp3_qpack_encoder_write_static_indexed_name(
   const nghttp3_qpack_encoder *encoder, nghttp3_buf *rbuf, uint64_t absidx,
-  const nghttp3_nv *nv);
+  const nghttp3_nv *nv, nghttp3_qpack_indexing_mode indexing_mode);
 
 /*
  * nghttp3_qpack_encoder_write_dynamic_indexed writes Literal Header
  * Field With Name Reference to |rbuf|.  |absidx| is an absolute index
  * into dynamic table to reference a name.  |base| is a base.  |nv| is
- * a header field to encode.
+ * a header field to encode.  If |indexing_mode| is
+ * NGHTTP3_QPACK_INDEXING_MODE_NEVER, N bit is set so that
+ * intermediaries never index this header field.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -411,11 +445,14 @@ int nghttp3_qpack_encoder_write_static_indexed_name(
  */
 int nghttp3_qpack_encoder_write_dynamic_indexed_name(
   const nghttp3_qpack_encoder *encoder, nghttp3_buf *rbuf, uint64_t absidx,
-  uint64_t base, const nghttp3_nv *nv);
+  uint64_t base, const nghttp3_nv *nv,
+  nghttp3_qpack_indexing_mode indexing_mode);
 
 /*
  * nghttp3_qpack_encoder_write_literal writes Literal Header Field
- * With Literal Name to |rbuf|.  |nv| is a header field to encode.
+ * With Literal Name to |rbuf|.  |nv| is a header field to encode.  If
+ * |indexing_mode| is NGHTTP3_QPACK_INDEXING_MODE_NEVER, N bit is set
+ * so that intermediaries never index this header field.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -423,9 +460,9 @@ int nghttp3_qpack_encoder_write_dynamic_indexed_name(
  * NGHTTP3_ERR_NOMEM
  *     Out of memory.
  */
-int nghttp3_qpack_encoder_write_literal(const nghttp3_qpack_encoder *encoder,
-                                        nghttp3_buf *rbuf,
-                                        const nghttp3_nv *nv);
+int nghttp3_qpack_encoder_write_literal(
+  const nghttp3_qpack_encoder *encoder, nghttp3_buf *rbuf, const nghttp3_nv *nv,
+  nghttp3_qpack_indexing_mode indexing_mode);
 
 /*
  * nghttp3_qpack_encoder_write_static_insert writes Insert With Name
@@ -780,11 +817,6 @@ struct nghttp3_qpack_decoder {
   nghttp3_buf dbuf;
   /* written_icnt is Insert Count written to decoder stream so far. */
   uint64_t written_icnt;
-  /* max_concurrent_streams is the number of concurrent streams that a
-     remote endpoint can open, including both bidirectional and
-     unidirectional streams which potentially receives QPACK encoded
-     HEADER frame. */
-  size_t max_concurrent_streams;
   /* uninterrupted_encoderlen is the number of bytes read from encoder
      stream without completing a single field section. */
   size_t uninterrupted_encoderlen;

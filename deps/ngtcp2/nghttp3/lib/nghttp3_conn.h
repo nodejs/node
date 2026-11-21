@@ -85,6 +85,11 @@ struct nghttp3_conn {
   nghttp3_qpack_decoder qdec;
   nghttp3_qpack_encoder qenc;
   nghttp3_pq qpack_blocked_streams;
+  /* qpack_blocked_streams_cancelled is the number of streams in
+     qpack_blocked_streams for which QPACK Stream Cancellation has
+     been sent.  A remote endpoint no longer counts them as blocked
+     streams. */
+  size_t qpack_blocked_streams_cancelled;
   nghttp3_ratelim glitch_rlim;
   struct {
     nghttp3_pq spq;
@@ -120,6 +125,9 @@ struct nghttp3_conn {
          streams that are currently open.  This field is for server
          use only. */
       size_t num_streams;
+      /* max_concurrent_streams is the maximum number of bidirectional
+         streams that the remote endpoint can create concurrently. */
+      size_t max_concurrent_streams;
     } bidi;
     nghttp3_proto_settings settings;
   } remote;
@@ -202,8 +210,8 @@ nghttp3_ssize nghttp3_conn_read_qpack_decoder(nghttp3_conn *conn,
                                               const uint8_t *src,
                                               size_t srclen);
 
-int nghttp3_conn_on_data(nghttp3_conn *conn, nghttp3_stream *stream,
-                         const uint8_t *data, size_t datalen);
+nghttp3_ssize nghttp3_conn_on_data(nghttp3_conn *conn, nghttp3_stream *stream,
+                                   const uint8_t *data, size_t datalen);
 
 int nghttp3_conn_on_priority_update(nghttp3_conn *conn,
                                     const nghttp3_frame_priority_update *fr);
@@ -211,10 +219,12 @@ int nghttp3_conn_on_priority_update(nghttp3_conn *conn,
 nghttp3_ssize nghttp3_conn_on_headers(nghttp3_conn *conn,
                                       nghttp3_stream *stream,
                                       const uint8_t *data, size_t datalen,
-                                      int fin);
+                                      int fin, nghttp3_tstamp ts);
 
 int nghttp3_conn_on_settings_entry_received(nghttp3_conn *conn,
                                             const nghttp3_frame_settings *fr);
+
+int nghttp3_conn_on_settings_received(nghttp3_conn *conn);
 
 int nghttp3_conn_qpack_blocked_streams_push(nghttp3_conn *conn,
                                             nghttp3_stream *stream);
@@ -233,10 +243,47 @@ void nghttp3_conn_unschedule_stream(nghttp3_conn *conn, nghttp3_stream *stream);
 
 int nghttp3_conn_reject_stream(nghttp3_conn *conn, nghttp3_stream *stream);
 
+int nghttp3_conn_abort_stream(nghttp3_conn *conn, nghttp3_stream *stream,
+                              uint64_t error_code);
+
 /*
  * nghttp3_conn_get_next_tx_stream returns next stream to send.  It
  * returns NULL if there is no such stream.
  */
 nghttp3_stream *nghttp3_conn_get_next_tx_stream(nghttp3_conn *conn);
+
+int nghttp3_conn_open_wt_session(nghttp3_conn *conn, nghttp3_stream *stream);
+
+int nghttp3_conn_on_wt_stream(nghttp3_conn *conn, nghttp3_stream *stream,
+                              int64_t session_id);
+
+nghttp3_ssize nghttp3_conn_read_wt_stream_uni(nghttp3_conn *conn,
+                                              nghttp3_stream *stream,
+                                              const uint8_t *src, size_t srclen,
+                                              int fin, nghttp3_tstamp ts);
+
+int nghttp3_conn_on_wt_session_confirmed(nghttp3_conn *conn,
+                                         nghttp3_stream *wt_ctrl_stream,
+                                         nghttp3_tstamp ts);
+
+int nghttp3_conn_process_blocked_wt_stream_data(nghttp3_conn *conn,
+                                                nghttp3_stream *stream,
+                                                nghttp3_tstamp ts);
+
+int nghttp3_conn_shutdown_wt_session(nghttp3_conn *conn,
+                                     nghttp3_stream *wt_ctrl_stream,
+                                     uint64_t error_code);
+
+int nghttp3_conn_shutdown_all_wt_data_streams(nghttp3_conn *conn,
+                                              nghttp3_stream *wt_ctrl_stream,
+                                              uint64_t error_code);
+
+int nghttp3_conn_shutdown_wt_data_stream(nghttp3_conn *conn,
+                                         nghttp3_stream *stream,
+                                         uint64_t error_code);
+
+int nghttp3_conn_read_wt_ctrl_stream(nghttp3_conn *conn,
+                                     const nghttp3_stream *stream,
+                                     const uint8_t *src, size_t srclen);
 
 #endif /* !defined(NGHTTP3_CONN_H) */
