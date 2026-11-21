@@ -4911,6 +4911,45 @@ const server = http2.createServer((req, res) => {
 });
 ```
 
+#### `response.setHeaders(headers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `headers` {Headers|Map}
+
+Sets multiple header values for implicit headers.
+`headers` must be an instance of [`Headers`][] or `Map`.
+If a header already exists in the to-be-sent headers,
+its value will be replaced.
+
+```js
+const headers = new Headers({ foo: 'bar' });
+response.setHeaders(headers);
+```
+
+or
+
+```js
+const headers = new Map([['foo', 'bar']]);
+response.setHeaders(headers);
+```
+
+When headers have been set with [`response.setHeaders()`][],
+they will be merged with any headers passed to [`response.writeHead()`][],
+with the headers passed to [`response.writeHead()`][] given precedence.
+
+```js
+// Returns content-type = text/plain
+const server = http2.createServer((req, res) => {
+  const headers = new Headers({ 'Content-Type': 'text/html' });
+  res.setHeaders(headers);
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('ok');
+});
+```
+
 #### `response.setTimeout(msecs[, callback])`
 
 <!-- YAML
@@ -5334,6 +5373,7 @@ you need to implement any fall-back behavior yourself.
 [`Duplex`]: stream.md#class-streamduplex
 [`ERR_HTTP2_STREAM_ABORTED`]: errors.md#err_http2_stream_aborted
 [`ERR_HTTP2_STREAM_ERROR`]: errors.md#err_http2_stream_error
+[`Headers`]: globals.md#class-headers
 [`Http2ServerRequest`]: #class-http2http2serverrequest
 [`Http2ServerResponse`]: #class-http2http2serverresponse
 [`Http2Session` and Sockets]: #http2session-and-sockets
@@ -5362,6 +5402,7 @@ you need to implement any fall-back behavior yourself.
 [`request.socket`]: #requestsocket
 [`response.end()`]: #responseenddata-encoding-callback
 [`response.setHeader()`]: #responsesetheadername-value
+[`response.setHeaders()`]: #responsesetheadersheaders
 [`response.socket`]: #responsesocket
 [`response.writableEnded`]: #responsewritableended
 [`response.write()`]: #responsewritechunk-encoding-callback
