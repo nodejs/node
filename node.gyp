@@ -518,6 +518,7 @@
       'src/ffi/data.h',
       'src/ffi/fast.cc',
       'src/ffi/fast.h',
+      'src/ffi/platforms/scalar_trampoline.h',
       'src/ffi/jit_memory.cc',
       'src/ffi/jit_memory.h',
       'src/ffi/types.cc',

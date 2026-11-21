@@ -158,6 +158,17 @@ class DynamicLibrary : public BaseObject {
   SET_SELF_SIZE(DynamicLibrary)
 
  private:
+  using CallbackMap = std::unordered_map<void*, std::unique_ptr<FFICallback>>;
+
+  // Validates that args[0] is a pointer to a callback registered with the
+  // receiving library and stores its entry in `out`. When `require_function`
+  // is true, a callback whose function has already been collected is also
+  // rejected. Returns the library, or nullptr after throwing.
+  static DynamicLibrary* FindCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& args,
+      bool require_function,
+      CallbackMap::iterator* out);
+
   void Close();
   v8::Maybe<void*> ResolveSymbol(Environment* env, const std::string& name);
   struct PreparedFunction {
@@ -194,7 +205,7 @@ class DynamicLibrary : public BaseObject {
   // FFIFunctionInfo.
   std::unordered_map<std::string, v8::Global<v8::Function>> function_wrappers_;
   std::shared_ptr<std::unordered_set<FFIFunction*>> pointer_functions_;
-  std::unordered_map<void*, std::unique_ptr<FFICallback>> callbacks_;
+  CallbackMap callbacks_;
 };
 
 void GetInt8(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -8,30 +8,20 @@
       __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)) &&                    \
     !defined(_AIX)
 
-#include <sys/mman.h>
-#include <unistd.h>
+#include "ffi/platforms/scalar_trampoline.h"
 
 #include <stdint.h>
 
 namespace {
 
 using node::ffi::FastFFIType;
-
-bool IsFloatType(FastFFIType type) {
-  return type == FastFFIType::kFloat32 || type == FastFFIType::kFloat64;
-}
-
-bool IsNarrowType(FastFFIType type) {
-  switch (type) {
-    case FastFFIType::kInt8:
-    case FastFFIType::kUint8:
-    case FastFFIType::kInt16:
-    case FastFFIType::kUint16:
-      return true;
-    default:
-      return false;
-  }
-}
+using node::ffi::scalar_trampoline::AllocateCode;
+using node::ffi::scalar_trampoline::CanCreate;
+using node::ffi::scalar_trampoline::Emit32;
+using node::ffi::scalar_trampoline::Emit64;
+using node::ffi::scalar_trampoline::FinalizeCode;
+using node::ffi::scalar_trampoline::FreeTrampoline;
+using node::ffi::scalar_trampoline::IsFloatType;
 
 uint32_t Or(unsigned ra, unsigned rs, unsigned rb) {
   return (31u << 26) | (rs << 21) | (ra << 16) | (rb << 11) | (444u << 1);
@@ -59,30 +49,6 @@ uint32_t Ld(unsigned rt, unsigned ra, unsigned offset) {
   return (58u << 26) | (rt << 21) | (ra << 16) | (offset & 0xfffcu);
 }
 
-void Emit32(uint32_t** cursor, uint32_t value) {
-  *(*cursor)++ = value;
-}
-
-void Emit64(uint32_t** cursor, uint64_t value) {
-  uint64_t* slot = reinterpret_cast<uint64_t*>(*cursor);
-  *slot = value;
-  *cursor += 2;
-}
-
-void* AllocateCode(size_t code_size) {
-  void* code = mmap(nullptr,
-                    code_size,
-                    PROT_READ | PROT_WRITE,
-                    MAP_PRIVATE | MAP_ANON,
-                    -1,
-                    0);
-  return code == MAP_FAILED ? nullptr : code;
-}
-
-void FreeCode(void* code, size_t code_size) {
-  munmap(code, code_size);
-}
-
 }  // namespace
 
 extern "C" bool node_ffi_create_fast_trampoline(
@@ -91,32 +57,15 @@ extern "C" bool node_ffi_create_fast_trampoline(
     size_t argc,
     node::ffi::FastFFIType result,
     node::ffi::FastFFITrampoline* out) {
-  if (config.target == nullptr || out == nullptr || IsNarrowType(result)) {
-    return false;
-  }
-
-  size_t gp_count = 0;
-  size_t fp_count = 0;
-  for (size_t i = 0; i < argc; i++) {
-    if (args[i] == FastFFIType::kBuffer) {
-      return false;
-    }
-    if (IsFloatType(args[i])) {
-      fp_count++;
-    } else {
-      gp_count++;
-    }
-  }
-
   // ELFv2 PPC64LE passes integer arguments in r3..r10. V8's receiver occupies
   // r3, so the scalar-only fast path keeps user GP arguments in r4..r10 and
   // shifts them down before tail-branching to the native target.
-  if (gp_count > 7 || fp_count > 8) {
+  size_t gp_count;
+  if (!CanCreate(config, args, argc, result, out, 7, 8, &gp_count)) {
     return false;
   }
 
-  constexpr size_t kCodeSize = 256;
-  void* code = AllocateCode(kCodeSize);
+  void* code = AllocateCode();
   if (code == nullptr) {
     return false;
   }
@@ -153,27 +102,12 @@ extern "C" bool node_ffi_create_fast_trampoline(
 
   const size_t written = reinterpret_cast<uint8_t*>(cursor) -
                          static_cast<uint8_t*>(code);
-  __builtin___clear_cache(static_cast<char*>(code),
-                          static_cast<char*>(code) + written);
-
-  if (mprotect(code, kCodeSize, PROT_READ | PROT_EXEC) != 0) {
-    FreeCode(code, kCodeSize);
-    return false;
-  }
-
-  out->code = code;
-  out->size = kCodeSize;
-  return true;
+  return FinalizeCode(code, written, out);
 }
 
 extern "C" void node_ffi_free_fast_trampoline(
     node::ffi::FastFFITrampoline* trampoline) {
-  if (trampoline == nullptr || trampoline->code == nullptr) {
-    return;
-  }
-  FreeCode(trampoline->code, trampoline->size);
-  trampoline->code = nullptr;
-  trampoline->size = 0;
+  FreeTrampoline(trampoline);
 }
 
 #else
