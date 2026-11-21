@@ -344,6 +344,26 @@ void StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void SetHeapProfileSampleInterval(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsNumber());
+  uint64_t sample_interval =
+      static_cast<uint64_t>(args[0].As<Number>()->Value());
+  args.GetIsolate()->GetHeapProfiler()->SetSamplingHeapProfilerInterval(
+      sample_interval);
+}
+
+void GetHeapProfileSamples(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  auto samples =
+      env->isolate()->GetHeapProfiler()->GetSamplingHeapProfilerSamples();
+  Local<Array> result;
+  if (HeapProfileSamplesToV8Value(env->isolate(), env->context(), samples)
+          .ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
+}
+
 static void IsStringOneByteRepresentation(
     const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
@@ -816,6 +836,11 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "stopCpuProfile", StopCpuProfile);
   SetMethod(context, target, "startHeapProfile", StartHeapProfile);
   SetMethod(context, target, "stopHeapProfile", StopHeapProfile);
+  SetMethod(context,
+            target,
+            "setHeapProfileSampleInterval",
+            SetHeapProfileSampleInterval);
+  SetMethod(context, target, "getHeapProfileSamples", GetHeapProfileSamples);
 
   {
     constexpr uint32_t kSamplingNoFlags = static_cast<uint32_t>(
@@ -885,6 +910,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StopCpuProfile);
   registry->Register(StartHeapProfile);
   registry->Register(StopHeapProfile);
+  registry->Register(SetHeapProfileSampleInterval);
+  registry->Register(GetHeapProfileSamples);
 }
 
 }  // namespace v8_utils

@@ -1528,6 +1528,13 @@ file in chunks.
 The number of file system events queued without being handled exceeded the size specified in
 `maxQueue` in `fs.watch()`.
 
+<a id="ERR_HEAP_PROFILE_NOT_STARTED"></a>
+
+### `ERR_HEAP_PROFILE_NOT_STARTED`
+
+An operation was attempted on a heap profile that has not been started or has
+already been stopped or disposed.
+
 <a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
 
 ### `ERR_HTTP2_ALTSVC_INVALID_ORIGIN`
