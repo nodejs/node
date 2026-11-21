@@ -1222,8 +1222,12 @@ void uv__stream_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
       !(events & POLLIN) &&
       (stream->flags & UV_HANDLE_READING) &&
       !(stream->flags & UV_HANDLE_READ_EOF)) {
-    uv_buf_t buf = { NULL, 0 };
-    uv__stream_eof(stream, &buf);
+    if (stream->type == UV_TTY) {
+      uv__read(stream);
+    } else {
+      uv_buf_t buf = { NULL, 0 };
+      uv__stream_eof(stream, &buf);
+    }
   }
 
   if (uv__stream_fd(stream) == -1)
