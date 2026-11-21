@@ -35,7 +35,7 @@ namespace v8::internal::trap_handler {
 // (MSVC #defines _MSC_VER, but so does Clang when targeting Windows, hence
 // the check for __clang__.)
 #elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_X64 && \
-    (V8_OS_LINUX || V8_OS_DARWIN || V8_OS_WIN) && \
+    (V8_OS_LINUX || V8_OS_DARWIN || V8_OS_WIN) && !V8_OS_ANDROID && \
     (!defined(_MSC_VER) || defined(__clang__))
 #define V8_TRAP_HANDLER_VIA_SIMULATOR
 #define V8_TRAP_HANDLER_SUPPORTED true
