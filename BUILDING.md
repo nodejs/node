@@ -121,8 +121,8 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | s390x >=z14      | kernel >= 5.14[^1], glibc >= 2.34 | Tier 2       | e.g. RHEL 9                                    |
 | GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                                |
 | GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^5] |
-| Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                                      |
-| Windows          | arm64            | >= Windows 10                     | Tier 2       |                                                |
+| Windows          | x64              | >= Windows 11/Server 2022         | Tier 1       | [^2],[^3]                                      |
+| Windows          | arm64            | >= Windows 11                     | Tier 2       |                                                |
 | macOS            | x64              | >= 13.5                           | Experimental | For notes about compilation see [^4]           |
 | macOS            | arm64            | >= 13.5                           | Tier 1       |                                                |
 | SmartOS          | x64              | >= 18                             | Tier 2       |                                                |
