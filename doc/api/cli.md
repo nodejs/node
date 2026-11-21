@@ -536,12 +536,12 @@ node -C development app.js
 <!-- YAML
 added: v23.10.0
 changes:
-  - version: REPLACEME
+  - version: v24.23.0
     pr-url: https://github.com/nodejs/node/pull/66431
     description: This flag was renamed from `--experimental-config-file` to
                  `--config-file` and is now stable. `--experimental-config-file`
                  and `--experimental-default-config-file` are kept as aliases.
-  - version: REPLACEME
+  - version: v24.23.0
     pr-url: https://github.com/nodejs/node/pull/64516
     description: Marked as release candidate.
 -->
@@ -2797,7 +2797,7 @@ files must meet **both** criteria to be included in the coverage report.
 ### `--test-coverage-include-all`
 
 <!-- YAML
-added: REPLACEME
+added: v24.23.0
 -->
 
 > Stability: 1 - Experimental

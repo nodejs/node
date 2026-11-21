@@ -1004,7 +1004,7 @@ the byte length as reported by `.byteLength` is returned.
 ### Static method: `Buffer.stringLength(input[, encoding])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.23.0
 -->
 
 * `input` {Buffer | ArrayBuffer | TypedArray} The bytes that would be decoded.

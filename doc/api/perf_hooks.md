@@ -885,7 +885,7 @@ setImmediate(() => {
 ### `performanceNodeTiming.uvMetricsInfoBigInt`
 
 <!-- YAML
-added: REPLACEME
+added: v24.23.0
 -->
 
 * Type: {Object}
@@ -2141,7 +2141,7 @@ value range of the given value.
 ### `histogram.diff(other)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.23.0
 -->
 
 * `other` {Histogram} An earlier snapshot of this histogram.
@@ -2654,7 +2654,7 @@ Resets the collected histogram data and increments `histogram.resetCount`.
 ### `histogram.resetCount`
 
 <!-- YAML
-added: REPLACEME
+added: v24.23.0
 -->
 
 * Type: {number}
@@ -2681,7 +2681,7 @@ indicates a left-skewed distribution.
 ### `histogram.snapshot()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.23.0
 -->
 
 * Returns: {Histogram}

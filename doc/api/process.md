@@ -2089,10 +2089,10 @@ Since it's not possible to build Node.js without libuv, this value is always `tr
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v24.23.0
     pr-url: https://github.com/nodejs/node/pull/66482
     description: Returns a function that removes the registration.
-  - version: REPLACEME
+  - version: v24.23.0
     pr-url: https://github.com/nodejs/node/pull/66436
     description: Marked as release candidate.
 -->
@@ -2217,10 +2217,10 @@ unregister();
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v24.23.0
     pr-url: https://github.com/nodejs/node/pull/66482
     description: Returns a function that removes the registration.
-  - version: REPLACEME
+  - version: v24.23.0
     pr-url: https://github.com/nodejs/node/pull/66436
     description: Marked as release candidate.
 -->
@@ -2246,7 +2246,7 @@ this means that there is a possibility that the callback will not be called unde
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v24.23.0
     pr-url: https://github.com/nodejs/node/pull/66436
     description: Marked as release candidate.
 -->
@@ -3381,7 +3381,7 @@ added:
   - v23.6.0
   - v22.14.0
 changes:
-  - version: REPLACEME
+  - version: v24.23.0
     pr-url: https://github.com/nodejs/node/pull/66213
     description: This API is no longer experimental.
 -->
@@ -4479,7 +4479,7 @@ added:
   - v23.6.0
   - v22.14.0
 changes:
-  - version: REPLACEME
+  - version: v24.23.0
     pr-url: https://github.com/nodejs/node/pull/66213
     description: This API is no longer experimental.
 -->
