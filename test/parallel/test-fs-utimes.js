@@ -45,11 +45,13 @@ function stat_resource(resource, statSync = fs.statSync) {
   return fs.fstatSync(resource);
 }
 
+function toSeconds(time) {
+  return typeof time === 'object' ? time.getTime() / 1000 : +time;
+}
+
 function check_mtime(resource, mtime, statSync) {
-  mtime = fs._toUnixTimestamp(mtime);
   const stats = stat_resource(resource, statSync);
-  const real_mtime = fs._toUnixTimestamp(stats.mtime);
-  return mtime - real_mtime;
+  return toSeconds(mtime) - toSeconds(stats.mtime);
 }
 
 function expect_errno(syscall, resource, err, errno) {
@@ -64,15 +66,10 @@ function expect_ok(syscall, resource, err, atime, mtime, statSync) {
   assert(
     // Check up to single-second precision.
     // Sub-second precision is OS and fs dependent.
-    !err && (mtime_diff < 2) || err && err.code === 'ENOSYS',
+    !err && (Math.abs(mtime_diff) < 2) || err && err.code === 'ENOSYS',
     `FAILED: expect_ok ${util.inspect(arguments)}
      check_mtime: ${mtime_diff}`
   );
-}
-
-function getExpectedMtime(mtime) {
-  // Negative numeric timestamps are normalized to "now" at call time.
-  return fs._toUnixTimestamp(mtime);
 }
 
 const stats = fs.statSync(tmpdir.path);
@@ -85,7 +82,12 @@ const cases = [
   [asPath, new Date()],
   [asPath, 123456.789],
   [asPath, stats.mtime],
-  [asPath, '123456', -1],
+  // AIX rejects pre-epoch timestamps with EINVAL.
+  ...(common.isAIX ? [] : [
+    [asPath, '123456', -1],
+    [asPath, -1234567890],
+    [asPath, new Date('1969-07-20T20:17:40Z')],
+  ]),
   [asPath, new Date('2017-04-08T17:59:38.008Z')],
   [asUrl, new Date()],
 ];
@@ -103,13 +105,11 @@ function runTests(iter) {
   //
   // test async code paths
   //
-  const expectedUtimesMtime = getExpectedMtime(mtime);
   fs.utimes(pathType(tmpdir.path), atime, mtime, common.mustCall((err) => {
-    expect_ok('utimes', tmpdir.path, err, atime, expectedUtimesMtime);
+    expect_ok('utimes', tmpdir.path, err, atime, mtime);
 
-    const expectedLutimesMtime = getExpectedMtime(mtime);
     fs.lutimes(pathType(lpath), atime, mtime, common.mustCall((err) => {
-      expect_ok('lutimes', lpath, err, atime, expectedLutimesMtime, fs.lstatSync);
+      expect_ok('lutimes', lpath, err, atime, mtime, fs.lstatSync);
 
       fs.utimes(pathType('foobarbaz'), atime, mtime, common.mustCall((err) => {
         expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
@@ -121,9 +121,8 @@ function runTests(iter) {
           fd = fs.openSync(tmpdir.path, 'r');
         }
 
-        const expectedFutimesMtime = getExpectedMtime(mtime);
         fs.futimes(fd, atime, mtime, common.mustCall((err) => {
-          expect_ok('futimes', fd, err, atime, expectedFutimesMtime);
+          expect_ok('futimes', fd, err, atime, mtime);
 
           syncTests();
 
@@ -137,20 +136,17 @@ function runTests(iter) {
   // test synchronized code paths, these functions throw on failure
   //
   function syncTests() {
-    const expectedUtimesMtime = getExpectedMtime(mtime);
     fs.utimesSync(pathType(tmpdir.path), atime, mtime);
-    expect_ok('utimesSync', tmpdir.path, undefined, atime, expectedUtimesMtime);
+    expect_ok('utimesSync', tmpdir.path, undefined, atime, mtime);
 
-    const expectedLutimesMtime = getExpectedMtime(mtime);
     fs.lutimesSync(pathType(lpath), atime, mtime);
-    expect_ok('lutimesSync', lpath, undefined, atime, expectedLutimesMtime, fs.lstatSync);
+    expect_ok('lutimesSync', lpath, undefined, atime, mtime, fs.lstatSync);
 
     // Some systems don't have futimes
     // if there's an error, it should be ENOSYS
     try {
-      const expectedFutimesMtime = getExpectedMtime(mtime);
       fs.futimesSync(fd, atime, mtime);
-      expect_ok('futimesSync', fd, undefined, atime, expectedFutimesMtime);
+      expect_ok('futimesSync', fd, undefined, atime, mtime);
     } catch (ex) {
       expect_errno('futimesSync', fd, ex, 'ENOSYS');
     }
