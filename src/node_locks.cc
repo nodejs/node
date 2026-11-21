@@ -228,9 +228,22 @@ void LockManager::ProcessQueue(Environment* env) {
   // Remove locks that were stolen from this Environment first
   CleanupStolenLocks(env);
 
+  // The caller must hold mutex_ when recording a granted lock.
+  auto grant_lock = [this, env](LockRequest& request) {
+    auto lock = std::make_shared<Lock>(env,
+                                       request.name(),
+                                       request.mode(),
+                                       request.client_id(),
+                                       request.waiting_promise(),
+                                       request.released_promise());
+    held_locks_[request.name()].push_back(lock);
+    return lock;
+  };
+
   while (true) {
     std::unique_ptr<LockRequest> grantable_request;
     std::unique_ptr<LockRequest> if_available_request;
+    std::shared_ptr<Lock> granted_lock;
     std::unordered_set<Environment*> other_envs_to_wake;
 
     /**
@@ -306,13 +319,17 @@ void LockManager::ProcessQueue(Environment* env) {
         // Found a request that can be granted normally
         grantable_request = std::move(*queue_iter);
         pending_queue_.erase(queue_iter);
+        if (!grantable_request->steal()) {
+          // Reserve the lock before another Environment can process the queue.
+          granted_lock = grant_lock(*grantable_request);
+        }
         break;
       }
-    }
 
-    // Wake each environment only once
-    for (Environment* target_env : other_envs_to_wake) {
-      WakeEnvironment(target_env);
+      // Keep target Environments alive until their wakeups are queued.
+      for (Environment* target_env : other_envs_to_wake) {
+        WakeEnvironment(target_env);
+      }
     }
 
     /**
@@ -441,30 +458,47 @@ void LockManager::ProcessQueue(Environment* env) {
             held_locks_.erase(held_locks_iter);
           }
         }
-      }
+        granted_lock = grant_lock(*grantable_request);
 
-      // Wake other environments
-      for (Environment* target_env : envs_to_notify) {
-        if (target_env != env) {
-          WakeEnvironment(target_env);
+        // Keep target Environments alive until their wakeups are queued.
+        for (Environment* target_env : envs_to_notify) {
+          if (target_env != env) {
+            WakeEnvironment(target_env);
+          }
         }
       }
     }
 
-    // Create and store the new granted lock
-    auto granted_lock =
-        std::make_shared<Lock>(env,
-                               grantable_request->name(),
-                               grantable_request->mode(),
-                               grantable_request->client_id(),
-                               grantable_request->waiting_promise(),
-                               grantable_request->released_promise());
-    {
-      Mutex::ScopedLock scoped_lock(mutex_);
-      held_locks_[grantable_request->name()].push_back(granted_lock);
-    }
+    // Until settlement takes over, an early return must undo the grant.
+    bool release_on_failure = true;
+    auto rollback_grant = OnScopeLeave([&] {
+      if (!release_on_failure) return;
 
-    // Create and store the new granted lock
+      {
+        Mutex::ScopedLock scoped_lock(mutex_);
+        ReleaseLock(granted_lock.get());
+        if (pending_queue_.empty()) return;
+
+        std::unordered_set<Environment*> envs_to_wake;
+        for (const auto& request : pending_queue_) {
+          Environment* target_env = request->env();
+          if (target_env != env && request->name() == granted_lock->name() &&
+              envs_to_wake.insert(target_env).second) {
+            WakeEnvironment(target_env);
+          }
+        }
+      }
+
+      // An early return can also leave requests for other names unprocessed.
+      // Keep this Environment alive for one more queue pass.
+      if (env->can_call_into_js()) {
+        env->SetImmediate([this](Environment* env) {
+          if (env->can_call_into_js()) ProcessQueue(env);
+        });
+      }
+    });
+
+    // Create the lock info object.
     Local<Object> lock_info;
     if (!CreateLockInfoObject(env, *grantable_request).ToLocal(&lock_info)) {
       return;
@@ -538,6 +572,7 @@ void LockManager::ProcessQueue(Environment* env) {
       // Lock granted: waiting_promise resolves now with the promise returned
       // by the callback; on_fulfilled/on_rejected will release the lock when
       // that promise settles.
+      release_on_failure = false;
       if (grantable_request->waiting_promise()
               ->Resolve(context, callback_result)
               .IsNothing()) {
@@ -558,6 +593,7 @@ void LockManager::ProcessQueue(Environment* env) {
         // callback
         return;
       }
+      release_on_failure = false;
     }
   }
 }
@@ -794,17 +830,24 @@ void LockManager::CleanupEnvironment(Environment* env_to_cleanup) {
   }
 
   // Remove every pending request submitted by this Environment.
+  std::unordered_set<Environment*> envs_to_wake;
   for (auto request_iter = pending_queue_.begin();
        request_iter != pending_queue_.end();) {
     if ((*request_iter)->env() == env_to_cleanup) {
       request_iter = pending_queue_.erase(request_iter);
     } else {
+      envs_to_wake.insert((*request_iter)->env());
       ++request_iter;
     }
   }
 
   // Finally, remove it from registered_envs_
   registered_envs_.erase(env_to_cleanup);
+
+  // Queue wakeups under mutex_ so target Environments cannot be destroyed.
+  for (Environment* env : envs_to_wake) {
+    WakeEnvironment(env);
+  }
 }
 
 // Cleanup hook wrapper
