@@ -37,6 +37,14 @@ function Readable() {
 Object.setPrototypeOf(Readable.prototype, stream.Stream.prototype);
 Object.setPrototypeOf(Readable, stream.Stream);
 
+// Expect deprecation warning when using fallback path
+common.expectWarning(
+  'DeprecationWarning',
+  'Piping to an EventEmitter without a prependListener method is deprecated. ' +
+  'The emitter should have a prependListener method.',
+  'DEP0206',
+);
+
 const w = new Writable();
 const r = new Readable();
 r.pipe(w);
