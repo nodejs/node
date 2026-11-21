@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 #include "node_constants.h"
@@ -795,7 +796,34 @@ void Parse(StringVector* const args,
            OptionEnvvarSettings required_env_settings,
            StringVector* const errors);
 
+// Returns the index of the first entry in `args` that is neither the program
+// name nor an option for Node.js itself. Everything from there on is the
+// script and its arguments, or follows `--`, so it must not be read as an
+// option of Node.js. This is determined with a throwaway parse, which stops
+// exactly where the real parse will.
+size_t GetNodeOptionsEnd(const StringVector& args);
+
 }  // namespace options_parser
+
+constexpr std::string_view kConfigFileFlag = "--config-file";
+// TODO(marco-ippolito): Remove these aliases in a semver-major.
+constexpr std::string_view kExperimentalConfigFileFlag =
+    "--experimental-config-file";
+constexpr std::string_view kDefaultConfigFileFlag =
+    "--experimental-default-config-file";
+constexpr std::string_view kDefaultConfigFileName = "node.config.json";
+
+// The config file flags that take no value. Before the real parse they are
+// spelled out as `--config-file=node.config.json`.
+inline bool IsBareConfigFileFlag(std::string_view arg) {
+  return arg == kConfigFileFlag || arg == kExperimentalConfigFileFlag ||
+         arg == kDefaultConfigFileFlag;
+}
+
+inline std::string DefaultConfigFileArg() {
+  return std::string(kConfigFileFlag) + "=" +
+         std::string(kDefaultConfigFileName);
+}
 
 // Helper macro for passing bit-field members to AddOption(). Expands to a
 // getter and setter function pointer pair that can read/write the named
