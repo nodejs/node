@@ -319,6 +319,16 @@ void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
   wrap->AsyncReset(resource, execution_async_id);
 }
 
+void AsyncWrap::SetAsyncContextFrame(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsUndefined() || args[0]->IsMap());
+
+  AsyncWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+
+  // Replace the reference without mutating the shared frame or emitting hooks.
+  wrap->set_context_frame(args[0]);
+}
+
 // Useful for debugging async context propagation. Not intended for public use.
 void AsyncWrap::GetAsyncContextFrame(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
@@ -376,6 +386,8 @@ Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(
         FIXED_ONE_BYTE_STRING(isolate_data->isolate(), "AsyncWrap"));
     SetProtoMethod(isolate, tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
     SetProtoMethod(isolate, tmpl, "asyncReset", AsyncWrap::AsyncReset);
+    SetProtoMethod(
+        isolate, tmpl, "setAsyncContextFrame", AsyncWrap::SetAsyncContextFrame);
     SetProtoMethod(isolate,
                    tmpl,
                    "getAsyncContextFrameForDebuggingOnly",
@@ -509,6 +521,7 @@ void AsyncWrap::RegisterExternalReferences(
   registry->Register(RegisterDestroyHook);
   registry->Register(AsyncWrap::GetAsyncId);
   registry->Register(AsyncWrap::AsyncReset);
+  registry->Register(AsyncWrap::SetAsyncContextFrame);
   registry->Register(AsyncWrap::GetAsyncContextFrame);
   registry->Register(AsyncWrap::GetProviderType);
 }

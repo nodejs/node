@@ -168,6 +168,8 @@ class AsyncWrap : public BaseObject {
   static void ClearAsyncIdStack(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncReset(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetAsyncContextFrame(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetAsyncContextFrame(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetProviderType(const v8::FunctionCallbackInfo<v8::Value>& args);
