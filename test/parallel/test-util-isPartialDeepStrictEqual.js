@@ -38,6 +38,24 @@ test('util.isPartialDeepStrictEqual returns true with expected properties', () =
   );
 });
 
+test('util.isPartialDeepStrictEqual matches unordered collections with overlapping entries', () => {
+  const shared = { c: 3 };
+  assert.strictEqual(
+    util.isPartialDeepStrictEqual(
+      new Set([null, shared, 1, [1, 2, 3], [1, 3], [4]]),
+      new Set([null, shared, 1, [1], [1, 2]]),
+    ),
+    true,
+  );
+  assert.strictEqual(
+    util.isPartialDeepStrictEqual(
+      new Map([[null, 0], [1, 1], [shared, [1, 2, 3]], [{}, [1, 3]]]),
+      new Map([[null, 0], [1, 1], [{}, [1]], [shared, [1, 2]]]),
+    ),
+    true,
+  );
+});
+
 test('util.isPartialDeepStrictEqual returns false with unexpected properties', () => {
   assert.strictEqual(
     util.isPartialDeepStrictEqual({ a: 1 }, { a: 2 }),

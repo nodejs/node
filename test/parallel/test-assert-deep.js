@@ -591,6 +591,37 @@ test('es6 Maps and Sets', () => {
   }
 });
 
+test('partial comparison of unordered Sets and Maps with overlapping entries', () => {
+  assertDeepAndStrictEqual(
+    new Set([[1, 2], [1]]),
+    new Set([[1], [1, 2]])
+  );
+  assertDeepAndStrictEqual(
+    new Set([[1, 2], [1], [3]]),
+    new Set([[1], [1, 2], [3]])
+  );
+  assertDeepAndStrictEqual(
+    new Set([{ a: 1, b: 1 }, { a: 1 }]),
+    new Set([{ a: 1 }, { a: 1, b: 1 }])
+  );
+  assertDeepAndStrictEqual(
+    new Map([[{ a: 1, b: 1 }, 1], [{ a: 1 }, 1]]),
+    new Map([[{ a: 1 }, 1], [{ a: 1, b: 1 }, 1]])
+  );
+});
+
+test('partial comparison of unordered Sets with circular entries', () => {
+  const actual = new Set([{ a: 1, b: 1 }, { a: 1 }, { a: 2 }]);
+  const expected = new Set([{ a: 1 }, { a: 1, b: 1 }, { a: 2 }]);
+  for (const value of actual) {
+    value.self = actual;
+  }
+  for (const value of expected) {
+    value.self = expected;
+  }
+  assertDeepAndStrictEqual(actual, expected);
+});
+
 test('GH-6416. Make sure circular refs do not throw', () => {
   const b = {};
   b.b = b;
