@@ -1,5 +1,6 @@
 #include "network_agent.h"
 #include <string>
+#include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "inspector/inspector_object_utils.h"
@@ -15,6 +16,8 @@
 namespace node {
 namespace inspector {
 
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -23,6 +26,42 @@ using v8::Uint8Array;
 using v8::Value;
 
 constexpr size_t kDefaultMaxTotalBufferSize = 100 * 1024 * 1024;  // 100MB
+
+NetworkInitiator::NetworkInitiator(
+    Environment* env,
+    Local<Object> object,
+    std::unique_ptr<v8_inspector::V8StackTrace> stack)
+    : BaseObject(env, object), stack_(std::move(stack)) {
+  MakeWeak();
+}
+
+void NetworkInitiator::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.IsConstructCall());
+  new NetworkInitiator(
+      env, args.This(), env->inspector_agent()->CaptureStackTrace());
+}
+
+Local<FunctionTemplate> NetworkInitiator::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl = env->network_initiator_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, New);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "NetworkInitiator"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
+    env->set_network_initiator_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
+NetworkInitiator* NetworkInitiator::FromObject(Environment* env,
+                                               Local<Object> object) {
+  if (!GetConstructorTemplate(env)->HasInstance(object)) {
+    return nullptr;
+  }
+  return BaseObject::FromJSObject<NetworkInitiator>(object);
+}
 
 static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
   isolate->ThrowException(v8::Exception::TypeError(
@@ -460,11 +499,19 @@ void NetworkAgent::requestWillBeSent(v8::Local<v8::Context> context,
     return;
   }
 
+  const v8_inspector::V8StackTrace* stack = nullptr;
+  Local<Object> initiator_obj;
+  if (ObjectGetObject(context, params, "initiator").ToLocal(&initiator_obj)) {
+    if (auto* captured = NetworkInitiator::FromObject(env_, initiator_obj)) {
+      stack = captured->stack();
+    }
+  }
   std::unique_ptr<protocol::Network::Initiator> initiator =
       protocol::Network::Initiator::create()
           .setType(protocol::Network::Initiator::TypeEnum::Script)
-          .setStack(
-              v8_inspector_->captureStackTrace(true)->buildInspectorObject(0))
+          .setStack(stack ? stack->buildInspectorObject(0)
+                          : v8_inspector_->captureStackTrace(true)
+                                ->buildInspectorObject(0))
           .build();
 
   if (requests_.contains(request_id)) {
