@@ -168,6 +168,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "sys",              // Deprecated.
         "vfs",              // Experimental.
         "wasi",             // Experimental.
+        "yaml",             // Experimental.
         "zlib/iter",        // Experimental.
 #if !HAVE_SQLITE
         "internal/webstorage",  // Experimental.
