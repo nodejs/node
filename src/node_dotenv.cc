@@ -86,6 +86,20 @@ Maybe<void> Dotenv::SetEnvironment(node::Environment* env) {
   return JustVoid();
 }
 
+Dotenv Dotenv::ForProcessEnvironment() {
+#ifdef _WIN32
+  return Dotenv(EnvKeyLess{.ignore_case = true});
+#else
+  return Dotenv();
+#endif
+}
+
+std::optional<std::string> Dotenv::Get(const std::string& key) const {
+  auto match = store_.find(key);
+  if (match == store_.end()) return std::nullopt;
+  return match->second;
+}
+
 std::vector<std::string> Dotenv::GetKeys() const {
   std::vector<std::string> keys;
   keys.reserve(store_.size());
