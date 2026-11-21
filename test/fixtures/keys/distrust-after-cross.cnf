@@ -1,0 +1,24 @@
+[ req ]
+default_bits           = 2048
+days                   = 9999
+distinguished_name     = req_distinguished_name
+attributes             = req_attributes
+prompt                 = no
+x509_extensions        = v3_ca
+
+[ req_distinguished_name ]
+C                      = US
+ST                     = CA
+L                      = SF
+O                      = Joyent
+OU                     = Node.js
+# Same subject as distrust-after-ca-cert.pem so that leaves it issued chain
+# to this cross-signed certificate as well.
+CN                     = distrust-after-ca
+emailAddress           = distrust-after-ca@example.org
+
+[ req_attributes ]
+challengePassword              = A challenge password
+
+[ v3_ca ]
+basicConstraints = CA:TRUE
