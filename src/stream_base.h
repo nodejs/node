@@ -11,6 +11,7 @@
 #include "v8.h"
 
 #include <climits>  // INT_MIN
+#include <memory>
 
 namespace node {
 
@@ -211,18 +212,17 @@ class CustomBufferJSListener : public ReportWritesToJSStreamListener {
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
   void OnStreamDestroy() override { delete this; }
 
-  explicit CustomBufferJSListener(
-      std::shared_ptr<v8::BackingStore> backing_store, uv_buf_t buffer)
-      : backing_store_(std::move(backing_store)), buffer_(buffer) {}
+  CustomBufferJSListener(v8::Local<v8::Object> object,
+                         v8::Local<v8::ArrayBufferView> view);
 
  private:
-  // Retain the backing store for the lifetime of the listener. The raw address
-  // in `buffer_` is derived from it, so retaining the backing store guarantees
-  // the address does not dangle even if application code later transfers (and
-  // thereby detaches) the buffer, e.g. by enqueuing a view into a byte
-  // `ReadableStream`.
+  void SetBuffer(v8::Local<v8::Object> object,
+                 v8::Local<v8::ArrayBufferView> view);
+
+  // Retain the backing store so the address in buffer_ cannot dangle.
   std::shared_ptr<v8::BackingStore> backing_store_;
-  uv_buf_t buffer_;
+  uv_buf_t buffer_ = uv_buf_init(nullptr, 0);
+  bool using_fallback_buffer_ = false;
 };
 
 
@@ -322,6 +322,7 @@ class StreamBase : public StreamResource {
     kSlot = BaseObject::kSlot,
     kStreamBaseField = AsyncWrap::kInternalFieldCount,
     kOnReadFunctionField,
+    kUserBufferField,
     kInternalFieldCount
   };
 
