@@ -9,6 +9,8 @@ const encoder = new TextEncoder();
 assert.strictEqual(isUtf8(encoder.encode('hello')), true);
 assert.strictEqual(isUtf8(encoder.encode('ğ')), true);
 assert.strictEqual(isUtf8(Buffer.from([])), true);
+assert.strictEqual(isUtf8(new DataView(new ArrayBuffer(0))), true);
+assert.strictEqual(isUtf8(new DataView(encoder.encode('hello').buffer)), true);
 
 // Taken from test/fixtures/wpt/encoding/textdecoder-fatal.any.js
 [
@@ -77,10 +79,12 @@ assert.strictEqual(isUtf8(Buffer.from([])), true);
   const arrayBuffer = new ArrayBuffer(1);
   const typedArray = new Uint8Array(arrayBuffer);
   typedArray[0] = 0xff;
+  const dataView = new DataView(arrayBuffer);
   const inputs = [
     arrayBuffer,
     typedArray,
     Buffer.from(arrayBuffer),
+    dataView,
   ];
   for (const input of inputs) {
     assert.strictEqual(isUtf8(input), false);
@@ -89,4 +93,10 @@ assert.strictEqual(isUtf8(Buffer.from([])), true);
   for (const input of inputs) {
     assert.strictEqual(isUtf8(input), true);
   }
+}
+
+{
+  const buffer = Buffer.from('hello world');
+  const view = new DataView(buffer.buffer, buffer.byteOffset, 5);
+  assert.strictEqual(isUtf8(view), true);
 }
