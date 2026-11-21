@@ -7994,6 +7994,10 @@ i.e. before the `'ready'` event is emitted.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67491
+    description: Calling the constructor directly now throws an
+                 `ERR_ILLEGAL_CONSTRUCTOR` error.
   - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/60789
     description: Added `Temporal.Instant` support.
