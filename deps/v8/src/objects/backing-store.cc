@@ -4,9 +4,13 @@
 
 #include "src/objects/backing-store.h"
 
+#include <cstddef>
 #include <cstring>
+#include <new>
 #include <optional>
 
+#include "src/api/api-inl.h"
+#include "src/api/node-inline-backing-store.h"
 #include "src/base/bits.h"
 #include "src/base/platform/mutex.h"
 #include "src/execution/isolate.h"
@@ -226,6 +230,122 @@ BackingStore::~BackingStore() {
   TRACE_BS("BS:free   bs=%p mem=%p (length=%zu, capacity=%zu)\n", this,
            buffer_start_, byte_length(), byte_capacity_);
   allocator->Free(buffer_start_, byte_length_);
+}
+
+#ifdef V8_NODE_CAN_INLINE_BACKING_STORE
+namespace {
+
+template <size_t prefix>
+void* AllocateInlineBlock(Heap* heap, size_t length) {
+  static_assert(prefix <= SIZE_MAX - 8192);
+  return heap->AllocateExternalBackingStore(
+      [](size_t bytes) { return ::operator new(prefix + bytes, std::nothrow); },
+      length);
+}
+
+struct InlineStoreState {
+  std::shared_ptr<v8::ArrayBuffer::Allocator> allocator;
+  NodeInlineBackingStore::Account account;
+
+  static void Release(void* data, size_t length, void* state) {
+    auto* self = static_cast<InlineStoreState*>(state);
+    self->account(self->allocator.get(), data, length, false);
+    self->~InlineStoreState();
+  }
+};
+
+}  // namespace
+#endif
+
+bool NodeInlineBackingStore::IsSupported() {
+#ifdef V8_NODE_CAN_INLINE_BACKING_STORE
+  constexpr size_t alignment = __STDCPP_DEFAULT_NEW_ALIGNMENT__;
+  return alignof(BackingStore) <= alignment &&
+         alignof(InlineStoreState) <= alignment &&
+         alignof(std::max_align_t) <= alignment &&
+         std::get_new_handler() == nullptr;
+#else
+  return false;
+#endif
+}
+
+bool NodeInlineBackingStore::NewMany(
+    v8::Isolate* api_isolate, size_t length, [[maybe_unused]] Account account,
+    [[maybe_unused]] v8::BackingStore::DeleterCallback raw_release,
+    std::unique_ptr<v8::BackingStore>* slots, size_t count) {
+  auto* const end = slots + count;
+  while (slots != end) {
+#ifdef V8_NODE_CAN_INLINE_BACKING_STORE
+    if (length != 0 && length <= 8192 && IsSupported()) {
+      constexpr size_t alignment = alignof(std::max_align_t);
+      constexpr size_t state_offset =
+          (sizeof(BackingStore) + alignof(InlineStoreState) - 1) &
+          ~(alignof(InlineStoreState) - 1);
+      constexpr size_t shared_offset =
+          (state_offset + sizeof(InlineStoreState) + alignment - 1) &
+          ~(alignment - 1);
+      constexpr size_t raw_offset =
+          (sizeof(BackingStore) + alignment - 1) & ~(alignment - 1);
+      static_assert(raw_offset <= shared_offset);
+
+      auto* isolate = reinterpret_cast<Isolate*>(api_isolate);
+      EnterV8NoScriptNoExceptionScope scope(isolate);
+      auto* allocator = isolate->array_buffer_allocator();
+      CHECK_NOT_NULL(allocator);
+      CHECK_NOT_NULL(account);
+      CHECK_NOT_NULL(raw_release);
+      if (length > allocator->MaxAllocationSize()) {
+        ApiRuntimeCallStatsScope stats(
+            isolate, RuntimeCallCounterId::kAPI_ArrayBuffer_NewBackingStore);
+        return false;
+      }
+      const auto owner = isolate->array_buffer_allocator_shared();
+      const bool keep_owner = owner.use_count() != 0;
+      auto* heap = isolate->heap();
+      do {
+        ApiRuntimeCallStatsScope stats(
+            isolate, RuntimeCallCounterId::kAPI_ArrayBuffer_NewBackingStore);
+        void* block = keep_owner ? AllocateInlineBlock<shared_offset>(heap, length)
+                                 : AllocateInlineBlock<raw_offset>(heap, length);
+        if (!block) {
+          isolate->counters()->array_buffer_new_size_failures()->AddSample(0);
+          return false;
+        }
+
+        auto* bytes = static_cast<unsigned char*>(block);
+        void* data = bytes + (keep_owner ? shared_offset : raw_offset);
+        std::memset(data, 0, length);
+        auto* store = ::new (block) BackingStore(
+            data, length, length, length, SharedFlag{false}, ResizableFlag{false},
+            ImmutableFlag{false}, WasmMemoryFlag::kNotWasm, HasGuardRegions{false},
+            CustomDeleter{true}, EmptyDeleter{false});
+        if (keep_owner) {
+          auto* state = ::new (bytes + state_offset) InlineStoreState{
+              std::shared_ptr<v8::ArrayBuffer::Allocator>(owner, allocator),
+              account};
+          store->type_specific_data_.deleter = {InlineStoreState::Release, state};
+        } else {
+          store->type_specific_data_.deleter = {raw_release, allocator};
+        }
+        account(allocator, data, length, true);
+        TRACE_BS("BS:alloc  bs=%p mem=%p (length=%zu)\n", store, data, length);
+        auto* base = static_cast<BackingStoreBase*>(store);
+        DCHECK_NULL(slots->get());
+        slots->reset(static_cast<v8::BackingStore*>(base));
+        ++slots;
+
+      } while (slots != end && IsSupported());
+      continue;
+    }
+#endif
+    DCHECK_NULL(slots->get());
+    *slots = v8::ArrayBuffer::NewBackingStore(
+        api_isolate, length, BackingStoreInitializationMode::kZeroInitialized,
+        BackingStoreOnFailureMode::kReturnNull);
+    if (!*slots) return false;
+    ++slots;
+  }
+  return true;
 }
 
 // Allocate a backing store using the array buffer allocator from the embedder.

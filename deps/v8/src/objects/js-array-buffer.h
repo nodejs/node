@@ -23,6 +23,8 @@ namespace v8 {
 namespace internal {
 
 class ArrayBufferExtension;
+class NodeCopyExtension;
+class NodeCopyStoreRecycler;
 
 V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
  public:
@@ -201,6 +203,9 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   // be only called during setup as it always creates a new extension.
   V8_EXPORT_PRIVATE ArrayBufferExtension* CreateExtension(
       Isolate* isolate, std::shared_ptr<BackingStore> backing_store);
+  void AttachNodeCopyStore(
+      Isolate* isolate, std::unique_ptr<v8::BackingStore> store,
+      const std::shared_ptr<NodeCopyStoreRecycler>& recycler);
 
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
@@ -280,7 +285,7 @@ inline constexpr int JSArrayBuffer::kSizeWithEmbedderFields =
 // extension-object. The GC periodically iterates all extensions concurrently
 // and frees unmarked ones.
 // https://docs.google.com/document/d/1-ZrLdlFX1nXT3z-FAgLbKal1gI8Auiaya_My-a0UJ28/edit
-class ArrayBufferExtension final
+class ArrayBufferExtension
 #ifdef V8_COMPRESS_POINTERS
     : public ExternalPointerTable::ManagedResource {
 #else
@@ -303,12 +308,13 @@ class ArrayBufferExtension final
   ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store,
                        ArrayBufferExtension::Age age, SharedFlag is_shared,
                        ResizableFlag is_resizable_by_js)
-      : backing_store_(std::move(backing_store)),
-        accounting_state_(AccountingLengthField::encode(static_cast<size_t>(
-                              backing_store_->PerIsolateAccountingLength())) |
-                          AgeField::encode(static_cast<uint8_t>(age))),
-        is_shared_(is_shared),
-        is_resizable_by_js_(is_resizable_by_js) {}
+      : ArrayBufferExtension(backing_store->PerIsolateAccountingLength(), age,
+                             is_shared, is_resizable_by_js, false) {
+    backing_store_ = std::move(backing_store);
+  }
+
+  bool is_node_copy() const { return is_node_copy_; }
+  void DeleteNodeCopy();
 
   void Mark() { marked_.store(true, std::memory_order_relaxed); }
   void Unmark() { marked_.store(false, std::memory_order_relaxed); }
@@ -337,11 +343,16 @@ class ArrayBufferExtension final
     return young_gc_state() == GcState::Promoted;
   }
 
-  std::shared_ptr<BackingStore> backing_store() { return backing_store_; }
+  std::shared_ptr<BackingStore> backing_store() {
+    if (V8_UNLIKELY(is_node_copy_)) PromoteNodeCopyStore();
+    return backing_store_;
+  }
   void set_backing_store(std::shared_ptr<BackingStore> backing_store) {
+    if (V8_UNLIKELY(is_node_copy_)) PromoteNodeCopyStore();
     backing_store_ = std::move(backing_store);
   }
   std::shared_ptr<BackingStore> RemoveBackingStore() {
+    if (V8_UNLIKELY(is_node_copy_)) PromoteNodeCopyStore();
     return std::move(backing_store_);
   }
 
@@ -393,6 +404,17 @@ class ArrayBufferExtension final
   }
 
  private:
+  friend class NodeCopyExtension;
+  ArrayBufferExtension(size_t bytes, Age age, SharedFlag shared,
+                       ResizableFlag resizable, bool node_copy)
+      : accounting_state_(AccountingLengthField::encode(bytes) |
+                          AgeField::encode(static_cast<uint8_t>(age))),
+        is_shared_(shared),
+        is_resizable_by_js_(resizable),
+        is_node_copy_(node_copy) {}
+
+  void PromoteNodeCopyStore();
+
   enum class GcState : uint8_t { Dead = 0, Copied, Promoted };
 
   using AgeField = base::BitField<uint8_t, 0, 1, uint64_t>;
@@ -416,6 +438,7 @@ class ArrayBufferExtension final
   // in-sandbox flags match these trusted copies during critical operations.
   const SharedFlag is_shared_;
   ResizableFlag is_resizable_by_js_;
+  const bool is_node_copy_;
 };
 
 V8_OBJECT class JSArrayBufferView : public JSAPIObjectWithEmbedderSlots {

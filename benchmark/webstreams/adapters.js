@@ -15,6 +15,7 @@ const bench = common.createBenchmark(main, {
     'readable-to-web',
     'readable-from-web',
     'writable-to-web',
+    'writable-to-web-async-writev',
     'writable-from-web',
   ],
 });
@@ -68,6 +69,26 @@ async function writableToWeb(n) {
   bench.end(n);
 }
 
+async function writableToWebAsyncWritev(n) {
+  const chunk = Buffer.alloc(1024);
+  const streamWritable = new Writable({
+    highWaterMark: 64 * 1024,
+    // Defer completion so subsequent writes can be batched in writev().
+    write(chunk, encoding, callback) {
+      setImmediate(callback);
+    },
+    writev(chunks, callback) {
+      setImmediate(callback);
+    },
+  });
+  const writer = Writable.toWeb(streamWritable).getWriter();
+  bench.start();
+  for (let i = 0; i < n; i++)
+    await writer.write(chunk);
+  await writer.close();
+  bench.end(n);
+}
+
 function writableFromWeb(n) {
   const chunk = Buffer.alloc(1024);
   const writableStream = new WritableStream({
@@ -98,6 +119,9 @@ function main({ n, kind }) {
       break;
     case 'writable-to-web':
       writableToWeb(n);
+      break;
+    case 'writable-to-web-async-writev':
+      writableToWebAsyncWritev(n);
       break;
     case 'writable-from-web':
       writableFromWeb(n);

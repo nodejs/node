@@ -6427,6 +6427,12 @@ bool Genesis::InstallExtrasBindings() {
 
   DirectHandle<JSObject> extras_binding = factory()->NewJSObjectWithNullProto();
 
+  DirectHandle<JSFunction> copy_node_byte_view =
+      SimpleInstallFunction(isolate(), extras_binding, "copyNodeByteView",
+                            Builtin::kCopyNodeByteView, 3, kAdapt);
+  InstallConstant(isolate(), copy_node_byte_view, "maxOnHeapBytes",
+                  factory()->NewNumber(JSTypedArray::kMaxSizeInHeap));
+
   // binding.isTraceCategoryEnabled(category)
   SimpleInstallFunction(isolate(), extras_binding, "isTraceCategoryEnabled",
                         Builtin::kIsTraceCategoryEnabled, 1, kAdapt);

@@ -3,6 +3,12 @@ export interface BufferBinding {
   btoa(input: string): string | -1;
 
   setBufferPrototype(proto: object): void;
+  createArrayBufferBatch(byteLength: number, count: number, cacheSlot?: 0 | 1): ArrayBuffer[] | undefined;
+  trimCopyStorePool(): void;
+  getCopyNodeByteView(): {
+    (newTarget: Uint8ArrayConstructor, source: Uint8Array, destination?: ArrayBuffer | ArrayBuffer[]): Uint8Array | undefined;
+    readonly maxOnHeapBytes: number;
+  } | undefined;
 
   byteLengthUtf8(str: string): number;
   byteLengthUtf8Fast(str: string): number;
