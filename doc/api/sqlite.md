@@ -1458,6 +1458,18 @@ method is a wrapper around [`sqlite3_stmt_status()`][] and is useful for
 measuring a specific workload without the counts accumulated by earlier
 executions of the same prepared statement.
 
+### `statement.returnsData`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean} Whether the prepared statement returns data.
+
+This property is `true` when the prepared statement produces result rows, such
+as `SELECT` statements and statements with a `RETURNING` clause, and `false`
+otherwise. This property is a wrapper around [`sqlite3_column_count()`][].
+
 ### `statement.run([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
@@ -2169,6 +2181,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
+[`sqlite3_column_count()`]: https://www.sqlite.org/c3ref/column_count.html
 [`sqlite3_column_database_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
 [`sqlite3_column_decltype()`]: https://www.sqlite.org/c3ref/column_decltype.html
 [`sqlite3_column_name()`]: https://www.sqlite.org/c3ref/column_name.html
