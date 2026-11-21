@@ -76,6 +76,7 @@ struct ContextOptions {
 class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
  public:
   SET_CPPGC_NAME(ContextifyContext)
+  SET_CPPGC_TAG(ContextifyContext)
   void Trace(cppgc::Visitor* visitor) const final;
   SET_NO_MEMORY_INFO()
 
@@ -192,6 +193,7 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
 class ContextifyScript final : CPPGC_MIXIN(ContextifyScript) {
  public:
   SET_CPPGC_NAME(ContextifyScript)
+  SET_CPPGC_TAG(ContextifyScript)
   void Trace(cppgc::Visitor* visitor) const final;
   SET_NO_MEMORY_INFO()
 
