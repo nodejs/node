@@ -7,7 +7,7 @@
 #include "v8.h"
 
 #include <cstdint>
-#include <sstream>
+#include <string>
 
 namespace node {
 
@@ -21,7 +21,7 @@ struct HeapProfileOptions {
 HeapProfileOptions ParseHeapProfileOptions(
     const v8::FunctionCallbackInfo<v8::Value>& args);
 
-bool SerializeHeapProfile(v8::Isolate* isolate, std::ostringstream& out_stream);
+bool SerializeHeapProfile(v8::Isolate* isolate, std::string& out);
 
 struct CpuProfileOptions {
   int sampling_interval_us = 0;

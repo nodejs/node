@@ -331,12 +331,12 @@ void StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
 void StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  std::ostringstream out_stream;
-  bool success = node::SerializeHeapProfile(isolate, out_stream);
+  std::string profile;
+  bool success = node::SerializeHeapProfile(isolate, profile);
   if (success) {
     isolate->GetHeapProfiler()->StopSamplingHeapProfiler();
     Local<Value> result;
-    if (ToV8Value(env->context(), out_stream.str(), isolate).ToLocal(&result)) {
+    if (ToV8Value(env->context(), profile, isolate).ToLocal(&result)) {
       args.GetReturnValue().Set(result);
     }
   } else {
