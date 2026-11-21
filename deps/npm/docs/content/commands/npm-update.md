@@ -330,7 +330,7 @@ Each name is matched against a dependency's resolved identity, not against
 the package's self-reported name. `--ignore-scripts` and
 `--dangerously-allow-all-scripts` both override this setting.
 
-
+This value is not exported to the environment for child processes.
 
 #### `strict-allow-scripts`
 
@@ -349,6 +349,11 @@ setting.
 Optional dependencies that cannot be installed on the current platform or
 engine (a non-matching `os`, `cpu`, or `libc`) are not flagged, because
 their install scripts never run.
+
+Installation checks skip unused entries with no package parent or incoming
+links. Local link targets that installation can still rebuild remain subject
+to this check. `npm rebuild` and `npm install-scripts ls` still check unused
+packages on disk.
 
 
 

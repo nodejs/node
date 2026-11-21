@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,8 +29,7 @@ namespace LIEF::PE {
 
 template<class PE_T>
 std::unique_ptr<DynamicRelocationV1>
-  DynamicRelocationV1::parse(Parser& ctx, BinaryStream& strm)
-{
+    DynamicRelocationV1::parse(Parser& ctx, BinaryStream& strm) {
   using ptr_t = typename PE_T::uint;
   // typedef struct _IMAGE_DYNAMIC_RELOCATION32 {
   //     DWORD      Symbol;
@@ -67,21 +66,20 @@ std::unique_ptr<DynamicRelocationV1>
 
   SpanStream payload_strm(buffer);
   if (!DynamicFixup::parse(ctx, payload_strm, *dyn_reloc)) {
-    LIEF_WARN("Dynamic relocation failed to parse fixup (Symbol=0x{:016x})",
+    LIEF_WARN("Dynamic relocation failed to parse fixup (Symbol={:#018x})",
               dyn_reloc->symbol());
   }
   return dyn_reloc;
 }
 
 std::string DynamicRelocationV1::to_string() const {
-  using namespace fmt;
   std::ostringstream oss;
   oss << "Dynamic Value Relocation Table (version: 1)\n";
   if (symbol() < IMAGE_DYNAMIC_RELOCATION::_RELOC_LAST_ENTRY) {
-    oss << format("Symbol VA: 0x{:016x} ({})\n", symbol(),
-                  PE::to_string((IMAGE_DYNAMIC_RELOCATION)symbol()));
+    oss << fmt::format("Symbol VA: {:#018x} ({})\n", symbol(),
+                       PE::to_string((IMAGE_DYNAMIC_RELOCATION)symbol()));
   } else {
-    oss << format("Symbol VA: 0x{:016x}\n", symbol());
+    oss << fmt::format("Symbol VA: {:#018x}\n", symbol());
   }
 
   if (const DynamicFixup* F = fixups()) {
@@ -90,11 +88,9 @@ std::string DynamicRelocationV1::to_string() const {
   return oss.str();
 }
 
-template
-std::unique_ptr<DynamicRelocationV1>
-  DynamicRelocationV1::parse<details::PE32>(Parser& ctx, BinaryStream&);
+template std::unique_ptr<DynamicRelocationV1>
+    DynamicRelocationV1::parse<details::PE32>(Parser& ctx, BinaryStream&);
 
-template
-std::unique_ptr<DynamicRelocationV1>
-  DynamicRelocationV1::parse<details::PE64>(Parser& ctx, BinaryStream&);
+template std::unique_ptr<DynamicRelocationV1>
+    DynamicRelocationV1::parse<details::PE64>(Parser& ctx, BinaryStream&);
 }

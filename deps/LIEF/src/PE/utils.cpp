@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,12 @@
 #include <algorithm>
 #include <iterator>
 
+#ifndef MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
+  #define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
+#endif
+
 #include "logging.hpp"
-#include "mbedtls/md5.h"
+#include "psa/crypto_builtin_primitives.h"
 
 #include "LIEF/PE/utils.hpp"
 #include "LIEF/PE/Binary.hpp"
@@ -36,16 +40,15 @@
 #include "hash_stream.hpp"
 #include "internal_utils.hpp"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 static constexpr size_t SIZEOF_OPT_HEADER_32 = 0xE0;
 static constexpr size_t SIZEOF_OPT_HEADER_64 = 0xF0;
 
 inline std::string to_lower(std::string str) {
   std::string lower = str;
-  std::transform(std::begin(str), std::end(str),
-                 std::begin(lower), ::tolower);
+  std::transform(str.begin(), str.end(), lower.begin(), ::tolower);
   return lower;
 }
 
@@ -53,7 +56,7 @@ bool is_pe(BinaryStream& stream) {
   using signature_t = std::array<char, sizeof(details::PE_Magic)>;
   ScopedStream scoped(stream, 0);
   if (auto dos_header = scoped->read<details::pe_dos_header>()) {
-    if (dos_header->Magic != /* MZ */0x5a4d) {
+    if (dos_header->Magic != /* MZ */ 0x5a4d) {
       return false;
     }
     scoped->setpos(dos_header->AddressOfNewExeHeader);
@@ -87,30 +90,34 @@ result<PE_TYPE> get_type_from_stream(BinaryStream& stream) {
   stream.setpos(0);
   auto dos_hdr = stream.read<details::pe_dos_header>();
   if (!dos_hdr) {
-    LIEF_ERR("Can't read the DOS Header structure");
+    LIEF_ERR("Failed to read the DOS header structure");
     return make_error_code(dos_hdr.error());
   }
   stream.setpos(dos_hdr->AddressOfNewExeHeader);
   if (!stream.can_read<details::pe_header>()) {
-    LIEF_ERR("Can't read the PE header");
+    LIEF_ERR("Failed to read the PE header");
     return make_error_code(lief_errors::read_error);
   }
 
   auto header = stream.read<details::pe_header>();
   if (!header) {
-    LIEF_ERR("Can't read the PE header");
+    LIEF_ERR("Failed to read the PE header");
     return make_error_code(header.error());
   }
 
   const size_t sizeof_opt_header = header->SizeOfOptionalHeader;
   if (sizeof_opt_header != SIZEOF_OPT_HEADER_32 &&
-      sizeof_opt_header != SIZEOF_OPT_HEADER_64) {
-    LIEF_WARN("The value of the SizeOfOptionalHeader in the PE header seems corrupted 0x{:x}", sizeof_opt_header);
+      sizeof_opt_header != SIZEOF_OPT_HEADER_64)
+  {
+    LIEF_WARN(
+        "SizeOfOptionalHeader seems invalid: {:#x}. Expecting {:#x} or {:#x}",
+        sizeof_opt_header, SIZEOF_OPT_HEADER_32, SIZEOF_OPT_HEADER_64
+    );
   }
 
   auto opt_hdr = stream.read<details::pe32_optional_header>();
   if (!opt_hdr) {
-    LIEF_ERR("Can't read the PE optional header");
+    LIEF_ERR("Failed to read the PE optional header");
     return make_error_code(opt_hdr.error());
   }
   const auto type = static_cast<PE_TYPE>(opt_hdr->Magic);
@@ -136,7 +143,7 @@ result<PE_TYPE> get_type_from_stream(BinaryStream& stream) {
     return PE_TYPE::PE32_PLUS;
   }
 
-  LIEF_ERR("Can't determine the PE's type (PE32 / PE32+)");
+  LIEF_ERR("Failed to determine PE type (PE32 / PE32+)");
   return make_error_code(lief_errors::file_format_error);
 }
 
@@ -166,7 +173,9 @@ std::string get_imphash_std(const Binary& binary) {
   hashstream hs(hashstream::HASH::MD5);
   for (const Import& imp : binary.imports()) {
     Import resolved = imp;
-    if (auto resolution = resolve_ordinals(imp, /* strict */ false, /* use_std */ true)) {
+    if (auto resolution =
+            resolve_ordinals(imp, /* strict */ false, /* use_std */ true))
+    {
       resolved = std::move(*resolution);
     }
 
@@ -176,7 +185,7 @@ std::string get_imphash_std(const Binary& binary) {
     if (ext_idx != std::string::npos) {
       ext = to_lower(resolved.name().substr(ext_idx + 1));
     }
-    if (ALLOWED_EXT.find(ext) != std::end(ALLOWED_EXT)) {
+    if (ALLOWED_EXT.find(ext) != ALLOWED_EXT.end()) {
       name = name.substr(0, ext_idx);
     }
 
@@ -201,7 +210,8 @@ std::string get_imphash_std(const Binary& binary) {
     }
     lstr += to_lower(entries_string);
 
-    // use write(uint8_t*, size_t) instead of write(const std::string&) to avoid null char
+    // Use write(uint8_t*, size_t) instead of write(const std::string&) to avoid
+    // including the null terminator
     hs.write(reinterpret_cast<const uint8_t*>(lstr.data()), lstr.size());
     lstr.clear();
   }
@@ -236,79 +246,73 @@ std::string get_imphash_lief(const Binary& binary) {
     for (const ImportEntry& e : resolved.entries()) {
       if (e.is_ordinal()) {
         entries_string.append(name_without_ext)
-                      .append(".#")
-                      .append(std::to_string(e.ordinal()));
+            .append(".#")
+            .append(std::to_string(e.ordinal()));
       } else {
-        entries_string.append(name_without_ext)
-                      .append(".")
-                      .append(e.name());
+        entries_string.append(name_without_ext).append(".").append(e.name());
       }
     }
     import_list += to_lower(entries_string);
   }
 
-  std::sort(std::begin(import_list), std::end(import_list),
-            std::less<>());
+  std::sort(import_list.begin(), import_list.end(), std::less<>());
 
-  mbedtls_md5(
-      reinterpret_cast<const uint8_t*>(import_list.data()),
-      import_list.size(),
-      md5_buffer.data());
+  mbedtls_md5(reinterpret_cast<const uint8_t*>(import_list.data()),
+              import_list.size(), md5_buffer.data());
   return hex_dump(md5_buffer, "");
 }
 
 std::string get_imphash(const Binary& binary, IMPHASH_MODE mode) {
   switch (mode) {
     case IMPHASH_MODE::LIEF:
-      {
-        return get_imphash_lief(binary);
-      }
+    {
+      return get_imphash_lief(binary);
+    }
     case IMPHASH_MODE::PEFILE:
-      {
-        return get_imphash_std(binary);
-      }
+    {
+      return get_imphash_std(binary);
+    }
   }
   return "";
 }
 
 result<Import> resolve_ordinals(const Import& import, bool strict, bool use_std) {
   static const std::unordered_map<std::string, const char* (*)(uint32_t)>
-  ordinals_library_tables =
-  {
-    { "kernel32.dll",   &kernel32_dll_lookup },
-    { "ntdll.dll",      &ntdll_dll_lookup    },
-    { "advapi32.dll",   &advapi32_dll_lookup },
-    { "msvcp110.dll",   &msvcp110_dll_lookup },
-    { "msvcp120.dll",   &msvcp120_dll_lookup },
-    { "msvcr100.dll",   &msvcr100_dll_lookup },
-    { "msvcr110.dll",   &msvcr110_dll_lookup },
-    { "msvcr120.dll",   &msvcr120_dll_lookup },
-    { "user32.dll",     &user32_dll_lookup   },
-    { "comctl32.dll",   &comctl32_dll_lookup },
-    { "ws2_32.dll",     &ws2_32_dll_lookup   },
-    { "shcore.dll",     &shcore_dll_lookup   },
-    { "oleaut32.dll",   &oleaut32_dll_lookup },
-    { "mfc42u.dll",     &mfc42u_dll_lookup   },
-    { "shlwapi.dll",    &shlwapi_dll_lookup  },
-    { "gdi32.dll",      &gdi32_dll_lookup    },
-    { "shell32.dll",    &shell32_dll_lookup  },
+      ordinals_library_tables = {
+          {"kernel32.dll", &kernel32_dll_lookup},
+          {"ntdll.dll", &ntdll_dll_lookup},
+          {"advapi32.dll", &advapi32_dll_lookup},
+          {"msvcp110.dll", &msvcp110_dll_lookup},
+          {"msvcp120.dll", &msvcp120_dll_lookup},
+          {"msvcr100.dll", &msvcr100_dll_lookup},
+          {"msvcr110.dll", &msvcr110_dll_lookup},
+          {"msvcr120.dll", &msvcr120_dll_lookup},
+          {"user32.dll", &user32_dll_lookup},
+          {"comctl32.dll", &comctl32_dll_lookup},
+          {"ws2_32.dll", &ws2_32_dll_lookup},
+          {"shcore.dll", &shcore_dll_lookup},
+          {"oleaut32.dll", &oleaut32_dll_lookup},
+          {"mfc42u.dll", &mfc42u_dll_lookup},
+          {"shlwapi.dll", &shlwapi_dll_lookup},
+          {"gdi32.dll", &gdi32_dll_lookup},
+          {"shell32.dll", &shell32_dll_lookup},
   };
 
   static const std::unordered_map<std::string, const char* (*)(uint32_t)>
-  imphashstd_ordinals_library_tables =
-  {
-    { "ws2_32.dll",     &ws2_32_dll_lookup   },
-    { "wsock32.dll",    &ws2_32_dll_lookup   },
-    { "oleaut32.dll",   &oleaut32_dll_lookup },
+      imphashstd_ordinals_library_tables = {
+          {"ws2_32.dll", &ws2_32_dll_lookup},
+          {"wsock32.dll", &ws2_32_dll_lookup},
+          {"oleaut32.dll", &oleaut32_dll_lookup},
   };
 
-  using ordinal_resolver_t = const char*(*)(uint32_t);
+  using ordinal_resolver_t = const char* (*)(uint32_t);
 
   Import::it_const_entries entries = import.entries();
 
-  if (std::all_of(std::begin(entries), std::end(entries),
-                  [] (const ImportEntry& entry) { return !entry.is_ordinal(); })) {
-    //LIEF_DEBUG("All imports use name. No ordinal!");
+  if (std::all_of(entries.begin(), entries.end(),
+                  [](const ImportEntry& entry) { return !entry.is_ordinal(); }))
+  {
+    // LIEF_DEBUG("All imports use name. No ordinal!");
     return import;
   }
 
@@ -317,12 +321,12 @@ result<Import> resolve_ordinals(const Import& import, bool strict, bool use_std)
   ordinal_resolver_t ordinal_resolver = nullptr;
   if (use_std) {
     auto it = imphashstd_ordinals_library_tables.find(name);
-    if (it != std::end(imphashstd_ordinals_library_tables)) {
+    if (it != imphashstd_ordinals_library_tables.end()) {
       ordinal_resolver = it->second;
     }
   } else {
     auto it = ordinals_library_tables.find(name);
-    if (it != std::end(ordinals_library_tables)) {
+    if (it != ordinals_library_tables.end()) {
       ordinal_resolver = it->second;
     }
   }
@@ -339,12 +343,13 @@ result<Import> resolve_ordinals(const Import& import, bool strict, bool use_std)
   for (ImportEntry& entry : resolved_import.entries()) {
     if (entry.is_ordinal()) {
       LIEF_DEBUG("Dealing with: {}", to_string(entry));
-      const char* entry_name = ordinal_resolver(static_cast<uint32_t>(entry.ordinal()));
+      const char* entry_name =
+          ordinal_resolver(static_cast<uint32_t>(entry.ordinal()));
       if (entry_name == nullptr) {
         if (strict) {
           return make_error_code(lief_errors::not_supported);
         }
-        LIEF_DEBUG("Unable to resolve ordinal: #{:d}", entry.ordinal());
+        LIEF_DEBUG("Failed to resolve ordinal: #{:d}", entry.ordinal());
         continue;
       }
       entry.data(0);
@@ -356,37 +361,36 @@ result<Import> resolve_ordinals(const Import& import, bool strict, bool use_std)
 }
 ALGORITHMS algo_from_oid(const std::string& oid) {
   static const std::unordered_map<std::string, ALGORITHMS> OID_MAP = {
-    { "2.16.840.1.101.3.4.2.3", ALGORITHMS::SHA_512 },
-    { "2.16.840.1.101.3.4.2.2", ALGORITHMS::SHA_384 },
-    { "2.16.840.1.101.3.4.2.1", ALGORITHMS::SHA_256 },
-    { "1.3.14.3.2.26",          ALGORITHMS::SHA_1   },
+      {"2.16.840.1.101.3.4.2.3", ALGORITHMS::SHA_512},
+      {"2.16.840.1.101.3.4.2.2", ALGORITHMS::SHA_384},
+      {"2.16.840.1.101.3.4.2.1", ALGORITHMS::SHA_256},
+      {"1.3.14.3.2.26", ALGORITHMS::SHA_1},
 
-    { "1.2.840.113549.2.5",     ALGORITHMS::MD5 },
-    { "1.2.840.113549.2.4",     ALGORITHMS::MD4 },
-    { "1.2.840.113549.2.2",     ALGORITHMS::MD2 },
+      {"1.2.840.113549.2.5", ALGORITHMS::MD5},
+      {"1.2.840.113549.2.4", ALGORITHMS::MD4},
+      {"1.2.840.113549.2.2", ALGORITHMS::MD2},
 
-    { "1.2.840.113549.1.1.1",   ALGORITHMS::RSA },
-    { "1.2.840.10045.2.1",      ALGORITHMS::EC  },
+      {"1.2.840.113549.1.1.1", ALGORITHMS::RSA},
+      {"1.2.840.10045.2.1", ALGORITHMS::EC},
 
-    { "1.2.840.113549.1.1.4",   ALGORITHMS::MD5_RSA        },
-    { "1.2.840.10040.4.3",      ALGORITHMS::SHA1_DSA       },
-    { "1.2.840.113549.1.1.5",   ALGORITHMS::SHA1_RSA       },
-    { "1.2.840.113549.1.1.11",  ALGORITHMS::SHA_256_RSA    },
-    { "1.2.840.113549.1.1.12",  ALGORITHMS::SHA_384_RSA    },
-    { "1.2.840.113549.1.1.13",  ALGORITHMS::SHA_512_RSA    },
-    { "1.2.840.10045.4.1",      ALGORITHMS::SHA1_ECDSA     },
-    { "1.2.840.10045.4.3.2",    ALGORITHMS::SHA_256_ECDSA  },
-    { "1.2.840.10045.4.3.3",    ALGORITHMS::SHA_384_ECDSA  },
-    { "1.2.840.10045.4.3.4",    ALGORITHMS::SHA_512_ECDSA  },
+      {"1.2.840.113549.1.1.4", ALGORITHMS::MD5_RSA},
+      {"1.2.840.10040.4.3", ALGORITHMS::SHA1_DSA},
+      {"1.2.840.113549.1.1.5", ALGORITHMS::SHA1_RSA},
+      {"1.2.840.113549.1.1.11", ALGORITHMS::SHA_256_RSA},
+      {"1.2.840.113549.1.1.12", ALGORITHMS::SHA_384_RSA},
+      {"1.2.840.113549.1.1.13", ALGORITHMS::SHA_512_RSA},
+      {"1.2.840.10045.4.1", ALGORITHMS::SHA1_ECDSA},
+      {"1.2.840.10045.4.3.2", ALGORITHMS::SHA_256_ECDSA},
+      {"1.2.840.10045.4.3.3", ALGORITHMS::SHA_384_ECDSA},
+      {"1.2.840.10045.4.3.4", ALGORITHMS::SHA_512_ECDSA},
   };
 
 
   const auto it = OID_MAP.find(oid.c_str());
-  if (it == std::end(OID_MAP)) {
+  if (it == OID_MAP.end()) {
     return ALGORITHMS::UNKNOWN;
   }
   return it->second;
 }
 
-}
 }

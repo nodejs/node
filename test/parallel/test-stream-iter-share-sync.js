@@ -139,7 +139,138 @@ function testShareSyncSourceError() {
   }, { message: 'sync share boom' });
 }
 
+function testShareSyncRejectsUnbounded() {
+  assert.throws(
+    () => shareSync(fromSync('data'), { backpressure: 'unbounded' }),
+    { code: 'ERR_INVALID_ARG_VALUE' },
+  );
+}
+
+function testShareSyncRejectsDropNewest() {
+  // A synchronous consumer can neither wait for the slowest consumer nor keep
+  // discarding until it advances, so 'drop-newest' is rejected like
+  // 'unbounded'.
+  assert.throws(
+    () => shareSync(fromSync('data'), { backpressure: 'drop-newest' }),
+    { code: 'ERR_INVALID_ARG_VALUE' },
+  );
+}
+
 // shareSync() accepts string source directly (normalized via fromSync())
+function testShareSyncRetainsBufferWhenAllConsumersDetach() {
+  // Data that a consumer had not read yet must stay available to consumers
+  // that attach after every previous consumer has detached.
+  const enc = new TextEncoder();
+  function* gen() {
+    yield [enc.encode('a')];
+    yield [enc.encode('b')];
+    yield [enc.encode('c')];
+  }
+  const shared = shareSync(gen(), { budget: 16384 });
+  const c1 = shared.pull()[Symbol.iterator]();
+  const c2 = shared.pull()[Symbol.iterator]();
+  assert.deepStrictEqual(c1.next().value, [enc.encode('a')]);
+  c1.return();
+  c2.return();
+  assert.strictEqual(shared.consumerCount, 0);
+
+  assert.strictEqual(textSync(shared.pull()), 'abc');
+}
+
+function testShareSyncStrictBackpressureDetaches() {
+  for (const transformed of [false, true]) {
+    function* source() {
+      for (let i = 0; i < 10; i++) {
+        yield [new Uint8Array(16384)];
+      }
+    }
+    const shared = shareSync(source(), {
+      budget: 32768,
+      backpressure: 'strict',
+    });
+    const consumer = transformed ?
+      shared.pull((chunks) => chunks) : shared.pull();
+    const fast = consumer[Symbol.iterator]();
+    // This consumer prevents the buffer from being trimmed.
+    const slow = shared.pull()[Symbol.iterator]();
+
+    fast.next();
+    fast.next();
+    assert.throws(() => fast.next(), { code: 'ERR_OUT_OF_RANGE' });
+    // The rejected consumer is detached, as with the async share.
+    assert.strictEqual(shared.consumerCount, 1);
+    assert.strictEqual(fast.next().done, true);
+
+    // The detached consumer no longer pins the buffer, so the remaining
+    // consumer can read the whole source.
+    let count = 0;
+    while (!slow.next().done) count++;
+    assert.strictEqual(count, 10);
+  }
+}
+
+function testShareSyncStrictForOfDoesNotWedgeOthers() {
+  // for...of does not call return() when next() throws. The consumer that
+  // hit the budget must still not keep the other consumers from reading.
+  function* source() {
+    for (let i = 0; i < 20; i++) yield [new Uint8Array(8192)];
+  }
+  const shared = shareSync(source(), { budget: 16384, backpressure: 'strict' });
+  const slow = shared.pull()[Symbol.iterator]();
+  assert.throws(() => {
+    // eslint-disable-next-line no-unused-vars
+    for (const _ of shared.pull()) { /* consume */ }
+  }, { code: 'ERR_OUT_OF_RANGE' });
+  assert.strictEqual(shared.consumerCount, 1);
+  let count = 0;
+  while (!slow.next().done) count++;
+  assert.strictEqual(count, 20);
+}
+
+function testShareSyncReentrantSourceRead() {
+  const enc = new TextEncoder();
+  let sibling;
+  let reentrantError;
+  function* source() {
+    yield [enc.encode('a')];
+    try {
+      sibling.next();
+    } catch (err) {
+      reentrantError = err;
+    }
+    yield [enc.encode('b')];
+  }
+  const shared = shareSync(source());
+  const c1 = shared.pull()[Symbol.iterator]();
+  sibling = shared.pull()[Symbol.iterator]();
+
+  assert.deepStrictEqual(c1.next().value, [enc.encode('a')]);
+  assert.deepStrictEqual(sibling.next().value, [enc.encode('a')]);
+  // Pulling 'b' runs the source, which tries to read its own share.
+  assert.deepStrictEqual(c1.next().value, [enc.encode('b')]);
+  assert.strictEqual(reentrantError?.code, 'ERR_INVALID_STATE');
+  // The failed re-entrant read left the share intact.
+  assert.deepStrictEqual(sibling.next().value, [enc.encode('b')]);
+  assert.strictEqual(c1.next().done, true);
+  assert.strictEqual(sibling.next().done, true);
+}
+
+function testShareSyncReentrantSourceReadUncaught() {
+  let sibling;
+  function* source() {
+    yield [new Uint8Array(1)];
+    sibling.next();
+  }
+  const shared = shareSync(source());
+  const c1 = shared.pull()[Symbol.iterator]();
+  sibling = shared.pull()[Symbol.iterator]();
+  c1.next();
+  sibling.next();
+  // The error escapes the source, so it becomes the share's source error.
+  assert.throws(() => c1.next(), { code: 'ERR_INVALID_STATE' });
+  assert.throws(() => sibling.next(), { code: 'ERR_INVALID_STATE' });
+}
+
 function testShareSyncStringSource() {
   const shared = shareSync('hello-sync-share');
   const result = textSync(shared.pull());
@@ -154,5 +285,12 @@ Promise.all([
   testShareSyncCancelWithReason(),
   testShareSyncCancelWithFalsyReason(),
   testShareSyncSourceError(),
+  testShareSyncRejectsUnbounded(),
+  testShareSyncRejectsDropNewest(),
+  testShareSyncReentrantSourceRead(),
+  testShareSyncReentrantSourceReadUncaught(),
   testShareSyncStringSource(),
+  testShareSyncRetainsBufferWhenAllConsumersDetach(),
+  testShareSyncStrictBackpressureDetaches(),
+  testShareSyncStrictForOfDoesNotWedgeOthers(),
 ]).then(common.mustCall());

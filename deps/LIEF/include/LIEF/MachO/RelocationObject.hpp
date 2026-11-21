@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ struct relocation_info;
 struct scattered_relocation_info;
 }
 
-/// Class that represents a relocation presents in the MachO object
+/// Class that represents a relocation present in the MachO object
 /// file (``.o``). Usually, this kind of relocation is found in the MachO::Section
 ///
 /// @see RelocationDyld
@@ -65,7 +65,8 @@ class LIEF_API RelocationObject : public Relocation {
   size_t size() const override;
 
   /// Address where the relocation is applied
-  /// This address is relative to the start of the section where the relocation takes place
+  /// This address is relative to the start of the section where the relocation
+  /// takes place
   uint64_t address() const override;
 
   /// ``true`` if the relocation is a scattered one
@@ -79,11 +80,12 @@ class LIEF_API RelocationObject : public Relocation {
   ///
   /// For relocatable expressions with the difference of two section addresses,
   /// the address from which to subtract (in mathematical terms, the minuend)
-  /// is contained in the first relocation entry and the address to subtract (the subtrahend)
-  /// is contained in the second relocation entry.
+  /// is contained in the first relocation entry and the address to subtract (the
+  /// subtrahend) is contained in the second relocation entry.
   int32_t value() const;
 
-  /// Origin of the relocation. For this object it should be Relocation::ORIGIN::RELOC_TABLE)
+  /// Origin of the relocation. For this object it should be
+  /// Relocation::ORIGIN::RELOC_TABLE)
   ORIGIN origin() const override {
     return ORIGIN::RELOC_TABLE;
   }

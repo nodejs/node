@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,11 +29,12 @@ namespace unwind_aarch64 {
 ///
 /// An excepted entry can be packed if the unwind data fit in 30 bits
 ///
-/// Reference: https://learn.microsoft.com/en-us/cpp/build/arm64-exception-handling?view=msvc-170#packed-unwind-data
+/// Reference:
+/// https://learn.microsoft.com/en-us/cpp/build/arm64-exception-handling?view=msvc-170#packed-unwind-data
 class LIEF_API PackedFunction : public RuntimeFunctionAArch64 {
   public:
-  static std::unique_ptr<PackedFunction>
-    parse(Parser& ctx, BinaryStream& strm, uint32_t rva, uint32_t unwind_data);
+  static std::unique_ptr<PackedFunction> parse(Parser& ctx, BinaryStream& strm,
+                                               uint32_t rva, uint32_t unwind_data);
 
   using RuntimeFunctionAArch64::RuntimeFunctionAArch64;
 
@@ -121,7 +122,6 @@ class LIEF_API PackedFunction : public RuntimeFunctionAArch64 {
   uint8_t h_ = 0;
   uint8_t reg_I_ = 0;
   uint8_t reg_F_ = 0;
-
 };
 }
 }

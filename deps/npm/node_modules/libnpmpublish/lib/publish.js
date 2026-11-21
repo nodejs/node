@@ -134,6 +134,12 @@ const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
 
   // Handle case where --provenance flag was set to true
   let transparencyLogUrl
+  if (provenance === true && provenanceFile) {
+    throw Object.assign(
+      new Error('provenance and provenanceFile cannot be used together'),
+      { code: 'EUSAGE' }
+    )
+  }
   if (provenance === true || provenanceFile) {
     let provenanceBundle
     const subject = {

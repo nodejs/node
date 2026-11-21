@@ -13,6 +13,7 @@ if (!common.hasCrypto)
 // https must be dynamically imported so that builds without crypto support
 // can skip it.
 const { default: https } = await import('node:https');
+const { untrustedLeafErrorCode } = await import('../common/tls.js');
 
 const server = https.createServer({
   cert: fixtures.readKey('agent8-cert.pem'),
@@ -36,8 +37,8 @@ const { code, signal, stderr, stdout } = await runProxiedRequest({
   HTTPS_PROXY: `http://localhost:${proxy.address().port}`,
 });
 
-// The proxy client should get a UNABLE_TO_VERIFY_LEAF_SIGNATURE during TLS handshake.
-assert.match(stderr, /UNABLE_TO_VERIFY_LEAF_SIGNATURE/);
+// The proxy client should report the untrusted leaf during the TLS handshake.
+assert.match(stderr, new RegExp(untrustedLeafErrorCode));
 assert.strictEqual(stdout, '');
 assert.strictEqual(code, 0);
 assert.strictEqual(signal, null);

@@ -9,5 +9,6 @@
   "names": [
     "global"
   ],
-  "scopes": "BCAAA,CKA,BCKAA,CKA,ECAA,FK,EDKAC,FK,EBKA,FK"
+  "scopes": ["BCAAA,CKA","BCKAA,CKA"],
+  "ranges": ["ECAAA,FK,EDKACA,FK,EBKAA,FK"]
 }

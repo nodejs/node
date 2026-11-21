@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 #define LIEF_ELF_SYMBOL_H
 
 #include <string>
-#include <vector>
 #include <ostream>
 
 #include "LIEF/visibility.h"
@@ -35,48 +34,47 @@ class Section;
 class LIEF_API Symbol : public LIEF::Symbol {
   friend class Parser;
   friend class Binary;
-  public:
 
+  public:
   enum class BINDING {
-    LOCAL      = 0,  ///< Local symbol
-    GLOBAL     = 1,  ///< Global symbol
-    WEAK       = 2,  ///< Weak symbol
+    LOCAL = 0,       ///< Local symbol
+    GLOBAL,          ///< Global symbol
+    WEAK,            ///< Weak symbol
     GNU_UNIQUE = 10, ///< Unique symbol
   };
 
   /// Type of the symbol. This enum matches the `STT_xxx` values of the ELF
   /// specs
   enum class TYPE {
-    NOTYPE    = 0,   ///< Symbol's type is not specified
-    OBJECT    = 1,   ///< Symbol is a data object (variable, array, etc.)
-    FUNC      = 2,   ///< Symbol is executable code (function, etc.)
-    SECTION   = 3,   ///< Symbol refers to a section
-    FILE      = 4,   ///< Local, absolute symbol that refers to a file
-    COMMON    = 5,   ///< An uninitialized common block
-    TLS       = 6,   ///< Thread local data object
-    GNU_IFUNC = 10,  ///< GNU indirect function
+    NOTYPE = 0,     ///< Symbol's type is not specified
+    OBJECT,         ///< Symbol is a data object (variable, array, etc.)
+    FUNC,           ///< Symbol is executable code (function, etc.)
+    SECTION,        ///< Symbol refers to a section
+    FILE,           ///< Local, absolute symbol that refers to a file
+    COMMON,         ///< An uninitialized common block
+    TLS,            ///< Thread local data object
+    GNU_IFUNC = 10, ///< GNU indirect function
   };
 
   /// Visibility of the symbol. This enum matches the `STV_xxx` values of the
   /// official ELF specs
   enum class VISIBILITY {
-    DEFAULT   = 0,  ///< Visibility is specified by binding type
-    INTERNAL  = 1,  ///< Defined by processor supplements
-    HIDDEN    = 2,  ///< Not visible to other components
-    PROTECTED = 3   ///< Visible in other components but not preemptable
+    DEFAULT = 0, ///< Visibility is specified by binding type
+    INTERNAL,    ///< Defined by processor supplements
+    HIDDEN,      ///< Not visible to other components
+    PROTECTED,   ///< Visible in other components but not preemptable
   };
 
   /// Special section indices
   enum SECTION_INDEX {
-    UNDEF  = 0,      ///< Undefined section
-    ABS    = 0xfff1, ///< Associated symbol is absolute
+    UNDEF = 0,       ///< Undefined section
+    ABS = 0xfff1,    ///< Associated symbol is absolute
     COMMON = 0xfff2, ///< Associated symbol is common
   };
 
   public:
-  Symbol(std::string name):
-    LIEF::Symbol(std::move(name), 0, 0)
-  {}
+  Symbol(std::string name) :
+    LIEF::Symbol(std::move(name), 0, 0) {}
 
   static BINDING binding_from(uint32_t value, ARCH) {
     return BINDING(value);
@@ -130,31 +128,35 @@ class LIEF_API Symbol : public LIEF::Symbol {
   }
 
   /// Section associated with the symbol or a nullptr if it does not exist.
-  Section* section() {
+  Section* section() LIEF_LIFETIMEBOUND {
     return section_;
   }
 
-  const Section* section() const {
+  const Section* section() const LIEF_LIFETIMEBOUND {
     return section_;
   }
 
   /// This member has slightly different interpretations:
-  ///   * In relocatable files, `value` holds alignment constraints for a symbol for which section index
+  ///   * In relocatable files, `value` holds alignment constraints for a symbol
+  ///   for which section index
   ///     is SHN_COMMON
-  ///   * In relocatable files, `value` holds a section offset for a defined symbol. That is, `value` is an
+  ///   * In relocatable files, `value` holds a section offset for a defined
+  ///   symbol. That is, `value` is an
   ///     offset from the beginning of the section associated with this symbol.
-  ///   * In executable and shared object files, `value` holds a virtual address. To make these files's
-  ///     symbols more useful for the dynamic linker, the section offset (file interpretation) gives way to
-  ///     a virtual address (memory interpretation) for which the section number is irrelevant.
+  ///   * In executable and shared object files, `value` holds a virtual address.
+  ///   To make these files's
+  ///     symbols more useful for the dynamic linker, the section offset (file
+  ///     interpretation) gives way to a virtual address (memory interpretation)
+  ///     for which the section number is irrelevant.
   uint64_t value() const override {
     return value_;
   }
 
   /// Symbol size
   ///
-  /// Many symbols have associated sizes. For example, a data object's size is the number of
-  /// bytes contained in the object. This member holds `0` if the symbol has no size or
-  /// an unknown size.
+  /// Many symbols have associated sizes. For example, a data object's size is the
+  /// number of bytes contained in the object. This member holds `0` if the symbol
+  /// has no size or an unknown size.
   uint64_t size() const override {
     return size_;
   }
@@ -171,11 +173,11 @@ class LIEF_API Symbol : public LIEF::Symbol {
 
   /// Return the SymbolVersion associated with this symbol.
   /// If there is no symbol version, return a nullptr
-  SymbolVersion* symbol_version() {
+  SymbolVersion* symbol_version() LIEF_LIFETIMEBOUND {
     return symbol_version_;
   }
 
-  const SymbolVersion* symbol_version() const {
+  const SymbolVersion* symbol_version() const LIEF_LIFETIMEBOUND {
     return symbol_version_;
   }
 
@@ -241,12 +243,12 @@ class LIEF_API Symbol : public LIEF::Symbol {
     return this->binding() == BINDING::GLOBAL;
   }
 
-  /// True if the symbol represent a function
+  /// True if the symbol represents a function
   bool is_function() const {
     return this->type() == TYPE::FUNC;
   }
 
-  /// True if the symbol represent a variable
+  /// True if the symbol represents a variable
   bool is_variable() const {
     return this->type() == TYPE::OBJECT;
   }
@@ -259,10 +261,10 @@ class LIEF_API Symbol : public LIEF::Symbol {
   template<class T>
   LIEF_API Symbol(const T& header, ARCH arch);
 
-  TYPE    type_ = TYPE::NOTYPE;
+  TYPE type_ = TYPE::NOTYPE;
   BINDING binding_ = BINDING::LOCAL;
-  uint8_t other_   = 0;
-  uint16_t shndx_   = 0;
+  uint8_t other_ = 0;
+  uint16_t shndx_ = 0;
   Section* section_ = nullptr;
   SymbolVersion* symbol_version_ = nullptr;
   ARCH arch_ = ARCH::NONE;
@@ -273,4 +275,4 @@ LIEF_API const char* to_string(Symbol::TYPE type);
 LIEF_API const char* to_string(Symbol::VISIBILITY viz);
 }
 }
-#endif /* _ELF_SYMBOL_H */
+#endif

@@ -1,0 +1,16 @@
+{
+  "packages": {
+    "root": {
+      "url": "./root",
+      "dependencies": {"dep-a": "dep-a"}
+    },
+    "dep-a": {
+      "url": "./dep-a",
+      "dependencies": {}
+    },
+    "dep-a-directory": {
+      "url": "./dep-a/",
+      "dependencies": {}
+    }
+  }
+}

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,11 +28,9 @@
 
 #include "LIEF/BinaryStream/SpanStream.hpp"
 
-#include "internal_utils.hpp"
 #include "PE/Structures.hpp"
 
-namespace LIEF {
-namespace PE {
+namespace LIEF::PE {
 
 class TreeParser {
   public:
@@ -40,18 +38,17 @@ class TreeParser {
   TreeParser(BinaryStream& stream, uint64_t base_rva) :
     stream_(stream),
     base_offset_(stream.pos()),
-    base_rva_(base_rva)
-  {}
+    base_rva_(base_rva) {}
 
   TreeParser(BinaryStream& stream, Binary& pe) :
     stream_(stream),
     base_offset_(stream.pos()),
-    base_rva_(0),
-    pe_(&pe)
-  {}
+
+    pe_(&pe) {}
 
   std::unique_ptr<ResourceNode> parse() {
-    const auto res_directory_table = stream_.peek<details::pe_resource_directory_table>();
+    const auto res_directory_table =
+        stream_.peek<details::pe_resource_directory_table>();
     if (!res_directory_table) {
       return nullptr;
     }
@@ -61,7 +58,8 @@ class TreeParser {
 
   std::unique_ptr<ResourceNode> parse_resource_node(
       const details::pe_resource_directory_table& directory_table,
-      uint32_t base_offset, uint32_t current_offset, uint32_t depth = 0);
+      uint32_t base_offset, uint32_t current_offset, uint32_t depth = 0
+  );
 
   result<uint64_t> rva_to_offset(uint64_t rva) const {
     if (pe_ != nullptr) {
@@ -82,84 +80,90 @@ class TreeParser {
 };
 
 std::unique_ptr<ResourceNode> TreeParser::parse_resource_node(
-  const details::pe_resource_directory_table& directory_table,
-  uint32_t base_offset, uint32_t current_offset, uint32_t depth)
-{
-  const uint32_t numberof_ID_entries   = directory_table.NumberOfIDEntries;
-  const uint32_t numberof_name_entries = directory_table.NumberOfNameEntries;
-
-  size_t directory_array_offset = current_offset + sizeof(details::pe_resource_directory_table);
-  details::pe_resource_directory_entries entries_array;
-
-  if (auto res_entries_array = stream_.peek<details::pe_resource_directory_entries>(directory_array_offset)) {
-    entries_array = *res_entries_array;
-  } else {
+    const details::pe_resource_directory_table& directory_table,
+    uint32_t base_offset, uint32_t current_offset, uint32_t depth
+) {
+  static constexpr auto MAX_DEPTH = 60;
+  if (depth > MAX_DEPTH) {
+    LIEF_WARN("Tree max depth reached (max: {})", MAX_DEPTH);
     return nullptr;
   }
 
+  if (!visited_.insert(base_offset + current_offset).second) {
+    if (visited_.size() == 1) {
+      // Only print once
+      LIEF_WARN("Infinite loop detected in resources");
+    }
+    return nullptr;
+  }
+  const uint32_t numberof_ID_entries = directory_table.NumberOfIDEntries;
+  const uint32_t numberof_name_entries = directory_table.NumberOfNameEntries;
+
+  size_t directory_array_offset =
+      current_offset + sizeof(details::pe_resource_directory_table);
+  auto entries_array =
+      stream_.peek<details::pe_resource_directory_entries>(directory_array_offset);
+  if (!entries_array) {
+    return nullptr;
+  }
   auto directory = std::make_unique<ResourceDirectory>(directory_table);
   directory->set_depth(depth);
 
-  // Iterate over the childs
-  for (size_t idx = 0; idx < (numberof_name_entries + numberof_ID_entries); ++idx) {
-
-    uint32_t data_rva = entries_array.RVA;
-    uint32_t id       = entries_array.NameID.IntegerID;
-
-    directory_array_offset += sizeof(details::pe_resource_directory_entries);
-    if (auto res_entries_array = stream_.peek<details::pe_resource_directory_entries>(directory_array_offset)) {
-      entries_array = *res_entries_array;
-    } else {
+  // Iterate over the children
+  for (size_t idx = 0; idx < (numberof_name_entries + numberof_ID_entries); ++idx)
+  {
+    auto entry = stream_.peek<details::pe_resource_directory_entries>(
+        directory_array_offset
+    );
+    if (!entry) {
       break;
     }
+    directory_array_offset += sizeof(details::pe_resource_directory_entries);
+
+    uint32_t data_rva = entry->RVA;
+    uint32_t id = entry->NameID.IntegerID;
 
     result<std::u16string> name;
 
     // Get the resource name
     if ((id & 0x80000000) != 0u) {
-      uint32_t offset        = id & (~ 0x80000000);
+      uint32_t offset = id & (~0x80000000);
       uint32_t string_offset = base_offset + offset;
-      LIEF_DEBUG("base_offset=0x{:04x}, string_offset=0x{:04x}",
-                 base_offset, string_offset);
+      LIEF_DEBUG("base_offset={:#06x}, string_offset={:#06x}", base_offset,
+                 string_offset);
 
-      auto res_length = stream_.peek<uint16_t>(string_offset);
-      if (res_length && *res_length <= 100) {
-        name = stream_.peek_u16string_at(string_offset + sizeof(uint16_t), *res_length);
+      auto length = stream_.peek<uint16_t>(string_offset);
+      if (length && *length <= 100) {
+        name =
+            stream_.peek_u16string_at(string_offset + sizeof(uint16_t), *length);
         if (!name) {
-          LIEF_ERR("Node's name for the node id: {} is corrupted", id);
+          LIEF_ERR("Corrupted node name for node id {}", id);
         }
       }
     }
 
     if ((0x80000000 & data_rva) == 0) { // We are on a leaf
       uint32_t offset = base_offset + data_rva;
-      details::pe_resource_data_entry data_entry;
+      auto data_entry = stream_.peek<details::pe_resource_data_entry>(offset);
+      if (!data_entry) {
+        break;
+      }
 
       if (!visited_.insert(offset).second) {
-        if (visited_.size() == 1) {
-          // Only print once
-          LIEF_WARN("Infinite loop detected on resources");
-        }
         break;
       }
 
-      if (auto res_data_entry = stream_.peek<details::pe_resource_data_entry>(offset)) {
-        data_entry = *res_data_entry;
-      } else {
-        break;
-      }
+      auto content_offset = rva_to_offset(data_entry->DataRVA);
 
-      auto content_offset = rva_to_offset(data_entry.DataRVA);
-
-      uint32_t content_size   = data_entry.Size;
-      uint32_t code_page      = data_entry.Codepage;
+      uint32_t content_size = data_entry->Size;
+      uint32_t code_page = data_entry->Codepage;
 
       std::vector<uint8_t> leaf_data;
-      if (content_offset &&
-          stream_.peek_data(leaf_data, *content_offset, content_size,
-                            data_entry.DataRVA))
+      if (content_offset && stream_.peek_data(leaf_data, *content_offset,
+                                              content_size, data_entry->DataRVA))
       {
-        auto node = std::make_unique<ResourceData>(std::move(leaf_data), code_page);
+        auto node =
+            std::make_unique<ResourceData>(std::move(leaf_data), code_page);
 
         node->set_depth(depth + 1);
         node->id(id);
@@ -170,58 +174,48 @@ std::unique_ptr<ResourceNode> TreeParser::parse_resource_node(
 
         directory->push_child(std::move(node));
       } else {
-        LIEF_DEBUG("The leaf of the node id {} is corrupted", id);
+        LIEF_DEBUG("Corrupted leaf for node id {}", id);
         break;
       }
     } else { // We are on a directory
-      const uint32_t directory_rva = data_rva & (~ 0x80000000);
-      const uint32_t offset        = base_offset + directory_rva;
-      if (!visited_.insert(offset).second) {
-        if (visited_.size() == 1) {
-          // Only print once
-          LIEF_WARN("Infinite loop detected on resources");
-        }
+      const uint32_t directory_rva = data_rva & (~0x80000000);
+      const uint32_t offset = base_offset + directory_rva;
+      auto next_dir_table =
+          stream_.peek<details::pe_resource_directory_table>(offset);
+      if (!next_dir_table) {
+        LIEF_WARN("Corrupted directory for node id {}", id);
         break;
       }
-
-      if (auto res_next_dir_table = stream_.peek<details::pe_resource_directory_table>(offset)) {
-        if (auto node = parse_resource_node(*res_next_dir_table, base_offset, offset, depth + 1)) {
-          if (name) {
-            node->name(*name);
-          }
-          node->id(id);
-          directory->push_child(std::move(node));
-        } else {
-          // node is a nullptr
-          continue;
-        }
-      } else {
-        LIEF_WARN("The directory of the node id {} is corrupted", id);
-        break;
+      auto node =
+          parse_resource_node(*next_dir_table, base_offset, offset, depth + 1);
+      if (node == nullptr) {
+        continue;
       }
+      if (name) {
+        node->name(*name);
+      }
+      node->id(id);
+      directory->push_child(std::move(node));
     }
   }
   return directory;
 }
 
 
-std::unique_ptr<ResourceNode>
-  ResourceNode::parse(BinaryStream& stream, uint64_t rva)
-{
+std::unique_ptr<ResourceNode> ResourceNode::parse(BinaryStream& stream,
+                                                  uint64_t rva) {
   TreeParser parser(stream, rva);
   return parser.parse();
 }
 
-std::unique_ptr<ResourceNode>
-  ResourceNode::parse(const uint8_t* buffer, size_t size, uint64_t rva)
-{
+std::unique_ptr<ResourceNode> ResourceNode::parse(const uint8_t* buffer,
+                                                  size_t size, uint64_t rva) {
   SpanStream stream(buffer, size);
   return parse(stream, rva);
 }
 
-std::unique_ptr<ResourceNode>
-  ResourceNode::parse(BinaryStream& stream, const Binary& bin)
-{
+std::unique_ptr<ResourceNode> ResourceNode::parse(BinaryStream& stream,
+                                                  const Binary& bin) {
   TreeParser parser(stream, const_cast<Binary&>(bin));
   return parser.parse();
 }
@@ -233,8 +227,7 @@ ResourceNode::ResourceNode(const ResourceNode& other) :
   type_{other.type_},
   id_{other.id_},
   name_{other.name_},
-  depth_{other.depth_}
-{
+  depth_{other.depth_} {
   childs_.reserve(other.childs_.size());
   for (const std::unique_ptr<ResourceNode>& node : other.childs_) {
     childs_.push_back(node->clone());
@@ -245,10 +238,10 @@ ResourceNode& ResourceNode::operator=(const ResourceNode& other) {
   if (this == &other) {
     return *this;
   }
-  type_   = other.type_;
-  id_     = other.id_;
-  name_   = other.name_;
-  depth_  = other.depth_;
+  type_ = other.type_;
+  id_ = other.id_;
+  name_ = other.name_;
+  depth_ = other.depth_;
 
   childs_.reserve(other.childs_.size());
   for (const std::unique_ptr<ResourceNode>& node : other.childs_) {
@@ -258,11 +251,11 @@ ResourceNode& ResourceNode::operator=(const ResourceNode& other) {
 }
 
 void ResourceNode::swap(ResourceNode& other) {
-  std::swap(type_,   other.type_);
-  std::swap(id_,     other.id_);
-  std::swap(name_,   other.name_);
+  std::swap(type_, other.type_);
+  std::swap(id_, other.id_);
+  std::swap(name_, other.name_);
   std::swap(childs_, other.childs_);
-  std::swap(depth_,  other.depth_);
+  std::swap(depth_, other.depth_);
 }
 
 std::string ResourceNode::utf8_name() const {
@@ -273,8 +266,9 @@ ResourceNode& ResourceNode::add_child(std::unique_ptr<ResourceNode> child) {
   child->depth_ = depth_ + 1;
 
   if (auto* dir = cast<ResourceDirectory>()) {
-    child->has_name() ? dir->numberof_name_entries(dir->numberof_name_entries() + 1) :
-                        dir->numberof_id_entries(dir->numberof_id_entries() + 1);
+    child->has_name() ?
+        dir->numberof_name_entries(dir->numberof_name_entries() + 1) :
+        dir->numberof_id_entries(dir->numberof_id_entries() + 1);
     return **insert_child(std::move(child));
   }
 
@@ -283,13 +277,14 @@ ResourceNode& ResourceNode::add_child(std::unique_ptr<ResourceNode> child) {
 }
 
 void ResourceNode::delete_child(uint32_t id) {
-  const auto it_node = std::find_if(std::begin(childs_), std::end(childs_),
-      [id] (const std::unique_ptr<ResourceNode>& node) {
-        return node->id() == id;
-      });
+  const auto it_node =
+      std::find_if(childs_.begin(), childs_.end(),
+                   [id](const std::unique_ptr<ResourceNode>& node) {
+                     return node->id() == id;
+                   });
 
-  if (it_node == std::end(childs_)) {
-    LIEF_ERR("Unable to find the node with the id {:d}", id);
+  if (it_node == childs_.end()) {
+    LIEF_ERR("Node with id {:d} not found", id);
     return;
   }
 
@@ -297,13 +292,14 @@ void ResourceNode::delete_child(uint32_t id) {
 }
 
 void ResourceNode::delete_child(const ResourceNode& node) {
-  const auto it_node = std::find_if(std::begin(childs_), std::end(childs_),
-      [&node] (const std::unique_ptr<ResourceNode>& intree_node) {
-        return *intree_node == node;
-      });
+  const auto it_node =
+      std::find_if(childs_.begin(), childs_.end(),
+                   [&node](const std::unique_ptr<ResourceNode>& intree_node) {
+                     return *intree_node == node;
+                   });
 
-  if (it_node == std::end(childs_)) {
-    LIEF_ERR("Unable to find the node with id: {}", node.id());
+  if (it_node == childs_.end()) {
+    LIEF_ERR("Node with id {} not found", node.id());
     return;
   }
 
@@ -324,30 +320,35 @@ void ResourceNode::name(const std::string& name) {
   if (auto res = u8tou16(name)) {
     return this->name(std::move(*res));
   }
-  LIEF_WARN("{} can't be converted to a UTF-16 string", name);
+  LIEF_WARN("{} cannot be converted to UTF-16", name);
 }
 
 
 // This logic follows the description from the Microsoft documentation at
 // https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#resource-directory-table
 //
-// "(remember that all the Name entries precede all the ID entries for the table). All entries for the table
-// "are sorted in ascending order: the Name entries by case-sensitive string and the ID entries by numeric value."
-ResourceNode::childs_t::iterator ResourceNode::insert_child(std::unique_ptr<ResourceNode> child) {
-  const auto it = std::upper_bound(childs_.begin(), childs_.end(), child,
-      [] (const std::unique_ptr<ResourceNode>& lhs, const std::unique_ptr<ResourceNode>& rhs) {
-        if (lhs->has_name() && rhs->has_name()) {
-          // Case-sensitive string sort
-          return std::lexicographical_compare(
-              lhs->name().begin(), lhs->name().end(),
-              rhs->name().begin(), rhs->name().end());
-        } else if (!lhs->has_name() && !rhs->has_name()) {
-          return lhs->id() < rhs->id();
-        } else {
-          // Named entries come first
-          return lhs->has_name();
-        }
-      });
+// "(remember that all the Name entries precede all the ID entries for the table).
+// All entries for the table "are sorted in ascending order: the Name entries by
+// case-sensitive string and the ID entries by numeric value."
+ResourceNode::childs_t::iterator
+    ResourceNode::insert_child(std::unique_ptr<ResourceNode> child) {
+  const auto it =
+      std::upper_bound(childs_.begin(), childs_.end(), child,
+                       [](const std::unique_ptr<ResourceNode>& lhs,
+                          const std::unique_ptr<ResourceNode>& rhs) {
+                         if (lhs->has_name() && rhs->has_name()) {
+                           // Case-sensitive string sort
+                           return std::lexicographical_compare(lhs->name().begin(),
+                                                               lhs->name().end(),
+                                                               rhs->name().begin(),
+                                                               rhs->name().end());
+                         } else if (!lhs->has_name() && !rhs->has_name()) {
+                           return lhs->id() < rhs->id();
+                         } else {
+                           // Named entries come first
+                           return lhs->has_name();
+                         }
+                       });
 
   return childs_.insert(it, std::move(child));
 }
@@ -356,10 +357,9 @@ const ResourceNode& ResourceNode::safe_get_at(size_t idx) const {
   class InvalidNode : public ResourceNode {
     public:
     InvalidNode() :
-      ResourceNode(ResourceNode::TYPE::UNKNOWN)
-    {}
+      ResourceNode(ResourceNode::TYPE::UNKNOWN) {}
 
-    std::unique_ptr<ResourceNode> clone() const {
+    std::unique_ptr<ResourceNode> clone() const override {
       return nullptr;
     }
   };
@@ -453,9 +453,7 @@ std::ostream& operator<<(std::ostream& os, const ResourceNode& node) {
   ResourcesManager manager(const_cast<ResourceNode&>(node));
   os << manager.print();
   return os;
-
 }
 
 
-}
 }

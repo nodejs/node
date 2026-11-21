@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,82 +24,89 @@
 namespace LIEF::COFF {
 
 std::unique_ptr<AuxiliarySectionDefinition>
-  AuxiliarySectionDefinition::parse(const std::vector<uint8_t>& payload)
-{
+    AuxiliarySectionDefinition::parse(const std::vector<uint8_t>& payload) {
   const bool isbigobj = payload.size() == sizeof(details::symbol32);
 
   SpanStream stream(payload);
   auto Length = stream.read<uint32_t>();
   if (!Length) {
-    LIEF_WARN("AuxiliarySectionDefinition error (line: {})", __LINE__);
+    LIEF_WARN("Failed to parse AuxiliarySectionDefinition field (line: {})",
+              __LINE__);
     return std::make_unique<AuxiliarySectionDefinition>();
   }
 
   auto NumberOfRelocations = stream.read<uint16_t>();
   if (!NumberOfRelocations) {
-    LIEF_WARN("AuxiliarySectionDefinition error (line: {})", __LINE__);
+    LIEF_WARN("Failed to parse AuxiliarySectionDefinition field (line: {})",
+              __LINE__);
     return std::make_unique<AuxiliarySectionDefinition>();
   }
 
   auto NumberOfLinenumbers = stream.read<uint16_t>();
   if (!NumberOfLinenumbers) {
-    LIEF_WARN("AuxiliarySectionDefinition error (line: {})", __LINE__);
+    LIEF_WARN("Failed to parse AuxiliarySectionDefinition field (line: {})",
+              __LINE__);
     return std::make_unique<AuxiliarySectionDefinition>();
   }
 
   auto CheckSum = stream.read<uint32_t>();
   if (!CheckSum) {
-    LIEF_WARN("AuxiliarySectionDefinition error (line: {})", __LINE__);
+    LIEF_WARN("Failed to parse AuxiliarySectionDefinition field (line: {})",
+              __LINE__);
     return std::make_unique<AuxiliarySectionDefinition>();
   }
 
   auto Number = stream.read<uint16_t>();
   if (!Number) {
-    LIEF_WARN("AuxiliarySectionDefinition error (line: {})", __LINE__);
+    LIEF_WARN("Failed to parse AuxiliarySectionDefinition field (line: {})",
+              __LINE__);
     return std::make_unique<AuxiliarySectionDefinition>();
   }
 
   auto Selection = stream.read<uint8_t>();
   if (!Selection) {
-    LIEF_WARN("AuxiliarySectionDefinition error (line: {})", __LINE__);
+    LIEF_WARN("Failed to parse AuxiliarySectionDefinition field (line: {})",
+              __LINE__);
     return std::make_unique<AuxiliarySectionDefinition>();
   }
 
   if (!isbigobj) {
     return std::make_unique<AuxiliarySectionDefinition>(
-      *Length, *NumberOfRelocations, *NumberOfLinenumbers, *CheckSum, *Number,
-      *Selection, /*reserved=*/0
+        *Length, *NumberOfRelocations, *NumberOfLinenumbers, *CheckSum, *Number,
+        *Selection, /*reserved=*/0
     );
   }
 
 
   auto bReserved = stream.read<uint8_t>();
   if (!bReserved) {
-    LIEF_WARN("AuxiliarySectionDefinition error (line: {})", __LINE__);
+    LIEF_WARN("Failed to parse AuxiliarySectionDefinition field (line: {})",
+              __LINE__);
     return std::make_unique<AuxiliarySectionDefinition>();
   }
 
   auto HighNumber = stream.read<uint16_t>();
   if (!HighNumber) {
-    LIEF_WARN("AuxiliarySectionDefinition error (line: {})", __LINE__);
+    LIEF_WARN("Failed to parse AuxiliarySectionDefinition field (line: {})",
+              __LINE__);
     return std::make_unique<AuxiliarySectionDefinition>();
   }
 
   const uint32_t nb_sections = *HighNumber << 16 | *Number;
 
   return std::make_unique<AuxiliarySectionDefinition>(
-    *Length, *NumberOfRelocations, *NumberOfLinenumbers, *CheckSum, nb_sections,
-    *Selection, *bReserved
+      *Length, *NumberOfRelocations, *NumberOfLinenumbers, *CheckSum, nb_sections,
+      *Selection, *bReserved
   );
 }
 
 std::string AuxiliarySectionDefinition::to_string() const {
   std::ostringstream oss;
   oss << "AuxiliarySectionDefinition {\n";
-  oss << fmt::format("  Length: 0x{:06x}\n", length());
+  oss << fmt::format("  Length: {:#08x}\n", length());
   oss << fmt::format("  Number of relocations: {}\n", nb_relocs());
   oss << fmt::format("  Number of line numbers: {}\n", nb_line_numbers());
-  oss << fmt::format("  Checksum: 0x{:08x}\n", checksum());
+  oss << fmt::format("  Checksum: {:#010x}\n", checksum());
   oss << fmt::format("  Section index: {}\n", section_idx());
   oss << fmt::format("  Selection: {}\n", COFF::to_string(selection()));
   oss << fmt::format("  Reserved: {}\n", reserved());

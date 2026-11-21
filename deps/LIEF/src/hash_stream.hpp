@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ class hashstream {
     SHA224,
     SHA256,
     SHA384,
-    SHA512
+    SHA512,
   };
   hashstream(HASH type);
 
@@ -57,20 +57,21 @@ class hashstream {
 
   template<typename T>
   hashstream& write(span<const T> s) {
-    static_assert(std::is_same_v<T, uint8_t> || std::is_same_v<T, char>, "Require an integer");
+    static_assert(std::is_same_v<T, uint8_t> || std::is_same_v<T, char>,
+                  "Require an integer");
     return write(reinterpret_cast<const uint8_t*>(s.data()), s.size());
   }
 
   template<class Integer>
   hashstream& write(Integer integer) {
-    static_assert(std::is_integral<Integer>::value, "Require an integer");
+    static_assert(std::is_integral_v<Integer>, "Require an integer");
     const auto* int_p = reinterpret_cast<const uint8_t*>(&integer);
     return write(int_p, sizeof(Integer));
   }
 
   template<typename T, size_t size>
   hashstream& write(const std::array<T, size>& t) {
-    static_assert(std::is_integral<T>::value, "Require an integer");
+    static_assert(std::is_integral_v<T>, "Require an integer");
     for (T val : t) {
       write<T>(val);
     }

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,8 +37,7 @@ class LIEF_LOCAL TrieEdge {
   TrieEdge() = delete;
   TrieEdge(std::string str, TrieNode& node) :
     substr(std::move(str)),
-    child(&node)
-  {}
+    child(&node) {}
 
   ~TrieEdge() = default;
 
@@ -60,13 +59,12 @@ class LIEF_LOCAL TrieNode {
   TrieNode() = delete;
 
   TrieNode(std::string str) :
-    cummulative_string_(std::move(str))
-  {}
+    cummulative_string_(std::move(str)) {}
 
   ~TrieNode() = default;
 
-  TrieNode& add_symbol(const ExportInfo& info, node_list_t& nodes);
-  TrieNode& add_ordered_nodes(const ExportInfo& info, std::vector<TrieNode*>& nodes);
+  node_list_t add_symbol(const ExportInfo& info);
+  std::vector<TrieNode*> add_ordered_nodes(const ExportInfo& info);
   bool update_offset(uint32_t& offset);
 
   TrieNode& write(vector_iostream& buffer);

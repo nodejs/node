@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
  */
 #ifndef LIEF_PE_REPRO_H
 #define LIEF_PE_REPRO_H
-#include <ostream>
 #include <vector>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/PE/debug/Debug.hpp"
 #include "LIEF/span.hpp"
@@ -40,22 +40,18 @@ class LIEF_API Repro : public Debug {
 
   public:
   Repro() :
-    Debug{Debug::TYPES::REPRO}
-  {}
+    Debug{Debug::TYPES::REPRO} {}
 
   Repro(std::vector<uint8_t> hash) :
     Debug{Debug::TYPES::REPRO},
-    hash_{std::move(hash)}
-  {}
+    hash_{std::move(hash)} {}
 
   Repro(const details::pe_debug& dbg, std::vector<uint8_t> hash, Section* sec) :
     Debug{dbg, sec},
-    hash_{std::move(hash)}
-  {}
+    hash_{std::move(hash)} {}
 
   Repro(const details::pe_debug& dbg, Section* sec) :
-    Debug{dbg, sec}
-  {}
+    Debug{dbg, sec} {}
 
   Repro(const Repro& other) = default;
   Repro& operator=(const Repro& other) = default;
@@ -64,11 +60,11 @@ class LIEF_API Repro : public Debug {
   Repro& operator=(Repro&& other) = default;
 
   /// The hash associated with the reproducible build
-  span<const uint8_t> hash() const {
+  span<const uint8_t> hash() const LIEF_LIFETIMEBOUND {
     return hash_;
   }
 
-  span<uint8_t> hash() {
+  span<uint8_t> hash() LIEF_LIFETIMEBOUND {
     return hash_;
   }
 

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,37 +19,37 @@
 #include "LIEF/PE/LoadConfigurations/EnclaveImport.hpp"
 #include "LIEF/BinaryStream/BinaryStream.hpp"
 
-#include "logging.hpp"
 #include "internal_utils.hpp"
 
 namespace LIEF::PE {
 
 std::string EnclaveImport::to_string() const {
-  using namespace fmt;
   static constexpr auto WIDTH = 26;
 
   std::ostringstream os;
 
-  os << format("{} (RVA: 0x{:08x})\n", import_name(), import_name_rva())
-     << format("  {:{}}: {}\n", "Minimum Security Version", WIDTH, min_security_version())
-     << format("  {:{}}: {}\n", "Reserved", WIDTH, reserved())
-     << format("  {:{}}: {}\n", "Type", WIDTH, PE::to_string(type()))
-     << format("  {:{}}: {}\n", "Family ID", WIDTH, hex_dump(family_id(), " "))
-     << format("  {:{}}: {}\n", "Image ID", WIDTH, hex_dump(image_id(), " "));
+  os << fmt::format("{} (RVA: {:#010x})\n", import_name(), import_name_rva())
+     << fmt::format("  {:{}}: {}\n", "Minimum Security Version", WIDTH,
+                    min_security_version())
+     << fmt::format("  {:{}}: {}\n", "Reserved", WIDTH, reserved())
+     << fmt::format("  {:{}}: {}\n", "Type", WIDTH, PE::to_string(type()))
+     << fmt::format("  {:{}}: {}\n", "Family ID", WIDTH,
+                    hex_dump(family_id(), " "))
+     << fmt::format("  {:{}}: {}\n", "Image ID", WIDTH, hex_dump(image_id(), " "));
   {
     span<const uint8_t> id = this->id();
     auto chunk_1 = id.subspan(0, 16);
     auto chunk_2 = id.subspan(16);
-    os << format("  {:{}}: {}\n{:{}}{}", "unique/author ID", WIDTH,
-                 hex_dump(chunk_1, " "), " ", WIDTH + 4, hex_dump(chunk_2, " "));
+    os << fmt::format("  {:{}}: {}\n{:{}}{}", "unique/author ID", WIDTH,
+                      hex_dump(chunk_1, " "), " ", WIDTH + 4,
+                      hex_dump(chunk_2, " "));
   }
 
 
   return os.str();
 }
 
-result<EnclaveImport> EnclaveImport::parse(Parser& ctx, BinaryStream& stream)
-{
+result<EnclaveImport> EnclaveImport::parse(Parser& ctx, BinaryStream& stream) {
   EnclaveImport imp;
   auto MatchType = stream.read<uint32_t>();
   if (!MatchType) {
@@ -83,12 +83,10 @@ result<EnclaveImport> EnclaveImport::parse(Parser& ctx, BinaryStream& stream)
     return make_error_code(Reserved.error());
   }
 
-  imp
-    .type((TYPE)*MatchType)
-    .min_security_version(*MinimumSecurityVersion)
-    .import_name_rva(*ImportName)
-    .reserved(*Reserved)
-  ;
+  imp.type((TYPE)*MatchType)
+      .min_security_version(*MinimumSecurityVersion)
+      .import_name_rva(*ImportName)
+      .reserved(*Reserved);
 
   {
     uint32_t name_offset = ctx.bin().rva_to_offset(*ImportName);

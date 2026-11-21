@@ -220,6 +220,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> test_skip_pattern;
   std::vector<std::string> experimental_test_tag_filter;
   std::vector<std::string> coverage_include_pattern;
+  bool coverage_include_all = false;
   std::vector<std::string> coverage_exclude_pattern;
   bool throw_deprecation = false;
   bool trace_deprecation = false;
@@ -278,7 +279,7 @@ class EnvironmentOptions : public Options {
 
   bool report_exclude_env = false;
   bool report_exclude_network = false;
-  std::string experimental_config_file_path;
+  std::string config_file_path;
   std::string experimental_package_map_path;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 
 #include "LIEF/span.hpp"
 #include "LIEF/Object.hpp"
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 
 namespace LIEF {
@@ -59,15 +60,15 @@ class LIEF_API TLS : public Object {
   TLS(TLS&& other) noexcept = default;
   TLS& operator=(TLS&& other) noexcept = default;
 
-  /// List of the callback associated with the current TLS.
+  /// List of the callbacks associated with the current TLS.
   ///
   /// These functions are called before any other functions.
-  const std::vector<uint64_t>& callbacks() const {
+  const std::vector<uint64_t>& callbacks() const LIEF_LIFETIMEBOUND {
     return callbacks_;
   }
 
   /// Add a new TLS callback
-  TLS& add_callback(uint64_t addr) {
+  TLS& add_callback(uint64_t addr) LIEF_LIFETIMEBOUND {
     callbacks_.push_back(addr);
     return *this;
   }
@@ -77,7 +78,7 @@ class LIEF_API TLS : public Object {
   /// The system copies all of this data each time a thread is created, so it
   /// must not be corrupted.
   ///
-  /// \note These addresses are not RVA. It is addresses for which there
+  /// @note These addresses are not RVA. They are addresses for which there
   ///       should be a rebase relocation in the `.reloc` section.
   const std::pair<uint64_t, uint64_t>& addressof_raw_data() const {
     return va_rawdata_;
@@ -112,7 +113,7 @@ class LIEF_API TLS : public Object {
   }
 
   /// The initial content used to initialize TLS data.
-  span<const uint8_t> data_template() const {
+  span<const uint8_t> data_template() const LIEF_LIFETIMEBOUND {
     return data_template_;
   }
 
@@ -123,11 +124,11 @@ class LIEF_API TLS : public Object {
 
   /// Return the DataDirectory associated with this object or a nullptr
   /// If it exists, its type should be DataDirectory::TYPES::TLS_TABLE
-  DataDirectory* directory() {
+  DataDirectory* directory() LIEF_LIFETIMEBOUND {
     return directory_;
   }
 
-  const DataDirectory* directory() const {
+  const DataDirectory* directory() const LIEF_LIFETIMEBOUND {
     return directory_;
   }
 
@@ -137,11 +138,11 @@ class LIEF_API TLS : public Object {
   }
 
   /// The section associated with the entry (or a nullptr)
-  Section* section() {
+  Section* section() LIEF_LIFETIMEBOUND {
     return section_;
   }
 
-  const Section* section() const {
+  const Section* section() const LIEF_LIFETIMEBOUND {
     return section_;
   }
 
@@ -150,7 +151,7 @@ class LIEF_API TLS : public Object {
   }
 
   void addressof_raw_data(std::pair<uint64_t, uint64_t> addresses) {
-    va_rawdata_ = addresses;
+    va_rawdata_ = std::move(addresses);
   }
 
   void addressof_index(uint64_t addr_idx) {

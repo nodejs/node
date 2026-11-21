@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <memory>
 #include <type_traits>
 
 #include "logging.hpp"
@@ -30,8 +31,8 @@
 
 #include "OAT/Structures.hpp"
 
-namespace LIEF {
-namespace OAT {
+
+namespace LIEF::OAT {
 
 template<>
 void Parser::parse_dex_files<details::OAT124_t>() {
@@ -43,17 +44,22 @@ void Parser::parse_dex_files<details::OAT124_t>() {
 
   uint64_t dexfiles_offset = sizeof(oat_header) + oat.header_.key_value_size();
 
-  LIEF_DEBUG("OAT DEX file located at offset: 0x{:x}", dexfiles_offset);
+  LIEF_DEBUG("OAT DEX files offset: {:#x}", dexfiles_offset);
 
   std::vector<uint32_t> classes_offsets_offset;
-  classes_offsets_offset.reserve(nb_dex_files);
+  if (dexfiles_offset < stream_->size()) {
+    const uint64_t max_records =
+        (stream_->size() - dexfiles_offset) / sizeof(uint32_t);
+    auto reserve = std::min<size_t>(nb_dex_files, max_records);
+    classes_offsets_offset.reserve(reserve);
+  }
 
   stream_->setpos(dexfiles_offset);
-  for (size_t i = 0; i < nb_dex_files; ++i ) {
+  for (size_t i = 0; i < nb_dex_files; ++i) {
 
-    LIEF_DEBUG("Dealing with OAT DEX file #{:d}", i);
+    LIEF_DEBUG("Processing OAT DEX file #{:d}", i);
 
-    std::unique_ptr<DexFile> dex_file{new DexFile{}};
+    std::unique_ptr<DexFile> dex_file = std::make_unique<DexFile>();
 
     auto location_size = stream_->read<uint32_t>();
     if (!location_size) {
@@ -99,7 +105,7 @@ void Parser::parse_dex_files<details::OAT124_t>() {
   if (oat_binary().has_vdex()) {
     VDEX::File::it_dex_files dexfiles = oat_binary().vdex_->dex_files();
     if (dexfiles.size() != oat.oat_dex_files_.size()) {
-      LIEF_WARN("Inconsistent number of vdex files");
+      LIEF_WARN("Inconsistent VDEX file count");
       return;
     }
     for (size_t i = 0; i < dexfiles.size(); ++i) {
@@ -110,9 +116,19 @@ void Parser::parse_dex_files<details::OAT124_t>() {
       const uint32_t nb_classes = dexfiles[i].header().nb_classes();
 
       uint32_t classes_offset = classes_offsets_offset[i];
-      oat_dex_file->classes_offsets_.reserve(nb_classes);
+      const uint64_t stream_size = stream_->size();
+
+      if (classes_offset < stream_size) {
+        const uint64_t max_offsets =
+            (stream_size - classes_offset) / sizeof(uint32_t);
+        auto reserve = std::min<size_t>(nb_classes, max_offsets);
+        oat_dex_file->classes_offsets_.reserve(reserve);
+      }
+
       for (size_t cls_idx = 0; cls_idx < nb_classes; ++cls_idx) {
-        if (auto res = stream_->peek<uint32_t>(classes_offset + cls_idx * sizeof(uint32_t))) {
+        if (auto res = stream_->peek<uint32_t>(classes_offset +
+                                               cls_idx * sizeof(uint32_t)))
+        {
           oat_dex_file->classes_offsets_.push_back(*res);
         } else {
           break;
@@ -123,5 +139,4 @@ void Parser::parse_dex_files<details::OAT124_t>() {
 }
 
 
-} // Namespace OAT
-} // Namespace LIEF
+} // namespace LIEF::OAT

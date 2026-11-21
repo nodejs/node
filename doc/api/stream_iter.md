@@ -417,9 +417,13 @@ writer.fail(err);  // Always synchronous, no fallback needed
 
 * {boolean|null}
 
-Returns `true` if the next write is likely to be accepted (buffered data is
-below capacity), `false` if backpressure is active, or `null` if the writer
-is closed or the consumer has disconnected.
+Returns `true` if the slots buffer has physical capacity (buffered data is
+below the configured byte budget), `false` if the budget is exhausted, or
+`null` if the writer is closed or the consumer has disconnected.
+
+This reports physical capacity independently of the backpressure policy. With
+`'drop-oldest'` or `'drop-newest'`, writes still complete when this is `false`
+by evicting buffered data or discarding the incoming data, respectively.
 
 This is a hint, not a guarantee: the state can change between the check and
 the write. Use [`ondrain()`][] to wait for capacity rather than polling.
@@ -431,7 +435,11 @@ the write. Use [`ondrain()`][] to wait for capacity rather than polling.
     the pending `end()` call; it does not fail the writer itself.
 * Returns: {Promise} Fulfills with the total number of bytes written.
 
-Signals that no more data will be written and waits for buffered data to drain.
+Signals that no more data will be written. Writes already waiting for buffer
+space remain ordered before the end of the stream, while later writes fail. If
+data is outstanding, the returned promise fulfills after the consumer pulls
+`done: true` beyond the final batch. If no data is buffered or pending, the
+writer closes immediately.
 
 #### `writer.endSync()`
 
@@ -1068,9 +1076,13 @@ added: v24.20.0
 * `drainable` {Object} An object implementing the drainable protocol.
 * Returns: {Promise|null}
 
-Wait for a drainable writer's backpressure to clear. Returns `null` if
-the object does not implement the drainable protocol, or a promise that
-fulfills with `true` when the writer can accept more data.
+Wait for a drainable writer to regain physical buffer capacity. Returns `null`
+if the object does not implement the drainable protocol, or a promise that
+fulfills with `true` when buffered data falls below the byte budget.
+
+For writers using `'drop-oldest'` or `'drop-newest'`, this waits for physical
+capacity even though writes do not block. This allows producers to avoid data
+loss by waiting before writing.
 
 ```mjs
 import { push, ondrain, text } from 'node:stream/iter';
@@ -1304,7 +1316,8 @@ added: v24.20.0
 
 * `input` {AsyncIterable|Iterable|BroadcastChannel}
 * `options` {Object} Same as `broadcast()`.
-* Returns: {Object} `{ writer, broadcast }`
+* Returns: {BroadcastChannel|Object} A `broadcastProtocol` input returns its
+  {BroadcastChannel} directly. Other inputs return `{ writer, broadcast }`.
 
 Create a {BroadcastChannel} from an existing source. The source is consumed
 automatically and pushed to all subscribers.
@@ -1326,6 +1339,26 @@ added: v24.20.0
 Create a pull-model multi-consumer shared stream. Unlike `broadcast()`, the
 source is only read when a consumer pulls. Multiple consumers share a single
 buffer.
+
+A consumer created with `share.pull()` starts reading at the oldest entry still
+in the buffer. Entries are released once every consumer has read them. When
+every consumer has detached, the buffered data is kept for consumers that
+attach later, and the source is not closed. Call `share.cancel()` (or dispose
+the share) to release the source once it is no longer needed.
+
+With `'strict'` backpressure, a consumer that needs to pull from the source
+while the buffer is at or above `budget` is rejected with `ERR_OUT_OF_RANGE`
+and detached; further reads from that consumer complete with `{ done: true }`.
+Detaching keeps a consumer that is not retried (for example, one read with
+`for await...of`, which does not call `return()` when a read rejects) from
+holding buffered data and blocking the other consumers.
+
+With `'unbounded'`, such a consumer waits until the slowest consumer releases
+budget. With `'drop-newest'`, the entry pulled from the source is discarded
+and the consumer then waits in the same way, so in both cases a stalled
+consumer also stalls the consumers that are ahead of it. Only `'drop-oldest'`
+lets consumers that are ahead continue, by discarding the oldest buffered
+entries that the slowest consumer has not read yet.
 
 ```mjs
 import { from, share, text } from 'node:stream/iter';
@@ -1423,12 +1456,18 @@ added: v24.20.0
 
 * `source` {Iterable} The sync source to share.
 * `options` {Object}
-  * `highWaterMark` {number} Must be >= 1; values below 1 are clamped
-    to 1. **Default:** `16`.
-  * `backpressure` {string} **Default:** `'strict'`.
+  * `budget` {number} Must be >= 16384.
+    **Default:** `65536`.
+  * `backpressure` {string} `'strict'` or `'drop-oldest'`.
+    **Default:** `'strict'`.
 * Returns: {SyncShare}
 
 Synchronous version of [`share()`][].
+
+A synchronous consumer cannot wait for the slowest consumer to release budget,
+and the slowest consumer cannot advance while another consumer's read is
+running. `'unbounded'` and `'drop-newest'` are therefore not supported and
+throw `ERR_INVALID_ARG_VALUE`.
 
 ### Class: `SyncShare`
 
@@ -1775,7 +1814,7 @@ class MessageBus {
 }
 
 const bus = new MessageBus();
-const { broadcast } = Broadcast.from(bus);
+const broadcast = Broadcast.from(bus);
 const consumer = broadcast.push();
 bus.send('hello');
 bus.close();
@@ -1811,7 +1850,7 @@ class MessageBus {
 }
 
 const bus = new MessageBus();
-const { broadcast } = Broadcast.from(bus);
+const broadcast = Broadcast.from(bus);
 const consumer = broadcast.push();
 bus.send('hello');
 bus.close();

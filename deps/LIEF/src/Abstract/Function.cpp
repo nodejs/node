@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,19 +26,15 @@
 namespace LIEF {
 
 static constexpr auto ARRAY_FLAGS = {
-  Function::FLAGS::NONE,
-  Function::FLAGS::CONSTRUCTOR,
-  Function::FLAGS::DESTRUCTOR,
-  Function::FLAGS::DEBUG_INFO,
-  Function::FLAGS::EXPORTED,
-  Function::FLAGS::IMPORTED,
+    Function::FLAGS::NONE,       Function::FLAGS::CONSTRUCTOR,
+    Function::FLAGS::DESTRUCTOR, Function::FLAGS::DEBUG_INFO,
+    Function::FLAGS::EXPORTED,   Function::FLAGS::IMPORTED,
 };
 
 std::vector<Function::FLAGS> Function::flags_list() const {
   std::vector<FLAGS> flags;
-  std::copy_if(std::begin(ARRAY_FLAGS), std::end(ARRAY_FLAGS),
-               std::back_inserter(flags),
-               [this] (FLAGS f) { return has(f); });
+  std::copy_if(ARRAY_FLAGS.begin(), ARRAY_FLAGS.end(), std::back_inserter(flags),
+               [this](FLAGS f) { return has(f); });
   return flags;
 }
 
@@ -47,23 +43,18 @@ void Function::accept(Visitor& visitor) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const Function& entry) {
-  os << fmt::format("0x{:010x}: {} (0x{:04x} bytes)",
-                    entry.address(), printable_string(entry.name()),
-                    entry.size());
+  os << fmt::format("{:#012x}: {} ({:#06x} bytes)", entry.address(),
+                    printable_string(entry.name()), entry.size());
   return os;
 }
 
 const char* to_string(Function::FLAGS e) {
-  #define ENTRY(X) std::pair(Function::FLAGS::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(NONE),
-    ENTRY(CONSTRUCTOR),
-    ENTRY(DESTRUCTOR),
-    ENTRY(DEBUG_INFO),
-    ENTRY(EXPORTED),
-    ENTRY(IMPORTED),
+#define ENTRY(X) std::pair(Function::FLAGS::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(NONE),       ENTRY(CONSTRUCTOR), ENTRY(DESTRUCTOR),
+      ENTRY(DEBUG_INFO), ENTRY(EXPORTED),    ENTRY(IMPORTED),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -72,4 +63,3 @@ const char* to_string(Function::FLAGS e) {
 }
 
 }
-

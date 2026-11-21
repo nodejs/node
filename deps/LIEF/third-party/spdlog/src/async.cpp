@@ -2,7 +2,7 @@
 // Distributed under the MIT License (http://opensource.org/licenses/MIT)
 
 #ifndef SPDLOG_COMPILED_LIB
-    #error Please define SPDLOG_COMPILED_LIB to compile this file.
+#error Please define SPDLOG_COMPILED_LIB to compile this file.
 #endif
 
 #include <spdlog/async.h>

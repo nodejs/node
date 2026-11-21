@@ -89,7 +89,7 @@ namespace utf8
     {
         return starts_with_bom(s.begin(), s.end());
     }
- 
+
 } // namespace utf8
 
 #endif // header guard

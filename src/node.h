@@ -466,6 +466,7 @@ enum IsolateSettingsFlags {
   DETAILED_SOURCE_POSITIONS_FOR_PROFILING = 1 << 1,
   SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK = 1 << 2,
   SHOULD_NOT_SET_PREPARE_STACK_TRACE_CALLBACK = 1 << 3,
+  SHOULD_NOT_SET_WASM_STREAMING_CALLBACK = 1 << 4,
   ALLOW_MODIFY_CODE_GENERATION_FROM_STRINGS_CALLBACK = 0, /* legacy no-op */
 };
 
@@ -887,8 +888,8 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     EmbedderPreloadCallback preload = nullptr);
 
 // Runs `env`'s event loop until its handles have closed, with JavaScript
-// execution disallowed on the isolate; see doc/api/embedding.md if that loop
-// is shared with other Environments.
+// execution disallowed for `env`; see doc/api/embedding.md if that loop is
+// shared with other Environments.
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // Set a callback that is called when process.exit() is called from JS,

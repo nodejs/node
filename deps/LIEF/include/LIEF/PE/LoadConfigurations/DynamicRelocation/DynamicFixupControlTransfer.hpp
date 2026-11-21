@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,9 +43,8 @@ class LIEF_API DynamicFixupControlTransfer : public DynamicFixup {
 
     std::string to_string() const;
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const reloc_entry_t& entry)
-    {
+    friend LIEF_API std::ostream& operator<<(std::ostream& os,
+                                             const reloc_entry_t& entry) {
       os << entry.to_string();
       return os;
     }
@@ -56,27 +55,29 @@ class LIEF_API DynamicFixupControlTransfer : public DynamicFixup {
   using it_const_relocations = const_ref_iterator<const reloc_entries_t&>;
 
   DynamicFixupControlTransfer() :
-    DynamicFixup(KIND::GUARD_IMPORT_CONTROL_TRANSFER)
-  {}
+    DynamicFixup(KIND::GUARD_IMPORT_CONTROL_TRANSFER) {}
 
   DynamicFixupControlTransfer(const DynamicFixupControlTransfer&) = default;
-  DynamicFixupControlTransfer& operator=(const DynamicFixupControlTransfer&) = default;
+  DynamicFixupControlTransfer&
+      operator=(const DynamicFixupControlTransfer&) = default;
 
   DynamicFixupControlTransfer(DynamicFixupControlTransfer&&) = default;
   DynamicFixupControlTransfer& operator=(DynamicFixupControlTransfer&&) = default;
 
   std::unique_ptr<DynamicFixup> clone() const override {
-    return std::unique_ptr<DynamicFixupControlTransfer>(new DynamicFixupControlTransfer(*this));
+    return std::unique_ptr<DynamicFixupControlTransfer>(
+        new DynamicFixupControlTransfer(*this)
+    );
   }
 
   std::string to_string() const override;
 
   /// Iterator over the relocations
-  it_relocations relocations() {
+  it_relocations relocations() LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
-  it_const_relocations relocations() const {
+  it_const_relocations relocations() const LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
@@ -86,9 +87,9 @@ class LIEF_API DynamicFixupControlTransfer : public DynamicFixup {
 
   ~DynamicFixupControlTransfer() override = default;
 
-  /// \private
-  LIEF_LOCAL static
-    std::unique_ptr<DynamicFixupControlTransfer> parse(Parser& ctx, SpanStream& strm);
+  /// @private
+  LIEF_LOCAL static std::unique_ptr<DynamicFixupControlTransfer>
+      parse(Parser& ctx, SpanStream& strm);
 
   private:
   reloc_entries_t entries_;

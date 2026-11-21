@@ -2,6 +2,7 @@
 const common = require('../common');
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
+const { spawnSyncAndExit } = require('../common/child_process');
 const { readdirSync } = require('node:fs');
 const { test } = require('node:test');
 const fixtures = require('../common/fixtures');
@@ -172,23 +173,24 @@ for (const coverage of coverages) {
   });
 
   test(`test failing ${coverage.flag} with dot reporter`, () => {
-    const result = spawnSync(process.execPath, [
+    const { child } = spawnSyncAndExit(process.execPath, [
       '--test',
       '--experimental-test-coverage',
       '--test-coverage-exclude=!test/**',
       `${coverage.flag}=99`,
       '--test-reporter', 'dot',
       fixture,
-    ]);
-
-    const stdout = result.stdout.toString();
-    assert.match(
-      stdout,
-      RegExp(`Error: ${coverage.actual.toFixed(2)}% ${coverage.name} coverage does not meet threshold of 99%`)
-    );
-    assert.match(stdout, /start of coverage report/);
-    assert.match(stdout, /end of coverage report/);
-    assert.strictEqual(result.status, 1);
-    assert(!findCoverageFileForPid(result.pid));
+    ], {
+      status: 1,
+      stdout(output) {
+        assert.match(
+          output,
+          RegExp(`Error: ${coverage.actual.toFixed(2)}% ${coverage.name} coverage does not meet threshold of 99%`)
+        );
+        assert.match(output, /start of coverage report/);
+        assert.match(output, /end of coverage report/);
+      },
+    });
+    assert(!findCoverageFileForPid(child.pid));
   });
 }

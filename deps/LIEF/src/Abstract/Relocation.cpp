@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ void Relocation::accept(Visitor& visitor) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const Relocation& entry) {
-  os << fmt::format("0x{:010x} ({} bits)", entry.address(), entry.size());
+  os << fmt::format("{:#012x} ({} bits)", entry.address(), entry.size());
   return os;
 }
 

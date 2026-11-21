@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,10 @@
 #ifndef LIEF_MACHO_DYLD_EXPORTS_TRIE_H
 #define LIEF_MACHO_DYLD_EXPORTS_TRIE_H
 #include <memory>
+#include <string>
 #include "LIEF/span.hpp"
 #include "LIEF/iterators.hpp"
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/MachO/LoadCommand.hpp"
 
@@ -36,7 +38,8 @@ struct linkedit_data_command;
 
 /// Class that represents the LC_DYLD_EXPORTS_TRIE command
 ///
-/// In recent Mach-O binaries, this command replace the DyldInfo export trie buffer
+/// In recent Mach-O binaries, this command replaces the DyldInfo export trie
+/// buffer
 class LIEF_API DyldExportsTrie : public LoadCommand {
   friend class BinaryParser;
   friend class Builder;
@@ -51,7 +54,8 @@ class LIEF_API DyldExportsTrie : public LoadCommand {
   using it_export_info = ref_iterator<export_info_t&, ExportInfo*>;
 
   /// Iterator which outputs const ExportInfo&
-  using it_const_export_info = const_ref_iterator<const export_info_t&, ExportInfo*>;
+  using it_const_export_info =
+      const_ref_iterator<const export_info_t&, ExportInfo*>;
 
   DyldExportsTrie();
   DyldExportsTrie(const details::linkedit_data_command& cmd);
@@ -81,7 +85,7 @@ class LIEF_API DyldExportsTrie : public LoadCommand {
     data_size_ = size;
   }
 
-  span<const uint8_t> content() const {
+  span<const uint8_t> content() const LIEF_LIFETIMEBOUND {
     return content_;
   }
 
@@ -94,12 +98,12 @@ class LIEF_API DyldExportsTrie : public LoadCommand {
     return export_info_;
   }
 
-  /// Print the exports trie in a humman-readable way
+  /// Print the exports trie in a human-readable way
   std::string show_export_trie() const;
 
-  /// Add an entrie in the current trie.
+  /// Add an entry in the current trie.
   /// See also: LIEF::MachO::Binary::add_exported_function
-  void add(std::unique_ptr<ExportInfo> info);
+  ExportInfo* add(std::unique_ptr<ExportInfo> info) LIEF_LIFETIMEBOUND;
 
   void accept(Visitor& visitor) const override;
 
@@ -114,13 +118,13 @@ class LIEF_API DyldExportsTrie : public LoadCommand {
   LIEF_LOCAL DyldExportsTrie(const DyldExportsTrie& other);
 
   uint32_t data_offset_ = 0;
-  uint32_t data_size_   = 0;
+  uint32_t data_size_ = 0;
 
-  // Raw payload of the DyldChainedFixups.
+  // Raw payload of the DyldExportsTrie.
   // This payload is located in the __LINKEDIT segment
   span<uint8_t> content_;
 
-  export_info_t  export_info_;
+  export_info_t export_info_;
 };
 
 }

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,10 +27,10 @@ namespace unwind_aarch64 {
 
 /// This class represents an unpacked AArch64 exception entry
 ///
-/// Reference: https://learn.microsoft.com/en-us/cpp/build/arm64-exception-handling?view=msvc-170#xdata-records
+/// Reference:
+/// https://learn.microsoft.com/en-us/cpp/build/arm64-exception-handling?view=msvc-170#xdata-records
 class LIEF_API UnpackedFunction : public RuntimeFunctionAArch64 {
   public:
-
   /// This structure describes an epilog scope.
   struct epilog_scope_t {
     static epilog_scope_t from_raw(uint32_t raw);
@@ -48,12 +48,11 @@ class LIEF_API UnpackedFunction : public RuntimeFunctionAArch64 {
   using it_epilog_scopes = ref_iterator<epilog_scopes_t&>;
   using it_const_epilog_scopes = const_ref_iterator<const epilog_scopes_t&>;
 
-  static std::unique_ptr<UnpackedFunction>
-    parse(Parser& ctx, BinaryStream& strm, uint32_t xdata_rva, uint32_t rva);
+  static std::unique_ptr<UnpackedFunction> parse(Parser& ctx, BinaryStream& strm,
+                                                 uint32_t xdata_rva, uint32_t rva);
 
   UnpackedFunction(uint32_t rva, uint32_t length) :
-    RuntimeFunctionAArch64(rva, length, PACKED_FLAGS::UNPACKED)
-  {}
+    RuntimeFunctionAArch64(rva, length, PACKED_FLAGS::UNPACKED) {}
 
   UnpackedFunction(const UnpackedFunction&) = default;
   UnpackedFunction& operator=(const UnpackedFunction&) = default;
@@ -117,11 +116,11 @@ class LIEF_API UnpackedFunction : public RuntimeFunctionAArch64 {
   }
 
   /// Bytes that contain the unwind codes.
-  span<const uint8_t> unwind_code() const {
+  span<const uint8_t> unwind_code() const LIEF_LIFETIMEBOUND {
     return unwind_code_;
   }
 
-  span<uint8_t> unwind_code() {
+  span<uint8_t> unwind_code() LIEF_LIFETIMEBOUND {
     return unwind_code_;
   }
 
@@ -143,11 +142,11 @@ class LIEF_API UnpackedFunction : public RuntimeFunctionAArch64 {
   }
 
   /// Iterator over the epilog scopes
-  it_epilog_scopes epilog_scopes() {
+  it_epilog_scopes epilog_scopes() LIEF_LIFETIMEBOUND {
     return epilog_scopes_;
   }
 
-  it_const_epilog_scopes epilog_scopes() const {
+  it_const_epilog_scopes epilog_scopes() const LIEF_LIFETIMEBOUND {
     return epilog_scopes_;
   }
 
@@ -186,12 +185,12 @@ class LIEF_API UnpackedFunction : public RuntimeFunctionAArch64 {
     return *this;
   }
 
-  UnpackedFunction& epilog_scopes(epilog_scopes_t scopes) {
+  UnpackedFunction& epilog_scopes(epilog_scopes_t scopes) LIEF_LIFETIMEBOUND {
     epilog_scopes_ = std::move(scopes);
     return *this;
   }
 
-  UnpackedFunction& unwind_code(std::vector<uint8_t> code) {
+  UnpackedFunction& unwind_code(std::vector<uint8_t> code) LIEF_LIFETIMEBOUND {
     unwind_code_ = std::move(code);
     return *this;
   }

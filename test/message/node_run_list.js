@@ -1,14 +1,12 @@
 'use strict';
 
 require('../common');
-const assert = require('node:assert/strict');
-const childProcess = require('node:child_process');
+const { spawnSyncAndExit } = require('../common/child_process');
 const fixtures = require('../common/fixtures');
 
-const child = childProcess.spawnSync(
+spawnSyncAndExit(
   process.execPath,
   [ '--no-warnings', '--run'],
-  { cwd: fixtures.path('run-script'), encoding: 'utf8' },
+  { cwd: fixtures.path('run-script'), encoding: 'utf8', stdio: ['ignore', 'ignore', 'inherit'] },
+  { status: 9, signal: null },
 );
-assert.strictEqual(child.status, 9);
-console.log(child.stderr);

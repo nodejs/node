@@ -248,7 +248,7 @@ class Stream final : public AsyncWrap,
   ~Stream() override;
 
   // While the stream is still pending, the id will be kMaxStreamId,
-  // inidicating the maximum possible stream id is kMaxStreamId - 1.
+  // indicating the maximum possible stream id is kMaxStreamId - 1.
   stream_id id() const;
 
   // While the stream is still pending, the origin will be invalid.
@@ -303,7 +303,7 @@ class Stream final : public AsyncWrap,
 
   // Called by the session/application to indicate that the specified number
   // of bytes have been transmitted to the peer.  This is an initial
-  // indication occuring the first time data is sent. It does not indicate
+  // indication occurring the first time data is sent. It does not indicate
   // that the data has been retransmitted due to loss or has been
   // acknowledged to have been received by the peer.
   void Commit(size_t datalen, bool fin = false);
@@ -395,6 +395,22 @@ class Stream final : public AsyncWrap,
   // inbound DataQueue as a single right-sized entry.
   void FlushAccumulation();
 
+  // Every byte ngtcp2 delivers is charged against both the stream-level and
+  // the connection-level receive window until we hand the credit back.
+  enum class CreditScope : uint8_t {
+    // The stream is still readable, so the peer may usefully send more on it.
+    STREAM_AND_CONNECTION,
+    // The stream is finished, so only the session-wide window is extended.
+    CONNECTION_ONLY,
+  };
+
+  // Returns `amount` bytes of inbound flow control credit to the peer.
+  void ReturnFlowControlCredit(uint64_t amount, CreditScope scope);
+
+  // Returns credit for bytes that have left our custody, either read by the
+  // consumer or dropped before reaching one.
+  void CreditConsumedBytes(uint64_t amount);
+
   // Gets a reader for the data received for this stream from the peer,
   BaseObjectPtr<Blob::Reader> get_reader();
 
@@ -458,6 +474,14 @@ class Stream final : public AsyncWrap,
   std::shared_ptr<DataQueue> inbound_;
   BaseObjectWeakPtr<Blob::Reader> reader_;
   std::unique_ptr<RecvAccumulator> recv_accumulator_;
+
+  // Bytes delivered to ReceiveData() that still hold inbound flow control
+  // credit. Returned incrementally as the consumer reads them, and in bulk
+  // when the stream is destroyed -- otherwise abandoning a stream with unread
+  // data would permanently shrink the session's receive window. Data still
+  // buffered inside nghttp3 is deliberately not counted: nghttp3 returns that
+  // credit itself through its deferred_consume callback.
+  uint64_t uncredited_bytes_ = 0;
 
   // If the stream cannot be opened yet, it will be created in a pending state.
   // Once the owning session is able to, it will complete opening of the stream

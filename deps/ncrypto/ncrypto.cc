@@ -340,14 +340,22 @@ constexpr BoringSSLCipher kBoringSSLCiphers[] = {
 
 // ============================================================================
 
+namespace {
+// ERR_clear_error() resets every slot of the error queue even when it is
+// empty, which costs several times more than checking for an error first.
+void ClearErrorQueue() {
+  if (ERR_peek_error() != 0) ERR_clear_error();
+}
+}  // namespace
+
 ClearErrorOnReturn::ClearErrorOnReturn(CryptoErrorList* errors)
     : errors_(errors) {
-  ERR_clear_error();
+  ClearErrorQueue();
 }
 
 ClearErrorOnReturn::~ClearErrorOnReturn() {
   if (errors_ != nullptr) errors_->capture();
-  ERR_clear_error();
+  ClearErrorQueue();
 }
 
 unsigned long ClearErrorOnReturn::peekError() {  // NOLINT(runtime/int)
@@ -719,6 +727,8 @@ BignumPointer BignumPointer::clone() {
 int BignumPointer::isPrime(int nchecks,
                            BignumPointer::PrimeCheckCallback innerCb) const {
   BignumCtxPointer ctx(BN_CTX_new());
+  if (!ctx) [[unlikely]]
+    return -1;
   BignumGenCallbackPointer cb(nullptr);
   if (innerCb != nullptr) {
     cb = BignumGenCallbackPointer(BN_GENCB_new());
@@ -736,7 +746,17 @@ int BignumPointer::isPrime(int nchecks,
         &innerCb);
   }
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-  return BN_check_prime(get(), ctx.get(), cb.get());
+  const int minimum_checks = GetBitCount(get()) > 2048 ? 128 : 64;
+  const int repetitions =
+      nchecks > minimum_checks ? 1 + (nchecks - 1) / minimum_checks : 1;
+  for (int i = 0; i < repetitions; i++) {
+    // BN_check_prime() may return without invoking the callback (e.g. small
+    // primes resolved by trial division), so check cancellation here too.
+    if (i > 0 && innerCb != nullptr && !innerCb(1, -1)) return -1;
+    const int result = BN_check_prime(get(), ctx.get(), cb.get());
+    if (result != 1) return result;
+  }
+  return 1;
 #elif NCRYPTO_USE_BORINGSSL
   int is_probably_prime = 0;
   if (BN_primality_test(
@@ -1611,7 +1631,7 @@ bool X509View::isCA() const {
 }
 
 bool X509View::isIssuedBy(const X509View& issuer) const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr || issuer.cert_ == nullptr) return false;
   return X509_check_issued(const_cast<X509*>(issuer.cert_),
                            const_cast<X509*>(cert_)) == X509_V_OK;
@@ -2319,6 +2339,15 @@ DHPointer::CheckResult DHPointer::check() {
   // TODO(panva): In a semver-major, consider validating named DH groups
   // through the provider instead of preserving the historical verifyError.
   if (group_name_ != nullptr) return CheckResult::NONE;
+
+  // Like DH_check(), skip primality checks for groups OpenSSL recognizes from
+  // explicitly supplied parameters.
+  size_t group_name_len = 0;
+  if (dh_ &&
+      EVP_PKEY_get_group_name(dh_.get(), nullptr, 0, &group_name_len) == 1 &&
+      group_name_len > 0) {
+    return CheckResult::NONE;
+  }
 
   DeleteFnPtr<BIGNUM, BN_free> p;
   DeleteFnPtr<BIGNUM, BN_free> g;
@@ -3086,7 +3115,9 @@ DataPointer argon2(const Buffer<const char>& pass,
   // per-context. It inherits no configuration, so availability is checked
   // against the default context, otherwise Argon2 works in FIPS mode.
   DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> ctx;
-  if (lanes > 1) {
+  uint32_t threads = lanes == 0 ? 0 : 1;
+  if (lanes > 1 && (OSSL_get_thread_support_flags() &
+                    OSSL_THREAD_SUPPORT_FLAG_DEFAULT_SPAWN) != 0) {
     if (!KDF::Fetch(algorithm.data())) {
       return {};
     }
@@ -3096,8 +3127,13 @@ DataPointer argon2(const Buffer<const char>& pass,
       return {};
     }
 
-    if (OSSL_set_max_threads(ctx.get(), lanes) != 1) {
-      return {};
+    MarkPopErrorOnReturn mark_pop_error_on_return;
+    if (OSSL_set_max_threads(ctx.get(), lanes) == 1) {
+      threads = lanes;
+    } else {
+      // Lane count is an Argon2 input; worker threads are only an
+      // optimization. Compute the same lanes serially if unavailable.
+      ctx.reset();
     }
   }
 
@@ -3115,7 +3151,8 @@ DataPointer argon2(const Buffer<const char>& pass,
       pass.len));
   params.push_back(OSSL_PARAM_construct_octet_string(
       OSSL_KDF_PARAM_SALT, const_cast<unsigned char*>(salt.data), salt.len));
-  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &lanes));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &threads));
   params.push_back(
       OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes));
   params.push_back(
@@ -3248,12 +3285,6 @@ const KeyAlgorithm* KeyAlgorithm::FromName(const char* name) {
     if (CaseInsensitiveNameEqual()(name, algorithm->name())) return algorithm;
   }
   return nullptr;
-}
-
-void KeyAlgorithm::ForEachPqc(Callback callback) {
-  for (const auto* algorithm : kKeyAlgorithms) {
-    if (algorithm->isPqc() && algorithm->isAvailable()) callback(*algorithm);
-  }
 }
 
 bool KeyAlgorithm::isRsa() const {
@@ -4275,6 +4306,9 @@ int WriteDERView(const void* x, unsigned char** out) {
 
 bool WriteEncryptedTraditionalPEM(BIO* bio,
                                   const EVP_PKEY* pkey,
+                                  int selection,
+                                  const char* structure,
+                                  const char* label,
                                   const EVP_CIPHER* cipher,
                                   Buffer<char> passphrase) {
   if (passphrase.len > static_cast<size_t>(INT_MAX)) return false;
@@ -4282,7 +4316,7 @@ bool WriteEncryptedTraditionalPEM(BIO* bio,
   unsigned char* der = nullptr;
   size_t der_len = 0;
   OSSLEncoderCtxPointer ctx(OSSL_ENCODER_CTX_new_for_pkey(
-      pkey, OSSL_KEYMGMT_SELECT_KEYPAIR, "DER", "pkcs1", nullptr));
+      pkey, selection, "DER", structure, nullptr));
   if (!ctx) return false;
 
   const int result = OSSL_ENCODER_to_data(ctx.get(), &der, &der_len);
@@ -4292,7 +4326,7 @@ bool WriteEncryptedTraditionalPEM(BIO* bio,
   DERView der_view{der_storage.get<const unsigned char>(), der_len};
   return PEM_ASN1_write_bio(
              WriteDERView,
-             PEM_STRING_RSA,
+             label,
              bio,
              &der_view,
              cipher,
@@ -4503,8 +4537,13 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
       const EVP_CIPHER* cipher =
           config.format == PKFormatType::PEM ? config.cipher.get() : nullptr;
       if (cipher != nullptr && passphrase.len == 0) {
-        err =
-            !WriteEncryptedTraditionalPEM(bio.get(), get(), cipher, passphrase);
+        err = !WriteEncryptedTraditionalPEM(bio.get(),
+                                            get(),
+                                            OSSL_KEYMGMT_SELECT_KEYPAIR,
+                                            "pkcs1",
+                                            PEM_STRING_RSA,
+                                            cipher,
+                                            passphrase);
       } else {
         err = !WriteEncodedPKey(bio.get(),
                                 get(),
@@ -4548,11 +4587,26 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
       break;
     }
     case PKEncodingType::PKCS8: {
+      EVP_PKEY* export_key = get();
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+      // OpenSSL's provider EC PKCS8 encoders temporarily change encoding flags.
+      // Use an independent key so concurrent exports do not change the source.
+      EVPKeyPointer key_copy;
+      if ((isA(KeyAlgorithm::EC) || isA(KeyAlgorithm::SM2)) &&
+          EVP_PKEY_get0_provider(get()) != nullptr) {
+        key_copy.reset(EVP_PKEY_dup(get()));
+        if (!key_copy) {
+          return Result<BIOPointer, bool>(false,
+                                          mark_pop_error_on_return.peekError());
+        }
+        export_key = key_copy.get();
+      }
+#endif
       switch (config.format) {
         case PKFormatType::PEM: {
           // Encode PKCS#8 as PEM.
           err = PEM_write_bio_PKCS8PrivateKey(bio.get(),
-                                              get(),
+                                              export_key,
                                               config.cipher,
                                               passphrase.data,
                                               passphrase.len,
@@ -4562,7 +4616,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
         }
         case PKFormatType::DER: {
           err = i2d_PKCS8PrivateKey_bio(bio.get(),
-                                        get(),
+                                        export_key,
                                         config.cipher,
                                         passphrase.data,
                                         passphrase.len,
@@ -4584,13 +4638,23 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
       const EVP_CIPHER* cipher =
           config.format == PKFormatType::PEM ? config.cipher.get() : nullptr;
-      err = !WriteEncodedPKey(bio.get(),
-                              get(),
-                              OSSL_KEYMGMT_SELECT_ALL,
-                              config.format,
-                              "type-specific",
-                              cipher,
-                              passphrase);
+      if (cipher != nullptr && passphrase.len == 0) {
+        err = !WriteEncryptedTraditionalPEM(bio.get(),
+                                            get(),
+                                            OSSL_KEYMGMT_SELECT_ALL,
+                                            "type-specific",
+                                            PEM_STRING_ECPRIVATEKEY,
+                                            cipher,
+                                            passphrase);
+      } else {
+        err = !WriteEncodedPKey(bio.get(),
+                                get(),
+                                OSSL_KEYMGMT_SELECT_ALL,
+                                config.format,
+                                "type-specific",
+                                cipher,
+                                passphrase);
+      }
 #else
 #if OPENSSL_VERSION_MAJOR >= 3
       const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(get());
@@ -4988,11 +5052,7 @@ bool SSLPointer::isServer() const {
 EVPKeyPointer SSLPointer::getPeerTempKey() const {
   if (!ssl_) return {};
   EVP_PKEY* raw_key = nullptr;
-#ifndef OPENSSL_IS_BORINGSSL
   if (!SSL_get_peer_tmp_key(get(), &raw_key)) return {};
-#else
-  if (!SSL_get_server_tmp_key(get(), &raw_key)) return {};
-#endif
   return EVPKeyPointer(raw_key);
 }
 
@@ -5090,13 +5150,57 @@ bool SSLCtxPointer::setGroups(const char* groups) {
 }
 
 bool SSLCtxPointer::setCipherSuites(const char* ciphers) {
-#ifndef OPENSSL_IS_BORINGSSL
   if (!ctx_) return false;
+#ifndef OPENSSL_IS_BORINGSSL
   return SSL_CTX_set_ciphersuites(ctx_.get(), ciphers);
 #else
-  // BoringSSL does not allow API config of TLS 1.3 cipher suites.
-  // We treat this as a non-op.
-  return true;
+  constexpr std::array<uint16_t, 3> supported = {
+      SSL_CIPHER_AES_128_GCM_SHA256,
+      SSL_CIPHER_AES_256_GCM_SHA384,
+      SSL_CIPHER_CHACHA20_POLY1305_SHA256,
+  };
+  std::vector<uint16_t> cipher_ids;
+  std::string_view remaining(ciphers);
+  while (!remaining.empty()) {
+    const size_t end = remaining.find(':');
+    std::string_view name = remaining.substr(0, end);
+    const size_t first = name.find_first_not_of(" \t\n\r\f\v");
+    if (first != std::string_view::npos) {
+      name = name.substr(first);
+      name = name.substr(0, name.find_last_not_of(" \t\n\r\f\v") + 1);
+      for (const auto id : supported) {
+        const SSL_CIPHER* cipher = SSL_get_cipher_by_value(id);
+        if (name == SSL_CIPHER_standard_name(cipher)) {
+          // OpenSSL ignores unknown names and accepts duplicates, while
+          // BoringSSL requires unique protocol IDs.
+          if (std::find(cipher_ids.begin(), cipher_ids.end(), id) ==
+              cipher_ids.end()) {
+            cipher_ids.push_back(id);
+          }
+          break;
+        }
+      }
+    }
+    if (end == std::string_view::npos) break;
+    remaining.remove_prefix(end + 1);
+  }
+  if (*ciphers != '\0' && cipher_ids.empty()) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_NO_CIPHER_MATCH);
+    return false;
+  }
+  std::vector<uint32_t> flags(cipher_ids.size());
+  if (!flags.empty() &&
+      (SSL_CTX_get_options(get()) & SSL_OP_CIPHER_SERVER_PREFERENCE) == 0) {
+    // TLS 1.3 otherwise always uses server preference in BoringSSL. An
+    // equal-preference group lets the client choose from the configured list.
+    std::fill(flags.begin(),
+              flags.end() - 1,
+              SSL_CIPHER_FLAG_EQUAL_PREFERENCE_WITH_NEXT);
+  }
+  // An empty input resets BoringSSL's built-in preference order. The public
+  // TLS API expands empty cipher strings to Node's defaults before this call.
+  return SSL_CTX_set1_tls13_ciphers(
+             get(), cipher_ids.data(), flags.data(), cipher_ids.size()) == 1;
 #endif
 }
 
@@ -6090,8 +6194,10 @@ bool ECKeyPointer::setPublicKeyRaw(const BignumPointer& x,
   if (!buf) return false;
   unsigned char* ptr = static_cast<unsigned char*>(buf.get());
   ptr[0] = POINT_CONVERSION_UNCOMPRESSED;
-  x.encodePaddedInto(ptr + 1, field_len);
-  y.encodePaddedInto(ptr + 1 + field_len, field_len);
+  if (x.encodePaddedInto(ptr + 1, field_len) != field_len ||
+      y.encodePaddedInto(ptr + 1 + field_len, field_len) != field_len) {
+    return false;
+  }
 
   auto point = ECPointPointer::New(group);
   if (!point) return false;
@@ -6319,8 +6425,10 @@ bool ECKeyPointer::setPublicKeyRaw(const BignumPointer& x,
   if (!buf) return false;
   unsigned char* ptr = static_cast<unsigned char*>(buf.get());
   ptr[0] = POINT_CONVERSION_UNCOMPRESSED;
-  x.encodePaddedInto(ptr + 1, field_len);
-  y.encodePaddedInto(ptr + 1 + field_len, field_len);
+  if (x.encodePaddedInto(ptr + 1, field_len) != field_len ||
+      y.encodePaddedInto(ptr + 1 + field_len, field_len) != field_len) {
+    return false;
+  }
 
   auto point = ECPointPointer::New(group_.get());
   if (!point || !point.setFromBuffer({ptr, uncompressed_len}, group_.get())) {
@@ -7530,6 +7638,24 @@ point_conversion_form_t Ec::getPointConversionForm() const {
 
 int Ec::getCurve() const {
   return EC_GROUP_get_curve_name(getGroup());
+}
+
+BIOPointer Ec::ExportPrivatePkcs8(const EVPKeyPointer& key) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (!key || !key.isA(KeyAlgorithm::EC)) return {};
+  auto ec = ECKeyPointer(key).clone();
+  if (!ec) return {};
+#if NCRYPTO_USE_LEGACY_KEY_TYPES
+  // Decoding an ECPrivateKey without publicKey reconstructs the public point
+  // but retains a flag that omits it from subsequent encodings.
+  EC_KEY_set_enc_flags(ec.get(),
+                       EC_KEY_get_enc_flags(ec.get()) & ~EC_PKEY_NO_PUBKEY);
+#endif
+  auto export_key = EVPKeyPointer::New();
+  if (!export_key || !export_key.set(ec)) return {};
+  auto encoded = export_key.writePrivateKey({});
+  if (!encoded) return {};
+  return std::move(encoded.value);
 }
 
 DataPointer Ec::TryExportPublic(const EVPKeyPointer& key,

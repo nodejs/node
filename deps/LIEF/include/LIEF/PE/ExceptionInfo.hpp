@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,17 +49,16 @@ class LIEF_API ExceptionInfo {
   /// Arch discriminator for the subclasses
   enum class ARCH {
     UNKNOWN = 0,
-    ARM64, X86_64
+    ARM64,
+    X86_64,
   };
 
   ExceptionInfo(ARCH arch, uint64_t rva) :
     arch_(arch),
-    rva_(rva)
-  {}
+    rva_(rva) {}
 
   ExceptionInfo(ARCH arch) :
-    ExceptionInfo(arch, /*rva=*/0)
-  {}
+    ExceptionInfo(arch, /*rva=*/0) {}
 
   /// Target architecture of this exception
   ARCH arch() const {
@@ -97,14 +96,13 @@ class LIEF_API ExceptionInfo {
     return const_cast<ExceptionInfo*>(this)->as<T>();
   }
 
-  /// \private
+  /// @private
   void offset(uint64_t value) {
     offset_ = value;
   }
 
-  LIEF_API friend
-    std::ostream& operator<<(std::ostream& os, const ExceptionInfo& info)
-  {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const ExceptionInfo& info) {
     os << info.to_string();
     return os;
   }

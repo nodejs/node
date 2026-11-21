@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,10 +29,10 @@
 namespace LIEF {
 namespace VDEX {
 
-/// Check if the given file is an VDEX one.
+/// Check if the given file is a VDEX one.
 LIEF_API bool is_vdex(const std::string& file);
 
-/// Check if the given raw data is an VDEX one.
+/// Check if the given raw data is a VDEX one.
 LIEF_API bool is_vdex(const std::vector<uint8_t>& raw);
 
 /// Return the VDEX version of the given file

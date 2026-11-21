@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,13 +29,11 @@ class LIEF_API SpcRelaxedPeMarkerCheck : public Attribute {
 
   public:
   SpcRelaxedPeMarkerCheck() :
-    SpcRelaxedPeMarkerCheck(0)
-  {}
+    SpcRelaxedPeMarkerCheck(0) {}
 
   SpcRelaxedPeMarkerCheck(uint32_t value) :
     Attribute(Attribute::TYPE::SPC_RELAXED_PE_MARKER_CHECK),
-    value_(value)
-  {}
+    value_(value) {}
 
   SpcRelaxedPeMarkerCheck(const SpcRelaxedPeMarkerCheck&) = default;
   SpcRelaxedPeMarkerCheck& operator=(const SpcRelaxedPeMarkerCheck&) = default;

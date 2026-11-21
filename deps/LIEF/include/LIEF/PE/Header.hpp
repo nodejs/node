@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ class LIEF_API Header : public Object {
   public:
   using signature_t = std::array<uint8_t, /* PE Magic */ 4>;
 
+  // clang-format off
   enum class MACHINE_TYPES {
     UNKNOWN     = 0x0,
     ALPHA       = 0x184 , /**< Alpha AXP, 32-bit address space */
@@ -72,40 +73,35 @@ class LIEF_API Header : public Object {
     ARM64X      = 0xa64e,
     CHPE_X86    = 0x3a64,
   };
+  // clang-format on
 
   static bool is_known_machine(uint16_t machine);
 
   static bool is_arm(MACHINE_TYPES ty) {
     switch (ty) {
-      default:
-        return false;
+      default: return false;
       case MACHINE_TYPES::ARM:
       case MACHINE_TYPES::THUMB:
-      case MACHINE_TYPES::ARMNT:
-        return true;
+      case MACHINE_TYPES::ARMNT: return true;
     }
     return false;
   }
 
   static bool is_riscv(MACHINE_TYPES ty) {
     switch (ty) {
-      default:
-        return false;
+      default: return false;
       case MACHINE_TYPES::RISCV32:
       case MACHINE_TYPES::RISCV64:
-      case MACHINE_TYPES::RISCV128:
-        return true;
+      case MACHINE_TYPES::RISCV128: return true;
     }
     return false;
   }
 
   static bool is_loonarch(MACHINE_TYPES ty) {
     switch (ty) {
-      default:
-        return false;
+      default: return false;
       case MACHINE_TYPES::LOONGARCH32:
-      case MACHINE_TYPES::LOONGARCH64:
-        return true;
+      case MACHINE_TYPES::LOONGARCH64: return true;
     }
     return false;
   }
@@ -129,47 +125,75 @@ class LIEF_API Header : public Object {
 
   static bool is_mips(MACHINE_TYPES ty) {
     switch (ty) {
-      default:
-        return false;
+      default: return false;
       case MACHINE_TYPES::MIPS16:
       case MACHINE_TYPES::MIPSFPU:
       case MACHINE_TYPES::MIPSFPU16:
       case MACHINE_TYPES::R4000:
-      case MACHINE_TYPES::WCEMIPSV2:
-        return true;
+      case MACHINE_TYPES::WCEMIPSV2: return true;
     }
     return false;
   }
 
   static bool is_ppc(MACHINE_TYPES ty) {
     switch (ty) {
-      default:
-        return false;
+      default: return false;
       case MACHINE_TYPES::POWERPC:
       case MACHINE_TYPES::POWERPCFP:
-      case MACHINE_TYPES::POWERPCBE:
-        return true;
+      case MACHINE_TYPES::POWERPCBE: return true;
     }
     return false;
   }
 
   enum class CHARACTERISTICS {
-    NONE                    = 0x0000,
-    RELOCS_STRIPPED         = 0x0001, /**< The file does not contain base relocations and must be loaded at its preferred base. If this cannot be done, the loader will error.*/
-    EXECUTABLE_IMAGE        = 0x0002, /**< File is executable (i.e. no unresolved externel references). */
-    LINE_NUMS_STRIPPED      = 0x0004, /**< COFF line numbers have been stripped. This is deprecated and should be 0 */
-    LOCAL_SYMS_STRIPPED     = 0x0008, /**< COFF symbol table entries for local symbols have been removed. This is deprecated and should be 0.*/
-    AGGRESSIVE_WS_TRIM      = 0x0010, /**< Aggressively trim working set. This is deprecated and must be 0. */
-    LARGE_ADDRESS_AWARE     = 0x0020, /**< Image can handle > 2GiB addresses. */
-    BYTES_REVERSED_LO       = 0x0080, /**< Little endian: the LSB precedes the MSB in memory. This is deprecated and should be 0.*/
-    NEED_32BIT_MACHINE      = 0x0100, /**< Machine is based on a 32bit word architecture. */
-    DEBUG_STRIPPED          = 0x0200, /**< Debugging info has been removed. */
-    REMOVABLE_RUN_FROM_SWAP = 0x0400, /**< If the image is on removable media, fully load it and copy it to swap. */
-    NET_RUN_FROM_SWAP       = 0x0800, /**< If the image is on network media, fully load it and copy it to swap. */
-    SYSTEM                  = 0x1000, /**< The image file is a system file, not a user program.*/
-    DLL                     = 0x2000, /**< The image file is a DLL. */
-    UP_SYSTEM_ONLY          = 0x4000, /**< This file should only be run on a uniprocessor machine. */
-    BYTES_REVERSED_HI       = 0x8000  /**< Big endian: the MSB precedes the LSB in memory. This is deprecated */
+    NONE = 0x0000,
+    /// The file does not contain base relocations and must be loaded at its
+    /// preferred base. If this cannot be done, the loader will error.
+    RELOCS_STRIPPED = 0x0001,
+
+    /// File is executable (i.e. no unresolved external references).
+    EXECUTABLE_IMAGE = 0x0002,
+
+    /// COFF line numbers have been stripped. This is deprecated and should be 0
+    LINE_NUMS_STRIPPED = 0x0004,
+
+    /// COFF symbol table entries for local symbols have been removed. This is
+    /// deprecated and should be 0.
+    LOCAL_SYMS_STRIPPED = 0x0008,
+
+    /// Aggressively trim working set. This is deprecated and must be 0.
+    AGGRESSIVE_WS_TRIM = 0x0010,
+
+    /// Image can handle > 2GiB addresses.
+    LARGE_ADDRESS_AWARE = 0x0020,
+
+    /// Little endian: the LSB precedes the MSB in memory. This is deprecated and
+    /// should be 0.
+    BYTES_REVERSED_LO = 0x0080,
+
+    /// Machine is based on a 32bit word architecture.
+    NEED_32BIT_MACHINE = 0x0100,
+
+    /// Debugging info has been removed.
+    DEBUG_STRIPPED = 0x0200,
+
+    /// If the image is on removable media, fully load it and copy it to swap.
+    REMOVABLE_RUN_FROM_SWAP = 0x0400,
+
+    /// If the image is on network media, fully load it and copy it to swap.
+    NET_RUN_FROM_SWAP = 0x0800,
+
+    /// The image file is a system file, not a user program.
+    SYSTEM = 0x1000,
+
+    /// The image file is a DLL.
+    DLL = 0x2000,
+
+    /// This file should only be run on a uniprocessor machine.
+    UP_SYSTEM_ONLY = 0x4000,
+
+    /// Big endian: the MSB precedes the LSB in memory. This is deprecated
+    BYTES_REVERSED_HI = 0x8000,
   };
   static Header create(PE_TYPE type);
 
@@ -202,22 +226,26 @@ class LIEF_API Header : public Object {
 
   /// The offset of the **COFF** symbol table.
   ///
-  /// This value should be zero for an image because COFF debugging information is deprecated.
+  /// This value should be zero for an image because COFF debugging information is
+  /// deprecated.
   uint32_t pointerto_symbol_table() const {
     return pointerto_symtab_;
   }
 
-  /// The number of entries in the symbol table. This data can be used to locate the string table
-  /// which immediately follows the symbol table.
+  /// The number of entries in the symbol table. This data can be used to locate
+  /// the string table which immediately follows the symbol table.
   ///
-  /// This value should be zero for an image because COFF debugging information is deprecated.
+  /// This value should be zero for an image because COFF debugging information is
+  /// deprecated.
   uint32_t numberof_symbols() const {
     return nb_symbols_;
   }
 
-  /// Size of the OptionalHeader **AND** the data directories which follows this header.
+  /// Size of the OptionalHeader **AND** the data directories which follows this
+  /// header.
   ///
-  /// This value is equivalent to: ``sizeof(pe_optional_header) + NB_DATA_DIR * sizeof(data_directory)``
+  /// This value is equivalent to: ``sizeof(pe_optional_header) + NB_DATA_DIR *
+  /// sizeof(data_directory)``
   ///
   /// This size **should** be either:
   /// * 0xE0 (224) for a PE32  (32 bits)
@@ -283,7 +311,7 @@ class LIEF_API Header : public Object {
 
   LIEF_API friend std::ostream& operator<<(std::ostream& os, const Header& entry);
 
-  /// \private
+  /// @private
   LIEF_LOCAL Header() = default;
 
   private:

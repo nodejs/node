@@ -4,7 +4,7 @@
 #pragma once
 
 #ifndef SPDLOG_HEADER_ONLY
-    #include <spdlog/details/thread_pool.h>
+#include <spdlog/details/thread_pool.h>
 #endif
 
 #include <cassert>
@@ -35,7 +35,7 @@ SPDLOG_INLINE thread_pool::thread_pool(size_t q_max_items,
 SPDLOG_INLINE thread_pool::thread_pool(size_t q_max_items,
                                        size_t threads_n,
                                        std::function<void()> on_thread_start)
-    : thread_pool(q_max_items, threads_n, on_thread_start, [] {}) {}
+    : thread_pool(q_max_items, threads_n, std::move(on_thread_start), [] {}) {}
 
 SPDLOG_INLINE thread_pool::thread_pool(size_t q_max_items, size_t threads_n)
     : thread_pool(q_max_items, threads_n, [] {}, [] {}) {}
@@ -94,8 +94,7 @@ void SPDLOG_INLINE thread_pool::worker_loop_() {
 }
 
 // process next message in the queue
-// return true if this thread should still be active (while no terminate msg
-// was received)
+// returns true if this thread should still be active (while no terminated msg was received)
 bool SPDLOG_INLINE thread_pool::process_next_msg_() {
     async_msg incoming_async_msg;
     q_.dequeue(incoming_async_msg);

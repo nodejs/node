@@ -415,6 +415,18 @@ assert.strictEqual(qs.unescapeBuffer('a%%').toString(), 'a%%');
 // Test invalid encoded string
 check(qs.parse('%\u0100=%\u0101'), { '%Ā': '%ā' });
 
+// Test encoded key with unencoded value
+{
+  const input = '%C3%A4=caf\u00e9%';
+
+  check(
+    qs.parse(input),
+    { '\u00e4': 'caf\u00e9%' });
+  check(
+    qs.parse(input, null, null),
+    { '\u00e4': 'caf\u00e9%' });
+}
+
 // Test custom decode
 {
   function demoDecode(str) {

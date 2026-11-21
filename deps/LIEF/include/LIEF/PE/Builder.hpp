@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 #ifndef LIEF_PE_BUILDER_H
 #define LIEF_PE_BUILDER_H
 
-#include <cstring>
 #include <string>
 #include <vector>
 #include <functional>
@@ -65,7 +64,7 @@ class LIEF_API Builder {
     bool exports = false;
 
     /// Whether the builder should regenerate the resources tree
-    bool resources =  true;
+    bool resources = true;
 
     /// Whether the builder should regenerate relocations
     bool relocations = true;
@@ -106,18 +105,17 @@ class LIEF_API Builder {
     std::string debug_section = ".debug";
 
     using resolved_iat_cbk_t =
-      std::function<void(Binary*, const Import*, const ImportEntry*, uint32_t)>;
+        std::function<void(Binary*, const Import*, const ImportEntry*, uint32_t)>;
     resolved_iat_cbk_t resolved_iat_cbk = nullptr;
 
-    /// \private
+    /// @private
     bool force_relocating = false;
   };
 
   Builder() = delete;
-  Builder(Binary& binary, const config_t& config) :
+  Builder(Binary& binary, config_t config) :
     binary_(&binary),
-    config_(config)
-  {}
+    config_(std::move(config)) {}
 
   ~Builder();
 
@@ -187,14 +185,15 @@ class LIEF_API Builder {
   static ok_error_t compute_resources_size(const ResourceNode& node,
                                            rsrc_sizing_info_t& info);
 
-  static ok_error_t construct_resource(
-      vector_iostream& ios, ResourceNode& node, rsrc_build_context_t& ctx);
+  static ok_error_t construct_resource(vector_iostream& ios, ResourceNode& node,
+                                       rsrc_build_context_t& ctx);
 
-  static ok_error_t construct_resource(
-      vector_iostream& ios, ResourceDirectory& dir, rsrc_build_context_t& ctx);
+  static ok_error_t construct_resource(vector_iostream& ios,
+                                       ResourceDirectory& dir,
+                                       rsrc_build_context_t& ctx);
 
-  static ok_error_t construct_resource(
-      vector_iostream& ios, ResourceData& dir, rsrc_build_context_t& ctx);
+  static ok_error_t construct_resource(vector_iostream& ios, ResourceData& dir,
+                                       rsrc_build_context_t& ctx);
 
   mutable vector_iostream ios_;
   Binary* binary_ = nullptr;

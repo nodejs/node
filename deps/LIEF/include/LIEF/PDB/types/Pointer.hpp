@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 #ifndef LIEF_PDB_TYPE_POINTER_H
 #define LIEF_PDB_TYPE_POINTER_H
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/PDB/Type.hpp"
 
@@ -25,14 +26,18 @@ namespace types {
 /// This class represents a `LF_POINTER` PDB type
 class LIEF_API Pointer : public Type {
   public:
-  using Type::Type;
+  template<typename... Args,
+           typename = typename std::
+               enable_if<std::is_constructible<Type, Args&&...>::value>::type>
+  Pointer(Args&&... args) :
+    Type(std::forward<Args>(args)...) {}
 
   static bool classof(const Type* type) {
     return type->kind() == Type::KIND::POINTER;
   }
 
   /// The underlying type pointed by this pointer
-  std::unique_ptr<Type> underlying_type() const;
+  std::unique_ptr<Type> underlying_type() const LIEF_LIFETIMEBOUND;
 
   ~Pointer() override;
 };
@@ -41,5 +46,3 @@ class LIEF_API Pointer : public Type {
 }
 }
 #endif
-
-

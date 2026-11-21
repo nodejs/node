@@ -5,21 +5,21 @@
 
 #if defined(_WIN32)
 
-    #include <spdlog/details/null_mutex.h>
-    #if defined(SPDLOG_WCHAR_TO_UTF8_SUPPORT)
-        #include <spdlog/details/os.h>
-    #endif
-    #include <spdlog/sinks/base_sink.h>
+#include <spdlog/details/null_mutex.h>
+#if defined(SPDLOG_WCHAR_TO_UTF8_SUPPORT)
+#include <spdlog/details/os.h>
+#endif
+#include <spdlog/sinks/base_sink.h>
 
-    #include <mutex>
-    #include <string>
+#include <mutex>
+#include <string>
 
-    // Avoid including windows.h (https://stackoverflow.com/a/30741042)
-    #if defined(SPDLOG_WCHAR_TO_UTF8_SUPPORT)
+// Avoid including windows.h (https://stackoverflow.com/a/30741042)
+#if defined(SPDLOG_WCHAR_TO_UTF8_SUPPORT)
 extern "C" __declspec(dllimport) void __stdcall OutputDebugStringW(const wchar_t *lpOutputString);
-    #else
+#else
 extern "C" __declspec(dllimport) void __stdcall OutputDebugStringA(const char *lpOutputString);
-    #endif
+#endif
 extern "C" __declspec(dllimport) int __stdcall IsDebuggerPresent();
 
 namespace spdlog {
@@ -42,13 +42,13 @@ protected:
         memory_buf_t formatted;
         base_sink<Mutex>::formatter_->format(msg, formatted);
         formatted.push_back('\0');  // add a null terminator for OutputDebugString
-    #if defined(SPDLOG_WCHAR_TO_UTF8_SUPPORT)
+#if defined(SPDLOG_WCHAR_TO_UTF8_SUPPORT)
         wmemory_buf_t wformatted;
         details::os::utf8_to_wstrbuf(string_view_t(formatted.data(), formatted.size()), wformatted);
         OutputDebugStringW(wformatted.data());
-    #else
+#else
         OutputDebugStringA(formatted.data());
-    #endif
+#endif
     }
 
     void flush_() override {}

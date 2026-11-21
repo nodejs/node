@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@
 #include "LIEF/errors.hpp"
 
 #include "LIEF/PE/signature/Signature.hpp"
-#include "LIEF/PE/signature/OIDToString.hpp"
 
 namespace LIEF {
 class BinaryStream;
@@ -57,7 +56,8 @@ class LIEF_API SignatureParser {
   using time_t = std::array<int32_t, 6>;
 
   /// Parse a PKCS #7 signature given a raw blob
-  static result<Signature> parse(std::vector<uint8_t> data, bool skip_header = false);
+  static result<Signature> parse(std::vector<uint8_t> data,
+                                 bool skip_header = false);
 
   /// Parse a PKCS #7 signature given a BinaryStream
   static result<Signature> parse(BinaryStream& stream, bool skip_header = false);
@@ -66,37 +66,46 @@ class LIEF_API SignatureParser {
   static result<Signature> parse(const std::string& path);
   SignatureParser(const SignatureParser&) = delete;
   SignatureParser& operator=(const SignatureParser&) = delete;
-  private:
 
+  private:
   ~SignatureParser() = default;
   SignatureParser() = default;
 
   static result<Signature> parse_signature(BinaryStream& stream);
 
-  static result<ContentInfo> parse_content_info(BinaryStream& stream, range_t& range);
+  static result<ContentInfo> parse_content_info(BinaryStream& stream,
+                                                range_t& range);
   static result<x509_certificates_t> parse_certificates(BinaryStream& stream);
   static result<signer_infos_t> parse_signer_infos(BinaryStream& stream);
   static result<attributes_t> parse_attributes(BinaryStream& stream);
-  static result<std::unique_ptr<Attribute>> parse_content_type(BinaryStream& stream);
+  static result<std::unique_ptr<Attribute>>
+      parse_content_type(BinaryStream& stream);
 
   static result<signer_infos_t> parse_pkcs9_counter_sign(BinaryStream& stream);
-  static result<std::vector<uint8_t>> parse_pkcs9_message_digest(BinaryStream& stream);
+  static result<std::vector<uint8_t>>
+      parse_pkcs9_message_digest(BinaryStream& stream);
   static result<int32_t> parse_pkcs9_at_sequence_number(BinaryStream& stream);
   static result<time_t> parse_pkcs9_signing_time(BinaryStream& stream);
-  static result<std::unique_ptr<PKCS9TSTInfo>> parse_pkcs9_tstinfo(BinaryStream& stream);
+  static result<std::unique_ptr<PKCS9TSTInfo>>
+      parse_pkcs9_tstinfo(BinaryStream& stream);
 
-  static result<std::unique_ptr<Attribute>> parse_ms_counter_sign(BinaryStream& stream);
+  static result<std::unique_ptr<Attribute>>
+      parse_ms_counter_sign(BinaryStream& stream);
   static result<Signature> parse_ms_spc_nested_signature(BinaryStream& stream);
   static result<oid_t> parse_ms_spc_statement_type(BinaryStream& stream);
   static result<SpcSpOpusInfo> parse_spc_sp_opus_info(BinaryStream& stream);
   static result<std::string> parse_spc_string(BinaryStream& stream);
   static result<std::string> parse_spc_link(BinaryStream& stream);
-  static result<std::unique_ptr<Attribute>> parse_spc_relaxed_pe_marker_check(BinaryStream& stream);
+  static result<std::unique_ptr<Attribute>>
+      parse_spc_relaxed_pe_marker_check(BinaryStream& stream);
   static result<SpcPeImageData> parse_spc_pe_image_data(BinaryStream& stream);
-  static result<std::unique_ptr<SpcIndirectData>> parse_spc_indirect_data(BinaryStream& stream, range_t& range);
-  static result<std::unique_ptr<Attribute>> parse_ms_platform_manifest_binary_id(BinaryStream& stream);
+  static result<std::unique_ptr<SpcIndirectData>>
+      parse_spc_indirect_data(BinaryStream& stream, range_t& range);
+  static result<std::unique_ptr<Attribute>>
+      parse_ms_platform_manifest_binary_id(BinaryStream& stream);
 
-  static result<std::unique_ptr<Attribute>> parse_signing_certificate_v2(BinaryStream& stream);
+  static result<std::unique_ptr<Attribute>>
+      parse_signing_certificate_v2(BinaryStream& stream);
 };
 
 }

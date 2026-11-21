@@ -1,4 +1,4 @@
-/* Copyright 2021 - 2025 R. Thomas
+/* Copyright 2021 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 #include "LIEF/config.h"
 
 #ifndef LIEF_EXTERNAL_UTF8CPP
-#include <internal/utfcpp/utf8/unchecked.h>
+  #include <internal/utfcpp/utf8/unchecked.h>
 #else
-#include <utf8/unchecked.h>
+  #include <utf8/unchecked.h>
 #endif
 
 #endif

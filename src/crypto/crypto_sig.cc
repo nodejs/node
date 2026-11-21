@@ -3,7 +3,6 @@
 #include "base_object-inl.h"
 #include "crypto/crypto_ec.h"
 #include "crypto/crypto_keys.h"
-#include "crypto/crypto_pqc.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
@@ -713,7 +712,6 @@ Maybe<void> SignTraits::AdditionalConfig(
     }
     // If this is an EC key (assuming ECDSA) we need to convert the
     // the signature from WebCrypto format into DER format...
-    Mutex::ScopedLock lock(params->key.mutex());
     const auto& akey = params->key.GetAsymmetricKey();
     if (UseP1363Encoding(akey, params->dsa_encoding)) {
       params->signature = ConvertSignatureToDER(akey, signature.ToByteSource());

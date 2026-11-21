@@ -55,6 +55,16 @@ inline auto write_loc(basic_appender<wchar_t> out, loc_value value,
 #endif
   return false;
 }
+
+template <typename Char>
+void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
+                basic_format_args<buffered_context<Char>> args,
+                locale_ref loc = {}) {
+  static_assert(!std::is_same<Char, char>::value, "");
+  auto out = basic_appender<Char>(buf);
+  parse_format_string(
+      fmt, format_handler<Char>{parse_context<Char>(fmt), {out, args, loc}});
+}
 }  // namespace detail
 
 FMT_BEGIN_EXPORT
@@ -112,10 +122,6 @@ inline auto runtime(wstring_view s) -> runtime_format_string<wchar_t> {
   return {{s}};
 }
 
-#ifdef __cpp_char8_t
-template <> struct is_char<char8_t> : bool_constant<detail::is_utf8_enabled> {};
-#endif
-
 template <typename... T>
 constexpr auto make_wformat_args(T&... args)
     -> decltype(fmt::make_format_args<wformat_context>(args...)) {
@@ -151,13 +157,13 @@ auto join(std::initializer_list<T> list, wstring_view sep)
 
 template <typename Tuple, FMT_ENABLE_IF(is_tuple_like<Tuple>::value)>
 auto join(const Tuple& tuple, basic_string_view<wchar_t> sep)
-    -> tuple_join_view<wchar_t, Tuple> {
+    -> tuple_join_view<Tuple, wchar_t> {
   return {tuple, sep};
 }
 
 template <typename Char, FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
 auto vformat(basic_string_view<Char> fmt,
-             typename detail::vformat_args<Char>::type args)
+             basic_format_args<buffered_context<Char>> args)
     -> std::basic_string<Char> {
   auto buf = basic_memory_buffer<Char>();
   detail::vformat_to(buf, fmt, args);
@@ -187,24 +193,20 @@ auto format(const S& fmt, T&&... args) -> std::basic_string<Char> {
                  fmt::make_format_args<buffered_context<Char>>(args...));
 }
 
-template <typename Locale, typename S,
-          typename Char = detail::format_string_char_t<S>,
-          FMT_ENABLE_IF(detail::is_locale<Locale>::value&&
-                            detail::is_exotic_char<Char>::value)>
-inline auto vformat(const Locale& loc, const S& fmt,
-                    typename detail::vformat_args<Char>::type args)
+template <typename S, typename Char = detail::format_string_char_t<S>,
+          FMT_ENABLE_IF(detail::is_exotic_char<Char>::value)>
+inline auto vformat(locale_ref loc, const S& fmt,
+                    basic_format_args<buffered_context<Char>> args)
     -> std::basic_string<Char> {
   auto buf = basic_memory_buffer<Char>();
-  detail::vformat_to(buf, detail::to_string_view(fmt), args,
-                     detail::locale_ref(loc));
+  detail::vformat_to(buf, detail::to_string_view(fmt), args, loc);
   return {buf.data(), buf.size()};
 }
 
-template <typename Locale, typename S, typename... T,
+template <typename S, typename... T,
           typename Char = detail::format_string_char_t<S>,
-          FMT_ENABLE_IF(detail::is_locale<Locale>::value&&
-                            detail::is_exotic_char<Char>::value)>
-inline auto format(const Locale& loc, const S& fmt, T&&... args)
+          FMT_ENABLE_IF(detail::is_exotic_char<Char>::value)>
+inline auto format(locale_ref loc, const S& fmt, T&&... args)
     -> std::basic_string<Char> {
   return vformat(loc, detail::to_string_view(fmt),
                  fmt::make_format_args<buffered_context<Char>>(args...));
@@ -215,7 +217,7 @@ template <typename OutputIt, typename S,
           FMT_ENABLE_IF(detail::is_output_iterator<OutputIt, Char>::value&&
                             detail::is_exotic_char<Char>::value)>
 auto vformat_to(OutputIt out, const S& fmt,
-                typename detail::vformat_args<Char>::type args) -> OutputIt {
+                basic_format_args<buffered_context<Char>> args) -> OutputIt {
   auto&& buf = detail::get_buffer<Char>(out);
   detail::vformat_to(buf, detail::to_string_view(fmt), args);
   return detail::get_iterator(buf, out);
@@ -231,27 +233,24 @@ inline auto format_to(OutputIt out, const S& fmt, T&&... args) -> OutputIt {
                     fmt::make_format_args<buffered_context<Char>>(args...));
 }
 
-template <typename Locale, typename S, typename OutputIt, typename... Args,
+template <typename S, typename OutputIt, typename... Args,
           typename Char = detail::format_string_char_t<S>,
           FMT_ENABLE_IF(detail::is_output_iterator<OutputIt, Char>::value&&
-                            detail::is_locale<Locale>::value&&
-                                detail::is_exotic_char<Char>::value)>
-inline auto vformat_to(OutputIt out, const Locale& loc, const S& fmt,
-                       typename detail::vformat_args<Char>::type args)
+                            detail::is_exotic_char<Char>::value)>
+inline auto vformat_to(OutputIt out, locale_ref loc, const S& fmt,
+                       basic_format_args<buffered_context<Char>> args)
     -> OutputIt {
   auto&& buf = detail::get_buffer<Char>(out);
-  vformat_to(buf, detail::to_string_view(fmt), args, detail::locale_ref(loc));
+  vformat_to(buf, detail::to_string_view(fmt), args, loc);
   return detail::get_iterator(buf, out);
 }
 
-template <typename Locale, typename OutputIt, typename S, typename... T,
+template <typename OutputIt, typename S, typename... T,
           typename Char = detail::format_string_char_t<S>,
           bool enable = detail::is_output_iterator<OutputIt, Char>::value &&
-                        detail::is_locale<Locale>::value &&
                         detail::is_exotic_char<Char>::value>
-inline auto format_to(OutputIt out, const Locale& loc, const S& fmt,
-                      T&&... args) ->
-    typename std::enable_if<enable, OutputIt>::type {
+inline auto format_to(OutputIt out, locale_ref loc, const S& fmt, T&&... args)
+    -> typename std::enable_if<enable, OutputIt>::type {
   return vformat_to(out, loc, detail::to_string_view(fmt),
                     fmt::make_format_args<buffered_context<Char>>(args...));
 }
@@ -260,7 +259,7 @@ template <typename OutputIt, typename Char, typename... Args,
           FMT_ENABLE_IF(detail::is_output_iterator<OutputIt, Char>::value&&
                             detail::is_exotic_char<Char>::value)>
 inline auto vformat_to_n(OutputIt out, size_t n, basic_string_view<Char> fmt,
-                         typename detail::vformat_args<Char>::type args)
+                         basic_format_args<buffered_context<Char>> args)
     -> format_to_n_result<OutputIt> {
   using traits = detail::fixed_buffer_traits;
   auto buf = detail::iterator_buffer<OutputIt, Char, traits>(out, n);
@@ -329,18 +328,6 @@ template <typename... T>
 inline auto format(text_style ts, wformat_string<T...> fmt, T&&... args)
     -> std::wstring {
   return fmt::vformat(ts, fmt, fmt::make_wformat_args(args...));
-}
-
-template <typename... T>
-FMT_DEPRECATED void print(std::FILE* f, text_style ts, wformat_string<T...> fmt,
-                          const T&... args) {
-  vprint(f, ts, fmt, fmt::make_wformat_args(args...));
-}
-
-template <typename... T>
-FMT_DEPRECATED void print(text_style ts, wformat_string<T...> fmt,
-                          const T&... args) {
-  return print(stdout, ts, fmt, args...);
 }
 
 inline void vprint(std::wostream& os, wstring_view fmt, wformat_args args) {

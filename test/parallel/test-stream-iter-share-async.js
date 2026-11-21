@@ -380,6 +380,27 @@ async function testShareLateJoiningConsumer() {
   assert.strictEqual(data2, '');
 }
 
+async function testShareRetainsBufferWhenAllConsumersDetach() {
+  // Data that a consumer had not read yet must stay available to consumers
+  // that attach after every previous consumer has detached.
+  const enc = new TextEncoder();
+  async function* gen() {
+    yield [enc.encode('a')];
+    yield [enc.encode('b')];
+    yield [enc.encode('c')];
+  }
+  const shared = share(gen(), { budget: 16384 });
+  const c1 = shared.pull()[Symbol.asyncIterator]();
+  const c2 = shared.pull()[Symbol.asyncIterator]();
+  assert.deepStrictEqual((await c1.next()).value, [enc.encode('a')]);
+  // c2 has not read 'a' yet; it is the last consumer to detach.
+  await c1.return();
+  await c2.return();
+  assert.strictEqual(shared.consumerCount, 0);
+
+  assert.strictEqual(await text(shared.pull()), 'abc');
+}
+
 async function testShareConsumerBreak() {
   // Verify that a consumer breaking mid-iteration detaches properly
   const enc = new TextEncoder();
@@ -474,6 +495,7 @@ Promise.all([
   testShareSourceError(),
   testShareSourceErrorFollowsBufferedData(),
   testShareLateJoiningConsumer(),
+  testShareRetainsBufferWhenAllConsumersDetach(),
   testShareConsumerBreak(),
   testShareMultipleConsumersConcurrentPull(),
   testShareConsumerConcurrentNextCalls(),

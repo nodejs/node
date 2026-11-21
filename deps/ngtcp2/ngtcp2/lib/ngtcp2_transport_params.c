@@ -586,10 +586,15 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       if (decode_varint_param(&params->max_idle_timeout, &p, end) != 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
+      /* Because we multiply the value by NGTCP2_MILLISECONDS, the
+         maximum max_idle_timeout is 18446744073709ms ~= 213504 days.
+         If it is larger than that, it is truncated. */
       if (params->max_idle_timeout > UINT64_MAX / NGTCP2_MILLISECONDS) {
-        params->max_idle_timeout = UINT64_MAX;
+        params->max_idle_timeout =
+          UINT64_MAX / NGTCP2_MILLISECONDS * NGTCP2_MILLISECONDS;
+      } else {
+        params->max_idle_timeout *= NGTCP2_MILLISECONDS;
       }
-      params->max_idle_timeout *= NGTCP2_MILLISECONDS;
       break;
     case NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE:
       if (decode_varint_param(&params->max_udp_payload_size, &p, end) != 0) {

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 #include <ostream>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/ELF/enums.hpp"
 #include "LIEF/ELF/Note.hpp"
@@ -30,19 +31,19 @@ namespace ELF {
 class LIEF_API CorePrPsInfo : public Note {
   public:
   struct info_t {
-    uint8_t state = 0;    /// Numeric process state
-    char sname = ' ';     /// printable character representing state
-    bool zombie = false;  /// Whether the process is a zombie
-    uint8_t nice = 0;     /// Nice value
-    uint64_t flag = 0;    /// Process flag
-    uint32_t uid = 0;     /// Process user ID
-    uint32_t gid = 0;     /// Process group ID
-    uint32_t pid = 0;     /// Process ID
-    uint32_t ppid = 0;    /// Process parent ID
-    uint32_t pgrp = 0;    /// Process group
-    uint32_t sid = 0;     /// Process session id
-    std::string filename; /// Filename of the executable
-    std::string args;     /// Initial part of the arguments
+    uint8_t state = 0;    ///< Numeric process state
+    char sname = ' ';     ///< Printable character representing state
+    bool zombie = false;  ///< Whether the process is a zombie
+    uint8_t nice = 0;     ///< Nice value
+    uint64_t flag = 0;    ///< Process flag
+    uint32_t uid = 0;     ///< Process user ID
+    uint32_t gid = 0;     ///< Process group ID
+    uint32_t pid = 0;     ///< Process ID
+    uint32_t ppid = 0;    ///< Process parent ID
+    uint32_t pgrp = 0;    ///< Process group
+    uint32_t sid = 0;     ///< Process session ID
+    std::string filename; ///< Filename of the executable
+    std::string args;     ///< Initial part of the arguments
 
     /// Return the filename without the ending `\x00`
     std::string filename_stripped() const {
@@ -54,11 +55,11 @@ class LIEF_API CorePrPsInfo : public Note {
       return args.c_str();
     }
   };
-  CorePrPsInfo(ARCH arch, Header::CLASS cls, std::string name,
-               uint32_t type, description_t description) :
+  CorePrPsInfo(ARCH arch, Header::CLASS cls, std::string name, uint32_t type,
+               description_t description) :
     Note(std::move(name), TYPE::CORE_PRPSINFO, type, std::move(description), ""),
-    arch_(arch), class_(cls)
-  {}
+    arch_(arch),
+    class_(cls) {}
 
   std::unique_ptr<Note> clone() const override {
     return std::unique_ptr<Note>(new CorePrPsInfo(*this));
@@ -78,17 +79,18 @@ class LIEF_API CorePrPsInfo : public Note {
 
   ~CorePrPsInfo() override = default;
 
-  LIEF_API friend
-  std::ostream& operator<<(std::ostream& os, const CorePrPsInfo& note) {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const CorePrPsInfo& note) {
     note.dump(os);
     return os;
   }
+
   private:
-  [[maybe_unused]] ARCH arch_ = ARCH::NONE;
+  LIEF_MAYBE_UNUSED ARCH arch_ = ARCH::NONE;
   Header::CLASS class_ = Header::CLASS::NONE;
 };
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

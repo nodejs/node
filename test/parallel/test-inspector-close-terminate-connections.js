@@ -18,9 +18,9 @@ async function test() {
   const instance = new NodeInstance(['--inspect-brk=0'], script);
   const session = await instance.connectInspectorSession();
 
-  // Enable Runtime domain and wait for an event to confirm the session is live.
-  await session.send({ method: 'Runtime.enable' });
-  await session.waitForNotification('Runtime.executionContextCreated');
+  // Wait until the child is ready to receive the resume command.
+  await session.send({ method: 'NodeRuntime.enable' });
+  await session.waitForNotification('NodeRuntime.waitingForDebugger');
 
   // Resume execution so the script calls inspector.close().
   await session.send({ method: 'Runtime.runIfWaitingForDebugger' });

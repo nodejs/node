@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,13 +37,13 @@ class Type;
 /// Class which parses a DEX file to produce a DEX::File object
 class LIEF_API Parser {
   public:
-
   /// Parse the DEX file from the file path given in parameter
   static std::unique_ptr<File> parse(const std::string& file);
-  static std::unique_ptr<File> parse(std::vector<uint8_t> data, const std::string& name = "");
+  static std::unique_ptr<File> parse(std::vector<uint8_t> data,
+                                     const std::string& name = "");
 
   Parser& operator=(const Parser& copy) = delete;
-  Parser(const Parser& copy)            = delete;
+  Parser(const Parser& copy) = delete;
 
   private:
   Parser();

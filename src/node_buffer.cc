@@ -1027,6 +1027,10 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   } else if (is_forward && offset >= search_end) {
     return args.GetReturnValue().Set(-1);
   }
+  if (enc == UCS2 && is_forward) {
+    offset += offset % sizeof(uint16_t);
+    if (offset >= search_end) return args.GetReturnValue().Set(-1);
+  }
   CHECK_LT(offset, haystack_length);
   if ((is_forward && needle_length + offset > search_end) ||
       needle_length > search_end) {
@@ -1094,8 +1098,8 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                                   is_forward);
   }
 
-  args.GetReturnValue().Set(result >= search_end ? -1
-                                                 : static_cast<int>(result));
+  args.GetReturnValue().Set(
+      result >= search_end ? -1 : static_cast<int64_t>(result));
 }
 
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
@@ -1182,11 +1186,11 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
                                   is_forward);
   }
 
-  args.GetReturnValue().Set(result >= search_end ? -1
-                                                 : static_cast<int>(result));
+  args.GetReturnValue().Set(
+      result >= search_end ? -1 : static_cast<int64_t>(result));
 }
 
-int32_t IndexOfNumberImpl(Local<Value> buffer_obj,
+int64_t IndexOfNumberImpl(Local<Value> buffer_obj,
                           const uint32_t needle,
                           const int64_t offset_i64,
                           const int64_t end_i64,
@@ -1213,7 +1217,7 @@ int32_t IndexOfNumberImpl(Local<Value> buffer_obj,
     ptr = nbytes::stringsearch::MemrchrFill(buffer_data, needle, backward_end);
   }
   const uint8_t* ptr_uint8 = static_cast<const uint8_t*>(ptr);
-  return ptr != nullptr ? static_cast<int32_t>(ptr_uint8 - buffer_data) : -1;
+  return ptr != nullptr ? static_cast<int64_t>(ptr_uint8 - buffer_data) : -1;
 }
 
 void SlowIndexOfNumber(const FunctionCallbackInfo<Value>& args) {
@@ -1234,7 +1238,7 @@ void SlowIndexOfNumber(const FunctionCallbackInfo<Value>& args) {
       IndexOfNumberImpl(buffer_obj, needle, offset_i64, end_i64, is_forward));
 }
 
-int32_t FastIndexOfNumber(Local<Value>,
+int64_t FastIndexOfNumber(Local<Value>,
                           Local<Value> buffer_obj,
                           uint32_t needle,
                           int64_t offset_i64,
@@ -1350,6 +1354,94 @@ static bool FastIsAscii(Local<Value> receiver,
 }
 
 static CFunction fast_is_ascii(CFunction::Make(FastIsAscii));
+
+// Number of UTF-16 code units produced by decoding [p, end) as UTF-8 with
+// WHATWG "maximal subpart" U+FFFD replacement, matching the fallback that
+// StringBytes::Encode takes for invalid input (v8::String::NewFromUtf8).
+static size_t Utf16LengthFromInvalidUtf8(const uint8_t* p, const uint8_t* end) {
+  size_t units = 0;
+  while (p < end) {
+    const uint8_t lead = *p;
+    if (lead < 0x80) {
+      p++;
+      units++;
+      continue;
+    }
+    size_t len;
+    uint8_t lo = 0x80;
+    uint8_t hi = 0xBF;
+    if (lead >= 0xC2 && lead <= 0xDF) {
+      len = 2;
+    } else if (lead >= 0xE0 && lead <= 0xEF) {
+      len = 3;
+      if (lead == 0xE0) lo = 0xA0;
+      if (lead == 0xED) hi = 0x9F;
+    } else if (lead >= 0xF0 && lead <= 0xF4) {
+      len = 4;
+      if (lead == 0xF0) lo = 0x90;
+      if (lead == 0xF4) hi = 0x8F;
+    } else {
+      // Invalid lead byte: one replacement character.
+      p++;
+      units++;
+      continue;
+    }
+    size_t i = 1;
+    for (; i < len && p + i < end; i++) {
+      const uint8_t c = p[i];
+      if (i == 1 ? (c < lo || c > hi) : (c < 0x80 || c > 0xBF)) break;
+    }
+    if (i == len) {
+      p += len;
+      units += (len == 4) ? 2 : 1;
+    } else {
+      // The lead byte plus the valid continuation bytes seen so far form the
+      // maximal subpart and become one replacement character; the byte that
+      // failed is decoded again on the next iteration.
+      p += i;
+      units++;
+    }
+  }
+  return units;
+}
+
+static double StringLengthUtf8Impl(Local<Value> value) {
+  ArrayBufferViewContents<uint8_t> abv(value);
+  const uint8_t* data = abv.data();
+  const size_t length = abv.length();
+  if (length == 0) return 0;
+  const simdutf::result r = simdutf::validate_utf8_with_errors(
+      reinterpret_cast<const char*>(data), length);
+  if (r.error == simdutf::error_code::SUCCESS) {
+    return static_cast<double>(simdutf::utf16_length_from_utf8(
+        reinterpret_cast<const char*>(data), length));
+  }
+  // r.count is the offset of the first invalid sequence; everything before it
+  // is valid UTF-8.
+  const size_t valid = simdutf::utf16_length_from_utf8(
+      reinterpret_cast<const char*>(data), r.count);
+  return static_cast<double>(
+      valid + Utf16LengthFromInvalidUtf8(data + r.count, data + length));
+}
+
+static void StringLengthUtf8(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
+        args[0]->IsSharedArrayBuffer());
+
+  args.GetReturnValue().Set(StringLengthUtf8Impl(args[0]));
+}
+
+static double FastStringLengthUtf8(Local<Value> receiver,
+                                   Local<Value> value,
+                                   // NOLINTNEXTLINE(runtime/references)
+                                   FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.stringLengthUtf8");
+  HandleScope scope(options.isolate);
+  return StringLengthUtf8Impl(value);
+}
+
+static CFunction fast_string_length_utf8(CFunction::Make(FastStringLengthUtf8));
 
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
@@ -1734,6 +1826,11 @@ void Initialize(Local<Object> target,
   SetFastMethodNoSideEffect(context, target, "isUtf8", IsUtf8, &fast_is_utf8);
   SetFastMethodNoSideEffect(
       context, target, "isAscii", IsAscii, &fast_is_ascii);
+  SetFastMethodNoSideEffect(context,
+                            target,
+                            "stringLengthUtf8",
+                            StringLengthUtf8,
+                            &fast_string_length_utf8);
 
   target
       ->Set(context,
@@ -1809,6 +1906,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_is_utf8);
   registry->Register(IsAscii);
   registry->Register(fast_is_ascii);
+  registry->Register(StringLengthUtf8);
+  registry->Register(fast_string_length_utf8);
 
   registry->Register(StringSlice<ASCII>);
   registry->Register(StringSlice<BASE64>);

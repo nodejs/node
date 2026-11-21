@@ -50,7 +50,7 @@ test('--experimental-test-tag-filter fires the warning', () => {
   const { stderr } = runChild([
     '--test',
     '--test-reporter=tap',
-    '--experimental-test-tag-filter=db',
+    '--experimental-test-tag-filter=*',
     '--test-isolation=none',
     fixture,
   ]);

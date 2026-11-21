@@ -2,7 +2,7 @@
 // Distributed under the MIT License (http://opensource.org/licenses/MIT)
 
 #ifndef SPDLOG_COMPILED_LIB
-    #error Please define SPDLOG_COMPILED_LIB to compile this file.
+#error Please define SPDLOG_COMPILED_LIB to compile this file.
 #endif
 
 #include <mutex>
@@ -13,7 +13,7 @@
 // color sinks
 //
 #ifdef _WIN32
-    #include <spdlog/sinks/wincolor_sink-inl.h>
+#include <spdlog/sinks/wincolor_sink-inl.h>
 template class SPDLOG_API spdlog::sinks::wincolor_sink<spdlog::details::console_mutex>;
 template class SPDLOG_API spdlog::sinks::wincolor_sink<spdlog::details::console_nullmutex>;
 template class SPDLOG_API spdlog::sinks::wincolor_stdout_sink<spdlog::details::console_mutex>;
@@ -21,7 +21,7 @@ template class SPDLOG_API spdlog::sinks::wincolor_stdout_sink<spdlog::details::c
 template class SPDLOG_API spdlog::sinks::wincolor_stderr_sink<spdlog::details::console_mutex>;
 template class SPDLOG_API spdlog::sinks::wincolor_stderr_sink<spdlog::details::console_nullmutex>;
 #else
-    #include "spdlog/sinks/ansicolor_sink-inl.h"
+#include "spdlog/sinks/ansicolor_sink-inl.h"
 template class SPDLOG_API spdlog::sinks::ansicolor_sink<spdlog::details::console_mutex>;
 template class SPDLOG_API spdlog::sinks::ansicolor_sink<spdlog::details::console_nullmutex>;
 template class SPDLOG_API spdlog::sinks::ansicolor_stdout_sink<spdlog::details::console_mutex>;

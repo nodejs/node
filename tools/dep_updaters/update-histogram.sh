@@ -54,7 +54,7 @@ mv "HdrHistogram_c-$NEW_VERSION" histogram
 
 cp "$WORKSPACE/histogram/include/hdr/hdr_histogram_version.h" "$WORKSPACE/histogram/include/hdr/hdr_histogram.h" "$DEPS_DIR/histogram/include/hdr"
 
-cp "$WORKSPACE/histogram/src/hdr_atomic.h" "$WORKSPACE/histogram/src/hdr_malloc.h" "$WORKSPACE/histogram/src/hdr_tests.h" "$WORKSPACE/histogram/src/hdr_histogram.c" "$DEPS_DIR/histogram/src"
+cp "$WORKSPACE/histogram/src/hdr_atomic.h" "$WORKSPACE/histogram/src/hdr_malloc.h" "$WORKSPACE/histogram/src/hdr_tests.h" "$WORKSPACE/histogram/src/hdr_histogram_internal.h" "$WORKSPACE/histogram/src/hdr_histogram.c" "$DEPS_DIR/histogram/src"
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need

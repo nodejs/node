@@ -18,6 +18,7 @@
     'node_shared_brotli%': 'false',
     'node_shared_cares%': 'false',
     'node_shared_gtest%': 'false',
+    'node_shared_gtest_libraries%': [],
     'node_shared_hdr_histogram%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
@@ -393,7 +394,6 @@
       'src/crypto/crypto_cipher.cc',
       'src/crypto/crypto_context.cc',
       'src/crypto/crypto_ec.cc',
-      'src/crypto/crypto_pqc.cc',
       'src/crypto/crypto_kem.cc',
       'src/crypto/crypto_hmac.cc',
       'src/crypto/crypto_kmac.cc',
@@ -432,7 +432,6 @@
       'src/crypto/crypto_tls.h',
       'src/crypto/crypto_context.h',
       'src/crypto/crypto_ec.h',
-      'src/crypto/crypto_pqc.h',
       'src/crypto/crypto_hkdf.h',
       'src/crypto/crypto_pbkdf2.h',
       'src/crypto/crypto_sig.h',
@@ -501,6 +500,7 @@
         '-Wendif-labels',
         '-W',
         '-Wno-unused-parameter',
+        '-Wno-nullability-completeness',
         '-Werror=undefined-inline',
         '-Werror=extra-semi',
         '-Werror=ctad-maybe-unsupported',
@@ -1309,7 +1309,7 @@
           ],
         }],
         [ 'node_shared_gtest=="true"', {
-          'libraries': [ '-lgtest_main' ],
+          'libraries': [ '-lgtest_main', '<@(node_shared_gtest_libraries)' ],
         }],
         [ 'node_shared_hdr_histogram=="false"', {
           'dependencies': [
@@ -1331,11 +1331,7 @@
         }, {
           'sources!': [ '<@(node_cctest_openssl_sources)' ],
         }],
-        [ 'node_use_quic=="true"', {
-          'defines': [
-            'HAVE_QUIC=1',
-          ],
-        }, {
+        [ 'node_use_quic!="true"', {
           'sources!': [ '<@(node_cctest_quic_sources)' ],
         }],
         ['v8_enable_inspector==1', {

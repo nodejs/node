@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,20 +21,20 @@
 #include "LIEF/PE/DelayImport.hpp"
 #include "PE/Structures.hpp"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 void DelayImport::swap(DelayImport& other) {
-  std::swap(attribute_,   other.attribute_);
-  std::swap(name_,        other.name_);
-  std::swap(handle_,      other.handle_);
-  std::swap(iat_,         other.iat_);
+  std::swap(attribute_, other.attribute_);
+  std::swap(name_, other.name_);
+  std::swap(handle_, other.handle_);
+  std::swap(iat_, other.iat_);
   std::swap(names_table_, other.names_table_);
-  std::swap(bound_iat_,   other.bound_iat_);
-  std::swap(unload_iat_,  other.unload_iat_);
-  std::swap(timestamp_,   other.timestamp_);
-  std::swap(entries_,     other.entries_);
-  std::swap(type_,        other.type_);
+  std::swap(bound_iat_, other.bound_iat_);
+  std::swap(unload_iat_, other.unload_iat_);
+  std::swap(timestamp_, other.timestamp_);
+  std::swap(entries_, other.entries_);
+  std::swap(type_, other.type_);
 }
 
 DelayImport::DelayImport(const details::delay_imports& import, PE_TYPE type) :
@@ -45,8 +45,7 @@ DelayImport::DelayImport(const details::delay_imports& import, PE_TYPE type) :
   bound_iat_{import.bound_iat},
   unload_iat_{import.unload_iat},
   timestamp_{import.timestamp},
-  type_{type}
-{}
+  type_{type} {}
 
 
 DelayImport::DelayImport(const DelayImport& other) :
@@ -59,8 +58,7 @@ DelayImport::DelayImport(const DelayImport& other) :
   bound_iat_(other.bound_iat_),
   unload_iat_(other.unload_iat_),
   timestamp_(other.timestamp_),
-  type_(other.type_)
-{
+  type_(other.type_) {
   if (!other.entries_.empty()) {
     entries_.reserve(other.entries_.size());
     for (const DelayImportEntry& entry : other.entries()) {
@@ -74,21 +72,19 @@ void DelayImport::accept(LIEF::Visitor& visitor) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const DelayImport& entry) {
-  using namespace fmt;
   os << entry.name() << '\n'
-     << format("  Characteristics:          0x{:08x}\n", entry.attribute())
-     << format("  Address of HMODULE:       0x{:08x}\n", entry.handle())
-     << format("  Import Address Table:     0x{:08x}\n", entry.iat())
-     << format("  Import Name Table:        0x{:08x}\n", entry.names_table())
-     << format("  Bound Import Name Table:  0x{:08x}\n", entry.biat())
-     << format("  Unload Import Name Table: 0x{:08x}\n", entry.uiat())
-     << format("  Timestamp:                {}\n", entry.uiat())
+     << fmt::format("  Characteristics:          {:#010x}\n", entry.attribute())
+     << fmt::format("  Address of HMODULE:       {:#010x}\n", entry.handle())
+     << fmt::format("  Import Address Table:     {:#010x}\n", entry.iat())
+     << fmt::format("  Import Name Table:        {:#010x}\n", entry.names_table())
+     << fmt::format("  Bound Import Name Table:  {:#010x}\n", entry.biat())
+     << fmt::format("  Unload Import Name Table: {:#010x}\n", entry.uiat())
+     << fmt::format("  Timestamp:                {}\n", entry.uiat())
      << "Entries:\n";
 
   for (const DelayImportEntry& delayed : entry.entries()) {
     os << "    " << delayed << '\n';
   }
   return os;
-}
 }
 }

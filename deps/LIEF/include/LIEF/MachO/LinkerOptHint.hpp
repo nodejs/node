@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #define LIEF_MACHO_LINKER_OPT_HINT_COMMAND_H
 #include <ostream>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/span.hpp"
 
@@ -68,11 +69,11 @@ class LIEF_API LinkerOptHint : public LoadCommand {
     data_size_ = size;
   }
 
-  span<const uint8_t> content() const {
+  span<const uint8_t> content() const LIEF_LIFETIMEBOUND {
     return content_;
   }
 
-  span<uint8_t> content() {
+  span<uint8_t> content() LIEF_LIFETIMEBOUND {
     return content_;
   }
 
@@ -87,10 +88,9 @@ class LIEF_API LinkerOptHint : public LoadCommand {
   }
 
   private:
-  uint32_t      data_offset_ = 0;
-  uint32_t      data_size_   = 0;
+  uint32_t data_offset_ = 0;
+  uint32_t data_size_ = 0;
   span<uint8_t> content_;
-
 };
 
 }

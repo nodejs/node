@@ -76,6 +76,40 @@ t.test('logStageItem without actorType shows actor alone', async t => {
   t.notMatch(out, /\(/)
 })
 
+t.test('logStageItem shows status returned by the server', async t => {
+  const { joinedOutput } = await loadMockNpm(t)
+  const chalk = { cyan: v => v, green: v => v }
+  const item = {
+    id: 'abc',
+    packageName: 'pkg',
+    version: '1.0.0',
+    tag: 'latest',
+    createdAt: '2026-01-01',
+    actor: 'user',
+    shasum: 'sha1',
+  }
+
+  logStageItem({ ...item, status: 'awaiting_approval' }, { chalk })
+  t.match(joinedOutput(), /status: awaiting_approval/)
+})
+
+t.test('logStageItem omits missing status', async t => {
+  const { joinedOutput } = await loadMockNpm(t)
+  const chalk = { cyan: v => v, green: v => v }
+  const item = {
+    id: 'abc',
+    packageName: 'pkg',
+    version: '1.0.0',
+    tag: 'latest',
+    createdAt: '2026-01-01',
+    actor: 'user',
+    shasum: 'sha1',
+  }
+
+  logStageItem(item, { chalk })
+  t.notMatch(joinedOutput(), /status:/)
+})
+
 t.test('logObject with all values skipped produces no output', async t => {
   const { joinedOutput } = await loadMockNpm(t)
   const chalk = { cyan: v => v, green: v => v }

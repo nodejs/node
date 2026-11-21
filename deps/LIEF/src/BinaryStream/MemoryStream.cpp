@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,18 +22,22 @@ namespace LIEF {
 static constexpr uint64_t MAX_MEM_SIZE = 6_GB;
 
 MemoryStream::MemoryStream(uintptr_t base_address) :
-  MemoryStream(base_address, MAX_MEM_SIZE)
-{}
+  MemoryStream(base_address, MAX_MEM_SIZE) {}
 
-result<const void*> MemoryStream::read_at(uint64_t offset, uint64_t size, uint64_t /*va*/) const {
-  if (offset > size_ || (offset + size) > size_) {
+result<const void*> MemoryStream::read_at(uint64_t offset, uint64_t size,
+                                          uint64_t /*va*/) const {
+  if (offset > size_ || size > size_ - offset) {
     return make_error_code(lief_errors::read_out_of_bound);
   }
 
   const uintptr_t va = baseaddr_ + offset;
   if (binary_ != nullptr) {
     if (auto res = binary_->offset_to_virtual_address(offset, baseaddr_)) {
-      return reinterpret_cast<const void*>(*res);
+      const auto translated = (uintptr_t)*res;
+      if (translated >= baseaddr_ && (translated - baseaddr_) <= size_ - size) {
+        return reinterpret_cast<const void*>(translated);
+      }
+      return make_error_code(lief_errors::read_out_of_bound);
     }
   }
   return reinterpret_cast<const void*>(va);
@@ -41,4 +45,3 @@ result<const void*> MemoryStream::read_at(uint64_t offset, uint64_t size, uint64
 
 
 }
-

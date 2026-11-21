@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 #ifndef LIEF_PE_POGO_H
 #define LIEF_PE_POGO_H
-#include <ostream>
 
 #include "LIEF/visibility.h"
 #include "LIEF/iterators.hpp"
@@ -36,15 +35,18 @@ class LIEF_API Pogo : public Debug {
   friend class Parser;
 
   public:
-  using entries_t        = std::vector<PogoEntry>;
-  using it_entries       = ref_iterator<entries_t&>;
+  using entries_t = std::vector<PogoEntry>;
+  using it_entries = ref_iterator<entries_t&>;
   using it_const_entries = const_ref_iterator<const entries_t&>;
 
   enum class SIGNATURES {
     UNKNOWN = 0x0fffffff,
-    ZERO    = 0x00000000,
-    LCTG    = 0x4C544347, // LCTG
-    PGI     = 0x50474900, // PGI\0
+    ZERO = 0x00000000,
+    LCTG = 0x4C544347, // LCTG
+    PGI = 0x50474900,  // PGI\0
+    PGO = 0x50474F00,  // PGI\0
+    PGU = 0x50475500,  // PGU\0
+    SPGO = 0x5350474f, // SPGO
   };
 
   Pogo() {
@@ -53,13 +55,11 @@ class LIEF_API Pogo : public Debug {
 
   Pogo(SIGNATURES sig) :
     Debug{Debug::TYPES::POGO},
-    sig_{sig}
-  {}
+    sig_{sig} {}
 
   Pogo(const details::pe_debug& debug, SIGNATURES sig, Section* sec) :
     Debug(debug, sec),
-    sig_(sig)
-  {}
+    sig_(sig) {}
 
   Pogo(const Pogo&) = default;
   Pogo& operator=(const Pogo&) = default;
@@ -76,11 +76,11 @@ class LIEF_API Pogo : public Debug {
   }
 
   /// An iterator over the different POGO elements
-  it_entries entries() {
+  it_entries entries() LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
-  it_const_entries entries() const {
+  it_const_entries entries() const LIEF_LIFETIMEBOUND {
     return entries_;
   }
 

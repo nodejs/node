@@ -15,15 +15,16 @@
  *  http://www.itu.int/ITU-T/studygroups/com17/languages/X.690-0207.pdf
  */
 
-#include "common.h"
+#include "x509_internal.h"
 
 #if defined(MBEDTLS_X509_USE_C)
 
-#include "x509_internal.h"
 #include "mbedtls/asn1.h"
 #include "mbedtls/error.h"
 #include "mbedtls/oid.h"
+#include "x509_oid.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -129,31 +130,31 @@ int mbedtls_x509_get_alg(unsigned char **p, const unsigned char *end,
 static inline const char *md_type_to_string(mbedtls_md_type_t md_alg)
 {
     switch (md_alg) {
-#if defined(MBEDTLS_MD_CAN_MD5)
+#if defined(PSA_WANT_ALG_MD5)
         case MBEDTLS_MD_MD5:
             return "MD5";
 #endif
-#if defined(MBEDTLS_MD_CAN_SHA1)
+#if defined(PSA_WANT_ALG_SHA_1)
         case MBEDTLS_MD_SHA1:
             return "SHA1";
 #endif
-#if defined(MBEDTLS_MD_CAN_SHA224)
+#if defined(PSA_WANT_ALG_SHA_224)
         case MBEDTLS_MD_SHA224:
             return "SHA224";
 #endif
-#if defined(MBEDTLS_MD_CAN_SHA256)
+#if defined(PSA_WANT_ALG_SHA_256)
         case MBEDTLS_MD_SHA256:
             return "SHA256";
 #endif
-#if defined(MBEDTLS_MD_CAN_SHA384)
+#if defined(PSA_WANT_ALG_SHA_384)
         case MBEDTLS_MD_SHA384:
             return "SHA384";
 #endif
-#if defined(MBEDTLS_MD_CAN_SHA512)
+#if defined(PSA_WANT_ALG_SHA_512)
         case MBEDTLS_MD_SHA512:
             return "SHA512";
 #endif
-#if defined(MBEDTLS_MD_CAN_RIPEMD160)
+#if defined(PSA_WANT_ALG_RIPEMD160)
         case MBEDTLS_MD_RIPEMD160:
             return "RIPEMD160";
 #endif
@@ -209,7 +210,7 @@ static int x509_get_hash_alg(const mbedtls_x509_buf *alg, mbedtls_md_type_t *md_
     p += md_oid.len;
 
     /* Get md_alg from md_oid */
-    if ((ret = mbedtls_oid_get_md_alg(&md_oid, md_alg)) != 0) {
+    if ((ret = mbedtls_x509_oid_get_md_alg(&md_oid, md_alg)) != 0) {
         return MBEDTLS_ERROR_ADD(MBEDTLS_ERR_X509_INVALID_ALG, ret);
     }
 
@@ -283,7 +284,7 @@ int mbedtls_x509_get_rsassa_pss_params(const mbedtls_x509_buf *params,
             return ret;
         }
 
-        if ((ret = mbedtls_oid_get_md_alg(&alg_id, md_alg)) != 0) {
+        if ((ret = mbedtls_x509_oid_get_md_alg(&alg_id, md_alg)) != 0) {
             return MBEDTLS_ERROR_ADD(MBEDTLS_ERR_X509_INVALID_ALG, ret);
         }
 
@@ -315,7 +316,7 @@ int mbedtls_x509_get_rsassa_pss_params(const mbedtls_x509_buf *params,
         /* Only MFG1 is recognised for now */
         if (MBEDTLS_OID_CMP(MBEDTLS_OID_MGF1, &alg_id) != 0) {
             return MBEDTLS_ERROR_ADD(MBEDTLS_ERR_X509_FEATURE_UNAVAILABLE,
-                                     MBEDTLS_ERR_OID_NOT_FOUND);
+                                     MBEDTLS_ERR_X509_UNKNOWN_OID);
         }
 
         /* Parse HashAlgorithm */
@@ -716,38 +717,30 @@ int mbedtls_x509_get_sig(unsigned char **p, const unsigned char *end, mbedtls_x5
  * Get signature algorithm from alg OID and optional parameters
  */
 int mbedtls_x509_get_sig_alg(const mbedtls_x509_buf *sig_oid, const mbedtls_x509_buf *sig_params,
-                             mbedtls_md_type_t *md_alg, mbedtls_pk_type_t *pk_alg,
-                             void **sig_opts)
+                             mbedtls_md_type_t *md_alg, mbedtls_pk_sigalg_t *pk_alg)
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
 
-    if (*sig_opts != NULL) {
-        return MBEDTLS_ERR_X509_BAD_INPUT_DATA;
-    }
-
-    if ((ret = mbedtls_oid_get_sig_alg(sig_oid, md_alg, pk_alg)) != 0) {
+    if ((ret = mbedtls_x509_oid_get_sig_alg(sig_oid, md_alg, pk_alg)) != 0) {
         return MBEDTLS_ERROR_ADD(MBEDTLS_ERR_X509_UNKNOWN_SIG_ALG, ret);
     }
 
 #if defined(MBEDTLS_X509_RSASSA_PSS_SUPPORT)
-    if (*pk_alg == MBEDTLS_PK_RSASSA_PSS) {
-        mbedtls_pk_rsassa_pss_options *pss_opts;
-
-        pss_opts = mbedtls_calloc(1, sizeof(mbedtls_pk_rsassa_pss_options));
-        if (pss_opts == NULL) {
-            return MBEDTLS_ERR_X509_ALLOC_FAILED;
-        }
+    if (*pk_alg == MBEDTLS_PK_SIGALG_RSA_PSS) {
+        mbedtls_md_type_t mgf1_hash_id;
+        int expected_salt_len;
 
         ret = mbedtls_x509_get_rsassa_pss_params(sig_params,
                                                  md_alg,
-                                                 &pss_opts->mgf1_hash_id,
-                                                 &pss_opts->expected_salt_len);
+                                                 &mgf1_hash_id,
+                                                 &expected_salt_len);
         if (ret != 0) {
-            mbedtls_free(pss_opts);
             return ret;
         }
-
-        *sig_opts = (void *) pss_opts;
+        /* Ensure MGF1 hash alg is the same as the one used to hash the message. */
+        if (mgf1_hash_id != *md_alg) {
+            return MBEDTLS_ERR_X509_INVALID_ALG;
+        }
     } else
 #endif /* MBEDTLS_X509_RSASSA_PSS_SUPPORT */
     {
@@ -805,6 +798,75 @@ static char nibble_to_hex_digit(int i)
     return (i < 10) ? (i + '0') : (i - 10 + 'A');
 }
 
+/* Return the x.y.z.... style numeric string for the given OID */
+int mbedtls_oid_get_numeric_string(char *buf, size_t size,
+                                   const mbedtls_asn1_buf *oid)
+{
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
+    char *p = buf;
+    size_t n = size;
+    unsigned int value = 0;
+
+    if (size > INT_MAX) {
+        /* Avoid overflow computing return value */
+        return MBEDTLS_ERR_ASN1_INVALID_LENGTH;
+    }
+
+    if (oid->len <= 0) {
+        /* OID must not be empty */
+        return MBEDTLS_ERR_ASN1_OUT_OF_DATA;
+    }
+
+    for (size_t i = 0; i < oid->len; i++) {
+        /* Prevent overflow in value. */
+        if (value > (UINT_MAX >> 7)) {
+            return MBEDTLS_ERR_ASN1_INVALID_DATA;
+        }
+        if ((value == 0) && ((oid->p[i]) == 0x80)) {
+            /* Overlong encoding is not allowed */
+            return MBEDTLS_ERR_ASN1_INVALID_DATA;
+        }
+
+        value <<= 7;
+        value |= oid->p[i] & 0x7F;
+
+        if (!(oid->p[i] & 0x80)) {
+            /* Last byte */
+            if (n == size) {
+                int component1;
+                unsigned int component2;
+                /* First subidentifier contains first two OID components */
+                if (value >= 80) {
+                    component1 = '2';
+                    component2 = value - 80;
+                } else if (value >= 40) {
+                    component1 = '1';
+                    component2 = value - 40;
+                } else {
+                    component1 = '0';
+                    component2 = value;
+                }
+                ret = mbedtls_snprintf(p, n, "%c.%u", component1, component2);
+            } else {
+                ret = mbedtls_snprintf(p, n, ".%u", value);
+            }
+            if (ret < 2 || (size_t) ret >= n) {
+                return PSA_ERROR_BUFFER_TOO_SMALL;
+            }
+            n -= (size_t) ret;
+            p += ret;
+            value = 0;
+        }
+    }
+
+    if (value != 0) {
+        /* Unterminated subidentifier */
+        return MBEDTLS_ERR_ASN1_OUT_OF_DATA;
+    }
+
+    return (int) (size - n);
+}
+
 /*
  * Store the name in printable form into buf; no more
  * than size characters will be written
@@ -844,7 +906,7 @@ int mbedtls_x509_dn_gets(char *buf, size_t size, const mbedtls_x509_name *dn)
                           (name->val.tag != MBEDTLS_ASN1_PRINTABLE_STRING) &&
                           (name->val.tag != MBEDTLS_ASN1_IA5_STRING);
 
-        if ((ret = mbedtls_oid_get_attr_short_name(&name->oid, &short_name)) == 0) {
+        if ((ret = mbedtls_x509_oid_get_attr_short_name(&name->oid, &short_name)) == 0) {
             ret = mbedtls_snprintf(p, n, "%s=", short_name);
         } else {
             if ((ret = mbedtls_oid_get_numeric_string(p, n, &name->oid)) > 0) {
@@ -852,7 +914,7 @@ int mbedtls_x509_dn_gets(char *buf, size_t size, const mbedtls_x509_name *dn)
                 p += ret;
                 ret = mbedtls_snprintf(p, n, "=");
                 print_hexstring = 1;
-            } else if (ret == MBEDTLS_ERR_OID_BUF_TOO_SMALL) {
+            } else if (ret == PSA_ERROR_BUFFER_TOO_SMALL) {
                 return MBEDTLS_ERR_X509_BUFFER_TOO_SMALL;
             } else {
                 ret = mbedtls_snprintf(p, n, "\?\?=");
@@ -977,15 +1039,14 @@ int mbedtls_x509_serial_gets(char *buf, size_t size, const mbedtls_x509_buf *ser
  * Helper for writing signature algorithms
  */
 int mbedtls_x509_sig_alg_gets(char *buf, size_t size, const mbedtls_x509_buf *sig_oid,
-                              mbedtls_pk_type_t pk_alg, mbedtls_md_type_t md_alg,
-                              const void *sig_opts)
+                              mbedtls_pk_sigalg_t pk_alg, mbedtls_md_type_t md_alg)
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     char *p = buf;
     size_t n = size;
     const char *desc = NULL;
 
-    ret = mbedtls_oid_get_sig_alg_desc(sig_oid, &desc);
+    ret = mbedtls_x509_oid_get_sig_alg_desc(sig_oid, &desc);
     if (ret != 0) {
         ret = mbedtls_snprintf(p, n, "???");
     } else {
@@ -994,24 +1055,18 @@ int mbedtls_x509_sig_alg_gets(char *buf, size_t size, const mbedtls_x509_buf *si
     MBEDTLS_X509_SAFE_SNPRINTF;
 
 #if defined(MBEDTLS_X509_RSASSA_PSS_SUPPORT)
-    if (pk_alg == MBEDTLS_PK_RSASSA_PSS) {
-        const mbedtls_pk_rsassa_pss_options *pss_opts;
-
-        pss_opts = (const mbedtls_pk_rsassa_pss_options *) sig_opts;
-
+    if (pk_alg == MBEDTLS_PK_SIGALG_RSA_PSS) {
         const char *name = md_type_to_string(md_alg);
-        const char *mgf_name = md_type_to_string(pss_opts->mgf1_hash_id);
-
-        ret = mbedtls_snprintf(p, n, " (%s, MGF1-%s, 0x%02X)",
-                               name ? name : "???",
-                               mgf_name ? mgf_name : "???",
-                               (unsigned int) pss_opts->expected_salt_len);
+        if (name != NULL) {
+            ret = mbedtls_snprintf(p, n, " (%s)", name);
+        } else {
+            ret = mbedtls_snprintf(p, n, " (?)");
+        }
         MBEDTLS_X509_SAFE_SNPRINTF;
     }
 #else
     ((void) pk_alg);
     ((void) md_alg);
-    ((void) sig_opts);
 #endif /* MBEDTLS_X509_RSASSA_PSS_SUPPORT */
 
     return (int) (size - n);

@@ -10,8 +10,8 @@ Frozen provides:
 
 - immutable (a.k.a. frozen), ``constexpr``-compatible versions of ``std::set``,
   ``std::unordered_set``, ``std::map`` and ``std::unordered_map``.
-  
-- fixed-capacity, ``constinit``-compatible versions of ``std::map`` and 
+
+- fixed-capacity, ``constinit``-compatible versions of ``std::map`` and
   ``std::unordered_map`` with immutable, compile-time selected keys mapped
   to mutable values.
 
@@ -26,22 +26,31 @@ Once initialized, the container keys cannot be updated, and in exchange, lookups
 are faster. And initialization is free when ``constexpr`` or ``constinit`` is 
 used :-).
 
+Stable Version
+--------------
+
+The Frozen library is pretty stable now, have been so for years, so:
+
+1. The ``master`` version can be used as the default **stable** version.
+2. It is in maintenance mode. I still accept commits that make the code cleaner
+   ``|`` faster ``|`` more modern, but expect some latency in the review process.
+
 
 Installation
 ------------
 
 Just copy the ``include/frozen`` directory somewhere and points to it using the ``-I`` flag. Alternatively, using CMake:
 
-.. code:: sh
+.. code-block:: sh
 
-    > mkdir build
-    > cd build
-    > cmake -D CMAKE_BUILD_TYPE=Release ..
-    > make install
+    mkdir build
+    cd build
+    cmake -D CMAKE_BUILD_TYPE=Release ..
+    make install
 
 
 Installation via CMake populates configuration files into the ``/usr/local/share``
-directory which can be consumed by CMake's ``find_package`` instrinsic function.
+directory which can be consumed by CMake's ``find_package`` intrinsic function.
 
 Requirements
 ------------
@@ -50,7 +59,7 @@ A C++ compiler that supports C++14. Clang version 5 is a good pick, GCC version
 6 lags behind in terms of ``constexpr`` compilation time (At least on my
 setup), but compiles correctly. Visual Studio 2017 also works correctly!
 
-Note that gcc 5 isn't supported. (Here's an `old compat branch`_ where a small amount of stuff was ported.)
+Note that GCC 5 isn't supported. (Here's an `old compat branch`_ where a small amount of stuff was ported.)
 
 .. _old compat branch: https://github.com/cbeck88/frozen/tree/gcc5-support
 
@@ -59,7 +68,7 @@ Usage
 
 Compiled with ``-std=c++14`` flag:
 
-.. code:: C++
+.. code-block:: C++
 
     #include <frozen/set.h>
 
@@ -73,7 +82,7 @@ Compiled with ``-std=c++14`` flag:
 
 As the constructor and some methods are ``constexpr``, it's also possible to write weird stuff like:
 
-.. code:: C++
+.. code-block:: C++
 
     #include <frozen/set.h>
 
@@ -82,7 +91,7 @@ As the constructor and some methods are ``constexpr``, it's also possible to wri
 
 String support is built-in:
 
-.. code:: C++
+.. code-block:: C++
 
     #include <frozen/unordered_map.h>
     #include <frozen/string.h>
@@ -93,11 +102,11 @@ String support is built-in:
     };
     constexpr auto val = olaf.at("19");
 
-The associative containers have different functionality with and without ``constexpr``. 
-With ``constexpr``, frozen maps have immutable keys and values. Without ``constexpr``, the 
+The associative containers have different functionality with and without ``constexpr``.
+With ``constexpr``, frozen maps have immutable keys and values. Without ``constexpr``, the
 values can be updated in runtime (the keys, however, remain immutable):
 
-.. code:: C++
+.. code-block:: C++
 
 
     #include <frozen/unordered_map.h>
@@ -107,7 +116,7 @@ values can be updated in runtime (the keys, however, remain immutable):
         {"Anna", "???"},
         {"Elsa", "???"}
     };
-    
+
     int main() {
     	voice.at("Anna") = "Kristen";
 	voice.at("Elsa") = "Idina";
@@ -115,7 +124,7 @@ values can be updated in runtime (the keys, however, remain immutable):
 
 You may also prefer a slightly more DRY initialization syntax:
 
-.. code:: C++
+.. code-block:: C++
 
     #include <frozen/set.h>
 
@@ -142,7 +151,7 @@ It's also possible to specialize the ``frozen::elsa`` structure used for
 hashing. Note that unlike `std::hash`, the hasher also takes a seed in addition
 to the value being hashed.
 
-.. code:: C++
+.. code-block:: C++
 
     template <class T> struct elsa {
       // in case of collisions, different seeds are tried
@@ -163,7 +172,7 @@ Troubleshooting
 
 If you hit a message like this:
 
-.. code:: none
+.. code-block:: none
 
     [...]
     note: constexpr evaluation hit maximum step limit; possible infinite loop?
@@ -173,7 +182,7 @@ thresholds, using ``-fconstexpr-steps=1000000000`` for instance, or the hash
 functions used by frozen do not suit your data, and you should change them, as
 in the following:
 
-.. code:: c++
+.. code-block:: c++
 
     struct olaf {
       constexpr std::size_t operator()(frozen::string const &value, std::size_t seed) const { return seed ^ value[0];}
@@ -186,47 +195,47 @@ Tests and Benchmarks
 
 Using hand-written Makefiles crafted with love and care:
 
-.. code:: sh
+.. code-block:: sh
 
-    > # running tests
-    > make -C tests check
-    > # running benchmarks
-    > make -C benchmarks GOOGLE_BENCHMARK_PREFIX=<GOOGLE-BENCHMARK_INSTALL_DIR>
+    # running tests
+    make -C tests check
+    # running benchmarks
+    make -C benchmarks GOOGLE_BENCHMARK_PREFIX=<GOOGLE-BENCHMARK_INSTALL_DIR>
 
 Using CMake to generate a static configuration build system:
 
-.. code:: sh
+.. code-block:: sh
 
-    > mkdir build
-    > cd build
-    > cmake -D CMAKE_BUILD_TYPE=Release \
+    mkdir build
+    cd build
+    cmake -D CMAKE_BUILD_TYPE=Release \
             -D frozen.benchmark=ON \
 	    -G <"Unix Makefiles" or "Ninja"> ..
-    > # building the tests and benchmarks...
-    > make                               # ... with make
-    > ninja                              # ... with ninja
-    > cmake --build .                    # ... with cmake
-    > # running the tests...
-    > make test                          # ... with make
-    > ninja test                         # ... with ninja
-    > cmake --build . --target test      # ... with cmake
-    > ctest                              # ... with ctest
-    > # running the benchmarks...
-    > make benchmark                     # ... with make
-    > ninja benchmark                    # ... with ninja
-    > cmake --build . --target benchmark # ... with cmake
+    # building the tests and benchmarks...
+    make                               # ... with make
+    ninja                              # ... with ninja
+    cmake --build .                    # ... with cmake
+    # running the tests...
+    make test                          # ... with make
+    ninja test                         # ... with ninja
+    cmake --build . --target test      # ... with cmake
+    ctest                              # ... with ctest
+    # running the benchmarks...
+    make benchmark                     # ... with make
+    ninja benchmark                    # ... with ninja
+    cmake --build . --target benchmark # ... with cmake
 
 Using CMake to generate an IDE build system with test and benchmark targets
 
-.. code:: sh
+.. code-block:: sh
 
-    > mkdir build
-    > cd build
-    > cmake -D frozen.benchmark=ON -G <"Xcode" or "Visual Studio 15 2017"> ..
-    > # using cmake to drive the IDE build, test, and benchmark
-    > cmake --build . --config Release
-    > cmake --build . --target test
-    > cmake --build . --target benchmark
+    mkdir build
+    cd build
+    cmake -D frozen.benchmark=ON -G <"Xcode" or "Visual Studio 15 2017"> ..
+    # using cmake to drive the IDE build, test, and benchmark
+    cmake --build . --config Release
+    cmake --build . --target test
+    cmake --build . --target benchmark
 
 
 Credits
@@ -241,5 +250,5 @@ for his contributions on perfect hashing.
 Contact
 -------
 
-Serge sans Paille ``<serge.guelton@telecom-bretagne.eu>``
+Serge sans Paille ``<sergesanspaille@free.fr>``
 

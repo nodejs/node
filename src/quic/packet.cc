@@ -1,4 +1,3 @@
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <crypto/crypto_util.h>
@@ -231,4 +230,3 @@ Packet::Ptr Packet::CreateVersionNegotiationPacket(
 }  // namespace node::quic
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC

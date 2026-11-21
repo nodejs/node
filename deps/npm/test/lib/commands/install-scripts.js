@@ -8,11 +8,17 @@ const mockNpm = async (t, opts = {}) => {
   return _mockNpm(t, opts)
 }
 
-const setupProject = ({ allowScripts, withScripts = ['canvas'], noScripts = [] } = {}) => {
+const setupProject = ({
+  allowScripts,
+  withScripts = ['canvas'],
+  noScripts = [],
+  extraneous = false,
+} = {}) => {
   const pkg = {
     name: 'host',
     version: '1.0.0',
-    dependencies: Object.fromEntries([...withScripts, ...noScripts].map((n) => [n, '*'])),
+    dependencies: extraneous ? {}
+    : Object.fromEntries([...withScripts, ...noScripts].map((n) => [n, '*'])),
   }
   if (allowScripts !== undefined) {
     pkg.allowScripts = allowScripts
@@ -138,6 +144,29 @@ t.test('install-scripts ls lists unreviewed packages', async t => {
   t.match(out, /2 packages have install scripts not yet covered by allowScripts/)
   t.match(out, /canvas@1\.0\.0/)
   t.match(out, /sharp@1\.0\.0/)
+})
+
+t.test('install-scripts ls lists extraneous packages on disk', async t => {
+  for (const json of [false, true]) {
+    await t.test(json ? 'json' : 'text', async t => {
+      const { npm, joinedOutput } = await mockNpm(t, {
+        prefixDir: setupProject({ extraneous: true }),
+        config: { json },
+      })
+      await npm.exec('install-scripts', ['ls'])
+      if (json) {
+        t.strictSame(JSON.parse(joinedOutput()), {
+          allowScripts: [{
+            name: 'canvas',
+            changes: [{ key: 'canvas@1.0.0', change: 'pending' }],
+          }],
+        })
+      } else {
+        t.match(joinedOutput(), /1 package has install scripts not yet covered by allowScripts/)
+        t.match(joinedOutput(), /canvas@1\.0\.0/)
+      }
+    })
+  }
 })
 
 t.test('install-scripts ls with no unreviewed says so', async t => {
@@ -333,4 +362,65 @@ t.test('install-scripts prune fails for global installs', async t => {
     npm.exec('install-scripts', ['prune']),
     { code: 'EGLOBAL' }
   )
+})
+
+t.test('install-scripts prune under linked strategy keeps the registry pin, drops store paths', async t => {
+  // Regression for npm/cli#9939: the buggy writer produced file:.store keys; prune must drop those and keep the valid registry pin covering the store package.
+  const storeDir = 'canvas@1.0.0-c2FsdHNhbHRzYWx0c2FsdA'
+  const storeLoc = `node_modules/.store/${storeDir}/node_modules/canvas`
+  const tarUrl = 'https://registry.npmjs.org/canvas/-/canvas-1.0.0.tgz'
+  const pkg = {
+    name: 'host',
+    version: '1.0.0',
+    dependencies: { canvas: '^1.0.0' },
+    allowScripts: {
+      'canvas@1.0.0': true,
+      [`file:.store/${storeDir}/node_modules/canvas`]: true,
+    },
+  }
+  const { npm, prefix, joinedOutput } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify(pkg, null, 2),
+      node_modules: {
+        '.package-lock.json': JSON.stringify({
+          lockfileVersion: 3,
+          requires: true,
+          packages: {
+            [`node_modules/.store/${storeDir}`]: {},
+            [storeLoc]: {
+              version: '1.0.0',
+              resolved: tarUrl,
+              hasInstallScript: true,
+            },
+            'node_modules/canvas': {
+              resolved: storeLoc,
+              link: true,
+            },
+          },
+        }),
+        '.store': {
+          [storeDir]: {
+            node_modules: {
+              canvas: {
+                'package.json': JSON.stringify({
+                  name: 'canvas',
+                  version: '1.0.0',
+                  scripts: { install: 'echo install' },
+                }),
+              },
+            },
+          },
+        },
+        canvas: t.fixture('symlink', `.store/${storeDir}/node_modules/canvas`),
+      },
+    },
+  })
+  // loadActual only trusts the hidden lockfile when it is newer than every dir under node_modules (assertNoNewer allows 10ms), and fixture creation order makes that racy, so bump its mtime past the fixture writes.
+  const future = new Date(Date.now() + 60_000)
+  fs.utimesSync(resolve(prefix, 'node_modules', '.package-lock.json'), future, future)
+  await npm.exec('install-scripts', ['prune'])
+
+  const updated = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(updated.allowScripts, { 'canvas@1.0.0': true })
+  t.match(joinedOutput(), /file:\.store.*\(package not installed\)/)
 })

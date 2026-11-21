@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,10 +26,12 @@ namespace PE {
 class Parser;
 class SignatureParser;
 
-/// Interface over the structure described by the OID ``1.2.840.113549.1.9.25.4`` (PKCS #9)
+/// Interface over the structure described by the OID ``1.2.840.113549.1.9.25.4``
+/// (PKCS #9)
 ///
 /// The internal structure is described in the
-/// [RFC #2985: PKCS #9 - Selected Object Classes and Attribute Types Version 2.0](https://tools.ietf.org/html/rfc2985)
+/// [RFC #2985: PKCS #9 - Selected Object Classes and Attribute Types
+/// Version 2.0](https://tools.ietf.org/html/rfc2985)
 ///
 /// ```text
 /// sequenceNumber ATTRIBUTE ::= {
@@ -50,8 +52,7 @@ class LIEF_API PKCS9AtSequenceNumber : public Attribute {
   PKCS9AtSequenceNumber() = delete;
   PKCS9AtSequenceNumber(uint32_t num) :
     Attribute(Attribute::TYPE::PKCS9_AT_SEQUENCE_NUMBER),
-    number_{num}
-  {}
+    number_{num} {}
 
   PKCS9AtSequenceNumber(const PKCS9AtSequenceNumber&) = default;
   PKCS9AtSequenceNumber& operator=(const PKCS9AtSequenceNumber&) = default;

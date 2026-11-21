@@ -25,6 +25,7 @@ namespace sqlite {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::BackingStoreOnFailureMode;
 using v8::BigInt;
@@ -2040,6 +2041,19 @@ void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
+
+  if (!args[0]->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"name\" argument must be a string.");
+    return;
+  }
+
+  if (!args[1]->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"options\" argument must be an object.");
+    return;
+  }
+
   Utf8Value name(env->isolate(), args[0].As<String>());
   Local<Object> options = args[1].As<Object>();
   Local<Value> start_v;
@@ -2520,21 +2534,42 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  // Keep the database alive during sqlite3changeset_apply(), which may
-  // call conflict or filter callbacks that trigger JavaScript execution.
-  // If the JavaScript callback drops all references to the database,
-  // the DatabaseSync could otherwise be garbage-collected while the
-  // callback is still executing, causing a use-after-free.
+  // Keep the database alive in case a callback drops all references to it,
+  // which could otherwise let it be garbage-collected mid-callback.
   BaseObjectPtr<DatabaseSync> guard(db);
 
   ArrayBufferViewContents<uint8_t> buf(args[0]);
+  if (buf.length() > std::numeric_limits<int>::max()) {
+    THROW_ERR_OUT_OF_RANGE(env, "The changeset is too large.");
+    return;
+  }
+
+  // A callback may detach/modify the input buffer mid-apply, so copy it.
+  // With no callbacks, no JS runs during sqlite3changeset_apply(), so no
+  // copy is needed.
+  std::unique_ptr<BackingStore> changeset;
+  if (buf.length() > 0 &&
+      (context.filterCallback || context.conflictCallback)) {
+    changeset = ArrayBuffer::NewBackingStore(
+        env->isolate(),
+        buf.length(),
+        BackingStoreInitializationMode::kUninitialized,
+        BackingStoreOnFailureMode::kReturnNull);
+    if (!changeset) {
+      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+      return;
+    }
+    std::memcpy(changeset->Data(), buf.data(), buf.length());
+  }
+
   int r;
   {
     CallbackDepthGuard guard(db);
     r = sqlite3changeset_apply(
         db->connection_,
-        buf.length(),
-        const_cast<void*>(static_cast<const void*>(buf.data())),
+        static_cast<int>(buf.length()),
+        changeset ? changeset->Data()
+                  : const_cast<void*>(static_cast<const void*>(buf.data())),
         context.filterCallback ? xFilter : nullptr,
         xConflict,
         static_cast<void*>(&context));

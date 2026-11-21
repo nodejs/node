@@ -4,6 +4,7 @@
     "max-http-header-size": 8192
   },
   "test": {
+    "test": false,
     "test-isolation": "none"
   }
 }

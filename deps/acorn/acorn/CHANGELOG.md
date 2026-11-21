@@ -1,3 +1,17 @@
+## 8.19.0 (2026-10-05)
+
+### New features
+
+Add support for Unicode 18.
+
+### Bug fixes
+
+Properly reject additional subscripts before the arrow in an async arrow expression.
+
+Don't treat the string `"use strict"` as a directive when followed by an `in` or `instanceof` operator.
+
+Properly check for duplicate `__proto__` properties and assignment to short-hand properties in expressions that are the left-hand side of a member expression.
+
 ## 8.18.0 (2026-07-28)
 
 ### New features

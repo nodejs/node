@@ -6,5 +6,5 @@
   ],
   "mappings": "",
   "names": [],
-  "scopes": "BAAA,BAAA,CAB,BAAA,CAB,BAAB,CAC,CBA"
+  "scopes": ["BAAA,BAAA,CAB,BAAA,CAB,BAAB,CAC,CBA"]
 }

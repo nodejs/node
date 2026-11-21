@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,11 @@ namespace editor {
 /// This class represents a primitive type like `int, char`.
 class LIEF_API BaseType : public Type {
   public:
-  using Type::Type;
+  template<typename... Args,
+           typename = typename std::
+               enable_if<std::is_constructible<Type, Args&&...>::value>::type>
+  BaseType(Args&&... args) :
+    Type(std::forward<Args>(args)...) {}
 
   enum class ENCODING : uint32_t {
     NONE = 0,
@@ -36,7 +40,7 @@ class LIEF_API BaseType : public Type {
     UNSIGNED,
     UNSIGNED_CHAR,
     BOOLEAN,
-    FLOAT
+    FLOAT,
   };
 
   static bool classof(const Type* type);

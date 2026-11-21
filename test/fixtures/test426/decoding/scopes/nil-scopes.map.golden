@@ -6,25 +6,25 @@
       "url": "original_0.js",
       "content": null,
       "ignored": false,
-      "scope": null
+      "rootScopes": []
     },
     {
       "url": "original_1.js",
       "content": null,
       "ignored": false,
-      "scope": null
+      "rootScopes": []
     },
     {
       "url": "original_2.js",
       "content": null,
       "ignored": false,
-      "scope": null
+      "rootScopes": []
     },
     {
       "url": "original_3.js",
       "content": null,
       "ignored": false,
-      "scope": null
+      "rootScopes": []
     }
   ],
   "ranges": []

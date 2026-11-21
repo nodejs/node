@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ namespace PE {
 /// This class represents the `IMAGE_DEBUG_TYPE_FPO` debug entry
 class LIEF_API FPO : public Debug {
   public:
-
   enum class FRAME_TYPE {
     FPO = 0,
     TRAP = 1,
@@ -50,7 +49,7 @@ class LIEF_API FPO : public Debug {
     /// The size of the parameters
     uint32_t parameters_size = 0;
 
-    /// The number of bytes in the function prolog code.
+    /// The number of bytes in the function prologue code.
     uint16_t prolog_size = 0;
 
     /// Number of registers saved
@@ -70,9 +69,8 @@ class LIEF_API FPO : public Debug {
 
     std::string to_string() const;
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const entry_t& entry)
-    {
+    friend LIEF_API std::ostream& operator<<(std::ostream& os,
+                                             const entry_t& entry) {
       os << entry.to_string();
       return os;
     }
@@ -82,12 +80,11 @@ class LIEF_API FPO : public Debug {
   using it_entries = ref_iterator<entries_t&>;
   using it_const_entries = const_ref_iterator<const entries_t&>;
 
-  static std::unique_ptr<FPO>
-    parse(const details::pe_debug& hdr, Section* section, span<uint8_t> payload);
+  static std::unique_ptr<FPO> parse(const details::pe_debug& hdr, Section* section,
+                                    span<uint8_t> payload);
 
   FPO(const details::pe_debug& hdr, Section* section) :
-    Debug(hdr, section)
-  {}
+    Debug(hdr, section) {}
 
   FPO(const FPO& other) = default;
   FPO& operator=(const FPO& other) = default;
@@ -100,11 +97,11 @@ class LIEF_API FPO : public Debug {
   }
 
   /// Iterator over the FPO entries
-  it_const_entries entries() const {
+  it_const_entries entries() const LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
-  it_entries entries() {
+  it_entries entries() LIEF_LIFETIMEBOUND {
     return entries_;
   }
 

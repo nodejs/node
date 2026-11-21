@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@
 #include "LIEF/DEX/Parser.hpp"
 #include "LIEF/utils.hpp"
 
-namespace LIEF {
-namespace VDEX {
+
+namespace LIEF::VDEX {
 
 template<typename VDEX_T>
 void Parser::parse_file() {
@@ -36,7 +36,6 @@ void Parser::parse_file() {
   parse_dex_files<VDEX_T>();
   parse_verifier_deps<VDEX_T>();
   parse_quickening_info<VDEX_T>();
-
 }
 
 
@@ -54,7 +53,7 @@ void Parser::parse_header() {
 
 template<typename VDEX_T>
 void Parser::parse_checksums() {
-  //TODO
+  // TODO
 }
 
 template<typename VDEX_T>
@@ -62,7 +61,8 @@ void Parser::parse_dex_files() {
   using vdex_header = typename VDEX_T::vdex_header;
   size_t nb_dex_files = file_->header().nb_dex_files();
 
-  uint64_t current_offset = sizeof(vdex_header) + nb_dex_files * sizeof(details::checksum_t);
+  uint64_t current_offset =
+      sizeof(vdex_header) + nb_dex_files * sizeof(details::checksum_t);
   current_offset = align(current_offset, sizeof(uint32_t));
 
   for (size_t i = 0; i < nb_dex_files; ++i) {
@@ -77,20 +77,26 @@ void Parser::parse_dex_files() {
       break;
     }
     const auto dex_hdr = *res_dex_hdr;
-    const auto* data = stream_->peek_array<uint8_t>(current_offset, dex_hdr.file_size);
+    const auto* data =
+        stream_->peek_array<uint8_t>(current_offset, dex_hdr.file_size);
     if (data == nullptr) {
-      LIEF_WARN("File #{:d} is corrupted!", i);
+      LIEF_WARN("File #{:d} is corrupted", i);
       continue;
     }
 
     std::vector<uint8_t> data_v = {data, data + dex_hdr.file_size};
 
     if (DEX::is_dex(data_v)) {
-      std::unique_ptr<DEX::File> dexfile = DEX::Parser::parse(std::move(data_v), name);
-      dexfile->name(name);
-      file_->dex_files_.push_back(std::move(dexfile));
+      std::unique_ptr<DEX::File> dexfile =
+          DEX::Parser::parse(std::move(data_v), name);
+      if (dexfile != nullptr) {
+        dexfile->name(name);
+        file_->dex_files_.push_back(std::move(dexfile));
+      } else {
+        LIEF_WARN("File #{:d} could not be parsed as a DEX file", i);
+      }
     } else {
-      LIEF_WARN("File #{:d} is not a dex file!", i);
+      LIEF_WARN("File #{:d} is not a DEX file", i);
     }
     current_offset += dex_hdr.file_size;
     current_offset = align(current_offset, sizeof(uint32_t));
@@ -102,14 +108,15 @@ template<typename VDEX_T>
 void Parser::parse_verifier_deps() {
   using vdex_header = typename VDEX_T::vdex_header;
 
-  uint64_t deps_offset = align(sizeof(vdex_header) + file_->header().dex_size(), sizeof(uint32_t));
+  uint64_t deps_offset =
+      align(sizeof(vdex_header) + file_->header().dex_size(), sizeof(uint32_t));
 
-  LIEF_DEBUG("Parsing Verifier deps at 0x{:x}", deps_offset);
+  LIEF_DEBUG("Parsing verifier deps at {:#x}", deps_offset);
 
   // 1. String table
   // ===============
-  //val = stream_->read_uleb128(deps_offset);
-  //deps_offset += val.second;
+  // val = stream_->read_uleb128(deps_offset);
+  // deps_offset += val.second;
 }
 
 
@@ -120,11 +127,12 @@ void Parser::parse_quickening_info<details::VDEX6>() {
 
   uint64_t quickening_offset = sizeof(vdex_header);
   quickening_offset += file_->header().dex_size();
-  quickening_offset += file_->header().nb_dex_files() * sizeof(details::checksum_t);
+  quickening_offset +=
+      file_->header().nb_dex_files() * sizeof(details::checksum_t);
   quickening_offset += file_->header().verifier_deps_size();
   quickening_offset = align(quickening_offset, sizeof(uint32_t));
 
-  LIEF_DEBUG("Parsing Quickening Info at 0x{:x}", quickening_offset);
+  LIEF_DEBUG("Parsing quickening info at {:#x}", quickening_offset);
 
   if (file_->header().quickening_info_size() == 0) {
     LIEF_DEBUG("No quickening info");
@@ -137,7 +145,7 @@ void Parser::parse_quickening_info<details::VDEX6>() {
     for (size_t i = 0; i < dex_file.header().nb_classes(); ++i) {
       DEX::Class* cls = dex_file.get_class(i);
       if (cls == nullptr) {
-        LIEF_WARN("Class is null!");
+        LIEF_WARN("Null class reference");
         continue;
       }
       for (DEX::Method& method : cls->methods()) {
@@ -164,10 +172,13 @@ void Parser::parse_quickening_info<details::VDEX6>() {
           }
 
           auto index = stream_->read_uleb128();
-          method.insert_dex2dex_info(static_cast<int32_t>(*pc), static_cast<uint16_t>(*index));
+          if (!index) {
+            break;
+          }
+          method.insert_dex2dex_info(static_cast<int32_t>(*pc),
+                                     static_cast<uint16_t>(*index));
         }
       }
-
     }
   }
 }
@@ -215,8 +226,6 @@ See:
 *******************************************************/
 
 
-
-
 template<>
 void Parser::parse_quickening_info<details::VDEX10>() {
   using vdex_header = typename details::VDEX10::vdex_header;
@@ -230,7 +239,7 @@ void Parser::parse_quickening_info<details::VDEX10>() {
   quickening_base += file_->header().verifier_deps_size();
   quickening_base = align(quickening_base, sizeof(uint32_t));
 
-  LIEF_DEBUG("Parsing Quickening Info at 0x{:x}", quickening_base);
+  LIEF_DEBUG("Parsing quickening info at {:#x}", quickening_base);
 
   if (quickening_size == 0) {
     LIEF_DEBUG("No quickening info");
@@ -239,10 +248,11 @@ void Parser::parse_quickening_info<details::VDEX10>() {
 
 
   // Offset of the "Dex Indexes" array
-  uint64_t dex_file_indices_off = quickening_base + quickening_size - nb_dex_files * sizeof(uint32_t);
+  uint64_t dex_file_indices_off =
+      quickening_base + quickening_size - nb_dex_files * sizeof(uint32_t);
 
   if (nb_dex_files > file_->dex_files_.size()) {
-    LIEF_WARN("Inconsistent number of dex files");
+    LIEF_WARN("Inconsistent DEX file count");
     return;
   }
 
@@ -250,7 +260,8 @@ void Parser::parse_quickening_info<details::VDEX10>() {
     std::unique_ptr<DEX::File>& dex_file = file_->dex_files_[i];
 
     // Code item offset of the first method
-    auto res_current_code_item = stream_->peek<uint32_t>(dex_file_indices_off + i * sizeof(uint32_t));
+    auto res_current_code_item =
+        stream_->peek<uint32_t>(dex_file_indices_off + i * sizeof(uint32_t));
 
     if (!res_current_code_item) {
       break;
@@ -261,16 +272,25 @@ void Parser::parse_quickening_info<details::VDEX10>() {
     // End
     uint64_t code_item_end = dex_file_indices_off;
     if (i < (nb_dex_files - 1)) {
-      if (auto res = stream_->peek<uint32_t>(dex_file_indices_off + (i + 1) * sizeof(uint32_t))) {
+      if (auto res = stream_->peek<uint32_t>(dex_file_indices_off +
+                                             (i + 1) * sizeof(uint32_t)))
+      {
         code_item_end = quickening_base + *res;
       } else {
         break;
       }
     }
 
-    size_t nb_code_item = (code_item_end - current_code_item) / (2 * sizeof(uint32_t)); // The array is compounded of
-                                                                                        // 1. Code item offset
-                                                                                        // 2. Quickening offset
+    if (code_item_end < current_code_item) {
+      LIEF_WARN("Inconsistent code-item range for DEX file #{}", i);
+      break;
+    }
+
+    size_t nb_code_item =
+        (code_item_end - current_code_item) /
+        (2 * sizeof(uint32_t)); // Each array entry is composed of:
+                                // 1. Code item offset
+                                // 2. Quickening offset
 
 
     //  +---------------+         +-----------+
@@ -294,7 +314,8 @@ void Parser::parse_quickening_info<details::VDEX10>() {
 
       // Offset of the quickening data
       uint64_t method_quickening_info_offset = quickening_base;
-      if (auto res = stream_->peek<uint32_t>(current_code_item + sizeof(uint32_t))) {
+      if (auto res = stream_->peek<uint32_t>(current_code_item + sizeof(uint32_t)))
+      {
         method_quickening_info_offset += *res;
       } else {
         break;
@@ -308,25 +329,34 @@ void Parser::parse_quickening_info<details::VDEX10>() {
         break;
       }
 
-      uint64_t quickening_offset_local = method_quickening_info_offset + sizeof(uint32_t); // + Quickening size entry
+      uint64_t quickening_offset_local =
+          method_quickening_info_offset +
+          sizeof(uint32_t); // + Quickening size entry
 
-      const size_t nb_indices = method_quickening_info_size / sizeof(uint16_t); // index values are stored as uint16_t
+      const size_t nb_indices =
+          method_quickening_info_size /
+          sizeof(uint16_t); // index values are stored as uint16_t
 
       for (size_t quick_idx = 0; quick_idx < nb_indices; ++quick_idx) {
-        if (auto index = stream_->peek<uint16_t>(quickening_offset_local + quick_idx * sizeof(uint16_t))) {
+        if (auto index = stream_->peek<uint16_t>(quickening_offset_local +
+                                                 quick_idx * sizeof(uint16_t)))
+        {
           quick_info[method_code_item_offset].push_back(*index);
         } else {
           break;
         }
       }
-      current_code_item += 2 * sizeof(uint32_t); // sizeof(code_item_offset) + sizeof(quickening_base)
+      current_code_item +=
+          2 *
+          sizeof(uint32_t); // sizeof(code_item_offset) + sizeof(quickening_offset)
     }
 
-    // Resolve methods offset
-    const std::vector<uint8_t>& raw = dex_file->raw(/* deoptimize */false);
+    // Resolve method offsets
+    const std::vector<uint8_t>& raw = dex_file->raw(/* deoptimize */ false);
     for (DEX::Method& method : dex_file->methods()) {
-      const auto it_quick = quick_info.find(method.code_offset() - sizeof(DEX::details::code_item));
-      if (it_quick == std::end(quick_info)) {
+      const auto it_quick =
+          quick_info.find(method.code_offset() - sizeof(DEX::details::code_item));
+      if (it_quick == quick_info.end()) {
         continue;
       }
 
@@ -346,11 +376,20 @@ void Parser::parse_quickening_info<details::VDEX10>() {
 
         // Skip packed-switch, sparse-switch, fill-array instructions
         if (DEX::is_switch_array(inst_ptr, inst_end)) {
-          inst_ptr += DEX::switch_array_size(inst_ptr, inst_end);
+          const size_t payload_size = DEX::switch_array_size(inst_ptr, inst_end);
+          if (!DEX::valid_inst_size(inst_ptr, inst_end, payload_size)) {
+            break;
+          }
+          inst_ptr += payload_size;
           continue;
         }
 
-        switch(opcode) {
+        const size_t inst_size = DEX::inst_size_from_opcode(opcode);
+        if (!DEX::valid_inst_size(inst_ptr, inst_end, inst_size)) {
+          break;
+        }
+
+        switch (opcode) {
           case DEX::OPCODES::OP_IGET_QUICK:
           case DEX::OPCODES::OP_IGET_WIDE_QUICK:
           case DEX::OPCODES::OP_IGET_OBJECT_QUICK:
@@ -367,30 +406,30 @@ void Parser::parse_quickening_info<details::VDEX10>() {
           case DEX::OPCODES::OP_IGET_BYTE_QUICK:
           case DEX::OPCODES::OP_IGET_CHAR_QUICK:
           case DEX::OPCODES::OP_IGET_SHORT_QUICK:
-            {
+          {
 
-              method.insert_dex2dex_info(dex_pc, index_value);
-              nb_indexes--;
-              break;
-            }
+            method.insert_dex2dex_info(dex_pc, index_value);
+            nb_indexes--;
+            break;
+          }
           case DEX::OPCODES::OP_NOP:
-            {
-              if (index_value == static_cast<uint16_t>(-1)) {
-                nb_indexes--;
+          {
+            if (index_value == static_cast<uint16_t>(-1)) {
+              nb_indexes--;
+            } else {
+              if (nb_indexes > 1) {
+                nb_indexes -= 2;
               } else {
-                if (nb_indexes > 1) {
-                  nb_indexes -= 2;
-                } else {
-                  nb_indexes--;
-                }
+                nb_indexes--;
               }
-              break;
             }
+            break;
+          }
           default:
-            {
-            }
+          {
+          }
         }
-        inst_ptr += DEX::inst_size_from_opcode(opcode);
+        inst_ptr += inst_size;
       }
     }
   }
@@ -402,5 +441,4 @@ void Parser::parse_quickening_info() {
 }
 
 
-}
 }

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ struct bigobj_header {
 };
 
 
-#pragma pack(push,1)
+#pragma pack(push, 1)
 struct relocation {
   uint32_t VirtualAddress;
   uint32_t SymbolTableIndex;
@@ -59,18 +59,18 @@ struct relocation {
 template<class T>
 struct symbol {
   union {
-    std::array<char, 8> short_name;
+    std::array<char, 8> short_name{};
     struct {
       uint32_t zeroes = 0;
       uint32_t offset = 0;
     } offset;
   } name;
 
-  uint32_t value;
-  T sec_idx;
-  uint16_t type;
-  uint8_t storage_class;
-  uint8_t nb_aux;
+  uint32_t value = 0;
+  T sec_idx = 0;
+  uint16_t type = 0;
+  uint8_t storage_class = 0;
+  uint8_t nb_aux = 0;
 };
 
 using symbol16 = symbol<uint16_t>;

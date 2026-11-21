@@ -174,14 +174,35 @@ class DataQueueImpl final : public DataQueue,
     backpressure_listeners_.erase(listener);
   }
 
+  // Both notifications below can re-enter this DataQueue: a listener may end
+  // up calling into JavaScript, which can destroy the owner of a listener and
+  // so mutate backpressure_listeners_ (or drop the last reference to this
+  // queue) while we are iterating. Hold a reference, iterate a snapshot, and
+  // re-check membership so a listener removed mid-notification is not called.
   void NotifyBackpressure(size_t amount) {
     if (idempotent_) return;
-    for (auto& listener : backpressure_listeners_) listener->EntryRead(amount);
+    if (backpressure_listeners_.empty()) return;
+    auto self = shared_from_this();
+    std::vector<BackpressureListener*> listeners(
+        backpressure_listeners_.begin(), backpressure_listeners_.end());
+    for (auto* listener : listeners) {
+      if (backpressure_listeners_.contains(listener)) {
+        listener->EntryRead(amount);
+      }
+    }
   }
 
   void NotifyBeforePull() {
     if (idempotent_) return;
-    for (auto& listener : backpressure_listeners_) listener->BeforePull();
+    if (backpressure_listeners_.empty()) return;
+    auto self = shared_from_this();
+    std::vector<BackpressureListener*> listeners(
+        backpressure_listeners_.begin(), backpressure_listeners_.end());
+    for (auto* listener : listeners) {
+      if (backpressure_listeners_.contains(listener)) {
+        listener->BeforePull();
+      }
+    }
   }
 
   bool HasBackpressureListeners() const noexcept {
@@ -922,11 +943,11 @@ class FdEntry final : public EntryImpl {
     uv_fs_t req = uv_fs_t();
     auto cleanup = OnScopeLeave([&] { uv_fs_req_cleanup(&req); });
     // TODO(jasnell): Note the use of a sync fs call here is a bit unfortunate.
-    // Doing this asynchronously creates a bit of a race condition tho, a file
-    // could be unmodified when we call the operation but then by the time the
-    // async callback is triggered to give us that answer the file is modified.
-    // While such silliness is still possible here, the sync call at least makes
-    // it less likely to hit the race.
+    // Doing this asynchronously creates a bit of a race condition though, a
+    // file could be unmodified when we call the operation but then by the time
+    // the async callback is triggered to give us that answer the file is
+    // modified. While such silliness is still possible here, the sync call at
+    // least makes it less likely to hit the race.
     if (uv_fs_fstat(nullptr, &req, fd, nullptr) < 0) return true;
     return entry->is_modified(req.statbuf);
   }

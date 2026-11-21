@@ -95,13 +95,19 @@ function checkWorkerIdle(wElu) {
 }
 
 function checkWorkerActive() {
+  // Reading the worker's ELU from this thread is not atomic: the worker's idle
+  // time is read before the current time. If this thread stalls between the
+  // two reads while the worker is idle, the stall is counted as worker active
+  // time in `w` and then missing from `w2`. The duration of the call bounds it.
+  const start = performance.now();
   const w = workerELU();
+  const skew = performance.now() - start;
 
   metricsCh.port2.postMessage({ cmd: 'spin', dur: 50 });
   metricsCh.port2.once('message', mustCall((wElu) => {
     const w2 = workerELU(w);
 
-    assert.ok(w2.active >= 50, `${w2.active} < 50`);
+    assert.ok(w2.active >= 50 - skew, `${w2.active} < 50 - ${skew}`);
     assert.ok(wElu.active >= 50, `${wElu.active} < 50`);
     assert.ok(idleActive(wElu) < idleActive(w2),
               `${idleActive(wElu)} >= ${idleActive(w2)}`);

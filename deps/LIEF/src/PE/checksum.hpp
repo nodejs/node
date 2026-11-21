@@ -1,4 +1,4 @@
-/* Copyright 2024 - 2025 R. Thomas
+/* Copyright 2024 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,8 +27,7 @@ class ChecksumStream {
   static constexpr auto LEFTOVER_BIT = 30;
   ChecksumStream() = default;
   ChecksumStream(uint32_t checksum) :
-    checksum_(checksum)
-  {}
+    checksum_(checksum) {}
 
   ChecksumStream& put(uint8_t c) {
     write(&c, 1);
@@ -61,9 +60,10 @@ class ChecksumStream {
     return write(reinterpret_cast<const uint8_t*>(&value), size);
   }
 
-  template<class T, typename = typename std::enable_if<
-    (std::is_standard_layout_v<T> && std::is_trivial_v<T>) || std::is_integral_v<T>
-  >::type>
+  template<class T,
+           typename = typename std::enable_if<(std::is_standard_layout_v<T> &&
+                                               std::is_trivial_v<T>) ||
+                                              std::is_integral_v<T>>::type>
   ChecksumStream& write(const T& t) {
     return write(reinterpret_cast<const uint8_t*>(&t), sizeof(T));
   }

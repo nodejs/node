@@ -655,7 +655,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "enable the permission system",
             &EnvironmentOptions::permission,
             kAllowedInEnvvar,
-            false);
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--permission-audit",
             "enable audit only for the permission system",
             &EnvironmentOptions::permission_audit,
@@ -894,11 +895,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set environment variables from supplied file",
             &EnvironmentOptions::optional_env_file);
   Implies("--env-file-if-exists", "[has_env_file_string]");
-  AddOption("--experimental-config-file",
+  AddOption("--config-file",
             "set config file path",
-            &EnvironmentOptions::experimental_config_file_path,
+            &EnvironmentOptions::config_file_path,
             kDisallowedInEnvvar);
-  AddAlias("--experimental-default-config-file", "--experimental-config-file");
+  AddAlias("--experimental-config-file", "--config-file");
+  AddAlias("--experimental-default-config-file", "--config-file");
   AddOption("--experimental-package-map",
             "use the specified file for package map resolution",
             &EnvironmentOptions::experimental_package_map_path,
@@ -1010,6 +1012,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "include files in coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_include_pattern,
             kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-coverage-include-all",
+            "include source files that were never loaded in the coverage "
+            "report",
+            &EnvironmentOptions::coverage_include_all,
+            kAllowedInEnvvar,
+            false,
             OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-exclude",
             "exclude files from coverage report that match this glob pattern",
@@ -2152,6 +2161,29 @@ void GetOptionsAsFlags(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void ParseNodeOptionsEnvVarBinding(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  Utf8Value node_options(isolate, args[0]);
+  std::string options_str(*node_options, node_options.length());
+
+  std::vector<std::string> errors;
+  std::vector<std::string> result =
+      ParseNodeOptionsEnvVar(options_str, &errors);
+
+  if (!errors.empty()) {
+    Environment* env = Environment::GetCurrent(context);
+    env->ThrowError(errors[0].c_str());
+    return;
+  }
+
+  Local<Value> v8_result;
+  if (ToV8Value(context, result).ToLocal(&v8_result)) {
+    args.GetReturnValue().Set(v8_result);
+  }
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -2172,6 +2204,8 @@ void Initialize(Local<Object> target,
                         target,
                         "getNamespaceOptionsInputType",
                         GetNamespaceOptionsInputType);
+  SetMethodNoSideEffect(
+      context, target, "parseNodeOptionsEnvVar", ParseNodeOptionsEnvVarBinding);
   Local<Object> env_settings = Object::New(isolate);
   NODE_DEFINE_CONSTANT(env_settings, kAllowedInEnvvar);
   NODE_DEFINE_CONSTANT(env_settings, kDisallowedInEnvvar);
@@ -2200,6 +2234,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetEmbedderOptions);
   registry->Register(GetEnvOptionsInputType);
   registry->Register(GetNamespaceOptionsInputType);
+  registry->Register(ParseNodeOptionsEnvVarBinding);
 }
 }  // namespace options_parser
 

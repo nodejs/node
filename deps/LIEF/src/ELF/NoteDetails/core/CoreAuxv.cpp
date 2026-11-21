@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +25,13 @@
 #include "spdlog/fmt/fmt.h"
 #include "ELF/Structures.hpp"
 
-namespace LIEF {
-namespace ELF {
 
-template<class ELF_T> inline result<uint64_t>
-get_impl(CoreAuxv::TYPE type, const Note::description_t& desc) {
-  using Elf_Auxv  = typename ELF_T::Elf_Auxv;
+namespace LIEF::ELF {
+
+template<class ELF_T>
+inline result<uint64_t> get_impl(CoreAuxv::TYPE type,
+                                 const Note::description_t& desc) {
+  using Elf_Auxv = typename ELF_T::Elf_Auxv;
   auto stream = SpanStream::from_vector(desc);
   if (!stream) {
     return make_error_code(get_error(stream));
@@ -52,9 +53,10 @@ get_impl(CoreAuxv::TYPE type, const Note::description_t& desc) {
   return make_error_code(lief_errors::not_found);
 }
 
-template<class ELF_T> inline std::map<CoreAuxv::TYPE, uint64_t>
-get_values_impl(const Note::description_t& desc) {
-  using Elf_Auxv  = typename ELF_T::Elf_Auxv;
+template<class ELF_T>
+inline std::map<CoreAuxv::TYPE, uint64_t>
+    get_values_impl(const Note::description_t& desc) {
+  using Elf_Auxv = typename ELF_T::Elf_Auxv;
   auto stream = SpanStream::from_vector(desc);
   if (!stream) {
     return {};
@@ -79,10 +81,9 @@ get_values_impl(const Note::description_t& desc) {
 
 template<class ELF_T>
 inline bool write_impl(Note::description_t& description,
-                       const std::map<CoreAuxv::TYPE, uint64_t>& values)
-{
-  using Elf_Auxv  = typename ELF_T::Elf_Auxv;
-  using ptr_t     = typename ELF_T::uint;
+                       const std::map<CoreAuxv::TYPE, uint64_t>& values) {
+  using Elf_Auxv = typename ELF_T::Elf_Auxv;
+  using ptr_t = typename ELF_T::uint;
   vector_iostream io;
   io.reserve(values.size() * sizeof(Elf_Auxv));
 
@@ -91,11 +92,9 @@ inline bool write_impl(Note::description_t& description,
     if (type == CoreAuxv::TYPE::END) {
       continue;
     }
-    io.write(static_cast<ptr_t>(type))
-      .write(static_cast<ptr_t>(value));
+    io.write(static_cast<ptr_t>(type)).write(static_cast<ptr_t>(value));
   }
-  io.write(static_cast<ptr_t>(CoreAuxv::TYPE::END))
-    .write(static_cast<ptr_t>(0));
+  io.write(static_cast<ptr_t>(CoreAuxv::TYPE::END)).write(static_cast<ptr_t>(0));
 
   io.move(description);
   return true;
@@ -104,14 +103,14 @@ inline bool write_impl(Note::description_t& description,
 
 result<uint64_t> CoreAuxv::get(TYPE type) const {
   return class_ == Header::CLASS::ELF32 ?
-                   get_impl<details::ELF32>(type, description_) :
-                   get_impl<details::ELF64>(type, description_);
+             get_impl<details::ELF32>(type, description_) :
+             get_impl<details::ELF64>(type, description_);
 }
 
 std::map<CoreAuxv::TYPE, uint64_t> CoreAuxv::values() const {
   return class_ == Header::CLASS::ELF32 ?
-                   get_values_impl<details::ELF32>(description_) :
-                   get_values_impl<details::ELF64>(description_);
+             get_values_impl<details::ELF32>(description_) :
+             get_values_impl<details::ELF64>(description_);
 }
 
 
@@ -123,8 +122,8 @@ bool CoreAuxv::set(TYPE type, uint64_t value) {
 
 bool CoreAuxv::set(const std::map<TYPE, uint64_t>& values) {
   return class_ == Header::CLASS::ELF32 ?
-                   write_impl<details::ELF32>(description_, values) :
-                   write_impl<details::ELF64>(description_, values);
+             write_impl<details::ELF32>(description_, values) :
+             write_impl<details::ELF64>(description_, values);
 }
 
 void CoreAuxv::dump(std::ostream& os) const {
@@ -137,7 +136,7 @@ void CoreAuxv::dump(std::ostream& os) const {
 
   os << '\n';
   for (const auto& [type, val] : aux_vals) {
-    os << fmt::format("  {}: 0x{:08x}\n", to_string(type), val);
+    os << fmt::format("  {}: {:#010x}\n", to_string(type), val);
   }
 }
 
@@ -146,40 +145,20 @@ void CoreAuxv::accept(Visitor& visitor) const {
 }
 
 const char* to_string(CoreAuxv::TYPE type) {
-  #define ENTRY(X) std::pair(CoreAuxv::TYPE::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(END),
-    ENTRY(IGNORE_TY),
-    ENTRY(EXECFD),
-    ENTRY(PHDR),
-    ENTRY(PHENT),
-    ENTRY(PHNUM),
-    ENTRY(PAGESZ),
-    ENTRY(BASE),
-    ENTRY(FLAGS),
-    ENTRY(ENTRY),
-    ENTRY(NOTELF),
-    ENTRY(UID),
-    ENTRY(EUID),
-    ENTRY(GID),
-    ENTRY(EGID),
-    ENTRY(TGT_PLATFORM),
-    ENTRY(HWCAP),
-    ENTRY(CLKTCK),
-    ENTRY(FPUCW),
-    ENTRY(DCACHEBSIZE),
-    ENTRY(ICACHEBSIZE),
-    ENTRY(UCACHEBSIZE),
-    ENTRY(IGNOREPPC),
-    ENTRY(SECURE),
-    ENTRY(BASE_PLATFORM),
-    ENTRY(RANDOM),
-    ENTRY(HWCAP2),
-    ENTRY(EXECFN),
-    ENTRY(SYSINFO),
-    ENTRY(SYSINFO_EHDR),
+#define ENTRY(X) std::pair(CoreAuxv::TYPE::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(END),           ENTRY(IGNORE_TY),   ENTRY(EXECFD),
+      ENTRY(PHDR),          ENTRY(PHENT),       ENTRY(PHNUM),
+      ENTRY(PAGESZ),        ENTRY(BASE),        ENTRY(FLAGS),
+      ENTRY(ENTRY),         ENTRY(NOTELF),      ENTRY(UID),
+      ENTRY(EUID),          ENTRY(GID),         ENTRY(EGID),
+      ENTRY(TGT_PLATFORM),  ENTRY(HWCAP),       ENTRY(CLKTCK),
+      ENTRY(FPUCW),         ENTRY(DCACHEBSIZE), ENTRY(ICACHEBSIZE),
+      ENTRY(UCACHEBSIZE),   ENTRY(IGNOREPPC),   ENTRY(SECURE),
+      ENTRY(BASE_PLATFORM), ENTRY(RANDOM),      ENTRY(HWCAP2),
+      ENTRY(EXECFN),        ENTRY(SYSINFO),     ENTRY(SYSINFO_EHDR),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(type); it != enums2str.end()) {
     return it->second;
@@ -188,5 +167,4 @@ const char* to_string(CoreAuxv::TYPE type) {
   return "UNKNOWN";
 }
 
-} // namespace ELF
-} // namespace LIEF
+} // namespace LIEF::ELF

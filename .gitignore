@@ -103,6 +103,11 @@ _UpgradeReport_Files/
 tools/*/*.i
 tools/*/*.i.tmp
 
+# === Rules for pgo artifacts ===
+*.profdata
+*.profraw
+*.gcda
+
 # === Rules for release artifacts ===
 /*.tar.*
 /*.pkg
@@ -162,6 +167,7 @@ install_manifest.txt
 # === Rules for AI assistants ===
 CLAUDE.md
 AGENTS.md
+AGENTS.override.md
 
 # === Global Rules ===
 # Keep last to avoid being excluded

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,20 +19,19 @@
 #include "LIEF/MachO/MainCommand.hpp"
 #include "MachO/Structures.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 MainCommand::MainCommand(const details::entry_point_command& cmd) :
   LoadCommand::LoadCommand{LoadCommand::TYPE(cmd.cmd), cmd.cmdsize},
   entrypoint_{cmd.entryoff},
-  stack_size_{cmd.stacksize}
-{}
+  stack_size_{cmd.stacksize} {}
 
 MainCommand::MainCommand(uint64_t entrypoint, uint64_t stacksize) :
-  LoadCommand::LoadCommand{LoadCommand::TYPE::MAIN, sizeof(details::entry_point_command)},
+  LoadCommand::LoadCommand{LoadCommand::TYPE::MAIN,
+                           sizeof(details::entry_point_command)},
   entrypoint_{entrypoint},
-  stack_size_{stacksize}
-{
+  stack_size_{stacksize} {
   this->data(LoadCommand::raw_t(size(), 0));
 }
 
@@ -42,10 +41,9 @@ void MainCommand::accept(Visitor& visitor) const {
 
 std::ostream& MainCommand::print(std::ostream& os) const {
   LoadCommand::print(os) << '\n';
-  os << fmt::format("entrypoint=0x{:x}, stack size=0x{:x}",
-                    entrypoint(), stack_size());
+  os << fmt::format("entrypoint={:#x}, stack size={:#x}", entrypoint(),
+                    stack_size());
   return os;
 }
 
-}
 }

@@ -65,8 +65,10 @@ int ngtcp2_balloc_get(ngtcp2_balloc *balloc, void **pbuf, size_t n) {
   assert(n <= balloc->blklen);
 
   if (ngtcp2_buf_left(&balloc->buf) < n) {
+    // 0xF: the 16-byte alignment below needs up to 15 bytes when malloc
+    // returns only 4-byte aligned memory (for example on ESP-IDF heap)!
     p = ngtcp2_mem_malloc(balloc->mem,
-                          sizeof(ngtcp2_memblock_hd) + 0x8U + balloc->blklen);
+                          sizeof(ngtcp2_memblock_hd) + 0xFU + balloc->blklen);
     if (p == NULL) {
       return NGTCP2_ERR_NOMEM;
     }

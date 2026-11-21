@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,35 +33,35 @@ namespace LIEF::COFF {
 //     BYTE  rgbReserved[12];           // Must be 0
 // } IMAGE_AUX_SYMBOL_TOKEN_DEF
 std::unique_ptr<AuxiliaryCLRToken>
-  AuxiliaryCLRToken::parse(const std::vector<uint8_t>& payload)
-{
+    AuxiliaryCLRToken::parse(const std::vector<uint8_t>& payload) {
   SpanStream stream(payload);
 
   auto bAuxType = stream.read<uint8_t>();
   if (!bAuxType) {
-    LIEF_WARN("AuxiliaryCLRToken error (line: {})", __LINE__);
+    LIEF_WARN("Failed to parse AuxiliaryCLRToken field (line: {})", __LINE__);
     return std::make_unique<AuxiliaryCLRToken>();
   }
 
   auto bReserved = stream.read<uint8_t>();
   if (!bReserved) {
-    LIEF_WARN("AuxiliaryCLRToken error (line: {})", __LINE__);
+    LIEF_WARN("Failed to parse AuxiliaryCLRToken field (line: {})", __LINE__);
     return std::make_unique<AuxiliaryCLRToken>();
   }
 
   auto SymbolTableIndex = stream.read<uint32_t>();
   if (!SymbolTableIndex) {
-    LIEF_WARN("AuxiliaryCLRToken error (line: {})", __LINE__);
+    LIEF_WARN("Failed to parse AuxiliaryCLRToken field (line: {})", __LINE__);
     return std::make_unique<AuxiliaryCLRToken>();
   }
 
   std::vector<uint8_t> rgbReserved;
   if (!stream.read_data(rgbReserved, 12)) {
-    LIEF_WARN("AuxiliaryCLRToken error (line: {})", __LINE__);
+    LIEF_WARN("Failed to parse AuxiliaryCLRToken field (line: {})", __LINE__);
     return std::make_unique<AuxiliaryCLRToken>();
   }
-  return std::make_unique<AuxiliaryCLRToken>(
-      *bAuxType, *bReserved, *SymbolTableIndex, std::move(rgbReserved));
+  return std::make_unique<AuxiliaryCLRToken>(*bAuxType, *bReserved,
+                                             *SymbolTableIndex,
+                                             std::move(rgbReserved));
 }
 
 std::string AuxiliaryCLRToken::to_string() const {

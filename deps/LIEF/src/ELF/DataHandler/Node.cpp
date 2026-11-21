@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,35 +15,28 @@
  */
 #include "ELF/DataHandler/Node.hpp"
 
-namespace LIEF {
-namespace ELF {
-namespace DataHandler {
+
+namespace LIEF::ELF::DataHandler {
 
 bool Node::operator==(const Node& rhs) const {
   if (this == &rhs) {
     return true;
   }
-  return type() == rhs.type() &&
-         size() == rhs.size() &&
-         offset() == rhs.offset();
+  return type() == rhs.type() && size() == rhs.size() && offset() == rhs.offset();
 }
 
 bool Node::operator<(const Node& rhs) const {
-  return ((type() == rhs.type() &&
-         offset() <= rhs.offset() &&
-         (offset() + size()) < (rhs.offset() + rhs.size())) ||
-         (type() == rhs.type() &&
-         offset() < rhs.offset() &&
-         (offset() + size()) <= (rhs.offset() + rhs.size())));
-
+  return ((type() == rhs.type() && offset() <= rhs.offset() &&
+           (offset() + size()) < (rhs.offset() + rhs.size())) ||
+          (type() == rhs.type() && offset() < rhs.offset() &&
+           (offset() + size()) <= (rhs.offset() + rhs.size())));
 }
 
 
 bool Node::operator>(const Node& rhs) const {
   return type() == rhs.type() &&
-        (offset() > rhs.offset() || (offset() + size()) > (rhs.offset() + rhs.size()));
+         (offset() > rhs.offset() ||
+          (offset() + size()) > (rhs.offset() + rhs.size()));
 }
 
-}
-}
 }

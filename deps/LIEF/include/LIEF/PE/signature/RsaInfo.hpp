@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ class LIEF_API RsaInfo {
   private:
   RsaInfo();
   RsaInfo(const rsa_ctx_handle ctx);
-  rsa_ctx_handle ctx_;
+  rsa_ctx_handle ctx_ = nullptr;
 };
 
 }

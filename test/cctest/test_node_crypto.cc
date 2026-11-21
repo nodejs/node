@@ -22,6 +22,7 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/provider.h>
+#include <openssl/rand.h>
 #endif
 
 using ncrypto::Ec;
@@ -87,33 +88,6 @@ TEST(NodeCrypto, NewRootCertStore) {
   X509_STORE_free(store);
 }
 
-/*
- * This test verifies that OpenSSL memory tracking constants are properly
- * defined.
- */
-TEST(NodeCrypto, MemoryTrackingConstants) {
-  // Verify that our memory tracking constants are defined and reasonable
-  EXPECT_GT(node::crypto::kSizeOf_SSL_CTX, static_cast<size_t>(0))
-      << "SSL_CTX size constant should be positive";
-  EXPECT_GT(node::crypto::kSizeOf_X509, static_cast<size_t>(0))
-      << "X509 size constant should be positive";
-  EXPECT_GT(node::crypto::kSizeOf_EVP_MD_CTX, static_cast<size_t>(0))
-      << "EVP_MD_CTX size constant should be positive";
-
-  // Verify reasonable size ranges (basic sanity check)
-  EXPECT_LT(node::crypto::kSizeOf_SSL_CTX, static_cast<size_t>(10000))
-      << "SSL_CTX size should be reasonable";
-  EXPECT_LT(node::crypto::kSizeOf_X509, static_cast<size_t>(10000))
-      << "X509 size should be reasonable";
-  EXPECT_LT(node::crypto::kSizeOf_EVP_MD_CTX, static_cast<size_t>(1000))
-      << "EVP_MD_CTX size should be reasonable";
-
-  // Specific values we expect based on our implementation
-  EXPECT_EQ(node::crypto::kSizeOf_SSL_CTX, static_cast<size_t>(240));
-  EXPECT_EQ(node::crypto::kSizeOf_X509, static_cast<size_t>(128));
-  EXPECT_EQ(node::crypto::kSizeOf_EVP_MD_CTX, static_cast<size_t>(48));
-}
-
 TEST(NodeCrypto, TryGetIntCipherOutputLength) {
   int output_len = 0;
 
@@ -147,6 +121,55 @@ TEST(NodeCrypto, KeyAlgorithmNames) {
 }
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
+TEST(NodeCrypto, DhNamedGroupCheckDoesNotRequireRandomness) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  ncrypto::DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> libctx(
+      OSSL_LIB_CTX_new());
+  ASSERT_TRUE(libctx);
+  ASSERT_EQ(
+      RAND_set_DRBG_type(
+          libctx.get(), "node-test-unavailable-rng", nullptr, nullptr, nullptr),
+      1);
+  OSSL_LIB_CTX* previous_libctx = OSSL_LIB_CTX_set0_default(libctx.get());
+  auto restore_libctx = node::OnScopeLeave(
+      [previous_libctx] { OSSL_LIB_CTX_set0_default(previous_libctx); });
+
+  // Primality checks need randomness. Known groups must skip those checks.
+  unsigned char random_byte;
+  ASSERT_NE(RAND_bytes_ex(libctx.get(), &random_byte, 1, 0), 1);
+  ERR_clear_error();
+
+  using DH = ncrypto::DHPointer;
+  for (const char* name :
+       {"modp5", "modp14", "modp15", "modp16", "modp17", "modp18"}) {
+    auto prime = DH::FindGroup(name);
+    auto generator = DH::GetStandardGenerator();
+    ASSERT_TRUE(prime);
+    ASSERT_TRUE(generator);
+    auto dh = DH::New(std::move(prime), std::move(generator));
+    ASSERT_TRUE(dh);
+    EXPECT_EQ(dh.check(), DH::CheckResult::NONE) << name;
+  }
+
+  auto prime = DH::FindGroup("modp14");
+  auto generator = DH::GetStandardGenerator();
+  ASSERT_TRUE(prime);
+  ASSERT_TRUE(generator);
+  ASSERT_EQ(BN_add_word(prime.get(), 1), 1);
+  auto composite = DH::New(std::move(prime), std::move(generator));
+  ASSERT_TRUE(composite);
+  EXPECT_EQ(composite.check(), DH::CheckResult::P_NOT_PRIME);
+
+  prime = DH::FindGroup("modp14");
+  generator = DH::GetStandardGenerator();
+  ASSERT_TRUE(prime);
+  ASSERT_TRUE(generator);
+  ASSERT_EQ(BN_add_word(generator.get(), 1), 1);
+  auto other_generator = DH::New(std::move(prime), std::move(generator));
+  ASSERT_TRUE(other_generator);
+  EXPECT_EQ(other_generator.check(), DH::CheckResult::CHECK_FAILED);
+}
+
 TEST(NodeCrypto, ProviderPkcs1PublicKeyImport) {
   ncrypto::ClearErrorOnReturn clear_errors;
   auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::RSA);
@@ -413,6 +436,82 @@ TEST(NodeCrypto, RsaPrimeProduct) {
   ASSERT_TRUE(rsa.setPublicKey(std::move(n), std::move(e)));
   EXPECT_FALSE(rsa.checkPrimeProduct());
 }
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+namespace {
+constexpr int kMinimumPrimeChecks = 64;
+
+bool CheckMersennePrime(int exponent, int requested_checks) {
+  auto candidate = ncrypto::BignumPointer::New();
+  if (!candidate || BN_set_bit(candidate.get(), exponent) != 1 ||
+      BN_sub_word(candidate.get(), 1) != 1) {
+    return false;
+  }
+
+  int completed_checks = 0;
+  const int result = candidate.isPrime(
+      requested_checks, [&completed_checks](int event, int iteration) {
+        if (event == 1 && iteration >= 0) completed_checks++;
+        return true;
+      });
+  return result == 1 && completed_checks >= requested_checks;
+}
+}  // namespace
+
+TEST(NodeCrypto, BignumPrimeChecksHonorRequestedCount) {
+  EXPECT_TRUE(CheckMersennePrime(127, kMinimumPrimeChecks + 1));
+  EXPECT_TRUE(CheckMersennePrime(2203, 129));
+}
+
+TEST(NodeCrypto, BignumPrimeCheckCancellation) {
+  auto candidate = ncrypto::BignumPointer::New();
+  ASSERT_TRUE(candidate);
+  ASSERT_EQ(BN_set_bit(candidate.get(), 127), 1);
+  ASSERT_EQ(BN_sub_word(candidate.get(), 1), 1);
+
+  int invocations = 0;
+  int completed_checks = 0;
+  bool valid_events = true;
+  const int result =
+      candidate.isPrime(kMinimumPrimeChecks + 1, [&](int event, int iteration) {
+        if (event != 1) {
+          valid_events = false;
+          return false;
+        }
+        if (iteration == -1) {
+          invocations++;
+          return true;
+        }
+        if (iteration != completed_checks % kMinimumPrimeChecks) {
+          valid_events = false;
+          return false;
+        }
+        if (completed_checks == kMinimumPrimeChecks) return false;
+        completed_checks++;
+        return true;
+      });
+  EXPECT_EQ(result, -1);
+  EXPECT_TRUE(valid_events);
+  EXPECT_EQ(invocations, 3);
+  EXPECT_EQ(completed_checks, kMinimumPrimeChecks);
+  ERR_clear_error();
+}
+
+TEST(NodeCrypto, BignumPrimeCheckCancellationSmallPrime) {
+  // 311 is resolved by trial division, so OpenSSL never invokes the callback.
+  auto candidate = ncrypto::BignumPointer::New();
+  ASSERT_TRUE(candidate);
+  ASSERT_EQ(BN_set_word(candidate.get(), 311), 1);
+
+  int invocations = 0;
+  const int result = candidate.isPrime(INT_MAX, [&](int, int) {
+    invocations++;
+    return false;
+  });
+  EXPECT_EQ(result, -1);
+  EXPECT_EQ(invocations, 1);
+}
+#endif
 
 TEST(NodeCrypto, EcKeyComponents) {
   ncrypto::ClearErrorOnReturn clear_errors;
@@ -1050,6 +1149,105 @@ TEST(NodeCrypto, X509FormattingPreservesUnrelatedErrors) {
   ASSERT_TRUE(subject);
   EXPECT_EQ(ERR_peek_error(), expected);
   ERR_clear_error();
+}
+
+TEST(NodeCrypto, X509IssuerChecksPreserveUnrelatedErrors) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::RSA);
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(ctx.initForKeygen());
+  ASSERT_TRUE(ctx.setRsaKeygenBits(2048));
+  EVP_PKEY* raw = nullptr;
+  ASSERT_EQ(EVP_PKEY_keygen(ctx.get(), &raw), 1);
+  EVPKeyPointer key(raw);
+
+  ncrypto::X509Pointer cert(X509_new());
+  ASSERT_TRUE(cert);
+  ASSERT_EQ(X509_set_version(cert.get(), 2), 1);
+  ASSERT_EQ(ASN1_INTEGER_set(X509_get_serialNumber(cert.get()), 1), 1);
+  ASSERT_EQ(
+      ASN1_TIME_set_string(X509_getm_notBefore(cert.get()), "20260101000000Z"),
+      1);
+  ASSERT_EQ(
+      ASN1_TIME_set_string(X509_getm_notAfter(cert.get()), "20270101000000Z"),
+      1);
+  X509NamePointer name(X509_NAME_new());
+  ASSERT_TRUE(name);
+  ASSERT_EQ(X509_NAME_add_entry_by_txt(
+                name.get(),
+                "CN",
+                MBSTRING_ASC,
+                reinterpret_cast<const unsigned char*>("issuer"),
+                -1,
+                -1,
+                0),
+            1);
+  ASSERT_EQ(X509_set_subject_name(cert.get(), name.get()), 1);
+  ASSERT_EQ(X509_set_issuer_name(cert.get(), name.get()), 1);
+  ASSERT_EQ(X509_set_pubkey(cert.get(), key.get()), 1);
+  ASSERT_GT(X509_sign(cert.get(), key.get(), EVP_sha256()), 0);
+
+  X509NamePointer mismatch_name(X509_NAME_dup(name.get()));
+  ASSERT_TRUE(mismatch_name);
+  ASSERT_EQ(X509_NAME_add_entry_by_txt(
+                mismatch_name.get(),
+                "OU",
+                MBSTRING_ASC,
+                reinterpret_cast<const unsigned char*>("other"),
+                -1,
+                -1,
+                0),
+            1);
+
+  ncrypto::DeleteFnPtr<ASN1_OCTET_STRING, ASN1_OCTET_STRING_free> invalid_value(
+      ASN1_OCTET_STRING_new());
+  ASSERT_TRUE(invalid_value);
+  const unsigned char truncated_sequence[] = {0x30};
+  ASSERT_EQ(
+      ASN1_OCTET_STRING_set(
+          invalid_value.get(), truncated_sequence, sizeof(truncated_sequence)),
+      1);
+  X509ExtensionPointer invalid_constraints(X509_EXTENSION_create_by_NID(
+      nullptr, NID_basic_constraints, 0, invalid_value.get()));
+  ASSERT_TRUE(invalid_constraints);
+
+  for (const bool seed_error : {true, false}) {
+    // Reparse each issuer so extension-cache failures are exercised each time.
+    auto matching_issuer = cert.view().clone();
+    auto mismatch = cert.view().clone();
+    auto malformed = cert.view().clone();
+    ASSERT_TRUE(matching_issuer);
+    ASSERT_TRUE(mismatch);
+    ASSERT_TRUE(malformed);
+    ASSERT_EQ(X509_set_subject_name(mismatch.get(), mismatch_name.get()), 1);
+    ASSERT_EQ(X509_add_ext(malformed.get(), invalid_constraints.get(), -1), 1);
+
+    const auto check = [seed_error](ncrypto::X509View subject,
+                                    ncrypto::X509View issuer,
+                                    bool issued) {
+      ERR_clear_error();
+      if (seed_error) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+        ERR_raise(ERR_LIB_USER, 1);
+#elif NCRYPTO_USE_BORINGSSL || NCRYPTO_USE_LEGACY_OPENSSL
+        ERR_put_error(ERR_LIB_USER, 0, 1, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
+#endif
+      }
+      const auto expected = ERR_peek_error();
+      if (seed_error) ASSERT_NE(expected, 0UL);
+      EXPECT_EQ(subject.isIssuedBy(issuer), issued);
+      EXPECT_EQ(ERR_get_error(), expected);
+      EXPECT_EQ(ERR_get_error(), 0UL);
+    };
+
+    check(cert.view(), matching_issuer.view(), true);
+    check(cert.view(), mismatch.view(), false);
+    check(cert.view(), malformed.view(), false);
+    check({}, matching_issuer.view(), false);
+    check(cert.view(), {}, false);
+  }
 }
 
 TEST(NodeCrypto, X509KeyVisitorsHandleMissingPublicKey) {

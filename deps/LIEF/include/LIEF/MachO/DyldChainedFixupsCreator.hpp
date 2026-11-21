@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,25 +69,23 @@ class LIEF_LOCAL DyldChainedFixupsCreator {
   DyldChainedFixupsCreator& add_relocation(uint64_t address, uint64_t target);
 
   DyldChainedFixupsCreator&
-    add_relocations(const std::vector<reloc_info_t>& relocations)
-  {
+      add_relocations(const std::vector<reloc_info_t>& relocations) {
     std::copy(relocations.begin(), relocations.end(),
               std::back_inserter(relocations_));
     return *this;
   }
 
-  DyldChainedFixupsCreator& add_binding(uint64_t address,
-                                        std::string symbol, std::string library,
-                                        uint64_t addend = 0, bool weak = false);
+  DyldChainedFixupsCreator& add_binding(uint64_t address, std::string symbol,
+                                        std::string library, uint64_t addend = 0,
+                                        bool weak = false);
 
-  DyldChainedFixupsCreator& add_binding(uint64_t address,
-                                        std::string symbol,
-                                        uint64_t addend = 0, bool weak = false)
-  {
+  DyldChainedFixupsCreator& add_binding(uint64_t address, std::string symbol,
+                                        uint64_t addend = 0, bool weak = false) {
     return add_binding(address, std::move(symbol), "", addend, weak);
   }
 
-  DyldChainedFixupsCreator& add_bindings(const std::vector<binding_info_t>& bindings) {
+  DyldChainedFixupsCreator&
+      add_bindings(const std::vector<binding_info_t>& bindings) {
     std::copy(bindings.begin(), bindings.end(), std::back_inserter(bindings_));
     return *this;
   }
@@ -98,7 +96,8 @@ class LIEF_LOCAL DyldChainedFixupsCreator {
   struct LIEF_LOCAL binding_rebase_t {
     enum TYPE {
       UNKNOWN = 0,
-      FIXUP, BINDING,
+      FIXUP,
+      BINDING,
     };
     union {
       ChainedBindingInfo* binding = nullptr;
@@ -108,13 +107,11 @@ class LIEF_LOCAL DyldChainedFixupsCreator {
 
     binding_rebase_t(ChainedBindingInfo& info) :
       binding(&info),
-      type(BINDING)
-    {}
+      type(BINDING) {}
 
     binding_rebase_t(RelocationFixup& fixup) :
       fixup(&fixup),
-      type(FIXUP)
-    {}
+      type(FIXUP) {}
 
     uint64_t addr() const;
 
@@ -145,24 +142,26 @@ class LIEF_LOCAL DyldChainedFixupsCreator {
                            const binding_rebase_t& rhs) {
       return !(lhs > rhs);
     }
-
   };
   LIEF_LOCAL result<size_t> lib2ord(const Binary& bin, const Symbol& sym,
                                     const std::string& lib);
   LIEF_LOCAL const Symbol* find_symbol(const Binary& bin, const std::string& name);
 
-  LIEF_LOCAL static DYLD_CHAINED_PTR_FORMAT pointer_format(const Binary& bin, size_t imp_count);
-  LIEF_LOCAL ok_error_t process_relocations(Binary& target, DYLD_CHAINED_PTR_FORMAT ptr_fmt);
-  LIEF_LOCAL ok_error_t process_bindings(
-    Binary& target, strong_map_t& strong_map,
-    std::unordered_map<std::string, size_t>& symbols_idx, DyldChainedFixups* cmd,
-    DyldChainedFixups::binding_info_t& all_bindings);
+  LIEF_LOCAL static DYLD_CHAINED_PTR_FORMAT pointer_format(const Binary& bin,
+                                                           size_t imp_count);
+  LIEF_LOCAL ok_error_t process_relocations(Binary& target,
+                                            DYLD_CHAINED_PTR_FORMAT ptr_fmt);
+  LIEF_LOCAL DyldChainedFixups::binding_info_t
+      process_bindings(Binary& target, strong_map_t& strong_map,
+                       std::unordered_map<std::string, size_t>& symbols_idx,
+                       DyldChainedFixups* cmd);
 
   uint32_t fixups_version_ = 0;
   DYLD_CHAINED_FORMAT imports_format_;
   std::vector<binding_info_t> bindings_;
   std::vector<reloc_info_t> relocations_;
-  std::unordered_map<SegmentCommand*, std::vector<binding_rebase_t>> segment_chains_;
+  std::unordered_map<SegmentCommand*, std::vector<binding_rebase_t>>
+      segment_chains_;
   std::unordered_map<std::string, size_t> lib2ord_;
 };
 }

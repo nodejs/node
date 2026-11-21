@@ -1,6 +1,6 @@
 
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,20 +22,19 @@
 #include <iomanip>
 #include <sstream>
 
-#define PRINT_FIELD(name,attr) \
+#define PRINT_FIELD(name, attr)                                                   \
   os << std::setw(WIDTH) << std::setfill(' ') << name << std::hex << attr << '\n'
 
-#define PRINT_LOCATION(name,attr)                                               \
-  os << std::setw(WIDTH) << std::setfill(' ') << name << std::hex << attr.first \
+#define PRINT_LOCATION(name, attr)                                                \
+  os << std::setw(WIDTH) << std::setfill(' ') << name << std::hex << attr.first   \
      << std::dec << " (#" << attr.second << ")" << '\n'
 
-namespace LIEF {
-namespace DEX {
+
+namespace LIEF::DEX {
 
 Header::Header() = default;
 Header::Header(const Header&) = default;
 Header& Header::operator=(const Header&) = default;
-
 
 
 Header::magic_t Header::magic() const {
@@ -112,7 +111,6 @@ void Header::accept(Visitor& visitor) const {
 }
 
 
-
 std::ostream& operator<<(std::ostream& os, const Header& hdr) {
   static constexpr size_t WIDTH = 20;
 
@@ -128,33 +126,29 @@ std::ostream& operator<<(std::ostream& os, const Header& hdr) {
   }
 
   const Header::signature_t& sig = hdr.signature();
-  std::string sig_str = std::accumulate(
-      std::begin(sig),
-      std::end(sig),
-      std::string{},
-      [] (const std::string& s, uint8_t c) {
-        std::stringstream ss;
-        return s + hex_str(c);
-      });
+  std::string sig_str = std::accumulate(sig.begin(), sig.end(), std::string{},
+                                        [](const std::string& s, uint8_t c) {
+                                          return s + hex_str(c);
+                                        });
 
 
   os << std::hex << std::left << std::showbase;
-  PRINT_FIELD("Magic:",       magic_str);
-  PRINT_FIELD("Checksum:",    hdr.checksum());
-  PRINT_FIELD("Signature:",   sig_str);
-  PRINT_FIELD("File Size:",   hdr.file_size());
+  PRINT_FIELD("Magic:", magic_str);
+  PRINT_FIELD("Checksum:", hdr.checksum());
+  PRINT_FIELD("Signature:", sig_str);
+  PRINT_FIELD("File Size:", hdr.file_size());
   PRINT_FIELD("Header Size:", hdr.header_size());
-  PRINT_FIELD("Endian Tag:",  hdr.endian_tag());
-  PRINT_FIELD("Map Offset:",  hdr.map());
+  PRINT_FIELD("Endian Tag:", hdr.endian_tag());
+  PRINT_FIELD("Map Offset:", hdr.map());
 
-  PRINT_LOCATION("Strings:",     hdr.strings());
-  PRINT_LOCATION("Link:",        hdr.link());
-  PRINT_LOCATION("Types:",       hdr.types());
-  PRINT_LOCATION("Prototypes:",  hdr.prototypes());
-  PRINT_LOCATION("Fields:",      hdr.fields());
-  PRINT_LOCATION("Methods:",     hdr.methods());
-  PRINT_LOCATION("Classes:",     hdr.classes());
-  PRINT_LOCATION("Data:",        hdr.data());
+  PRINT_LOCATION("Strings:", hdr.strings());
+  PRINT_LOCATION("Link:", hdr.link());
+  PRINT_LOCATION("Types:", hdr.types());
+  PRINT_LOCATION("Prototypes:", hdr.prototypes());
+  PRINT_LOCATION("Fields:", hdr.fields());
+  PRINT_LOCATION("Methods:", hdr.methods());
+  PRINT_LOCATION("Classes:", hdr.classes());
+  PRINT_LOCATION("Data:", hdr.data());
 
   return os;
 }
@@ -162,7 +156,4 @@ std::ostream& operator<<(std::ostream& os, const Header& hdr) {
 Header::~Header() = default;
 
 
-
-} // Namespace DEX
-} // Namespace LIEF
-
+} // namespace LIEF::DEX

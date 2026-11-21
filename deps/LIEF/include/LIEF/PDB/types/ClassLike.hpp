@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 #ifndef LIEF_PDB_TYPE_CLASS_H
 #define LIEF_PDB_TYPE_CLASS_H
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/PDB/Type.hpp"
 #include "LIEF/PDB/types/Attribute.hpp"
@@ -27,11 +28,15 @@ namespace LIEF {
 namespace pdb {
 namespace types {
 
-/// This class abstracts the following PDB types: `LF_STRUCTURE`, `LF_INTERFACE`, `LF_CLASS`
-/// or `LF_UNION`.
+/// This class abstracts the following PDB types: `LF_STRUCTURE`, `LF_INTERFACE`,
+/// `LF_CLASS` or `LF_UNION`.
 class LIEF_API ClassLike : public Type {
   public:
-  using Type::Type;
+  template<typename... Args,
+           typename = typename std::
+               enable_if<std::is_constructible<Type, Args&&...>::value>::type>
+  ClassLike(Args&&... args) :
+    Type(std::forward<Args>(args)...) {}
 
   /// Attributes iterator
   using attributes_iterator = iterator_range<Attribute::Iterator>;
@@ -42,22 +47,17 @@ class LIEF_API ClassLike : public Type {
   /// Mangled type name
   std::string unique_name() const;
 
-  /// Demangled type name
-  std::string name() const;
-
   /// Iterator over the different attributes defined in this class-like type
-  attributes_iterator attributes() const;
+  attributes_iterator attributes() const LIEF_LIFETIMEBOUND;
 
   /// Iterator over the different methods implemented in this class-type type
-  methods_iterator methods() const;
+  methods_iterator methods() const LIEF_LIFETIMEBOUND;
 
-  /// Size of the type including all its attributes. This size should match
-  /// the `sizeof(...)` this type.
-  uint64_t size() const;
-
-  template <class T>
-  static bool classof(const T*, typename std::enable_if<std::is_base_of<ClassLike, T>::value>::type* = 0)
-  {
+  template<class T>
+  static bool classof(
+      const T*,
+      typename std::enable_if<std::is_base_of<ClassLike, T>::value>::type* = 0
+  ) {
     return true;
   }
 
@@ -68,7 +68,11 @@ class LIEF_API ClassLike : public Type {
 /// Interface for the `LF_STRUCTURE` PDB type
 class LIEF_API Structure : public ClassLike {
   public:
-  using ClassLike::ClassLike;
+  template<typename... Args,
+           typename = typename std::
+               enable_if<std::is_constructible<ClassLike, Args&&...>::value>::type>
+  Structure(Args&&... args) :
+    ClassLike(std::forward<Args>(args)...) {}
 
   static bool classof(const Type* type) {
     return type->kind() == Type::KIND::STRUCTURE;
@@ -80,7 +84,11 @@ class LIEF_API Structure : public ClassLike {
 /// Interface for the `LF_CLASS` PDB type
 class LIEF_API Class : public ClassLike {
   public:
-  using ClassLike::ClassLike;
+  template<typename... Args,
+           typename = typename std::
+               enable_if<std::is_constructible<ClassLike, Args&&...>::value>::type>
+  Class(Args&&... args) :
+    ClassLike(std::forward<Args>(args)...) {}
 
   static bool classof(const Type* type) {
     return type->kind() == Type::KIND::CLASS;
@@ -92,7 +100,11 @@ class LIEF_API Class : public ClassLike {
 /// Interface for the `LF_INTERFACE` PDB type
 class LIEF_API Interface : public ClassLike {
   public:
-  using ClassLike::ClassLike;
+  template<typename... Args,
+           typename = typename std::
+               enable_if<std::is_constructible<ClassLike, Args&&...>::value>::type>
+  Interface(Args&&... args) :
+    ClassLike(std::forward<Args>(args)...) {}
 
   static bool classof(const Type* type) {
     return type->kind() == Type::KIND::INTERFACE;
@@ -106,5 +118,3 @@ class LIEF_API Interface : public ClassLike {
 }
 }
 #endif
-
-

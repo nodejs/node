@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,8 +47,7 @@ class LIEF_API SigningCertificateV2 : public Attribute {
 
   public:
   SigningCertificateV2() :
-    Attribute(Attribute::TYPE::SIGNING_CERTIFICATE_V2)
-  {}
+    Attribute(Attribute::TYPE::SIGNING_CERTIFICATE_V2) {}
   SigningCertificateV2(const SigningCertificateV2&) = default;
   SigningCertificateV2& operator=(const SigningCertificateV2&) = default;
 

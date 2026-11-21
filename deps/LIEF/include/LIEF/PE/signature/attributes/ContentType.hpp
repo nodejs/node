@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,10 +26,12 @@ namespace LIEF {
 class VectorStream;
 namespace PE {
 
-/// Interface over the structure described by the OID ``1.2.840.113549.1.9.3`` (PKCS #9)
+/// Interface over the structure described by the OID ``1.2.840.113549.1.9.3``
+/// (PKCS #9)
 ///
 /// The internal structure is described in the
-/// [RFC #2985: PKCS #9 - Selected Object Classes and Attribute Types Version 2.0](https://tools.ietf.org/html/rfc2985)
+/// [RFC #2985: PKCS #9 - Selected Object Classes and Attribute Types
+/// Version 2.0](https://tools.ietf.org/html/rfc2985)
 ///
 /// ```text
 /// ContentType ::= OBJECT IDENTIFIER
@@ -41,12 +43,10 @@ class LIEF_API ContentType : public Attribute {
 
   public:
   ContentType() :
-    Attribute(Attribute::TYPE::CONTENT_TYPE)
-  {}
+    Attribute(Attribute::TYPE::CONTENT_TYPE) {}
   ContentType(oid_t oid) :
     Attribute(Attribute::TYPE::CONTENT_TYPE),
-    oid_{std::move(oid)}
-  {}
+    oid_{std::move(oid)} {}
   ContentType(const ContentType&) = default;
   ContentType& operator=(const ContentType&) = default;
 

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 #include <memory>
-#include <iterator>
 #include <algorithm>
+#include <cstring>
 
 #include "logging.hpp"
 
 #include "LIEF/BinaryStream/VectorStream.hpp"
+#include "LIEF/BinaryStream/MemoryStream.hpp"
+#include "LIEF/BinaryStream/DumpStream.hpp"
 
+#include "LIEF/utils.hpp"
 #include "LIEF/ELF/utils.hpp"
 #include "LIEF/ELF/Parser.hpp"
 #include "LIEF/ELF/Binary.hpp"
@@ -32,11 +35,14 @@
 #include "LIEF/ELF/SysvHash.hpp"
 
 #include "ELF/DataHandler/Handler.hpp"
+#include "ELF/elf_utils.hpp"
+#include "LIEF/ELF/EnumToString.hpp"
 
 #include "Parser.tcc"
 
-namespace LIEF {
-namespace ELF {
+#include "internal_utils.hpp"
+
+namespace LIEF::ELF {
 
 struct Target {
   Header::CLASS clazz = Header::CLASS::NONE;
@@ -49,19 +55,24 @@ Parser::~Parser() = default;
 Parser::Parser(const std::vector<uint8_t>& data, ParserConfig conf) :
   stream_{std::make_unique<VectorStream>(data)},
   binary_{new Binary{}},
-  config_{std::move(conf)}
-{}
+  config_{conf} {}
 
 Parser::Parser(std::unique_ptr<BinaryStream> stream, ParserConfig conf) :
   stream_{std::move(stream)},
   binary_{new Binary{}},
-  config_{std::move(conf)}
-{}
+  config_{conf} {
+  if (const auto* memory = stream_->cast<MemoryStream>()) {
+    memory_address_ = memory->base_address();
+  }
+
+  if (const auto* dump = stream_->cast<DumpStream>()) {
+    memory_address_ = dump->base_address();
+  }
+}
 
 Parser::Parser(const std::string& file, ParserConfig conf) :
   binary_{new Binary{}},
-  config_{std::move(conf)}
-{
+  config_{conf} {
   if (auto s = VectorStream::from_file(file)) {
     stream_ = std::make_unique<VectorStream>(std::move(*s));
   }
@@ -75,8 +86,7 @@ Header::ELF_DATA determine_elf_endianess(ARCH machine) {
     case ARCH::SPARCV9:
     case ARCH::S390:
     case ARCH::M68K:
-    case ARCH::OPENRISC:
-      return Header::ELF_DATA::MSB;
+    case ARCH::OPENRISC: return Header::ELF_DATA::MSB;
 
     /* Architectures that are known to be little-endian only */
     case ARCH::HEXAGON:
@@ -85,27 +95,26 @@ Header::ELF_DATA determine_elf_endianess(ARCH machine) {
     case ARCH::CRIS:
     case ARCH::I386: // x86
     case ARCH::X86_64:
-    case ARCH::LOONGARCH:
-      return Header::ELF_DATA::LSB;
+    case ARCH::LOONGARCH: return Header::ELF_DATA::LSB;
 
-    default:
-      return Header::ELF_DATA::NONE;
+    default: return Header::ELF_DATA::NONE;
   }
 }
 
 /*
- * Get the endianess of the current architecture
+ * Get the endianness of the current architecture
  */
 constexpr Header::ELF_DATA get_endianess() {
-  #ifdef __BYTE_ORDER__
-    #if defined(__ORDER_LITTLE_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
-      return Header::ELF_DATA::LSB;
-    #elif defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-      return Header::ELF_DATA::MSB;
-    #endif
+#ifdef __BYTE_ORDER__
+  #if defined(__ORDER_LITTLE_ENDIAN__) &&                                         \
+      (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+  return Header::ELF_DATA::LSB;
+  #elif defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+  return Header::ELF_DATA::MSB;
   #endif
-  /* If there are no __BYTE_ORDER__ we take the (arbitrary) decision that we are
-   * on a little endian architecture.
+#endif
+  /* If there is no __BYTE_ORDER__ we take the (arbitrary) decision that we are
+   * on a little-endian architecture.
    */
   return Header::ELF_DATA::LSB;
 }
@@ -122,11 +131,10 @@ constexpr Header::ELF_DATA invert_endianess(Header::ELF_DATA endian) {
 
 Header::ELF_DATA determine_elf_endianess(BinaryStream& stream) {
   static constexpr auto BOTH_ENDIANESS = {
-    ARCH::AARCH64, ARCH::ARM,  ARCH::SH,  ARCH::XTENSA,
-    ARCH::ARC,     ARCH::MIPS, ARCH::PPC, ARCH::PPC64,
-    ARCH::IA_64,
+      ARCH::AARCH64, ARCH::ARM, ARCH::SH,    ARCH::XTENSA, ARCH::ARC,
+      ARCH::MIPS,    ARCH::PPC, ARCH::PPC64, ARCH::IA_64,
   };
-  Header::ELF_DATA from_ei_data   = Header::ELF_DATA::NONE;
+  Header::ELF_DATA from_ei_data = Header::ELF_DATA::NONE;
   /* ELF_DATA from_e_machine = ELF_DATA::ELFDATANONE; */
 
   // First, check EI_CLASS
@@ -150,8 +158,8 @@ Header::ELF_DATA determine_elf_endianess(BinaryStream& stream) {
   // } ElfN_Ehdr;
   constexpr size_t e_machine_off = offsetof(details::Elf32_Ehdr, e_machine);
   {
-    // Read Machine type with both endianess
-    ARCH machine      = ARCH::NONE; // e_machine value without endian swap enabled
+    // Read Machine type with both endianness
+    ARCH machine = ARCH::NONE;      // e_machine value without endian swap enabled
     ARCH machine_swap = ARCH::NONE; // e_machine value with endian swap enabled
     if (auto res = stream.peek<uint16_t>(e_machine_off)) {
       machine = static_cast<ARCH>(*res);
@@ -164,13 +172,14 @@ Header::ELF_DATA determine_elf_endianess(BinaryStream& stream) {
       }
     }
 
-    LIEF_DEBUG("Machine      '{}' (0x{:x})", to_string(machine), (int)machine);
-    LIEF_DEBUG("Machine Swap '{}' (0x{:x})", to_string(machine_swap), (int)machine);
+    LIEF_DEBUG("Machine:      '{}' ({:#x})", to_string(machine), (int)machine);
+    LIEF_DEBUG("Machine swap: '{}' ({:#x})", to_string(machine_swap),
+               (int)machine);
 
-    const Header::ELF_DATA endian      = determine_elf_endianess(machine);
+    const Header::ELF_DATA endian = determine_elf_endianess(machine);
     const Header::ELF_DATA endian_swap = determine_elf_endianess(machine_swap);
 
-    LIEF_DEBUG("Endian: {}",        to_string(endian));
+    LIEF_DEBUG("Endian: {}", to_string(endian));
     LIEF_DEBUG("Endian (swap): {}", to_string(endian_swap));
 
     if (endian != Header::ELF_DATA::NONE) {
@@ -182,16 +191,15 @@ Header::ELF_DATA determine_elf_endianess(BinaryStream& stream) {
     }
 
     {
-      auto it = std::find(BOTH_ENDIANESS.begin(), BOTH_ENDIANESS.end(),
-                          machine);
+      auto it = std::find(BOTH_ENDIANESS.begin(), BOTH_ENDIANESS.end(), machine);
       if (it != BOTH_ENDIANESS.end()) {
         return get_endianess();
       }
     }
 
     {
-      auto it = std::find(BOTH_ENDIANESS.begin(), BOTH_ENDIANESS.end(),
-                          machine_swap);
+      auto it =
+          std::find(BOTH_ENDIANESS.begin(), BOTH_ENDIANESS.end(), machine_swap);
       if (it != BOTH_ENDIANESS.end()) {
         return invert_endianess(get_endianess());
       }
@@ -201,11 +209,11 @@ Header::ELF_DATA determine_elf_endianess(BinaryStream& stream) {
 }
 
 bool Parser::should_swap() const {
-  const Header::ELF_DATA binary_endian  = determine_elf_endianess(*stream_);
+  const Header::ELF_DATA binary_endian = determine_elf_endianess(*stream_);
   const Header::ELF_DATA current_endian = get_endianess();
   LIEF_DEBUG("LIEF Endianness:   '{}'", to_string(current_endian));
   LIEF_DEBUG("Binary Endianness: '{}'", to_string(binary_endian));
-  if (binary_endian  != Header::ELF_DATA::NONE &&
+  if (binary_endian != Header::ELF_DATA::NONE &&
       current_endian != Header::ELF_DATA::NONE)
   {
     return binary_endian != current_endian;
@@ -214,7 +222,7 @@ bool Parser::should_swap() const {
 }
 
 Target determine_elf_target(BinaryStream& stream) {
-  auto from_ei_class  = Header::CLASS::NONE;
+  auto from_ei_class = Header::CLASS::NONE;
   auto from_e_machine = Header::CLASS::NONE;
   auto file_type = Header::FILE_TYPE::NONE;
 
@@ -251,22 +259,22 @@ Target determine_elf_target(BinaryStream& stream) {
       case ARCH::X86_64:
       case ARCH::PPC64:
       case ARCH::SPARCV9:
-        {
-          from_e_machine = Header::CLASS::ELF64;
-          break;
-        }
+      {
+        from_e_machine = Header::CLASS::ELF64;
+        break;
+      }
       case ARCH::I386:
       case ARCH::ARM:
       case ARCH::PPC:
-        {
-          from_e_machine = Header::CLASS::ELF32;
-          break;
-        }
+      {
+        from_e_machine = Header::CLASS::ELF32;
+        break;
+      }
       default:
-        {
-          from_e_machine = Header::CLASS::NONE;
-          break;
-        }
+      {
+        from_e_machine = Header::CLASS::NONE;
+        break;
+      }
     }
   }
   if (from_e_machine != Header::CLASS::NONE &&
@@ -291,9 +299,9 @@ Target determine_elf_target(BinaryStream& stream) {
     }
 
     LIEF_WARN("ELF class from machine type ('{}') does not match ELF class from "
-              "e_ident ('{}'). The binary has been likely modified.",
+              "e_ident ('{}'). The binary may have been modified.",
               to_string(from_e_machine), to_string(from_ei_class));
-    // Make the priority on Elf_Ehdr.e_machine as it is
+    // Prioritize Elf_Ehdr.e_machine as it is
     // this value that is used by the kernel.
     return {from_e_machine, machine};
   }
@@ -314,17 +322,17 @@ ok_error_t Parser::init() {
   binary_->original_size_ = stream_->size();
   binary_->pagesize_ = config_.page_size;
 
-  auto res = DataHandler::Handler::from_stream(stream_);
-  if (!res) {
-    LIEF_ERR("The provided stream is not supported by the ELF DataHandler");
+  auto strm = DataHandler::Handler::from_stream(stream_);
+  if (strm == nullptr) {
+    LIEF_ERR("Unsupported stream type for the ELF DataHandler");
     return make_error_code(lief_errors::not_supported);
   }
 
-  binary_->datahandler_ = std::move(*res);
+  binary_->datahandler_ = std::move(strm);
 
   auto res_ident = stream_->peek<Header::identity_t>();
   if (!res_ident) {
-    LIEF_ERR("Can't read ELF identity. Nothing to parse");
+    LIEF_ERR("Failed to read ELF identity");
     return make_error_code(res_ident.error());
   }
 
@@ -335,24 +343,24 @@ ok_error_t Parser::init() {
 
   switch (elf_target.clazz) {
     case Header::CLASS::ELF32:
-      {
-        if (elf_target.arch == ARCH::X86_64) {
-          return parse_binary<details::ELF32_x32>();
-        }
-
-        if (elf_target.arch == ARCH::AARCH64) {
-          return parse_binary<details::ELF32_arm64>();
-        }
-
-        return parse_binary<details::ELF32>();
+    {
+      if (elf_target.arch == ARCH::X86_64) {
+        return parse_binary<details::ELF32_x32>();
       }
+
+      if (elf_target.arch == ARCH::AARCH64) {
+        return parse_binary<details::ELF32_arm64>();
+      }
+
+      return parse_binary<details::ELF32>();
+    }
     case Header::CLASS::ELF64: return parse_binary<details::ELF64>();
     case Header::CLASS::NONE:
-      {
-        LIEF_ERR("Can't determine the ELF class ({})",
-                  static_cast<size_t>(binary_->type_));
-        return make_error_code(lief_errors::corrupted);
-      }
+    {
+      LIEF_ERR("Failed to determine ELF class ({})",
+               static_cast<size_t>(binary_->type_));
+      return make_error_code(lief_errors::corrupted);
+    }
   }
 
   return ok();
@@ -395,10 +403,70 @@ std::unique_ptr<Binary> Parser::parse(std::unique_ptr<BinaryStream> stream,
   return std::move(parser.binary_);
 }
 
+std::unique_ptr<Binary> Parser::parse_from_memory(uintptr_t address,
+                                                  const ParserConfig& conf) {
+  static constexpr uint64_t MAX_MEM_IMAGE = 6_GB;
+  MemoryStream stream(address, 0x4000);
+  auto elf_info = get_info(stream);
+  if (!elf_info) {
+    return nullptr;
+  }
+
+  uint64_t vsize = elf_info->vsize();
+  if (vsize == 0) {
+    return nullptr;
+  }
+
+  if (vsize > MAX_MEM_IMAGE) {
+    LIEF_WARN("In-memory ELF image size ({:#x}) is too large, limiting to {:#x}",
+              vsize, MAX_MEM_IMAGE);
+    vsize = MAX_MEM_IMAGE;
+  }
+
+  return parse_from_memory(address, static_cast<size_t>(vsize), conf);
+}
+
+std::unique_ptr<Binary> Parser::parse_from_memory(uintptr_t address, size_t size,
+                                                  const ParserConfig& conf) {
+  auto stream = std::make_unique<MemoryStream>(address, size);
+  if (!is_elf(*stream)) {
+    return nullptr;
+  }
+
+  Parser parser{std::move(stream), conf};
+  parser.init();
+  return std::move(parser.binary_);
+}
+
+std::unique_ptr<Binary> Parser::parse_from_dump(const std::string& filepath,
+                                                uint64_t addr,
+                                                const ParserConfig& conf) {
+  auto stream = VectorStream::from_file(filepath);
+  if (!stream) {
+    return nullptr;
+  }
+  return parse_from_dump(std::make_unique<VectorStream>(std::move(*stream)), addr,
+                         conf);
+}
+
+std::unique_ptr<Binary> Parser::parse_from_dump(BinaryStream& stream,
+                                                uint64_t addr,
+                                                const ParserConfig& conf) {
+  return parse(std::make_unique<DumpStream>(addr, stream), conf);
+}
+
+std::unique_ptr<Binary>
+    Parser::parse_from_dump(std::unique_ptr<BinaryStream> stream, uint64_t addr,
+                            const ParserConfig& conf) {
+  if (stream == nullptr) {
+    return nullptr;
+  }
+  return parse(std::make_unique<DumpStream>(addr, std::move(stream)), conf);
+}
 
 ok_error_t Parser::parse_symbol_version(uint64_t symbol_version_offset) {
-  LIEF_DEBUG("== Parsing symbol version ==");
-  LIEF_DEBUG("Symbol version offset: 0x{:x}", symbol_version_offset);
+  LIEF_DEBUG("Parsing symbol version");
+  LIEF_DEBUG("Symbol version offset: {:#x}", symbol_version_offset);
 
   const auto nb_entries = static_cast<uint32_t>(binary_->dynamic_symbols_.size());
 
@@ -408,13 +476,16 @@ ok_error_t Parser::parse_symbol_version(uint64_t symbol_version_offset) {
     if (!val) {
       break;
     }
-    binary_->symbol_version_table_.emplace_back(std::make_unique<SymbolVersion>(*val));
+    binary_->symbol_version_table_.emplace_back(
+        std::make_unique<SymbolVersion>(*val)
+    );
   }
   return ok();
 }
 
 
-result<uint64_t> Parser::get_dynamic_string_table_from_segments(BinaryStream* stream) const {
+result<uint64_t>
+    Parser::get_dynamic_string_table_from_segments(BinaryStream* stream) const {
   const ARCH arch = binary_->header().machine_type();
   if (const DynamicEntry* dt_str = binary_->get(DynamicEntry::TAG::STRTAB)) {
     return binary_->virtual_address_to_offset(dt_str->value());
@@ -432,7 +503,8 @@ result<uint64_t> Parser::get_dynamic_string_table_from_segments(BinaryStream* st
         if (!dt) {
           break;
         }
-        if (DynamicEntry::from_value(dt->d_tag, arch) == DynamicEntry::TAG::STRTAB) {
+        if (DynamicEntry::from_value(dt->d_tag, arch) == DynamicEntry::TAG::STRTAB)
+        {
           return binary_->virtual_address_to_offset(dt->d_un.d_val);
         }
       } else {
@@ -441,7 +513,8 @@ result<uint64_t> Parser::get_dynamic_string_table_from_segments(BinaryStream* st
           break;
         }
 
-        if (DynamicEntry::from_value(dt->d_tag, arch) == DynamicEntry::TAG::STRTAB) {
+        if (DynamicEntry::from_value(dt->d_tag, arch) == DynamicEntry::TAG::STRTAB)
+        {
           return binary_->virtual_address_to_offset(dt->d_un.d_val);
         }
       }
@@ -454,7 +527,7 @@ result<uint64_t> Parser::get_dynamic_string_table_from_segments(BinaryStream* st
   }
 
   const uint64_t offset = dyn_segment->file_offset();
-  const uint64_t size   = dyn_segment->physical_size();
+  const uint64_t size = dyn_segment->physical_size();
 
   stream_->setpos(offset);
 
@@ -464,7 +537,7 @@ result<uint64_t> Parser::get_dynamic_string_table_from_segments(BinaryStream* st
     for (size_t i = 0; i < nb_entries; ++i) {
       auto res = stream_->read<details::Elf32_Dyn>();
       if (!res) {
-        LIEF_ERR("Can't read dynamic entry #{}", i);
+        LIEF_ERR("Failed to read dynamic entry #{}", i);
         return 0;
       }
       auto dt = *res;
@@ -479,7 +552,7 @@ result<uint64_t> Parser::get_dynamic_string_table_from_segments(BinaryStream* st
     for (size_t i = 0; i < nb_entries; ++i) {
       auto res = stream_->read<details::Elf64_Dyn>();
       if (!res) {
-        LIEF_ERR("Can't read dynamic entry #{}", i);
+        LIEF_ERR("Failed to read dynamic entry #{}", i);
         return 0;
       }
       const auto dt = *res;
@@ -494,15 +567,15 @@ result<uint64_t> Parser::get_dynamic_string_table_from_segments(BinaryStream* st
 
 uint64_t Parser::get_dynamic_string_table_from_sections() const {
   // Find Dynamic string section
-  auto it_dynamic_string_section = std::find_if(
-      std::begin(binary_->sections_), std::end(binary_->sections_),
-      [] (const std::unique_ptr<Section>& section) {
-        return section->name() == ".dynstr" &&
-               section->type() == Section::TYPE::STRTAB;
-      });
+  auto it_dynamic_string_section =
+      std::find_if(binary_->sections_.begin(), binary_->sections_.end(),
+                   [](const std::unique_ptr<Section>& section) {
+                     return section->name() == ".dynstr" &&
+                            section->type() == Section::TYPE::STRTAB;
+                   });
 
 
-  if (it_dynamic_string_section == std::end(binary_->sections_)) {
+  if (it_dynamic_string_section == binary_->sections_.end()) {
     return 0;
   }
   return (*it_dynamic_string_section)->file_offset();
@@ -519,31 +592,32 @@ uint64_t Parser::get_dynamic_string_table(BinaryStream* stream) const {
 void Parser::link_symbol_version() {
   if (binary_->dynamic_symbols_.size() == binary_->symbol_version_table_.size()) {
     for (size_t i = 0; i < binary_->dynamic_symbols_.size(); ++i) {
-      binary_->dynamic_symbols_[i]->symbol_version_ = binary_->symbol_version_table_[i].get();
+      binary_->dynamic_symbols_[i]->symbol_version_ =
+          binary_->symbol_version_table_[i].get();
     }
   }
 }
 
 ok_error_t Parser::parse_symbol_sysv_hash(uint64_t offset) {
-  LIEF_DEBUG("== Parse SYSV hash table ==");
+  LIEF_DEBUG("Parsing SYSV hash table");
   auto sysvhash = std::make_unique<SysvHash>();
 
   stream_->setpos(offset);
 
   auto res_nbucket = stream_->read<uint32_t>();
   if (!res_nbucket) {
-    LIEF_ERR("Can't read the number of buckets");
+    LIEF_ERR("Failed to read bucket count");
     return make_error_code(lief_errors::read_error);
   }
 
   auto res_nchains = stream_->read<uint32_t>();
   if (!res_nchains) {
-    LIEF_ERR("Can't read the number of chains");
+    LIEF_ERR("Failed to read chain count");
     return make_error_code(lief_errors::read_error);
   }
 
   const auto nbuckets = std::min<uint32_t>(*res_nbucket, Parser::NB_MAX_BUCKETS);
-  const auto nchain   = std::min<uint32_t>(*res_nchains, Parser::NB_MAX_CHAINS);
+  const auto nchain = std::min<uint32_t>(*res_nchains, Parser::NB_MAX_CHAINS);
 
   sysvhash->buckets_.reserve(nbuckets);
 
@@ -551,7 +625,7 @@ ok_error_t Parser::parse_symbol_sysv_hash(uint64_t offset) {
     if (auto bucket = stream_->read<uint32_t>()) {
       sysvhash->buckets_.push_back(*bucket);
     } else {
-      LIEF_ERR("Can't read bucket #{}", i);
+      LIEF_ERR("Failed to read bucket #{}", i);
       break;
     }
   }
@@ -561,7 +635,7 @@ ok_error_t Parser::parse_symbol_sysv_hash(uint64_t offset) {
     if (auto chain = stream_->read<uint32_t>()) {
       sysvhash->chains_.push_back(*chain);
     } else {
-      LIEF_ERR("Can't read chain #{}", i);
+      LIEF_ERR("Failed to read chain #{}", i);
       break;
     }
   }
@@ -571,68 +645,9 @@ ok_error_t Parser::parse_symbol_sysv_hash(uint64_t offset) {
   return ok();
 }
 
-#if 0
-std::unique_ptr<Note> Parser::get_note(uint32_t type, std::string name,
-                                       std::vector<uint8_t> desc_bytes)
-{
-  const E_TYPE ftype = binary_->header().file_type();
-
-  auto conv = Note::convert_type(ftype, type, name);
-  if (!conv) {
-    LIEF_WARN("Note type: 0x{:x} is not supported for owner: '{}'", type, name);
-    return std::make_unique<Note>(std::move(name), Note::TYPE::UNKNOWN, type,
-                                  std::move(desc_bytes));
-  }
-
-  Note::TYPE ntype = *conv;
-
-  if (ntype != Note::TYPE::GNU_BUILD_ATTRIBUTE_FUNC &&
-      ntype != Note::TYPE::GNU_BUILD_ATTRIBUTE_OPEN)
-  {
-    name = name.c_str();
-  }
-
-  const ARCH arch = binary_->header().machine_type();
-  const ELF_CLASS cls = binary_->header().identity_class();
-
-  if (cls != ELF_CLASS::ELFCLASS32 && cls != ELF_CLASS::ELFCLASS64) {
-    LIEF_WARN("Invalid ELFCLASS");
-    return nullptr;
-  }
-
-  switch (ntype) {
-    case Note::TYPE::CORE_PRSTATUS:
-        return std::make_unique<CorePrStatus>(arch, cls, std::move(name), type,
-                                              std::move(desc_bytes));
-    case Note::TYPE::CORE_PRPSINFO:
-        return std::make_unique<CorePrPsInfo>(arch, cls, std::move(name), type,
-                                              std::move(desc_bytes));
-    case Note::TYPE::CORE_FILE:
-        return std::make_unique<CoreFile>(arch, cls, std::move(name), type,
-                                          std::move(desc_bytes));
-    case Note::TYPE::CORE_AUXV:
-        return std::make_unique<CoreAuxv>(arch, cls, std::move(name), type,
-                                          std::move(desc_bytes));
-    case Note::TYPE::CORE_SIGINFO:
-        return std::make_unique<CoreSigInfo>(std::move(name), ntype, type,
-                                             std::move(desc_bytes));
-    case Note::TYPE::ANDROID_IDENT:
-        return std::make_unique<AndroidIdent>(std::move(name), ntype, type,
-                                              std::move(desc_bytes));
-    case Note::TYPE::GNU_ABI_TAG:
-        return std::make_unique<NoteAbi>(std::move(name), ntype, type,
-                                         std::move(desc_bytes));
-
-    default:
-        return std::make_unique<Note>(std::move(name), ntype, type,
-                                      std::move(desc_bytes));
-  }
-}
-#endif
-
 ok_error_t Parser::parse_notes(uint64_t offset, uint64_t size) {
   static constexpr auto ERROR_THRESHOLD = 6;
-  LIEF_DEBUG("== Parsing note segment ==");
+  LIEF_DEBUG("Parsing note segment");
   stream_->setpos(offset);
   uint64_t last_offset = offset + size;
   size_t error_count = 0;
@@ -646,27 +661,28 @@ ok_error_t Parser::parse_notes(uint64_t offset, uint64_t size) {
     const Section* sec = binary_->section_from_offset(current_pos);
     std::string sec_name = sec != nullptr ? sec->name() : "";
 
-    std::unique_ptr<Note> note = Note::create(
-        *stream_, std::move(sec_name),
-        binary_->header().file_type(), binary_->header().machine_type(),
-        binary_->header().identity_class()
-    );
+    std::unique_ptr<Note> note =
+        Note::create(*stream_, std::move(sec_name), binary_->header().file_type(),
+                     binary_->header().machine_type(),
+                     binary_->header().identity_class());
 
     if (note != nullptr) {
-      const auto it_note = std::find_if(
-          std::begin(binary_->notes_), std::end(binary_->notes_),
-          [&note] (const std::unique_ptr<Note>& n) { return *n == *note; });
+      const auto it_note =
+          std::find_if(binary_->notes_.begin(), binary_->notes_.end(),
+                       [&note](const std::unique_ptr<Note>& n) {
+                         return *n == *note;
+                       });
 
-      if (it_note == std::end(binary_->notes_)) { // Not already present
+      if (it_note == binary_->notes_.end()) { // Not already present
         binary_->notes_.push_back(std::move(note));
       }
     } else {
-      LIEF_WARN("Note not parsed!");
+      LIEF_WARN("Failed to parse note");
       ++error_count;
     }
 
     if (error_count > ERROR_THRESHOLD) {
-      LIEF_ERR("Too many errors while trying to parse notes");
+      LIEF_ERR("Too many errors while parsing notes");
       return make_error_code(lief_errors::corrupted);
     }
 
@@ -690,16 +706,17 @@ ok_error_t Parser::parse_overlay() {
     return ok();
   }
 
-  LIEF_INFO("Overlay detected at 0x{:x} ({} bytes)", last_offset, overlay_size);
+  LIEF_INFO("Overlay detected at {:#x} ({} bytes)", last_offset, overlay_size);
 
   if (!stream_->peek_data(binary_->overlay_, last_offset, overlay_size)) {
-    LIEF_WARN("Can't read overlay data");
+    LIEF_WARN("Failed to read overlay data");
     return make_error_code(lief_errors::read_error);
   }
   return ok();
 }
 
-bool Parser::check_section_in_segment(const Section& section, const Segment& segment) {
+bool Parser::check_section_in_segment(const Section& section,
+                                      const Segment& segment) {
   if (section.virtual_address() > 0) {
     const uint64_t seg_vend = segment.virtual_address() + segment.virtual_size();
     return segment.virtual_address() <= section.virtual_address() &&
@@ -717,13 +734,14 @@ bool Parser::check_section_in_segment(const Section& section, const Segment& seg
 ok_error_t Parser::link_symbol_section(Symbol& sym) {
   const uint16_t sec_idx = sym.section_idx();
   if (sec_idx == Symbol::SECTION_INDEX::ABS ||
-      sec_idx == Symbol::SECTION_INDEX::UNDEF) {
+      sec_idx == Symbol::SECTION_INDEX::UNDEF)
+  {
     // Nothing to bind
     return ok();
   }
 
   auto it_section = sections_idx_.find(sec_idx);
-  if (it_section == std::end(sections_idx_)) {
+  if (it_section == sections_idx_.end()) {
     return make_error_code(lief_errors::corrupted);
   }
 
@@ -738,7 +756,8 @@ bool Parser::bind_symbol(Relocation& R) {
   }
   const uint32_t idx = R.info();
   if (idx >= binary_->dynamic_symbols_.size()) {
-    LIEF_DEBUG("Index #{} is out of range for reloc: {}", idx, to_string(R));
+    LIEF_DEBUG("Symbol index #{} out of range for relocation: {}", idx,
+               to_string(R));
     return false;
   }
 
@@ -753,5 +772,4 @@ Relocation& Parser::insert_relocation(std::unique_ptr<Relocation> R) {
   return *binary_->relocations_.back();
 }
 
-}
 }

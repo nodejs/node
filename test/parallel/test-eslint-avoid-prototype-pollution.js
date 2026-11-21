@@ -11,7 +11,7 @@ const RuleTester = require('../../tools/eslint/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/avoid-prototype-pollution');
 
 new RuleTester()
-  .run('property-descriptor-no-prototype-pollution', rule, {
+  .run('avoid-prototype-pollution', rule, {
     valid: [
       'ObjectDefineProperties({}, {})',
       'ObjectCreate(null, {})',
@@ -63,6 +63,18 @@ new RuleTester()
       'new Proxy({}, { __proto__: null, ...{} })',
       'async function name(){return await SafePromiseAll([])}',
       'async function name(){const val = await SafePromiseAll([])}',
+      'async function name(options = kEmptyObject){}',
+      'function name(options = kEmptyObject){}',
+      'function name(options = { __proto__: ObjectPrototype }){}',
+      'function name(options = { __proto__: null }){}',
+      'new class { name(options = kEmptyObject){} }',
+      'const name = (options = kEmptyObject) => {}',
+      'async function name(options = { __proto__: null, key: 1 }){}',
+      'const name = ({ destr } = { destr: 1 }) => {}',
+      'function name({ destr } = kEmptyObject){}',
+      'function name({ [Symbol.match]: m } = kEmptyObject){}',
+      'function name({ [Symbol.match]: m } = { __proto__: null, [Symbol.match]: 1 }){}',
+      'function name({ [Symbol.match]: m, c } = { __proto__: null, c: 1 }){}',
     ],
     invalid: [
       {
@@ -329,6 +341,54 @@ new RuleTester()
       {
         code: 'ArrayPrototypeConcat([])',
         errors: [{ message: /\bisConcatSpreadable\b/ }]
+      },
+      {
+        code: 'function name(options = {}) {}',
+        errors: [{ message: /\bkEmptyObject\b/ }]
+      },
+      {
+        code: 'async function name(options = { key: 1 }) {}',
+        errors: [{ message: /\b__proto__: null\b/ }]
+      },
+      {
+        code: 'new class { name(options = {}) {} }',
+        errors: [{ message: /\bkEmptyObject\b/ }]
+      },
+      {
+        code: 'new class { async name(options = {}) {} }',
+        errors: [{ message: /\bkEmptyObject\b/ }]
+      },
+      {
+        code: 'const name = (options = {}) => {}',
+        errors: [{ message: /\bkEmptyObject\b/ }]
+      },
+      {
+        code: 'const name = async (options = {}) => {}',
+        errors: [{ message: /\bkEmptyObject\b/ }]
+      },
+      {
+        code: 'function name({ destr } = {}) {}',
+        errors: [{ message: /\bkEmptyObject\b/ }]
+      },
+      {
+        code: 'async function name({ destr } = {}) {}',
+        errors: [{ message: /\bkEmptyObject\b/ }]
+      },
+      {
+        code: 'new class { name({ destr } = {}) {} }',
+        errors: [{ message: /\bkEmptyObject\b/ }]
+      },
+      {
+        code: 'new class { async name({ destr } = {}) {} }',
+        errors: [{ message: /\bkEmptyObject\b/ }]
+      },
+      {
+        code: 'const name = ({ destr } = {}) => {}',
+        errors: [{ message: /\bkEmptyObject\b/ }]
+      },
+      {
+        code: 'const name = async ({ destr } = {}) => {}',
+        errors: [{ message: /\bkEmptyObject\b/ }]
       },
     ]
   });

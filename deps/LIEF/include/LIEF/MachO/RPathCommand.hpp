@@ -1,5 +1,5 @@
 /* Copyright 2017 - 2021 J. Rieck (based on R. Thomas's work)
- * Copyright 2017 - 2025 Quarkslab
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ class LIEF_API RPathCommand : public LoadCommand {
   ~RPathCommand() override = default;
 
   /// The rpath value as a string
-  const std::string& path() const {
+  const std::string& path() const LIEF_LIFETIMEBOUND {
     return path_;
   }
 

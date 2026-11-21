@@ -8,5 +8,6 @@
   "names": [
     "global"
   ],
-  "scopes": "BCAAA,CKA,ECAA,FK"
+  "scopes": ["BCAAA,CKA"],
+  "ranges": ["ECAAA,FK"]
 }

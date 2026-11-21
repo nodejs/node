@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,41 +25,47 @@
 #include "internal_utils.hpp"
 #include "logging.hpp"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 result<ResourceVarFileInfo> ResourceVarFileInfo::parse(BinaryStream& stream) {
   ResourceVarFileInfo info;
   auto wLength = stream.read<uint16_t>();
-  if (!wLength) { return make_error_code(wLength.error()); }
+  if (!wLength) {
+    return make_error_code(wLength.error());
+  }
 
   auto wValueLength = stream.read<uint16_t>();
-  if (!wValueLength) { return make_error_code(wValueLength.error()); }
+  if (!wValueLength) {
+    return make_error_code(wValueLength.error());
+  }
 
   auto wType = stream.read<uint16_t>();
-  if (!wType) { return make_error_code(wType.error()); }
+  if (!wType) {
+    return make_error_code(wType.error());
+  }
 
   if (*wType != 0 && wType != 1) {
     return make_error_code(lief_errors::corrupted);
   }
 
   auto szKey = stream.read_u16string();
-  if (!szKey) { return make_error_code(wType.error()); }
+  if (!szKey) {
+    return make_error_code(wType.error());
+  }
 
   if (u16tou8(*szKey) != "VarFileInfo") {
     return make_error_code(lief_errors::corrupted);
   }
 
-  info
-    .type(*wType)
-    .key(std::move(*szKey));
+  info.type(*wType).key(std::move(*szKey));
 
 
   while (stream) {
     stream.align(sizeof(uint32_t));
     auto var = ResourceVar::parse(stream);
     if (!var) {
-      LIEF_WARN("Can't parse resource var #{}", info.vars_.size());
+      LIEF_WARN("Failed to parse resource var #{}", info.vars_.size());
       return info;
     }
     info.add_var(std::move(*var));
@@ -89,5 +95,4 @@ std::ostream& operator<<(std::ostream& os, const ResourceVarFileInfo& info) {
 }
 
 
-}
 }

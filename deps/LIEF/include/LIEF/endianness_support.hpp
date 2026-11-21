@@ -1,5 +1,5 @@
-/* Copyright 2021 - 2025 R. Thomas
- * Copyright 2021 - 2025 Quarkslab
+/* Copyright 2021 - 2026 R. Thomas
+ * Copyright 2021 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@
 #include "LIEF/config.h"
 #include "LIEF/visibility.h"
 
-#define LIEF_ENDIAN_SUPPORT(X) \
-  template<> \
-  LIEF_API void swap_endian<X>(X* hdr)
+#define LIEF_ENDIAN_SUPPORT(X)                                                    \
+  template<>                                                                      \
+  LIEF_API void swap_endian<X>(X * hdr)
 
 namespace LIEF {
 
@@ -83,6 +83,7 @@ struct mach_header;
 struct mach_header_64;
 struct nlist_32;
 struct nlist_64;
+struct note_command;
 struct prebind_cksum_command;
 struct prebound_dylib_command;
 struct relocation_info;
@@ -114,8 +115,7 @@ struct ppc_thread_state64_t;
 }
 
 template<typename T>
-void swap_endian(T*) {
-}
+void swap_endian(T*) {}
 
 template<typename T>
 T get_swapped_endian(const T& other) {
@@ -137,7 +137,7 @@ LIEF_ENDIAN_SUPPORT(int16_t);
 LIEF_ENDIAN_SUPPORT(int32_t);
 LIEF_ENDIAN_SUPPORT(int64_t);
 
-#if defined (LIEF_ELF_SUPPORT)
+#if defined(LIEF_ELF_SUPPORT)
 LIEF_ENDIAN_SUPPORT(ELF::details::Elf32_Auxv);
 LIEF_ENDIAN_SUPPORT(ELF::details::Elf32_Dyn);
 LIEF_ENDIAN_SUPPORT(ELF::details::Elf32_Ehdr);
@@ -166,7 +166,7 @@ LIEF_ENDIAN_SUPPORT(ELF::details::Elf64_Vernaux);
 LIEF_ENDIAN_SUPPORT(ELF::details::Elf64_Verneed);
 #endif
 
-#if defined (LIEF_MACHO_SUPPORT)
+#if defined(LIEF_MACHO_SUPPORT)
 LIEF_ENDIAN_SUPPORT(MachO::details::arm_thread_state64_t);
 LIEF_ENDIAN_SUPPORT(MachO::details::arm_thread_state_t);
 LIEF_ENDIAN_SUPPORT(MachO::details::build_tool_version);
@@ -192,6 +192,7 @@ LIEF_ENDIAN_SUPPORT(MachO::details::mach_header);
 LIEF_ENDIAN_SUPPORT(MachO::details::mach_header_64);
 LIEF_ENDIAN_SUPPORT(MachO::details::nlist_32);
 LIEF_ENDIAN_SUPPORT(MachO::details::nlist_64);
+LIEF_ENDIAN_SUPPORT(MachO::details::note_command);
 LIEF_ENDIAN_SUPPORT(MachO::details::prebind_cksum_command);
 LIEF_ENDIAN_SUPPORT(MachO::details::prebound_dylib_command);
 LIEF_ENDIAN_SUPPORT(MachO::details::relocation_info);
@@ -223,4 +224,4 @@ LIEF_ENDIAN_SUPPORT(MachO::details::ppc_thread_state_t);
 
 }
 
-#endif // LIEF_CONVERT_H
+#endif

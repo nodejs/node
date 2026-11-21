@@ -14,6 +14,7 @@ const stageItem = {
   actor: 'octocat',
   actorType: 'user',
   shasum: '4f7f5f1d5bcf2f72f6e4d6c4f3b2812d8a2f6c19',
+  status: 'awaiting_approval',
 }
 
 t.test('views a staged package', async t => {
@@ -31,6 +32,7 @@ t.test('views a staged package', async t => {
   t.match(out, /id:/)
   t.match(out, 'package name: @npmcli/example-package')
   t.match(out, 'version: 1.2.3')
+  t.match(out, 'status: awaiting_approval')
 })
 
 t.test('views with --json', async t => {
@@ -47,6 +49,7 @@ t.test('views with --json', async t => {
   const out = JSON.parse(joinedOutput())
   t.ok(out.id)
   t.equal(out.packageName, '@npmcli/example-package')
+  t.equal(out.status, 'awaiting_approval')
 })
 
 t.test('throws usageError without stage-id', async t => {

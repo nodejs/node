@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@
 
 #include "internal_utils.hpp"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 std::string ExportEntry::demangled_name() const {
   logging::needs_lief_extended();
 
@@ -39,15 +39,13 @@ void ExportEntry::accept(LIEF::Visitor& visitor) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const ExportEntry& entry) {
-  using namespace fmt;
-  os << format("{:04d} {:5} 0x{:08x} {}",
-               entry.ordinal(), entry.is_extern() ? "[EXT]" : "",
-               entry.address(), entry.name());
+  os << fmt::format("{:04d} {:5} {:#010x} {}", entry.ordinal(),
+                    entry.is_extern() ? "[EXT]" : "", entry.address(),
+                    entry.name());
   if (entry.is_forwarded()) {
-    os << format(" ({})", LIEF::to_string(entry.forward_information()));
+    os << fmt::format(" ({})", LIEF::to_string(entry.forward_information()));
   }
   return os;
- }
-
 }
+
 }

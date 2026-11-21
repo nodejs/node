@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@
 #include <memory>
 #include "LIEF/MachO/ChainedBindingInfo.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 class BinaryParser;
 class Builder;
 class DyldChainedFixupsCreator;
@@ -34,18 +34,18 @@ class ChainedBindingInfoList : public ChainedBindingInfo {
 
   public:
   static std::unique_ptr<ChainedBindingInfoList>
-    create(const ChainedBindingInfo& other);
+      create(const ChainedBindingInfo& other);
 
   ChainedBindingInfoList() = delete;
   explicit ChainedBindingInfoList(DYLD_CHAINED_FORMAT fmt, bool is_weak) :
-    ChainedBindingInfo(fmt, is_weak)
-  {}
+    ChainedBindingInfo(fmt, is_weak) {}
 
 
-  ChainedBindingInfoList& operator=(ChainedBindingInfoList other) = delete;
+  ChainedBindingInfoList& operator=(const ChainedBindingInfoList& other) = delete;
   ChainedBindingInfoList(const ChainedBindingInfoList& other) = delete;
 
   ChainedBindingInfoList(ChainedBindingInfoList&&) noexcept = default;
+  ChainedBindingInfoList& operator=(ChainedBindingInfoList&& other) = default;
 
   void swap(ChainedBindingInfoList& other) noexcept;
 
@@ -60,5 +60,5 @@ class ChainedBindingInfoList : public ChainedBindingInfo {
 };
 
 }
-}
+
 #endif

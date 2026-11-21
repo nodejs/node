@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,10 @@
  */
 #ifndef LIEF_OAT_PARSER_H
 #define LIEF_OAT_PARSER_H
+#include <cstdint>
 #include <memory>
 
+#include "LIEF/errors.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/ELF/Parser.hpp"
 
@@ -45,7 +47,7 @@ class LIEF_API Parser : public ELF::Parser {
   static std::unique_ptr<Binary> parse(std::vector<uint8_t> data);
 
   Parser& operator=(const Parser& copy) = delete;
-  Parser(const Parser& copy)            = delete;
+  Parser(const Parser& copy) = delete;
 
   protected:
   Parser();
@@ -80,9 +82,12 @@ class LIEF_API Parser : public ELF::Parser {
   void parse_oat_classes();
 
   template<typename OAT_T>
-  void parse_oat_methods(uint64_t methods_offsets, Class& clazz, const DEX::Class& dex_class);
+  void parse_oat_methods(uint64_t methods_offsets, Class& clazz,
+                         const DEX::Class& dex_class);
 
   void init();
+
+  result<uint64_t> oat_data_exec_gap() const;
 
   std::unique_ptr<LIEF::VDEX::File> vdex_file_;
 

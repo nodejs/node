@@ -1,4 +1,4 @@
-/* Copyright 2024 - 2025 R. Thomas
+/* Copyright 2024 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,8 +35,7 @@ class LIEF_API UnknownCommand : public LoadCommand {
   UnknownCommand() = delete;
   UnknownCommand(const details::load_command& command) :
     LoadCommand(command),
-    original_command_(static_cast<uint64_t>(command_))
-  {
+    original_command_(static_cast<uint64_t>(command_)) {
     command_ = LoadCommand::TYPE::LIEF_UNKNOWN;
   }
 

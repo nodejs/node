@@ -2,6 +2,7 @@
 
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 const { symlinkSync, writeFileSync } = require('node:fs');
@@ -32,6 +33,40 @@ writeFileSync(fileUrlFixturePath, JSON.stringify({
 describe('CJS: --experimental-package-map', { concurrency: !process.env.TEST_PARALLEL }, () => {
 
   describe('basic resolution', () => {
+    it('resolves dependencies from a parent directory URL', () => {
+      const { status, stdout, stderr } = spawnSync(process.execPath, [
+        '--no-warnings',
+        '--experimental-package-map',
+        fixtures.path('package-map/nested-project/map-dir/package-map-parent-url.json'),
+        '-e',
+        `const dep = require('dep-a'); console.log(dep.default);`,
+      ], {
+        cwd: fixtures.path('package-map/nested-project/src'),
+        encoding: 'utf8',
+      });
+
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /dep-a-value/);
+      assert.strictEqual(status, 0, stderr);
+    });
+
+    it('resolves packages with directory-form URLs', () => {
+      const { status, stdout, stderr } = spawnSync(process.execPath, [
+        '--no-warnings',
+        '--experimental-package-map',
+        fixtures.path('package-map/package-map-directory-urls.json'),
+        '-e',
+        `const dep = require('dep-a'); console.log(dep.default);`,
+      ], {
+        cwd: fixtures.path('package-map/root'),
+        encoding: 'utf8',
+      });
+
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /dep-a-value/);
+      assert.strictEqual(status, 0, stderr);
+    });
+
     it('resolves require() through package map', () => {
       const { status, stdout, stderr } = spawnSync(process.execPath, [
         '--no-warnings',
@@ -96,6 +131,21 @@ describe('CJS: --experimental-package-map', { concurrency: !process.env.TEST_PAR
       assert.strictEqual(stderr, '');
       assert.match(stdout, /function/);
       assert.strictEqual(status, 0, stderr);
+    });
+
+    it('resolves package imports without consulting the map', () => {
+      spawnSyncAndAssert(process.execPath, [
+        '--no-warnings',
+        '--experimental-package-map', packageMapPath,
+        '-e',
+        `const root = require('#root'); console.log(root.default);`,
+      ], {
+        cwd: fixtures.path('package-map/root'),
+        encoding: 'utf8',
+      }, {
+        stderr: '',
+        stdout: /root-package/,
+      });
     });
 
     it('throws when parent not in map', () => {
@@ -195,6 +245,23 @@ describe('CJS: --experimental-package-map', { concurrency: !process.env.TEST_PAR
       assert.match(stderr, /ERR_PACKAGE_MAP_INVALID/);
       assert.match(stderr, /pkg-a/);
       assert.match(stderr, /pkg-b/);
+      assert.notStrictEqual(status, 0, stderr);
+    });
+
+    it('throws for package URLs differing only by a trailing separator', () => {
+      const { status, stderr } = spawnSync(process.execPath, [
+        '--no-warnings',
+        '--experimental-package-map',
+        fixtures.path('package-map/package-map-duplicate-directory-path.json'),
+        '-e',
+        `require('dep-a');`,
+      ], {
+        cwd: fixtures.path('package-map/root'),
+        encoding: 'utf8',
+      });
+
+      assert.match(stderr, /ERR_PACKAGE_MAP_INVALID/);
+      assert.match(stderr, /dep-a-directory/);
       assert.notStrictEqual(status, 0, stderr);
     });
   });

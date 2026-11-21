@@ -1248,6 +1248,55 @@ TEST(ZlibTest, InflateCopySIGILLReproduction) {
   }
 }
 
+TEST(ZlibTest, InflateChunkRefillDistanceBitBudget) {
+  // Tests the edge case where one fast-loop iteration uses 10 + 10 + 15 + 5 +
+  // 15 = 55 of the 56 bits a refill. There should be sufficient bits for the
+  // next iteration.
+  static const uint8_t kCompressed[] = {
+      0xcd, 0xef, 0x01, 0x82, 0x24, 0x49, 0x92, 0x24, 0x49, 0x22, 0xb1, 0xa8,
+      0x79, 0xf5, 0xec, 0x2f, 0x33, 0xf3, 0x17, 0xf7, 0x7a, 0xf8, 0xc6, 0x1d,
+      0x20, 0xb1, 0xa8, 0x79, 0x64, 0xf5, 0xec, 0xfd, 0xf3, 0xef, 0xff, 0x1f,
+      0xfc, 0xff, 0xfe, 0xfd, 0xe7, 0xdf, 0xff, 0x3f, 0xf8, 0xff, 0xfd, 0xfb,
+      0xcf, 0xbf, 0xff, 0x7f, 0xf0, 0xff, 0xfb, 0x17};
+  std::vector<uint8_t> output(402 + 512);
+  z_stream stream = {};
+  stream.next_in = const_cast<uint8_t*>(kCompressed);
+  stream.avail_in = sizeof(kCompressed);
+  stream.next_out = output.data();
+  stream.avail_out = output.size();
+
+  ASSERT_EQ(Z_OK, inflateInit2(&stream, -MAX_WBITS));
+  EXPECT_EQ(Z_STREAM_END, inflate(&stream, Z_FINISH));
+  EXPECT_EQ(402u, stream.total_out);
+  EXPECT_EQ(Z_OK, inflateEnd(&stream));
+  EXPECT_EQ('b', output[133]);  // Decodes as 'a' if the refill is not reached.
+}
+
+TEST(ZlibTest, InflateChunkRefillLiteralBitBudget) {
+  // Test an edge case where an iteration ends at a literal. and returns to the
+  // top of the inflate loop.
+  static const uint8_t kCompressed[] = {
+      0x05, 0xe0, 0x81, 0x81, 0x04, 0x49, 0x92, 0x24, 0x49, 0xb2, 0xa8, 0x79,
+      0x64, 0xcf, 0x1e, 0x96, 0x55, 0x05, 0xc5, 0x3f, 0xf4, 0x44, 0xff, 0xfe,
+      0xf7, 0xcf, 0x3f, 0xff, 0xbf, 0x7f, 0xff, 0xfb, 0xe7, 0x9f, 0xff, 0xdf,
+      0xbf, 0xff, 0xfd, 0xf3, 0xcf, 0xff, 0xef, 0xdf, 0xff, 0xfe, 0xf9, 0xe7,
+      0xff, 0xf7, 0xef, 0x7f, 0xff, 0xfc, 0xf3, 0xff, 0xfb, 0xf7, 0xbf, 0x7f,
+      0xfe, 0xf9, 0xff, 0x01};
+  std::vector<uint8_t> output(30 + 512);
+  z_stream stream = {};
+  stream.next_in = const_cast<uint8_t*>(kCompressed);
+  stream.avail_in = sizeof(kCompressed);
+  stream.next_out = output.data();
+  stream.avail_out = output.size();
+
+  ASSERT_EQ(Z_OK, inflateInit2(&stream, -MAX_WBITS));
+  EXPECT_EQ(Z_STREAM_END, inflate(&stream, Z_FINISH));
+  EXPECT_EQ(30u, stream.total_out);
+  EXPECT_EQ(Z_OK, inflateEnd(&stream));
+  // Decodes as 'a' if the accumulator runs short before the next lookup.
+  EXPECT_EQ('b', output[5]);
+}
+
 // TODO(gustavoa): make these tests run standalone.
 #ifndef CMAKE_STANDALONE_UNITTESTS
 
@@ -1513,3 +1562,4 @@ TEST(ZlibTest, Compare256ReachesMaxMatch) {
 }
 
 #endif
+

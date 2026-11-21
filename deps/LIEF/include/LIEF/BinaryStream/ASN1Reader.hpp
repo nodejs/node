@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,8 +34,7 @@ class ASN1Reader {
   ASN1Reader() = delete;
 
   ASN1Reader(BinaryStream& stream) :
-    stream_(stream)
-  {}
+    stream_(stream) {}
 
   ASN1Reader(const ASN1Reader&) = delete;
   ASN1Reader& operator=(const ASN1Reader&) = delete;

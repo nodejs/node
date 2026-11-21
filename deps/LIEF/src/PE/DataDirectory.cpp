@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,15 +25,14 @@
 
 #include <spdlog/fmt/fmt.h>
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 DataDirectory::DataDirectory(const details::pe_data_directory& header,
                              DataDirectory::TYPES type) :
   rva_{header.RelativeVirtualAddress},
   size_{header.Size},
-  type_{type}
-{}
+  type_{type} {}
 
 void DataDirectory::accept(LIEF::Visitor& visitor) const {
   visitor.visit(*this);
@@ -87,9 +86,9 @@ span<uint8_t> DataDirectory::content() {
 }
 
 std::ostream& operator<<(std::ostream& os, const DataDirectory& entry) {
-  os << fmt::format("[{:>24}] [0x{:08x}, 0x{:08x}] ({} bytes)",
-                    to_string(entry.type()), entry.RVA(), entry.RVA() + entry.size(),
-                    entry.size());
+  os << fmt::format("[{:>24}] [{:#010x}, {:#010x}] ({} bytes)",
+                    to_string(entry.type()), entry.RVA(),
+                    entry.RVA() + entry.size(), entry.size());
   if (const Section* section = entry.section()) {
     os << fmt::format(" section: '{}'", section->name());
   }
@@ -97,32 +96,31 @@ std::ostream& operator<<(std::ostream& os, const DataDirectory& entry) {
 }
 
 const char* to_string(DataDirectory::TYPES e) {
-  #define ENTRY(X) std::pair(DataDirectory::TYPES::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(EXPORT_TABLE),
-    ENTRY(IMPORT_TABLE),
-    ENTRY(RESOURCE_TABLE),
-    ENTRY(EXCEPTION_TABLE),
-    ENTRY(CERTIFICATE_TABLE),
-    ENTRY(BASE_RELOCATION_TABLE),
-    ENTRY(DEBUG_DIR),
-    ENTRY(ARCHITECTURE),
-    ENTRY(GLOBAL_PTR),
-    ENTRY(TLS_TABLE),
-    ENTRY(LOAD_CONFIG_TABLE),
-    ENTRY(BOUND_IMPORT),
-    ENTRY(IAT),
-    ENTRY(DELAY_IMPORT_DESCRIPTOR),
-    ENTRY(CLR_RUNTIME_HEADER),
-    ENTRY(RESERVED),
-    ENTRY(UNKNOWN),
+#define ENTRY(X) std::pair(DataDirectory::TYPES::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(EXPORT_TABLE),
+      ENTRY(IMPORT_TABLE),
+      ENTRY(RESOURCE_TABLE),
+      ENTRY(EXCEPTION_TABLE),
+      ENTRY(CERTIFICATE_TABLE),
+      ENTRY(BASE_RELOCATION_TABLE),
+      ENTRY(DEBUG_DIR),
+      ENTRY(ARCHITECTURE),
+      ENTRY(GLOBAL_PTR),
+      ENTRY(TLS_TABLE),
+      ENTRY(LOAD_CONFIG_TABLE),
+      ENTRY(BOUND_IMPORT),
+      ENTRY(IAT),
+      ENTRY(DELAY_IMPORT_DESCRIPTOR),
+      ENTRY(CLR_RUNTIME_HEADER),
+      ENTRY(RESERVED),
+      ENTRY(UNKNOWN),
   };
-  #undef ENTRY
+#undef ENTRY
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
   }
   return "UNKNOWN";
 }
 
-}
 }

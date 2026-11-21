@@ -1,0 +1,5 @@
+The files in this directory stem from [Project Everest](https://project-everest.github.io/) and are distributed under the Apache 2.0 license.
+
+This is a formally verified implementation of Curve25519-based handshakes. The C code is automatically derived from the (verified) [original implementation](https://github.com/project-everest/hacl-star/tree/master/code/curve25519) in the [F* language](https://github.com/fstarlang/fstar) by [KreMLin](https://github.com/fstarlang/kremlin). In addition to the improved safety and security of the implementation, it is also significantly faster than the default implementation of Curve25519 in mbedTLS.
+
+The caveat is that not all platforms are supported, although the version in `everest/library/legacy` should work on most systems. The main issue is that some platforms do not provide a 128-bit integer type and KreMLin therefore has to use additional (also verified) code to simulate them, resulting in less of a performance gain overall. Explicitly supported platforms are currently `x86` and `x86_64` using gcc or clang, and Visual C (2010 and later).

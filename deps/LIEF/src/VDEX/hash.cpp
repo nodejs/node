@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
 #include "LIEF/DEX/hash.hpp"
 #include "LIEF/DEX/File.hpp"
 
-namespace LIEF {
-namespace VDEX {
+
+namespace LIEF::VDEX {
 
 Hash::~Hash() = default;
 
@@ -46,7 +46,4 @@ void Hash::visit(const Header& header) {
 }
 
 
-
-} // namespace VDEX
-} // namespace LIEF
-
+} // namespace LIEF::VDEX

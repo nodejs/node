@@ -15,6 +15,7 @@ const stageItems = [
     actor: 'octocat',
     actorType: 'user',
     shasum: '4f7f5f1d5bcf2f72f6e4d6c4f3b2812d8a2f6c19',
+    status: 'validating',
   },
   {
     id: 'f8e7a45b-7a5f-4f31-8e6d-9dd1c6ef38c0',
@@ -25,6 +26,7 @@ const stageItems = [
     actor: 'npm-bot',
     actorType: 'trusted automation',
     shasum: '8eb3b4e9b6e3d0d2c86be1e6d4f43f4be62e80ad',
+    status: 'staged',
   },
 ]
 
@@ -45,6 +47,9 @@ t.test('lists all staged packages', async t => {
   t.match(out, 'package name: example-lib')
   t.match(out, 'version: 1.2.3')
   t.match(out, 'version: 0.4.0')
+  t.match(out, 'status: validating')
+  t.match(out, 'status: staged')
+  t.equal(out.match(/status:/g)?.length, 2, 'all server-provided statuses are shown')
 })
 
 t.test('lists with package filter', async t => {
@@ -80,6 +85,8 @@ t.test('lists with --json', async t => {
   t.equal(out.length, 2)
   t.equal(out[0].packageName, '@npmcli/example-package')
   t.equal(out[0].id, '1de6f3db-2ed9-4d72-b3dd-8f0e2b474a2f', 'uuid id is not redacted')
+  t.equal(out[0].status, 'validating')
+  t.equal(out[1].status, 'staged')
 })
 
 t.test('shows message when no packages', async t => {

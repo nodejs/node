@@ -55,11 +55,11 @@
   #define FROZEN_LETITGO_HAS_CHAR8T
 #endif
 
-#if __cpp_deduction_guides >= 201703L
+#if defined(__cpp_deduction_guides) && __cpp_deduction_guides >= 201703L
   #define FROZEN_LETITGO_HAS_DEDUCTION_GUIDES
 #endif
 
-#if __cpp_lib_constexpr_string >= 201907L
+#if defined(__cpp_lib_constexpr_string) && __cpp_lib_constexpr_string >= 201907L
   #define FROZEN_LETITGO_HAS_CONSTEXPR_STRING
 #endif
 

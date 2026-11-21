@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,17 +18,20 @@
 #include <string>
 #include <ostream>
 #include "LIEF/visibility.h"
+#include "LIEF/optional.hpp"
 
 namespace LIEF {
 namespace PE {
 
-/// This structure is used to tweak the PE Parser (PE::Parser)
+/// This structure is used to configure the behavior of the PE Parser (PE::Parser).
 struct LIEF_API ParserConfig {
+  /// Returns the default configuration for the PE Parser.
   static const ParserConfig& default_conf() {
     static const ParserConfig DEFAULT;
     return DEFAULT;
   }
 
+  /// Returns a configuration that enables all optional parsing features.
   static ParserConfig all() {
     ParserConfig config;
     config.parse_exceptions = true;
@@ -36,38 +39,42 @@ struct LIEF_API ParserConfig {
     return config;
   }
 
-  /// Parse PE Authenticode signature
+  /// Whether to parse the PE Authenticode signature.
   bool parse_signature = true;
 
-  /// Parse PE Exports Directory
+  /// Whether to parse the PE Export Directory.
   bool parse_exports = true;
 
-  /// Parse PE Import Directory
+  /// Whether to parse the PE Import Directory.
   bool parse_imports = true;
 
-  /// Parse PE resources tree
+  /// Whether to parse the PE resources tree.
   bool parse_rsrc = true;
 
-  /// Parse PE relocations
+  /// Whether to parse PE relocations.
   bool parse_reloc = true;
 
-  /// Whether it should parse in-depth exceptions metadata.
+  /// Whether to parse in-depth exception metadata.
   ///
-  /// This option is set to off by default since it can introduce a certain
-  /// overhead.
+  /// This option is disabled by default because it can introduce significant
+  /// parsing overhead.
   bool parse_exceptions = false;
 
-  /// Whether it should parse nested ARM64X binary
+  /// Whether to parse nested ARM64X binaries.
   ///
-  /// This option is set to off by default since it can introduce a certain
-  /// overhead.
+  /// This option is disabled by default because it can introduce significant
+  /// parsing overhead.
   bool parse_arm64x_binary = false;
+
+  /// If set, this value holds the original image base from which the binary
+  /// should be rebased. This is used to *undo* relocations and IAT bindings
+  /// when parsing a PE loaded in memory.
+  optional<uint64_t> rebase;
 
   std::string to_string() const;
 
-  LIEF_API friend
-    std::ostream& operator<<(std::ostream& os, const ParserConfig& config)
-  {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const ParserConfig& config) {
     os << config.to_string();
     return os;
   }

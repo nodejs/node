@@ -1,6 +1,6 @@
 
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ struct pe_debug;
 
 /// This class represents a generic entry in the debug data directory.
 /// For known types, this class is extended to provide a dedicated API
-/// (see: CodeCodeView)
+/// (see: CodeView)
 class LIEF_API Debug : public Object {
   friend class Parser;
   friend class Builder;
@@ -100,12 +100,11 @@ class LIEF_API Debug : public Object {
     EX_DLLCHARACTERISTICS = 20,
   };
   Debug() = default;
-  Debug(TYPES type) {
-    type_ = type;
-  }
+  Debug(TYPES type) :
+    type_(type) {}
 
-  static span<uint8_t> get_payload(Section& section, uint32_t rva,
-                                   uint32_t offset, uint32_t size);
+  static span<uint8_t> get_payload(Section& section, uint32_t rva, uint32_t offset,
+                                   uint32_t size);
   static span<uint8_t> get_payload(Section& section, const details::pe_debug& hdr);
   static span<uint8_t> get_payload(Section& section, const Debug& dbg) {
     return get_payload(section, dbg.addressof_rawdata(), dbg.pointerto_rawdata(),
@@ -167,18 +166,18 @@ class LIEF_API Debug : public Object {
   }
 
   /// The section where debug data is located
-  const Section* section() const {
+  const Section* section() const LIEF_LIFETIMEBOUND {
     return section_;
   }
 
-  Section* section() {
+  Section* section() LIEF_LIFETIMEBOUND {
     return section_;
   }
 
   /// Debug data associated with this entry
-  span<uint8_t> payload();
+  span<uint8_t> payload() LIEF_LIFETIMEBOUND;
 
-  span<const uint8_t> payload() const {
+  span<const uint8_t> payload() const LIEF_LIFETIMEBOUND {
     return const_cast<Debug*>(this)->payload();
   }
 
@@ -228,9 +227,7 @@ class LIEF_API Debug : public Object {
 
   virtual std::string to_string() const;
 
-  LIEF_API friend
-    std::ostream& operator<<(std::ostream& os, const Debug& entry)
-  {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os, const Debug& entry) {
     os << entry.to_string();
     return os;
   }

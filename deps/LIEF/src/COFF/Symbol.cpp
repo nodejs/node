@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,8 +37,7 @@ Symbol::Symbol(const Symbol& other) :
   LIEF::Symbol(other),
   type_(other.type_),
   storage_class_(other.storage_class_),
-  section_idx_(other.section_idx_)
-{
+  section_idx_(other.section_idx_) {
   if (!other.auxiliary_symbols_.empty()) {
     auxiliary_symbols_.reserve(other.auxiliary_symbols_.size());
     for (const std::unique_ptr<AuxiliarySymbol>& aux : other.auxiliary_symbols_) {
@@ -66,17 +65,15 @@ Symbol& Symbol::operator=(const Symbol& other) {
   return *this;
 }
 
-std::unique_ptr<Symbol> Symbol::parse(
-    parsing_context_t& ctx, BinaryStream& stream, size_t* idx)
-{
+std::unique_ptr<Symbol> Symbol::parse(parsing_context_t& ctx, BinaryStream& stream,
+                                      size_t* idx) {
   return ctx.is_bigobj ? parse_impl<details::symbol32>(ctx, stream, idx) :
                          parse_impl<details::symbol16>(ctx, stream, idx);
 }
 
 template<class T>
-std::unique_ptr<Symbol> Symbol::parse_impl(
-    parsing_context_t& ctx, BinaryStream& stream, size_t* idx)
-{
+std::unique_ptr<Symbol> Symbol::parse_impl(parsing_context_t& ctx,
+                                           BinaryStream& stream, size_t* idx) {
   static_assert(std::is_same_v<T, details::symbol16> ||
                 std::is_same_v<T, details::symbol32>);
   auto raw = stream.read<T>();
@@ -92,8 +89,8 @@ std::unique_ptr<Symbol> Symbol::parse_impl(
   if (raw->name.offset.zeroes == 0) {
     sym->coff_name_ = ctx.find_string(raw->name.offset.offset);
   } else {
-    sym->name_ = std::string(raw->name.short_name.data(),
-                             raw->name.short_name.size());
+    sym->name_ =
+        std::string(raw->name.short_name.data(), raw->name.short_name.size());
     sym->name_ = sym->name_.c_str();
   }
 
@@ -107,7 +104,7 @@ std::unique_ptr<Symbol> Symbol::parse_impl(
 
     auto aux = AuxiliarySymbol::parse(*sym, std::move(raw_aux));
     if (aux == nullptr) {
-      LIEF_WARN("Failed to parse auxiliary symbols #{}", i);
+      LIEF_WARN("Failed to parse auxiliary symbol #{}", i);
       continue;
     }
 
@@ -148,9 +145,12 @@ std::string Symbol::to_string() const {
   os << "  Name: " << name() << '\n'
      << "  Value: " << value() << '\n'
      << "  Section index: " << section_idx() << '\n'
-     << fmt::format("  Base type: {} ({})\n", COFF::to_string(base_type()), (int)base_type())
-     << fmt::format("  Complex type: {} ({})\n", COFF::to_string(complex_type()), (int)complex_type())
-     << fmt::format("  Storage class: {} ({})\n", COFF::to_string(storage_class()), (int)storage_class())
+     << fmt::format("  Base type: {} ({})\n", COFF::to_string(base_type()),
+                    (int)base_type())
+     << fmt::format("  Complex type: {} ({})\n", COFF::to_string(complex_type()),
+                    (int)complex_type())
+     << fmt::format("  Storage class: {} ({})\n", COFF::to_string(storage_class()),
+                    (int)storage_class())
      << "  Nb auxiliary symbols: " << auxiliary_symbols().size() << '\n';
   for (const AuxiliarySymbol& aux : auxiliary_symbols()) {
     os << indent(aux.to_string(), 2) << '\n';
@@ -161,38 +161,38 @@ std::string Symbol::to_string() const {
 }
 
 const char* to_string(Symbol::STORAGE_CLASS e) {
-  #define ENTRY(X) std::pair(Symbol::STORAGE_CLASS::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(INVALID),
-    ENTRY(END_OF_FUNCTION),
-    ENTRY(NONE),
-    ENTRY(AUTOMATIC),
-    ENTRY(EXTERNAL),
-    ENTRY(STATIC),
-    ENTRY(REGISTER),
-    ENTRY(EXTERNAL_DEF),
-    ENTRY(LABEL),
-    ENTRY(UNDEFINED_LABEL),
-    ENTRY(MEMBER_OF_STRUCT),
-    ENTRY(ARGUMENT),
-    ENTRY(STRUCT_TAG),
-    ENTRY(MEMBER_OF_UNION),
-    ENTRY(UNION_TAG),
-    ENTRY(TYPE_DEFINITION),
-    ENTRY(UNDEFINED_STATIC),
-    ENTRY(ENUM_TAG),
-    ENTRY(MEMBER_OF_ENUM),
-    ENTRY(REGISTER_PARAM),
-    ENTRY(BIT_FIELD),
-    ENTRY(BLOCK),
-    ENTRY(FUNCTION),
-    ENTRY(END_OF_STRUCT),
-    ENTRY(FILE),
-    ENTRY(SECTION),
-    ENTRY(WEAK_EXTERNAL),
-    ENTRY(CLR_TOKEN),
+#define ENTRY(X) std::pair(Symbol::STORAGE_CLASS::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(INVALID),
+      ENTRY(END_OF_FUNCTION),
+      ENTRY(NONE),
+      ENTRY(AUTOMATIC),
+      ENTRY(EXTERNAL),
+      ENTRY(STATIC),
+      ENTRY(REGISTER),
+      ENTRY(EXTERNAL_DEF),
+      ENTRY(LABEL),
+      ENTRY(UNDEFINED_LABEL),
+      ENTRY(MEMBER_OF_STRUCT),
+      ENTRY(ARGUMENT),
+      ENTRY(STRUCT_TAG),
+      ENTRY(MEMBER_OF_UNION),
+      ENTRY(UNION_TAG),
+      ENTRY(TYPE_DEFINITION),
+      ENTRY(UNDEFINED_STATIC),
+      ENTRY(ENUM_TAG),
+      ENTRY(MEMBER_OF_ENUM),
+      ENTRY(REGISTER_PARAM),
+      ENTRY(BIT_FIELD),
+      ENTRY(BLOCK),
+      ENTRY(FUNCTION),
+      ENTRY(END_OF_STRUCT),
+      ENTRY(FILE),
+      ENTRY(SECTION),
+      ENTRY(WEAK_EXTERNAL),
+      ENTRY(CLR_TOKEN),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -201,26 +201,14 @@ const char* to_string(Symbol::STORAGE_CLASS e) {
 }
 
 const char* to_string(Symbol::BASE_TYPE e) {
-  #define ENTRY(X) std::pair(Symbol::BASE_TYPE::TY_##X, #X)
-  STRING_MAP enums2str {
-    ENTRY(NULL),
-    ENTRY(VOID),
-    ENTRY(CHAR),
-    ENTRY(SHORT),
-    ENTRY(INT),
-    ENTRY(LONG),
-    ENTRY(FLOAT),
-    ENTRY(DOUBLE),
-    ENTRY(STRUCT),
-    ENTRY(UNION),
-    ENTRY(ENUM),
-    ENTRY(MOE),
-    ENTRY(BYTE),
-    ENTRY(WORD),
-    ENTRY(UINT),
-    ENTRY(DWORD),
+#define ENTRY(X) std::pair(Symbol::BASE_TYPE::TY_##X, #X)
+  STRING_MAP enums2str{
+      ENTRY(NULL),   ENTRY(VOID),  ENTRY(CHAR),  ENTRY(SHORT),
+      ENTRY(INT),    ENTRY(LONG),  ENTRY(FLOAT), ENTRY(DOUBLE),
+      ENTRY(STRUCT), ENTRY(UNION), ENTRY(ENUM),  ENTRY(MOE),
+      ENTRY(BYTE),   ENTRY(WORD),  ENTRY(UINT),  ENTRY(DWORD),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -229,14 +217,14 @@ const char* to_string(Symbol::BASE_TYPE e) {
 }
 const char* to_string(Symbol::COMPLEX_TYPE e) {
 
-  #define ENTRY(X) std::pair(Symbol::COMPLEX_TYPE::TY_##X, #X)
-  STRING_MAP enums2str {
-    ENTRY(NULL),
-    ENTRY(POINTER),
-    ENTRY(FUNCTION),
-    ENTRY(ARRAY),
+#define ENTRY(X) std::pair(Symbol::COMPLEX_TYPE::TY_##X, #X)
+  STRING_MAP enums2str{
+      ENTRY(NULL),
+      ENTRY(POINTER),
+      ENTRY(FUNCTION),
+      ENTRY(ARRAY),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;

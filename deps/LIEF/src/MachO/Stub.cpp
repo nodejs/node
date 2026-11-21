@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,9 +30,8 @@ inline uint64_t get_offset(size_t pos, const Section& section) {
   return section.reserved2() * pos;
 }
 
-const Section*
-  Stub::Iterator::find_section_offset(size_t pos, uint64_t& offset) const
-{
+const Section* Stub::Iterator::find_section_offset(size_t pos,
+                                                   uint64_t& offset) const {
   if (stubs_.size() == 1) {
     offset = get_offset(pos, *stubs_.back());
     return stubs_.back();
@@ -58,9 +57,9 @@ const Section*
   uint64_t limit = nb_stubs(*stubs_[0]);
   for (size_t idx = 0; idx < stubs_.size(); ++idx) {
     if (pos < limit) {
-      offset = idx > 0 ?
-               get_offset(pos - (limit - nb_stubs(*stubs_[idx - 1])), *stubs_[idx]) :
-               get_offset(pos, *stubs_[idx]);
+      offset = idx > 0 ? get_offset(pos - (limit - nb_stubs(*stubs_[idx - 1])),
+                                    *stubs_[idx]) :
+                         get_offset(pos, *stubs_[idx]);
       return stubs_[idx];
     }
     if (idx < stubs_.size() - 1) {
@@ -83,9 +82,7 @@ Stub Stub::Iterator::operator*() const {
   }
   LIEF::span<const uint8_t> stub_raw = section->content().subspan(offset, stride);
   const uint64_t addr = section->virtual_address() + offset;
-  return Stub(
-    target_info_, addr, as_vector(stub_raw)
-  );
+  return {target_info_, addr, as_vector(stub_raw)};
 }
 
 #if !defined(LIEF_EXTENDED)
@@ -97,11 +94,10 @@ result<uint64_t> Stub::target() const {
 
 std::ostream& operator<<(std::ostream& os, const Stub& stub) {
   if (is_extended()) {
-    os << fmt::format("0x{:010x}: 0x{:010x} ({} bytes)",
-                       stub.address(), stub.target().value_or(0),
-                       stub.raw().size());
+    os << fmt::format("{:#012x}: {:#012x} ({} bytes)", stub.address(),
+                      stub.target().value_or(0), stub.raw().size());
   } else {
-    os << fmt::format("0x{:010x} ({} bytes)", stub.address(), stub.raw().size());
+    os << fmt::format("{:#012x} ({} bytes)", stub.address(), stub.raw().size());
   }
   return os;
 }

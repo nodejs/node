@@ -19,5 +19,7 @@
     "blockScopedVariable1",
     "blockScopedVariable2"
   ],
-  "scopes": "BCAAA,DCC,BHKFGI,DGCC,CJB,BHGFKA,DF,BCBIK,DKC,CDF,CBB,CBA"
+  "scopes": [
+    "BCAAA,DCC,BHKFGI,DGCC,CJB,BHGFKA,DF,BCBIK,DKC,CDF,CBB,CBA"
+  ]
 }

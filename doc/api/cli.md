@@ -531,6 +531,161 @@ For example, to run a module with "development" resolutions:
 node -C development app.js
 ```
 
+### `--config-file=path`, `--config-file`
+
+<!-- YAML
+added: v23.10.0
+changes:
+  - version: v24.23.0
+    pr-url: https://github.com/nodejs/node/pull/66431
+    description: This flag was renamed from `--experimental-config-file` to
+                 `--config-file` and is now stable. `--experimental-config-file`
+                 and `--experimental-default-config-file` are kept as aliases.
+  - version: v24.23.0
+    pr-url: https://github.com/nodejs/node/pull/64516
+    description: Marked as release candidate.
+-->
+
+If present, Node.js will look for a configuration file at the specified path.
+If the path is not specified, Node.js will look for a `node.config.json` file
+in the current working directory.
+To specify a custom path, use the `--config-file=path` form.
+The space-separated `--config-file path` form is not supported.
+Node.js will read the configuration file and apply the settings. The
+configuration file should be a JSON file with the following structure. `vX.Y.Z`
+in the `$schema` must be replaced with the version of Node.js you are using or
+`latest-vX.x` for the latest version of that major release line.
+
+```json
+{
+  "$schema": "https://nodejs.org/dist/vX.Y.Z/docs/node-config-schema.json",
+  "nodeOptions": {
+    "import": [
+      "amaro/strip"
+    ],
+    "watch-path": "src",
+    "watch-preserve-output": true
+  },
+  "test": {
+    "test-isolation": "process"
+  },
+  "watch": {
+    "watch-preserve-output": true
+  }
+}
+```
+
+The configuration file supports namespace-specific options:
+
+* The `nodeOptions` field contains CLI flags that are allowed in [`NODE_OPTIONS`][].
+
+* Namespace fields like `test`, `watch`, and `permission` contain configuration specific to that subsystem.
+
+The configuration file can target a specific Node.js major version with
+`nodeVersion`:
+
+```json
+{
+  "nodeVersion": 25,
+  "nodeOptions": {
+    "watch-path": "src"
+  }
+}
+```
+
+To keep multiple version-specific configurations in the same file, use the
+`configs` array. Node.js will use the first entry whose `nodeVersion` matches
+the current Node.js major version:
+
+```json
+{
+  "$schema": "https://nodejs.org/dist/latest-v26.x/docs/node-config-schema.json",
+  "configs": [
+    {
+      "nodeVersion": 25,
+      "config": {
+        "$schema": "https://nodejs.org/dist/latest-v25.x/docs/node-config-schema.json",
+        "nodeOptions": {
+          "watch-path": "src"
+        }
+      }
+    }
+  ]
+}
+```
+
+When `configs` is used, the top level may only contain `$schema` and
+`configs`. Each `configs` item must define an integer `nodeVersion` and an
+object `config`. A single top-level config does not require `nodeVersion`, but
+if present it must match the current Node.js major version.
+
+When a namespace is present in the
+configuration file, Node.js automatically enables the corresponding flag
+(e.g., `--test`, `--watch`, `--permission`). This allows you to configure
+subsystem-specific options without explicitly passing the flag on the command line.
+
+For example:
+
+```json
+{
+  "test": {
+    "test-isolation": "process"
+  }
+}
+```
+
+is equivalent to:
+
+```bash
+node --test --test-isolation=process
+```
+
+To disable the automatic flag while still using namespace options, you can
+explicitly set the flag to `false` within the namespace:
+
+```json
+{
+  "test": {
+    "test": false,
+    "test-isolation": "process"
+  }
+}
+```
+
+No-op flags are not supported.
+Not all V8 flags are currently supported.
+
+It is possible to use the [official JSON schema](../node-config-schema.json)
+to validate the configuration file, which may vary depending on the Node.js version.
+Each key in the configuration file corresponds to a flag that can be passed
+as a command-line argument. The value of the key is the value that would be
+passed to the flag.
+
+For example, the configuration file above is equivalent to
+the following command-line arguments:
+
+```bash
+node --import amaro/strip --watch-path=src --watch-preserve-output --test-isolation=process
+```
+
+The priority in configuration is as follows:
+
+1. NODE\_OPTIONS and command-line options
+2. Dotenv NODE\_OPTIONS
+3. Configuration file
+
+Values in the configuration file will not override the values in the environment
+variables, command-line options, or the `NODE_OPTIONS` env file parsed by the
+`--env-file` flag.
+
+Keys cannot be duplicated within the same or different namespaces.
+
+The configuration parser will throw an error if the configuration file contains
+unknown keys or keys that cannot be used in a namespace.
+
+Node.js will not sanitize or perform validation on the user-provided configuration,
+so **NEVER** use untrusted configuration files.
+
 ### `--cpu-prof`
 
 <!-- YAML
@@ -996,98 +1151,6 @@ changes:
 
 Enable experimental import support for `.node` addons.
 
-### `--experimental-config-file=path`, `--experimental-config-file`
-
-<!-- YAML
-added: v23.10.0
--->
-
-> Stability: 1.0 - Early development
-
-If present, Node.js will look for a configuration file at the specified path.
-If the path is not specified, Node.js will look for a `node.config.json` file
-in the current working directory.
-To specify a custom path, use the `--experimental-config-file=path` form.
-The space-separated `--experimental-config-file path` form is not supported.
-The alias `--experimental-default-config-file` is equivalent to
-`--experimental-config-file` without an argument.
-Node.js will read the configuration file and apply the settings. The
-configuration file should be a JSON file with the following structure. `vX.Y.Z`
-in the `$schema` must be replaced with the version of Node.js you are using or
-`latest-vX.x` for the latest version of that major release line.
-
-```json
-{
-  "$schema": "https://nodejs.org/dist/vX.Y.Z/docs/node-config-schema.json",
-  "nodeOptions": {
-    "import": [
-      "amaro/strip"
-    ],
-    "watch-path": "src",
-    "watch-preserve-output": true
-  },
-  "test": {
-    "test-isolation": "process"
-  },
-  "watch": {
-    "watch-preserve-output": true
-  }
-}
-```
-
-The configuration file supports namespace-specific options:
-
-* The `nodeOptions` field contains CLI flags that are allowed in [`NODE_OPTIONS`][].
-
-* Namespace fields like `test` contain configuration specific to that subsystem.
-
-No-op flags are not supported.
-Not all V8 flags are currently supported.
-
-It is possible to use the [official JSON schema](../node-config-schema.json)
-to validate the configuration file, which may vary depending on the Node.js version.
-Each key in the configuration file corresponds to a flag that can be passed
-as a command-line argument. The value of the key is the value that would be
-passed to the flag.
-
-For example, the configuration file above is equivalent to
-the following command-line arguments:
-
-```bash
-node --import amaro/strip --watch-path=src --watch-preserve-output --test-isolation=process
-```
-
-The priority in configuration is as follows:
-
-1. NODE\_OPTIONS and command-line options
-2. Dotenv NODE\_OPTIONS
-3. Configuration file
-
-Values in the configuration file will not override the values in the environment
-variables, command-line options, or the `NODE_OPTIONS` env file parsed by the
-`--env-file` flag.
-
-Keys cannot be duplicated within the same or different namespaces.
-
-The configuration parser will throw an error if the configuration file contains
-unknown keys or keys that cannot be used in a namespace.
-
-Node.js will not sanitize or perform validation on the user-provided configuration,
-so **NEVER** use untrusted configuration files.
-
-### `--experimental-default-config-file`
-
-<!-- YAML
-added: v23.10.0
--->
-
-> Stability: 1.0 - Early development
-
-This flag is an alias for `--experimental-config-file` without an argument.
-If present, Node.js will look for a
-`node.config.json` file in the current working directory and load it as a
-configuration file.
-
 ### `--experimental-eventsource`
 
 <!-- YAML
@@ -1311,7 +1374,7 @@ Enable module mocking in the test runner.
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
 
-### `--experimental-test-tag-filter=<tag>`
+### `--experimental-test-tag-filter='<expr>'`
 
 <!-- YAML
 added: v24.19.0
@@ -1319,14 +1382,20 @@ added: v24.19.0
 
 > Stability: 1.0 - Early development
 
-Run only tests whose tag set contains `<tag>`. Tests declare tags via the
-`tags` option on `test()`, `it()`, `suite()`, or `describe()`; tags
-inherit from suites to nested tests by union. Filtering is
-case-insensitive.
+Run only tests that match the provided boolean tag-filter expression. Tests
+declare tags via the `tags` option on `test()`, `it()`, `suite()`, or
+`describe()`. Tags inherit from suites to nested tests by union.
 
-The flag may be specified more than once; tests must contain **every**
-filter value to run. See [Test tags][] for details on declaring and
-inheriting tags.
+The expression supports boolean operators (`and`/`&&`, `or`/`||`,
+`not`/`!`), parentheses for grouping, and `*` wildcards inside identifiers.
+Standard precedence applies: `not` binds tighter than `and`, which binds
+tighter than `or`. See [Test tags][] for the full grammar and behavior.
+
+The flag may be specified more than once; multiple expressions are combined
+with AND, so a test must satisfy every expression to run.
+
+A malformed expression causes the test runner to exit with a non-zero status
+before running any tests.
 
 ### `--experimental-transform-types`
 
@@ -2725,6 +2794,21 @@ This option may be specified multiple times to include multiple glob patterns.
 If both `--test-coverage-exclude` and `--test-coverage-include` are provided,
 files must meet **both** criteria to be included in the coverage report.
 
+### `--test-coverage-include-all`
+
+<!-- YAML
+added: v24.23.0
+-->
+
+> Stability: 1 - Experimental
+
+Includes source files that were never loaded by the test run in the coverage
+report, where they are reported as having zero coverage.
+
+Candidate files are searched for in the current working directory, and are
+subject to the same `--test-coverage-include` and `--test-coverage-exclude`
+filtering as the rest of the report.
+
 ### `--test-coverage-lines=threshold`
 
 <!-- YAML
@@ -3531,8 +3615,9 @@ Enable the [module compile cache][] for the Node.js instance. See the documentat
 
 ### `NODE_COMPILE_CACHE_PORTABLE=1`
 
-When set to 1, the [module compile cache][]  can be reused across different directory
-locations as long as the module layout relative to the cache directory remains the same.
+When set to 1, the [module compile cache][] can be reused across different directory
+locations as long as the module layout relative to the cache directory remains the same,
+and by any user (the cache subdirectory is not suffixed with the creating user's uid).
 
 ### `NODE_DEBUG=module[,…]`
 
@@ -3758,6 +3843,7 @@ one is included in the list below.
 * `--test-coverage-branches`
 * `--test-coverage-exclude`
 * `--test-coverage-functions`
+* `--test-coverage-include-all`
 * `--test-coverage-include`
 * `--test-coverage-lines`
 * `--test-global-setup`

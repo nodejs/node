@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -142,8 +142,8 @@ class LIEF_API DynamicSymbolCommand : public LoadCommand {
 
   /// Byte offset from the start of the file to the indirect symbol table data.
   ///
-  /// Indirect symbol table is used by the loader to speed-up symbol resolution during
-  /// the *lazy binding* process
+  /// Indirect symbol table is used by the loader to speed-up symbol resolution
+  /// during the *lazy binding* process
   ///
   /// References:
   ///   * dyld-519.2.1/src/ImageLoaderMachOCompressed.cpp
@@ -252,11 +252,11 @@ class LIEF_API DynamicSymbolCommand : public LoadCommand {
   }
 
   /// Iterator over the indirect symbols indexed by this command
-  it_indirect_symbols indirect_symbols() {
+  it_indirect_symbols indirect_symbols() LIEF_LIFETIMEBOUND {
     return indirect_symbols_;
   }
 
-  it_const_indirect_symbols indirect_symbols() const {
+  it_const_indirect_symbols indirect_symbols() const LIEF_LIFETIMEBOUND {
     return indirect_symbols_;
   }
 

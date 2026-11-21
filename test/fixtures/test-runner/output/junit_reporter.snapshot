@@ -132,8 +132,7 @@ true !== false
 		<testcase name="+sync throw fail" time="*" classname="subtest sync throw fail" file="*" failure="thrown from subtest sync throw fail">
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fail">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
-    at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:125:11)
-    at <node-internal-frames> {
+    at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:125:11) {
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from subtest sync throw fail
@@ -229,8 +228,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 	<testcase name="callback called twice" time="*" classname="test" file="*" failure="callback invoked multiple times">
 		<failure type="multipleCallbackInvocations" message="callback invoked multiple times">
 Error [ERR_TEST_FAILURE]: callback invoked multiple times
-    at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:272:3)
-    at <node-internal-frames> {
+    at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:272:3) {
   code: 'ERR_TEST_FAILURE',
   failureType: 'multipleCallbackInvocations',
   cause: 'callback invoked multiple times'
@@ -292,8 +290,7 @@ Error [ERR_TEST_FAILURE]: thrown from callback async throw
 		<testcase name="sync throw fails at first" time="*" classname="subtest sync throw fails" file="*" failure="thrown from subtest sync throw fails at first">
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fails at first">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at first
-    at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:334:11)
-    at <node-internal-frames> {
+    at TestContext.&lt;anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:334:11) {
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
   cause: Error: thrown from subtest sync throw fails at first

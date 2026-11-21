@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 #include <algorithm>
-#include <iomanip>
 
 #include "LIEF/Visitor.hpp"
 
@@ -24,16 +23,15 @@
 
 #include <spdlog/fmt/fmt.h>
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 Import::Import(const details::pe_import& import) :
   ilt_rva_(import.ImportLookupTableRVA),
   timedatestamp_(import.TimeDateStamp),
   forwarder_chain_(import.ForwarderChain),
   name_rva_(import.NameRVA),
-  iat_rva_(import.ImportAddressTableRVA)
-{}
+  iat_rva_(import.ImportAddressTableRVA) {}
 
 
 Import::Import(const Import& other) :
@@ -47,8 +45,7 @@ Import::Import(const Import& other) :
   iat_rva_(other.iat_rva_),
   name_(other.name_),
   type_(other.type_),
-  nb_original_func_(other.nb_original_func_)
-{
+  nb_original_func_(other.nb_original_func_) {
   if (!other.entries_.empty()) {
     entries_.reserve(other.entries_.size());
     for (const ImportEntry& entry : other.entries()) {
@@ -86,10 +83,9 @@ Import& Import::operator=(const Import& other) {
 
 bool Import::remove_entry(const std::string& name) {
   auto it = std::find_if(entries_.begin(), entries_.end(),
-    [&name] (const std::unique_ptr<ImportEntry>& entry) {
-      return entry->name() == name;
-    }
-  );
+                         [&name](const std::unique_ptr<ImportEntry>& entry) {
+                           return entry->name() == name;
+                         });
   if (it == entries_.end()) {
     return false;
   }
@@ -99,11 +95,11 @@ bool Import::remove_entry(const std::string& name) {
 }
 
 bool Import::remove_entry(uint32_t ordinal) {
-  auto it = std::find_if(entries_.begin(), entries_.end(),
-    [ordinal] (const std::unique_ptr<ImportEntry>& entry) {
-      return entry->is_ordinal() && entry->ordinal() == ordinal;
-    }
-  );
+  auto it =
+      std::find_if(entries_.begin(), entries_.end(),
+                   [ordinal](const std::unique_ptr<ImportEntry>& entry) {
+                     return entry->is_ordinal() && entry->ordinal() == ordinal;
+                   });
   if (it == entries_.end()) {
     return false;
   }
@@ -113,28 +109,31 @@ bool Import::remove_entry(uint32_t ordinal) {
 }
 
 const ImportEntry* Import::get_entry(const std::string& name) const {
-  const auto it_entry = std::find_if(std::begin(entries_), std::end(entries_),
-      [&name] (const std::unique_ptr<ImportEntry>& entry) {
-        return entry->name() == name;
-      });
-  if (it_entry == std::end(entries_)) {
+  const auto it_entry =
+      std::find_if(entries_.begin(), entries_.end(),
+                   [&name](const std::unique_ptr<ImportEntry>& entry) {
+                     return entry->name() == name;
+                   });
+  if (it_entry == entries_.end()) {
     return nullptr;
   }
   return &**it_entry;
 }
 
-result<uint32_t> Import::get_function_rva_from_iat(const std::string& function) const {
-  const auto it_function = std::find_if(std::begin(entries_), std::end(entries_),
-      [&function] (const std::unique_ptr<ImportEntry>& entry) {
-        return entry->name() == function;
-      });
+result<uint32_t>
+    Import::get_function_rva_from_iat(const std::string& function) const {
+  const auto it_function =
+      std::find_if(entries_.begin(), entries_.end(),
+                   [&function](const std::unique_ptr<ImportEntry>& entry) {
+                     return entry->name() == function;
+                   });
 
-  if (it_function == std::end(entries_)) {
+  if (it_function == entries_.end()) {
     return make_error_code(lief_errors::not_found);
   }
 
   // Index of the function in the imported functions
-  uint32_t idx = std::distance(std::begin(entries_), it_function);
+  uint32_t idx = std::distance(entries_.begin(), it_function);
 
   if (type_ == PE_TYPE::PE32) {
     return idx * sizeof(uint32_t);
@@ -148,24 +147,24 @@ void Import::accept(LIEF::Visitor& visitor) const {
 
 std::ostream& operator<<(std::ostream& os, const Import& entry) {
   os << fmt::format(
-  R"delim(
+      R"delim(
   Name: {} {{
-    Name(RVA): 0x{:06x}
-    IAT(RVA):  0x{:06x}
-    ILT(RVA):  0x{:06x}
-    FWD Chain: 0x{:06x}
-    Timestamp: 0x{:06x}
+    Name(RVA): {:#08x}
+    IAT(RVA):  {:#08x}
+    ILT(RVA):  {:#08x}
+    FWD Chain: {:#08x}
+    Timestamp: {:#08x}
   }}
   )delim",
-  entry.name(), entry.name_rva_, entry.import_address_table_rva(),
-  entry.import_lookup_table_rva(), entry.forwarder_chain(),
-  entry.timedatestamp());
+      entry.name(), entry.name_rva_, entry.import_address_table_rva(),
+      entry.import_lookup_table_rva(), entry.forwarder_chain(),
+      entry.timedatestamp()
+  );
   os << '\n';
-  for (const ImportEntry& functions: entry.entries()) {
+  for (const ImportEntry& functions : entry.entries()) {
     os << "    " << functions << '\n';
   }
 
   return os;
-}
 }
 }

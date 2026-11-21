@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,32 +29,31 @@
 #include <spdlog/fmt/fmt.h>
 
 
-namespace LIEF {
-namespace ELF {
+namespace LIEF::ELF {
 
 Symbol& Symbol::operator=(Symbol other) {
   swap(other);
   return *this;
 }
 
-Symbol::Symbol(const Symbol& other) : LIEF::Symbol{other},
+Symbol::Symbol(const Symbol& other) :
+  LIEF::Symbol{other},
   type_{other.type_},
   binding_{other.binding_},
   other_{other.other_},
   shndx_{other.shndx_},
-  arch_{other.arch_}
-{}
+  arch_{other.arch_} {}
 
 
 void Symbol::swap(Symbol& other) {
   LIEF::Symbol::swap(other);
-  std::swap(type_,           other.type_);
-  std::swap(binding_,        other.binding_);
-  std::swap(other_,          other.other_);
-  std::swap(shndx_,          other.shndx_);
-  std::swap(section_,        other.section_);
+  std::swap(type_, other.type_);
+  std::swap(binding_, other.binding_);
+  std::swap(other_, other.other_);
+  std::swap(shndx_, other.shndx_);
+  std::swap(section_, other.section_);
   std::swap(symbol_version_, other.symbol_version_);
-  std::swap(arch_,           other.arch_);
+  std::swap(arch_, other.arch_);
 }
 
 template<class T>
@@ -63,10 +62,9 @@ Symbol::Symbol(const T& header, ARCH arch) :
   binding_{binding_from(header.st_info >> 4, arch)},
   other_{header.st_other},
   shndx_{header.st_shndx},
-  arch_{arch}
-{
+  arch_{arch} {
   value_ = header.st_value;
-  size_  = header.st_size;
+  size_ = header.st_size;
 }
 
 template Symbol::Symbol(const details::Elf32_Sym& header, ARCH);
@@ -74,14 +72,13 @@ template Symbol::Symbol(const details::Elf64_Sym& header, ARCH);
 
 
 uint8_t Symbol::information() const {
-  return static_cast<uint8_t>(
-      (static_cast<uint8_t>(binding_) << 4) | (static_cast<uint8_t>(type_) & 0x0f)
-  );
+  return static_cast<uint8_t>((static_cast<uint8_t>(binding_) << 4) |
+                              (static_cast<uint8_t>(type_) & 0x0f));
 }
 
 void Symbol::information(uint8_t info) {
   binding_ = binding_from(info >> 4, arch_);
-  type_    = type_from(info & 0x0f, arch_);
+  type_ = type_from(info & 0x0f, arch_);
 }
 
 std::string Symbol::demangled_name() const {
@@ -89,14 +86,22 @@ std::string Symbol::demangled_name() const {
     return LIEF::demangle(name()).value_or("");
   } else {
 #if defined(__unix__)
-    int status;
-    const std::string& name = this->name().c_str();
-    char* demangled_name = abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status);
+    int status = 0;
+    const std::string& name = this->name();
+    if (name.find("_Z") != 0) {
+      return name;
+    }
+    char* demangled_name =
+        abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status);
 
-    if (status == 0) {
+    if (status == 0 && demangled_name != nullptr) {
       std::string realname = demangled_name;
-      free(demangled_name);
+      free(demangled_name); // NOLINT(cppcoreguidelines-no-malloc)
       return realname;
+    }
+
+    if (demangled_name != nullptr) {
+      free(demangled_name); // NOLINT(cppcoreguidelines-no-malloc)
     }
 
     return name;
@@ -112,14 +117,14 @@ bool Symbol::is_exported() const {
   // An export must have an address
   is_exported = is_exported && (value() != 0 || (value() == 0 && size() > 0));
 
-  // An export must be bind to GLOBAL or WEAK
-  is_exported = is_exported && (binding() == BINDING::GLOBAL ||
-                                binding() == BINDING::WEAK);
+  // An export must be bound to GLOBAL or WEAK
+  is_exported =
+      is_exported && (binding() == BINDING::GLOBAL || binding() == BINDING::WEAK);
 
-  // An export must have one of theses types:
-  is_exported = is_exported && (type() == TYPE::FUNC ||
-                                type() == TYPE::GNU_IFUNC ||
-                                type() == TYPE::OBJECT);
+  // An export must have one of these types:
+  is_exported =
+      is_exported && (type() == TYPE::FUNC || type() == TYPE::GNU_IFUNC ||
+                      type() == TYPE::OBJECT);
   return is_exported;
 }
 
@@ -137,28 +142,29 @@ bool Symbol::is_imported() const {
   // An import must not be defined in a section
   bool is_imported = shndx() == SECTION_INDEX::UNDEF;
 
-  const bool is_mips = arch_ == ARCH::MIPS || arch_ == ARCH::MIPS_X ||
-                       arch_ == ARCH::MIPS_RS3_LE;
+  const bool is_mips =
+      arch_ == ARCH::MIPS || arch_ == ARCH::MIPS_X || arch_ == ARCH::MIPS_RS3_LE;
   const bool is_ppc = arch_ == ARCH::PPC || arch_ == ARCH::PPC64;
 
   const bool is_riscv = arch_ == ARCH::RISCV;
 
-  // An import must not have an address (except for some architectures like Mips/PPC)
+  // An import must not have an address (except for some architectures like
+  // Mips/PPC)
   if (!is_mips && !is_ppc && !is_riscv) {
     is_imported = is_imported && value() == 0;
   }
 
-  // its name must not be empty
+  // Its name must not be empty
   is_imported = is_imported && !name().empty();
 
-  // It must have a GLOBAL or WEAK bind
-  is_imported = is_imported && (binding()  == BINDING::GLOBAL ||
-                                 binding() == BINDING::WEAK);
+  // It must have a GLOBAL or WEAK binding
+  is_imported =
+      is_imported && (binding() == BINDING::GLOBAL || binding() == BINDING::WEAK);
 
   // It must be a FUNC or an OBJECT
-  is_imported = is_imported && (type()  == TYPE::FUNC ||
-                                 type() == TYPE::GNU_IFUNC ||
-                                 type() == TYPE::OBJECT);
+  is_imported =
+      is_imported && (type() == TYPE::FUNC || type() == TYPE::GNU_IFUNC ||
+                      type() == TYPE::OBJECT);
   return is_imported;
 }
 
@@ -180,9 +186,8 @@ std::ostream& operator<<(std::ostream& os, const Symbol& entry) {
     name = entry.name();
   }
 
-  os << fmt::format("{} ({}/{}): 0x{:06x} (0x{:02x})",
-                    name, to_string(entry.type()), to_string(entry.binding()),
-                    entry.value(), entry.size());
+  os << fmt::format("{} ({}/{}): {:#08x} ({:#04x})", name, to_string(entry.type()),
+                    to_string(entry.binding()), entry.value(), entry.size());
 
   if (const SymbolVersion* version = entry.symbol_version()) {
     os << *version;
@@ -191,14 +196,14 @@ std::ostream& operator<<(std::ostream& os, const Symbol& entry) {
 }
 
 const char* to_string(Symbol::BINDING e) {
-  #define ENTRY(X) std::pair(Symbol::BINDING::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(LOCAL),
-    ENTRY(GLOBAL),
-    ENTRY(WEAK),
-    ENTRY(GNU_UNIQUE),
+#define ENTRY(X) std::pair(Symbol::BINDING::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(LOCAL),
+      ENTRY(GLOBAL),
+      ENTRY(WEAK),
+      ENTRY(GNU_UNIQUE),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -206,18 +211,12 @@ const char* to_string(Symbol::BINDING e) {
   return "UNKNOWN";
 }
 const char* to_string(Symbol::TYPE e) {
-  #define ENTRY(X) std::pair(Symbol::TYPE::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(NOTYPE),
-    ENTRY(OBJECT),
-    ENTRY(FUNC),
-    ENTRY(SECTION),
-    ENTRY(FILE),
-    ENTRY(COMMON),
-    ENTRY(TLS),
-    ENTRY(GNU_IFUNC),
+#define ENTRY(X) std::pair(Symbol::TYPE::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(NOTYPE), ENTRY(OBJECT), ENTRY(FUNC), ENTRY(SECTION),
+      ENTRY(FILE),   ENTRY(COMMON), ENTRY(TLS),  ENTRY(GNU_IFUNC),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -225,14 +224,14 @@ const char* to_string(Symbol::TYPE e) {
   return "UNKNOWN";
 }
 const char* to_string(Symbol::VISIBILITY e) {
-  #define ENTRY(X) std::pair(Symbol::VISIBILITY::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(DEFAULT),
-    ENTRY(INTERNAL),
-    ENTRY(HIDDEN),
-    ENTRY(PROTECTED),
+#define ENTRY(X) std::pair(Symbol::VISIBILITY::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(DEFAULT),
+      ENTRY(INTERNAL),
+      ENTRY(HIDDEN),
+      ENTRY(PROTECTED),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -240,5 +239,4 @@ const char* to_string(Symbol::VISIBILITY e) {
   return "UNKNOWN";
 }
 
-}
 }

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,9 +30,9 @@ size_t AbstractHash::hash(const Object& obj) {
 void AbstractHash::visit(const Binary& binary) {
   process(binary.format());
   process(binary.header());
-  process(std::begin(binary.symbols()), std::end(binary.symbols()));
-  process(std::begin(binary.sections()), std::end(binary.sections()));
-  process(std::begin(binary.relocations()), std::end(binary.relocations()));
+  process(binary.symbols().begin(), binary.symbols().end());
+  process(binary.sections().begin(), binary.sections().end());
+  process(binary.relocations().begin(), binary.relocations().end());
 }
 
 void AbstractHash::visit(const Header& header) {
@@ -68,4 +68,3 @@ void AbstractHash::visit(const Function& function) {
 
 
 } // namespace LIEF
-

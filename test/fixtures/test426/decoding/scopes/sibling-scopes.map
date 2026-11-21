@@ -12,5 +12,5 @@
     "toplevelFunction3",
     "toplevelFunction4"
   ],
-  "scopes": "BAAA,BHKFAC,CIB,BHCFEA,CIB,BHCFCA,CIB,BHCFCA,CIB,CCA"
+  "scopes": ["BAAA,BHKFAC,CIB,BHCFEA,CIB,BHCFCA,CIB,BHCFCA,CIB,CCA"]
 }

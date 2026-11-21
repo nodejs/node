@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,35 +26,36 @@ namespace COFF {
 
 /// This auxiliary symbols marks the beginning of a function definition.
 ///
-/// Reference: https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-format-1-function-definitions
+/// Reference:
+/// https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-format-1-function-definitions
 class LIEF_API AuxiliaryFunctionDefinition : public AuxiliarySymbol {
   public:
   LIEF_LOCAL static std::unique_ptr<AuxiliaryFunctionDefinition>
-    parse(const std::vector<uint8_t>& payload);
+      parse(const std::vector<uint8_t>& payload);
 
   AuxiliaryFunctionDefinition() :
-    AuxiliarySymbol(AuxiliarySymbol::TYPE::FUNC_DEF)
-  {}
+    AuxiliarySymbol(AuxiliarySymbol::TYPE::FUNC_DEF) {}
 
-  AuxiliaryFunctionDefinition(uint32_t tagidx, uint32_t totalsz,
-                              uint32_t ptr_line, uint32_t ptr_next_func,
-                              uint16_t padding) :
+  AuxiliaryFunctionDefinition(uint32_t tagidx, uint32_t totalsz, uint32_t ptr_line,
+                              uint32_t ptr_next_func, uint16_t padding) :
     AuxiliarySymbol(AuxiliarySymbol::TYPE::FUNC_DEF),
     tag_index_(tagidx),
     total_size_(totalsz),
     ptr_to_linenb_(ptr_line),
     ptr_to_next_func_(ptr_next_func),
-    padding_(padding)
-  {}
+    padding_(padding) {}
 
   AuxiliaryFunctionDefinition(const AuxiliaryFunctionDefinition&) = default;
-  AuxiliaryFunctionDefinition& operator=(const AuxiliaryFunctionDefinition&) = default;
+  AuxiliaryFunctionDefinition&
+      operator=(const AuxiliaryFunctionDefinition&) = default;
 
   AuxiliaryFunctionDefinition(AuxiliaryFunctionDefinition&&) = default;
   AuxiliaryFunctionDefinition& operator=(AuxiliaryFunctionDefinition&&) = default;
 
   std::unique_ptr<AuxiliarySymbol> clone() const override {
-    return std::unique_ptr<AuxiliaryFunctionDefinition>(new AuxiliaryFunctionDefinition{*this});
+    return std::unique_ptr<AuxiliaryFunctionDefinition>(
+        new AuxiliaryFunctionDefinition{*this}
+    );
   }
 
   /// The symbol-table index of the corresponding `.bf` (begin function)

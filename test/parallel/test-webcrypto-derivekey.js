@@ -283,7 +283,7 @@ const fips4 = hasFIPS(4);
   })().then(common.mustCall());
 }
 
-if (hasOpenSSL(3) && !hasFIPS()) {
+if (hasOpenSSL(3)) {
   (async () => {
     const derivedKeyAlgorithm = { name: 'KMAC128', length: 0 };
     const usages = ['sign'];
@@ -313,19 +313,9 @@ if (hasOpenSSL(3) && !hasFIPS()) {
         baseKeyAlgorithm,
         false,
         ['deriveKey']);
-      const derived = await subtle.deriveKey(
-        algorithm,
-        baseKey,
-        derivedKeyAlgorithm,
-        false,
-        usages);
-      assert.strictEqual(derived.algorithm.length, 0);
-
-      const signature = subtle.sign({
-        name: 'KMAC128',
-        outputLength: 256,
-      }, derived, new Uint8Array());
-      assert.strictEqual((await signature).byteLength, 32);
+      await assert.rejects(
+        subtle.deriveKey(algorithm, baseKey, derivedKeyAlgorithm, false, usages),
+        { name: 'NotSupportedError', message: 'Invalid key length' });
     }
   })().then(common.mustCall());
 }
@@ -365,8 +355,7 @@ if (hasOpenSSL(3) && !hasFIPS()) {
     for (const name of ['X25519', 'X448']) {
       assert.rejects(
         test(name),
-        (err) => err.name === 'OperationError' &&
-                 err.cause?.message === 'error:0308010C:digital envelope routines::unsupported')
+        { name: 'NotSupportedError', message: 'Unrecognized algorithm name' })
         .then(common.mustCall());
     }
   } else {

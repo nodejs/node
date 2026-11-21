@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 #include <vector>
 #include <cstdint>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/Object.hpp"
 #include "LIEF/visibility.h"
 
@@ -42,37 +43,60 @@ struct pe64_optional_header;
 class LIEF_API OptionalHeader : public Object {
   friend class Parser;
   friend class Binary;
-  public:
 
-  enum class DLL_CHARACTERISTICS: size_t  {
-    HIGH_ENTROPY_VA       = 0x0020, ///< ASLR with 64 bit address space.
-    DYNAMIC_BASE          = 0x0040, ///< DLL can be relocated at load time.
-    FORCE_INTEGRITY       = 0x0080, ///< Code integrity checks are enforced.
-    NX_COMPAT             = 0x0100, ///< Image is NX compatible.
-    NO_ISOLATION          = 0x0200, ///< Isolation aware, but do not isolate the image.
-    NO_SEH                = 0x0400, ///< Does not use structured exception handling (SEH). No SEH handler may be called in this image.
-    NO_BIND               = 0x0800, ///< Do not bind the image.
-    APPCONTAINER          = 0x1000, ///< Image should execute in an AppContainer.
-    WDM_DRIVER            = 0x2000, ///< A WDM driver.
-    GUARD_CF              = 0x4000, ///< Image supports Control Flow Guard.
-    TERMINAL_SERVER_AWARE = 0x8000  ///< Terminal Server aware.
+  public:
+  enum class DLL_CHARACTERISTICS : size_t {
+    /// ASLR with 64 bit address space.
+    HIGH_ENTROPY_VA = 0x0020,
+
+    /// DLL can be relocated at load time.
+    DYNAMIC_BASE = 0x0040,
+
+    /// Code integrity checks are enforced.
+    FORCE_INTEGRITY = 0x0080,
+
+    /// Image is NX compatible.
+    NX_COMPAT = 0x0100,
+
+    /// Isolation aware, but do not isolate the image.
+    NO_ISOLATION = 0x0200,
+
+    /// Does not use structured exception handling (SEH). No SEH handler may be
+    /// called in this image.
+    NO_SEH = 0x0400,
+
+    /// Do not bind the image.
+    NO_BIND = 0x0800,
+
+    /// Image should execute in an AppContainer.
+    APPCONTAINER = 0x1000,
+
+    /// A WDM driver.
+    WDM_DRIVER = 0x2000,
+
+    /// Image supports Control Flow Guard.
+    GUARD_CF = 0x4000,
+
+    /// Terminal Server aware.
+    TERMINAL_SERVER_AWARE = 0x8000,
   };
 
-  enum class SUBSYSTEM: size_t  {
-    UNKNOWN                  = 0,  ///< An unknown subsystem.
-    NATIVE                   = 1,  ///< Device drivers and native Windows processes
-    WINDOWS_GUI              = 2,  ///< The Windows GUI subsystem.
-    WINDOWS_CUI              = 3,  ///< The Windows character subsystem.
-    OS2_CUI                  = 5,  ///< The OS/2 character subsytem.
-    POSIX_CUI                = 7,  ///< The POSIX character subsystem.
-    NATIVE_WINDOWS           = 8,  ///< Native Windows 9x driver.
-    WINDOWS_CE_GUI           = 9,  ///< Windows CE.
-    EFI_APPLICATION          = 10, ///< An EFI application.
-    EFI_BOOT_SERVICE_DRIVER  = 11, ///< An EFI driver with boot services.
-    EFI_RUNTIME_DRIVER       = 12, ///< An EFI driver with run-time services.
-    EFI_ROM                  = 13, ///< An EFI ROM image.
-    XBOX                     = 14, ///< XBOX.
-    WINDOWS_BOOT_APPLICATION = 16  ///< A BCD application.
+  enum class SUBSYSTEM : size_t {
+    UNKNOWN = 0,                   ///< An unknown subsystem.
+    NATIVE = 1,                    ///< Device drivers and native Windows processes
+    WINDOWS_GUI = 2,               ///< The Windows GUI subsystem.
+    WINDOWS_CUI = 3,               ///< The Windows character subsystem.
+    OS2_CUI = 5,                   ///< The OS/2 character subsystem.
+    POSIX_CUI = 7,                 ///< The POSIX character subsystem.
+    NATIVE_WINDOWS = 8,            ///< Native Windows 9x driver.
+    WINDOWS_CE_GUI = 9,            ///< Windows CE.
+    EFI_APPLICATION = 10,          ///< An EFI application.
+    EFI_BOOT_SERVICE_DRIVER = 11,  ///< An EFI driver with boot services.
+    EFI_RUNTIME_DRIVER = 12,       ///< An EFI driver with run-time services.
+    EFI_ROM = 13,                  ///< An EFI ROM image.
+    XBOX = 14,                     ///< XBOX.
+    WINDOWS_BOOT_APPLICATION = 16, ///< A BCD application.
+    XBOX_CODE_CATALOG = 17,        ///< Security Metadata Containers
   };
 
   OptionalHeader(const details::pe32_optional_header& header);
@@ -100,34 +124,38 @@ class LIEF_API OptionalHeader : public Object {
   }
 
   /// The size of the code ``.text`` section or the sum of
-  /// all the sections that contain code (i.e. PE::Section with the flag Section::CHARACTERISTICS::CNT_CODE)
+  /// all the sections that contain code (i.e. PE::Section with the flag
+  /// Section::CHARACTERISTICS::CNT_CODE)
   uint32_t sizeof_code() const {
     return sizeof_code_;
   }
 
-  /// The size of the initialized data which are usually located in the ``.data`` section.
-  /// If the initialized data are split across multiple sections, it is the sum of the sections.
+  /// The size of the initialized data which are usually located in the ``.data``
+  /// section. If the initialized data are split across multiple sections, it is
+  /// the sum of the sections.
   ///
-  /// The sections associated with the initialized data are usually identified with the
-  /// flag Section::CHARACTERISTICS::CNT_INITIALIZED_DATA
+  /// The sections associated with the initialized data are usually identified with
+  /// the flag Section::CHARACTERISTICS::CNT_INITIALIZED_DATA
   uint32_t sizeof_initialized_data() const {
     return sizeof_initialized_data_;
   }
 
-  /// The size of the uninitialized data which are usually located in the ``.bss`` section.
-  /// If the uninitialized data are split across multiple sections, it is the sum of the sections.
+  /// The size of the uninitialized data which are usually located in the ``.bss``
+  /// section. If the uninitialized data are split across multiple sections, it is
+  /// the sum of the sections.
   ///
-  /// The sections associated with the uninitialized data are usually identified with the
-  /// flag Section::CHARACTERISTICS::CNT_UNINITIALIZED_DATA
+  /// The sections associated with the uninitialized data are usually identified
+  /// with the flag Section::CHARACTERISTICS::CNT_UNINITIALIZED_DATA
   uint32_t sizeof_uninitialized_data() const {
     return sizeof_uninitialized_data_;
   }
 
-  /// The address of the entry point relative to the image base when the executable file is
-  /// loaded into memory. For program images, this is the starting address. For device
-  /// drivers, this is the address of the initialization function.
+  /// The address of the entry point relative to the image base when the executable
+  /// file is loaded into memory. For program images, this is the starting address.
+  /// For device drivers, this is the address of the initialization function.
   ///
-  /// An entry point is optional for DLLs. When no entry point is present, this field must be zero.
+  /// An entry point is optional for DLLs. When no entry point is present, this
+  /// field must be zero.
   uint32_t addressof_entrypoint() const {
     return entrypoint_;
   }
@@ -157,8 +185,8 @@ class LIEF_API OptionalHeader : public Object {
     return section_align_;
   }
 
-  /// The section's file alignment. This value must be a power of 2 between 512 and 64K.
-  /// The default value is usually 512
+  /// The section's file alignment. This value must be a power of 2 between 512 and
+  /// 64K. The default value is usually 512
   uint32_t file_alignment() const {
     return file_align_;
   }
@@ -199,22 +227,27 @@ class LIEF_API OptionalHeader : public Object {
     return win32_version_value_;
   }
 
-  /// The size (in bytes) of the image, including all headers, as the image is loaded in memory.
+  /// The size (in bytes) of the image, including all headers, as the image is
+  /// loaded in memory.
   ///
-  /// It must be a multiple of section_alignment and should match Binary::virtual_size
+  /// It must be a multiple of section_alignment and should match
+  /// Binary::virtual_size
   uint32_t sizeof_image() const {
     return sizeof_image_;
   }
 
-  /// Size of the DosHeader + PE Header + Section headers rounded up to a multiple of the file_alignment
+  /// Size of the DosHeader + PE Header + Section headers rounded up to a multiple
+  /// of the file_alignment
   uint32_t sizeof_headers() const {
     return sizeof_headers_;
   }
 
-  /// The image file checksum. The algorithm for computing the checksum is incorporated into ``IMAGHELP.DLL``.
+  /// The image file checksum. The algorithm for computing the checksum is
+  /// incorporated into ``IMAGHELP.DLL``.
   ///
-  /// The following are checked for validation at load time all **drivers**, any **DLL loaded at boot**
-  /// time, and any **DLL** that is loaded into a **critical** Windows process.
+  /// The following are checked for validation at load time all **drivers**, any
+  /// **DLL loaded at boot** time, and any **DLL** that is loaded into a
+  /// **critical** Windows process.
   uint32_t checksum() const {
     return checksum_;
   }
@@ -225,8 +258,8 @@ class LIEF_API OptionalHeader : public Object {
   }
 
   /// Some characteristics of the underlying binary like the support of the PIE.
-  /// The prefix ``dll`` comes from the official PE specifications but these characteristics
-  /// are also used for **executables**
+  /// The prefix ``dll`` comes from the official PE specifications but these
+  /// characteristics are also used for **executables**
   uint32_t dll_characteristics() const {
     return dll_characteristics_;
   }
@@ -254,7 +287,8 @@ class LIEF_API OptionalHeader : public Object {
     return sizeof_heap_commit_;
   }
 
-  /// According to the PE specifications, this value is *reserved* and **should** be 0.
+  /// According to the PE specifications, this value is *reserved* and **should**
+  /// be 0.
   uint32_t loader_flags() const {
     return loader_flags_;
   }
@@ -269,7 +303,8 @@ class LIEF_API OptionalHeader : public Object {
     return (dll_characteristics() & static_cast<uint32_t>(c)) != 0;
   }
 
-  /// Return the list of the dll_characteristics as an std::set of DLL_CHARACTERISTICS
+  /// Return the list of the dll_characteristics as an std::set of
+  /// DLL_CHARACTERISTICS
   std::vector<DLL_CHARACTERISTICS> dll_characteristics_list() const;
 
   /// Add a DLL_CHARACTERISTICS to the current characteristics
@@ -279,7 +314,7 @@ class LIEF_API OptionalHeader : public Object {
 
   /// Remove a DLL_CHARACTERISTICS from the current characteristics
   void remove(DLL_CHARACTERISTICS c) {
-    dll_characteristics(dll_characteristics() & (~ static_cast<uint32_t>(c)));
+    dll_characteristics(dll_characteristics() & (~static_cast<uint32_t>(c)));
   }
 
   void magic(PE_TYPE magic) {
@@ -404,50 +439,51 @@ class LIEF_API OptionalHeader : public Object {
 
   void accept(Visitor& visitor) const override;
 
-  OptionalHeader& operator+=(DLL_CHARACTERISTICS c) {
+  OptionalHeader& operator+=(DLL_CHARACTERISTICS c) LIEF_LIFETIMEBOUND {
     add(c);
     return *this;
   }
-  OptionalHeader& operator-=(DLL_CHARACTERISTICS c) {
+  OptionalHeader& operator-=(DLL_CHARACTERISTICS c) LIEF_LIFETIMEBOUND {
     remove(c);
     return *this;
   }
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const OptionalHeader& entry);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const OptionalHeader& entry);
 
   private:
   OptionalHeader() = default;
 
-  PE_TYPE   magic_ = PE_TYPE::PE32;
-  uint8_t   major_linker_version_ = 0;
-  uint8_t   minor_linker_version_ = 0;
-  uint32_t  sizeof_code_ = 0;
-  uint32_t  sizeof_initialized_data_ = 0;
-  uint32_t  sizeof_uninitialized_data_ = 0;
-  uint32_t  entrypoint_ = 0;
-  uint32_t  baseof_code_ = 0;
-  uint32_t  baseof_data_ = 0;
-  uint64_t  imagebase_ = 0;
-  uint32_t  section_align_ = 0;
-  uint32_t  file_align_ = 0;
-  uint16_t  major_os_version_ = 0;
-  uint16_t  minor_os_version_ = 0;
-  uint16_t  major_image_version_ = 0;
-  uint16_t  minor_image_version_ = 0;
-  uint16_t  major_subsys_version_ = 0;
-  uint16_t  minor_subsys_version_ = 0;
-  uint32_t  win32_version_value_ = 0;
-  uint32_t  sizeof_image_ = 0;
-  uint32_t  sizeof_headers_ = 0;
-  uint32_t  checksum_ = 0;
+  PE_TYPE magic_ = PE_TYPE::PE32;
+  uint8_t major_linker_version_ = 0;
+  uint8_t minor_linker_version_ = 0;
+  uint32_t sizeof_code_ = 0;
+  uint32_t sizeof_initialized_data_ = 0;
+  uint32_t sizeof_uninitialized_data_ = 0;
+  uint32_t entrypoint_ = 0;
+  uint32_t baseof_code_ = 0;
+  uint32_t baseof_data_ = 0;
+  uint64_t imagebase_ = 0;
+  uint32_t section_align_ = 0;
+  uint32_t file_align_ = 0;
+  uint16_t major_os_version_ = 0;
+  uint16_t minor_os_version_ = 0;
+  uint16_t major_image_version_ = 0;
+  uint16_t minor_image_version_ = 0;
+  uint16_t major_subsys_version_ = 0;
+  uint16_t minor_subsys_version_ = 0;
+  uint32_t win32_version_value_ = 0;
+  uint32_t sizeof_image_ = 0;
+  uint32_t sizeof_headers_ = 0;
+  uint32_t checksum_ = 0;
   SUBSYSTEM subsystem_ = SUBSYSTEM::UNKNOWN;
-  uint32_t  dll_characteristics_ = 0;
-  uint64_t  sizeof_stack_reserve_ = 0;
-  uint64_t  sizeof_stack_commit_ = 0;
-  uint64_t  sizeof_heap_reserve_ = 0;
-  uint64_t  sizeof_heap_commit_ = 0;
-  uint32_t  loader_flags_ = 0;
-  uint32_t  nb_rva_size_ = 0;
+  uint32_t dll_characteristics_ = 0;
+  uint64_t sizeof_stack_reserve_ = 0;
+  uint64_t sizeof_stack_commit_ = 0;
+  uint64_t sizeof_heap_reserve_ = 0;
+  uint64_t sizeof_heap_commit_ = 0;
+  uint32_t loader_flags_ = 0;
+  uint32_t nb_rva_size_ = 0;
 };
 
 LIEF_API const char* to_string(OptionalHeader::DLL_CHARACTERISTICS);

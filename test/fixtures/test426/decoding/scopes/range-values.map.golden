@@ -6,43 +6,45 @@
       "url": "original_0.js",
       "content": null,
       "ignored": false,
-      "scope": {
-        "start": {
-          "line": 0,
-          "column": 0
-        },
-        "end": {
-          "line": 10,
-          "column": 0
-        },
-        "name": null,
-        "kind": "global",
-        "isStackFrame": false,
-        "variables": [
-          "x",
-          "y",
-          "z"
-        ],
-        "children": [
-          {
-            "start": {
-              "line": 1,
-              "column": 0
-            },
-            "end": {
-              "line": 5,
-              "column": 0
-            },
-            "name": null,
-            "kind": "block",
-            "isStackFrame": false,
-            "variables": [
-              "a"
-            ],
-            "children": []
-          }
-        ]
-      }
+      "rootScopes": [
+        {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 10,
+            "column": 0
+          },
+          "name": null,
+          "kind": "global",
+          "isStackFrame": false,
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "children": [
+            {
+              "start": {
+                "line": 1,
+                "column": 0
+              },
+              "end": {
+                "line": 5,
+                "column": 0
+              },
+              "name": null,
+              "kind": "block",
+              "isStackFrame": false,
+              "variables": [
+                "a"
+              ],
+              "children": []
+            }
+          ]
+        }
+      ]
     }
   ],
   "ranges": [
@@ -55,7 +57,10 @@
         "line": 0,
         "column": 10
       },
-      "definitionIndex": 0,
+      "definition": {
+        "source": 0,
+        "scope": 0
+      },
       "stackFrameType": "none",
       "callSite": null,
       "bindings": [
@@ -97,7 +102,10 @@
             "line": 0,
             "column": 4
           },
-          "definitionIndex": 1,
+          "definition": {
+            "source": 0,
+            "scope": 1
+          },
           "stackFrameType": "none",
           "callSite": null,
           "bindings": [

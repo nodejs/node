@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -90,8 +90,8 @@ class LIEF_API ResourceVar {
     values_.push_back(val);
   }
 
-  LIEF_API friend
-    std::ostream& operator<<(std::ostream& os, const ResourceVar& entry);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const ResourceVar& entry);
 
   private:
   uint16_t type_ = 0;

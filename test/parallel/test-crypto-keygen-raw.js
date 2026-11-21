@@ -17,19 +17,18 @@ const rejectsXCurves = hasFIPS(3, 5);
 
 // Test generateKeyPairSync with raw encoding for EdDSA/ECDH key types.
 {
-  const types = ['ed25519', 'x25519'];
-  if (!isBoringSSL) {
-    types.push('ed448', 'x448');
-  }
+  const types = ['ed25519', 'x25519', 'ed448', 'x448'];
   for (const type of types) {
     const options = {
       publicKeyEncoding: { format: 'raw-public' },
       privateKeyEncoding: { format: 'raw-private' },
     };
-    if (rejectsXCurves && type.startsWith('x')) {
+    if ((isBoringSSL && type.endsWith('448')) ||
+        (rejectsXCurves && type.startsWith('x'))) {
       assert.throws(() => generateKeyPairSync(type, options), {
-        name: 'Error',
-        message: 'error:0308010C:digital envelope routines::unsupported',
+        name: 'TypeError',
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: `The argument 'type' must be a supported key type. Received '${type}'`,
       });
       continue;
     }
@@ -59,22 +58,23 @@ const rejectsXCurves = hasFIPS(3, 5);
 
 // Test async generateKeyPair with raw encoding for EdDSA/ECDH key types.
 {
-  const types = ['ed25519', 'x25519'];
-  if (!isBoringSSL) {
-    types.push('ed448', 'x448');
-  }
+  const types = ['ed25519', 'x25519', 'ed448', 'x448'];
   for (const type of types) {
     const options = {
       publicKeyEncoding: { format: 'raw-public' },
       privateKeyEncoding: { format: 'raw-private' },
     };
+    if ((isBoringSSL && type.endsWith('448')) ||
+        (rejectsXCurves && type.startsWith('x'))) {
+      assert.throws(() => generateKeyPair(type, options, common.mustNotCall()), {
+        name: 'TypeError',
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: `The argument 'type' must be a supported key type. Received '${type}'`,
+      });
+      continue;
+    }
     generateKeyPair(type, options,
-                    common.mustCall((err, publicKey, privateKey) => {
-                      if (rejectsXCurves && type.startsWith('x')) {
-                        assert.strictEqual(err?.message, 'error:0308010C:digital envelope routines::unsupported');
-                        return;
-                      }
-                      assert.ifError(err);
+                    common.mustSucceed((publicKey, privateKey) => {
                       assert(Buffer.isBuffer(publicKey));
                       assert(Buffer.isBuffer(privateKey));
                     }));

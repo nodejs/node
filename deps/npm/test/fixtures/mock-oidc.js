@@ -54,6 +54,7 @@ const mockOidc = async (t, {
   mockGithubOidcOptions = false,
   mockOidcTokenExchangeOptions = false,
   publishOptions = {},
+  publish = true,
   provenance = false,
   oidcVisibilityOptions = false,
 }) => {
@@ -101,7 +102,7 @@ const mockOidc = async (t, {
     ciInfo.CIRCLE = CIRCLE
   })
 
-  const { npm, registry, joinedOutput, logs } = await loadNpmWithRegistry(t, {
+  const { npm, registry, joinedOutput, logs, prefix } = await loadNpmWithRegistry(t, {
     config: {
       loglevel: 'silly',
       ...config,
@@ -117,11 +118,12 @@ const mockOidc = async (t, {
   })
 
   if (mockGithubOidcOptions) {
-    const { idToken, audience, statusCode = 200 } = mockGithubOidcOptions
+    const { idToken, audience, statusCode = 200, times = 1 } = mockGithubOidcOptions
     const url = new URL(ACTIONS_ID_TOKEN_REQUEST_URL)
     nock(url.origin)
       .get(url.pathname)
       .query({ audience })
+      .times(times)
       .matchHeader('authorization', `Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}`)
       .matchHeader('accept', 'application/json')
       .reply(statusCode, statusCode !== 500 ? { value: idToken } : { message: 'Internal Server Error' })
@@ -138,7 +140,9 @@ const mockOidc = async (t, {
     registry.getVisibility({ spec: packageName, visibility: oidcVisibilityOptions })
   }
 
-  registry.publish(packageName, publishOptions)
+  if (publish) {
+    registry.publish(packageName, publishOptions)
+  }
 
   /**
    * this will nock / mock all the successful requirements for provenance and
@@ -160,7 +164,7 @@ const mockOidc = async (t, {
     })
   }
 
-  return { npm, joinedOutput, logs, ACTIONS_ID_TOKEN_REQUEST_URL }
+  return { npm, registry, prefix, joinedOutput, logs, ACTIONS_ID_TOKEN_REQUEST_URL }
 }
 
 const oidcPublishTest = (opts) => {

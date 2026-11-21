@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,15 @@
 
 #include <string>
 #include <vector>
+#include <cstdint>
 
-#include "LIEF/types.hpp"
 #include "LIEF/visibility.h"
 
 namespace LIEF {
 class BinaryStream;
 
 namespace ELF {
+class Binary;
 
 /// Check if given stream wraps an ELF file
 LIEF_API bool is_elf(BinaryStream& stream);
@@ -33,8 +34,11 @@ LIEF_API bool is_elf(BinaryStream& stream);
 /// Check if the given file is an ELF one.
 LIEF_API bool is_elf(const std::string& file);
 
-/// check if the raw data is an ELF file
+/// Check if the raw data is an ELF file
 LIEF_API bool is_elf(const std::vector<uint8_t>& raw);
+
+/// Check that the layout of the given Binary is correct
+LIEF_API bool check_layout(const Binary& bin, std::string* error_info = nullptr);
 
 LIEF_API unsigned long hash32(const char* name);
 LIEF_API unsigned long hash64(const char* name);

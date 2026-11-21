@@ -57,5 +57,5 @@ private:
 }  // namespace spdlog
 
 #ifdef SPDLOG_HEADER_ONLY
-    #include "file_helper-inl.h"
+#include "file_helper-inl.h"
 #endif
