@@ -1,11 +1,14 @@
 // Flags: --disable-warning=ExperimentalWarning
 'use strict';
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const vfs = require('node:vfs');
+
+tmpdir.refresh();
 
 const addonPath = (name) => path.join(
   __dirname, '..', 'addons', name, 'build', common.buildType, 'binding.node');
@@ -55,6 +58,6 @@ if (common.isLinux) {
   const { status, stderr } = spawnSync('/bin/sh', [
     '-c', `ulimit -n ${limit} && exec "$0" "$@"`,
     process.execPath, '--disable-warning=ExperimentalWarning', '-e', child,
-  ], { encoding: 'utf8' });
+  ], { encoding: 'utf8', env: { ...process.env, TMPDIR: tmpdir.path } });
   assert.strictEqual(status, 0, stderr);
 }
