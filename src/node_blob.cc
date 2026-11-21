@@ -5,15 +5,23 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_bob-inl.h"
+#include "node_buffer.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file.h"
 #include "path.h"
 #include "permission/permission.h"
 #include "util.h"
+#include "uv.h"
 #include "v8.h"
 
 #include <algorithm>
+#include <cstring>
+#include <string>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace node {
 
@@ -104,15 +112,176 @@ void Concat(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ArrayBuffer::New(isolate, std::move(store)));
 }
 
+// uv_cwd() fails closed: a relative path is left unchanged rather than pinned
+// to exec_path, which would select a different file.
+std::string GetProcessCwd() {
+  size_t size = PATH_MAX_BYTES;
+  std::string buf(size, '\0');
+  int err = uv_cwd(buf.data(), &size);
+  if (err == UV_ENOBUFS) {
+    buf.assign(size, '\0');
+    err = uv_cwd(buf.data(), &size);
+  }
+  if (err != 0) return {};
+  buf.resize(strlen(buf.data()));
+  return buf;
+}
+
+#ifdef _WIN32
+std::string WidePathToWtf8(const wchar_t* wide, size_t chars) {
+  const uint16_t* src = reinterpret_cast<const uint16_t*>(wide);
+  const ssize_t src_len = static_cast<ssize_t>(chars);
+  const size_t bytes = uv_utf16_length_as_wtf8(src, src_len);
+  // uv_utf16_to_wtf8 writes a trailing NUL past the byte length.
+  std::string out(bytes + 1, '\0');
+  char* ptr = out.data();
+  size_t len = bytes;
+  if (uv_utf16_to_wtf8(src, src_len, &ptr, &len) != 0) return {};
+  out.resize(len);
+  return out;
+}
+
+std::string DriveRoot(char letter) {
+  std::string root;
+  root.push_back(letter);
+  root.append(":\\");
+  return root;
+}
+
+// Current directory of one drive, without the caller's relative suffix.
+// GetFullPathNameW("C:") is the directory CreateFileW uses for "C:foo".
+std::string DirectoryOnDrive(char letter) {
+  const wchar_t spec[3] = {static_cast<wchar_t>(letter), L':', L'\0'};
+  constexpr DWORD kPathChars = 32768;
+  std::wstring wide(kPathChars, L'\0');
+  const DWORD written =
+      GetFullPathNameW(spec, kPathChars, wide.data(), nullptr);
+  if (written == 0 || written >= kPathChars) return DriveRoot(letter);
+  std::string converted = WidePathToWtf8(wide.data(), written);
+  if (converted.empty()) return DriveRoot(letter);
+  return converted;
+}
+
+// "C:" or "\\server\share" (or the \\?\ equivalent) from an absolute path.
+std::string VolumePrefix(std::string_view absolute) {
+  if (absolute.size() >= 2 && IsWindowsDeviceRoot(absolute[0]) &&
+      absolute[1] == ':') {
+    return std::string(absolute.substr(0, 2));
+  }
+  if (absolute.size() < 2 || !IsPathSeparator(absolute[0]) ||
+      !IsPathSeparator(absolute[1])) {
+    return {};
+  }
+
+  size_t component_end = 2;
+  while (component_end < absolute.size() &&
+         !IsPathSeparator(absolute[component_end])) {
+    component_end++;
+  }
+  if (component_end >= absolute.size()) return std::string(absolute);
+  const std::string_view first = absolute.substr(2, component_end - 2);
+  size_t prefix_end = component_end;
+  if (first == "?" || first == ".") {
+    const size_t after = component_end + 1;
+    const bool unc =
+        after + 3 <= absolute.size() &&
+        (absolute.substr(after, 3) == "UNC" ||
+         absolute.substr(after, 3) == "unc") &&
+        (after + 3 == absolute.size() || IsPathSeparator(absolute[after + 3]));
+    size_t cursor = unc ? after + 4 : after;
+    const int parts = unc ? 2 : 1;
+    for (int part = 0; part < parts; part++) {
+      while (cursor < absolute.size() && !IsPathSeparator(absolute[cursor])) {
+        cursor++;
+      }
+      prefix_end = cursor;
+      if (part + 1 < parts) cursor++;
+    }
+  } else {
+    size_t cursor = component_end + 1;
+    while (cursor < absolute.size() && !IsPathSeparator(absolute[cursor])) {
+      cursor++;
+    }
+    prefix_end = cursor;
+  }
+  return std::string(absolute.substr(0, prefix_end));
+}
+
+std::string JoinAbsolute(std::string_view prefix, std::string_view rest) {
+  std::string out(prefix);
+  if (rest.empty()) return out;
+  const bool prefix_sep = !prefix.empty() && IsPathSeparator(prefix.back());
+  const bool rest_sep = IsPathSeparator(rest.front());
+  if (!prefix_sep && !rest_sep) out.push_back('\\');
+  if (prefix_sep && rest_sep) rest.remove_prefix(1);
+  out.append(rest);
+  return out;
+}
+
+bool HasAbsoluteBlobRoot(std::string_view path) {
+  if (path.size() >= 2 && IsPathSeparator(path[0]) &&
+      IsPathSeparator(path[1])) {
+    return true;
+  }
+  return path.size() >= 3 && IsWindowsDeviceRoot(path[0]) && path[1] == ':' &&
+         IsPathSeparator(path[2]);
+}
+#endif  // _WIN32
+
+// Make a path independent of later process.chdir() calls without removing
+// "." or "..". Lexical normalization would resolve ".." before symlinks and
+// could open a different file than the path the caller passed.
+std::string PinBlobBackingPath(std::string_view path) {
+  if (path.empty()) return std::string(path);
+#ifdef _WIN32
+  if (HasAbsoluteBlobRoot(path)) return std::string(path);
+  if (path.size() >= 2 && IsWindowsDeviceRoot(path[0]) && path[1] == ':') {
+    return JoinAbsolute(DirectoryOnDrive(path[0]), path.substr(2));
+  }
+  if (IsPathSeparator(path[0])) {
+    const std::string volume = VolumePrefix(GetProcessCwd());
+    if (volume.empty()) return std::string(path);
+    return JoinAbsolute(volume, path);
+  }
+  const char separator = '\\';
+#else
+  if (path[0] == '/') return std::string(path);
+  const char separator = '/';
+#endif
+  const std::string cwd = GetProcessCwd();
+  if (cwd.empty()) return std::string(path);
+  std::string pinned;
+  pinned.reserve(cwd.size() + path.size() + 1);
+  pinned.append(cwd);
+  if (!IsPathSeparator(cwd.back())) pinned.push_back(separator);
+  pinned.append(path);
+  return pinned;
+}
+
 void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
+  // Snapshot the caller bytes before ToNamespacedPath() rewrites `path` on
+  // Windows. Permission checks and stat errors keep using that rewritten
+  // buffer, so their diagnostics stay the same.
+  const std::string original(path.out(), path.length());
   ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+
+  const std::string pinned = PinBlobBackingPath(original);
+  Local<Value> stored_path = args[0];
+  if (pinned != original) {
+    // A V8 string would UTF-8-decode a POSIX Buffer path. Copy the raw bytes.
+    if (!Buffer::Copy(env->isolate(), pinned.data(), pinned.size())
+             .ToLocal(&stored_path)) {
+      return;
+    }
+  }
+
   int status = 0;
-  auto entry = DataQueue::CreateFdEntry(env, args[0], &status);
+  auto entry = DataQueue::CreateFdEntry(env, stored_path, &status);
   if (entry == nullptr) {
     // The file could not be stat'd. Report the libuv error so callers can tell
     // ENOENT apart from any other reason the path could not be used.
