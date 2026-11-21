@@ -13,7 +13,7 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 const fips3 = hasFIPS(3);
 
-let clientConfigs = [
+const clientConfigs = [
   {
     secureProtocol: 'TLSv1_method',
     version: 'TLSv1',
@@ -28,24 +28,16 @@ let clientConfigs = [
   },
 ];
 
-if (isBoringSSL) {
-  // Remove the TLSv1 and TLSv1.1 cases. BoringSSL does not negotiate those
-  // legacy protocols in this configuration; keep TLSv1.2 to cover getProtocol()
-  // on a successful BoringSSL TLS handshake.
-  common.printSkipMessage('BoringSSL: skipping TLSv1/TLSv1.1 getProtocol cases');
-  clientConfigs = clientConfigs.filter(({ version }) => version === 'TLSv1.2');
-}
-
 const serverConfig = {
-  secureProtocol: 'TLS_method',
+  // BoringSSL's library default minimum is TLSv1.2, so enable legacy versions
+  // explicitly instead of relying on TLS_method's default minimum.
+  ...(isBoringSSL ? { minVersion: 'TLSv1' } : { secureProtocol: 'TLS_method' }),
   key: fixtures.readKey('agent2-key.pem'),
   cert: fixtures.readKey('agent2-cert.pem')
 };
 
-if (!isBoringSSL) {
-  serverConfig.ciphers = fips3 ?
-    'ECDHE-RSA-AES256-GCM-SHA384' : 'RSA@SECLEVEL=0';
-}
+serverConfig.ciphers = fips3 ?
+  'ECDHE-RSA-AES256-GCM-SHA384' : isBoringSSL ? 'RSA' : 'RSA@SECLEVEL=0';
 
 const expectedConnections = fips3 ? 1 : clientConfigs.length;
 const server = tls.createServer(serverConfig, common.mustCall(expectedConnections));

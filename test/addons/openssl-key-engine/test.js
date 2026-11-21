@@ -5,6 +5,11 @@ const fixture = require('../../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../../common/crypto');
+
+if (hasOpenSSL(4))
+  common.skip('OpenSSL 4 does not support engines');
+
 const fs = require('fs');
 const path = require('path');
 

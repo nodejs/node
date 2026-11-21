@@ -528,7 +528,11 @@ class NodeInspectorClient : public V8InspectorClient {
         is_main_ ? GetHumanReadableProcessName() : GetWorkerLabel(env);
     ContextInfo info(name);
     info.is_default = true;
-    contextCreated(env->context(), info);
+    // V8 does not allow a debugger to be attached while a startup or
+    // a debug context ID to be set during snapshot building.
+    if (!env->isolate_data()->is_building_snapshot()) {
+      contextCreated(env->context(), info);
+    }
   }
 
   void runMessageLoopOnPause(int context_group_id) override {
@@ -922,6 +926,12 @@ bool Agent::StartIoThread() {
   }
 
   CHECK_NOT_NULL(client_);
+
+  if (parent_env_->isolate_data()->is_building_snapshot()) {
+    fprintf(stderr,
+            "The inspector cannot be activated while building a snapshot.\n");
+    return false;
+  }
 
   io_ = InspectorIo::Start(client_->getThreadHandle(),
                            path_,

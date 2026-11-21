@@ -1,15 +1,22 @@
+import { registerHooks } from 'node:module';
+
 const DATA_URL_PATTERN = /^data:application\/json(?:[^,]*?)(;base64)?,([\s\S]*)$/;
 const JSON_URL_PATTERN = /^[^?]+\.json(\?[^#]*)?(#.*)?$/;
 
-export async function resolve(specifier, context, next) {
-  const noAttributesSpecified = context.importAttributes.type == null;
+function resolve(specifier, context, next) {
+  // Hooks also run for require() calls, which have no import attributes.
+  if (context.importAttributes === undefined) {
+    return next(specifier, context);
+  }
 
-  // Mutation from resolve hook should be discarded.
-  context.importAttributes.type = 'whatever';
+  const noAttributesSpecified = context.importAttributes.type == null;
 
   // This fixture assumes that no other resolve hooks in the chain will error on invalid import attributes
   // (as defaultResolve doesn't).
-  const result = await next(specifier, context);
+  const result = next(specifier, {
+    ...context,
+    importAttributes: { ...context.importAttributes, type: 'whatever' },
+  });
 
   if (noAttributesSpecified &&
       (DATA_URL_PATTERN.test(result.url) || JSON_URL_PATTERN.test(result.url))) {
@@ -22,3 +29,5 @@ export async function resolve(specifier, context, next) {
 
   return result;
 }
+
+registerHooks({ resolve });

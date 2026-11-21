@@ -160,8 +160,6 @@ and is the fastest serialized import format.
 
 #### Raw key formats
 
-> Stability: 1.1 - Active development
-
 The `'raw-public'`, `'raw-private'`, and `'raw-seed'` key formats allow
 importing and exporting raw key material without any encoding wrapper.
 See [`keyObject.export()`][], [`crypto.createPublicKey()`][], and
@@ -3136,6 +3134,47 @@ added: v15.6.0
 Checks whether the public key for this certificate is consistent with
 the given private key.
 
+### `x509.extensions`
+
+<!-- YAML
+added: v26.14.0
+-->
+
+* Type: {Object\[]}
+  * `oid` {string} The canonical dotted-decimal extension OID.
+  * `critical` {boolean} Whether the extension is critical.
+  * `value` {Buffer} The bytes contained in the extension's `extnValue` OCTET
+    STRING. The OCTET STRING tag and length are not included.
+
+One entry is returned for every extension, in the order in which it appears in
+the certificate. Unknown extensions and repeated OIDs are included. The
+contents of `value` are not decoded according to `oid`. A certificate with no
+extensions produces an empty array.
+
+Unlike [`x509.subjectAltName`][], [`x509.infoAccess`][], and
+[`x509.keyUsage`][] (Extended Key Usage), which decode or format selected
+extension types, this property exposes raw extension contents. `value` contains
+the exact extension value bytes, not a complete encoded `Extension` record.
+The extension-specific syntax is not validated.
+
+Each access returns a new array containing new objects and `Buffer`s. Modifying
+them does not affect the certificate or later accesses.
+
+For example, a Basic Constraints extension allowing a certificate to act as a
+CA can appear as:
+
+```js
+console.log(x509.extensions[0]);
+// {
+//   oid: '2.5.29.19',
+//   critical: true,
+//   value: <Buffer 30 03 01 01 ff>
+// }
+```
+
+Accessing this property throws `ERR_CRYPTO_INVALID_X509_CERTIFICATE` if the
+extensions cannot be inspected.
+
 ### `x509.fingerprint`
 
 <!-- YAML
@@ -3227,6 +3266,46 @@ added: v15.9.0
 The issuer certificate or `undefined` if the issuer certificate is not
 available.
 
+### `x509.issuerName`
+
+<!-- YAML
+added: v26.14.0
+-->
+
+* Type: {Object}
+  * `raw` {Buffer} The complete DER-encoded `Name`.
+  * `rdns` {Array\<Object\[]>} The relative distinguished name sequence.
+    * `oid` {string} The canonical dotted-decimal object identifier.
+    * `value` {string} A UTF-8 representation of the attribute value. This
+      property is omitted when the ASN.1 value type is not supported for text
+      conversion.
+
+The issuer distinguished name, also exposed as a formatted string by
+[`x509.issuer`][]. The outer `rdns` array contains the relative distinguished
+names in encoded order. Each inner array represents one relative distinguished
+name and contains its attributes in encoded order. A valid empty name has an
+empty `rdns` array.
+
+`rdns` is a decoded view and does not include ASN.1 value types. Use `raw` for a
+lossless representation of the complete name, including attribute values whose
+`value` property is omitted from `rdns`.
+
+Each access returns newly allocated objects, arrays, and a `Buffer`.
+Modifying them does not affect the certificate or later accesses.
+
+For example:
+
+```js
+console.log(x509.issuerName.rdns);
+// [
+//   [ { oid: '2.5.4.6', value: 'US' } ],
+//   [ { oid: '2.5.4.10', value: 'Example CA' } ]
+// ]
+```
+
+Accessing this property throws `ERR_CRYPTO_INVALID_X509_CERTIFICATE` if the
+issuer name cannot be inspected.
+
 ### `x509.keyUsage`
 
 <!-- YAML
@@ -3313,6 +3392,70 @@ For backward compatibility, Node.js only uses JSON string literals within this
 property when necessary to avoid ambiguity. Third-party code should be prepared
 to handle both possible entry formats.
 
+### `x509.subjectName`
+
+<!-- YAML
+added: v26.14.0
+-->
+
+* Type: {Object}
+  * `raw` {Buffer} The complete DER-encoded `Name`.
+  * `rdns` {Array\<Object\[]>} The relative distinguished name sequence.
+    * `oid` {string} The canonical dotted-decimal object identifier.
+    * `value` {string} A UTF-8 representation of the attribute value. This
+      property is omitted when the ASN.1 value type is not supported for text
+      conversion.
+
+The subject distinguished name, also exposed as a formatted string by
+[`x509.subject`][]. The outer `rdns` array contains the relative distinguished
+names in encoded order. Each inner array represents one relative distinguished
+name and contains its attributes in encoded order. A valid empty name has an
+empty `rdns` array.
+
+`rdns` is a decoded view and does not include ASN.1 value types. Use `raw` for a
+lossless representation of the complete name, including attribute values whose
+`value` property is omitted from `rdns`.
+
+Each access returns newly allocated objects, arrays, and a `Buffer`.
+Modifying them does not affect the certificate or later accesses.
+
+For example, attributes in the same inner array belong to one multi-valued
+relative distinguished name:
+
+```js
+console.log(x509.subjectName.rdns);
+// [
+//   [ { oid: '2.5.4.6', value: 'US' } ],
+//   [
+//     { oid: '2.5.4.11', value: 'Security' },
+//     { oid: '2.5.4.10', value: 'Example Corp' }
+//   ],
+//   [ { oid: '2.5.4.3', value: 'example.com' } ]
+// ]
+```
+
+Accessing this property throws `ERR_CRYPTO_INVALID_X509_CERTIFICATE` if the
+subject name cannot be inspected.
+
+### `x509.tbs`
+
+<!-- YAML
+added: v26.14.0
+-->
+
+* Type: {Buffer}
+
+Unlike [`x509.raw`][], which contains the whole certificate, this property
+contains only the complete encoded `TBSCertificate`: the exact bytes covered
+by the certificate's signature. They are copied from the certificate encoding,
+not reconstructed from decoded fields.
+
+Each access returns a new `Buffer`. Modifying it does not affect the certificate
+or later accesses.
+
+Accessing this property throws `ERR_CRYPTO_INVALID_X509_CERTIFICATE` if the
+`TBSCertificate` cannot be inspected.
+
 ### `x509.toJSON()`
 
 <!-- YAML
@@ -3356,6 +3499,9 @@ added: v15.6.0
 
 The date/time from which this certificate is valid.
 
+If the certificate's `notBefore` time cannot be parsed, this is the string
+`'Bad time value'`.
+
 ### `x509.validFromDate`
 
 <!-- YAML
@@ -3368,6 +3514,16 @@ added:
 
 The date/time from which this certificate is valid, encapsulated in a `Date` object.
 
+If the certificate's `notBefore` time cannot be parsed, this property is an
+invalid `Date` whose `getTime()` method returns `NaN`.
+
+Relational comparisons with an invalid `Date` evaluate to `false`. To check
+whether the current time is within the certificate's validity period, use
+`now >= x509.validFromDate && now <= x509.validToDate`. This expression
+evaluates to `false` if either date is invalid. Checking
+`now < x509.validFromDate || now > x509.validToDate` instead can fail to
+reject certificates with invalid dates.
+
 ### `x509.validTo`
 
 <!-- YAML
@@ -3377,6 +3533,9 @@ added: v15.6.0
 * Type: {string}
 
 The date/time until which this certificate is valid.
+
+If the certificate's `notAfter` time cannot be parsed, this is the string
+`'Bad time value'`.
 
 ### `x509.validToDate`
 
@@ -3389,6 +3548,60 @@ added:
 * Type: {Date}
 
 The date/time until which this certificate is valid, encapsulated in a `Date` object.
+
+If the certificate's `notAfter` time cannot be parsed, this property is an
+invalid `Date` whose `getTime()` method returns `NaN`.
+
+Relational comparisons with an invalid `Date` evaluate to `false`. To check
+whether the current time is within the certificate's validity period, use
+`now >= x509.validFromDate && now <= x509.validToDate`. This expression
+evaluates to `false` if either date is invalid. Checking
+`now < x509.validFromDate || now > x509.validToDate` instead can fail to
+reject certificates with invalid dates.
+
+### `x509.signature`
+
+<!-- YAML
+added: v26.14.0
+-->
+
+* Type: {Object}
+  * `algorithm` {Object} The certificate-level `signatureAlgorithm` paired with
+    the `signatureValue`.
+    * `oid` {string} The canonical dotted-decimal algorithm OID.
+    * `parameters` {Buffer} The complete DER-encoded ASN.1 parameters. This
+      property is omitted when the parameters are absent.
+  * `value` {Buffer} The signature octets contained in the certificate's
+    `signatureValue` BIT STRING.
+
+`algorithm.oid` identifies the same certificate-level algorithm as
+[`x509.signatureAlgorithmOid`][]. In addition to the algorithm identification
+provided by that property and [`x509.signatureAlgorithm`][], this property
+exposes the algorithm parameters and signature bytes.
+
+The parameters are DER-encoded independently; the complete encoded
+`AlgorithmIdentifier` and BIT STRING wrappers are not returned. Accessing this
+property does not verify the signature.
+
+Each access returns new outer and `algorithm` objects, with new `Buffer`s for
+`value` and `parameters` when present. Modifying them does not affect the
+certificate or later accesses.
+
+For example, a certificate signed using RSA with SHA-256 can produce:
+
+```js
+console.log(x509.signature);
+// {
+//   algorithm: {
+//     oid: '1.2.840.113549.1.1.11',
+//     parameters: <Buffer 05 00>
+//   },
+//   value: <Buffer ...>
+// }
+```
+
+Accessing this property throws `ERR_CRYPTO_INVALID_X509_CERTIFICATE` if the
+signature cannot be inspected.
 
 ### `x509.signatureAlgorithm`
 
@@ -3409,6 +3622,17 @@ added: v24.9.0
 * Type: {string}
 
 The OID of the algorithm used to sign the certificate.
+
+### `x509.version`
+
+<!-- YAML
+added: v26.14.0
+-->
+
+* Type: {number}
+
+The certificate version: `1` for X.509 v1, `2` for X.509 v2, or `3` for X.509
+v3. A certificate with no encoded version field has version `1`.
 
 ### `x509.verify(publicKey)`
 
@@ -6596,9 +6820,9 @@ OpenSSL-backed APIs.
 This method only affects subsequent algorithm fetches. Node.js initializes some
 OpenSSL state before application code runs. When the property query must be
 active from process startup, set `default_properties = fips=yes` in the OpenSSL
-configuration or use [`--enable-fips`][] or [`--force-fips`][]. The command-line
-flags additionally require a configured provider named `fips` to initialize and
-pass its self-test; Node.js fails to start otherwise.
+configuration or use [`--enable-fips`][] or [`--force-fips`][]. Like this method,
+the command-line flags change the property query without loading or validating
+a provider or running its self-tests.
 
 Throws an error if OpenSSL cannot change the state. FIPS mode cannot be
 disabled when Node.js was started with `--force-fips`. With OpenSSL 1.1.1,
@@ -7238,10 +7462,9 @@ default section name.
 On OpenSSL 3, the configuration above enables the `fips=yes` property query at
 startup. The following controls are also available:
 
-* [`--enable-fips`][] and [`--force-fips`][] enable the property query and
-  additionally require the configured provider named `fips` to initialize and
-  pass its self-test. Node.js exits if that check fails. `--force-fips` also
-  prevents FIPS mode from being disabled from script code. With
+* [`--enable-fips`][] and [`--force-fips`][] enable the property query at startup.
+  They do not load or validate a provider or run its self-tests. `--force-fips`
+  also prevents FIPS mode from being disabled from script code. With
   `--force-fips=strict`, Node.js also rejects non-approved operations reported
   through the OpenSSL FIPS indicator callback.
 * [`crypto.setFips()`][] changes the FIPS/property-query state. On OpenSSL 3, it
@@ -7656,6 +7879,14 @@ See the [list of SSL OP Flags][] for details.
 [`verify.update()`]: #verifyupdatedata-inputencoding
 [`verify.verify()`]: #verifyverifykey-signature-signatureencoding
 [`x509.fingerprint256`]: #x509fingerprint256
+[`x509.infoAccess`]: #x509infoaccess
+[`x509.issuer`]: #x509issuer
+[`x509.keyUsage`]: #x509keyusage
+[`x509.raw`]: #x509raw
+[`x509.signatureAlgorithmOid`]: #x509signaturealgorithmoid
+[`x509.signatureAlgorithm`]: #x509signaturealgorithm
+[`x509.subjectAltName`]: #x509subjectaltname
+[`x509.subject`]: #x509subject
 [`x509.verify(publicKey)`]: #x509verifypublickey
 [argon2]: https://www.rfc-editor.org/rfc/rfc9106.html
 [asymmetric key types]: #asymmetric-key-types

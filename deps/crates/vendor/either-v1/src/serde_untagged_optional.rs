@@ -1,9 +1,9 @@
-//! Untagged serialization/deserialization support for Option<Either<L, R>>.
+//! Untagged serialization/deserialization support for `Option<Either<L, R>>`.
 //!
 //! `Either` uses default, externally-tagged representation.
 //! However, sometimes it is useful to support several alternative types.
-//! For example, we may have a field which is generally Map<String, i32>
-//! but in typical cases Vec<String> would suffice, too.
+//! For example, we may have a field which is generally a `HashMap<String, i32>`
+//! but in typical cases `Vec<String>` would suffice, too.
 //!
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -1,4 +1,4 @@
-import { register } from "node:module";
+import module from "node:module";
 import { emitWarning, env, execArgv } from "node:process";
 
 const hasSourceMaps =
@@ -9,4 +9,10 @@ if (!hasSourceMaps) {
 	emitWarning("Source maps are disabled, stack traces will not be accurate");
 }
 
-register("./transform-loader.js", import.meta.url);
+if (typeof module.registerHooks === "function") {
+	const { default: loader } = await import("./transform-loader.js");
+	module.registerHooks({ load: loader.loadSync });
+} else {
+	// Node.js versions without `module.registerHooks()`.
+	module.register("./transform-loader.js", import.meta.url);
+}

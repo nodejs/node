@@ -48,18 +48,21 @@ async function testRSAOaep(publicKey, privateKey) {
 
   await testRSAOaep(publicKey, privateKey);
 
+  // SHA-3 is only supported for digest operations in BoringSSL.
   if (!isBoringSSL) {
     // Import the same key material with SHA-3 to avoid another RSA keygen.
     const [spki, pkcs8] = await Promise.all([
       subtle.exportKey('spki', publicKey),
       subtle.exportKey('pkcs8', privateKey),
     ]);
-    const algorithm = { name: 'RSA-OAEP', hash: 'SHA3-384' };
-    const [sha3PublicKey, sha3PrivateKey] = await Promise.all([
-      subtle.importKey('spki', spki, algorithm, false, ['encrypt']),
-      subtle.importKey('pkcs8', pkcs8, algorithm, false, ['decrypt']),
-    ]);
-    await testRSAOaep(sha3PublicKey, sha3PrivateKey);
+    for (const hash of ['SHA3-256', 'SHA3-384', 'SHA3-512']) {
+      const algorithm = { name: 'RSA-OAEP', hash };
+      const [sha3PublicKey, sha3PrivateKey] = await Promise.all([
+        subtle.importKey('spki', spki, algorithm, false, ['encrypt']),
+        subtle.importKey('pkcs8', pkcs8, algorithm, false, ['decrypt']),
+      ]);
+      await testRSAOaep(sha3PublicKey, sha3PrivateKey);
+    }
   }
 })().then(common.mustCall());
 

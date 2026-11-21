@@ -94,13 +94,13 @@ function remoteClose() {
         assert.strictEqual(agent.sockets[name], undefined);
         assert.strictEqual(agent.freeSockets[name].length, 1);
         assert.strictEqual(agent.totalSocketCount, 1);
-        // Waiting remote server close the socket
-        setTimeout(common.mustCall(() => {
+        // Wait for the remote server to close the socket.
+        req.socket.once('close', common.mustCall(() => {
           assert.strictEqual(agent.sockets[name], undefined);
           assert.strictEqual(agent.freeSockets[name], undefined);
           assert.strictEqual(agent.totalSocketCount, 0);
           remoteError();
-        }), common.platformTimeout(200));
+        }));
       }));
     }));
   }));
@@ -115,13 +115,13 @@ function remoteError() {
     assert.strictEqual(agent.sockets[name].length, 1);
     assert.strictEqual(agent.freeSockets[name], undefined);
     assert.strictEqual(agent.totalSocketCount, 1);
-    // Wait socket 'close' event emit
-    setTimeout(common.mustCall(() => {
+    // Wait for the socket's 'close' event.
+    req.socket.once('close', common.mustCall(() => {
       assert.strictEqual(agent.sockets[name], undefined);
       assert.strictEqual(agent.freeSockets[name], undefined);
       assert.strictEqual(agent.totalSocketCount, 0);
       server.close();
-    }), common.platformTimeout(1));
+    }));
   }));
 }
 

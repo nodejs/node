@@ -3314,8 +3314,12 @@ changes:
     frames retained by undrained streams, and unacknowledged `PING` and
     `SETTINGS` frames are all counted towards the current limit. When the limit
     is exceeded the session stops reading from the socket (applying
-    backpressure) until the application consumes the queued data. **Default:**
-    `10`.
+    backpressure) until the application consumes the queued data.
+    For received headers on locally initiated streams, including
+    informational responses and trailers, queued outbound data across the session
+    is excluded from the memory check. Retained headers still count towards the
+    limit. This exception does not apply to server push streams.
+    **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
@@ -3679,7 +3683,7 @@ For incoming headers:
 * The `:status` header is converted to `number`.
 * Duplicates of `:status`, `:method`, `:authority`, `:scheme`, `:path`,
   `:protocol`, `age`, `authorization`, `access-control-allow-credentials`,
-  `access-control-max-age`, `access-control-request-method`, `content-encoding`,
+  `access-control-max-age`, `access-control-request-method`,
   `content-language`, `content-length`, `content-location`, `content-md5`,
   `content-range`, `content-type`, `date`, `dnt`, `etag`, `expires`, `from`,
   `host`, `if-match`, `if-modified-since`, `if-none-match`, `if-range`,

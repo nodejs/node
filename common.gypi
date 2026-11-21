@@ -26,7 +26,13 @@
     'node_module_version%': '',
     'node_with_ltcg%': '',
     'node_shared_openssl%': 'false',
+    'node_shared_openssl_include_dirs%': [],
     'openssl_is_boringssl%': 'false',
+
+    'node_shared_libuv_include_dirs%': [],
+    'node_shared_sqlite%': 'false',
+    'node_shared_sqlite_include_dirs%': [],
+    'node_shared_zlib_include_dirs%': [],
 
     'node_tag%': '',
     'uv_library%': 'static_library',
@@ -44,7 +50,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.40',
+    'v8_embedder_string': '-node.58',
 
     ##### V8 defaults for Node.js #####
 
@@ -685,6 +691,23 @@
           [ 'node_shared=="true" or node_enable_v8debughelper=="true"', {
             'cflags': [ '-fPIC' ],
             'ldflags': [ '-fPIC' ],
+          }],
+          # Link executables as PIE so that ASLR randomizes the executable
+          # image too. Every object in a PIE must be built with `-fPIC` or
+          # `-fPIE`. PIE flags should not apply to shared library objects,
+          # like addons. `--fully-static` uses `-static-pie`, see configure.py.
+          [ 'OS=="linux" and configuring_node', {
+            'target_conditions': [
+              ['_type=="executable"', {
+                'ldflags': [ '-pie' ],
+              }],
+            ],
+            'conditions': [
+              # Use `-fPIE` unless the condition above uses `-fPIC`.
+              [ 'node_shared!="true" and node_enable_v8debughelper!="true"', {
+                'cflags': [ '-fPIE' ],
+              }],
+            ],
           }],
         ],
       }],

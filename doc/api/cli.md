@@ -252,8 +252,10 @@ The valid arguments for the `--allow-fs-read` flag are:
 
 Examples can be found in the [File System Permissions][] documentation.
 
-The initializer module and custom `--require` modules has a implicit
-read permission.
+The initializer module and custom `--require` modules have an implicit
+read permission. The entrypoint is granted as passed on the command line,
+without the module loader's resolution; see the [File System Permissions][]
+documentation for details.
 
 ```console
 $ node --permission -r custom-require.js -r custom-require-2.js index.js
@@ -279,6 +281,8 @@ added: v26.9.0
 When using the [Permission Model][], a [virtual file system][] cannot be
 mounted by default: [`vfs.mount()`][] throws `ERR_INVALID_STATE` unless the
 user explicitly passes the `--allow-fs-vfs` flag when starting Node.js.
+In audit mode ([`--permission-audit`](#--permission-audit)), mounting is not
+refused and no message is published to the diagnostics channel.
 
 A mounted VFS serves paths that the file system permissions do not describe,
 so mounting one is gated on its own flag rather than on `--allow-fs-read` or
@@ -664,6 +668,10 @@ runtime, using either [`v8.startupSnapshot.setDeserializeMainFunction()`][] or
 an additional module during the snapshot building process is needed,
 please file a request in the [Node.js issue tracker][] and link to it in the
 [tracking issue for user-land snapshots][].
+
+During snapshot building, a debugger cannot be attached to the process.
+`--build-snapshot` cannot be used together with `--inspect`, `--inspect-brk` or
+`--inspect-wait`.
 
 ### `--build-snapshot-config`
 
@@ -1169,9 +1177,11 @@ priority than `--dns-result-order`.
 added: v6.0.0
 -->
 
-Enable [FIPS mode][] at startup. With OpenSSL 3, a configured provider named
-`fips` must be available and initialize successfully. With OpenSSL 1.1.1,
-Node.js must be built against a FIPS-capable OpenSSL.
+Enable [FIPS mode][] at startup. With OpenSSL 3, this adds `fips=yes` to
+OpenSSL's default property query. This does not load or validate a FIPS
+provider or run its self-tests. Configure OpenSSL to load the provider
+separately. With OpenSSL 1.1.1, Node.js must be built against a FIPS-capable
+OpenSSL.
 
 ### `--enable-fips-indicator-events`
 
@@ -1576,6 +1586,25 @@ added: v25.9.0
 
 Enable the experimental [`node:stream/iter`][] module.
 
+### `--experimental-strip-private-modules`
+
+<!-- YAML
+added: v26.14.0
+-->
+
+> Stability: 1 - Experimental
+
+By default, Node.js refuses to strip types from TypeScript files inside
+folders under a `node_modules` path. This flag enables type stripping for
+such files when they belong to a package whose `package.json` contains
+`"private": true`. Files belonging to non-private packages still throw
+[`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`][].
+The limitation to private packages should never be lifted,
+as publishing packages with TypeScript sources
+is highly discouraged.
+Stripping types inside `node_modules` is intended only
+for local development.
+
 ### `--experimental-test-coverage`
 
 <!-- YAML
@@ -1718,7 +1747,8 @@ changes:
 -->
 
 Enable [FIPS mode][] at startup and prevent it from being disabled from script
-code. The same OpenSSL requirements as [`--enable-fips`][] apply.
+code. With OpenSSL 3, this changes the default property query as described for
+[`--enable-fips`][].
 
 An optional mode can be specified using `--force-fips=mode`:
 
@@ -3184,6 +3214,22 @@ added: v22.8.0
 Require a minimum percent of covered lines. If code coverage does not reach
 the threshold specified, the process will exit with code `1`.
 
+### `--test-forbid-only`
+
+<!-- YAML
+added: v26.14.0
+-->
+
+Fails the test run if a test or suite is declared with `only: true`, including
+the `test.only()`, `it.only()`, `suite.only()`, and `describe.only()` shorthands,
+or if `testContext.runOnly(true)` is called. This is useful in CI to prevent
+accidentally committing exclusive tests that exclude the rest of a test suite.
+
+This option applies with either test isolation mode and takes precedence over
+`--test-only`. Name filtering, TODO markers, and expected failures do not suppress
+detected violations. Only declarations evaluated during the run are checked;
+code inside a skipped test callback is not evaluated.
+
 ### `--test-force-exit`
 
 <!-- YAML
@@ -3981,10 +4027,6 @@ and is incompatible with `--run`, as `--run` takes precedence and ignores watch 
 node --watch-path=./src --watch-path=./tests index.js
 ```
 
-This option is only supported on macOS and Windows.
-An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` exception will be thrown
-when the option is used on a platform that does not support it.
-
 ### `--watch-preserve-output`
 
 <!-- YAML
@@ -4216,6 +4258,7 @@ one is included in the list below.
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-stream-iter`
+* `--experimental-strip-private-modules`
 * `--experimental-test-isolation`
 * `--experimental-top-level-await`
 * `--experimental-vfs`
@@ -4295,6 +4338,7 @@ one is included in the list below.
 * `--test-coverage-include-all`
 * `--test-coverage-include`
 * `--test-coverage-lines`
+* `--test-forbid-only`
 * `--test-global-setup`
 * `--test-isolation`
 * `--test-name-pattern`
@@ -4872,6 +4916,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
 [`ERR_RX_MEMORY_NOT_SUPPORTED`]: errors.md#err_rx_memory_not_supported
+[`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`]: errors.md#err_unsupported_node_modules_type_stripping
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`ERR_WEBASSEMBLY_NOT_SUPPORTED`]: errors.md#err_webassembly_not_supported
 [`NODE_OPTIONS`]: #node_optionsoptions

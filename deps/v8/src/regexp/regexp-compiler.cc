@@ -346,7 +346,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
     return CompilationResult::RegExpTooBig();
   };
 
-  ZoneVector<RegExpNode*> work_list(zone());
+  ZoneVector<WorkItem> work_list(zone());
   work_list_ = &work_list;
   Label fail;
   macro_assembler_->PushBacktrack(&fail);
@@ -357,11 +357,13 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   macro_assembler_->BindJumpTarget(&fail);
   macro_assembler_->Fail();
   while (!work_list.empty()) {
-    RegExpNode* node = work_list.back();
+    WorkItem item = work_list.back();
+    RegExpNode* node = item.node;
     TRACE_WITH_NODE(this, "Popping from worklist ", node);
     work_list.pop_back();
     node->set_on_work_list(false);
     if (!node->label()->is_bound()) {
+      set_flags(item.flags);
       if (node->Emit(this, &new_trace).IsError()) {
         return ReportError();
       }
@@ -901,28 +903,11 @@ int GetCaseIndependentLetters(Isolate* isolate, base::uc16 character,
   }
 #ifdef V8_INTL_SUPPORT
 
-  if (!unicode && RegExpCaseFolding::IgnoreSet().contains(character)) {
-    if (one_byte_subject && character > String::kMaxOneByteCharCode) {
-      // This function promises not to return a character that is impossible
-      // for the subject encoding.
-      return 0;
-    }
-    letters[0] = character;
-    DCHECK(ContainsOnlyUtf16CodeUnits(letters, 1));
-    return 1;
-  }
-  bool in_special_add_set =
-      RegExpCaseFolding::SpecialAddSet().contains(character);
-
   icu::UnicodeSet set;
   set.add(character);
-  set = set.closeOver(unicode ? USET_SIMPLE_CASE_INSENSITIVE
-                              : USET_CASE_INSENSITIVE);
-
-  UChar32 canon = 0;
-  if (in_special_add_set && !unicode) {
-    canon = RegExpCaseFolding::Canonicalize(character);
-  }
+  RegExpCaseFolding::CloseOver(set,
+                               unicode ? RegExpCaseFolding::Mode::kUnicode
+                                       : RegExpCaseFolding::Mode::kNonUnicode);
 
   int32_t range_count = set.getRangeCount();
   int items = 0;
@@ -932,10 +917,6 @@ int GetCaseIndependentLetters(Isolate* isolate, base::uc16 character,
     CHECK(end - start + items <= letter_length);
     for (UChar32 cu = start; cu <= end; cu++) {
       if (one_byte_subject && cu > String::kMaxOneByteCharCode) continue;
-      if (!unicode && in_special_add_set &&
-          RegExpCaseFolding::Canonicalize(cu) != canon) {
-        continue;
-      }
       letters[items++] = static_cast<unibrow::uchar>(cu);
     }
   }
@@ -2132,6 +2113,7 @@ EmitResult AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler,
   }
   bool at_boundary = (assertion_type_ == AssertionNode::AT_BOUNDARY);
   if (next_is_word_character == Trace::UNKNOWN) {
+    const RegExpFlags flags = compiler->flags();
     Label before_non_word;
     Label before_word;
     if (trace->characters_preloaded() != 1) {
@@ -2146,6 +2128,7 @@ EmitResult AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler,
                                         at_boundary ? kIsNonWord : kIsWord));
     assembler->GoTo(&ok);
 
+    compiler->set_flags(flags);
     assembler->Bind(&before_word);
     RETURN_IF_ERROR(BacktrackIfPrevious(compiler, trace,
                                         at_boundary ? kIsWord : kIsNonWord));
@@ -3841,8 +3824,13 @@ class Analysis : public NodeVisitor {
   }
 
   void VisitChoice(ChoiceNode* that) override {
+    // Flags need to be reset to the state of the ChoiceNode at the beginning
+    // of each alternative, as flags might be modified when visiting an
+    // alternative.
+    RegExpFlags header_flags = flags();
     for (int i = 0; i < that->alternatives()->length(); i++) {
       EnsureAnalyzed(that->alternatives()->at(i).node());
+      set_flags(header_flags);
       if (has_failed()) return;
       STATIC_FOR_EACH(Propagators::VisitChoice(that, i));
     }
@@ -3880,11 +3868,13 @@ class Analysis : public NodeVisitor {
       NegativeLookaroundChoiceNode* that) override {
     DCHECK_EQ(that->alternatives()->length(), 2);  // Lookaround and continue.
 
+    RegExpFlags header_flags = flags();
     EnsureAnalyzed(that->lookaround_node());
     if (has_failed()) return;
     STATIC_FOR_EACH(
         Propagators::VisitNegativeLookaroundChoiceLookaroundNode(that));
 
+    set_flags(header_flags);
     EnsureAnalyzed(that->continue_node());
     if (has_failed()) return;
     STATIC_FOR_EACH(

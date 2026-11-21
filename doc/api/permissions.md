@@ -92,6 +92,11 @@ This flag grants broad authority to configured OpenSSL STORE loaders, which may
 access files, devices, tokens, or the network. Access performed by a loader is
 not constrained by the `fs.read`, `fs.write`, or `net` permission scopes.
 
+Mounting a [virtual file system][] with [`vfs.mount()`][] throws
+`ERR_INVALID_STATE` unless the [`--allow-fs-vfs`][] flag is passed. A mounted
+VFS serves paths that the file system permissions do not describe, so it is not
+gated by [`--allow-fs-read`][] or [`--allow-fs-write`][].
+
 #### Runtime API
 
 When enabling the Permission Model through the [`--permission`][]
@@ -156,10 +161,11 @@ mode. Execution continues normally.
 
 Audit mode is useful for discovering what permissions your application
 requires before deploying with [`--permission`][]. It can also be combined
-with the [`--allow-fs-read`][], [`--allow-fs-write`][], [`--allow-net`][],
-[`--allow-child-process`][], [`--allow-worker`][], [`--allow-addons`][],
-[`--allow-wasi`][], and [`--allow-ffi`][] flags to audit a subset of
-permissions while granting others.
+with the [`--allow-fs-read`][], [`--allow-fs-write`][], [`--allow-fs-vfs`][],
+[`--allow-net`][], [`--allow-child-process`][],
+[`--allow-worker`][], [`--allow-addons`][], [`--allow-wasi`][],
+[`--allow-ffi`][], [`--allow-inspector`][], and [`--allow-openssl-store`][]
+flags to audit a subset of permissions while granting others.
 
 When a permission check fails in audit mode, a message is published to the
 diagnostics channel corresponding to the denied scope. The channel names are:
@@ -172,12 +178,15 @@ diagnostics channel corresponding to the denied scope. The channel names are:
 * `node:permission-model:wasi` — WASI
 * `node:permission-model:addon` — Native Addons
 * `node:permission-model:ffi` — FFI
+* `node:permission-model:openssl-store` — OpenSSL STORE loaders
 
 Each message is an object with the following properties:
 
 * `permission` {string} The name of the denied permission scope.
 * `resource` {string} The resource that access was denied to (e.g. a file path
   or host).
+* `drop` {boolean|undefined} `true` when the message was published by
+  [`permission.drop()`][] rather than by a failed permission check.
 
 ```js
 const diagnostics_channel = require('node:diagnostics_channel');
@@ -225,6 +234,13 @@ $ node -r /path/to/custom-require.js --permission index.js
 * `/path/to/custom-require.js` will be included in the allowed file system read
   list.
 * `index.js` will be included in the allowed file system read list.
+
+The entrypoint is granted as passed on the command line, without the module
+loader's resolution. If it is a directory, such as in `node --permission .`,
+read access is granted to everything inside that directory, recursively. If it
+omits the file extension, such as in `node --permission index`, the resolved
+`index.js` is not granted. Pass the full path of the file, or use
+[`--allow-fs-read`][], to grant exactly what the application needs.
 
 The valid arguments for both flags are:
 
@@ -355,6 +371,7 @@ There are constraints you need to know before using this system:
   * WASI
   * FFI
   * OpenSSL STORE loaders
+  * Virtual file system mounting
 * The Permission Model is initialized after the Node.js environment is set up.
   However, certain flags such as `--env-file` or `--openssl-config` are designed
   to read files before environment initialization. As a result, such flags are
@@ -412,7 +429,9 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [`--allow-child-process`]: cli.md#--allow-child-process
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`--allow-fs-read`]: cli.md#--allow-fs-read
+[`--allow-fs-vfs`]: cli.md#--allow-fs-vfs
 [`--allow-fs-write`]: cli.md#--allow-fs-write
+[`--allow-inspector`]: cli.md#--allow-inspector
 [`--allow-net`]: cli.md#--allow-net
 [`--allow-openssl-store`]: cli.md#--allow-openssl-store
 [`--allow-wasi`]: cli.md#--allow-wasi
@@ -422,4 +441,7 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [`--permission`]: cli.md#--permission
 [`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
 [`npx`]: https://docs.npmjs.com/cli/commands/npx
+[`permission.drop()`]: process.md#processpermissiondropscope-reference
 [`permission.has()`]: process.md#processpermissionhasscope-reference
+[`vfs.mount()`]: vfs.md#vfsmount
+[virtual file system]: vfs.md

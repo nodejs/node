@@ -2,7 +2,7 @@ args@{
   pkgs ? import ./pkgs.nix { },
   ...
 }:
-import ../../shell.nix (
+(import ../../shell.nix (
   {
     inherit pkgs;
     useSeparateDerivationForV8 = true;
@@ -26,4 +26,30 @@ import ../../shell.nix (
     }
   )
   // args
-)
+)).overrideAttrs
+  (old: {
+    # Make shared deps reachable only through pkg-config, so regressions aren't
+    # hidden by cc-wrapper's -isystem/-L for every buildInput.
+    buildInputs = map (
+      dep:
+      pkgs.runCommand
+        "${
+          dep.name or (
+            let
+              name = baseNameOf (toString dep);
+            in
+            if builtins.stringLength name > 35 then builtins.substring 33 (-1) name else name
+          )
+        }-pkg-config-only"
+        {
+          nativeBuildInputs = [ pkgs.pkgconf ];
+          buildInputs = [ dep ];
+        }
+        ''
+          mkdir -p "$out/lib/pkgconfig"
+          for pc in $(pkgconf --list-package-names); do
+            ln -s "$(pkgconf --path "$pc")" "$out/lib/pkgconfig/"
+          done
+        ''
+    ) old.buildInputs;
+  })

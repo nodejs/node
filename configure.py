@@ -59,7 +59,7 @@ maglev_enabled_architectures = ('x64', 'arm', 'arm64', 'ppc64', 's390x', 'riscv6
 
 # builtins may be removed later if they have been disabled by options
 shareable_builtins = {'undici/undici': 'deps/undici/undici.js',
-                     'amaro/dist/index': 'deps/amaro/dist/index.js'
+                     'amaro/dist/internal': 'deps/amaro/dist/internal.js'
 }
 
 # create option groups
@@ -1620,6 +1620,55 @@ def get_rustc_version(rustc):
   warn(f'Could not recognize `rustc`: {rustc_ret}')
   return '0.0'
 
+# Prefixes of Rust target triple architectures for each GYP architecture.
+rust_arch_prefixes = {
+  'arm': ('arm', 'thumb'),
+  'arm64': ('aarch64',),
+  'ia32': ('i386', 'i586', 'i686'),
+  'loong64': ('loongarch64',),
+  'mips64el': ('mips64el',),
+  'mipsel': ('mipsel',),
+  'ppc64': ('powerpc64',),
+  'riscv64': ('riscv64',),
+  's390x': ('s390x',),
+  'x64': ('x86_64',),
+}
+
+def get_rust_cross_targets(host_arch, default_target):
+  """Returns (host triple, target triple, problem). problem is non-empty when
+  the triples for a bundled Temporal cross build cannot be determined."""
+  rust_target = os.environ.get('CARGO_BUILD_TARGET', '') or default_target
+  if not rust_target:
+    return '', '', 'Cross compilation with bundled Temporal requires CARGO_BUILD_TARGET.'
+
+  rust_host_target = ''
+  rustc = os.environ.get('RUSTC', 'rustc')
+  try:
+    version = subprocess.check_output(shlex.split(rustc) + ['-vV'],
+                                      stderr=subprocess.PIPE, text=True)
+  except (OSError, subprocess.CalledProcessError):
+    version = ''
+  match = re.search(r'^host: (\S+)$', version, re.MULTILINE)
+  if match:
+    rust_host_target = match.group(1)
+  if not rust_host_target:
+    return '', '', 'Cannot determine the Rust host triple from `rustc -vV`.'
+
+  # The host toolset follows CC_host, which may build 32-bit host tools for
+  # 32-bit targets (e.g. CC_host="gcc -m32") on a 64-bit Rust host.
+  rust_host_arch, _, rust_host_rest = rust_host_target.partition('-')
+  if not rust_host_arch.startswith(rust_arch_prefixes.get(host_arch, ('',))):
+    if host_arch == 'ia32' and rust_host_arch == 'x86_64':
+      rust_host_target = f'i686-{rust_host_rest}'
+    else:
+      return '', '', (f'Rust host triple {rust_host_target} does not match '
+                      f'the host toolset architecture {host_arch} (CC_host).')
+
+  for triple in (rust_host_target, rust_target):
+    if not re.fullmatch(r'[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)+', triple):
+      error('Rust targets must be target triples, not paths to target JSON files')
+  return rust_host_target, rust_target, ''
+
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
 # the version check more by accident than anything else but a more rigorous
 # check involves checking the build number against an allowlist.  I'm not
@@ -1957,6 +2006,23 @@ def configure_node(o):
     os.environ['GYP_CROSSCOMPILE'] = "1"
 
   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
+  o['variables']['cargo_cross_compiling'] = 0
+  if (flavor != 'win' and cross_compiling and
+      not options.v8_disable_temporal_support and not options.shared_temporal_capi):
+    # Only bundled Temporal cross builds need explicit per-toolset Rust targets.
+    rust_host_target, rust_target, problem = get_rust_cross_targets(
+        host_arch, o['variables']['cargo_rust_target'])
+    if problem:
+      # Like a missing Rust toolchain, this is only fatal when Temporal support
+      # was explicitly requested.
+      if options.v8_enable_temporal_support:
+        error(problem)
+      warn(f'{problem} Support for Temporal will be disabled.')
+      options.v8_disable_temporal_support = True
+    else:
+      o['variables']['cargo_cross_compiling'] = 1
+      o['variables']['cargo_rust_target_target'] = rust_target
+      o['variables']['cargo_rust_target_host'] = rust_host_target
 
   if target_arch == 'arm64':
     o['variables']['arm_fpu'] = options.arm_fpu or 'neon'
@@ -2195,19 +2261,26 @@ def configure_napi(output):
   version = getnapibuildversion.get_napi_version()
   output['variables']['napi_build_version'] = version
 
-def configure_library(lib, output, pkgname=None, libraries_key='libraries'):
+def configure_library(lib, output, pkgname=None, libraries_key='libraries', with_separate_include_var=False):
   shared_lib = 'shared_' + lib
   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
-  libraries = output[libraries_key]
+
+  libraries = output[libraries_key] if libraries_key in output else output['variables'][libraries_key]
+
+  include_dirs = []
+  if with_separate_include_var:
+    output['variables'][f'node_{shared_lib}_include_dirs'] = include_dirs
 
   if getattr(options, shared_lib):
     (pkg_libs, pkg_cflags, pkg_libpath, _) = pkg_config(pkgname or lib)
 
     if options.__dict__[shared_lib + '_includes']:
-      output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
+      include_dirs += [options.__dict__[shared_lib + '_includes']]
     elif pkg_cflags:
       stripped_flags = [flag.strip() for flag in pkg_cflags.split('-I')]
-      output['include_dirs'] += [flag for flag in stripped_flags if flag]
+      include_dirs += [flag for flag in stripped_flags if flag]
+
+    output['include_dirs'] += include_dirs
 
     # libpath needs to be provided ahead libraries
     if options.__dict__[shared_lib + '_libpath']:
@@ -2376,7 +2449,7 @@ def configure_openssl(o):
   if options.openssl_is_fips and not options.shared_openssl:
     variables['node_fipsinstall'] = b(True)
 
-  configure_library('openssl', o)
+  configure_library('openssl', o, with_separate_include_var=True)
 
   o['variables']['openssl_version'] = get_openssl_version(o)
   o['variables']['openssl_is_boringssl'] = get_openssl_is_boringssl(o)
@@ -2407,7 +2480,7 @@ def configure_sqlite(o):
       without_sqlite_error('--shared-sqlite')
     return
 
-  configure_library('sqlite', o, pkgname='sqlite3')
+  configure_library('sqlite', o, pkgname='sqlite3', with_separate_include_var=True)
 
 def bundled_ffi_supported(os_name, target_arch):
   if target_arch == 'x86':
@@ -2450,10 +2523,25 @@ def configure_ffi(o):
   configure_library('ffi', o, pkgname='libffi')
 
 def configure_quic(o):
+  if options.experimental_quic and options.without_ssl:
+    warn('--experimental-quic is incompatible with --without-ssl')
   o['variables']['node_use_quic'] = b(options.experimental_quic and
                                       not options.without_ssl)
 
+  if not options.experimental_quic:
+    for lib in ['nghttp3', 'ngtcp2']:
+      shared_lib = 'shared_' + lib
+      if getattr(options, shared_lib):
+        warn(f'--shared-{lib} requires --experimental-quic')
+    return
+
+  configure_library('nghttp3', output, pkgname='libnghttp3')
+  configure_library('ngtcp2', output, pkgname='libngtcp2')
+
 def configure_dtls(o):
+  if options.experimental_dtls and options.without_ssl:
+    warn('--experimental-dtls is incompatible with --without-ssl')
+
   o['variables']['node_use_dtls'] = b(options.experimental_dtls and
                                       not options.without_ssl)
 
@@ -2465,7 +2553,12 @@ def configure_static(o):
       return
 
     if options.fully_static:
-      o['libraries'] += ['-static']
+      if flavor == 'linux':
+        # `-static` drops the `-pie` from common.gypi, e.g. clang:
+        # https://github.com/llvm/llvm-project/blob/68b03cf380e61c86aa59f94a10e8ce2d4c10cbb0/clang/lib/Driver/ToolChains/Gnu.cpp#L351-L366
+        o['libraries'] += ['-static-pie']
+      else:
+        o['libraries'] += ['-static']
     elif options.partly_static:
       o['libraries'] += ['-static-libgcc', '-static-libstdc++']
       if options.enable_asan:
@@ -2496,7 +2589,7 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
             info(f'Using floating patch "{patchfile}" from "{dir_base}"')
         file_list.append(srcfile)
     break
-  return file_list
+  return sorted(file_list)
 
 def configure_intl(o):
   def icu_download(path):
@@ -2893,9 +2986,9 @@ configure_node(output)
 configure_node_lib_files(output)
 configure_node_cctest_sources(output)
 configure_napi(output)
-configure_library('zlib', output)
+configure_library('zlib', output, with_separate_include_var=True)
 configure_library('http_parser', output, pkgname='libllhttp')
-configure_library('libuv', output)
+configure_library('libuv', output, with_separate_include_var=True)
 configure_library('abseil', output, pkgname=[
   'absl_absl_check',
   'absl_absl_log',
@@ -2911,6 +3004,7 @@ configure_library('abseil', output, pkgname=[
   'absl_cleanup',
   'absl_config',
   'absl_cord',
+  'absl_crc32c',
   'absl_core_headers',
   'absl_die_if_null',
   'absl_dynamic_annotations',
@@ -2968,14 +3062,12 @@ configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 # Only cctest uses gtest; keep it out of the node binary's link line.
 output['variables']['node_shared_gtest_libraries'] = []
-configure_library('gtest', output, 'node_shared_gtest_libraries')
+configure_library('gtest', output, libraries_key='node_shared_gtest_libraries')
 configure_library('hdr_histogram', output)
 configure_library('highway', output, pkgname='libhwy')
 configure_library('merve', output)
 configure_library('nbytes', output)
 configure_library('nghttp2', output, pkgname='libnghttp2')
-configure_library('nghttp3', output, pkgname='libnghttp3')
-configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_lief(output);
 configure_perfetto(output);
 configure_sqlite(output);
@@ -2994,7 +3086,7 @@ configure_section_file(output)
 
 # remove builtins that have been disabled
 if options.without_amaro:
-    del shareable_builtins['amaro/dist/index']
+    del shareable_builtins['amaro/dist/internal']
 
 # configure shareable builtins
 output['variables']['node_builtin_shareable_builtins'] = []

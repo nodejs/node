@@ -29,7 +29,7 @@ const expected_keys = [
 
 
 const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
-const hasAmaro = process.config.variables.node_builtin_shareable_builtins.includes('deps/amaro/dist/index.js');
+const hasAmaro = process.config.variables.node_builtin_shareable_builtins.includes('deps/amaro/dist/internal.js');
 const hasLief = process.config.variables.node_use_lief;
 
 if (process.config.variables.node_use_amaro) {

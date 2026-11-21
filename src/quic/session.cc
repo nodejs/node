@@ -1706,6 +1706,9 @@ struct Session::Impl final : public MemoryRetainer {
 #ifdef NGTCP2_CALLBACKS_V5
       nullptr,  // stream_close2
 #endif
+#ifdef NGTCP2_CALLBACKS_V6
+      nullptr,  // extend_max_data
+#endif
   };
 
   static constexpr ngtcp2_callbacks SERVER = {
@@ -1757,6 +1760,9 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_stream_stop_sending,
 #ifdef NGTCP2_CALLBACKS_V5
       nullptr,  // stream_close2
+#endif
+#ifdef NGTCP2_CALLBACKS_V6
+      nullptr,  // extend_max_data
 #endif
   };
 };
@@ -3649,7 +3655,7 @@ void Session::SendConnectionClose() {
 
   auto ErrorAndSilentClose = [&] {
     Debug(this, "Failed to create connection close packet");
-    SetLastError(QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR));
+    SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
     Close(CloseMethod::SILENT);
   };
 
@@ -3680,13 +3686,9 @@ void Session::SendConnectionClose() {
 
   ngtcp2_vec vec = *packet;
   Path path(impl_->local_address_, impl_->remote_address_);
-  ssize_t nwrite = ngtcp2_conn_write_connection_close(*this,
-                                                      &path,
-                                                      nullptr,
-                                                      vec.base,
-                                                      vec.len,
-                                                      impl_->last_error_,
-                                                      uv_hrtime());
+  ngtcp2_ccerr wire_error = impl_->last_error_.ToNgtcp2ConnectionCloseError();
+  ssize_t nwrite = ngtcp2_conn_write_connection_close(
+      *this, &path, nullptr, vec.base, vec.len, &wire_error, uv_hrtime());
 
   if (nwrite < 0) [[unlikely]] {
     return ErrorAndSilentClose();
@@ -3711,8 +3713,9 @@ void Session::OnTimeout() {
   // on a freed object.
   BaseObjectPtr<Session> ref(this);
   HandleScope scope(env()->isolate());
-  int ret;
-  {
+  int ret = 0;
+  // Once we're draining, we don't want ngtcp to handle expired timeouts
+  if (!is_in_draining_period()) {
     NgTcp2CallbackScope callback_scope(this);
     ret = ngtcp2_conn_handle_expiry(*this, uv_hrtime());
   }

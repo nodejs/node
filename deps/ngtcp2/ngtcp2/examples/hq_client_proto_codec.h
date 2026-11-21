@@ -63,7 +63,7 @@ public:
   std::expected<void, Error> extend_max_stream_data(int64_t stream_id,
                                                     uint64_t max_data);
 
-  void early_data_rejected() {}
+  void early_data_rejected() { sendq_.clear(); }
 
   std::expected<void, Error>
   on_stream_close(int64_t stream_id, std::optional<uint64_t> rx_app_error_code,

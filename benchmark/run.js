@@ -56,7 +56,7 @@ function runBenchmark(filename) {
   const cpuCore = cli.getCpuCoreSetting();
   let child;
   if (cpuCore !== null) {
-    child = spawn('taskset', ['-c', cpuCore, 'node', scriptPath, ...args], {
+    child = spawn('taskset', ['-c', cpuCore, process.execPath, scriptPath, ...args], {
       stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
     });
   } else {

@@ -14,6 +14,7 @@ if (!common.hasCrypto) {
 
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const { spawnSync } = require('child_process');
 
 const file = fixtures.path('permission', 'hello-world.js');
@@ -35,4 +36,20 @@ const fsReadLoader = fixtures.path('permission', 'fs-read-loader.js');
     ],
   );
   assert.strictEqual(status, 0, `${arg0} Error: ${stderr.toString()}`);
+});
+
+// When the code is read from stdin there is no entrypoint, so no implicit
+// read access should be granted (in particular, not to the cwd).
+tmpdir.refresh();
+[
+  ['--permission'],
+  ['--permission', '-'],
+].forEach((args) => {
+  const { status, stdout, stderr } = spawnSync(process.execPath, args, {
+    cwd: tmpdir.path,
+    input: 'console.log(process.permission.has("fs.read", ' +
+           'require("path").join(process.cwd(), "x")))',
+  });
+  assert.strictEqual(status, 0, `${args} Error: ${stderr.toString()}`);
+  assert.strictEqual(stdout.toString().trim(), 'false');
 });

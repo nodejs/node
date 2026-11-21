@@ -12,6 +12,9 @@ all: \
   ca4-cert.pem \
   ca5-cert.pem \
   ca6-cert.pem \
+  blocked-ca-cert.pem \
+  blocked-ca-leaf-cert.pem \
+  blocked-key-leaf-cert.pem \
   cert-without-key-fips.pfx \
   agent1-cert.pem \
   agent1-fips.pfx \
@@ -224,6 +227,79 @@ ca3-cert.pem: ca3-csr.pem ca3-key.pem ca3.cnf ca1-cert.pem ca1-key.pem
 		-CAkey ca1-key.pem \
 		-CAcreateserial \
 		-out ca3-cert.pem
+
+#
+# blocked-ca is a subordinate CA issued by ca1 whose public key is on the
+# compiled-in SPKI blocklist (src/crypto/crypto_context.cc). Any chain that
+# contains this key must be rejected, so it is used to test the blocklist.
+# The certificates can be regenerated freely; the key cannot (see below).
+# blocked-ca-leaf is a server cert issued by blocked-ca; blocked-key-leaf is
+# a server cert issued by ca1 that reuses the blocked key itself.
+# ('password' is used for the CA password.)
+#
+# The SHA-256 of this key's SubjectPublicKeyInfo is compiled into
+# src/crypto/crypto_context.cc, so the key is pinned: it is kept across
+# `make clean` and never regenerated here. Rotating it means updating the
+# digest and fingerprint in that file as well.
+blocked-ca-key.pem:
+	@echo "$@ is pinned (see src/crypto/crypto_context.cc); restore it with: git checkout -- $@" >&2
+	@exit 1
+
+blocked-ca-csr.pem: blocked-ca.cnf blocked-ca-key.pem
+	openssl req -new \
+		-extensions v3_ca \
+		-config blocked-ca.cnf \
+		-key blocked-ca-key.pem \
+		-out blocked-ca-csr.pem
+
+blocked-ca-cert.pem: blocked-ca-csr.pem blocked-ca-key.pem blocked-ca.cnf ca1-cert.pem ca1-key.pem
+	openssl x509 -req \
+		-extfile blocked-ca.cnf \
+		-extensions v3_ca \
+		-days 99999 \
+		-passin "pass:password" \
+		-in blocked-ca-csr.pem \
+		-CA ca1-cert.pem \
+		-CAkey ca1-key.pem \
+		-CAcreateserial \
+		-out blocked-ca-cert.pem
+
+blocked-ca-leaf-key.pem:
+	openssl genrsa -out blocked-ca-leaf-key.pem 2048
+
+blocked-ca-leaf-csr.pem: blocked-ca-leaf.cnf blocked-ca-leaf-key.pem
+	openssl req -new \
+		-config blocked-ca-leaf.cnf \
+		-key blocked-ca-leaf-key.pem \
+		-out blocked-ca-leaf-csr.pem
+
+blocked-ca-leaf-cert.pem: blocked-ca-leaf-csr.pem blocked-ca-cert.pem blocked-ca-key.pem
+	openssl x509 -req \
+		-days 99999 \
+		-in blocked-ca-leaf-csr.pem \
+		-CA blocked-ca-cert.pem \
+		-CAkey blocked-ca-key.pem \
+		-CAcreateserial \
+		-extfile blocked-ca-leaf.cnf \
+		-out blocked-ca-leaf-cert.pem
+	cat blocked-ca-cert.pem >> blocked-ca-leaf-cert.pem
+
+blocked-key-leaf-csr.pem: blocked-key-leaf.cnf blocked-ca-key.pem
+	openssl req -new \
+		-config blocked-key-leaf.cnf \
+		-key blocked-ca-key.pem \
+		-out blocked-key-leaf-csr.pem
+
+blocked-key-leaf-cert.pem: blocked-key-leaf-csr.pem ca1-cert.pem ca1-key.pem
+	openssl x509 -req \
+		-days 99999 \
+		-passin "pass:password" \
+		-in blocked-key-leaf-csr.pem \
+		-CA ca1-cert.pem \
+		-CAkey ca1-key.pem \
+		-CAcreateserial \
+		-extfile blocked-key-leaf.cnf \
+		-out blocked-key-leaf-cert.pem
 
 #
 # Create Subordinate Certificate Authority: ca4 issued by ca2
@@ -1312,7 +1388,7 @@ non-canonical-ip-dns-key.pem:
 	openssl ecparam -name prime256v1 -genkey -noout -out non-canonical-ip-dns-key.pem
 
 clean:
-	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-crl-agent3-database.txt* ca2-crl-agent3.cnf ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
+	rm -f *.pfx $(filter-out blocked-ca-key.pem,$(wildcard *.pem)) *.srl ca2-database.txt ca2-crl-agent3-database.txt* ca2-crl-agent3.cnf ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
 	@> fake-startcom-root-database.txt
 
 test: agent1-verify agent2-verify agent3-verify agent4-verify agent5-verify agent6-verify agent7-verify agent8-verify agent10-verify ec10-verify

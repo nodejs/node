@@ -40,6 +40,9 @@ uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
   return ngtcp2_min(10 * max_udp_payload_size, n);
 }
 
+/* NGTCP2_CC_SLOW_START_PACING_GAIN_H is the pacing rate for slow
+   start phase. */
+#define NGTCP2_CC_SLOW_START_PACING_GAIN_H 200
 /* 1.25 is the under-utilization avoidance factor described in
    https://datatracker.ietf.org/doc/html/rfc9002#section-7.7 */
 #define NGTCP2_CC_PACING_GAIN_H 125
@@ -47,22 +50,30 @@ uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
 static void init_pacing_rate(ngtcp2_conn_stat *cstat) {
   assert(cstat->cwnd);
 
-  cstat->pacing_interval_m = ngtcp2_max((NGTCP2_MILLISECONDS << 10) * 100 /
-                                          NGTCP2_CC_PACING_GAIN_H / cstat->cwnd,
-                                        1);
+  cstat->pacing_interval_m =
+    ngtcp2_max((NGTCP2_MILLISECONDS << 10) * 100 /
+                 NGTCP2_CC_SLOW_START_PACING_GAIN_H / cstat->cwnd,
+               1);
   cstat->send_quantum = 10 * cstat->max_tx_udp_payload_size;
 }
 
 static void set_pacing_rate(ngtcp2_conn_stat *cstat) {
   size_t send_quantum = 64 * 1024;
+  uint64_t pacing_gain_h;
 
   assert(cstat->cwnd);
+
+  if (cstat->cwnd < cstat->ssthresh) {
+    pacing_gain_h = NGTCP2_CC_SLOW_START_PACING_GAIN_H;
+  } else {
+    pacing_gain_h = NGTCP2_CC_PACING_GAIN_H;
+  }
 
   cstat->pacing_interval_m =
     ((cstat->first_rtt_sample_ts == UINT64_MAX ? NGTCP2_MILLISECONDS
                                                : cstat->smoothed_rtt)
      << 10) *
-    100 / NGTCP2_CC_PACING_GAIN_H / cstat->cwnd;
+    100 / pacing_gain_h / cstat->cwnd;
 
   cstat->pacing_interval_m = ngtcp2_max(cstat->pacing_interval_m, 1);
 
@@ -232,6 +243,7 @@ void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cubic, ngtcp2_log *log,
         .congestion_event = ngtcp2_cc_cubic_cc_congestion_event,
         .on_spurious_congestion = ngtcp2_cc_cubic_cc_on_spurious_congestion,
         .on_persistent_congestion = ngtcp2_cc_cubic_cc_on_persistent_congestion,
+        .on_pkt_lost_confirmed = ngtcp2_cc_cubic_cc_on_pkt_lost_confirmed,
         .reset = ngtcp2_cc_cubic_cc_reset,
       },
     .rst = rst,
@@ -375,6 +387,8 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
         cstat->ssthresh = cstat->cwnd;
         cubic->current.cwnd_prior = cstat->cwnd;
         cubic->current.w_est = cstat->cwnd;
+
+        set_pacing_rate(cstat);
       }
 
       return;
@@ -444,7 +458,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   if (cubic->current.w_est > w_cubic) {
     cstat->cwnd = cubic->current.w_est;
   } else {
-    bytes_acked = (target - cstat->cwnd) * cstat->max_tx_udp_payload_size;
+    bytes_acked = (target - cstat->cwnd) * ack->bytes_delivered;
     m = (bytes_acked + cubic->current.pending_bytes_acked) / cstat->cwnd;
 
     cubic->current.pending_bytes_acked += bytes_acked;
@@ -565,6 +579,21 @@ void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *cc,
   cstat->congestion_recovery_start_ts = UINT64_MAX;
 
   set_pacing_rate(cstat);
+}
+
+void ngtcp2_cc_cubic_cc_on_pkt_lost_confirmed(ngtcp2_cc *cc,
+                                              ngtcp2_conn_stat *cstat,
+                                              ngtcp2_tstamp ts) {
+  ngtcp2_cc_cubic *cubic = ngtcp2_struct_of(cc, ngtcp2_cc_cubic, cc);
+  (void)cstat;
+  (void)ts;
+
+  /* The loss is real.  Discard the snapshot so that a spurious
+     congestion detected later does not restore the state from before
+     this loss. */
+  cubic_vars_reset(&cubic->undo.v);
+  cubic->undo.cwnd = 0;
+  cubic->undo.ssthresh = 0;
 }
 
 void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,

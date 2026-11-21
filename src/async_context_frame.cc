@@ -53,7 +53,8 @@ void set(Isolate* isolate, Local<Value> value) {
 // but sometimes (such as enterWith) a direct exchange is needed.
 Local<Value> exchange(Environment* env, Local<Value> value) {
   auto prior = current(env->isolate());
-  set(env, value);
+  // Usually the frame does not change, and there is nothing to set.
+  if (prior != value) set(env, value);
   return prior;
 }
 

@@ -2,6 +2,9 @@
 // are case-insensitive and unicode-normalizing, so we need to treat
 // node.children.get('FOO') and node.children.get('foo') as the same thing.
 
+// ASCII keys without uppercase letters are already normalized.
+const needsNormalization = /[A-Z\u0080-\uffff]/
+
 module.exports = class CIMap extends Map {
   #keys = new Map()
 
@@ -13,7 +16,7 @@ module.exports = class CIMap extends Map {
   }
 
   #normKey (key) {
-    if (typeof key !== 'string') {
+    if (typeof key !== 'string' || !needsNormalization.test(key)) {
       return key
     }
     return key.normalize('NFKD').toLowerCase()

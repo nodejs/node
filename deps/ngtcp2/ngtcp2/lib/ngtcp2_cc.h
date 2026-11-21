@@ -173,6 +173,19 @@ typedef void (*ngtcp2_cc_on_persistent_congestion)(ngtcp2_cc *cc,
 /**
  * @functypedef
  *
+ * :type:`ngtcp2_cc_on_pkt_lost_confirmed` is a callback function
+ * which is called when a packet which was declared lost is removed
+ * from the retransmission buffer without being acknowledged.  The
+ * congestion event that the packet belongs to is no longer considered
+ * to be spurious.
+ */
+typedef void (*ngtcp2_cc_on_pkt_lost_confirmed)(ngtcp2_cc *cc,
+                                                ngtcp2_conn_stat *cstat,
+                                                ngtcp2_tstamp ts);
+
+/**
+ * @functypedef
+ *
  * :type:`ngtcp2_cc_on_ack_recv` is a callback function which is
  * called when an acknowledgement is received.
  */
@@ -235,6 +248,12 @@ typedef struct ngtcp2_cc {
    * is called when persistent congestion is established.
    */
   ngtcp2_cc_on_persistent_congestion on_persistent_congestion;
+  /**
+   * :member:`on_pkt_lost_confirmed` is a callback function which is
+   * called when a lost packet is removed from the retransmission
+   * buffer without being acknowledged.
+   */
+  ngtcp2_cc_on_pkt_lost_confirmed on_pkt_lost_confirmed;
   /**
    * :member:`on_ack_recv` is a callback function which is called when
    * an acknowledgement is received.
@@ -348,6 +367,10 @@ void ngtcp2_cc_cubic_cc_on_spurious_congestion(ngtcp2_cc *ccx,
 void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *cc,
                                                  ngtcp2_conn_stat *cstat,
                                                  ngtcp2_tstamp ts);
+
+void ngtcp2_cc_cubic_cc_on_pkt_lost_confirmed(ngtcp2_cc *cc,
+                                              ngtcp2_conn_stat *cstat,
+                                              ngtcp2_tstamp ts);
 
 void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                               ngtcp2_tstamp ts);

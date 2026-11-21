@@ -42,20 +42,6 @@ const keyDataView = toDataView(keyBuff);
 const certDataView = toDataView(certBuff);
 const caArrDataView = toDataView(caCert);
 
-function filterBoringSSLKeyCertArrayCases(options, setName) {
-  if (!isBoringSSL)
-    return options;
-
-  // The array-valued cases exercise multi-identity key/cert handling.
-  // BoringSSL may reject those cases with backend key/cert mismatch errors
-  // before the boolean/type validation this test is targeting. Keep the scalar
-  // cases so https.createServer() option type validation is still covered.
-  common.printSkipMessage(
-    `BoringSSL: skipping ${setName} key/cert array cases`);
-  return options.filter(([key, cert]) => !Array.isArray(key) &&
-                                         !Array.isArray(cert));
-}
-
 // Checks to ensure https.createServer doesn't throw an error
 // Format ['key', 'cert']
 const validOptions = [
@@ -72,18 +58,24 @@ const validOptions = [
   [keyDataView, certDataView],
   [keyDataView, false],
   [false, certDataView],
-  [[keyBuff, keyBuff2], [certBuff, certBuff2]],
-  [[keyStr, keyStr2], [certStr, certStr2]],
   [[keyStr, keyStr2], false],
   [false, [certStr, certStr2]],
   [[{ pem: keyBuff }], false],
   [[{ pem: keyBuff }, { pem: keyBuff }], false],
 ];
 
-filterBoringSSLKeyCertArrayCases(validOptions, 'valid')
-  .forEach(([key, cert]) => {
-    https.createServer({ key, cert });
-  });
+// Node's BoringSSL setup keeps one identity, so mixed RSA/EC key and
+// certificate arrays fail with a key-type mismatch before option validation.
+if (!isBoringSSL) {
+  validOptions.push(
+    [[keyBuff, keyBuff2], [certBuff, certBuff2]],
+    [[keyStr, keyStr2], [certStr, certStr2]],
+  );
+}
+
+validOptions.forEach(([key, cert]) => {
+  https.createServer({ key, cert });
+});
 
 // Checks to ensure https.createServer predictably throws an error
 // Format ['key', 'cert', 'expected message']
@@ -96,14 +88,18 @@ const invalidKeyOptions = [
   [true, false],
   [{ pem: keyBuff }, false],
   [1, false],
-  [[keyBuff, true], [certBuff, certBuff2], 1],
   [[true, keyStr2], [certStr, certStr2], 0],
   [[true, false], [certBuff, certBuff2], 0],
   [true, [certBuff, certBuff2]],
 ];
 
-for (const [key, cert, index] of
-  filterBoringSSLKeyCertArrayCases(invalidKeyOptions, 'invalid key')) {
+// With both certificates loaded, BoringSSL rejects the RSA key against the
+// last (EC) certificate before reaching the invalid second key.
+if (!isBoringSSL) {
+  invalidKeyOptions.push([[keyBuff, true], [certBuff, certBuff2], 1]);
+}
+
+for (const [key, cert, index] of invalidKeyOptions) {
   const val = index === undefined ? key : key[index];
   assert.throws(() => {
     https.createServer({ key, cert });
@@ -131,8 +127,7 @@ const invalidCertOptions = [
   [[keyStr, keyStr2], true],
 ];
 
-for (const [key, cert, index] of
-  filterBoringSSLKeyCertArrayCases(invalidCertOptions, 'invalid cert')) {
+for (const [key, cert, index] of invalidCertOptions) {
   const val = index === undefined ? cert : cert[index];
   assert.throws(() => {
     https.createServer({ key, cert });

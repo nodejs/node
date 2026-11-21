@@ -63,6 +63,7 @@ if (v8_enable_google_benchmark) {
 
     deps = [
       "//:v8",
+      "//:v8_tracing",
       "//third_party/google_benchmark_chrome:google_benchmark",
     ]
   }

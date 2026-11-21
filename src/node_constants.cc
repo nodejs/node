@@ -38,6 +38,7 @@
 
 #if HAVE_OPENSSL
 #include <openssl/ec.h>
+#include <openssl/rsa.h>
 #include <openssl/ssl.h>
 #if !defined(RSA_PKCS1_PADDING)
 #define RSA_PKCS1_PADDING 1
@@ -57,6 +58,18 @@
 #if !defined(RSA_PKCS1_PSS_PADDING)
 #define RSA_PKCS1_PSS_PADDING 6
 #endif
+#ifndef RSA_PSS_SALTLEN_DIGEST
+#define RSA_PSS_SALTLEN_DIGEST -1
+#endif
+
+#ifndef RSA_PSS_SALTLEN_MAX_SIGN
+#define RSA_PSS_SALTLEN_MAX_SIGN -2
+#endif
+
+#ifndef RSA_PSS_SALTLEN_AUTO
+#define RSA_PSS_SALTLEN_AUTO -2
+#endif
+
 #if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_MAJOR >= 3
 // OpenSSL hides these deprecated DH check constants under
 // OPENSSL_NO_DEPRECATED, but the numeric verifyError values remain public API.

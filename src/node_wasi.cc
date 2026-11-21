@@ -36,6 +36,7 @@ using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -296,13 +297,17 @@ static bool CheckType(Local<Value> v);
 template <typename VT>
 static VT ConvertType(Local<Value> V);
 
+// Wasm i32 values with the high bit set arrive as negative Int32 numbers.
 template <>
 bool CheckType<uint32_t>(Local<Value> value) {
-  return value->IsUint32();
+  return value->IsUint32() || value->IsInt32();
 }
 
 template <>
 uint32_t ConvertType(Local<Value> value) {
+  if (value->IsInt32()) {
+    return static_cast<uint32_t>(value.As<Int32>()->Value());
+  }
   return value.As<Uint32>()->Value();
 }
 

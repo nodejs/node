@@ -49,7 +49,7 @@ test('ZipFile.open() reads a VFS-backed archive through an async virtual fd', as
       // A lazy, file-backed entry: it retains no content and reads straight
       // from the virtual fd on demand.
       const a = await zf.get('a.txt');
-      assert.strictEqual(a.rawContent, null);
+      assert.strictEqual((await a.rawContent()).length, a.compressedSize);
       assert.strictEqual((await a.content()).toString(), 'hello vfs');
       assert.strictEqual(await zf.get('a.txt'), a); // Cached handle identity
 

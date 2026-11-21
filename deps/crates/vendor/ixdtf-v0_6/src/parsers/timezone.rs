@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
     assert_syntax,
-    core::EncodingType,
+    encoding::EncodingType,
     records::{
         FullPrecisionOffset, MinutePrecisionOffset, Sign, TimeZoneAnnotation, TimeZoneRecord,
         UtcOffsetRecord, UtcOffsetRecordOrZ,
@@ -39,19 +39,22 @@ pub(crate) fn parse_ambiguous_tz_annotation<'a, T: EncodingType>(
 ) -> ParserResult<Option<TimeZoneAnnotation<'a, T>>> {
     // Peek position + 1 to check for critical flag.
     let mut current_peek = 1;
-    let critical = cursor
-        .peek_n(current_peek)?
-        .map(is_critical_flag)
-        .ok_or(ParseError::abrupt_end("AmbiguousAnnotation"))?;
+    let critical =
+        cursor
+            .peek_n(current_peek)?
+            .map(is_critical_flag)
+            .ok_or(ParseError::AbruptEnd {
+                location: "AmbiguousAnnotation",
+            })?;
 
     // Advance cursor if critical flag present.
     if critical {
         current_peek += 1;
     }
 
-    let leading_char = cursor
-        .peek_n(current_peek)?
-        .ok_or(ParseError::abrupt_end("AmbiguousAnnotation"))?;
+    let leading_char = cursor.peek_n(current_peek)?.ok_or(ParseError::AbruptEnd {
+        location: "AmbiguousAnnotation",
+    })?;
 
     // Ambigious start values when lowercase alpha that is shared between `TzLeadingChar` and `KeyLeadingChar`.
     if is_a_key_leading_char(leading_char) {
@@ -69,7 +72,9 @@ pub(crate) fn parse_ambiguous_tz_annotation<'a, T: EncodingType>(
 
             peek_pos += 1;
         }
-        Err(ParseError::abrupt_end("AmbiguousAnnotation"))
+        Err(ParseError::AbruptEnd {
+            location: "AmbiguousAnnotation",
+        })
     } else {
         // Unambiguously not a non-tz annotation, try parsing a tz annotation
         let tz = parse_tz_annotation(cursor)?;
@@ -106,7 +111,9 @@ pub(crate) fn parse_time_zone<'a, T: EncodingType>(
 ) -> ParserResult<TimeZoneRecord<'a, T>> {
     let is_iana = cursor
         .check(is_tz_leading_char)?
-        .ok_or(ParseError::abrupt_end("TimeZoneAnnotation"))?;
+        .ok_or(ParseError::AbruptEnd {
+            location: "TimeZoneAnnotation",
+        })?;
     let is_offset = cursor.check_or(false, is_ascii_sign)?;
 
     if is_iana {
@@ -203,7 +210,9 @@ pub(crate) fn parse_utc_offset_minute_precision<T: EncodingType>(
     cursor: &mut Cursor<T>,
 ) -> ParserResult<(MinutePrecisionOffset, bool)> {
     // https://www.rfc-editor.org/rfc/rfc3339#section-5.6
-    let sign = cursor.next_or(ParseError::abrupt_end("time-numoffset"))?;
+    let sign = cursor.next_or(ParseError::AbruptEnd {
+        location: "time-numoffset",
+    })?;
     if !is_ascii_sign(sign) {
         return Err(ParseError::OffsetNeedsSign);
     }

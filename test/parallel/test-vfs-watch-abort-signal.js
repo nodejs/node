@@ -28,11 +28,13 @@ const vfs = require('node:vfs');
     setImmediate(() => myVfs.writeFileSync('/file.txt', 'b'));
   }
 
-  // promises.watch with pre-aborted signal resolves done immediately
+  // promises.watch with pre-aborted signal rejects the first next() with
+  // AbortError, matching native fs.promises.watch
   {
     const myVfs = vfs.create();
     myVfs.writeFileSync('/p.txt', 'a');
     const iter = myVfs.promises.watch('/p.txt', { signal: AbortSignal.abort() });
+    await assert.rejects(iter.next(), { name: 'AbortError', code: 'ABORT_ERR' });
     const r = await iter.next();
     assert.strictEqual(r.done, true);
   }

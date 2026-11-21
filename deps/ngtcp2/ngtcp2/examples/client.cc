@@ -1721,7 +1721,8 @@ std::expected<void, Error> Client::make_stream_early() {
 void Client::on_extend_max_streams() {
   int64_t stream_id;
 
-  if ((config.delay_stream && !handshake_confirmed_) ||
+  if (config.requests.empty() ||
+      (config.delay_stream && !handshake_confirmed_) ||
       ev_is_active(&delay_stream_timer_)) {
     return;
   }

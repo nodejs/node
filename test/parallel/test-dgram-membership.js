@@ -35,6 +35,20 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
   }));
 }
 
+// Source-specific membership methods on closed sockets should throw.
+for (const method of ['addSourceSpecificMembership', 'dropSourceSpecificMembership']) {
+  const socket = setup();
+  socket.close(common.mustCall(() => {
+    assert.throws(() => {
+      socket[method]('127.0.0.1', multicastAddress);
+    }, {
+      code: 'ERR_SOCKET_DGRAM_NOT_RUNNING',
+      name: 'Error',
+      message: 'Not running'
+    });
+  }));
+}
+
 // addMembership() with no argument should throw
 {
   const socket = setup();

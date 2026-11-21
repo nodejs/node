@@ -73,6 +73,15 @@
 #define NCRYPTO_USE_LEGACY_KEY_TYPES 0
 #endif
 
+// OpenSSL 4 makes ASN1_STRING opaque and provides a checked BIT STRING length
+// accessor. Earlier OpenSSL releases and pinned BoringSSL expose the decoded
+// unused-bit count through ASN1_STRING::flags.
+#if !NCRYPTO_USE_BORINGSSL && OPENSSL_VERSION_PREREQ(4, 0)
+#define NCRYPTO_HAS_ASN1_BIT_STRING_GET_LENGTH 1
+#else
+#define NCRYPTO_HAS_ASN1_BIT_STRING_GET_LENGTH 0
+#endif
+
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
 #include <openssl/core_names.h>
 #include <openssl/encoder.h>
@@ -320,6 +329,7 @@ class DataPointer;
 class DHPointer;
 class ECKeyPointer;
 class EVPKeyPointer;
+class HMACCtxPointer;
 class KeyAlgorithm;
 class MacCache;
 class EVPMacCtxPointer;
@@ -381,6 +391,9 @@ class Digest final {
 
   static const Digest FromName(const char* name);
   static const Digest Fetch(const char* name);
+  // Returns a Digest that holds its own reference to md if md was fetched from
+  // a provider.
+  static const Digest Ref(const EVP_MD* md);
 
  private:
   const EVP_MD* md_ = nullptr;
@@ -413,6 +426,7 @@ class DigestCache final {
                                       CaseInsensitiveNameEqual>;
 
   DigestCache() = default;
+  ~DigestCache();
   NCRYPTO_DISALLOW_COPY_AND_MOVE(DigestCache)
 
   Result lookup(const char* name, uint64_t generation) const;
@@ -433,6 +447,12 @@ class DigestCache final {
   Result insert(const char* name, const EVP_MD* digest, uint64_t generation);
   void reset(uint64_t generation);
   const AliasMap& aliases() const;
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  // Returns an HMAC context for the cached digest that has no key yet.
+  // Duplicating it avoids fetching HMAC and the digest for every context.
+  const HMACCtxPointer* getHmacTemplate(const EVP_MD* digest,
+                                        uint64_t generation);
+#endif
 
  private:
   uint64_t generation_ = 0;
@@ -444,6 +464,7 @@ class DigestCache final {
   uint32_t first_id_ = 0;
   uint32_t next_id_ = 0;
   std::vector<EVPMDPointer> digests_;
+  std::vector<std::unique_ptr<HMACCtxPointer>> hmac_templates_;
   AliasMap aliases_;
 #endif
 };
@@ -1642,6 +1663,20 @@ class X509Name final {
   int total_;
 };
 
+struct X509NameAttribute final {
+  int set = 0;
+  std::string oid;
+  std::optional<std::string> value;
+};
+
+using X509NameInspection = std::vector<X509NameAttribute>;
+
+struct X509RawExtension final {
+  std::string oid;
+  bool critical = false;
+  std::vector<unsigned char> value;
+};
+
 class X509View final {
  public:
   static X509View From(const SSLPointer& ssl);
@@ -1678,6 +1713,11 @@ class X509View final {
   DataPointer getSerialNumber() const;
   Result<EVPKeyPointer, int> getPublicKey() const;
   StackOfASN1 getKeyUsage() const;
+
+  std::optional<int64_t> getVersion() const;
+  std::optional<X509NameInspection> inspectSubjectName() const;
+  std::optional<X509NameInspection> inspectIssuerName() const;
+  std::optional<std::vector<X509RawExtension>> inspectExtensions() const;
 
   bool isCA() const;
   bool isIssuedBy(const X509View& other) const;
@@ -2108,14 +2148,19 @@ class HMACCtxPointer final {
   bool update(const Buffer<const void>& buf);
   DataPointer digest();
   bool digestInto(Buffer<void>* buf);
+  HMACCtxPointer clone() const;
 
   static HMACCtxPointer New();
+  // Creates a context that already uses md, so that init() does not have to
+  // fetch md again when it is called with the same digest.
+  static HMACCtxPointer New(const Digest& md);
 
  private:
   HMACCtxPointer(EVPMacPointer&& mac, EVPMacCtxPointer&& ctx);
 
   EVPMacPointer mac_;
   EVPMacCtxPointer ctx_;
+  const EVP_MD* md_ = nullptr;
   size_t md_size_ = 0;
 };
 #endif  // OPENSSL_WITH_EVP_MAC

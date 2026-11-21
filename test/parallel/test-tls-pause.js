@@ -64,6 +64,7 @@ server.listen(0, common.mustCall(() => {
         console.error('write again');
         sent += bufSize;
         assert.ok(sent < 100 * 1024 * 1024); // max 100MB
+        // eslint-disable-next-line no-use-before-define
         return process.nextTick(send);
       }
       sent += bufSize;

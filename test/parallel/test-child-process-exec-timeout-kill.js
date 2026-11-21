@@ -21,7 +21,7 @@ if (process.argv[2] === 'child') {
 const [cmd, opts] = common.escapePOSIXShell`"${process.execPath}" "${__filename}" child`;
 
 // Test with a different kill signal.
-cp.exec(cmd, {
+const child = cp.exec(cmd, {
   ...opts,
   timeout: kExpiringParentTimer,
   killSignal: 'SIGKILL'
@@ -30,6 +30,8 @@ cp.exec(cmd, {
   console.log('[stderr]', stderr.trim());
 
   assert.strictEqual(err.killed, true);
+  assert.strictEqual(err.timedOut, true);
+  assert.strictEqual(child.timedOut, true);
   assert.strictEqual(err.code, null);
   assert.strictEqual(err.signal, 'SIGKILL');
   assert.strictEqual(err.cmd, cmd);

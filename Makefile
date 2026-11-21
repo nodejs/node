@@ -349,7 +349,7 @@ TRACE_PROCESSOR_SHELL_DEPS = deps/perfetto/VERSION
 endif
 
 $(TRACE_PROCESSOR_SHELL_PATH): $(TRACE_PROCESSOR_SHELL_DEPS)
-	@tools/perfetto/get_trace_processor $@
+	@$(PYTHON) tools/perfetto/get_trace_processor.py $@
 
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
@@ -992,7 +992,7 @@ ifndef DISTTYPE
 DISTTYPE=release
 endif
 ifeq ($(DISTTYPE),release)
-FULLVERSION=$(VERSION)
+FULLVERSION=v$(shell $(PYTHON) tools/getnodeversion.py --full)
 else # ifeq ($(DISTTYPE),release)
 ifeq ($(DISTTYPE),custom)
 ifndef CUSTOMTAG
@@ -1271,7 +1271,7 @@ endif
 		--resources $(MACOSOUTDIR)/installer/productbuild/Resources \
 		--package-path $(MACOSOUTDIR)/pkgs ./$(PKG)
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" sh tools/osx-productsign.sh
-	sh tools/osx-notarize.sh $(FULLVERSION)
+	sh tools/osx-notarize.sh $(PKG)
 
 .PHONY: pkg
 pkg: $(PKG) ## Build the macOS installer for releases.
@@ -1363,8 +1363,8 @@ endif
 	$(RM) -r $(TARNAME)/tools/eslint/node_modules
 	$(RM) -r $(TARNAME)/tools/osx-*
 	$(RM) -r $(TARNAME)/tools/osx-pkg.pmdoc
-	find $(TARNAME)/deps/v8/test/* -type d ! -regex '.*/test/torque$$' | xargs $(RM) -r
-	find $(TARNAME)/deps/v8/test -type f ! -regex '.*/test/torque/.*' | xargs $(RM)
+	find $(TARNAME)/deps/v8/test/* -type d ! -regex '.*/test/torque$$' ! -regex '.*/test/mkgrokdump$$' | xargs $(RM) -r
+	find $(TARNAME)/deps/v8/test -type f ! -regex '.*/test/torque/.*' ! -regex '.*/test/mkgrokdump/.*' | xargs $(RM)
 	find $(TARNAME)/deps/zlib/contrib/* -type d ! -regex '.*/contrib/optimizations$$' | xargs $(RM) -r
 	find $(TARNAME)/ -name "eslint.config*" -maxdepth 2 | xargs $(RM)
 	find $(TARNAME)/ -type l | xargs $(RM)
@@ -1457,6 +1457,7 @@ else
 endif
 ifeq ($(OSTYPE),darwin)
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(BINARYNAME)" sh tools/osx-codesign.sh
+	sh tools/osx-notarize.sh $(BINARYNAME)/bin/node
 endif
 	tar -cf $(BINARYNAME).tar $(BINARYNAME)
 	$(RM) -r $(BINARYNAME)
@@ -1499,10 +1500,11 @@ bench-addons-clean:
 	$(RM) -r benchmark/napi/*/build
 	$(RM) benchmark/napi/.buildstamp
 
-ifeq ("$(wildcard tools/.mdlintstamp)","")
-LINT_MD_NEWER =
-else
+# Recheck all Markdown when the lint dependencies change.
+ifeq ($(shell test tools/.mdlintstamp -nt tools/lint-md/package-lock.json && echo 1),1)
 LINT_MD_NEWER = -newer tools/.mdlintstamp
+else
+LINT_MD_NEWER =
 endif
 
 LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(filter-out CLAUDE.md,$(wildcard *.md))
@@ -1512,7 +1514,7 @@ LINT_MD_FILES = $(shell $(FIND) $(LINT_MD_TARGETS) -type f \
 run-lint-md = tools/lint-md/lint-md.mjs $(LINT_MD_FILES)
 
 # Check for a specific file, as (empty) directories are persisted in git.
-tools/lint-md/node_modules/remark-parse/package.json:
+tools/lint-md/node_modules/remark-parse/package.json: tools/lint-md/package-lock.json
 	-cd tools/lint-md && $(call available-node,$(run-npm-ci))
 
 # Lint all changed markdown files maintained by us
@@ -1738,15 +1740,17 @@ endif
 # python -m pip install yamllint
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-yaml-build: ## Build resources needed to lint YAML files.
+ifeq ($(YAMLLINT), tools/pip/site-packages/bin/yamllint)
 	$(info Pip installing yamllint on $(shell $(PYTHON) --version)...)
 	$(PYTHON) -m pip install --upgrade -t tools/pip/site-packages yamllint || \
 		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages yamllint
+endif
 
 .PHONY: lint-yaml
 ifneq ("","$(wildcard $(YAMLLINT))")
 lint-yaml: ## Lint the YAML files with yamllint.
 	$(info Running YAML linter...)
-	PYTHONPATH=tools/pip $(YAMLLINT) .
+	PYTHONPATH=tools/pip $(YAMLLINT) --strict .
 else
 lint-yaml:
 	$(warning YAML linting with yamllint is not available)

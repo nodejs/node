@@ -12,8 +12,8 @@ if (isBoringSSL)
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const path = require('path');
-const { spawnSyncAndAssert } = require('../common/child_process');
 const fixtures = require('../common/fixtures');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const { internalBinding } = require('internal/test/binding');
 const { testFipsCrypto } = internalBinding('crypto');
 
@@ -78,32 +78,66 @@ function testHelper(stream, args, expectedStatus, expectedOutput, cmd, env) {
   responseHandler(child[stream], expectedOutput);
 }
 
-// --enable-fips should raise an error if OpenSSL is not FIPS enabled.
-testHelper(
-  testFipsCrypto() ? 'stdout' : 'stderr',
-  ['--enable-fips'],
-  testFipsCrypto() ? kNoFailure : kGenericUserError,
-  testFipsCrypto() ? FIPS_ENABLED : FIPS_ENABLE_ERROR_STRING,
-  'require("crypto").getFips()',
-  process.env);
+if (hasOpenSSL(3)) {
+  const fipsFlags = ['--enable-fips', '--force-fips', '--force-fips=provider'];
+  if (hasOpenSSL(3, 4))
+    fipsFlags.push('--force-fips=strict');
 
-// --force-fips should raise an error if OpenSSL is not FIPS enabled.
-testHelper(
-  testFipsCrypto() ? 'stdout' : 'stderr',
-  ['--force-fips'],
-  testFipsCrypto() ? kNoFailure : kGenericUserError,
-  testFipsCrypto() ? FIPS_ENABLED : FIPS_FORCE_ERROR_STRING,
-  'require("crypto").getFips()',
-  process.env);
+  // The flags change the default property query without requiring a provider
+  // named "fips". This configuration supplies the RNG needed during startup,
+  // but has no cryptographic implementations matching fips=yes.
+  for (const flag of fipsFlags) {
+    spawnSyncAndAssert(process.execPath, [
+      flag,
+      `--openssl-config=${fixtures.path('openssl3-conf', 'fips_no_provider.cnf')}`,
+      '-e', `
+        const assert = require('assert');
+        const crypto = require('crypto');
+        assert.strictEqual(crypto.getFips(), 1);
+        assert.throws(() => crypto.createHash('sha256'), {
+          code: 'ERR_OSSL_EVP_UNSUPPORTED',
+        });
+        if (${flag === '--enable-fips'}) {
+          crypto.setFips(false);
+          assert.strictEqual(crypto.getFips(), 0);
+          crypto.createHash('sha256');
+        } else {
+          assert.throws(() => crypto.setFips(false), {
+            code: 'ERR_CRYPTO_FIPS_FORCED',
+          });
+          assert.strictEqual(crypto.getFips(), 1);
+        }
+      `,
+    ], { stdout: '', stderr: '' });
+  }
+} else {
+  // --enable-fips should raise an error if OpenSSL is not FIPS enabled.
+  testHelper(
+    testFipsCrypto() ? 'stdout' : 'stderr',
+    ['--enable-fips'],
+    testFipsCrypto() ? kNoFailure : kGenericUserError,
+    testFipsCrypto() ? FIPS_ENABLED : FIPS_ENABLE_ERROR_STRING,
+    'require("crypto").getFips()',
+    process.env);
 
-// Explicit provider mode should preserve the behavior of bare --force-fips.
-testHelper(
-  testFipsCrypto() ? 'stdout' : 'stderr',
-  ['--force-fips=provider'],
-  testFipsCrypto() ? kNoFailure : kGenericUserError,
-  testFipsCrypto() ? FIPS_ENABLED : FIPS_FORCE_ERROR_STRING,
-  'require("crypto").getFips()',
-  process.env);
+  // --force-fips should raise an error if OpenSSL is not FIPS enabled.
+  testHelper(
+    testFipsCrypto() ? 'stdout' : 'stderr',
+    ['--force-fips'],
+    testFipsCrypto() ? kNoFailure : kGenericUserError,
+    testFipsCrypto() ? FIPS_ENABLED : FIPS_FORCE_ERROR_STRING,
+    'require("crypto").getFips()',
+    process.env);
+
+  // Explicit provider mode should preserve the behavior of bare --force-fips.
+  testHelper(
+    testFipsCrypto() ? 'stdout' : 'stderr',
+    ['--force-fips=provider'],
+    testFipsCrypto() ? kNoFailure : kGenericUserError,
+    testFipsCrypto() ? FIPS_ENABLED : FIPS_FORCE_ERROR_STRING,
+    'require("crypto").getFips()',
+    process.env);
+}
 
 {
   spawnSyncAndAssert(
@@ -113,15 +147,7 @@ testHelper(
     });
 }
 
-if (hasOpenSSL(3, 4)) {
-  testHelper(
-    testFipsCrypto() ? 'stdout' : 'stderr',
-    ['--force-fips=strict'],
-    testFipsCrypto() ? kNoFailure : kGenericUserError,
-    testFipsCrypto() ? FIPS_ENABLED : FIPS_FORCE_ERROR_STRING,
-    'require("crypto").getFips()',
-    process.env);
-} else {
+if (!hasOpenSSL(3, 4)) {
   spawnSyncAndAssert(
     process.execPath, ['--enable-fips-indicator-events', '-e', '0'], {
       status: 9,

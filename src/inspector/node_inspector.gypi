@@ -113,7 +113,7 @@
   ],
   'dependencies': [
     '<(protocol_tool_path)/inspector_protocol.gyp:crdtp',
-    '<(v8_gypfiles_dir)/v8.gyp:v8_inspector_headers',
+    '<(v8_gypfiles_dir)/v8.gyp:v8_inspector_headers#target',
   ],
   'actions': [
     {

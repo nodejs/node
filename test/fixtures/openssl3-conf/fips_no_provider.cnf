@@ -1,0 +1,17 @@
+nodejs_conf = nodejs_init
+openssl_conf = nodejs_init
+
+[nodejs_init]
+providers = provider_sect
+random = random_sect
+
+[provider_sect]
+default = default_sect
+
+[default_sect]
+activate = 1
+
+# Allow startup randomness while other operations use the default properties.
+[random_sect]
+properties = fips=no
+seed_properties = fips=no

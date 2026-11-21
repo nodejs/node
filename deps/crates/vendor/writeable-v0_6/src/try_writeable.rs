@@ -93,6 +93,7 @@ use core::convert::Infallible;
 /// );
 /// ```
 pub trait TryWriteable {
+    /// The error type
     type Error;
 
     /// Writes the content of this writeable to a sink.

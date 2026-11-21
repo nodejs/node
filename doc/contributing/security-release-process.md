@@ -19,33 +19,35 @@ steps listed in the process as outlined in
 The current security stewards are documented in the main Node.js
 [README.md](https://github.com/nodejs/node#security-release-stewards).
 
-| Company                 | Person          | Release Date |
-| ----------------------- | --------------- | ------------ |
-| NearForm                | Matteo          | 2021-Oct-12  |
-| Datadog                 | Bryan           | 2022-Jan-10  |
-| RH and IBM              | Joe             | 2022-Mar-18  |
-| NearForm                | Matteo / Rafael | 2022-Jul-07  |
-| Datadog                 | Vladimir        | 2022-Sep-23  |
-| NodeSource              | Juan            | 2022-Nov-04  |
-| RH and IBM              | Michael         | 2023-Feb-16  |
-| NearForm                | Rafael          | 2023-Jun-20  |
-| NearForm                | Rafael          | 2023-Aug-09  |
-| NearForm                | Rafael          | 2023-Oct-13  |
-| NodeSource              | Rafael          | 2024-Feb-14  |
-| NodeSource              | Rafael          | 2024-Apr-03  |
-| NodeSource              | Rafael          | 2024-Apr-10  |
-| NodeSource              | Rafael          | 2024-Jul-08  |
-| NodeSource              | Rafael          | 2025-Jan-21  |
-| NodeSource              | Rafael          | 2025-May-14  |
-| NodeSource              | Rafael          | 2025-Jul-15  |
-| HeroDevs and NodeSource | Marco / Rafael  | 2026-Jan-13  |
-| NodeSource              | Rafael          | 2026-Mar-24  |
-| Platformatic            | Antoine         | 2026-Jun-18  |
-| NodeSource              | Rafael          | 2026-Jul-29  |
-| Datadog                 | Bryan           |              |
-| IBM                     | Joe             |              |
-| Platformatic            | Matteo          |              |
-| NodeSource              | Juan            |              |
+| Company                     | Person           | Release Date |
+| --------------------------- | ---------------- | ------------ |
+| NearForm                    | Matteo           | 2021-Oct-12  |
+| Datadog                     | Bryan            | 2022-Jan-10  |
+| RH and IBM                  | Joe              | 2022-Mar-18  |
+| NearForm                    | Matteo / Rafael  | 2022-Jul-07  |
+| Datadog                     | Vladimir         | 2022-Sep-23  |
+| NodeSource                  | Juan             | 2022-Nov-04  |
+| RH and IBM                  | Michael          | 2023-Feb-16  |
+| NearForm                    | Rafael           | 2023-Jun-20  |
+| NearForm                    | Rafael           | 2023-Aug-09  |
+| NearForm                    | Rafael           | 2023-Oct-13  |
+| NodeSource                  | Rafael           | 2024-Feb-14  |
+| NodeSource                  | Rafael           | 2024-Apr-03  |
+| NodeSource                  | Rafael           | 2024-Apr-10  |
+| NodeSource                  | Rafael           | 2024-Jul-08  |
+| NodeSource                  | Rafael           | 2025-Jan-21  |
+| NodeSource                  | Rafael           | 2025-May-14  |
+| NodeSource                  | Rafael           | 2025-Jul-15  |
+| HeroDevs and NodeSource     | Marco / Rafael   | 2026-Jan-13  |
+| NodeSource                  | Rafael           | 2026-Mar-24  |
+| Platformatic                | Antoine          | 2026-Jun-18  |
+| NodeSource                  | Rafael           | 2026-Jul-29  |
+| NodeSource and Platformatic | Rafael / Antoine | 2026-Oct-21  |
+| Platformatic                | Antoine          | 2026-Nov-11  |
+| Datadog                     | Bryan            |              |
+| IBM                         | Joe              |              |
+| Platformatic                | Matteo           |              |
+| NodeSource                  | Juan             |              |
 
 ## Planning
 
@@ -118,10 +120,8 @@ The current security stewards are documented in the main Node.js
     Security release pre-alert:
 
     We will release new versions of <add versions> release lines on or shortly
-    after Day Month Date, Year in order to address:
-
-    * # high severity issues
-    * # moderate severity issues
+    after Day Month Date, Year in order to address security vulnerabilities.
+    The highest severity issue fixed in this release is <add max severity>.
 
     https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
     ```
@@ -146,20 +146,14 @@ security announcements for more information.
 
 ## Release day
 
-* [ ] 1\. **Lock down the CI:**
-  * Lock down the CI to prevent public access to the CI machines, ping a member of `@nodejs/jenkins-admins`.
-
-* [ ] 2\. **Release:**
+* [ ] 1\. **Release:**
   * Verify the CI is green on all release proposals (test-V8, CITGM, etc).
   * Follow the [release process](https://github.com/nodejs/node/blob/main/doc/contributing/releases.md).
 
-* [ ] 3\. **Unlock the CI:**
-  * Unlock the CI to allow public access to the CI machines, ping a member of `@nodejs/jenkins-admins`.
-
-* [ ] 4\. **Publish Post-Release Blog Post:**
+* [ ] 2\. **Publish Post-Release Blog Post:**
   * Publish the post-release blog post on the `nodejs/nodejs.org` repository.
 
-* [ ] 5\. **Notify the community:**
+* [ ] 3\. **Notify the community:**
   * Notify the community that the security release has gone out:
     * [ ] Slack: `#nodejs-social`
     * [ ] [docker-node](https://github.com/nodejs/docker-node/issues)

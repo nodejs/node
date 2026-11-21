@@ -9,14 +9,12 @@ const commonArgs = [
 ];
 
 async function main() {
-  // Verifies that custom loaders are not enabled in the ShadowRealm.
+  // Verifies that customization hooks are not enabled in the ShadowRealm.
   const child = await common.spawnPromisified(process.execPath, [
     ...commonArgs,
-    '--experimental-loader',
-    fixtures.fileURL('es-module-loaders', 'loader-resolve-shortcircuit.mjs'),
-    '--experimental-loader',
-    fixtures.fileURL('es-module-loaders', 'loader-load-foo-or-42.mjs'),
-    fixtures.path('es-module-shadow-realm', 'custom-loaders.js'),
+    '--require',
+    fixtures.path('es-module-shadow-realm', 'register-hooks.js'),
+    fixtures.path('es-module-shadow-realm', 'custom-hooks.js'),
   ]);
 
   assert.strictEqual(child.stderr, '');

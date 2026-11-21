@@ -14,7 +14,7 @@
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
-#include "unicode/unistr.h"
+#include "unicode/utf16.h"
 #endif  // V8_INTL_SUPPORT
 
 namespace v8 {
@@ -58,9 +58,14 @@ int RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode(Address byte_offset1,
   base::uc16* substring2 = reinterpret_cast<base::uc16*>(byte_offset2);
 
   for (size_t i = 0; i < length; i++) {
-    UChar32 c1 = RegExpCaseFolding::Canonicalize(substring1[i]);
-    UChar32 c2 = RegExpCaseFolding::Canonicalize(substring2[i]);
-    if (c1 != c2) {
+    UChar32 c1 = substring1[i];
+    UChar32 c2 = substring2[i];
+    if (c1 == c2) continue;
+    if (
+      RegExpCaseFolding::EquivalenceKey(
+          c1, RegExpCaseFolding::Mode::kNonUnicode) !=
+      RegExpCaseFolding::EquivalenceKey(
+          c2, RegExpCaseFolding::Mode::kNonUnicode)) {
       return 0;
     }
   }
@@ -83,11 +88,28 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUnicode(Address byte_offset1,
   DCHECK_EQ(0, byte_length % 2);
 
 #ifdef V8_INTL_SUPPORT
-  int32_t length = static_cast<int32_t>(byte_length >> 1);
-  icu::UnicodeString uni_str_1(reinterpret_cast<const char16_t*>(byte_offset1),
-                               length);
-  return uni_str_1.caseCompare(reinterpret_cast<const char16_t*>(byte_offset2),
-                               length, U_FOLD_CASE_DEFAULT) == 0;
+  // Canonicalize (ECMA-262 22.2.2.9.2) applies the simple case folding of
+  // each code point separately.
+  const int32_t length = static_cast<int32_t>(byte_length >> 1);
+  const char16_t* str1 = reinterpret_cast<const char16_t*>(byte_offset1);
+  const char16_t* str2 = reinterpret_cast<const char16_t*>(byte_offset2);
+  int32_t i1 = 0;
+  int32_t i2 = 0;
+  while (i1 < length) {
+    UChar32 c1, c2;
+    U16_NEXT(str1, i1, length, c1);
+    U16_NEXT(str2, i2, length, c2);
+    if (i1 != i2) return 0;
+    if (c1 == c2) continue;
+    if (
+      RegExpCaseFolding::EquivalenceKey(
+          c1, RegExpCaseFolding::Mode::kUnicode) !=
+      RegExpCaseFolding::EquivalenceKey(
+          c2, RegExpCaseFolding::Mode::kUnicode)) {
+      return 0;
+    }
+  }
+  return 1;
 #else
   base::uc16* substring1 = reinterpret_cast<base::uc16*>(byte_offset1);
   base::uc16* substring2 = reinterpret_cast<base::uc16*>(byte_offset2);

@@ -27,7 +27,16 @@ if (!release) {
 const major = getDefine(versionText, 'NODE_MAJOR_VERSION');
 const minor = getDefine(versionText, 'NODE_MINOR_VERSION');
 const patch = getDefine(versionText, 'NODE_PATCH_VERSION');
-const versionForRegex = RegExp.escape(`${major}.${minor}.${patch}`);
+let version = `${major}.${minor}.${patch}`;
+const alpha = /#define\s+NODE_ALPHA_MAJOR_VERSION\s/.test(versionText);
+if (alpha) {
+  const alphaMajor = getDefine(versionText, 'NODE_ALPHA_MAJOR_VERSION');
+  const alphaMinor = getDefine(versionText, 'NODE_ALPHA_MINOR_VERSION');
+  const alphaPatch = getDefine(versionText, 'NODE_ALPHA_PATCH_VERSION');
+  version += `-alpha.${alphaMajor}.${alphaMinor}.${alphaPatch}`;
+}
+const versionForRegex = RegExp.escape(version);
+const releaseType = alpha ? 'Alpha' : 'Current';
 
 const lts = getDefine(versionText, 'NODE_VERSION_IS_LTS') !== '0';
 const codename = getDefine(versionText, 'NODE_VERSION_LTS_CODENAME').slice(1, -1);
@@ -47,7 +56,7 @@ const changelogPath = `doc/changelogs/CHANGELOG_V${major}.md`;
   if (lts) {
     tableHeader = new RegExp(`<th>LTS '${RegExp.escape(codename)}'</th>`);
   } else {
-    tableHeader = /<th>Current<\/th>/;
+    tableHeader = new RegExp(`<th>${releaseType}</th>`);
   }
   assert.match(changelog, tableHeader);
   // Check table contains link to this release.
@@ -59,7 +68,7 @@ const changelogPath = `doc/changelogs/CHANGELOG_V${major}.md`;
   if (lts) {
     title = new RegExp(`## \\d{4}-\\d{2}-\\d{2}, Version ${versionForRegex} '${RegExp.escape(codename)}' \\(LTS\\), @\\S+`);
   } else {
-    title = new RegExp(`## \\d{4}-\\d{2}-\\d{2}, Version ${versionForRegex} \\(Current\\), @\\S+`);
+    title = new RegExp(`## \\d{4}-\\d{2}-\\d{2}, Version ${versionForRegex} \\(${releaseType}\\), @\\S+`);
   }
   assert.match(changelog, title);
 }
@@ -72,7 +81,7 @@ const changelogPath = `doc/changelogs/CHANGELOG_V${major}.md`;
   if (lts) {
     linkToChangelog = new RegExp(`\\[Node\\.js ${major}\\]\\(${RegExp.escape(changelogPath)}\\) \\*\\*Long Term Support\\*\\*`);
   } else {
-    linkToChangelog = new RegExp(`\\[Node\\.js ${major}\\]\\(${RegExp.escape(changelogPath)}\\) \\*\\*Current\\*\\*`);
+    linkToChangelog = new RegExp(`\\[Node\\.js ${major}\\]\\(${RegExp.escape(changelogPath)}\\) \\*\\*${releaseType}\\*\\*`);
   }
   assert.match(mainChangelog, linkToChangelog);
   // Check table header.
@@ -80,7 +89,7 @@ const changelogPath = `doc/changelogs/CHANGELOG_V${major}.md`;
   if (lts) {
     tableHeader = new RegExp(`<th title="LTS Until \\d{4}-\\d{2}"><a href="${RegExp.escape(changelogPath)}">${major}</a> \\(LTS\\)</th>`);
   } else {
-    tableHeader = new RegExp(`<th title="Current"><a href="${RegExp.escape(changelogPath)}">${major}</a> \\(Current\\)</th>`);
+    tableHeader = new RegExp(`<th title="${releaseType}"><a href="${RegExp.escape(changelogPath)}">${major}</a> \\(${releaseType}\\)</th>`);
   }
   assert.match(mainChangelog, tableHeader);
   // Check the table contains a link to the release in the appropriate CHANGELOG_V*.md file.

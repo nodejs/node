@@ -1,8 +1,7 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const { Readable } = require('stream');
 const assert = require('assert');
-const common = require('../common');
 {
   const r = Readable.from([]);
   // Cancelling reader while closing should not cause uncaught exceptions

@@ -7,9 +7,11 @@
 #include <openssl/ssl.h>
 #include <string_bytes.h>
 #include <v8.h>
+#include <algorithm>
 #include "bindingdata.h"
 #include "data.h"
 #include "defs.h"
+#include "simdutf.h"
 #include "util.h"
 
 namespace node {
@@ -218,6 +220,9 @@ void Store::MemoryInfo(MemoryTracker* tracker) const {
 // ============================================================================
 
 namespace {
+
+constexpr size_t kMaxConnectionCloseReasonLength = 256;
+
 constexpr std::string_view TypeName(QuicError::Type type) {
   switch (type) {
     case QuicError::Type::APPLICATION:
@@ -332,6 +337,18 @@ QuicError::operator const ngtcp2_ccerr*() const {
   return ptr_;
 }
 
+ngtcp2_ccerr QuicError::ToNgtcp2ConnectionCloseError() const {
+  ngtcp2_ccerr error = *ptr_;
+  error.reason = reason_c_str();
+
+  const size_t reasonlen =
+      std::min(reason_.size(), kMaxConnectionCloseReasonLength);
+
+  error.reasonlen = simdutf::trim_partial_utf8(reason_.data(), reasonlen);
+
+  return error;
+}
+
 std::string QuicError::reason_for_liberr(int liberr) {
   return ngtcp2_strerror(liberr);
 }
@@ -357,15 +374,20 @@ error_code QuicError::h3_liberr_to_code(int liberr) {
 }
 
 bool QuicError::is_crypto_error() const {
-  return code() & NGTCP2_CRYPTO_ERROR;
+  const auto error_code = code();
+  return type() == Type::TRANSPORT && error_code >= NGTCP2_CRYPTO_ERROR &&
+         error_code < NGTCP2_CRYPTO_ERROR + 0x100U;
 }
 
 std::optional<int> QuicError::get_crypto_error() const {
   if (!is_crypto_error()) return std::nullopt;
-  return code() & ~NGTCP2_CRYPTO_ERROR;
+  return static_cast<int>(code() - NGTCP2_CRYPTO_ERROR);
 }
 
 const char* QuicError::name() const {
+  // Application error codes are
+  // opaque to QUIC, so we only decode for transport.
+  if (type() != Type::TRANSPORT) return nullptr;
   // CRYPTO_ERROR carries a TLS alert in its low byte (RFC 9001 sec. 4.8).
   // OpenSSL's SSL_alert_desc_string_long owns a stable string for every
   // alert it knows about; we filter out the "unknown" placeholder so the
@@ -375,10 +397,8 @@ const char* QuicError::name() const {
     if (n != nullptr && std::string_view(n) != "unknown") return n;
     return nullptr;
   }
-  // Named transport-layer error codes from RFC 9000 sec. 20.1 (and the
-  // RFC 9368 version-negotiation extension). Application error codes are
-  // opaque to QUIC, so we only decode for transport.
-  if (type() != Type::TRANSPORT) return nullptr;
+  // Named transport-layer error codes from RFC 9000 sec. 20.1 and the
+  // RFC 9368 version-negotiation extension.
   switch (code()) {
     case NGTCP2_NO_ERROR:
       return "NO_ERROR";

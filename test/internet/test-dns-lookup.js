@@ -1,6 +1,5 @@
 'use strict';
 
-require('../common');
 const common = require('../common');
 const dns = require('dns');
 const dnsPromises = dns.promises;

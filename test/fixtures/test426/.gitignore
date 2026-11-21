@@ -1,0 +1,6 @@
+npm-package/*
+!npm-package/README.md
+!npm-package/package.template.json
+!npm-package/types/
+node_modules/
+.tmp/

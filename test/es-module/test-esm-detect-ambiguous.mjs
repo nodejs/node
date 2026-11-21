@@ -147,18 +147,20 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
     }
 
     it('should not hint wrong format in resolve hook', async () => {
-      // eslint-disable-next-line no-unassigned-vars
-      let writeSync;
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--no-warnings',
-        '--loader',
-        `data:text/javascript,import { writeSync } from "node:fs"; export ${encodeURIComponent(
-          async function resolve(s, c, next) {
-            const result = await next(s, c);
-            writeSync(1, result.format + '\n');
-            return result;
-          }
-        )}`,
+        '--import',
+        'data:text/javascript,' + encodeURIComponent(`
+          import { writeSync } from 'node:fs';
+          import { registerHooks } from 'node:module';
+          registerHooks({
+            resolve(specifier, context, nextResolve) {
+              const result = nextResolve(specifier, context);
+              writeSync(1, result.format + '\\n');
+              return result;
+            },
+          });
+        `),
         fixtures.path('es-modules/package-without-type/noext-esm'),
       ]);
 
@@ -166,7 +168,6 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
       assert.strictEqual(stdout, 'null\nexecuted\n');
       assert.strictEqual(code, 0);
       assert.strictEqual(signal, null);
-
     });
   });
 

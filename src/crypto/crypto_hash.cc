@@ -256,6 +256,12 @@ const std::vector<std::string>& GetSupportedHashAlgorithms(Environment* env) {
 #else
       EVP_MD_do_all_sorted(SaveSupportedHashAlgorithms, env);
 #endif
+#if NCRYPTO_USE_BORINGSSL
+      // SHA-3 descriptors are not included in BoringSSL's name registry.
+      for (const char* name : {"sha3-256", "sha3-384", "sha3-512"}) {
+        env->supported_hash_algorithms.emplace_back(name);
+      }
+#endif
     }
     const uint64_t current_generation = ncrypto::getFipsStateGeneration();
     if (generation == current_generation) {
@@ -351,6 +357,37 @@ const EVP_MD* GetDigestImplementation(
 #endif
 }
 
+const ncrypto::Digest GetDigest(Environment* env, const char* name) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  MaybeCachedMD result = FetchAndMaybeCacheMD(env, name);
+  if (result.cached_md != nullptr) {
+    return ncrypto::Digest::Ref(result.cached_md);
+  }
+  return result.digest;
+#else
+  return ncrypto::Digest::FromName(name);
+#endif
+}
+
+const ncrypto::Digest GetDigestForJob(Environment* env,
+                                      CryptoJobMode mode,
+                                      const char* name) {
+  if (mode == kCryptoJobSync) return GetDigest(env, name);
+  return ncrypto::Digest::FromName(name);
+}
+
+ncrypto::HMACCtxPointer NewHmacContext(Environment* env,
+                                       const ncrypto::Digest& md) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  SynchronizeHashCache(env);
+  if (const auto* hmac_template = env->provider_digest_cache->getHmacTemplate(
+          md, env->hash_cache_generation)) {
+    if (auto ctx = hmac_template->clone()) return ctx;
+  }
+#endif
+  return ncrypto::HMACCtxPointer::New();
+}
+
 void MarkInvalidXofLength() {
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   ERR_raise(ERR_LIB_EVP, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
@@ -374,7 +411,7 @@ void OneShotDigestWithMD(Environment* env,
   enum encoding output_enc = ParseEncoding(isolate, args[4], args[5], HEX);
 
   bool is_xof = (EVP_MD_flags(md) & EVP_MD_FLAG_XOF) != 0;
-  int output_length = EVP_MD_size(md);
+  OPENSSL_SIZE_T output_length = EVP_MD_size(md);
 
   // This is to cause hash() to fail when an incorrect
   // outputLength option was passed for a non-XOF hash function.

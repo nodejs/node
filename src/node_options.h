@@ -112,6 +112,14 @@ class DebugOptions : public Options {
     return break_first_line || break_node_first_line;
   }
 
+  const char* inspector_option_name() const {
+    if (break_node_first_line) return "--inspect-brk-node";
+    if (break_first_line) return "--inspect-brk";
+    if (inspect_wait) return "--inspect-wait";
+    if (inspector_enabled) return "--inspect";
+    return nullptr;
+  }
+
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
 };
@@ -266,6 +274,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(test_randomize) = false;
   DEFINE_BOOL_FIELD(has_test_random_seed) = false;
   DEFINE_BOOL_FIELD(test_only) = false;
+  DEFINE_BOOL_FIELD(test_forbid_only) = false;
   DEFINE_BOOL_FIELD(test_udp_no_try_send) = false;
   DEFINE_BOOL_FIELD(coverage_include_all) = false;
   DEFINE_BOOL_FIELD(throw_deprecation) = false;
@@ -298,6 +307,8 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(tls_max_v1_2) = false;
   DEFINE_BOOL_FIELD(tls_max_v1_3) = false;
   DEFINE_BOOL_FIELD(strip_types) = HAVE_AMARO;
+  DEFINE_BOOL_FIELD(experimental_strip_private_modules) =
+      EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(report_exclude_env) = false;
   DEFINE_BOOL_FIELD(report_exclude_network) = false;
 #if HAVE_INSPECTOR

@@ -7,7 +7,7 @@
 
 require('../common');
 const assert = require('assert');
-const { spawnSync } = require('child_process');
+const { spawnSyncAndAssert } = require('../common/child_process');
 
 if (process.argv[2] === 'child') {
   const { createHook } = require('async_hooks');
@@ -64,17 +64,12 @@ if (process.argv[2] === 'child') {
   }
 } else {
   // Parent process - spawn the child and check exit code
-  const result = spawnSync(
+  spawnSyncAndAssert(
     process.execPath,
     [__filename, 'child'],
-    { encoding: 'utf8', timeout: 30000 }
+    { encoding: 'utf8', timeout: 30000 },
+    {
+      stdout: /SUCCESS: try-catch caught the stack overflow/,
+    },
   );
-
-  // Should exit successfully (try-catch worked)
-  assert.strictEqual(result.status, 0,
-                     `Expected exit code 0, got ${result.status}.\n` +
-                     `stdout: ${result.stdout}\n` +
-                     `stderr: ${result.stderr}`);
-  // Verify the error was handled by try-catch
-  assert.match(result.stdout, /SUCCESS: try-catch caught the stack overflow/);
 }

@@ -1,6 +1,6 @@
 [package]
 name = "quote"
-version = "1.0.45"
+version = "1.0.46"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 autobenches = false
 categories = ["development-tools::procedural-macro-helpers"]

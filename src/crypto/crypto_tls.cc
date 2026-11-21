@@ -73,6 +73,20 @@ namespace crypto {
 
 namespace {
 
+void InjectOpenSSLErrorForTesting(const FunctionCallbackInfo<Value>&) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  ERR_raise(ERR_LIB_USER, ERR_R_INTERNAL_ERROR);
+#elif NCRYPTO_USE_BORINGSSL || NCRYPTO_USE_LEGACY_OPENSSL
+  ERR_put_error(ERR_LIB_USER, 0, ERR_R_INTERNAL_ERROR, __FILE__, __LINE__);
+#else
+#error "Unsupported crypto backend"
+#endif
+}
+
+void HasOpenSSLErrorForTesting(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(ERR_peek_error() != 0);
+}
+
 // Our custom implementation of the certificate verify callback
 // used when establishing a TLS handshake. Because we cannot perform
 // I/O quickly enough with X509_STORE_CTX_ APIs in this callback,
@@ -870,20 +884,14 @@ void TLSWrap::ClearOut() {
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   char out[kClearOutChunkSize];
+  int length = 0;
   int read;
-  for (;;) {
-    {
-      SSLLibraryCallScope ssl_library_call_scope(this);
-      read = SSL_read(ssl_.get(), out, sizeof(out));
-    }
-    Debug(this, "Read %d bytes of cleartext output", read);
 
-    if (read <= 0)
-      break;
-
+  // Emits out[0, length). Returns false if JS destroyed the SSL context.
+  auto emit = [&]() {
     char* current = out;
-    while (read > 0) {
-      int avail = read;
+    while (length > 0) {
+      int avail = length;
 
       uv_buf_t buf = EmitAlloc(avail);
       if (static_cast<int>(buf.len) < avail)
@@ -896,12 +904,45 @@ void TLSWrap::ClearOut() {
       // check that ssl_ != nullptr afterwards.
       if (ssl_ == nullptr) {
         Debug(this, "Returning from read loop, ssl_ == nullptr");
-        return;
+        return false;
       }
 
-      read -= avail;
+      length -= avail;
       current += avail;
     }
+    return true;
+  };
+
+  for (;;) {
+    {
+      SSLLibraryCallScope ssl_library_call_scope(this);
+      if (ERR_set_mark() != 0) ERR_clear_error();
+      read = SSL_read(ssl_.get(), out + length, kClearOutChunkSize - length);
+    }
+    Debug(this, "Read %d bytes of cleartext output", read);
+
+    if (read <= 0) break;
+    length += read;
+
+    // SSL_read() returns at most one record. If the next record is already
+    // buffered, decrypt it into the same chunk instead of emitting one read
+    // per record. This is limited to application data records that are too
+    // long to be empty: other record types can trigger callbacks, e.g. for
+    // renegotiation, that have to run after the preceding data has been
+    // emitted, and SSL_read() skips over empty records to whatever follows.
+    // With read-ahead disabled, enc_in_ is at a record boundary after a
+    // successful read. The header need not be followed by a complete record:
+    // SSL_read() can return WANT_READ, and the path below emits the batch.
+    size_t pending;
+    const unsigned char* next = reinterpret_cast<const unsigned char*>(
+        NodeBIO::FromBIO(enc_in_)->Peek(&pending));
+    if (length < kClearOutChunkSize && pending >= SSL3_RT_HEADER_LENGTH &&
+        next[0] == SSL3_RT_APPLICATION_DATA &&
+        (next[3] << 8 | next[4]) > SSL3_RT_MAX_ENCRYPTED_OVERHEAD) {
+      continue;
+    }
+
+    if (!emit()) return;
   }
 
   // We need to check whether an error occurred or the connection was
@@ -909,13 +950,15 @@ void TLSWrap::ClearOut() {
   // See node#1642 and SSL_read(3SSL) for details. SSL_get_error must be
   // called immediately after SSL_read, without calling into JS, which may
   // change OpenSSL's error queue, modify ssl_, or even destroy ssl_
-  // altogether.
+  // altogether. Data that was read before the failure is emitted once the
+  // error has been captured, before it is reported.
   if (read <= 0) {
     HandleScope handle_scope(env()->isolate());
     Local<Value> error;
     int err = SSL_get_error(ssl_.get(), read);
     switch (err) {
       case SSL_ERROR_ZERO_RETURN:
+        if (!emit()) return;
         if (!flags_.eof) {
           flags_.eof = true;
           EmitRead(UV_EOF);
@@ -965,7 +1008,13 @@ void TLSWrap::ClearOut() {
         break;
 
       default:
+        emit();
         return;
+    }
+
+    if (!emit()) {
+      Debug(this, "Got SSL error (%d) but not calling onerror", err);
+      return;
     }
 
     Debug(this, "Got SSL error (%d), calling onerror", err);
@@ -999,6 +1048,7 @@ void TLSWrap::ClearIn() {
   int written;
   {
     SSLLibraryCallScope ssl_library_call_scope(this);
+    if (ERR_set_mark() != 0) ERR_clear_error();
     written = SSL_write(ssl_.get(), bs->Data(), bs->ByteLength());
   }
   Debug(this, "Writing %zu bytes, written = %d", bs->ByteLength(), written);
@@ -1201,6 +1251,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
     NodeBIO::FromBIO(enc_out_)->set_allocate_tls_hint(length);
     {
       SSLLibraryCallScope ssl_library_call_scope(this);
+      if (ERR_set_mark() != 0) ERR_clear_error();
       written = SSL_write(ssl_.get(), bs->Data(), length);
     }
   } else {
@@ -1209,6 +1260,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
     NodeBIO::FromBIO(enc_out_)->set_allocate_tls_hint(buf->len);
     {
       SSLLibraryCallScope ssl_library_call_scope(this);
+      if (ERR_set_mark() != 0) ERR_clear_error();
       written = SSL_write(ssl_.get(), buf->base, buf->len);
     }
 
@@ -2368,6 +2420,12 @@ void TLSWrap::Initialize(
   Isolate* isolate = env->isolate();
 
   SetMethod(context, target, "wrap", TLSWrap::Wrap);
+  SetMethod(context,
+            target,
+            "injectOpenSSLErrorForTesting",
+            InjectOpenSSLErrorForTesting);
+  SetMethodNoSideEffect(
+      context, target, "hasOpenSSLErrorForTesting", HasOpenSSLErrorForTesting);
 
   NODE_DEFINE_CONSTANT(target, HAVE_SSL_TRACE);
 
@@ -2462,6 +2520,8 @@ void TLSWrap::Initialize(
 void TLSWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(TLSWrap::Wrap);
   registry->Register(GetWriteQueueSize);
+  registry->Register(InjectOpenSSLErrorForTesting);
+  registry->Register(HasOpenSSLErrorForTesting);
 
   registry->Register(CertCbDone);
   registry->Register(ClientHelloDone);

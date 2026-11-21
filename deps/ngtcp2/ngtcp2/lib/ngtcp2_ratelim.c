@@ -31,6 +31,8 @@
 
 void ngtcp2_ratelim_init(ngtcp2_ratelim *rlim, uint64_t burst, uint64_t rate,
                          ngtcp2_tstamp ts) {
+  burst = ngtcp2_min(burst, NGTCP2_RATELIM_MAX_BURST);
+
   *rlim = (ngtcp2_ratelim){
     .burst = burst,
     .rate = rate,
@@ -52,19 +54,16 @@ static void ratelim_update(ngtcp2_ratelim *rlim, ngtcp2_tstamp ts) {
   d = ts - rlim->ts;
   rlim->ts = ts;
 
-  if (rlim->rate > (UINT64_MAX - rlim->carry) / d) {
-    gain = UINT64_MAX;
-  } else {
+  if (rlim->rate <= (UINT64_MAX - rlim->carry) / d) {
     gain = rlim->rate * d + rlim->carry;
-  }
+    gps = gain / NGTCP2_SECONDS;
 
-  gps = gain / NGTCP2_SECONDS;
+    if (gps < rlim->burst && rlim->tokens < rlim->burst - gps) {
+      rlim->tokens += gps;
+      rlim->carry = gain % NGTCP2_SECONDS;
 
-  if (gps < rlim->burst && rlim->tokens < rlim->burst - gps) {
-    rlim->tokens += gps;
-    rlim->carry = gain % NGTCP2_SECONDS;
-
-    return;
+      return;
+    }
   }
 
   rlim->tokens = rlim->burst;

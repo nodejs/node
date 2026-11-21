@@ -1124,6 +1124,16 @@ added: v15.0.0
 
 An invalid authentication tag length was provided.
 
+<a id="ERR_CRYPTO_INVALID_X509_CERTIFICATE"></a>
+
+### `ERR_CRYPTO_INVALID_X509_CERTIFICATE`
+
+<!-- YAML
+added: v26.14.0
+-->
+
+An X.509 certificate field could not be inspected.
+
 <a id="ERR_CRYPTO_JOB_INIT_FAILED"></a>
 
 ### `ERR_CRYPTO_JOB_INIT_FAILED`
