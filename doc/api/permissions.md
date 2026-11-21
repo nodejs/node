@@ -97,7 +97,11 @@ not constrained by the `fs.read`, `fs.write`, or `net` permission scopes.
 Mounting a [virtual file system][] with [`vfs.mount()`][] throws
 `ERR_INVALID_STATE` unless the [`--allow-fs-vfs`][] flag is passed. A mounted
 VFS serves paths that the file system permissions do not describe, so it is not
-gated by [`--allow-fs-read`][] or [`--allow-fs-write`][].
+gated by [`--allow-fs-read`][] or [`--allow-fs-write`][]. Loading a native
+addon or an [FFI library](ffi.md#ffidlopenpath-definitions) from a mounted VFS
+is the exception: the library is copied to a temporary image before it is
+loaded, so it also needs [`--allow-fs-write`][] access to the temporary
+directory.
 
 #### Runtime API
 
