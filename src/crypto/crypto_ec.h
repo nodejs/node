@@ -48,7 +48,6 @@ class ECDH final : public BaseObject {
   static void GetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   void MaybeCacheValidKeyPair(uint64_t generation);
   bool IsKeyPairValid();

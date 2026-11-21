@@ -58,7 +58,6 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
   SetProtoMethod(isolate, t, "computeSecret", ComputeSecret);
   SetProtoMethodNoSideEffect(isolate, t, "getPublicKey", GetPublicKey);
   SetProtoMethodNoSideEffect(isolate, t, "getPrivateKey", GetPrivateKey);
-  SetProtoMethod(isolate, t, "setPublicKey", SetPublicKey);
   SetProtoMethod(isolate, t, "setPrivateKey", SetPrivateKey);
 
   SetConstructorFunction(context, target, "ECDH", t);
@@ -78,7 +77,6 @@ void ECDH::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ComputeSecret);
   registry->Register(GetPublicKey);
   registry->Register(GetPrivateKey);
-  registry->Register(SetPublicKey);
   registry->Register(SetPrivateKey);
   registry->Register(ECDH::ConvertKey);
   registry->Register(ECDH::GetCurves);
@@ -310,29 +308,6 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   ecdh->key_ = std::move(new_key);
   ecdh->group_ = ecdh->key_.getGroup();
   ecdh->has_valid_key_pair_ = false;
-}
-
-void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  ECDH* ecdh;
-  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
-
-  CHECK(IsAnyBufferSource(args[0]));
-
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-
-  auto pub = ECDH::BufferToPoint(env, ecdh->group_, args[0]);
-  if (!pub) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-        "Failed to convert Buffer to EC_POINT");
-  }
-
-  ecdh->has_valid_key_pair_ = false;
-  if (!ecdh->key_.setPublicKey(pub)) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-        "Failed to set EC_POINT as the public key");
-  }
 }
 
 bool ECDH::IsKeyValidForCurve(const BignumPointer& private_key) {
