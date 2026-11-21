@@ -7,6 +7,7 @@
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_mem-inl.h"
 #include "path.h"
 #include "simdutf.h"
@@ -813,7 +814,30 @@ static void Initialize(Local<Object> target,
       .Check();
 }
 
+static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(Storage::New);
+  registry->Register(StorageGetter);
+  registry->Register(StorageSetter);
+  registry->Register(StorageQuery);
+  registry->Register(StorageDeleter);
+  registry->Register(StorageEnumerator);
+  registry->Register(StorageDefiner);
+  registry->Register(IndexedGetter);
+  registry->Register(IndexedSetter);
+  registry->Register(IndexedQuery);
+  registry->Register(IndexedDeleter);
+  registry->Register(IndexedDefiner);
+  registry->Register(StorageLengthGetter);
+  registry->Register(Clear);
+  registry->Register(GetItem);
+  registry->Register(Key);
+  registry->Register(RemoveItem);
+  registry->Register(SetItem);
+}
+
 }  // namespace webstorage
 }  // namespace node
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(webstorage, node::webstorage::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(webstorage,
+                                node::webstorage::RegisterExternalReferences)
