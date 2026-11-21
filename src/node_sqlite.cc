@@ -369,6 +369,8 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, Database* db) {
     }
   }
 
+  if (db->ThrowIfPermissionDenied()) return;
+
   Local<Object> e;
   if (CreateSQLiteError(isolate, db->Connection()).ToLocal(&e)) {
     isolate->ThrowException(e);
@@ -620,6 +622,7 @@ class BackupJob : public ThreadPoolWork {
                      std::string source_db,
                      std::string destination_name,
                      std::string dest_db,
+                     std::shared_ptr<SQLitePermissionVFS> permission_vfs,
                      int pages,
                      Local<Function> progressFunc)
       : ThreadPoolWork(env, ThreadPoolWorkType::kSQLiteBackup),
@@ -628,7 +631,8 @@ class BackupJob : public ThreadPoolWork {
         pages_(pages),
         source_db_(std::move(source_db)),
         destination_name_(std::move(destination_name)),
-        dest_db_(std::move(dest_db)) {
+        dest_db_(std::move(dest_db)),
+        permission_vfs_(std::move(permission_vfs)) {
     resolver_.Reset(env->isolate(), resolver);
     progressFunc_.Reset(env->isolate(), progressFunc);
   }
@@ -640,13 +644,16 @@ class BackupJob : public ThreadPoolWork {
     backup_status_ = sqlite3_open_v2(
         destination_name_.c_str(),
         &dest_raw,
-        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI,
-        nullptr);
+        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE |
+            (permission_vfs_ == nullptr ? SQLITE_OPEN_URI : 0),
+        permission_vfs_ == nullptr ? nullptr : permission_vfs_->name().c_str());
     dest_.reset(dest_raw);
     Local<Promise::Resolver> resolver =
         Local<Promise::Resolver>::New(env()->isolate(), resolver_);
     if (backup_status_ != SQLITE_OK) {
-      Settle(resolver, CreateSQLiteError(isolate, dest_.get()), {});
+      Settle(resolver,
+             PermissionErrorOr(CreateSQLiteError(isolate, dest_.get())),
+             {});
       return;
     }
 
@@ -677,7 +684,9 @@ class BackupJob : public ThreadPoolWork {
 
     if (!(backup_status_ == SQLITE_OK || backup_status_ == SQLITE_DONE ||
           backup_status_ == SQLITE_BUSY || backup_status_ == SQLITE_LOCKED)) {
-      Settle(resolver, CreateSQLiteError(isolate, backup_status_), {});
+      Settle(resolver,
+             PermissionErrorOr(CreateSQLiteError(isolate, backup_status_)),
+             {});
       return;
     }
 
@@ -744,9 +753,21 @@ class BackupJob : public ThreadPoolWork {
       backup_status_ = sqlite3_errcode(dest_.get());
       dest_.reset();
     }
+
+    permission_vfs_.reset();
   }
 
  private:
+  MaybeLocal<Value> PermissionErrorOr(MaybeLocal<Object> sqlite_error) {
+    if (permission_vfs_ != nullptr) {
+      if (auto denied = permission_vfs_->TakeDenied(backup_status_)) {
+        return permission::CreateAccessDeniedError(
+            env(), denied->scope, denied->path);
+      }
+    }
+    return sqlite_error;
+  }
+
   // The single exit point of a backup. Rejects with `error` if it is set,
   // otherwise resolves with `value` if it is set. Neither being set means an
   // exception is already pending. Deletes the job.
@@ -776,6 +797,7 @@ class BackupJob : public ThreadPoolWork {
   std::string source_db_;
   std::string destination_name_;
   std::string dest_db_;
+  std::shared_ptr<SQLitePermissionVFS> permission_vfs_;
 };
 
 UserDefinedFunction::UserDefinedFunction(Environment* env,
@@ -1615,10 +1637,45 @@ void Database::MemoryInfo(MemoryTracker* tracker) const {
       "open_config", sizeof(open_config_), "DatabaseOpenConfiguration");
 }
 
+bool Database::ThrowIfPermissionDenied() {
+  if (permission_vfs_ == nullptr) return false;
+  auto denied = permission_vfs_->TakeDenied(sqlite3_errcode(connection_.get()));
+  if (!denied) return false;
+  permission::Permission::ThrowAccessDenied(env(), denied->scope, denied->path);
+  return true;
+}
+
 bool Database::Open() {
   if (IsOpen()) {
     THROW_ERR_INVALID_STATE(env(), "database is already open");
     return false;
+  }
+
+  // An anonymous temporary database has no path for the VFS to check.
+  if (open_config_.location().empty()) {
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env(), permission::PermissionScope::kFileSystemRead, "", false);
+    if (!open_config_.get_read_only()) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env(), permission::PermissionScope::kFileSystemWrite, "", false);
+    }
+  }
+
+  if (env()->permission()->enabled()) {
+    // Connections of the same Environment share one permission VFS.
+    BindingData* binding =
+        env()->principal_realm()->GetBindingData<BindingData>();
+    if (binding != nullptr) permission_vfs_ = binding->permission_vfs.lock();
+    if (permission_vfs_ == nullptr) {
+      permission_vfs_ = std::make_shared<SQLitePermissionVFS>(env());
+      if (!permission_vfs_->Register()) {
+        THROW_ERR_SQLITE_ERROR(env()->isolate(),
+                               "Unable to register the SQLite permission VFS");
+        permission_vfs_.reset();
+        return false;
+      }
+      if (binding != nullptr) binding->permission_vfs = permission_vfs_;
+    }
   }
 
   // sqlite3_open_v2() assigns a database handle even when it fails. Such a
@@ -1630,19 +1687,23 @@ bool Database::Open() {
   auto reset_connection_on_failure = OnScopeLeave([&]() {
     if (!opened) {
       connection_.reset();
+      permission_vfs_.reset();
     }
   });
 
   // TODO(cjihrig): Support additional flags.
-  int default_flags = SQLITE_OPEN_URI;
+  // TODO(araujogui): Support URI filenames with the permission model. A URI
+  // could select another VFS, bypassing the permission VFS.
+  int default_flags = permission_vfs_ == nullptr ? SQLITE_OPEN_URI : 0;
   int flags = open_config_.get_read_only()
                   ? SQLITE_OPEN_READONLY
                   : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
   sqlite3* raw_conn = nullptr;
-  int r = sqlite3_open_v2(open_config_.location().c_str(),
-                          &raw_conn,
-                          flags | default_flags,
-                          nullptr);
+  int r = sqlite3_open_v2(
+      open_config_.location().c_str(),
+      &raw_conn,
+      flags | default_flags,
+      permission_vfs_ == nullptr ? nullptr : permission_vfs_->name().c_str());
   connection_.reset(raw_conn);
   CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
 
@@ -1869,10 +1930,22 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
   constexpr auto has_null_bytes = [](std::string_view str) {
     return str.find('\0') != std::string_view::npos;
   };
+  // Without SQLITE_OPEN_URI, SQLite would open a file named "file:...".
+  const auto reject_uri = [&](std::string value) -> std::optional<std::string> {
+    if (env->permission()->enabled() && value.starts_with("file:")) {
+      THROW_ERR_INVALID_ARG_VALUE(
+          env->isolate(),
+          "The \"%s\" argument must not be a URL or SQLite URI filename when "
+          "the permission model is enabled.",
+          field_name);
+      return std::nullopt;
+    }
+    return value;
+  };
   if (path->IsString()) {
     Utf8Value location(env->isolate(), path.As<String>());
     if (!has_null_bytes(location.ToStringView())) {
-      return location.ToString();
+      return reject_uri(location.ToString());
     }
   } else if (path->IsUint8Array()) {
     Local<Uint8Array> buffer = path.As<Uint8Array>();
@@ -1881,7 +1954,8 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
     auto data =
         static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
     if (std::find(data, data + byteLength, 0) == data + byteLength) {
-      return std::string(reinterpret_cast<const char*>(data), byteLength);
+      return reject_uri(
+          std::string(reinterpret_cast<const char*>(data), byteLength));
     }
   } else if (path->IsObject()) {  // When is URL
     auto url = path.As<Object>();
@@ -1901,7 +1975,7 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
           return std::nullopt;
         }
 
-        return location_value.ToString();
+        return reject_uri(location_value.ToString());
       }
     }
   }
@@ -2108,6 +2182,7 @@ void Database::Close(const FunctionCallbackInfo<Value>& args) {
   int r = sqlite3_close_v2(db->connection_.get());
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   db->connection_.release();
+  db->permission_vfs_.reset();
   // Backups can defer SQLite destruction until after the connection is closed.
   db->user_defined_functions_.clear();
 }
@@ -2951,6 +3026,7 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
                                  std::move(source_db),
                                  dest_path.value(),
                                  std::move(dest_db),
+                                 db->PermissionVFS(),
                                  rate,
                                  progressFunc);
   db->AddBackup(job);
@@ -3237,9 +3313,8 @@ void Database::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   if (args[0]->IsNull()) {
-    // Clear the authorizer
-    sqlite3_set_authorizer(db->connection_.get(), nullptr, nullptr);
     db->object()->SetInternalField(kAuthorizerCallback, Null(isolate));
+    sqlite3_set_authorizer(db->connection_.get(), nullptr, nullptr);
     return;
   }
 
