@@ -337,7 +337,12 @@ void JSValueToSQLiteResult(Isolate* isolate,
   } else if (value->IsArrayBufferView() || value->IsArrayBuffer() ||
              value->IsSharedArrayBuffer()) {
     ArrayBufferViewContents<uint8_t> buf(value);
-    sqlite3_result_blob64(ctx, buf.data(), buf.length(), SQLITE_TRANSIENT);
+    if (buf.length() == 0) {
+      // Empty buffers may lack a data pointer, which SQLite treats as NULL.
+      sqlite3_result_zeroblob(ctx, 0);
+    } else {
+      sqlite3_result_blob64(ctx, buf.data(), buf.length(), SQLITE_TRANSIENT);
+    }
   } else if (value->IsBigInt()) {
     bool lossless;
     int64_t as_int = value.As<BigInt>()->Int64Value(&lossless);
@@ -3632,11 +3637,16 @@ bool Statement::BindValue(const Local<Value>& value, const int index) {
   } else if (value->IsArrayBufferView() || value->IsArrayBuffer() ||
              value->IsSharedArrayBuffer()) {
     ArrayBufferViewContents<uint8_t> buf(value);
-    r = sqlite3_bind_blob64(statement_.get(),
-                            index,
-                            buf.data(),
-                            static_cast<sqlite3_uint64>(buf.length()),
-                            SQLITE_TRANSIENT);
+    if (buf.length() == 0) {
+      // Empty buffers may lack a data pointer, which SQLite treats as NULL.
+      r = sqlite3_bind_zeroblob(statement_.get(), index, 0);
+    } else {
+      r = sqlite3_bind_blob64(statement_.get(),
+                              index,
+                              buf.data(),
+                              static_cast<sqlite3_uint64>(buf.length()),
+                              SQLITE_TRANSIENT);
+    }
   } else if (value->IsBoolean()) {
     r = sqlite3_bind_int(statement_.get(), index, value->IsTrue() ? 1 : 0);
   } else if (value->IsBigInt()) {
