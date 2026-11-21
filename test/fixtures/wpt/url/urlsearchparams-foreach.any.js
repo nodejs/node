@@ -74,3 +74,21 @@ test(function() {
     assert_array_equals(seen, ["param0", "param2"], "param1 should not have been seen by the loop");
     assert_equals(String(searchParams), "param1=1", "param1 should remain");
 }, "delete every param seen during iteration");
+
+test(function() {
+  const params = new URLSearchParams('a=1&b=2&c=3');
+  assert_array_equals([...params.keys()], ['a', 'b', 'c']);
+  assert_array_equals([...params.values()], ['1', '2', '3']);
+  const entries = [...params.entries()];
+  assert_equals(entries.length, 3);
+  assert_array_equals(entries[0], ['a', '1']);
+  assert_array_equals(entries[1], ['b', '2']);
+  assert_array_equals(entries[2], ['c', '3']);
+}, 'keys(), values() and entries()');
+
+test(function() {
+  const params = new URLSearchParams('a=1');
+  params.forEach(function(value, key, object) {
+    assert_equals(object, params);
+  });
+}, 'ForEach passes the URLSearchParams object');

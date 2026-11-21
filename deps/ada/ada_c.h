@@ -24,7 +24,10 @@ typedef struct {
   size_t length;
 } ada_string;
 
-// string that must be freed by the caller
+// string that must be freed by the caller.
+// data is NUL-terminated. length does not include the trailing NUL.
+// data is null only when the call failed; an empty string is a non-null
+// pointer to a single '\0' with length 0.
 typedef struct {
   const char* data;
   size_t length;
