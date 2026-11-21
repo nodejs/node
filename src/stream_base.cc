@@ -164,7 +164,9 @@ int StreamBase::UseUserBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(Buffer::HasInstance(args[0]));
 
   uv_buf_t buf = uv_buf_init(Buffer::Data(args[0]), Buffer::Length(args[0]));
-  PushStreamListener(new CustomBufferJSListener(buf));
+  Local<ArrayBuffer> array_buffer = args[0].As<v8::ArrayBufferView>()->Buffer();
+  PushStreamListener(
+      new CustomBufferJSListener(array_buffer->GetBackingStore(), buf));
   return 0;
 }
 
@@ -825,8 +827,11 @@ void CustomBufferJSListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
                              StreamBase::SKIP_NREAD_CHECKS);
   Local<Value> next_buf_v;
   if (ret.ToLocal(&next_buf_v) && !next_buf_v->IsUndefined()) {
+    Local<ArrayBuffer> array_buffer =
+        next_buf_v.As<v8::ArrayBufferView>()->Buffer();
     buffer_.base = Buffer::Data(next_buf_v);
     buffer_.len = Buffer::Length(next_buf_v);
+    backing_store_ = array_buffer->GetBackingStore();
   }
 }
 
