@@ -8,6 +8,8 @@ if (!common.hasCrypto) { common.skip('missing crypto'); }
 // waiting for a GC that the main thread no longer performs.
 
 const { pbkdf2, pbkdf2Sync } = require('crypto');
+const password = 'top secret';
+const salt = '0123456789abcdef';
 
 // A small live set keeps the old generation limit low.
 const keep = [];
@@ -16,7 +18,7 @@ for (let i = 0; i < 1e5; i++) keep.push({ i });
 // Pick an iteration count that keeps the threadpool busy for about a second.
 const probeIterations = 2e5;
 const start = process.hrtime.bigint();
-pbkdf2Sync('a', 'b', probeIterations, 64, 'sha512');
+pbkdf2Sync(password, salt, probeIterations, 64, 'sha512');
 const nsPerIteration = Number(process.hrtime.bigint() - start) /
   probeIterations;
 const iterations = Math.ceil(1e9 / nsPerIteration);
@@ -24,7 +26,7 @@ const iterations = Math.ceil(1e9 / nsPerIteration);
 setTimeout(() => {
   // uv_library_shutdown() waits for this job, so the main thread stays out of
   // JS and cannot serve the GC that the stress allocation task asks for.
-  pbkdf2('a', 'b', iterations, 64, 'sha512', () => {});
+  pbkdf2(password, salt, iterations, 64, 'sha512', () => {});
   // Use up the old generation budget, so that the next background allocation
   // fails and parks that task in CollectionBarrier.
   for (let i = 0; i < 40; i++) new Array(1e5).fill(i);
