@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <type_traits>
 
 namespace nbytes {
 
@@ -267,9 +268,18 @@ class Vector {
   bool forward() const { return is_forward_; }
 
   // Access individual vector elements - checks bounds in debug mode.
-  T &operator[](size_t index) const {
+  // The data is not necessarily aligned for T: a Buffer can be a view that
+  // starts at an odd byte offset. Read through memcpy so the access stays
+  // defined; a char pointer can alias anything and compilers fold this back
+  // into a plain load on architectures that allow unaligned access.
+  std::remove_cv_t<T> operator[](size_t index) const {
     NBYTES_ASSERT_TRUE(index < length_);
-    return start_[is_forward_ ? index : (length_ - index - 1)];
+    const size_t offset = is_forward_ ? index : (length_ - index - 1);
+    std::remove_cv_t<T> value;
+    memcpy(&value,
+           reinterpret_cast<const char *>(start_) + offset * sizeof(T),
+           sizeof(T));
+    return value;
   }
 
  private:
@@ -456,12 +466,18 @@ inline size_t FindFirstCharacter(Vector<const Char> pattern,
       void_pos = MemrchrFill(subject.start() + pattern.length() - 1,
                              search_byte, bytes_to_search);
     }
-    const Char *char_pos = static_cast<const Char *>(void_pos);
-    if (char_pos == nullptr) return subject.length();
+    if (void_pos == nullptr) return subject.length();
 
     // Then, for each match, verify that the full two bytes match pattern[0].
-    char_pos = AlignDown(char_pos, sizeof(Char));
-    size_t raw_pos = static_cast<size_t>(char_pos - subject.start());
+    // Round the hit down to an element boundary relative to the start of the
+    // subject, and stay on char pointers while doing so. Masking the absolute
+    // address would be wrong because the data is not necessarily aligned for
+    // Char: the mask can land before the start of the subject and turn the
+    // difference into a negative value.
+    const size_t byte_offset = static_cast<size_t>(
+        static_cast<const char *>(void_pos) -
+        reinterpret_cast<const char *>(subject.start()));
+    size_t raw_pos = byte_offset / sizeof(Char);
     pos = subject.forward() ? raw_pos : (subject.length() - raw_pos - 1);
     if (subject[pos] == pattern_first_char) {
       // Match found, hooray.
