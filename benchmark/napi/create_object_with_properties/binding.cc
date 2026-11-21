@@ -91,6 +91,40 @@ static napi_value CreateObjectWithPropertiesOld(napi_env env,
   return nullptr;
 }
 
+// Returns an array of objects created like the ones above, for reading.
+static napi_value CreateObjects(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
+  napi_value args[2];
+  napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+  bool use_new;
+  uint32_t count;
+  napi_get_value_bool(env, args[0], &use_new);
+  napi_get_value_uint32(env, args[1], &count);
+
+  InitializeTestProperties(env);
+
+  napi_value null_prototype;
+  napi_get_null(env, &null_prototype);
+
+  napi_value result;
+  napi_create_array_with_length(env, count, &result);
+  for (uint32_t i = 0; i < count; i++) {
+    napi_value obj;
+    if (use_new) {
+      node_api_create_object_with_properties(
+          env, null_prototype, global_names, global_values, 20, &obj);
+    } else {
+      napi_create_object(env, &obj);
+      for (int j = 0; j < 20; j++) {
+        napi_set_property(env, obj, global_names[j], global_values[j]);
+      }
+    }
+    napi_set_element(env, result, i, obj);
+  }
+
+  return result;
+}
+
 NAPI_MODULE_INIT() {
   napi_property_descriptor desc[] = {
       {"createObjectWithPropertiesNew",
@@ -109,6 +143,7 @@ NAPI_MODULE_INIT() {
        0,
        napi_default,
        0},
+      {"createObjects", 0, CreateObjects, 0, 0, 0, napi_default, 0},
   };
 
   napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
