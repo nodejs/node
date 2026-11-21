@@ -762,6 +762,19 @@ myStream.destroy();
 console.log(myStream.destroyed); // true
 ```
 
+##### `writable.autoDestroy`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Returns whether the stream should automatically call [`writable.destroy()`][writable-destroy]
+after `'finish'`. Setting this property updates the `autoDestroy` option used
+when the stream was created. On a [`Duplex`][] stream, setting this updates
+both the readable and the writable side.
+
 ##### `writable.end([chunk[, encoding]][, callback])`
 
 <!-- YAML
@@ -920,6 +933,17 @@ added:
 Number of times [`writable.uncork()`][stream-uncork] needs to be
 called in order to fully uncork the stream.
 
+##### `writable.writableDefaultEncoding`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The default encoding used when a string is written without an explicit `encoding`
+argument.
+
 ##### `writable.errored`
 
 <!-- YAML
@@ -930,6 +954,29 @@ added:
 * Type: {Error}
 
 Returns error if the stream has been destroyed with an error.
+
+##### `writable.writableErrored`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Error}
+
+Returns error if the writable side of the stream has been destroyed with an
+error. This is the writable-side counterpart of `writable.errored`. On a
+[`Duplex`][] stream, `errored` reflects the readable side, so use
+`writableErrored` to inspect the writable side.
+
+##### `writable.writableErrorEmitted`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Returns whether the `'error'` event has been emitted on the writable side.
 
 ##### `writable.writableFinished`
 
@@ -949,7 +996,9 @@ added: v9.3.0
 
 * Type: {number}
 
-Return the value of `highWaterMark` passed when creating this `Writable`.
+Returns the value of `highWaterMark` passed when creating this `Writable`.
+Setting this property updates the high-water mark used for backpressure on the
+writable side.
 
 ##### `writable.writableLength`
 
@@ -1438,6 +1487,19 @@ added: v8.0.0
 
 Is `true` after [`readable.destroy()`][readable-destroy] has been called.
 
+##### `readable.autoDestroy`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Returns whether the stream should automatically call [`readable.destroy()`][readable-destroy]
+after `'end'`. Setting this property updates the `autoDestroy` option used when
+the stream was created. On a [`Duplex`][] stream, setting this updates both the
+readable and the writable side.
+
 ##### `readable.isPaused()`
 
 <!-- YAML
@@ -1693,6 +1755,17 @@ changes:
 
 Returns whether `'data'` has been emitted.
 
+##### `readable.readableResumeScheduled`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Returns whether [`readable.resume()`][stream-resume] has been called but the
+scheduled resume has not yet been processed.
+
 ##### `readable.readableEncoding`
 
 <!-- YAML
@@ -1725,6 +1798,27 @@ added:
 
 Returns error if the stream has been destroyed with an error.
 
+##### `readable.readableErrored`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Error}
+
+Returns error if the readable side of the stream has been destroyed with an
+error. This is the readable-side counterpart of `readable.errored`.
+
+##### `readable.readableErrorEmitted`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Returns whether the `'error'` event has been emitted on the readable side.
+
 ##### `readable.readableFlowing`
 
 <!-- YAML
@@ -1745,6 +1839,8 @@ added: v9.3.0
 * Type: {number}
 
 Returns the value of `highWaterMark` passed when creating this `Readable`.
+Setting this property updates the high-water mark used for backpressure on the
+readable side.
 
 ##### `readable.readableLength`
 
