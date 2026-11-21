@@ -138,3 +138,13 @@ function oneTo5() {
   // Check that map isn't getting called.
   stream.flatMap(() => true);
 }
+
+{
+  // Already aborted AbortSignal on an empty stream
+  const stream = Readable.from([]).flatMap(common.mustNotCall(), {
+    signal: AbortSignal.abort(),
+  });
+  assert.rejects(stream.toArray(), {
+    name: 'AbortError',
+  }).then(common.mustCall());
+}
