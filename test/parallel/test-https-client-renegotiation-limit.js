@@ -57,6 +57,7 @@ function test(next) {
   const options = {
     cert: fixtures.readKey('rsa_cert.crt'),
     key: fixtures.readKey('rsa_private.pem'),
+    allowRenegotiation: true,
   };
 
   const server = https.createServer(options, common.mustCallAtLeast((req, res) => {
@@ -79,6 +80,7 @@ function test(next) {
 
     const options = {
       rejectUnauthorized: false,
+      allowRenegotiation: true,
       agent,
     };
 

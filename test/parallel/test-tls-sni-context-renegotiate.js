@@ -22,6 +22,8 @@ const server = tls.createServer({
   // Offering only this group makes the server answer a TLS 1.3 client whose
   // first key share is for another one with a HelloRetryRequest.
   ecdhCurve: 'P-521',
+  // BoringSSL servers don't support renegotiation.
+  allowRenegotiation: !isBoringSSL,
 }, common.mustCall((socket) => {
   assert.strictEqual(socket.servername, 'certless.example');
   socket.resume();
@@ -36,6 +38,7 @@ function connect(maxVersion) {
       rejectUnauthorized: false,
       maxVersion,
       ecdhCurve: 'P-256:P-521',
+      allowRenegotiation: true,
     }, () => resolve(socket));
   });
 }
@@ -44,7 +47,6 @@ server.listen(0, common.mustCall(async () => {
   const retried = await connect('TLSv1.3');
   retried.end();
 
-  // BoringSSL servers don't support renegotiation.
   if (!isBoringSSL) {
     const renegotiating = await connect('TLSv1.2');
     await new Promise((resolve) => {

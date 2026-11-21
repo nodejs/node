@@ -120,6 +120,7 @@ function testRenegotiationUnsupported() {
       port: server.address().port,
       rejectUnauthorized: false,
       maxVersion: 'TLSv1.2',
+      allowRenegotiation: true,
     }, common.mustCall(() => {
       const ok = client.renegotiate({}, common.mustCall((err) => {
         assert.throws(() => { throw err; }, {

@@ -279,6 +279,7 @@ function runTest(port, testIndex) {
         SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
     // Renegotiation as a protocol feature was dropped after TLS1.2.
     serverOptions.maxVersion = 'TLSv1.2';
+    serverOptions.allowRenegotiation = true;
   }
 
   let renegotiated = false;
