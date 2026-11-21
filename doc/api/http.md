@@ -1631,7 +1631,8 @@ added: v0.7.0
 
 Emitted each time a client requests an HTTP `CONNECT` method. If this event is
 not listened for, then clients requesting a `CONNECT` method will have their
-connections closed.
+connections closed. If an earlier response is still pending on the same
+connection, the connection is closed and this event is not emitted.
 
 This event is guaranteed to be passed an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specifies a socket
@@ -1738,7 +1739,9 @@ change.
 
 If an upgrade is accepted by `shouldUpgradeCallback` but no event handler
 is registered then the socket will be destroyed, resulting in an immediate
-connection closure for the client.
+connection closure for the client. If an earlier response is still pending on
+the same connection, the connection is also closed and this event is not
+emitted.
 
 In the uncommon case that the incoming request has a body, this body will be
 parsed as normal, separate to the upgrade stream, and the raw stream data will
