@@ -95,6 +95,38 @@ TEST_F(PathTest, ToNamespacedPath) {
 #endif
 }
 
+TEST_F(PathTest, ToNamespacedPathString) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env{handle_scope, argv, node::EnvironmentFlags::kNoBrowserGlobals};
+#ifdef _WIN32
+  std::string data = "";
+  ToNamespacedPath(*env, &data);
+  EXPECT_EQ(data, "");  // Empty string should not be mutated
+  std::string data_2 = "C://";
+  ToNamespacedPath(*env, &data_2);
+  EXPECT_EQ(data_2, "\\\\?\\C:\\");
+  std::string data_3 =
+      "C:\\workspace\\node-test-binary-windows-js-"
+      "suites\\node\\test\\fixtures\\permission\\deny\\protected-file.md";
+  ToNamespacedPath(*env, &data_3);
+  EXPECT_EQ(
+      data_3,
+      "\\\\?\\C:\\workspace\\node-test-binary-windows-js-"
+      "suites\\node\\test\\fixtures\\permission\\deny\\protected-file.md");
+  std::string data_4 = "\\\\?\\c:\\Windows/System";
+  ToNamespacedPath(*env, &data_4);
+  EXPECT_EQ(data_4, "\\\\?\\c:\\Windows\\System");
+  std::string data_5 = "\\\\server\\share\\file";
+  ToNamespacedPath(*env, &data_5);
+  EXPECT_EQ(data_5, "\\\\?\\UNC\\server\\share\\file");
+#else
+  std::string data = "hello world";
+  ToNamespacedPath(*env, &data);
+  EXPECT_EQ(data, "hello world");  // Input should not be mutated
+#endif
+}
+
 #ifdef _WIN32
 TEST_F(PathTest, NormalizeShortFileURLPath) {
   const v8::HandleScope handle_scope(isolate_);

@@ -48,6 +48,13 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
     );
   });
 
+  it('should reject a drive-relative file URL', { skip: !common.isWindows }, () => {
+    assert.throws(
+      () => findPackageJSON('pkg', 'file:///C:foo/x.js'),
+      { code: 'ERR_INVALID_URL' },
+    );
+  });
+
   it('should be able to crawl up (CJS)', () => {
     const pathToMod = fixtures.path('packages/nested/sub-pkg-cjs/index.js');
     const parentPkg = require(pathToMod);
