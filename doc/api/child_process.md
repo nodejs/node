@@ -753,6 +753,9 @@ process, the default is [`process.env`][].
 
 `undefined` values in `env` will be ignored.
 
+Keys in `env` must not be empty and must not contain `=`, otherwise
+`ERR_INVALID_ARG_VALUE` is thrown. On Windows, a leading `=` is allowed.
+
 > Using the `signal` option to destroy a long-lived child process as a resource
 > cleanup mechanism is deprecated. The `signal` option remains appropriate for
 > cancellation, externally propagated aborts, and timeouts. See
