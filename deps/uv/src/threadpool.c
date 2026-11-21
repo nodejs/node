@@ -401,9 +401,17 @@ int uv_cancel(uv_req_t* req) {
   uv_loop_t* loop;
 
   switch (req->type) {
+  case UV_WRITE:
+    if (uv__is_closing(((uv_write_t*) req)->handle))
+      return UV_EBUSY;
+    return uv__write_cancel((uv_write_t*) req);
   case UV_FS:
     loop =  ((uv_fs_t*) req)->loop;
     wreq = &((uv_fs_t*) req)->work_req;
+#ifdef __linux__
+    if (wreq->done == NULL)
+      return uv__iou_cancel(loop, (uv_fs_t*) req);
+#endif
     break;
   case UV_GETADDRINFO:
     loop =  ((uv_getaddrinfo_t*) req)->loop;
