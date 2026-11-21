@@ -571,9 +571,13 @@ static Local<Object> createImportAttributesContainer(
     Local<FixedArray> raw_attributes,
     const int elements_per_attribute) {
   CHECK_EQ(raw_attributes->Length() % elements_per_attribute, 0);
-  size_t num_attributes = raw_attributes->Length() / elements_per_attribute;
-  LocalVector<Name> names(isolate, num_attributes);
-  LocalVector<Value> values(isolate, num_attributes);
+  Local<Context> context = realm->context();
+
+  // v8::Object::New() with a prototype argument always creates the object in
+  // dictionary mode. Null the prototype of an ordinary object instead, so that
+  // the attributes, which the loader reads for every import, get a fast map.
+  Local<Object> attributes = Object::New(isolate);
+  attributes->SetPrototype(context, Null(isolate)).Check();
 
   for (int i = 0; i < raw_attributes->Length(); i += elements_per_attribute) {
     Local<Data> key = raw_attributes->Get(i);
@@ -581,15 +585,12 @@ static Local<Object> createImportAttributesContainer(
     DCHECK(DataIsString(key));
     DCHECK(DataIsString(value));
 
-    int idx = i / elements_per_attribute;
-    names[idx] = key.As<String>();
-    values[idx] = value.As<String>();
+    attributes
+        ->CreateDataProperty(context, key.As<String>(), value.As<String>())
+        .Check();
   }
 
-  Local<Object> attributes = Object::New(
-      isolate, Null(isolate), names.data(), values.data(), num_attributes);
-  attributes->SetIntegrityLevel(realm->context(), v8::IntegrityLevel::kFrozen)
-      .Check();
+  attributes->SetIntegrityLevel(context, v8::IntegrityLevel::kFrozen).Check();
   return attributes;
 }
 
