@@ -765,6 +765,16 @@ static void CheckGlobalProcessTimeoutOptions(
   per_process::cli_options->CheckProcessTimeoutOptions(errors, argv);
 }
 
+static bool HasMaxHeapSizeFlag(const std::vector<std::string>& v8_args) {
+  return std::ranges::any_of(v8_args | std::views::drop(1), [](std::string a) {
+    std::ranges::replace(a, '_', '-');
+    std::string_view s = a;
+    if (!s.starts_with('-')) return false;
+    s.remove_prefix(s.starts_with("--") ? 2 : 1);
+    return s == "max-heap-size" || s.starts_with("max-heap-size=");
+  });
+}
+
 static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
                                           std::vector<std::string>* exec_args,
                                           std::vector<std::string>* errors,
@@ -801,11 +811,17 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     return ExitCode::kInvalidCommandLineArgument2;
   }
 
-  if (!per_process::cli_options->per_isolate->max_old_space_size_percentage
-           .empty()) {
+  static bool has_max_heap_size_flag = false;
+  has_max_heap_size_flag |= HasMaxHeapSizeFlag(v8_args);
+
+  // Only hand --max-old-space-size to V8 when --max-heap-size needs it;
+  // otherwise it's applied per isolate so workers can override it.
+  if (has_max_heap_size_flag &&
+      per_process::cli_options->per_isolate->max_old_space_size_mb != 0) {
     v8_args.emplace_back(
         "--max_old_space_size=" +
-        per_process::cli_options->per_isolate->max_old_space_size);
+        std::to_string(
+            per_process::cli_options->per_isolate->max_old_space_size_mb));
   }
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;

@@ -1656,8 +1656,9 @@ changes:
     including no `ArrayBuffer`s. Even if these limits are set, the process may
     still abort if it encounters a global out-of-memory situation.
     * `maxOldGenerationSizeMb` {number} The maximum size of the main heap in
-      MB. If the command-line argument [`--max-old-space-size`][] is set, it
-      overrides this setting.
+      MB. Defaults to the value inherited from the parent thread (including
+      [`--max-old-space-size`][] or [`--max-old-space-size-percentage`][]). If
+      [`--max-heap-size`][] is set, it overrides this setting.
     * `maxYoungGenerationSizeMb` {number} The maximum size of a heap space for
       recently created objects. If the command-line argument
       [`--max-semi-space-size`][] is set, it overrides this setting.
@@ -2228,6 +2229,8 @@ thread spawned will spawn another until the application crashes.
 [`'close'` event]: #event-close
 [`'exit'` event]: #event-exit
 [`'online'` event]: #event-online
+[`--max-heap-size`]: cli.md#--max-heap-size
+[`--max-old-space-size-percentage`]: cli.md#--max-old-space-size-percentagepercentage
 [`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-mib
 [`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-mib
 [`AsyncResource`]: async_hooks.md#class-asyncresource
