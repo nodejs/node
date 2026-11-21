@@ -9,53 +9,19 @@ const common = require('../common');
 common.skipIfSQLiteMissing();
 common.skipIfInspectorDisabled();
 const { NodeInstance } = require('../common/inspector-helper.js');
+const { malformedLocalStorage } = require('../common/inspector-dom-storage');
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
-const { once } = require('node:events');
-const { join } = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
 tmpdir.refresh();
-
-// Node's own tables are STRICT, but they are created with IF NOT EXISTS, so a
-// file that already contains tables of those names is adopted as-is. Declare
-// the same schema without STRICT: BLOB columns have no affinity, so a TEXT
-// value stays TEXT.
-function malformedLocalStorage(name, schemaVersion, value) {
-  const file = join(tmpdir.path, name);
-  const db = new DatabaseSync(file);
-  db.exec(`
-    CREATE TABLE nodejs_webstorage(
-      key BLOB NOT NULL, value BLOB NOT NULL, PRIMARY KEY(key)
-    );
-    CREATE TABLE nodejs_webstorage_state(
-      max_size INTEGER NOT NULL DEFAULT 10485760,
-      total_size INTEGER NOT NULL,
-      schema_version INTEGER NOT NULL DEFAULT 1,
-      single_row_ INTEGER NOT NULL DEFAULT 1 CHECK(single_row_ = 1),
-      PRIMARY KEY(single_row_)
-    );
-  `);
-  db.prepare('INSERT INTO nodejs_webstorage (key, value) VALUES (?, ?)')
-    .run(Buffer.from('greeting', 'utf16le'), value);
-  db.prepare('INSERT INTO nodejs_webstorage_state (total_size, schema_version)' +
-    ' VALUES (0, ?)').run(schemaVersion);
-  db.close();
-  return file;
-}
 
 async function getDOMStorageItems(localStorageFile) {
   const instance = new NodeInstance([
     '--inspect=0',
     '--experimental-storage-inspection',
     `--localstorage-file=${localStorageFile}`,
-  ], 'console.log("ready"); setInterval(() => {}, 1000);');
-  // The inspector accepts connections before pre-execution defines
-  // globalThis.localStorage, and a command that arrives first reports the
-  // store as unavailable.
-  const ready = once(instance, 'stdout');
+  ], 'setInterval(() => {}, 1000);');
 
   const session = await instance.connectInspectorSession();
-  await ready;
   await session.send({ method: 'DOMStorage.enable' });
   const { storageKey } = await session.send({
     method: 'Storage.getStorageKey',
@@ -75,24 +41,22 @@ async function getDOMStorageItems(localStorageFile) {
 }
 
 (async () => {
-  // A wrong-typed value is rejected by Storage::GetAll() itself, which opens
-  // the file successfully and has no exception to report.
+  // A wrong-typed value is rejected while reading the rows, after the file
+  // opens successfully, so there is no open error to report.
   await assert.rejects(
     getDOMStorageItems(
       malformedLocalStorage('bad-value.db', 1, 'hello')),
     { message: 'Could not read DOM storage items: the backing file is malformed' },
   );
 
-  // A wrong-typed schema_version makes Storage::Open() throw, which has to be
-  // caught rather than left pending on an isolate with no JavaScript running.
-  // Its message reaches the frontend.
+  // A wrong-typed schema_version keeps the store from opening, and the reason
+  // reaches the frontend.
   await assert.rejects(
     getDOMStorageItems(
       malformedLocalStorage(
         'bad-schema-version.db', 'one', Buffer.from('hello', 'utf16le'))),
     {
-      // The reason comes off the v8::Message, hence the "Uncaught" prefix;
-      // converting the exception itself would run user JavaScript.
+      // Formatted like a v8::Message, hence the "Uncaught Error" prefix.
       message: 'Could not read DOM storage items: Uncaught Error: ' +
         'localStorage database is malformed: expected schema_version to be ' +
         'an integer',

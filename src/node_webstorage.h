@@ -27,6 +27,22 @@ using stmt_unique_ptr = std::unique_ptr<sqlite3_stmt, stmt_deleter>;
 
 static constexpr std::string_view kInMemoryPath = ":memory:";
 
+class Storage;
+
+class BindingData : public BaseObject {
+ public:
+  SET_BINDING_ID(webstorage_binding_data)
+
+  BindingData(Realm* realm, v8::Local<v8::Object> wrap);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(BindingData)
+  SET_SELF_SIZE(BindingData)
+
+  BaseObjectWeakPtr<Storage> local_storage;
+  BaseObjectWeakPtr<Storage> session_storage;
+};
+
 class Storage : public BaseObject {
  public:
   Storage(Environment* env,
@@ -42,18 +58,22 @@ class Storage : public BaseObject {
   v8::MaybeLocal<v8::Value> LoadKey(const int index);
   v8::Maybe<void> Remove(v8::Local<v8::Name> key);
   v8::Maybe<void> Store(v8::Local<v8::Name> key, v8::Local<v8::Value> value);
+  using StorageMap = std::unordered_map<std::u16string, std::u16string>;
   // Returns nothing if the backing store could not be read, e.g. because it
-  // holds values of an unexpected type. Opening the store can also throw, so
-  // the caller must hold a v8::TryCatch: an empty return does not say which of
-  // the two happened, and a pending exception is left for the caller to
-  // handle.
-  std::optional<std::unordered_map<std::u16string, std::u16string>> GetAll();
+  // holds values of an unexpected type. If opening the store fails, *error is
+  // populated with the failure reason instead of throwing a JS exception, so
+  // that this can be called from V8 interrupts where JS execution is forbidden.
+  std::optional<StorageMap> GetAll(std::string* error = nullptr);
+  static std::optional<StorageMap> ReadAllFromFile(std::string_view location,
+                                                   std::string* error);
 
   SET_MEMORY_INFO_NAME(Storage)
   SET_SELF_SIZE(Storage)
 
  private:
   v8::Maybe<void> Open();
+  static conn_unique_ptr OpenConnection(std::string_view location,
+                                        std::string* error);
 
   ~Storage() override;
   std::string location_;

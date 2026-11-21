@@ -18,6 +18,7 @@
 #include <array>
 #include <charconv>
 #include <cstdint>
+#include <filesystem>
 #include <limits>
 #include <sstream>
 #include <string_view>
@@ -364,6 +365,21 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
   if (!trace_require_module.empty() && trace_require_module != "all" &&
       trace_require_module != "no-node-modules") {
     errors->push_back("invalid value for --trace-require-module");
+  }
+
+  // Resolved once here so that a later process.chdir() cannot point
+  // localStorage and the inspector at different files. It is only made
+  // absolute: normalizing it would resolve "link/.." lexically, while POSIX
+  // resolves it through the symlink when the file is opened.
+  if (!localstorage_file.empty() && localstorage_file != ":memory:") {
+#ifdef _WIN32
+    std::filesystem::path file(ConvertUTF8ToWideString(localstorage_file));
+#else
+    std::filesystem::path file(localstorage_file);
+#endif
+    std::error_code ec;
+    file = std::filesystem::absolute(file, ec);
+    if (!ec) localstorage_file = ConvertPathToUTF8(file);
   }
 
   // NOTE: `has_bench_options` is deliberately *not* validated against
