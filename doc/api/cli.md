@@ -411,6 +411,9 @@ network by default.
 Attempts to do so will throw an `ERR_ACCESS_DENIED` unless the
 user explicitly passes the `--allow-net` flag when starting Node.js.
 
+This includes Unix domain sockets and Windows named pipes. Their paths are not
+checked against [`--allow-fs-read`][] or [`--allow-fs-write`][].
+
 Example:
 
 ```js
