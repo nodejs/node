@@ -11,6 +11,7 @@ test('transferring one buffered write leaves the other writes intact', async () 
   function sizeOf(i) {
     return i >= 320 && i % 8 === 7 ? 512 : 1024;
   }
+
   function check(chunk) {
     const value = next++;
     assert.deepStrictEqual(chunk, Buffer.alloc(sizeOf(value), value));

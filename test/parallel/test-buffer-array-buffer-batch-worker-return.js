@@ -32,7 +32,7 @@ if (isMainThread) {
 } else {
   let round = 0;
   const kept = [];
-  parentPort.on('message', (buffers) => {
+  parentPort.on('message', common.mustCall((buffers) => {
     round++;
     for (const buffer of buffers) {
       const bytes = new Uint8Array(buffer);
@@ -41,12 +41,12 @@ if (isMainThread) {
     }
     kept.push(new Uint8Array(buffers.pop()));
     buffers.length = 0;
-    setImmediate(() => {
+    setImmediate(common.mustCall(() => {
       global.gc();
       for (const [i, bytes] of kept.entries())
         assert(bytes.every((byte) => byte === 254 - i));
       parentPort.postMessage(round);
       if (round === rounds) parentPort.close();
-    });
-  });
+    }));
+  }, rounds));
 }

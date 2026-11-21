@@ -32,14 +32,14 @@ void CheckOwnership(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!previous.expired()) return;
 
   v8::Local<v8::Value> next;
-  if (!args[2].As<v8::Function>()
+  if (!args[2]
+           .As<v8::Function>()
            ->Call(context, receiver, 0, nullptr)
            .ToLocal(&next)) {
     return;
   }
   auto current = next.As<v8::ArrayBuffer>()->GetBackingStore();
-  const bool new_owner = previous.expired() && !SameOwner(previous, current);
-  args.GetReturnValue().Set(new_owner);
+  args.GetReturnValue().Set(!SameOwner(previous, current));
 }
 
 NODE_MODULE_INIT() {

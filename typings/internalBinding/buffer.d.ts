@@ -6,7 +6,7 @@ export interface BufferBinding {
   createArrayBufferBatch(byteLength: number, count: number, cacheSlot?: 0 | 1): ArrayBuffer[] | undefined;
   trimCopyStorePool(): void;
   getCopyNodeByteView(): {
-    (newTarget: Uint8ArrayConstructor, source: Uint8Array, destination?: ArrayBuffer): Uint8Array | undefined;
+    (newTarget: Uint8ArrayConstructor, source: Uint8Array, destination?: ArrayBuffer | ArrayBuffer[]): Uint8Array | undefined;
     readonly maxOnHeapBytes: number;
   } | undefined;
 

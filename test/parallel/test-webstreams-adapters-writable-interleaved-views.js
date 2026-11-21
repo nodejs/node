@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('node:assert/strict');
 const { Writable } = require('node:stream');
 const { test } = require('node:test');
@@ -7,7 +7,7 @@ const { test } = require('node:test');
 test('two writers can reuse a source while their native writes are buffered', async () => {
   const backing = new ArrayBuffer(1040);
   const source = new Uint8Array(backing);
-  const sizeOf = (i) => i % 2 === 0 ? 512 : 1024;
+  const sizeOf = (i) => (i % 2 === 0 ? 512 : 1024);
   const writes = 320;
 
   function makeWriter(offset) {
@@ -42,10 +42,10 @@ test('two writers can reuse a source while their native writes are buffered', as
     const writer = Writable.toWeb(sink).getWriter();
     return {
       writer,
-      verify() {
+      verify: common.mustCall(() => {
         assert.strictEqual(next, writes);
         assert(batches > 0);
-      },
+      }),
     };
   }
 

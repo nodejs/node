@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 const assert = require('assert');
 const { AsyncLocalStorage, AsyncResource, createHook } = require('async_hooks');
 const { Writable } = require('stream');
@@ -160,9 +161,7 @@ async function main() {
   hook?.disable();
 
   if (mode === undefined) {
-    const { code, signal, stderr } = await common.spawnPromisified(process.execPath, [__filename, 'hooks']);
-    assert.strictEqual(code, 0, stderr);
-    assert.strictEqual(signal, null);
+    spawnSyncAndExitWithoutError(process.execPath, [__filename, 'hooks']);
   }
 }
 

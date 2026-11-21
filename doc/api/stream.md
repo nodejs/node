@@ -3525,11 +3525,9 @@ changes:
   * `readable` {ReadableStream}
   * `writable` {WritableStream}
 
-The `writable` stream has the same mutable chunk reuse behavior as
-[`stream.Writable.toWeb()`][]. For streams not operating in writable object mode,
-reusing the chunk after `writer.write()` is fulfilled does not modify bytes
-retained by the Node.js stream's readable side. The adapter may copy chunks
-before passing them to the Node.js stream.
+If the writable side is in byte mode, reusing a chunk after `writer.write()`
+fulfills does not change any bytes the readable side has retained. See
+[`stream.Writable.toWeb()`][] for details on chunk reuse.
 
 ```mjs
 import { Duplex } from 'node:stream';

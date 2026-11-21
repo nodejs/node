@@ -519,6 +519,29 @@ transitioning builtin CreateTypedArray(
   }
 }
 
+macro TakeNodeCopyBuffer(implicit context: Context)(destination: JSAny):
+    JSArrayBuffer labels Miss {
+  typeswitch (destination) {
+    case (buffer: JSArrayBuffer): {
+      return buffer;
+    }
+    case (batch: FastJSArray): {
+      if (batch.length == 0) goto Miss;
+      let witness = NewFastJSArrayWitness(batch);
+      witness.EnsureArrayPushable() otherwise Miss;
+      const last = batch.length - 1;
+      const entry = witness.LoadElementNoHole(last) otherwise Miss;
+      const buffer = Cast<JSArrayBuffer>(entry) otherwise Miss;
+      witness.ChangeLength(last);
+      witness.StoreHole(last);
+      return buffer;
+    }
+    case (JSAny): {
+      goto Miss;
+    }
+  }
+}
+
 transitioning javascript builtin CopyNodeByteView(
     js-implicit context: NativeContext)(
     constructor: JSAny, source: JSAny, destination: JSAny): JSAny {
@@ -535,8 +558,8 @@ transitioning javascript builtin CopyNodeByteView(
     const map = GetDerivedMap(target, newTarget);
     const info = GetTypedArrayElementsInfo(map);
     if (info.kind != ElementsKind::UINT8_ELEMENTS) goto Miss;
-    const length =
-        LoadJSArrayBufferViewByteLength(src, src.buffer) otherwise Miss;
+    if (IsDetachedBuffer(src.buffer)) goto Miss;
+    const length = src.byte_length;
     if (length <= 64 || length > 1024) goto Miss;
 
     let copy: JSTypedArray;
@@ -549,7 +572,7 @@ transitioning javascript builtin CopyNodeByteView(
         return ConstructByArrayLike(map, src, length, info);
       }
     } else {
-      const buffer = Cast<JSArrayBuffer>(destination) otherwise Miss;
+      const buffer = TakeNodeCopyBuffer(destination) otherwise Miss;
       if (IsSharedArrayBuffer(buffer) || IsResizableArrayBuffer(buffer) ||
           IsDetachedBuffer(buffer) || IsImmutableArrayBuffer(buffer) ||
           src.buffer == buffer || length != buffer.byte_length) goto Miss;
@@ -561,12 +584,12 @@ transitioning javascript builtin CopyNodeByteView(
       }
     }
 
-    const sourceLength =
-        LoadJSArrayBufferViewByteLength(src, src.buffer) otherwise Miss;
-    const targetLength =
-        LoadJSArrayBufferViewByteLength(copy, copy.buffer) otherwise Miss;
-    if (sourceLength != length || targetLength != length ||
-        IsImmutableArrayBuffer(copy.buffer)) goto Miss;
+    if (IsDetachedBuffer(src.buffer) || IsDetachedBuffer(copy.buffer)) goto Miss;
+    if (IsImmutableArrayBuffer(copy.buffer)) goto Miss;
+    const sourceLength = src.byte_length;
+    const targetLength = copy.byte_length;
+    if (sourceLength != length || targetLength != length) goto Miss;
+
     typed_array::CallCMemmove(copy.data_ptr, src.data_ptr, length);
     return copy;
   } label Miss {

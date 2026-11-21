@@ -2053,8 +2053,7 @@ static void RefillCopyStorePool(const FunctionCallbackInfo<Value>& args,
   for (unsigned i = 0; i < count; ++i) {
     auto& store = stores[i];
     std::shared_ptr<BackingStore> publication(
-        store.release(),
-        [target, index, generation](BackingStore* ptr) {
+        store.release(), [target, index, generation](BackingStore* ptr) {
           CopyStorePool::Store owned(ptr);
           if (auto alive = target.lock())
             alive->Return(index, generation, std::move(owned));
@@ -2076,7 +2075,8 @@ static void GetCopyNodeByteView(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
   Local<Value> function;
   if (context->GetExtrasBindingObject()
-          ->Get(context, FIXED_ONE_BYTE_STRING(args.GetIsolate(), "copyNodeByteView"))
+          ->Get(context,
+                FIXED_ONE_BYTE_STRING(args.GetIsolate(), "copyNodeByteView"))
           .ToLocal(&function) &&
       function->IsFunction()) {
     args.GetReturnValue().Set(function);
@@ -2303,10 +2303,10 @@ void Initialize(Local<Object> target,
                 &fast_copy_array_buffer);
   SetMethodNoSideEffect(
       context, target, "createUnsafeArrayBuffer", CreateUnsafeArrayBuffer);
-  SetMethod(
-      context, target, "createArrayBufferBatch", CreateArrayBufferBatch);
+  SetMethod(context, target, "createArrayBufferBatch", CreateArrayBufferBatch);
   SetMethod(context, target, "trimCopyStorePool", TrimCopyStorePool);
-  SetMethodNoSideEffect(context, target, "getCopyNodeByteView", GetCopyNodeByteView);
+  SetMethodNoSideEffect(
+      context, target, "getCopyNodeByteView", GetCopyNodeByteView);
   SetMethodNoSideEffect(
       context, target, "arrayBufferAlignedOffset", ArrayBufferAlignedOffset);
 

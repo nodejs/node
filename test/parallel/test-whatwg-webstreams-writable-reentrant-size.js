@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('node:assert/strict');
 const { WritableStream } = require('node:stream/web');
 const { test } = require('node:test');
@@ -9,14 +9,14 @@ test('a reentrant write counts the active chunk until it settles', async () => {
   const observed = [];
   let nested;
   const writer = new WritableStream({
-    write(size) {
+    write: common.mustCall((size) => {
       observed.push([size, writer.desiredSize]);
       if (size === 2) {
         nested = writer.write(3);
         assert.strictEqual(writer.desiredSize, 1);
         return gate.promise;
       }
-    },
+    }, 3),
   }, { highWaterMark: 6, size: (size) => size }).getWriter();
 
   await writer.ready;

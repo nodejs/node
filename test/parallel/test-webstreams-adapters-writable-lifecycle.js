@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 const assert = require('assert');
 const { createHook } = require('async_hooks');
 const { Writable } = require('stream');
@@ -60,7 +61,7 @@ async function checkPendingAbort(reason, highWaterMark) {
   await started.promise;
   await Promise.all([pending, closed, writer.abort(reason)]);
   assert.strictEqual(writable.destroyed, true);
-  // A callback arriving after abort must not complete another Web write.
+  // The native write callback can still run after abort completes.
   finishWrite();
   await new Promise(setImmediate);
 }
@@ -182,9 +183,7 @@ async function main() {
   hook?.disable();
 
   if (mode === undefined) {
-    const { code, signal, stderr } = await common.spawnPromisified(process.execPath, [__filename, 'hooks']);
-    assert.strictEqual(code, 0, stderr);
-    assert.strictEqual(signal, null);
+    spawnSyncAndExitWithoutError(process.execPath, [__filename, 'hooks']);
   }
 }
 

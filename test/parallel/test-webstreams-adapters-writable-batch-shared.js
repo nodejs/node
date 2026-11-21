@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { Writable } = require('node:stream');
 const { test } = require('node:test');
 
-test('buffered writes preserve shared backing after repeated fixed-size writes', async () => {
+test('buffered writes copy shared inputs into separate SharedArrayBuffers', async () => {
   const warmup = 1200;
   const size = 1024;
   const regular = Buffer.alloc(size);

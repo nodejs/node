@@ -1,6 +1,6 @@
 // Flags: --expose-gc
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('node:assert/strict');
 const { Writable } = require('node:stream');
 const { test } = require('node:test');
@@ -51,11 +51,11 @@ test('retained writev chunks survive transfer, GC, and another writer closing', 
           input.fill(255);
         }
       },
-      async close() {
+      close: common.mustCall(async () => {
         await writer.close();
         assert.strictEqual(received, sent);
         assert(batches > 0);
-      },
+      }),
     };
   }
 

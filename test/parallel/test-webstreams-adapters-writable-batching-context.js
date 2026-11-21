@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 const assert = require('assert');
 const { AsyncLocalStorage, createHook } = require('async_hooks');
 const { Writable } = require('stream');
@@ -60,7 +61,8 @@ async function checkContext(origin) {
   storage.disable();
 }
 
-async function checkIndependentBatches(withString) {
+async function checkIndependentBatches(stringWriteMode) {
+  const writesString = stringWriteMode !== 'none';
   const storage = new AsyncLocalStorage();
   const callbacks = [];
   const contexts = [];
@@ -69,28 +71,28 @@ async function checkIndependentBatches(withString) {
       contexts.push(storage.getStore());
       if (chunk[0] === 1) setImmediate(callback);
       else callbacks.push(callback);
-    }, withString ? 5 : 4),
+    }, writesString ? 5 : 4),
   });
   const writer = Writable.toWeb(writable).getWriter();
   await writer.write(Buffer.from([1]));
   await storage.run('batch-A', () => writer.write(Buffer.from([2])));
   callbacks.shift()();
 
-  if (withString === 'native') {
+  if (stringWriteMode === 'native') {
     storage.run('batch-B', () => writable.write('3'));
-  } else if (withString) {
+  } else if (stringWriteMode === 'web') {
     await storage.run('batch-B', () => writer.write('3'));
   }
   await storage.run('batch-B', () => writer.write(Buffer.from([3])));
   await storage.run('batch-B', () => writer.write(Buffer.from([4])));
-  if (withString) storage.run('batch-B', () => callbacks.shift()());
+  if (writesString) storage.run('batch-B', () => callbacks.shift()());
   storage.run('completion-B', common.mustCall(() => {
     callbacks.shift()();
     assert.strictEqual(storage.getStore(), 'completion-B');
   }));
   callbacks.shift()();
   await writer.close();
-  assert.deepStrictEqual(contexts, withString ?
+  assert.deepStrictEqual(contexts, writesString ?
     [undefined, 'batch-A', 'batch-B', 'batch-B', 'batch-B'] :
     [undefined, 'batch-A', 'batch-B', 'batch-B']);
   storage.disable();
@@ -132,14 +134,14 @@ async function main() {
   for (const origin of [undefined, 'stream-origin']) {
     await checkContext(origin);
   }
-  for (const withString of [false, true, 'native']) await checkIndependentBatches(withString);
+  for (const stringWriteMode of ['none', 'web', 'native']) {
+    await checkIndependentBatches(stringWriteMode);
+  }
   for (const hookFirst of [false, true]) await checkResourceInitHook(hookFirst);
   hook?.disable();
 
   if (mode === undefined) {
-    const { code, signal, stderr } = await common.spawnPromisified(process.execPath, [__filename, 'hooks']);
-    assert.strictEqual(code, 0, stderr);
-    assert.strictEqual(signal, null);
+    spawnSyncAndExitWithoutError(process.execPath, [__filename, 'hooks']);
   }
 }
 
