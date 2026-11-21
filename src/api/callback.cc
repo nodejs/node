@@ -350,6 +350,18 @@ MaybeLocal<Value> InternalMakeCallback(Isolate* isolate,
   }
   Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);
+  return MakeCallbackInEnvironment(
+      env, recv, callback, argc, argv, asyncContext, context_frame);
+}
+
+MaybeLocal<Value> MakeCallbackInEnvironment(Environment* env,
+                                            Local<Object> recv,
+                                            const Local<Function> callback,
+                                            int argc,
+                                            Local<Value> argv[],
+                                            async_context asyncContext,
+                                            Local<Value> context_frame) {
+  Isolate* isolate = env->isolate();
   // Entering the context changes nothing when it is already the entered and
   // the current one, which is the common case for addons.
   Local<Context> env_context = env->context();
