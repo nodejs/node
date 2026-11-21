@@ -1,8 +1,11 @@
-// Flags:  --enable-source-maps
-
 'use strict';
 require('../../../common');
+const Module = require('node:module');
 Error.stackTraceLimit = 3;
+
+Module.setSourceMapsSupport(true, {
+  generatedCode: true,
+});
 
 const fs = require('fs');
 
