@@ -26,6 +26,16 @@ inline void Debug(const WASI& wasi, Args&&... args) {
     }                                                                          \
   } while (0)
 
+// elem_size * count is computed in size_t. A uint32_t product wraps
+// (for example 0x20000000 * 8 == 0) and then skips the bounds check.
+#define CHECK_ARRAY_BOUNDS_OR_RETURN(mem_size, offset, elem_size, count)       \
+  do {                                                                         \
+    if (!uvwasi_serdes_check_array_bounds(                                     \
+            (offset), (mem_size), (elem_size), (count))) {                     \
+      return UVWASI_EOVERFLOW;                                                 \
+    }                                                                          \
+  } while (0)
+
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BigInt;
@@ -669,8 +679,8 @@ uint32_t WASI::FdPread(WASI& wasi,
         iovs_len,
         offset,
         nread_ptr);
-  CHECK_BOUNDS_OR_RETURN(
-      memory.size, iovs_ptr, iovs_len * UVWASI_SERDES_SIZE_iovec_t);
+  CHECK_ARRAY_BOUNDS_OR_RETURN(
+      memory.size, iovs_ptr, UVWASI_SERDES_SIZE_iovec_t, iovs_len);
   CHECK_BOUNDS_OR_RETURN(memory.size, nread_ptr, UVWASI_SERDES_SIZE_size_t);
   std::vector<uvwasi_iovec_t> iovs(iovs_len);
   uvwasi_errno_t err;
@@ -729,8 +739,8 @@ uint32_t WASI::FdPwrite(WASI& wasi,
         iovs_len,
         offset,
         nwritten_ptr);
-  CHECK_BOUNDS_OR_RETURN(
-      memory.size, iovs_ptr, iovs_len * UVWASI_SERDES_SIZE_ciovec_t);
+  CHECK_ARRAY_BOUNDS_OR_RETURN(
+      memory.size, iovs_ptr, UVWASI_SERDES_SIZE_ciovec_t, iovs_len);
   CHECK_BOUNDS_OR_RETURN(memory.size, nwritten_ptr, UVWASI_SERDES_SIZE_size_t);
   std::vector<uvwasi_ciovec_t> iovs(iovs_len);
   uvwasi_errno_t err;
@@ -757,8 +767,8 @@ uint32_t WASI::FdRead(WASI& wasi,
                       uint32_t iovs_len,
                       uint32_t nread_ptr) {
   Debug(wasi, "fd_read(%d, %d, %d, %d)\n", fd, iovs_ptr, iovs_len, nread_ptr);
-  CHECK_BOUNDS_OR_RETURN(
-      memory.size, iovs_ptr, iovs_len * UVWASI_SERDES_SIZE_iovec_t);
+  CHECK_ARRAY_BOUNDS_OR_RETURN(
+      memory.size, iovs_ptr, UVWASI_SERDES_SIZE_iovec_t, iovs_len);
   CHECK_BOUNDS_OR_RETURN(memory.size, nread_ptr, UVWASI_SERDES_SIZE_size_t);
   std::vector<uvwasi_iovec_t> iovs(iovs_len);
   uvwasi_errno_t err;
@@ -858,8 +868,8 @@ uint32_t WASI::FdWrite(WASI& wasi,
         iovs_ptr,
         iovs_len,
         nwritten_ptr);
-  CHECK_BOUNDS_OR_RETURN(
-      memory.size, iovs_ptr, iovs_len * UVWASI_SERDES_SIZE_ciovec_t);
+  CHECK_ARRAY_BOUNDS_OR_RETURN(
+      memory.size, iovs_ptr, UVWASI_SERDES_SIZE_ciovec_t, iovs_len);
   CHECK_BOUNDS_OR_RETURN(memory.size, nwritten_ptr, UVWASI_SERDES_SIZE_size_t);
   std::vector<uvwasi_ciovec_t> iovs(iovs_len);
   uvwasi_errno_t err;
@@ -1131,10 +1141,10 @@ uint32_t WASI::PollOneoff(WASI& wasi,
         out_ptr,
         nsubscriptions,
         nevents_ptr);
-  CHECK_BOUNDS_OR_RETURN(
-      memory.size, in_ptr, nsubscriptions * UVWASI_SERDES_SIZE_subscription_t);
-  CHECK_BOUNDS_OR_RETURN(
-      memory.size, out_ptr, nsubscriptions * UVWASI_SERDES_SIZE_event_t);
+  CHECK_ARRAY_BOUNDS_OR_RETURN(
+      memory.size, in_ptr, UVWASI_SERDES_SIZE_subscription_t, nsubscriptions);
+  CHECK_ARRAY_BOUNDS_OR_RETURN(
+      memory.size, out_ptr, UVWASI_SERDES_SIZE_event_t, nsubscriptions);
   CHECK_BOUNDS_OR_RETURN(memory.size, nevents_ptr, UVWASI_SERDES_SIZE_size_t);
   std::vector<uvwasi_subscription_t> in(nsubscriptions);
   std::vector<uvwasi_event_t> out(nsubscriptions);
@@ -1214,8 +1224,8 @@ uint32_t WASI::SockRecv(WASI& wasi,
         ri_flags,
         ro_datalen_ptr,
         ro_flags_ptr);
-  CHECK_BOUNDS_OR_RETURN(
-      memory.size, ri_data_ptr, ri_data_len * UVWASI_SERDES_SIZE_iovec_t);
+  CHECK_ARRAY_BOUNDS_OR_RETURN(
+      memory.size, ri_data_ptr, UVWASI_SERDES_SIZE_iovec_t, ri_data_len);
   CHECK_BOUNDS_OR_RETURN(memory.size, ro_datalen_ptr, 4);
   CHECK_BOUNDS_OR_RETURN(memory.size, ro_flags_ptr, 4);
   std::vector<uvwasi_iovec_t> ri_data(ri_data_len);
@@ -1256,8 +1266,8 @@ uint32_t WASI::SockSend(WASI& wasi,
         si_data_len,
         si_flags,
         so_datalen_ptr);
-  CHECK_BOUNDS_OR_RETURN(
-      memory.size, si_data_ptr, si_data_len * UVWASI_SERDES_SIZE_ciovec_t);
+  CHECK_ARRAY_BOUNDS_OR_RETURN(
+      memory.size, si_data_ptr, UVWASI_SERDES_SIZE_ciovec_t, si_data_len);
   CHECK_BOUNDS_OR_RETURN(
       memory.size, so_datalen_ptr, UVWASI_SERDES_SIZE_size_t);
   std::vector<uvwasi_ciovec_t> si_data(si_data_len);
