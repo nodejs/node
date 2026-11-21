@@ -677,6 +677,9 @@ npx codemod@latest @nodejs/repl-builtin-modules
 <!-- YAML
 added: v0.1.91
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66289
+    description: The `defineDefaultCommands` option has been added.
   - version:
      - v25.9.0
     pr-url: https://github.com/nodejs/node/pull/62188
@@ -770,6 +773,11 @@ changes:
       The `'unhandled'` value may or may not be desirable in situations
       where the `REPLServer` instance has been closed, depending on the particular
       use case.
+  * `defineDefaultCommands` {boolean} If `false`, the built-in commands
+    (`.break`, `.clear`, `.editor`, `.exit`, `.help`, `.load` and `.save`)
+    are not registered, so the REPL starts without any commands. Custom
+    commands can still be added with [`replServer.defineCommand()`][].
+    **Default:** `true`.
 * Returns: {repl.REPLServer}
 
 The `repl.start()` method creates and starts a [`repl.REPLServer`][] instance.
@@ -1150,6 +1158,7 @@ Original code from <https://gist.github.com/TooTallNate/2053342>.
 [`readline.InterfaceCompleter`]: readline.md#use-of-the-completer-function
 [`repl.ReplServer`]: #class-replserver
 [`repl.start()`]: #replstartoptions
+[`replServer.defineCommand()`]: #replserverdefinecommandkeyword-cmd
 [`reverse-i-search`]: #reverse-i-search
 [`util.inspect()`]: util.md#utilinspectobject-options
 [custom evaluation functions]: #custom-evaluation-functions
