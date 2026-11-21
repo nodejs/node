@@ -81,6 +81,8 @@
           ['OS=="win"', {
             'libraries': [
               '-lntdll',
+              # Rust std futex-based locks need WaitOnAddress & co.
+              '-lsynchronization',
               '-luserenv'
             ],
           }],
