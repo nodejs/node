@@ -1975,9 +1975,7 @@ w.on('online', async () => {
 ### `worker.startHeapProfile([options])`
 
 <!-- YAML
-added:
-  - v24.9.0
-  - v22.20.0
+added: v24.9.0
 -->
 
 * `options` {Object}

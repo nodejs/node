@@ -1528,6 +1528,27 @@ file in chunks.
 The number of file system events queued without being handled exceeded the size specified in
 `maxQueue` in `fs.watch()`.
 
+<a id="ERR_HEAP_PROFILE_HAVE_BEEN_STARTED"></a>
+
+### `ERR_HEAP_PROFILE_HAVE_BEEN_STARTED`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+An attempt was made to start a sampling heap profile while one is already
+running in the same thread or worker.
+
+<a id="ERR_HEAP_PROFILE_NOT_STARTED"></a>
+
+### `ERR_HEAP_PROFILE_NOT_STARTED`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+An attempt was made to stop a sampling heap profile that is not running.
+
 <a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
 
 ### `ERR_HTTP2_ALTSVC_INVALID_ORIGIN`
