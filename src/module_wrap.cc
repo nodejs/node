@@ -1522,7 +1522,11 @@ void ModuleWrap::CreateCachedData(const FunctionCallbackInfo<Value>& args) {
 
   Local<Module> module = obj->module_.Get(isolate);
 
-  CHECK_LT(module->GetStatus(), Module::Status::kEvaluating);
+  // A code cache that is created after evaluation also contains the functions
+  // that were compiled lazily while the module ran.
+  Module::Status status = module->GetStatus();
+  CHECK_NE(status, Module::Status::kEvaluating);
+  CHECK_NE(status, Module::Status::kErrored);
 
   Local<UnboundModuleScript> unbound_module_script =
       module->GetUnboundModuleScript();
