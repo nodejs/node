@@ -81,6 +81,7 @@
           ['OS=="win"', {
             'libraries': [
               '-lntdll',
+              '-lsynchronization',
               '-luserenv'
             ],
           }],
