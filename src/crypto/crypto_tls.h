@@ -363,6 +363,9 @@ class TLSWrap : public AsyncWrap,
     // The handshake in progress is the peer's attempt to renegotiate, which
     // the TLS library is refusing.
     bool renegotiation_refused : 1;
+    // JS called ReadStop(). Decrypted data must not be emitted until
+    // ReadStart() is called.
+    bool reading_stopped : 1;
   };
   Flags flags_{};
 
