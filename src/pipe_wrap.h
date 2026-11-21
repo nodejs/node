@@ -40,6 +40,11 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
     IPC
   };
 
+  enum InternalFields {
+    kPeerCloseCallbackField = LibuvStreamWrap::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
   static v8::MaybeLocal<v8::Object> Instantiate(Environment* env,
                                                 AsyncWrap* parent,
                                                 SocketType type);
@@ -64,6 +69,13 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
   static void Listen(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WatchPeerClose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PeerCloseAlloc(uv_handle_t* handle,
+                             size_t suggested_size,
+                             uv_buf_t* buf);
+  static void PeerCloseRead(uv_stream_t* stream,
+                            ssize_t nread,
+                            const uv_buf_t* buf);
 
 #ifdef _WIN32
   static void SetPendingInstances(
