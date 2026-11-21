@@ -394,7 +394,7 @@ test('ESM mocking with namedExports option', async (t) => {
     });
     await assert.rejects(async () => {
       await import(fixture);
-    }, /Cannot create mock/);
+    }, { message: /^Cannot create mock/ });
 
     t.mock.reset();
     assert.strictEqual(original, await import(fixture));
