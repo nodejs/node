@@ -469,17 +469,14 @@ static void uv__fsevents_reschedule(uv__cf_loop_state_t* state,
   }
 
 final:
-  /* Deallocate all paths in case of failure */
-  if (err != 0) {
-    if (cf_paths == NULL) {
-      while (i != 0)
-        pCFRelease(paths[--i]);
-      uv__free(paths);
-    } else {
-      /* CFArray takes ownership of both strings and original C-array */
-      pCFRelease(cf_paths);
-    }
+  /* The array has no callbacks and does not own the strings or C buffer. */
+  if (cf_paths != NULL)
+    pCFRelease(cf_paths);
+  while (i != 0)
+    pCFRelease(paths[--i]);
+  uv__free(paths);
 
+  if (err != 0) {
     /* Broadcast error to all handles */
     uv_mutex_lock(&state->fsevent_mutex);
     uv__queue_foreach(q, &state->fsevent_handles) {
