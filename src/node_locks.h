@@ -144,6 +144,7 @@ class LockRequest final {
 class LockManager final {
  public:
   static void Request(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Cancel(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Query(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   void ProcessQueue(Environment* env);
@@ -164,8 +165,11 @@ class LockManager final {
   LockManager& operator=(const LockManager&) = delete;
 
   bool IsGrantable(const LockRequest* req) const;
-  void CleanupStolenLocks(Environment* env);
+  bool CleanupStolenLocks(Environment* env);
   void ReleaseLock(Lock* lock);
+  // mutex_ must be held while calling this method.
+  void WakeGrantableEnvironments();
+  // mutex_ must be held while calling this method.
   void WakeEnvironment(Environment* env);
 
   static LockManager current_;
