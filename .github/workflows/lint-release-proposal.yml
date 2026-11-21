@@ -92,19 +92,23 @@ jobs:
       - name: Validate CHANGELOG
         id: releaser-info
         run: |
+          HAS_ERROR=
           EXPECTED_CHANGELOG_TITLE_INTRO="## $COMMIT_SUBJECT, @"
           echo "Expected CHANGELOG section title: $EXPECTED_CHANGELOG_TITLE_INTRO"
           CHANGELOG_PATH="doc/changelogs/CHANGELOG_V${MAJOR}.md"
-          CHANGELOG_TITLE="$(grep "$EXPECTED_CHANGELOG_TITLE_INTRO" "$CHANGELOG_PATH")"
+          CHANGELOG_TITLE="$(grep "$EXPECTED_CHANGELOG_TITLE_INTRO" "$CHANGELOG_PATH" || true)"
           echo "Actual: $CHANGELOG_TITLE"
-          [ "${CHANGELOG_TITLE%%@*}@" = "$EXPECTED_CHANGELOG_TITLE_INTRO" ]
+          if [ "${CHANGELOG_TITLE%%@*}@" != "$EXPECTED_CHANGELOG_TITLE_INTRO" ]; then
+            echo "::error file=$CHANGELOG_PATH,title=Release proposal linter::Cannot find CHANGELOG section title starting with $EXPECTED_CHANGELOG_TITLE_INTRO"
+            HAS_ERROR=1
+          fi
           gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             --jq '.commits.[] | { smallSha: .sha[0:10] } + (.commit.message|capture("^(?<title>.+)\n\n(.*\n)*PR-URL: (?<prURL>.+)(\n|$)"))' \
             "/repos/${GITHUB_REPOSITORY}/compare/v${MAJOR}.x...$GITHUB_SHA" --paginate \
           | node tools/actions/lint-release-proposal-commit-list.mjs "$CHANGELOG_PATH" "$GITHUB_SHA" \
-          | while IFS= read -r PR_URL; do
+          | { while IFS= read -r PR_URL; do
             DONT_LAND_LABEL="dont-land-on-v${MAJOR}.x" LTS_WATCH_LABEL="lts-watch-v${MAJOR}.x" gh pr view \
               --json labels,url \
               --jq '
@@ -114,8 +118,9 @@ jobs:
                   error("\(.url) has the \(env.LTS_WATCH_LABEL) label, please remove the label now that the PR is included in a release proposal")
                 end
                 ' \
-              "$PR_URL" > /dev/null
-          done
+              "$PR_URL" > /dev/null || HAS_LABEL_ERROR=1
+          done; [ -z "$HAS_LABEL_ERROR" ]; } || HAS_ERROR=1
+          [ -z "$HAS_ERROR" ]
         shell: bash  # See https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference, we want the pipefail option.
         env:
           COMMIT_SUBJECT: ${{ steps.commit-message-parse.outputs.COMMIT_SUBJECT }}
