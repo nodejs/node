@@ -1486,6 +1486,7 @@ added: v0.5.0
 
 * `privateKey` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `encoding` {string} The [encoding][] of the `privateKey` string.
+* Returns: {DiffieHellman} The `DiffieHellman` object itself.
 
 Sets the Diffie-Hellman private key. If the `encoding` argument is provided,
 `privateKey` is expected
@@ -1504,6 +1505,7 @@ added: v0.5.0
 
 * `publicKey` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `encoding` {string} The [encoding][] of the `publicKey` string.
+* Returns: {DiffieHellman} The `DiffieHellman` object itself.
 
 Sets the Diffie-Hellman public key. If the `encoding` argument is provided,
 `publicKey` is expected
@@ -1789,6 +1791,7 @@ added: v0.11.14
 
 * `privateKey` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `encoding` {string} The [encoding][] of the `privateKey` string.
+* Returns: {ECDH} The `ECDH` object itself.
 
 Sets the EC Diffie-Hellman private key.
 If `encoding` is provided, `privateKey` is expected
@@ -2088,6 +2091,7 @@ changes:
 
 * `data` {string|Buffer|TypedArray|DataView}
 * `inputEncoding` {string} The [encoding][] of the `data` string.
+* Returns: {Hash} The `Hash` object itself.
 
 Updates the hash content with the given `data`, the encoding of which
 is given in `inputEncoding`.
@@ -2253,6 +2257,7 @@ changes:
 
 * `data` {string|Buffer|TypedArray|DataView}
 * `inputEncoding` {string} The [encoding][] of the `data` string.
+* Returns: {Hmac} The `Hmac` object itself.
 
 Updates the `Hmac` content with the given `data`, the encoding of which
 is given in `inputEncoding`.
@@ -2842,6 +2847,7 @@ changes:
 
 * `data` {string|Buffer|TypedArray|DataView}
 * `inputEncoding` {string} The [encoding][] of the `data` string.
+* Returns: {Sign} The `Sign` object itself.
 
 Updates the `Sign` content with the given `data`, the encoding of which
 is given in `inputEncoding`.
@@ -2884,6 +2890,7 @@ changes:
 
 * `data` {string|Buffer|TypedArray|DataView}
 * `inputEncoding` {string} The [encoding][] of the `data` string.
+* Returns: {Verify} The `Verify` object itself.
 
 Updates the `Verify` content with the given `data`, the encoding of which
 is given in `inputEncoding`.
