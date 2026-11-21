@@ -39,6 +39,12 @@
 #include "nghttp3_str.h"
 #include "sfparse/sfparse.h"
 
+/* NGHTTP3_HTTP_MAX_PRIORITY_VALUELEN is the maximum length of
+   priority header field value that is parsed.  A longer value is
+   treated as a value that cannot be parsed.  This is the same limit
+   we impose against PRIORITY_UPDATE frame. */
+#define NGHTTP3_HTTP_MAX_PRIORITY_VALUELEN 8
+
 /*
  * memieq returns 1 if the data pointed by |a| of length |n| equals to
  * |b| of the same length in case-insensitive manner.  The data
@@ -239,7 +245,7 @@ static int check_scheme(const uint8_t *value, size_t len) {
   return 1;
 }
 
-static const int8_t VALID_METHOD_CHARS[256] = {
+static const int8_t VALID_TOKEN_CHARS[256] = {
   ['!'] = 1, ['#'] = 1, ['$'] = 1, ['%'] = 1, ['&'] = 1, ['\''] = 1, ['*'] = 1,
   ['+'] = 1, ['-'] = 1, ['.'] = 1, ['0'] = 1, ['1'] = 1, ['2'] = 1,  ['3'] = 1,
   ['4'] = 1, ['5'] = 1, ['6'] = 1, ['7'] = 1, ['8'] = 1, ['9'] = 1,  ['A'] = 1,
@@ -253,13 +259,13 @@ static const int8_t VALID_METHOD_CHARS[256] = {
   ['v'] = 1, ['w'] = 1, ['x'] = 1, ['y'] = 1, ['z'] = 1, ['|'] = 1,  ['~'] = 1,
 };
 
-static int check_method(const uint8_t *value, size_t len) {
+static int check_token(const uint8_t *value, size_t len) {
   const uint8_t *last;
   if (len == 0) {
     return 0;
   }
   for (last = value + len; value != last; ++value) {
-    if (!VALID_METHOD_CHARS[*value]) {
+    if (!VALID_TOKEN_CHARS[*value]) {
       return 0;
     }
   }
@@ -329,7 +335,7 @@ static int http_request_on_header(nghttp3_http_state *http,
     }
     break;
   case NGHTTP3_QPACK_TOKEN__METHOD:
-    if (!check_method(nv->value->base, nv->value->len) ||
+    if (!check_token(nv->value->base, nv->value->len) ||
         !check_pseudo_header(http, nv, NGHTTP3_HTTP_FLAG__METHOD)) {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
     }
@@ -379,11 +385,19 @@ static int http_request_on_header(nghttp3_http_state *http,
     }
     break;
   case NGHTTP3_QPACK_TOKEN__PROTOCOL:
-    if (!connect_protocol ||
-        !nghttp3_check_header_value(nv->value->base, nv->value->len) ||
+    /* https://datatracker.ietf.org/doc/html/rfc8441#section-4:
+       :protocol contains a single value from HTTP Upgrade Token
+       Registry, which is a token. */
+    if (!connect_protocol || !check_token(nv->value->base, nv->value->len) ||
         !check_pseudo_header(http, nv, NGHTTP3_HTTP_FLAG__PROTOCOL)) {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
     }
+
+    if (lstrieq("webtransport-h3", nv->value->base, nv->value->len) ||
+        lstrieq("webtransport", nv->value->base, nv->value->len)) {
+      http->flags |= NGHTTP3_HTTP_FLAG_WEBTRANSPORT;
+    }
+
     break;
   case NGHTTP3_QPACK_TOKEN_HOST:
     if (!check_authority(nv->value->base, nv->value->len)) {
@@ -397,8 +411,11 @@ static int http_request_on_header(nghttp3_http_state *http,
     /* https://tools.ietf.org/html/rfc7230#section-4.1.2: A sender
        MUST NOT generate a trailer that contains a field necessary for
        message framing (e.g., Transfer-Encoding and Content-Length),
-       ... */
-    if (trailers) {
+       ...
+
+       Also do not emit content-length for CONNECT request.
+    */
+    if (trailers || (http->flags & NGHTTP3_HTTP_FLAG_METH_CONNECT)) {
       return NGHTTP3_ERR_REMOVE_HTTP_HEADER;
     }
     if (http->content_length != -1) {
@@ -436,8 +453,9 @@ static int http_request_on_header(nghttp3_http_state *http,
 
     pri = http->pri;
 
-    if (nghttp3_http_parse_priority(&pri, nv->value->base, nv->value->len) ==
-        0) {
+    if (nv->value->len <= NGHTTP3_HTTP_MAX_PRIORITY_VALUELEN &&
+        nghttp3_http_parse_priority(&pri, nv->value->base, nv->value->len) ==
+          0) {
       http->pri = pri;
       http->flags |= NGHTTP3_HTTP_FLAG_PRIORITY;
       break;
@@ -577,7 +595,6 @@ int nghttp3_http_on_request_headers(nghttp3_http_state *http) {
         (http->flags & NGHTTP3_HTTP_FLAG__AUTHORITY) == 0) {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
     }
-    http->content_length = -1;
   } else {
     if ((http->flags & NGHTTP3_HTTP_FLAG_REQ_HEADERS) !=
           NGHTTP3_HTTP_FLAG_REQ_HEADERS ||
@@ -585,13 +602,10 @@ int nghttp3_http_on_request_headers(nghttp3_http_state *http) {
          (NGHTTP3_HTTP_FLAG__AUTHORITY | NGHTTP3_HTTP_FLAG_HOST)) == 0) {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
     }
-    if (http->flags & NGHTTP3_HTTP_FLAG__PROTOCOL) {
-      if ((http->flags & NGHTTP3_HTTP_FLAG_METH_CONNECT) == 0 ||
-          (http->flags & NGHTTP3_HTTP_FLAG__AUTHORITY) == 0) {
-        return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
-      }
-
-      http->content_length = -1;
+    if ((http->flags & NGHTTP3_HTTP_FLAG__PROTOCOL) &&
+        ((http->flags & NGHTTP3_HTTP_FLAG_METH_CONNECT) == 0 ||
+         (http->flags & NGHTTP3_HTTP_FLAG__AUTHORITY) == 0)) {
+      return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
     }
     if (!check_path_flags(http)) {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
@@ -619,8 +633,6 @@ int nghttp3_http_on_response_headers(nghttp3_http_state *http) {
 
   if (!expect_response_body(http)) {
     http->content_length = 0;
-  } else if (http->flags & NGHTTP3_HTTP_FLAG_METH_CONNECT) {
-    http->content_length = -1;
   }
 
   return 0;
@@ -714,16 +726,19 @@ int nghttp3_check_header_name(const uint8_t *name, size_t len) {
    contains a character in [A-Z], otherwise 0. */
 static int http_check_nonempty_header_name(const uint8_t *name, size_t len) {
   const uint8_t *last;
-  int rv;
+  int rv = 1;
 
   for (last = name + len; name != last; ++name) {
-    rv = VALID_HD_NAME_CHARS[*name];
-    if (rv != 1) {
-      return rv;
+    switch (VALID_HD_NAME_CHARS[*name]) {
+    case -1:
+      return -1;
+    case 0:
+      rv = 0;
+      break;
     }
   }
 
-  return 1;
+  return rv;
 }
 
 static const int8_t VALID_HD_VALUE_CHARS[256] = {

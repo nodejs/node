@@ -36,7 +36,7 @@ void nghttp3_balloc_init(nghttp3_balloc *balloc, size_t blklen,
   balloc->mem = mem;
   balloc->blklen = blklen;
   balloc->head = NULL;
-  nghttp3_buf_wrap_init(&balloc->buf, (void *)"", 0);
+  nghttp3_buf_init(&balloc->buf);
 }
 
 void nghttp3_balloc_free(nghttp3_balloc *balloc) {
@@ -56,7 +56,7 @@ void nghttp3_balloc_clear(nghttp3_balloc *balloc) {
   }
 
   balloc->head = NULL;
-  nghttp3_buf_wrap_init(&balloc->buf, (void *)"", 0);
+  nghttp3_buf_init(&balloc->buf);
 }
 
 int nghttp3_balloc_get(nghttp3_balloc *balloc, void **pbuf, size_t n) {

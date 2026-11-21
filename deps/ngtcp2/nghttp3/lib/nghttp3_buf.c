@@ -25,7 +25,16 @@
  */
 #include "nghttp3_buf.h"
 
-void nghttp3_buf_init(nghttp3_buf *buf) { *buf = (nghttp3_buf){0}; }
+static const uint8_t inibuf;
+
+void nghttp3_buf_init(nghttp3_buf *buf) {
+  *buf = (nghttp3_buf){
+    .begin = (uint8_t *)&inibuf,
+    .end = (uint8_t *)&inibuf,
+    .pos = (uint8_t *)&inibuf,
+    .last = (uint8_t *)&inibuf,
+  };
+}
 
 void nghttp3_buf_wrap_init(nghttp3_buf *buf, uint8_t *src, size_t len) {
   *buf = (nghttp3_buf){
@@ -37,6 +46,10 @@ void nghttp3_buf_wrap_init(nghttp3_buf *buf, uint8_t *src, size_t len) {
 }
 
 void nghttp3_buf_free(nghttp3_buf *buf, const nghttp3_mem *mem) {
+  if (buf->begin == &inibuf) {
+    return;
+  }
+
   nghttp3_mem_free(mem, buf->begin);
 }
 
@@ -69,7 +82,7 @@ int nghttp3_buf_reserve(nghttp3_buf *buf, size_t size, const nghttp3_mem *mem) {
   pos_offset = buf->pos - buf->begin;
   last_offset = buf->last - buf->begin;
 
-  p = nghttp3_mem_realloc(mem, buf->begin, size);
+  p = nghttp3_mem_realloc(mem, buf->begin == &inibuf ? NULL : buf->begin, size);
   if (p == NULL) {
     return NGHTTP3_ERR_NOMEM;
   }
