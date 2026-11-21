@@ -141,10 +141,11 @@ public:
      * @return a buffer with *resultCapacity>=minCapacity
      * @stable ICU 4.8
      */
-    virtual char16_t *getAppendBuffer(int32_t minCapacity,
-                                   int32_t desiredCapacityHint,
-                                   char16_t *scratch, int32_t scratchCapacity,
-                                   int32_t *resultCapacity);
+    virtual char16_t* getAppendBuffer(int32_t minCapacity,
+                                      int32_t desiredCapacityHint,
+                                      char16_t* scratch U_LIFETIME_BOUND,
+                                      int32_t scratchCapacity,
+                                      int32_t* resultCapacity) U_LIFETIME_BOUND;
 };
 
 /**
@@ -223,10 +224,10 @@ public:
      * @return a buffer with *resultCapacity>=minCapacity
      * @stable ICU 4.8
      */
-    virtual char16_t *getAppendBuffer(int32_t minCapacity,
-                                   int32_t desiredCapacityHint,
-                                   char16_t *scratch, int32_t scratchCapacity,
-                                   int32_t *resultCapacity) override;
+    virtual char16_t* getAppendBuffer(int32_t minCapacity,
+                                      int32_t desiredCapacityHint,
+                                      char16_t* scratch U_LIFETIME_BOUND, int32_t scratchCapacity,
+                                      int32_t* resultCapacity) U_LIFETIME_BOUND override;
 
 private:
     UnicodeString &str;

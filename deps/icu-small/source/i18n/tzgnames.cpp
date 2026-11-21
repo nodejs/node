@@ -1173,9 +1173,11 @@ TimeZoneGenericNames::TimeZoneGenericNames()
 TimeZoneGenericNames::~TimeZoneGenericNames() {
     umtx_lock(&gTZGNLock);
     {
-        U_ASSERT(fRef->refCount > 0);
-        // Just decrement the reference count
-        fRef->refCount--;
+        if (fRef != nullptr) {
+            U_ASSERT(fRef->refCount > 0);
+            // Just decrement the reference count
+            fRef->refCount--;
+        }
     }
     umtx_unlock(&gTZGNLock);
 }

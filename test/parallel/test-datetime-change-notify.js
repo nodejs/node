@@ -25,8 +25,8 @@ const cases = [
     expected: /Pacific (?:Standard|Daylight) Time/,
   },
   {
-    timeZone: 'Europe/Dublin',
-    expected: /Irish Standard Time|Greenwich Mean Time/,
+    timeZone: 'Europe/Amsterdam',
+    expected: /Central European (?:Standard|Summer) Time/,
   },
 ];
 

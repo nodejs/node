@@ -557,6 +557,10 @@ void DecimalFormatSymbols::setCurrency(const char16_t* currency, UErrorCode& sta
             fSymbols[kMonetaryGroupingSeparatorSymbol] = groupingSep;
             fSymbols[kMonetarySeparatorSymbol] = decimalSep;
             //pattern.setTo(true, currPattern, currPatternLen);
+        } else {
+            // TODO: At this point we should reset the pattern and the separators to the
+            // locale default, in case the previous currency overrode them. This requires
+            // either reopening the resource bundle or caching the symbols.
         }
     }
     /* else An explicit currency was requested and is unknown or locale data is malformed. */

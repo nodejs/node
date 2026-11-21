@@ -606,17 +606,17 @@ private:
     UnicodeString fieldDisplayNames[UDATPG_FIELD_COUNT][UDATPG_WIDTH_COUNT];
     UnicodeString dateTimeFormat[4];
     UnicodeString decimal;
-    DateTimeMatcher *skipMatcher;
-    Hashtable *fAvailableFormatKeyHash;
+    DateTimeMatcher *skipMatcher {  };
+    Hashtable *fAvailableFormatKeyHash {  };
     UnicodeString emptyString;
-    char16_t fDefaultHourFormatChar;
+    char16_t fDefaultHourFormatChar {  };
 
     int32_t fAllowedHourFormats[7];  // Actually an array of AllowedHourFormat enum type, ending with UNKNOWN.
 
     // Internal error code used for recording/reporting errors that occur during methods that do not
     // have a UErrorCode parameter. For example: the Copy Constructor, or the ::clone() method.
     // When this is set to an error the object is in an invalid state.
-    UErrorCode internalErrorCode;
+    UErrorCode internalErrorCode { U_ZERO_ERROR };
 
     /* internal flags masks for adjustFieldTypes etc. */
     enum {

@@ -75,7 +75,7 @@ MacroProps NumberPropertyMapper::oldToNew(const DecimalFormatProperties& propert
             !properties.currencyUsage.isNull() ||
             warehouse.affixProvider.get().hasCurrencySign());
     CurrencyUnit currency;
-    UCurrencyUsage currencyUsage;
+    UCurrencyUsage currencyUsage = UCURR_USAGE_STANDARD;
     if (useCurrency) {
         currency = resolveCurrency(properties, locale, status);
         currencyUsage = properties.currencyUsage.getOrDefault(UCURR_USAGE_STANDARD);

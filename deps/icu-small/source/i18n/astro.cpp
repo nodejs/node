@@ -645,16 +645,6 @@ double CalendarAstronomer::getMoonAge() {
 }
 
 /**
- * Constant representing a new moon.
- * For use with {@link #getMoonTime getMoonTime}
- * @internal
- * @deprecated ICU 2.4. This class may be removed or modified.
- */
-CalendarAstronomer::MoonAge CalendarAstronomer::NEW_MOON() {
-    return  CalendarAstronomer::MoonAge(0);
-}
-
-/**
  * Constant representing the moon's last quarter.
  * For use with {@link #getMoonTime getMoonTime}
  * @internal

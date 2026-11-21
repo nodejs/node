@@ -519,10 +519,12 @@ utext_copy(UText *ut,
     ut->pFuncs->copy(ut, nativeStart, nativeLimit, destIndex, move, status);
 }
 
-
-
-U_CAPI UText * U_EXPORT2
-utext_clone(UText *dest, const UText *src, UBool deep, UBool readOnly, UErrorCode *status) {
+U_CAPI UText* U_EXPORT2
+utext_clone(UText* dest U_LIFETIME_BOUND,
+            const UText* src,
+            UBool deep,
+            UBool readOnly,
+            UErrorCode* status) {
     if (U_FAILURE(*status)) {
         return dest;
     }
@@ -577,8 +579,8 @@ struct ExtendedUText {
 
 static const UText emptyText = UTEXT_INITIALIZER;
 
-U_CAPI UText * U_EXPORT2
-utext_setup(UText *ut, int32_t extraSpace, UErrorCode *status) {
+U_CAPI UText* U_EXPORT2
+utext_setup(UText* ut U_LIFETIME_BOUND, int32_t extraSpace, UErrorCode* status) {
     if (U_FAILURE(*status)) {
         return ut;
     }
@@ -664,8 +666,8 @@ utext_setup(UText *ut, int32_t extraSpace, UErrorCode *status) {
 }
 
 
-U_CAPI UText * U_EXPORT2
-utext_close(UText *ut) {
+U_CAPI UText* U_EXPORT2
+utext_close(UText* ut U_LIFETIME_BOUND) {
     if (ut==nullptr ||
         ut->magic != UTEXT_MAGIC ||
         (ut->flags & UTEXT_OPEN) == 0)
@@ -1630,8 +1632,11 @@ static const struct UTextFuncs utf8Funcs =
 
 static const char gEmptyString[] = {0};
 
-U_CAPI UText * U_EXPORT2
-utext_openUTF8(UText *ut, const char *s, int64_t length, UErrorCode *status) {
+U_CAPI UText* U_EXPORT2
+utext_openUTF8(UText* ut U_LIFETIME_BOUND,
+               const char* s U_LIFETIME_BOUND,
+               int64_t length,
+               UErrorCode* status) {
     if(U_FAILURE(*status)) {
         return nullptr;
     }
@@ -2037,9 +2042,10 @@ static const struct UTextFuncs repFuncs =
 };
 
 
-U_CAPI UText * U_EXPORT2
-utext_openReplaceable(UText *ut, Replaceable *rep, UErrorCode *status)
-{
+U_CAPI UText* U_EXPORT2
+utext_openReplaceable(UText* ut U_LIFETIME_BOUND,
+                      Replaceable* rep U_LIFETIME_BOUND,
+                      UErrorCode* status) {
     if(U_FAILURE(*status)) {
         return nullptr;
     }
@@ -2100,6 +2106,7 @@ unistrTextClone(UText *dest, const UText *src, UBool deep, UErrorCode *status) {
     if (deep && U_SUCCESS(*status)) {
         const UnicodeString *srcString = (const UnicodeString *)src->context;
         dest->context = new UnicodeString(*srcString);
+        dest->chunkContents = ((const UnicodeString *)dest->context)->getBuffer();
         dest->providerProperties |= I32_FLAG(UTEXT_PROVIDER_OWNS_TEXT);
 
         // with deep clone, the copy is writable, even when the source is not.
@@ -2295,8 +2302,10 @@ static const struct UTextFuncs unistrFuncs =
 U_CDECL_END
 
 
-U_CAPI UText * U_EXPORT2
-utext_openUnicodeString(UText *ut, UnicodeString *s, UErrorCode *status) {
+U_CAPI UText* U_EXPORT2
+utext_openUnicodeString(UText* ut U_LIFETIME_BOUND,
+                        UnicodeString* s U_LIFETIME_BOUND,
+                        UErrorCode* status) {
     ut = utext_openConstUnicodeString(ut, s, status);
     if (U_SUCCESS(*status)) {
         ut->providerProperties |= I32_FLAG(UTEXT_PROVIDER_WRITABLE);
@@ -2306,8 +2315,10 @@ utext_openUnicodeString(UText *ut, UnicodeString *s, UErrorCode *status) {
 
 
 
-U_CAPI UText * U_EXPORT2
-utext_openConstUnicodeString(UText *ut, const UnicodeString *s, UErrorCode *status) {
+U_CAPI UText* U_EXPORT2
+utext_openConstUnicodeString(UText* ut U_LIFETIME_BOUND,
+                             const UnicodeString* s U_LIFETIME_BOUND,
+                             UErrorCode* status) {
     if (U_SUCCESS(*status) && s->isBogus()) {
         // The UnicodeString is bogus, but we still need to detach the UText
         //   from whatever it was hooked to before, if anything.
@@ -2373,6 +2384,7 @@ ucstrTextClone(UText *dest, const UText * src, UBool deep, UErrorCode * status) 
             }
             copyStr[len] = 0;
             dest->context = copyStr;
+            dest->chunkContents = copyStr;
             dest->providerProperties |= I32_FLAG(UTEXT_PROVIDER_OWNS_TEXT);
         }
     }
@@ -2613,8 +2625,11 @@ U_CDECL_END
 
 static const char16_t gEmptyUString[] = {0};
 
-U_CAPI UText * U_EXPORT2
-utext_openUChars(UText *ut, const char16_t *s, int64_t length, UErrorCode *status) {
+U_CAPI UText* U_EXPORT2
+utext_openUChars(UText* ut U_LIFETIME_BOUND,
+                 const char16_t* s U_LIFETIME_BOUND,
+                 int64_t length,
+                 UErrorCode* status) {
     if (U_FAILURE(*status)) {
         return nullptr;
     }
@@ -2837,9 +2852,10 @@ static const struct UTextFuncs charIterFuncs =
 };
 U_CDECL_END
 
-
-U_CAPI UText * U_EXPORT2
-utext_openCharacterIterator(UText *ut, CharacterIterator *ci, UErrorCode *status) {
+U_CAPI UText* U_EXPORT2
+utext_openCharacterIterator(UText* ut U_LIFETIME_BOUND,
+                            CharacterIterator* ci U_LIFETIME_BOUND,
+                            UErrorCode* status) {
     if (U_FAILURE(*status)) {
         return nullptr;
     }
