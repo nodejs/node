@@ -14,6 +14,8 @@ const types = {
   MX: 15,
   TXT: 16,
   SRV: 33,
+  SVCB: 64,
+  HTTPS: 65,
   ANY: 255,
   CAA: 257,
 };
@@ -287,6 +289,26 @@ function writeDNSPacket(parsed) {
         rdLengthBuf[0] = 6 + target.length;
         buffers.push(new Uint16Array([rr.priority, rr.weight, rr.port]));
         buffers.push(target);
+        break;
+      }
+      case 'SVCB':
+      case 'HTTPS':
+      {
+        // SvcPriority (2) + TargetName + SvcParams. `params` is an array of
+        // [key, value] pairs written in the given order, so tests can also
+        // produce malformed records.
+        const target = rr.target === '.' ?
+          Buffer.alloc(1) : writeDomainName(rr.target);
+        const params = (rr.params ?? []).map(([key, value]) => {
+          const header = Buffer.alloc(4);
+          header.writeUInt16BE(key, 0);
+          header.writeUInt16BE(value.length, 2);
+          return Buffer.concat([header, value]);
+        });
+        const rdata = Buffer.concat([target, ...params]);
+        rdLengthBuf[0] = 2 + rdata.length;
+        buffers.push(new Uint16Array([rr.priority]));
+        buffers.push(rdata);
         break;
       }
       default:
