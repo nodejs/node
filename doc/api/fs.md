@@ -1714,7 +1714,7 @@ object with an `encoding` property specifying the character encoding to use.
 ### `fsPromises.mkstemp(prefix[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -4119,7 +4119,7 @@ mkdtemp(`${tmpDir}${sep}`, (err, directory) => {
 ### `fs.mkstemp(prefix[, options], callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -6647,7 +6647,7 @@ object with an `encoding` property specifying the character encoding to use.
 ### `fs.mkstempSync(prefix[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 > Stability: 1 - Experimental

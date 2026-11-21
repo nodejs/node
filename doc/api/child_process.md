@@ -2318,7 +2318,7 @@ if the child process could not be successfully spawned.
 ### `subprocess.timedOut`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * Type: {boolean} Set to `true` when the child process is killed because the

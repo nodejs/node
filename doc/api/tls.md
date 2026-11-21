@@ -1671,7 +1671,7 @@ decrease overall server throughput.
 ### `tlsSocket.socket`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * Type: {net.Socket|stream.Duplex|null}

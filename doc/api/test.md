@@ -659,7 +659,7 @@ added:
   - v19.2.0
   - v18.13.0
 changes:
-  - version: REPLACEME
+  - version: v26.14.0
     pr-url: https://github.com/nodejs/node/pull/66708
     description: Watch mode is now stable.
 -->
@@ -1714,7 +1714,7 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v26.14.0
     pr-url: https://github.com/nodejs/node/pull/66578
     description: Added the `forbidOnly` option.
   - version: v26.2.0
@@ -2479,7 +2479,7 @@ test('changes a mock behavior once', (t) => {
 ### `ctx.mockRejectedValue(reason)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * `reason` {any} The value the returned promise rejects with.
@@ -2500,7 +2500,7 @@ test('mocks a rejected value', async (t) => {
 ### `ctx.mockResolvedValue(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * `value` {any} The value the returned promise resolves with.
@@ -2521,7 +2521,7 @@ test('mocks a resolved value', async (t) => {
 ### `ctx.mockReturnValue(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * `value` {any} The value returned by the mock.
@@ -2542,7 +2542,7 @@ test('mocks a return value', (t) => {
 ### `ctx.mockThrownValue(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * `value` {any} The value thrown by the mock.

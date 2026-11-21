@@ -1391,7 +1391,7 @@ This field defines [subpath imports][] for the current package.
 ### `"private"`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * Type: {boolean}

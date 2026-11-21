@@ -1589,7 +1589,7 @@ Enable the experimental [`node:stream/iter`][] module.
 ### `--experimental-strip-private-modules`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -3217,7 +3217,7 @@ the threshold specified, the process will exit with code `1`.
 ### `--test-forbid-only`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 Fails the test run if a test or suite is declared with `only: true`, including

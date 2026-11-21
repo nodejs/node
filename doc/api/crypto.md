@@ -3137,7 +3137,7 @@ the given private key.
 ### `x509.extensions`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * Type: {Object\[]}
@@ -3269,7 +3269,7 @@ available.
 ### `x509.issuerName`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * Type: {Object}
@@ -3395,7 +3395,7 @@ to handle both possible entry formats.
 ### `x509.subjectName`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * Type: {Object}
@@ -3440,7 +3440,7 @@ subject name cannot be inspected.
 ### `x509.tbs`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * Type: {Buffer}
@@ -3562,7 +3562,7 @@ reject certificates with invalid dates.
 ### `x509.signature`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * Type: {Object}
@@ -3626,7 +3626,7 @@ The OID of the algorithm used to sign the certificate.
 ### `x509.version`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 * Type: {number}

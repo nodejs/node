@@ -1129,7 +1129,7 @@ An invalid authentication tag length was provided.
 ### `ERR_CRYPTO_INVALID_X509_CERTIFICATE`
 
 <!-- YAML
-added: REPLACEME
+added: v26.14.0
 -->
 
 An X.509 certificate field could not be inspected.
