@@ -1852,6 +1852,7 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   };
 
   int i = 1;
+  bool rewalked = false;
 #ifdef _WIN32
   bool cleared_readonly = false;
 #endif
@@ -1879,9 +1880,22 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
     }
 #endif  // _WIN32
 
-    if (!error || error == std::errc::no_such_file_or_directory) {
+    if (!error) {
       return;
-    } else if (!can_omit_error(error)) {
+    }
+    if (error == std::errc::no_such_file_or_directory) {
+      std::error_code probe;
+      if (std::filesystem::symlink_status(file_path, probe).type() ==
+          std::filesystem::file_type::not_found) {
+        return;
+      }
+      if (!rewalked) {
+        rewalked = true;
+        continue;
+      }
+      error = std::make_error_code(std::errc::directory_not_empty);
+    }
+    if (!can_omit_error(error)) {
       break;
     }
 

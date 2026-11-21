@@ -657,3 +657,72 @@ if (isGitPresent) {
   // Clean up parent directory
   fs.rmSync(dirname, { recursive: true, force: true });
 }
+
+// An entry that another thread removes during the walk must not end the
+// removal early: when rmSync returns, the directory is gone.
+{
+  const { Worker } = require('worker_threads');
+  const retried = ['EBUSY', 'EMFILE', 'ENFILE', 'ENOTEMPTY', 'EPERM'];
+  const CHURN = 0;
+  const PAUSE = 1;
+  const STOP = 2;
+  const command = new Int32Array(new SharedArrayBuffer(4));
+  const parked = new Int32Array(new SharedArrayBuffer(4));
+  const dir = nextDirPath('rm-churn');
+  const lock = path.join(dir, 'busy', 'lock');
+  const worker = new Worker(`
+    const { workerData } = require('worker_threads');
+    const fs = require('fs');
+    const command = new Int32Array(workerData.command);
+    const parked = new Int32Array(workerData.parked);
+    for (;;) {
+      const now = Atomics.load(command, 0);
+      if (now === ${STOP}) break;
+      if (now === ${PAUSE}) {
+        Atomics.store(parked, 0, 1);
+        Atomics.notify(parked, 0);
+        Atomics.wait(command, 0, ${PAUSE});
+        Atomics.store(parked, 0, 0);
+        continue;
+      }
+      try {
+        fs.writeFileSync(workerData.lock, '');
+        fs.unlinkSync(workerData.lock);
+      } catch {
+        // The directory may be gone already.
+      }
+    }
+  `, { eval: true, workerData: { command: command.buffer, parked: parked.buffer, lock } });
+  const pause = () => {
+    Atomics.store(command, 0, PAUSE);
+    Atomics.wait(parked, 0, 0);
+  };
+  const churn = () => {
+    Atomics.store(command, 0, CHURN);
+    Atomics.notify(command, 0);
+  };
+  worker.once('online', common.mustCall(() => {
+    try {
+      for (let round = 0; round < 50; round++) {
+        makeNonEmptyDirectory(2, 10, 2, dir, false);
+        fs.mkdirSync(path.join(dir, 'busy'));
+        churn();
+        let thrown;
+        try {
+          fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 10 });
+        } catch (err) {
+          thrown = err;
+        }
+        pause();
+        if (thrown) {
+          assert(retried.includes(thrown.code), `rmSync threw ${thrown.code}`);
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
+        assert.strictEqual(fs.existsSync(dir), false);
+      }
+    } finally {
+      Atomics.store(command, 0, STOP);
+      Atomics.notify(command, 0);
+    }
+  }));
+}
