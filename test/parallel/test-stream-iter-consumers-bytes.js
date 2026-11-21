@@ -3,6 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { getEventListeners } = require('events');
 const {
   from,
   fromSync,
@@ -272,7 +273,27 @@ async function testTextStringSource() {
   assert.strictEqual(result, 'direct-string');
 }
 
+// With a signal, exceeding the limit closes the source, rejects with the
+// limit error, and leaves no listener on the signal.
+async function testBytesSignalAndLimit() {
+  const ac = new AbortController();
+  let closed = false;
+  async function* source() {
+    try {
+      for (;;) yield [new Uint8Array(8)];
+    } finally {
+      closed = true;
+    }
+  }
+  await assert.rejects(
+    bytes(source(), { signal: ac.signal, limit: 20 }),
+    { code: 'ERR_OUT_OF_RANGE' });
+  assert.strictEqual(closed, true);
+  assert.strictEqual(getEventListeners(ac.signal, 'abort').length, 0);
+}
+
 Promise.all([
+  testBytesSignalAndLimit(),
   testBytesSyncBasic(),
   testBytesSyncLimit(),
   testBytesAsync(),

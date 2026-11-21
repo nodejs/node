@@ -461,7 +461,79 @@ async function testMergeMultiSourceBreakWithCleanupError() {
   );
 }
 
+// merge() of a single source behaves as an async generator reading it:
+// an abort rejects the pending read, closes the source and ends the
+// iteration; an abort before the first read does not open the source;
+// return() is queued behind pending reads.
+async function testMergeSingleSourceProtocol() {
+  const log = [];
+  function source(name, values, { hang = false } = {}) {
+    let i = 0;
+    return {
+      [Symbol.asyncIterator]() {
+        log.push(`${name} iterator`);
+        return {
+          next() {
+            log.push(`${name} next ${i}`);
+            if (hang && i === values.length) return new Promise(() => {});
+            return Promise.resolve(i < values.length ?
+              { done: false, value: values[i++] } : { done: true });
+          },
+          return() {
+            log.push(`${name} return`);
+            return Promise.resolve({ done: true });
+          },
+        };
+      },
+    };
+  }
+
+  async function settle(label, promise) {
+    try {
+      const result = await promise;
+      log.push(`${label}: ${result.done ? 'done' : result.value[0][0]}`);
+    } catch (error) {
+      log.push(`${label}: ${error.name}`);
+    }
+  }
+  const chunk = (n) => [Uint8Array.of(n)];
+
+  const aborted = AbortSignal.abort();
+  let it = merge(source('a', [chunk(1)]), { signal: aborted })[
+    Symbol.asyncIterator]();
+  await settle('a 1', it.next());
+  await settle('a 2', it.next());
+
+  const ac = new AbortController();
+  it = merge(source('b', [chunk(1)], { hang: true }), { signal: ac.signal })[
+    Symbol.asyncIterator]();
+  await settle('b 1', it.next());
+  const pending = it.next();
+  await setImmediate();
+  ac.abort();
+  await settle('b 2', pending);
+  await settle('b 3', it.next());
+
+  it = merge(source('c', [chunk(1), 'x', chunk(3)]))[Symbol.asyncIterator]();
+  const results = [it.next(), it.next(), it.return(), it.next()];
+  for (let i = 0; i < results.length; i++) await settle(`c ${i}`, results[i]);
+
+  it = merge(source('d', [chunk(1)]))[Symbol.asyncIterator]();
+  await settle('d return', it.return());
+  await assert.rejects(it.throw(new Error('thrown')), { message: 'thrown' });
+
+  assert.deepStrictEqual(log, [
+    'a 1: AbortError', 'a 2: done',
+    'b iterator', 'b next 0', 'b 1: 1', 'b next 1', 'b return',
+    'b 2: AbortError', 'b 3: done',
+    'c iterator', 'c next 0', 'c next 1', 'c 0: 1', 'c 1: 120', 'c return',
+    'c 2: done', 'c 3: done',
+    'd return: done',
+  ]);
+}
+
 Promise.all([
+  testMergeSingleSourceProtocol(),
   testMergeTwoSources(),
   testMergeSingleSource(),
   testMergeEmpty(),

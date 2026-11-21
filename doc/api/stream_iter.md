@@ -94,6 +94,10 @@ are automatically UTF-8 encoded when passed to `from()`, `push()`, or
 `pipeTo()`. This removes ambiguity around encodings and enables zero-copy
 transfers between streams and native code.
 
+Like [`Buffer.from()`][] for strings, small strings are encoded into a shared
+pool: the resulting {Uint8Array} is a view of a larger {ArrayBuffer}, which
+cannot be transferred.
+
 ### Batching
 
 Each iteration yields a **batch** -- an {Array} of {Uint8Array} chunks
@@ -119,6 +123,10 @@ async function run() {
 }
 ```
 
+Some iterators of this module return iterator results (`{ done, value }`
+objects) that do not inherit from `Object.prototype`. Code should only rely on
+their `done` and `value` properties, as `for await...of` does.
+
 ### Transforms
 
 Transforms come in two forms:
@@ -140,10 +148,13 @@ Both forms receive an `options` parameter with the following property:
   can check `signal.aborted` or listen for the `'abort'` event to perform
   early cleanup.
 
-In `pull()`, stateless transforms receive a new `options` object for every
-call, and stateful transforms one for the pipeline, so a transform can modify
-its `options` without affecting other transforms. The object does not inherit
-from `Object.prototype`. Transforms passed to [`pullSync()`][] receive no
+Each transform of a pipeline receives its own `options` object, the same one
+for every call of a stateless transform, so a transform can modify its
+`options` without affecting other transforms. The object does not inherit
+from `Object.prototype`. The signal is created when `options.signal` is
+first read, so a pipeline whose transforms never read it does not create one;
+until then, `signal` is an accessor property. It is the same signal for every
+transform of the pipeline. Transforms passed to [`pullSync()`][] receive no
 `options`.
 
 The flush signal (`null`) is sent after the source ends, giving transforms
@@ -598,6 +609,10 @@ Objects implementing `Symbol.for('Stream.toAsyncStreamable')` or
 precedence over the iteration protocols (`Symbol.asyncIterator`,
 `Symbol.iterator`).
 
+The readable of a [`push()`][] stream without transforms, the iterables
+returned by [`fromReadable()`][], and the results of `from()` itself already
+yield normalized batches, so `from()` returns them unchanged.
+
 ```mjs
 import { Buffer } from 'node:buffer';
 import { from, text } from 'node:stream/iter';
@@ -663,7 +678,9 @@ added:
 * `writer` {Object} Destination with `write(chunk)` method.
 * `options` {Object}
   * `signal` {AbortSignal} Abort the pipeline. Aborting fails the destination
-    writer unless `preventFail` is `true`.
+    writer unless `preventFail` is `true`. The signal is passed to the
+    writer's `write()`, `writev()` and `end()` in an options object, the same
+    object for every call.
   * `preventClose` {boolean} If `true`, do not call `writer.end()` when
     the source ends. **Default:** `false`.
   * `preventFail` {boolean} If `true`, do not call `writer.fail()` on
@@ -2400,6 +2417,7 @@ console.log(textSync(stream)); // 'hello world'
 [Iterable Streams API]: https://iter-streams.proposal.wintertc.org/
 [`--experimental-stream-iter`]: cli.md#--experimental-stream-iter
 [`Broadcast.from()`]: #broadcastfrominput-options
+[`Buffer.from()`]: buffer.md#static-method-bufferfromstring-encoding
 [`Share.from()`]: #static-method-sharefrominput-options
 [`SyncShare.fromSync()`]: #static-method-syncsharefromsyncinput-options
 [`array()`]: #arraysource-options
@@ -2415,6 +2433,7 @@ console.log(textSync(stream)); // 'hello world'
 [`pipeTo()`]: #pipetosource-transforms-writer-options
 [`pull()`]: #pullsource-transforms-options
 [`pullSync()`]: #pullsyncsource-transforms
+[`push()`]: #pushtransforms-options
 [`share()`]: #sharesource-options
 [`stream.Readable`]: stream.md#class-streamreadable
 [`stream.Writable`]: stream.md#class-streamwritable
