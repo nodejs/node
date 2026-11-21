@@ -8,8 +8,10 @@
 #include "glob/glob_parser.h"
 #include "glob/glob_walker.h"
 #include "memory_tracker-inl.h"
+#include "node_buffer.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "string_bytes.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -108,22 +110,39 @@ void ThrowCompileError(Isolate* isolate, CompileError error) {
 
 constexpr size_t kMarshalStackEntries = GlobRequest::kBatchSize;
 
-// Builds [paths array, types array|undefined] for a batch of results.
+// Builds paths, or separately encoded names, types and parents for Dirents.
 bool MarshalEntries(Environment* env,
                     const std::vector<WalkEntry>& entries,
                     bool with_types,
+                    const std::string& cwd,
+                    enum encoding encoding,
                     Local<Array>* paths_out,
-                    Local<Value>* types_out) {
+                    Local<Value>* types_out,
+                    Local<Value>* parents_out) {
   Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
   MaybeStackBuffer<Value, kMarshalStackEntries> paths(isolate, entries.size());
+  MaybeStackBuffer<Value, kMarshalStackEntries> parents(
+      isolate, with_types ? entries.size() : 0);
   for (size_t i = 0; i < entries.size(); i++) {
-    if (!ToV8Value(context, entries[i].path, isolate).ToLocal(&paths[i])) {
+    DirentPath dirent;
+    std::string_view path = entries[i].path;
+    if (with_types) {
+      dirent = GetDirentPath(cwd, entries[i].path);
+      path = dirent.name;
+      if (!StringBytes::Encode(
+               isolate, dirent.parent.data(), dirent.parent.size(), encoding)
+               .ToLocal(&parents[i])) {
+        return false;
+      }
+    }
+    if (!StringBytes::Encode(isolate, path.data(), path.size(), encoding)
+             .ToLocal(&paths[i])) {
       return false;
     }
   }
   *paths_out = paths.ToArray();
   *types_out = Undefined(isolate);
+  *parents_out = Undefined(isolate);
   if (with_types) {
     MaybeStackBuffer<Value, kMarshalStackEntries> types(isolate,
                                                         entries.size());
@@ -131,6 +150,7 @@ bool MarshalEntries(Environment* env,
       types[i] = Integer::New(isolate, entries[i].type);
     }
     *types_out = types.ToArray();
+    *parents_out = parents.ToArray();
   }
   return true;
 }
@@ -274,23 +294,26 @@ void BindingData::HasMagic(const FunctionCallbackInfo<Value>& args) {
 // Both strings are one-byte and the pattern is normally
 // already compiled, so the whole call is a hash lookup plus the match.
 // Reads (cwd, includePatterns[], excludePatterns[], flags, excludeFn,
-// maxDepth) and compiles the patterns.
+// maxDepth, encoding) and compiles the patterns.
 bool BindingData::ReadWalkArguments(const FunctionCallbackInfo<Value>& args,
                                     WalkOptions* options,
                                     std::vector<CompiledPatternPtr>* includes,
                                     std::vector<CompiledPatternPtr>* excludes,
-                                    std::unique_ptr<JsExcludeFilter>* filter) {
+                                    std::unique_ptr<JsExcludeFilter>* filter,
+                                    enum encoding* encoding) {
   Realm* realm = Realm::GetCurrent(args);
   Isolate* isolate = realm->isolate();
   Local<Context> context = realm->context();
 
-  CHECK_EQ(args.Length(), 6);
+  CHECK_EQ(args.Length(), 7);
   CHECK(args[0]->IsString());                              // cwd
   CHECK(args[1]->IsArray());                               // include patterns
   CHECK(args[2]->IsArray());                               // exclude patterns
   CHECK(args[3]->IsUint32());                              // packed flags
   CHECK(args[4]->IsFunction() || args[4]->IsUndefined());  // exclude callback
   CHECK(args[5]->IsNumber());                              // maxDepth
+  CHECK(args[6]->IsString());                              // encoding
+  *encoding = ParseEncoding(isolate, args[6], UTF8);
 
   const uint32_t packed = args[3].As<Uint32>()->Value() | kHostWalkFlags;
   const CompileFlags flags = UnpackFlags(packed);
@@ -303,8 +326,10 @@ bool BindingData::ReadWalkArguments(const FunctionCallbackInfo<Value>& args,
   options->follow_symlinks = (packed & kFlagFollowSymlinks) != 0;
   options->with_file_types = (packed & kFlagWithFileTypes) != 0;
   if (args[4]->IsFunction()) {
-    *filter =
-        std::make_unique<JsExcludeFilter>(realm->env(), args[4].As<Function>());
+    *filter = std::make_unique<JsExcludeFilter>(realm->env(),
+                                                args[4].As<Function>(),
+                                                options->with_file_types,
+                                                *encoding);
     options->exclude_filter = filter->get();
   }
   {
@@ -343,7 +368,7 @@ bool BindingData::ReadWalkArguments(const FunctionCallbackInfo<Value>& args,
 }
 
 // globSync(cwd, includePatterns[], excludePatterns[], flags, excludeFn,
-// maxDepth)
+// maxDepth, encoding)
 void BindingData::GlobSync(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   Environment* env = realm->env();
@@ -354,8 +379,9 @@ void BindingData::GlobSync(const FunctionCallbackInfo<Value>& args) {
   std::vector<CompiledPatternPtr> includes;
   std::vector<CompiledPatternPtr> excludes;
   std::unique_ptr<JsExcludeFilter> filter;
+  enum encoding encoding;
   if (!binding->ReadWalkArguments(
-          args, &options, &includes, &excludes, &filter)) {
+          args, &options, &includes, &excludes, &filter, &encoding)) {
     return;
   }
 
@@ -366,20 +392,34 @@ void BindingData::GlobSync(const FunctionCallbackInfo<Value>& args) {
 
   Local<Array> paths;
   Local<Value> types;
-  if (!MarshalEntries(env, entries, options.with_file_types, &paths, &types)) {
+  Local<Value> parents;
+  if (!MarshalEntries(env,
+                      entries,
+                      options.with_file_types,
+                      options.cwd,
+                      encoding,
+                      &paths,
+                      &types,
+                      &parents)) {
     return;
   }
   if (!options.with_file_types) {
     args.GetReturnValue().Set(paths);
     return;
   }
-  Local<Value> pair[] = {paths, types};
+  Local<Value> pair[] = {paths, types, parents};
   args.GetReturnValue().Set(Array::New(isolate, pair, arraysize(pair)));
 }
 
 // Calls the user's `exclude`
-JsExcludeFilter::JsExcludeFilter(Environment* env, Local<Function> callback)
-    : env_(env), callback_(env->isolate(), callback) {}
+JsExcludeFilter::JsExcludeFilter(Environment* env,
+                                 Local<Function> callback,
+                                 bool with_file_types,
+                                 enum encoding encoding)
+    : env_(env),
+      callback_(env->isolate(), callback),
+      with_file_types_(with_file_types),
+      encoding_(encoding) {}
 
 Maybe<bool> JsExcludeFilter::Call(bool entry,
                                   std::string_view first,
@@ -388,10 +428,25 @@ Maybe<bool> JsExcludeFilter::Call(bool entry,
   Isolate* isolate = env_->isolate();
   HandleScope scope(isolate);
   Local<Context> context = env_->context();
-  // (isEntry, name-or-path, parentPath, type), see #excludeAdapter().
-  Local<Value> argv[4];
-  if (!ToV8Value(context, first, isolate).ToLocal(&argv[1]) ||
-      !ToV8Value(context, second, isolate).ToLocal(&argv[2])) {
+  // (isEntry, name-or-path, parentPath, type, rawPath), see #excludeAdapter().
+  Local<Value> argv[5];
+  argv[4] = Undefined(isolate);
+  DirentPath dirent;
+  if (with_file_types_ && !entry) {
+    // lstat must use the original bytes, regardless of the output encoding.
+    Local<Object> raw;
+    if (!Buffer::Copy(isolate, first.data(), first.size()).ToLocal(&raw)) {
+      return Nothing<bool>();
+    }
+    argv[4] = raw;
+    dirent = GetDirentPath("", std::string(first));
+    first = dirent.name;
+    second = dirent.parent;
+  }
+  if (!StringBytes::Encode(isolate, first.data(), first.size(), encoding_)
+           .ToLocal(&argv[1]) ||
+      !StringBytes::Encode(isolate, second.data(), second.size(), encoding_)
+           .ToLocal(&argv[2])) {
     return Nothing<bool>();
   }
   argv[0] = Boolean::New(isolate, entry);
@@ -426,16 +481,20 @@ GlobRequest::GlobRequest(Environment* env,
                          const WalkOptions& options,
                          const std::vector<CompiledPatternPtr>& includes,
                          const std::vector<CompiledPatternPtr>& excludes,
-                         std::unique_ptr<JsExcludeFilter> filter)
+                         std::unique_ptr<JsExcludeFilter> filter,
+                         enum encoding encoding)
     : AsyncWrap(env, object, AsyncWrap::PROVIDER_GLOBREQUEST),
       ThreadPoolWork(env, ThreadPoolWorkType::kGlob),
       filter_(std::move(filter)),
       walk_(env, options, includes, excludes),
-      with_file_types_(options.with_file_types) {
+      with_file_types_(options.with_file_types),
+      encoding_(encoding),
+      cwd_(options.cwd) {
   MakeWeak();
 }
 
 void GlobRequest::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("cwd", cwd_);
   // A slice in flight owns batch_ on another thread.
   if (!in_flight_) {
     tracker->TrackFieldWithSize("batch", batch_.size() * sizeof(WalkEntry));
@@ -491,18 +550,26 @@ void GlobRequest::AnswerQuestions() {
   walk_.SetAnswers(std::move(answers));
 }
 
-// Builds [paths, types|undefined, done]
+// Builds [paths, types|undefined, done, parents|undefined].
 MaybeLocal<Value> GlobRequest::Settle() {
   Environment* env = AsyncWrap::env();
   Isolate* isolate = env->isolate();
 
   Local<Array> paths;
   Local<Value> types;
-  if (!MarshalEntries(env, batch_, with_file_types_, &paths, &types)) {
+  Local<Value> parents;
+  if (!MarshalEntries(env,
+                      batch_,
+                      with_file_types_,
+                      cwd_,
+                      encoding_,
+                      &paths,
+                      &types,
+                      &parents)) {
     return MaybeLocal<Value>();
   }
   batch_.clear();
-  Local<Value> result[] = {paths, types, Boolean::New(isolate, done_)};
+  Local<Value> result[] = {paths, types, Boolean::New(isolate, done_), parents};
   return Array::New(isolate, result, arraysize(result));
 }
 
@@ -624,8 +691,9 @@ void BindingData::GlobStart(const FunctionCallbackInfo<Value>& args) {
   std::vector<CompiledPatternPtr> includes;
   std::vector<CompiledPatternPtr> excludes;
   std::unique_ptr<JsExcludeFilter> filter;
+  enum encoding encoding;
   if (!binding->ReadWalkArguments(
-          args, &options, &includes, &excludes, &filter)) {
+          args, &options, &includes, &excludes, &filter, &encoding)) {
     return;
   }
 
@@ -636,7 +704,8 @@ void BindingData::GlobStart(const FunctionCallbackInfo<Value>& args) {
            .ToLocal(&object)) {
     return;
   }
-  new GlobRequest(env, object, options, includes, excludes, std::move(filter));
+  new GlobRequest(
+      env, object, options, includes, excludes, std::move(filter), encoding);
   args.GetReturnValue().Set(object);
 }
 
