@@ -180,9 +180,17 @@ deepStrictEqualValues(genBuffer(4, [hexBufFill, 1]), [0, 1, 2, 1]);
 deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, 3]), [0, 1, 2, 0]);
 deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, 1]), [0, 0, 0, 0]);
 
+// An undefined offset defaults to zero without discarding an explicit end.
+deepStrictEqualValues(genBuffer(4, [1, undefined, 2]), [1, 1, 0, 0]);
+deepStrictEqualValues(genBuffer(4, ['a', undefined, 2]), [97, 97, 0, 0]);
+deepStrictEqualValues(genBuffer(4, [hexBufFill, undefined, 2]), [1, 2, 0, 0]);
+deepStrictEqualValues(genBuffer(4, ['6162', undefined, 2, 'hex']), [97, 98, 0, 0]);
+deepStrictEqualValues(genBuffer(4, [1, undefined, 0]), [0, 0, 0, 0]);
+
 // Check exceptions
 [
   [0, -1],
+  [0, undefined, buf1.length + 1],
   [0, 0, buf1.length + 1],
   ['', -1],
   ['', 0, buf1.length + 1],
