@@ -513,8 +513,20 @@ static void PrintJavaScriptStack(JSONWriter* writer,
 
   writer->json_keyvalue("message", trigger);
   writer->json_arraystart("stack");
+  const bool hide_internal = ShouldHideInternalStackFrames(isolate);
+  int hidden = 0;
+  auto flush_hidden = [&]() {
+    if (hidden == 0) return;
+    writer->json_element("at " + FormatHiddenStackFrames(hidden));
+    hidden = 0;
+  };
   for (int i = 0; i < stack->GetFrameCount(); i++) {
     Local<StackFrame> frame = stack->GetFrame(isolate, i);
+    if (hide_internal && IsInternalStackFrame(isolate, frame)) {
+      hidden++;
+      continue;
+    }
+    flush_hidden();
 
     Utf8Value function_name(isolate, frame->GetFunctionName());
     Utf8Value script_name(isolate, frame->GetScriptName());
@@ -525,6 +537,7 @@ static void PrintJavaScriptStack(JSONWriter* writer,
         "at %s (%s:%d:%d)", function_name, script_name, line_number, column);
     writer->json_element(stack_line);
   }
+  flush_hidden();
   writer->json_arrayend();
   writer->json_objectstart("errorProperties");
   writer->json_objectend();

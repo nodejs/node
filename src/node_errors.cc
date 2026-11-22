@@ -227,20 +227,56 @@ MaybeLocal<StackTrace> GetCurrentStackTrace(Isolate* isolate, int frame_count) {
   return scope.Escape(stack);
 }
 
+bool ShouldHideInternalStackFrames(Isolate* isolate) {
+  Environment* env = Environment::GetCurrent(isolate);
+  return env != nullptr && env->options()->hide_internal_stack_frames;
+}
+
+bool IsInternalStackFrame(Isolate* isolate, Local<StackFrame> frame) {
+  Utf8Value script_name(isolate, frame->GetScriptName());
+  const std::string_view name = script_name.ToStringView();
+  // Also match the `[eval]-wrapper`, `[stdin]-wrapper` and
+  // `[worker eval]-wrapper` scripts generated in
+  // lib/internal/process/execution.js.
+  return name.starts_with("node:internal/") ||
+         (name.starts_with('[') && name.ends_with("]-wrapper"));
+}
+
+std::string FormatHiddenStackFrames(int count) {
+  return SPrintF(
+      "<node:internal> (%d %s hidden)", count, count == 1 ? "frame" : "frames");
+}
+
 static std::string FormatStackTrace(
     Isolate* isolate,
     Local<StackTrace> stack,
     StackTracePrefix prefix = StackTracePrefix::kAt) {
   std::string result;
+  const bool hide_internal = ShouldHideInternalStackFrames(isolate);
+  int lines = 0;
+  int hidden = 0;
+  auto next_prefix = [&]() {
+    lines++;
+    return prefix == StackTracePrefix::kAt ? std::string("    at ")
+                                           : std::to_string(lines) + ": ";
+  };
+  auto flush_hidden = [&]() {
+    if (hidden == 0) return;
+    result += next_prefix() + FormatHiddenStackFrames(hidden) + "\n";
+    hidden = 0;
+  };
   for (int i = 0; i < stack->GetFrameCount(); i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
+    if (hide_internal && IsInternalStackFrame(isolate, stack_frame)) {
+      hidden++;
+      continue;
+    }
+    flush_hidden();
     node::Utf8Value fn_name_s(isolate, stack_frame->GetFunctionName());
     node::Utf8Value script_name(isolate, stack_frame->GetScriptName());
     const int line_number = stack_frame->GetLineNumber();
     const int column = stack_frame->GetColumn();
-    std::string prefix_str = prefix == StackTracePrefix::kAt
-                                 ? "    at "
-                                 : std::to_string(i + 1) + ": ";
+    std::string prefix_str = next_prefix();
     if (stack_frame->IsEval()) {
       if (stack_frame->GetScriptId() == Message::kNoScriptIdInfo) {
         result += SPrintF("%s[eval]:%i:%i\n", prefix_str, line_number, column);
@@ -281,6 +317,7 @@ static std::string FormatStackTrace(
       result += std::string(buf.data());
     }
   }
+  flush_hidden();
   return result;
 }
 

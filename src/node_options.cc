@@ -972,6 +972,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental frozen intrinsics support",
             BOOL_FIELD(frozen_intrinsics),
             kAllowedInEnvvar);
+  AddOption("--hide-internal-stack-frames",
+            "omit node:internal frames from stack traces",
+            BOOL_FIELD(hide_internal_stack_frames),
+            kAllowedInEnvvar);
   AddOption("--heapsnapshot-signal",
             "Generate heap snapshot on specified signal",
             &EnvironmentOptions::heap_snapshot_signal,

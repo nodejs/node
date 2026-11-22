@@ -463,6 +463,10 @@
               "type": "string",
               "description": "Generate heap snapshot on specified signal"
             },
+            "hide-internal-stack-frames": {
+              "type": "boolean",
+              "description": "omit node:internal frames from stack traces"
+            },
             "icu-data-dir": {
               "type": "string",
               "description": "set ICU data load path to dir (overrides NODE_ICU_DATA) (note: linked-in ICU data is present)"
