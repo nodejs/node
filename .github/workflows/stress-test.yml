@@ -53,6 +53,7 @@ jobs:
       # test-linux.yml and test-macos.yml running on the main branch.
       SCCACHE_GHA_ENABLED: 'true'
       SCCACHE_IDLE_TIMEOUT: '0'
+      CARGO_BUILD_RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
