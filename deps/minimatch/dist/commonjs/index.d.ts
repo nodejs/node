@@ -1,4 +1,4 @@
-import { AST } from './ast.js';
+import { Matcher, type Form } from '@isaacs/nonrecursive-glob-match';
 export type Platform = 'aix' | 'android' | 'darwin' | 'freebsd' | 'haiku' | 'linux' | 'openbsd' | 'sunos' | 'win32' | 'cygwin' | 'netbsd';
 export interface MinimatchOptions {
     /** do not expand `{x,y}` style braces */
@@ -7,8 +7,6 @@ export interface MinimatchOptions {
     nocomment?: boolean;
     /** do not treat patterns starting with `!` as a negation */
     nonegate?: boolean;
-    /** print LOTS of debugging output */
-    debug?: boolean;
     /** treat `**` the same as `*` */
     noglobstar?: boolean;
     /** do not expand extglobs like `+(a|b)` */
@@ -37,6 +35,11 @@ export interface MinimatchOptions {
     nocase?: boolean;
     /** ignore case only in wildcard patterns */
     nocaseMagicOnly?: boolean;
+    /**
+     * Normalize unicode in the pattern and in each portion of the
+     * tested paths, with this form. `true` means `'NFC'`.
+     */
+    normalize?: boolean | Form;
     /** consider braces to be "magic" for the purpose of `hasMagic` */
     magicalBraces?: boolean;
     /**
@@ -53,6 +56,9 @@ export interface MinimatchOptions {
     /**
      * A number indicating the level of optimization that should be done
      * to the pattern prior to parsing and using it for matches.
+     * At level 2 or higher, throws RangeError if splitting `**` and `..`
+     * would make more than `braceExpandMax` patterns, or add more than
+     * 1,000,000 path portions.
      */
     optimizationLevel?: number;
     /** operating system platform */
@@ -69,6 +75,10 @@ export interface MinimatchOptions {
     windowsNoMagicRoot?: boolean;
     /**
      * max number of `{...}` patterns to expand. Default 100_000.
+     *
+     * At `optimizationLevel` 2 or higher, this also limits the
+     * patterns made when `**` is followed by `..`. Over this limit,
+     * construction throws a RangeError.
      */
     braceExpandMax?: number;
     /**
@@ -78,27 +88,6 @@ export interface MinimatchOptions {
      * and can handle absurdly excessive patterns.
      */
     maxGlobstarRecursion?: number;
-    /**
-     * Max depth to traverse for nested extglobs like `*(a|b|c)`
-     *
-     * Default is 2, which is quite low, but any higher value
-     * swiftly results in punishing performance impacts. Note
-     * that this is *not*  relevant when the globstar types can
-     * be safely coalesced into a single set.
-     *
-     * For example, `*(a|@(b|c)|d)` would be flattened into
-     * `*(a|b|c|d)`. Thus, many common extglobs will retain good
-     * performance and  never hit this limit, even if they are
-     * excessively deep and complicated.
-     *
-     * If the limit is hit, then the extglob characters are simply
-     * not parsed, and the pattern effectively switches into
-     * `noextglob: true` mode for the contents of that nested
-     * sub-pattern. This will typically _not_ result in a match,
-     * but is considered a valid trade-off for security and
-     * performance.
-     */
-    maxExtglobRecursion?: number;
 }
 export declare const minimatch: {
     (p: string, pattern: string, options?: MinimatchOptions): boolean;
@@ -107,9 +96,7 @@ export declare const minimatch: {
     filter: (pattern: string, options?: MinimatchOptions) => (p: string) => boolean;
     defaults: (def: MinimatchOptions) => typeof minimatch;
     braceExpand: (pattern: string, options?: MinimatchOptions) => string[];
-    makeRe: (pattern: string, options?: MinimatchOptions) => false | MMRegExp;
     match: (list: string[], pattern: string, options?: MinimatchOptions) => string[];
-    AST: typeof AST;
     Minimatch: typeof Minimatch;
     escape: (s: string, { windowsPathsNoEscape, magicalBraces, }?: Pick<MinimatchOptions, "windowsPathsNoEscape" | "magicalBraces">) => string;
     unescape: (s: string, { windowsPathsNoEscape, magicalBraces, }?: Pick<MinimatchOptions, "windowsPathsNoEscape" | "magicalBraces">) => string;
@@ -120,13 +107,46 @@ export declare const GLOBSTAR: unique symbol;
 export declare const filter: (pattern: string, options?: MinimatchOptions) => (p: string) => boolean;
 export declare const defaults: (def: MinimatchOptions) => typeof minimatch;
 export declare const braceExpand: (pattern: string, options?: MinimatchOptions) => string[];
-export declare const makeRe: (pattern: string, options?: MinimatchOptions) => false | MMRegExp;
 export declare const match: (list: string[], pattern: string, options?: MinimatchOptions) => string[];
-export type MMRegExp = RegExp & {
-    _src?: string;
-    _glob?: string;
+/**
+ * A path that Minimatch#match split, with the settings that the split
+ * depends on. `resolved` is the parts after optimizationLevel 2 has
+ * resolved `.` and `..` in them, which only depends on the same
+ * settings, once a level 2 Minimatch has needed them.
+ */
+export type SplitPath = {
+    f: string;
+    isWindows: boolean;
+    preserveMultipleSlashes: boolean;
+    normalize: Form | undefined;
+    parts: string[];
+    resolved?: string[];
 };
-export type ParseReturnFiltered = string | MMRegExp | typeof GLOBSTAR;
+export type ParseReturnFiltered = string | Matcher | typeof GLOBSTAR;
+/**
+ * The rows that Minimatch#match can match without splitting the path:
+ * `**` and one more portion (`tail`), a portion with `**` on each side
+ * of it (`mid`), a portion and then `**` (`head`), or one portion that
+ * matches the basename of the path, with matchBase (`base`).
+ */
+export type RowShape = 'tail' | 'mid' | 'head' | 'base';
+/**
+ * The separators that a path has: only `/`, only `\` (a Windows path
+ * with no `/`), or both. Scanning for the ones it has is faster.
+ */
+export type PathSeps = '/' | '\\' | 'both';
+/**
+ * A pattern row split on its first and last `**`, from a start
+ * index. Each body segment has the number of path portions that it
+ * and the ones after it need, to find the last index where it can
+ * start in a path.
+ */
+export type GlobstarParts = {
+    head: ParseReturn[];
+    body: ParseReturn[];
+    tail: ParseReturn[];
+    segments: [segment: ParseReturn[], need: number][];
+};
 export type ParseReturn = ParseReturnFiltered | false;
 export declare class Minimatch {
     #private;
@@ -147,28 +167,22 @@ export declare class Minimatch {
     platform: Platform;
     windowsNoMagicRoot: boolean;
     maxGlobstarRecursion: number;
-    regexp: false | null | MMRegExp;
     constructor(pattern: string, options?: MinimatchOptions);
     hasMagic(): boolean;
-    debug(..._: unknown[]): void;
     make(): void;
+    mergeRows(): void;
     preprocess(globParts: string[][]): string[][];
     adjascentGlobstarOptimize(globParts: string[][]): string[][];
     levelOneOptimize(globParts: string[][]): string[][];
-    levelTwoFileOptimize(parts: string | string[]): string[];
     firstPhasePreProcess(globParts: string[][]): string[][];
     secondPhasePreProcess(globParts: string[][]): string[][];
-    partsMatch(a: string[], b: string[], emptyGSMatch?: boolean): false | string[];
     parseNegate(): void;
-    matchOne(file: string[], pattern: ParseReturn[], partial?: boolean): boolean;
     braceExpand(): string[];
     parse(pattern: string): ParseReturn;
-    makeRe(): false | MMRegExp;
-    slashSplit(p: string): string[];
     match(f: string, partial?: boolean): boolean;
     static defaults(def: MinimatchOptions): typeof Minimatch;
 }
-export { AST } from './ast.js';
 export { escape } from './escape.js';
 export { unescape } from './unescape.js';
+export type { Form };
 //# sourceMappingURL=index.d.ts.map

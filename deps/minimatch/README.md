@@ -1,60 +1,62 @@
 # minimatch
 
-A minimal matching utility.
+A glob matching utility.
 
-This is the matching library used internally by npm.
+This is the matching library used internally by
+[node-glob](https://npm.im/node-glob).
 
-It works by converting glob expressions into JavaScript `RegExp`
-objects.
+It works by splitting glob expressions on `/`, and testing each
+path portion with a `Matcher` from
+[@isaacs/nonrecursive-glob-match](http://npm.im/@isaacs/nonrecursive-glob-match).
+
+## Why Not Regular Expressions?
+
+Regular Expressions are very powerful, and for many applications,
+extremely fast.
+
+However, in JavaScript, they are subject to
+[ReDoS](https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS)
+in certain cases. Libraries that assemble Regular Expressions
+from arbitrary input are thus vulnerable to patterns that cause
+pathological behavior. For example, patterns like
+`a*a*a*a*a*a*a*a*a*a*a` when matched against a string like
+`'a'.repeat(50) + 'b'` would have to repeatedly backtrack through
+every failure.
+
+Most other glob matchers in JavaScript (including versions up
+through v10 of this library) convert the glob pattern to Regular
+Expressions, and then use that to test the string. This is fine
+for trusted input, but can fall over badly in cases that cause
+recursive backtracking.
 
 ## Important Security Consideration!
 
-> [!WARNING]  
-> This library uses JavaScript regular expressions. Please read
-> the following warning carefully, and be thoughtful about what
-> you provide to this library in production systems.
-
-_Any_ library in JavaScript that deals with matching string
-patterns using regular expressions will be subject to
-[ReDoS](https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS)
-if the pattern is generated using untrusted input.
-
-Efforts have been made to mitigate risk as much as is feasible in
-such a library, providing maximum recursion depths and so forth,
-but these measures can only ultimately protect against accidents,
-not malice. A dedicated attacker can _always_ find patterns that
-cannot be defended against by a bash-compatible glob pattern
-matching system that uses JavaScript regular expressions.
+Though this library is _not_ vulnerable to ReDOS, _any_ library
+that performs pattern matching based on arbitrary input will
+potentially have edge cases where it performs suboptimally.
 
 To be extremely clear:
 
 > [!WARNING]  
 > **If you create a system where you take user input, and use
-> that input as the source of a Regular Expression pattern, in
-> this or any extant glob matcher in JavaScript, you will be
-> pwned.**
+> that input as the source of a pattern matcher, in this or any
+> extant glob matcher in JavaScript, you may be pwned.**
 
-A future version of this library _may_ use a different matching
-algorithm which does not exhibit backtracking problems. If and
-when that happens, it will likely be a sweeping change, and those
-improvements will **not** be backported to legacy versions.
-
-In the near term, it is not reasonable to continue to play
-whack-a-mole with security advisories, and so any future ReDoS
-reports will be considered "working as intended", and resolved
-entirely by this warning.
+The pattern matching library that Minimatch uses in v11 and above
+will not be backported to earlier versions. It is a much too deep
+of a change to do so.
 
 ## Usage
 
-```js
+```ts
 // hybrid module, load with require() or import
 import { minimatch } from 'minimatch'
 // or:
-const { minimatch } = require('minimatch')
+// const { minimatch } = require('minimatch')
 
 minimatch('bar.foo', '*.foo') // true!
 minimatch('bar.foo', '*.bar') // false!
-minimatch('bar.foo', '*.+(bar|foo)', { debug: true }) // true, and noisy!
+minimatch('bar.foo', '*.+(bar|foo)') // true!
 ```
 
 ## Features
@@ -112,6 +114,14 @@ On Windows, UNC paths like `//?/c:/...` or
   present when the drive letters are a case-insensitive match to
   one another. The remaining portions of the path/pattern are
   compared case sensitively, unless `nocase:true` is set.
+- The host and share of a pattern starting with
+  `//<host>/<share>/...` are compared case-insensitively with
+  those of the file path, if neither has magic. For example,
+  `//host/share/*` matches `//HOST/SHARE/x`.
+- Patterns starting with `//?/UNC/<host>/<share>/...` will match
+  file paths starting with `//<host>/<share>/...`, and vice
+  versa, the same as `//?/<drive letter>:`. The `?` is not a
+  wildcard character.
 
 Note that specifying a UNC path using `\` characters as path
 separators is always allowed in the file path argument, but only
@@ -123,15 +133,15 @@ is set in the options.
 Create a minimatch object by instantiating the `minimatch.Minimatch` class.
 
 ```javascript
-var Minimatch = require('minimatch').Minimatch
-var mm = new Minimatch(pattern, options)
+import { Minimatch } from 'minimatch'
+const mm = new Minimatch(pattern, options)
 ```
 
 ### Properties
 
 - `pattern` The original pattern the minimatch object represents.
 - `options` The options supplied to the constructor.
-- `set` A 2-dimensional array of regexp or string expressions.
+- `set` A 2-dimensional array of `Matcher` or string expressions.
   Each row in the
   array corresponds to a brace-expanded pattern. Each item in the row
   corresponds to a single path-part. For example, the pattern
@@ -142,26 +152,20 @@ var mm = new Minimatch(pattern, options)
 
   If a portion of the pattern doesn't have any "magic" in it
   (that is, it's something like `"foo"` rather than `fo*o?`), then it
-  will be left as a string rather than converted to a regular
-  expression.
+  will be left as a string rather than converted to a `Matcher`.
 
-- `regexp` Created by the `makeRe` method. A single regular expression
-  expressing the entire pattern. This is useful in cases where you wish
-  to use the pattern somewhat like `fnmatch(3)` with `FNM_PATH` enabled.
+  A numeric range of 100 or more values, such as `{0..999}`, is
+  not expanded. It stays in one row, and the `Matcher` for its
+  portion tests for a number in the range.
+
 - `negate` True if the pattern is negated.
 - `comment` True if the pattern is a comment.
 - `empty` True if the pattern is `""`.
 
 ### Methods
 
-- `makeRe()` Generate the `regexp` member if necessary, and return it.
-  Will return `false` if the pattern is invalid.
 - `match(fname)` Return true if the filename matches the pattern, or
   false otherwise.
-- `matchOne(fileArray, patternArray, partial)` Take a `/`-split
-  filename, and match it against a single row in the `regExpSet`. This
-  method is mainly for internal use, but is exposed so that it can be
-  used by a glob-walker that needs to avoid excessive filesystem calls.
 - `hasMagic()` Returns true if the parsed pattern contains any
   magic characters. Returns false if all comparator parts are
   string literals. If the `magicalBraces` option is set on the
@@ -185,8 +189,13 @@ All other methods are internal, and will be called as necessary.
 Main export. Tests a path against the pattern using the options.
 
 ```javascript
-var isJS = minimatch(file, '*.js', { matchBase: true })
+const isJS = minimatch(file, '*.js', { matchBase: true })
 ```
+
+It keeps at least the 256 `Minimatch` objects that it used most
+recently, so a pattern that it tests again with the same options
+is not compiled again. To test many paths against one pattern, a
+`Minimatch` object or `minimatch.filter()` is still a bit faster.
 
 ### minimatch.filter(pattern, options)
 
@@ -194,7 +203,7 @@ Returns a function that tests its
 supplied argument, suitable for use with `Array.filter`. Example:
 
 ```javascript
-var javascripts = fileList.filter(
+const javascripts = fileList.filter(
   minimatch.filter('*.js', { matchBase: true }),
 )
 ```
@@ -207,6 +216,15 @@ only ever match literal strings.
 If the `windowsPathsNoEscape` option is used, then characters are
 escaped by wrapping in `[]`, because a magic character wrapped in
 a character class can only be satisfied by that exact character.
+
+Braces (`{` and `}`) are only escaped if the `magicalBraces`
+option is set. Without it, a brace expansion in the input such as
+`{a,b}` is left as-is, and will be expanded when matching.
+
+A leading `!` or `#` is escaped, so that the result is never a
+negated pattern or a comment. In `windowsPathsNoEscape` mode, a
+leading `!` is written as `@(!)`, which only matches `!` (and
+matches nothing if `noext` is set).
 
 Slashes (and backslashes in `windowsPathsNoEscape` mode) cannot
 be escaped or unescaped.
@@ -234,20 +252,12 @@ files, in the style of fnmatch or glob. If nothing is matched, and
 options.nonull is set, then return a list containing the pattern itself.
 
 ```javascript
-var javascripts = minimatch.match(fileList, '*.js', { matchBase: true })
+const javascripts = minimatch.match(fileList, '*.js', { matchBase: true })
 ```
-
-### minimatch.makeRe(pattern, options)
-
-Make a regular expression object from the pattern.
 
 ## Options
 
 All options are `false` by default.
-
-### debug
-
-Dump a ton of stuff to stderr.
 
 ### nobrace
 
@@ -271,17 +281,42 @@ Disable "extglob" style patterns like `+(a|b)`.
 
 ### nocase
 
-Perform a case-insensitive match.
+Perform a case-insensitive match. Case is folded one code point at
+a time, with Unicode simple case folding. See [Comparisons to other
+fnmatch/glob
+implementations](#comparisons-to-other-fnmatchglob-implementations).
 
 ### nocaseMagicOnly
 
-When used with `{nocase: true}`, create regular expressions that
+When used with `{nocase: true}`, create matchers that
 are case-insensitive, but leave string match portions untouched.
 Has no effect when used without `{nocase: true}`.
 
 Useful when some other form of case-insensitive matching is used,
 or if the original string representation is useful in some other
 way.
+
+### normalize
+
+Normalize unicode in the pattern, and in each portion of the tested
+path, with this form: `'NFC'`, `'NFD'`, `'NFKC'`, or `'NFKD'`. `true`
+means `'NFC'`.
+
+A char such as `é` can be one code point, or `e` followed by a
+combining accent. Some file systems, such as on macOS, can give file
+names in the second form. Without this option, the two forms do not
+match.
+
+- The path is split on `/` before it is normalized. So with NFKC, a
+  full width `／` normalizes to `/`, but it does not split the path.
+  It is a char in its portion.
+- The syntax of the pattern is parsed before it is normalized. So
+  with NFKC, a full width `＊` is a literal, which matches `*`, and
+  not a wildcard.
+- With `nocase`, the strings are normalized, and then case is folded.
+
+See [@isaacs/nonrecursive-glob-match](http://npm.im/@isaacs/nonrecursive-glob-match#unicode-normalization)
+for how classes and combining marks after wildcards are normalized.
 
 ### nonull
 
@@ -354,7 +389,7 @@ For legacy reasons, this is also set if
 
 When a pattern starts with a UNC path or drive letter, and in
 `nocase:true` mode, do not convert the root portions of the
-pattern into a case-insensitive regular expression, and instead
+pattern into a case-insensitive matchers, and instead
 leave them as strings.
 
 This is the default when the platform is `win32` and
@@ -390,11 +425,15 @@ is equivalent in all cases).
   example, the pattern `./a/b/../*` is converted to `./a/*`, and
   so it will match the path string `./a/c`, but not the path
   string `./a/b/../c`. Dots and empty path portions in the
-  pattern are preserved.
+  pattern are preserved. On Windows, a `..` never removes the
+  drive letter or the UNC host and share at the start of a
+  pattern, the same as it never removes the `/` at the start of
+  a posix pattern. So `C:/a/../../x` is converted to `C:/../x`.
 - `2` (or higher) - Much more aggressive optimizations, suitable
   for use with file-walking cases:
   - Remove cases where a double-dot `..` follows a pattern
-    portion that is not `**`, `.`, or empty `''`. Remove empty
+    portion that is not `**`, `.`, or empty `''`, or a Windows
+    root as above. Remove empty
     and `.` portions of the pattern, where safe to do so (ie,
     anywhere other than the last position, the first position, or
     the second position in a pattern starting with `/`, as this
@@ -402,28 +441,23 @@ is equivalent in all cases).
   - Convert patterns containing `<pre>/**/../<p>/<rest>` into the
     equivalent `<pre>/{..,**}/<p>/<rest>`, where `<p>` is a
     a pattern portion other than `.`, `..`, `**`, or empty
-    `''`.
-  - Dedupe patterns where a `**` portion is present in one and
-    omitted in another, and it is not the final path portion, and
-    they are otherwise equivalent. So `{a/**/b,a/b}` becomes
-    `a/**/b`, because `**` matches against an empty path portion.
-  - Dedupe patterns where a `*` portion is present in one, and a
-    non-dot pattern other than `**`, `.`, `..`, or `''` is in the
-    same position in the other. So `a/{*,x}/b` becomes `a/*/b`,
-    because `*` can match against `x`.
+    `''`. If this would make more than `braceExpandMax` patterns,
+    or add more than 1,000,000 path portions in total,
+    construction throws a `RangeError`.
+  - Remove duplicate patterns.
+  - Remove a pattern when another pattern has `*` at one or more
+    positions, and the same portions at all other positions. The
+    portions that `*` replaces must be non-dot patterns other than
+    `**` or `''`. So `a/{*,x}/b` becomes `a/*/b`, because `*` can
+    match against `x`. This step is skipped when the number of
+    patterns times the number of different sets of `*` positions
+    is more than 100,000.
 
   While these optimizations improve the performance of
   file-walking use cases such as [glob](http://npm.im/glob) (ie,
   the reason this module exists), there are cases where it will
   fail to match a literal string that would have been matched in
   optimization level 1 or 0.
-
-  Specifically, while the `Minimatch.match()` method will
-  optimize the file path string in the same ways, resulting in
-  the same matches, it will fail when tested with the regular
-  expression provided by `Minimatch.makeRe()`, unless the path
-  string is first processed with
-  `minimatch.levelTwoFileOptimize()` or similar.
 
 ### platform
 
@@ -448,26 +482,6 @@ match the pattern provided.
 
 That is, this is an intentional false negative, deemed an
 acceptable break in correctness for security and performance.
-
-### maxExtglobRecursion
-
-Max depth to traverse for nested extglobs like `*(a|b|c)`
-
-Default is 2, which is quite low, but any higher value swiftly
-results in punishing performance impacts. Note that this is _not_
-relevant when the globstar types can be safely coalesced into a
-single set.
-
-For example, `*(a|@(b|c)|d)` would be flattened into
-`*(a|b|c|d)`. Thus, many common extglobs will retain good
-performance and never hit this limit, even if they are
-excessively deep and complicated.
-
-If the limit is hit, then the extglob characters are simply not
-parsed, and the pattern effectively switches into `noextglob:
-true` mode for the contents of that nested sub-pattern. This will
-typically _not_ result in a match, but is considered a valid
-trade-off for security and performance.
 
 ## Comparisons to other fnmatch/glob implementations
 
@@ -497,8 +511,8 @@ If an escaped pattern has no matches, and the `nonull` flag is set,
 then minimatch.match returns the pattern as-provided, rather than
 interpreting the character escapes. For example,
 `minimatch.match([], "\\*a\\?")` will return `"\\*a\\?"` rather than
-`"*a?"`. This is akin to setting the `nullglob` option in bash, except
-that it does not resolve escaped pattern characters.
+`"*a?"`. This is like bash with the `nullglob` option off (the
+default), except that bash also removes the escapes.
 
 If brace expansion is not disabled, then it is performed before any
 other interpretation of the glob pattern. Thus, a pattern like
@@ -506,20 +520,44 @@ other interpretation of the glob pattern. Thus, a pattern like
 **first** into the set of `+(a|b)` and `+(a|c)`, and those patterns are
 checked for validity. Since those two are valid, matching proceeds.
 
-Negated extglob patterns are handled as closely as possible to
-Bash semantics, but there are some cases with negative extglobs
-which are exceedingly difficult to express in a JavaScript
-regular expression. In particular the negated pattern
-`<start>!(<pattern>*|)*` will in bash match anything that does
-not start with `<start><pattern>`. However,
-`<start>!(<pattern>*)*` _will_ match paths starting with
-`<start><pattern>`, because the empty string can match against
-the negated portion. In this library, `<start>!(<pattern>*|)*`
-will _not_ match any pattern starting with `<start>`, due to a
-difference in precisely which patterns are considered "greedy" in
-Regular Expressions vs bash path expansion. This may be fixable,
-but not without incurring some complexity and performance costs,
-and the trade-off seems to not be worth pursuing.
+A numeric range of 100 or more values, such as `{0..999}` or
+`{001..500}`, is the exception. It is not expanded, but it matches
+the same strings as its expansion. A range is expanded as usual if
+it has a step, such as `{0..999..2}`, if a `\` or `$` is before
+it, if a `[` is before it in the same path portion, because it
+might be inside a class, or if it is inside a `!(...)`, `*(...)`
+or `+(...)` extglob, because those repeat or negate each value.
+
+Each portion of a pattern between `/` characters is matched with
+[@isaacs/nonrecursive-glob-match](http://npm.im/@isaacs/nonrecursive-glob-match),
+which uses Bash 5 as its reference, and does not use regular
+expressions. So negated extglobs such as `<start>!(<pattern>*|)*`
+match the same strings as in Bash. These are the known
+differences:
+
+- If `dot` is not set, a portion that starts with `.` only matches
+  if a literal `.` in the pattern matches that first character.
+  Extglobs before that `.` can match the empty string, so the
+  pattern can still match. For example, with `nonegate`,
+  `!(.a|js)@(.*)` matches `.a`, `.a.js`, and `.js`, because
+  `!(.a|js)` matches the empty string. Bash does not match these
+  dotfiles.
+- If an extglob such as `?(a` is not closed, Bash matches the
+  whole pattern as a literal string. In this library, only the
+  `?(` is literal, and the rest of the pattern is still matched
+  as a glob. So `a?(b*` matches `a?(bcc` here, but not in Bash.
+- A pattern is split into portions on every `/`, including a `/`
+  inside an extglob. So `@(a|b/c)/*` becomes the portions
+  `@(a|b`, `c)`, and `*`, and its extglob is not closed. Bash
+  keeps the extglob whole, and drops each alternative with a `/`
+  in it, as no portion can contain a `/`. So in Bash, `@(a|b/c)/*`
+  is the same as `@(a)/*`. Leave out the alternatives with a `/`
+  to get the same result here.
+- With `nocase`, case is folded one code point at a time with
+  Unicode simple case folding, the same as a JavaScript RegExp
+  with the `iu` flags. Bash uses the case functions of the C
+  library for the current locale, so its results can change with
+  the locale.
 
 Note that `fnmatch(3)` in libc is an extremely naive string comparison
 matcher, which does not do anything special for slashes. This library is
