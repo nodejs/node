@@ -901,13 +901,17 @@ void TLSWrap::ClearOut() {
   int length = 0;
   int read;
 
-  // Emits out[0, length). Returns false if JS destroyed the SSL context.
+  // Emits out[0, length). Returns false if reading cannot continue.
   auto emit = [&]() {
     char* current = out;
     while (length > 0) {
       int avail = length;
 
       uv_buf_t buf = EmitAlloc(avail);
+      if (buf.base == nullptr || buf.len == 0) {
+        EmitRead(UV_ENOBUFS, buf);
+        return false;
+      }
       if (static_cast<int>(buf.len) < avail)
         avail = buf.len;
       memcpy(buf.base, current, avail);
