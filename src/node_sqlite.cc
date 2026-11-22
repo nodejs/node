@@ -1744,11 +1744,18 @@ void Database::FinalizeBackups() {
 }
 
 void Database::FinalizeStatements() {
-  for (auto stmt : statements_) {
+  // Finalizing a statement can run JavaScript: closing a virtual-table cursor
+  // calls the generator's return(). That code can prepare another statement,
+  // which inserts into this set. Erase each statement first and keep going
+  // until the set is empty, so a statement created from that JavaScript is
+  // finalized before the connection is released. Holding an iterator across
+  // the insertion would also be undefined for std::unordered_set.
+  while (!statements_.empty()) {
+    auto it = statements_.begin();
+    Statement* stmt = *it;
+    statements_.erase(it);
     stmt->Finalize();
   }
-
-  statements_.clear();
 }
 
 void Database::TrackStatement(Statement* statement) {
