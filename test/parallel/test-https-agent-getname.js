@@ -47,10 +47,10 @@ const options = {
 
 assert.strictEqual(
   agent.getName(options),
-  '0.0.0.0:443:192.168.1.1:s2:ca:s4:cert:ciphers:s3:key::' +
-    's3:pfx::false:localhost:::secureProtocol:' +
-    'a3:7:v1:Yw==:7:v1:cg==:7:v1:bA==:false:ecdhCurve:dhparam:0:' +
-    'sessionIdContext:"sigalgs":::::::::'
+  '0.0.0.0:443:192.168.1.1:s2:ca:s4:cert:s7:ciphers:s3:key::' +
+    's3:pfx::b5:false:s9:localhost:::s14:secureProtocol:' +
+    'a3:7:v1:Yw==:7:v1:cg==:7:v1:bA==:b5:false:s9:ecdhCurve:s7:dhparam:' +
+    'n1:0:s16:sessionIdContext:s7:sigalgs:::::::::'
 );
 
 {
@@ -155,5 +155,44 @@ assert.strictEqual(
   assert.notStrictEqual(
     agent.getName({ ...baseOptions, session: Buffer.from('one') }),
     agent.getName({ ...baseOptions, session: Buffer.from('two') })
+  );
+
+  // Values containing the field delimiter must not shift across fields.
+  const collisions = [
+    [{ servername: 'a:b' }, { servername: 'a', minVersion: 'b:' }],
+    [{ minVersion: 'a:b' }, { minVersion: 'a', maxVersion: 'b:' }],
+    [{ maxVersion: 'a:b' }, { maxVersion: 'a', secureProtocol: 'b:' }],
+    [{ rejectUnauthorized: 'false:a' },
+     { rejectUnauthorized: 'false', servername: 'a:' }],
+    [{ honorCipherOrder: 'a:b' }, { honorCipherOrder: 'a', ecdhCurve: 'b:' }],
+    [{ ecdhCurve: 'a:b' }, { ecdhCurve: 'a', dhparam: 'b:' }],
+    [{ dhparam: 'a:b' }, { dhparam: 'a', secureOptions: 'b:' }],
+    [{ secureOptions: '1:a' }, { secureOptions: 1, sessionIdContext: 'a:' }],
+    [{ sessionIdContext: 'a:b' }, { sessionIdContext: 'a', sigalgs: 'b:' }],
+    [{ sigalgs: ['a:b'] }, { sigalgs: ['a', 'b'] }],
+    [{ servername: 'a', rejectUnauthorized: false, ecdhCurve: 'P-256:P-384' },
+     { rejectUnauthorized: 'false:a', honorCipherOrder: 'P-256',
+       ecdhCurve: 'P-384' }],
+  ];
+  for (const [first, second] of collisions) {
+    assert.notStrictEqual(
+      agent.getName({ ...baseOptions, ...first }),
+      agent.getName({ ...baseOptions, ...second }),
+      `${JSON.stringify(first)} collides with ${JSON.stringify(second)}`
+    );
+  }
+
+  // The type of a value is part of its key.
+  assert.notStrictEqual(
+    agent.getName({ ...baseOptions, rejectUnauthorized: false }),
+    agent.getName({ ...baseOptions, rejectUnauthorized: 'false' })
+  );
+
+  assert.notStrictEqual(
+    agent.getName({ ...baseOptions, dhparam: new DataView(new ArrayBuffer(2)) }),
+    agent.getName({
+      ...baseOptions,
+      dhparam: new DataView(new Uint8Array([1, 2]).buffer),
+    })
   );
 }
