@@ -1438,7 +1438,15 @@ TEST(ZlibTest, ZipUnicodePathExtraSizeFilenameOverflow) {
   base::FilePath zip_file = TestDataDir().AppendASCII("unicode_path_extra_overflow.zip");
   unzFile uzf = unzOpen(zip_file.AsUTF8Unsafe().c_str());
   ASSERT_NE(uzf, nullptr);
-  EXPECT_EQ(unzGoToFirstFile(uzf), UNZ_ERRNO);
+
+  char name[100];
+  unz_file_info file_info;
+  ASSERT_EQ(unzGoToFirstFile(uzf), UNZ_OK);
+  // The bad Unicode Path Extra Field should be ignored, and we get the regular
+  // filename.
+  ASSERT_EQ(unzGetCurrentFileInfo(uzf, &file_info, name, sizeof(name), nullptr,
+                                  0, nullptr, 0), UNZ_OK);
+  ASSERT_EQ(std::string(name), "\xc8\xfe \xc8\xfe\xc8\xfe.txt");
   EXPECT_EQ(unzClose(uzf), UNZ_OK);
 }
 
@@ -1478,6 +1486,34 @@ TEST(ZlibTest, ZipUnicodePathExtra) {
   ASSERT_EQ(file_info.size_filename, 11);
   ASSERT_EQ(file_info.size_utf8_filename, 14);
   ASSERT_EQ(std::string(file_info.utf8_filename), "\xec\x83\x88 \xeb\xac\xb8\xec\x84\x9c.txt");
+
+  EXPECT_EQ(unzClose(uzf), UNZ_OK);
+}
+
+TEST(ZlibTest, ShortZipUnicodePathExtra) {
+  base::FilePath zip_file = TestDataDir().AppendASCII("short_unicode_path_extra.zip");
+  unzFile uzf = unzOpen(zip_file.AsUTF8Unsafe().c_str());
+  ASSERT_NE(uzf, nullptr);
+
+  char name[100];
+  unz_file_info file_info;
+
+  ASSERT_EQ(unzGoToFirstFile(uzf), UNZ_OK);
+  ASSERT_EQ(unzGetCurrentFileInfo(uzf, &file_info, name, sizeof(name), nullptr,
+                                  0, nullptr, 0), UNZ_OK);
+  ASSERT_EQ(std::string(name), "receipt.txt");
+
+  // The "decoy.dat" entry has an invalid (too short) Unicode Path Extra Field.
+  // Ignore the extra field rather than erroring out.
+  ASSERT_EQ(unzGoToNextFile(uzf), UNZ_OK);
+  ASSERT_EQ(unzGetCurrentFileInfo(uzf, &file_info, name, sizeof(name), nullptr,
+                                  0, nullptr, 0), UNZ_OK);
+  ASSERT_EQ(std::string(name), "decoy.dat");
+
+  ASSERT_EQ(unzGoToNextFile(uzf), UNZ_OK);
+  ASSERT_EQ(unzGetCurrentFileInfo(uzf, &file_info, name, sizeof(name), nullptr,
+                                  0, nullptr, 0), UNZ_OK);
+  ASSERT_EQ(std::string(name), "malware.exe");
 
   EXPECT_EQ(unzClose(uzf), UNZ_OK);
 }

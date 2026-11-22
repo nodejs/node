@@ -1054,14 +1054,16 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
                     /* dataSize includes version (1 byte), uCrc (4 bytes), and
                      * the filename data. If it's too small, fileNameSize below
                      * would overflow. */
-                    err = UNZ_ERRNO;
-                    break;
+                    if (ZSEEK64(s->z_filefunc, s->filestream, dataSize, ZLIB_FILEFUNC_SEEK_CUR) != 0)
+                    {
+                        err = UNZ_ERRNO;
+                    }
                 }
                 else if (unz64local_getByte(&s->z_filefunc, s->filestream, &version) != UNZ_OK)
                 {
                     err = UNZ_ERRNO;
                 }
-                if (version != 1)
+                else if (version != 1)
                 {
                     if (ZSEEK64(s->z_filefunc, s->filestream,dataSize - 1, ZLIB_FILEFUNC_SEEK_CUR) != 0)
                     {
