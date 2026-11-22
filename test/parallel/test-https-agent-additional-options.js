@@ -56,30 +56,29 @@ const updatedValues = new Map([
   ['sessionIdContext', 'sessionIdContext'],
 ]);
 
-let value;
+// Every variation must be pooled under its own name, and repeating a
+// variation must reuse the name it had.
+const requested = new Set();
+let expectedNames = 1;
 function variations(iter, port, cb) {
   return common.mustCall((res) => {
     res.resume();
     https.globalAgent.once('free', common.mustCall(() => {
-      // Verify that the most recent connection is in the freeSockets pool.
+      // Verify that the connections are in the freeSockets pool, one name for
+      // each distinct set of options.
       const keys = Object.keys(https.globalAgent.freeSockets);
-      if (value) {
-        assert.ok(
-          keys.some((val) => val.startsWith(value.toString() + ':') ||
-                            val.endsWith(':' + value.toString()) ||
-                            val.includes(':' + value.toString() + ':')),
-          `missing value: ${value.toString()} in ${keys}`
-        );
-      }
+      assert.strictEqual(keys.length, expectedNames, `unexpected ${keys}`);
       const next = iter.next();
 
       if (next.done) {
         https.globalAgent.destroy();
         server.close();
       } else {
-        // Save `value` for check the next time.
         const [key, val] = next.value;
-        value = val;
+        if (!requested.has(key)) {
+          requested.add(key);
+          expectedNames++;
+        }
         https.get({ ...getBaseOptions(port), [key]: val },
                   variations(iter, port, cb));
       }
@@ -90,5 +89,7 @@ function variations(iter, port, cb) {
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   https.globalAgent.keepAlive = true;
-  https.get(getBaseOptions(port), variations(updatedValues.entries(), port));
+  const all = [...updatedValues.entries()];
+  const entries = [...all, all[0]];
+  https.get(getBaseOptions(port), variations(entries.values(), port));
 }));
