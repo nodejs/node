@@ -563,12 +563,9 @@ class Http3ApplicationImpl final : public Session::Application {
 
   void StreamRemoved(stream_id id) override {
     if (!conn_) return;
-    // Once the Stream is gone, nothing can supply its body data. Stop
-    // nghttp3 from writing to it. Otherwise a response whose headers were
-    // submitted but not yet sent makes nghttp3 call on_read_data_callback
-    // for a stream that no longer exists, which fails and closes the
-    // whole session.
-    nghttp3_conn_shutdown_stream_write(*this, id);
+    // Once the Stream is gone, nothing can supply its body data.
+    // So the on_read_data_callback should detect the nullptr user_data
+    // and signal EOF.
     nghttp3_conn_set_stream_user_data(*this, id, nullptr);
   }
 
@@ -1202,6 +1199,10 @@ class Http3ApplicationImpl final : public Session::Application {
     CHECK_NOT_NULL(ptr);
     auto& app = *ptr;
     NgHttp3CallbackScope scope(&app.session());
+    if (stream_user_data == nullptr) {
+      // stream is gone on js side, we exit silently
+      return NGHTTP3_DATA_FLAG_EOF;
+    }
 
     BaseObjectPtr<Stream> stream(static_cast<Stream*>(stream_user_data));
     if (!stream) [[unlikely]] {
