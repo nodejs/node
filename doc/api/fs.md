@@ -7994,6 +7994,9 @@ i.e. before the `'ready'` event is emitted.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67716
+    description: Added `Stats.isStats` static method.
   - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/60789
     description: Added `Temporal.Instant` support.
@@ -8082,6 +8085,44 @@ BigIntStats {
   ctimeInstant: 2011-10-10T23:24:11Z,
   birthtimeInstant: 2011-10-10T23:24:11Z
 }
+```
+
+### Static method: `Stats.isStats(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any}
+* Returns: {boolean}
+
+Returns `true` if `value` is a `fs.Stats` object, including objects returned
+when `bigint` option was set to `true`. Returns `false` otherwise.
+
+Prefer this method over `value instanceof fs.Stats`.
+
+```mjs
+import { statSync, Stats } from 'node:fs';
+
+const stats = statSync('/etc/hosts');
+const statsBigInt = statSync('/etc/hosts', { bigint: true });
+
+Stats.isStats(stats); // true
+Stats.isStats(statsBigInt); // true
+stats instanceof Stats; // true
+statsBigInt instanceof Stats; // false
+```
+
+```cjs
+const { statSync, Stats } = require('node:fs');
+
+const stats = statSync('/etc/hosts');
+const statsBigInt = statSync('/etc/hosts', { bigint: true });
+
+Stats.isStats(stats); // true
+Stats.isStats(statsBigInt); // true
+stats instanceof Stats; // true
+statsBigInt instanceof Stats; // false
 ```
 
 #### `stats.isBlockDevice()`
