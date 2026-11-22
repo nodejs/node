@@ -1,9 +1,10 @@
 'use strict'
 
 const RedirectHandler = require('../handler/redirect-handler')
+const { kInterceptorKind } = require('../core/symbols.js')
 
 function createRedirectInterceptor ({ maxRedirections: defaultMaxRedirections, throwOnMaxRedirect: defaultThrowOnMaxRedirect, stripHeadersOnRedirect: defaultStripHeadersOnRedirect, stripHeadersOnCrossOriginRedirect: defaultStripHeadersOnCrossOriginRedirect } = {}) {
-  return (dispatch) => {
+  const interceptor = (dispatch) => {
     return function Intercept (opts, handler) {
       const { maxRedirections = defaultMaxRedirections, throwOnMaxRedirect = defaultThrowOnMaxRedirect, stripHeadersOnRedirect = defaultStripHeadersOnRedirect, stripHeadersOnCrossOriginRedirect = defaultStripHeadersOnCrossOriginRedirect, ...rest } = opts
 
@@ -16,6 +17,8 @@ function createRedirectInterceptor ({ maxRedirections: defaultMaxRedirections, t
       return dispatch(dispatchOpts, redirectHandler)
     }
   }
+  interceptor[kInterceptorKind] = 'redirect'
+  return interceptor
 }
 
 module.exports = createRedirectInterceptor

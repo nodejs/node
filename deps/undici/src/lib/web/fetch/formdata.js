@@ -163,19 +163,12 @@ class FormData {
   }
 
   [nodeUtil.inspect.custom] (depth, options) {
-    const state = this.#state.reduce((a, b) => {
-      if (a[b.name]) {
-        if (Array.isArray(a[b.name])) {
-          a[b.name].push(b.value)
-        } else {
-          a[b.name] = [a[b.name], b.value]
-        }
-      } else {
-        a[b.name] = b.value
-      }
-
-      return a
-    }, { __proto__: null })
+    const state = Object.groupBy(this.#state, ({ name }) => name)
+    for (const [name, entries] of Object.entries(state)) {
+      state[name] = entries.length === 1
+        ? entries[0].value
+        : entries.map(({ value }) => value)
+    }
 
     options.depth ??= depth
     options.colors ??= true

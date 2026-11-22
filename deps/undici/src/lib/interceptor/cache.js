@@ -18,7 +18,9 @@ const {
   isEtagUsable
 } = require('../util/cache.js')
 const { AbortError } = require('../core/errors.js')
+const { kQueuedAbort } = require('../core/symbols.js')
 const { parseHttpDate } = require('../util/date.js')
+const { kInterceptorKind } = require('../core/symbols.js')
 
 /**
  * @param {(string | RegExp)[] | undefined} origins
@@ -541,7 +543,10 @@ function handleResult (
         dispatch(
           {
             ...opts,
-            headers
+            headers,
+            // The revalidation is not the caller's request: aborting the
+            // caller must not cancel it while it waits for a connection.
+            [kQueuedAbort]: undefined
           },
           new CacheHandler(globalOpts, cacheKey, {
             // Silent handler that just updates the cache
@@ -665,7 +670,7 @@ module.exports = (opts = {}) => {
     }
   }
 
-  return (dispatch, interceptorOrigin) => {
+  const interceptor = (dispatch, interceptorOrigin) => {
     return (opts, handler) => {
       const requestOrigin = getInterceptorOrigin(opts, interceptorOrigin)
       if (!requestOrigin || arrayIncludes(safeMethodsToNotCache, opts.method)) {
@@ -768,4 +773,6 @@ module.exports = (opts = {}) => {
       }
     }
   }
+  interceptor[kInterceptorKind] = 'cache'
+  return interceptor
 }

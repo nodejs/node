@@ -60,6 +60,7 @@ module.exports = {
   kMaxResponseSize: Symbol('max response size'),
   kHTTP2Session: Symbol('http2Session'),
   kHTTP2Options: Symbol('http2 options'),
+  kQueuedAbort: Symbol('queued abort'),
   kHTTP2SessionState: Symbol('http2Session state'),
   kRetryHandlerDefaultRetry: Symbol('retry agent default retry'),
   kConstruct: Symbol('constructable'),
@@ -77,5 +78,6 @@ module.exports = {
   kNoProxyAgent: Symbol('no proxy agent'),
   kHttpProxyAgent: Symbol('http proxy agent'),
   kHttpsProxyAgent: Symbol('https proxy agent'),
-  kSocks5ProxyAgent: Symbol('socks5 proxy agent')
+  kSocks5ProxyAgent: Symbol('socks5 proxy agent'),
+  kInterceptorKind: Symbol('interceptor kind')
 }

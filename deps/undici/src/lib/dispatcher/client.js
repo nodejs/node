@@ -55,12 +55,14 @@ const {
   kHostAuthority,
   kResume,
   kHTTP2Options,
-  kUseMilo
+  kUseMilo,
+  kQueuedAbort
 } = require('../core/symbols.js')
 const connectH1 = require('./client-h1.js')
 const connectH2 = require('./client-h2.js')
 
 const kClosedResolve = Symbol('kClosedResolve')
+const kCancelConnect = Symbol('kCancelConnect')
 
 const getDefaultNodeMaxHeaderSize = http &&
   http.maxHeaderSize &&
@@ -322,6 +324,7 @@ class Client extends DispatcherBase {
     this[kClosedResolve] = null
     this[kMaxResponseSize] = maxResponseSize > -1 ? maxResponseSize : -1
     this[kHTTPContext] = null
+    this[kCancelConnect] = null
     // h2
     this[kHTTP2Options] = {
       pingInterval: h2Options?.pingInterval ?? pingInterval ?? 60e3,
@@ -402,6 +405,8 @@ class Client extends DispatcherBase {
 
   [kConnect] (cb) {
     connect(this)
+    // Asked for explicitly: keep it even if no request waits for it.
+    this[kCancelConnect] = null
     this.once('connect', cb)
   }
 
@@ -417,6 +422,15 @@ class Client extends DispatcherBase {
       queueMicrotask(() => resume(this))
     } else {
       this[kResume](true)
+    }
+
+    if (request.abort === null && !request.aborted) {
+      // The request is still waiting for a connection: if its handler listens
+      // to a signal, give it a way to take the request out of the queue.
+      const onQueued = opts[kQueuedAbort]
+      if (onQueued !== undefined) {
+        onQueued((reason) => abortPendingRequest(this, request, reason))
+      }
     }
 
     if (this[kResuming] && this[kNeedDrain] !== 2 && this[kBusy]) {
@@ -469,6 +483,56 @@ class Client extends DispatcherBase {
   }
 }
 
+function failQueuedRequest (client, request, reason) {
+  try {
+    request.onQueuedAbort(reason)
+    assert(request.aborted)
+  } catch (err) {
+    client.emit('error', err)
+  }
+}
+
+function abortPendingRequest (client, request, reason) {
+  // The request already settled, or it started and its handler owns the abort.
+  if (request.aborted || request.abort !== null) {
+    return
+  }
+
+  const queue = client[kQueue]
+  const idx = queue.indexOf(request, client[kPendingIdx])
+  if (idx === -1) {
+    return
+  }
+
+  // _resume() may be handing this request to the connection right now, before
+  // onRequestStart runs. Leave it there: the handler aborts it once it starts.
+  if (idx === client[kPendingIdx] && client[kResuming] === 2) {
+    return
+  }
+
+  queue.splice(idx, 1)
+  failQueuedRequest(client, request, reason)
+
+  // The client may no longer be busy: emit 'drain' so a Pool can use it again.
+  client[kResume](true)
+
+  if (client[kCancelConnect] !== null && client[kSize] === 0) {
+    // The drain is emitted in a microtask: check once a Pool had the chance to
+    // hand this client the requests it queued.
+    queueMicrotask(() => cancelUnusedConnect(client))
+  }
+}
+
+// A connection attempt that no request waits for only holds a connection slot,
+// until it connects or times out. Destroy it, so the next request starts a new
+// one instead of waiting for it.
+function cancelUnusedConnect (client) {
+  const cancel = client[kCancelConnect]
+  if (cancel !== null && client[kSize] === 0) {
+    cancel(new InformationalError('no request waits for this connection'))
+  }
+}
+
 function onError (client, err) {
   if (
     client[kRunning] === 0 &&
@@ -515,6 +579,38 @@ function connect (client) {
 
   client[kConnecting] = true
 
+  // The name this attempt verifies the server's certificate for. While it
+  // connects, its requests can be aborted and _resume() can switch
+  // client[kServerName] to the name of the next queued request.
+  const servername = client[kServerName]
+
+  let calledBack = false
+  let cancelled = false
+
+  // Ends this attempt without a 'connectionError': no request failed, and a
+  // Pool would retire this client.
+  const abandon = (socket, err) => {
+    client[kConnecting] = false
+
+    if (channels.connectError.hasSubscribers) {
+      channels.connectError.publish({
+        connectParams: {
+          host,
+          hostname,
+          protocol,
+          port,
+          version: client[kHTTPContext]?.version,
+          servername,
+          localAddress: client[kLocalAddress]
+        },
+        connector: client[kConnector],
+        error: err
+      })
+    }
+
+    util.destroy(socket.on('error', noop), err)
+  }
+
   if (channels.beforeConnect.hasSubscribers) {
     channels.beforeConnect.publish({
       connectParams: {
@@ -523,7 +619,7 @@ function connect (client) {
         protocol,
         port,
         version: client[kHTTPContext]?.version,
-        servername: client[kServerName],
+        servername,
         localAddress: client[kLocalAddress]
       },
       connector: client[kConnector]
@@ -531,16 +627,27 @@ function connect (client) {
   }
 
   try {
-    client[kConnector]({
+    const connecting = client[kConnector]({
       host,
       hostname,
       protocol,
       port,
-      servername: client[kServerName],
+      servername,
       localAddress: client[kLocalAddress]
     }, (err, socket) => {
+      calledBack = true
+
+      if (cancelled) {
+        if (socket) {
+          util.destroy(socket.on('error', noop))
+        }
+        return
+      }
+
+      client[kCancelConnect] = null
+
       if (err) {
-        handleConnectError(client, err, { host, hostname, protocol, port })
+        handleConnectError(client, err, { host, hostname, protocol, port, servername })
         client[kResume]()
         return
       }
@@ -553,13 +660,21 @@ function connect (client) {
 
       assert(socket)
 
+      if (client[kServerName] !== servername) {
+        // The server proved its identity for another name than the one the
+        // queued requests are for: never send them on this connection.
+        abandon(socket, new InformationalError('servername changed'))
+        client[kResume]()
+        return
+      }
+
       try {
         client[kHTTPContext] = socket.alpnProtocol === 'h2'
           ? connectH2(client, socket)
           : connectH1(client, socket)
       } catch (err) {
         socket.destroy().on('error', noop)
-        handleConnectError(client, err, { host, hostname, protocol, port })
+        handleConnectError(client, err, { host, hostname, protocol, port, servername })
         client[kResume]()
         return
       }
@@ -579,7 +694,7 @@ function connect (client) {
             protocol,
             port,
             version: client[kHTTPContext]?.version,
-            servername: client[kServerName],
+            servername,
             localAddress: client[kLocalAddress]
           },
           connector: client[kConnector],
@@ -590,13 +705,23 @@ function connect (client) {
       client.emit('connect', client[kUrl], [client])
       client[kResume]()
     })
+
+    // The attempt can only be cancelled through the socket the connector
+    // returns. The built-in connector returns it; custom connectors may not.
+    if (!calledBack && util.isStream(connecting)) {
+      client[kCancelConnect] = (err) => {
+        cancelled = true
+        client[kCancelConnect] = null
+        abandon(connecting, err)
+      }
+    }
   } catch (err) {
-    handleConnectError(client, err, { host, hostname, protocol, port })
+    handleConnectError(client, err, { host, hostname, protocol, port, servername })
     client[kResume]()
   }
 }
 
-function handleConnectError (client, err, { host, hostname, protocol, port }) {
+function handleConnectError (client, err, { host, hostname, protocol, port, servername }) {
   if (client.destroyed) {
     return
   }
@@ -611,7 +736,7 @@ function handleConnectError (client, err, { host, hostname, protocol, port }) {
         protocol,
         port,
         version: client[kHTTPContext]?.version,
-        servername: client[kServerName],
+        servername,
         localAddress: client[kLocalAddress]
       },
       connector: client[kConnector],
@@ -627,7 +752,8 @@ function handleConnectError (client, err, { host, hostname, protocol, port }) {
       util.errorRequest(client, running[i], err)
     }
 
-    while (client[kPending] > 0 && client[kQueue][client[kPendingIdx]].servername === client[kServerName]) {
+    // Only the requests for the name the certificate failed for.
+    while (client[kPending] > 0 && client[kQueue][client[kPendingIdx]].servername === servername) {
       const request = client[kQueue].splice(client[kPendingIdx], 1)[0]
       util.errorRequest(client, request, err)
     }
@@ -718,6 +844,9 @@ function _resume (client, sync) {
         client[kHTTPContext] = null
         resume(client)
       })
+      // A pending attempt verifies the server for the previous name, and its
+      // connection is discarded once it connects: do not wait for it.
+      client[kCancelConnect]?.(new InformationalError('servername changed'))
     }
 
     if (client[kConnecting]) {
