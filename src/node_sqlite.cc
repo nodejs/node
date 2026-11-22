@@ -3369,6 +3369,16 @@ int Database::TraceCallback(unsigned int type,
     return 0;
   }
 
+  // The profile callback also runs when a statement fails and when it is
+  // reset, both of which can happen while a JavaScript exception is already
+  // pending: a throwing SQL function, or a row value that cannot be converted.
+  // Publishing here would enter V8 with that exception still set. Debug
+  // builds then abort in Invoke, and release builds drop the user's error or
+  // replace it with an empty ERR_SQLITE_ERROR.
+  if (!env->can_call_into_js() || env->isolate()->HasPendingException()) {
+    return 0;
+  }
+
   // Entered before building the payload below, because allocating it can
   // trigger a garbage collection that SQLite is not prepared for.
   CallbackDepthGuard guard(db);
