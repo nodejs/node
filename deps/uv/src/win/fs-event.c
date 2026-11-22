@@ -438,6 +438,7 @@ void uv__process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
   WCHAR* filenamew = NULL;
   WCHAR* long_filenamew = NULL;
   DWORD offset = 0;
+  int dir_event_detected = 0;
 
   assert(req->type == UV_FS_EVENT_REQ);
   assert(handle->req_pending);
@@ -463,6 +464,10 @@ void uv__process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
         assert(!filename);
         assert(!filenamew);
         assert(!long_filenamew);
+
+        if (file_info->FileNameLength == 0) {
+          dir_event_detected = 1;
+        }
 
         /*
          * Fire the event only if we were asked to watch a directory,
@@ -601,6 +606,7 @@ void uv__process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
                                      sizeof(info)) &&
         info.Directory &&
         info.DeletePending) {
+      dir_event_detected = 1;
       uv__convert_utf16_to_utf8(handle->dirw, -1, &filename);
       handle->cb(handle, filename, UV_RENAME, 0);
       uv__free(filename);
@@ -613,6 +619,26 @@ void uv__process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
   if (handle->flags & UV_HANDLE_CLOSING) {
     uv__want_endgame(loop, (uv_handle_t*)handle);
   } else if (uv__is_active(handle)) {
+    /*
+     * Check if the handle has become a zombie pointing to \$Extend\$Deleted\.
+     * Only perform the check if we detected an event on the directory, which
+     * may indicate deletion.
+     */
+    if (dir_event_detected) {
+      WCHAR path_buf[MAX_PATH];
+      DWORD path_len = GetFinalPathNameByHandleW(handle->dir_handle,
+                                                 path_buf,
+                                                 ARRAY_SIZE(path_buf),
+                                                 FILE_NAME_NORMALIZED | VOLUME_NAME_NONE);
+
+      if (path_len > 0 && path_len < ARRAY_SIZE(path_buf)) {
+        if (wcsstr(path_buf, L"\\$Extend\\$Deleted\\") != NULL) {
+          handle->cb(handle, NULL, 0, UV_ENOENT);
+          return;
+        }
+      }
+    }
+
     uv__fs_event_queue_readdirchanges(loop, handle);
   }
 }
