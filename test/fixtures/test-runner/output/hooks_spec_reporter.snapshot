@@ -143,14 +143,11 @@ test at test/fixtures/test-runner/output/hooks.js:96:3
   Error: beforeEach
       at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:94:28)
       at <node-internal-frames>
-      at async Promise.all (index 0)
 
 test at test/fixtures/test-runner/output/hooks.js:101:3
 ✖ 1 (*ms)
   Error: afterEach
       at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:100:27)
-      at <node-internal-frames>
-      at async Promise.all (index 0)
       at <node-internal-frames>
 
 test at test/fixtures/test-runner/output/hooks.js:102:3
@@ -166,7 +163,6 @@ test at test/fixtures/test-runner/output/hooks.js:107:3
       at <node-internal-frames>
       at new Promise (<anonymous>)
       at <node-internal-frames>
-      at Array.map (<anonymous>)
 
 test at test/fixtures/test-runner/output/hooks.js:113:3
 ✖ 1 (*ms)
@@ -175,7 +171,6 @@ test at test/fixtures/test-runner/output/hooks.js:113:3
       at <node-internal-frames>
       at new Promise (<anonymous>)
       at <node-internal-frames>
-      at Array.map (<anonymous>)
 
 test at test/fixtures/test-runner/output/hooks.js:114:3
 ✖ 2 (*ms)

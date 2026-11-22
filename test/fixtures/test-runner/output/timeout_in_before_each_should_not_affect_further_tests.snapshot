@@ -14,8 +14,6 @@ gonna timeout
       failureType: 'hookFailed'
       error: 'failed running beforeEach hook'
       code: 'ERR_TEST_FAILURE'
-      stack: |-
-        async Promise.all (index 0)
       ...
     # Subtest: first describe second test
     ok 2 - first describe second test
@@ -45,8 +43,6 @@ not gonna timeout
       failureType: 'hookFailed'
       error: 'failed running afterEach hook'
       code: 'ERR_TEST_FAILURE'
-      stack: |-
-        async Promise.all (index 0)
       ...
     # Subtest: second describe second test
     ok 2 - second describe second test
