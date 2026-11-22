@@ -52,6 +52,7 @@ jobs:
       # test lib-only or test-only deflaking changes. This should be able to pick up cache from
       # test-linux.yml and test-macos.yml running on the main branch.
       SCCACHE_GHA_ENABLED: 'true'
+      SCCACHE_GHA_RW_MODE: READ_ONLY
       SCCACHE_IDLE_TIMEOUT: '0'
       CARGO_BUILD_RUSTC_WRAPPER: sccache
     steps:
