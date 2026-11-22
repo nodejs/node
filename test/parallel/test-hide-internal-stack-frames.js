@@ -36,16 +36,18 @@ const checkHidden = {
     assert.match(output, /\[eval\]:4:/);
     // The generated [eval]-wrapper frame is folded in with the internals.
     assert.match(output, /\[eval\]:4:\d+\)?\n {4}at <node:internal> \(\d+ frames hidden\)\n/);
-  }, 3),
+  }, process.config.variables.node_without_node_options ? 2 : 3),
 };
 
 spawnSyncAndAssert(process.execPath,
                    ['--hide-internal-stack-frames', '-e', script],
                    checkHidden);
 
-spawnSyncAndAssert(process.execPath, ['-e', script], {
-  env: { ...process.env, NODE_OPTIONS: '--hide-internal-stack-frames' },
-}, checkHidden);
+if (!process.config.variables.node_without_node_options) {
+  spawnSyncAndAssert(process.execPath, ['-e', script], {
+    env: { ...process.env, NODE_OPTIONS: '--hide-internal-stack-frames' },
+  }, checkHidden);
+}
 
 // Works together with --enable-source-maps.
 spawnSyncAndAssert(process.execPath,

@@ -561,23 +561,23 @@ static void PrintJavaScriptErrorStack(JSONWriter* writer,
     return;
   }
 
-  int line = ss.find('\n');
-  if (line == -1) {
-    writer->json_keyvalue("message", ss);
+  std::string_view rest = ss;
+  size_t line_end = rest.find('\n');
+  if (line_end == std::string_view::npos) {
+    writer->json_keyvalue("message", rest);
   } else {
-    std::string l = ss.substr(0, line);
-    writer->json_keyvalue("message", l);
+    writer->json_keyvalue("message", rest.substr(0, line_end));
     writer->json_arraystart("stack");
-    ss = ss.substr(line + 1);
-    line = ss.find('\n');
-    while (line != -1) {
-      l = ss.substr(0, line);
-      l.erase(l.begin(), std::ranges::find_if(l, [](int ch) {
-                return !std::iswspace(ch);
-              }));
+    rest.remove_prefix(line_end + 1);
+    while (!rest.empty()) {
+      line_end = rest.find('\n');
+      std::string_view l = rest.substr(0, line_end);
+      rest.remove_prefix(line_end == std::string_view::npos ? rest.size()
+                                                            : line_end + 1);
+      const auto first = std::ranges::find_if(
+          l, [](unsigned char ch) { return !std::iswspace(ch); });
+      l.remove_prefix(first - l.begin());
       writer->json_element(l);
-      ss = ss.substr(line + 1);
-      line = ss.find('\n');
     }
     writer->json_arrayend();
   }
