@@ -48,13 +48,13 @@ CORRUPTION_CASES = (
         script_path="fixtures/invalid-script-source.js",
         expected_annotations=(
             "[test_func_3 @ <base>/invalid-script-source.js]"
-            " (this=<addr>, argc=0)",
+            " (this=<addr>)",
             "[test_func_2 @ <base>/invalid-script-source.js]"
-            " (this=<addr>, argc=0)",
+            " (this=<addr>)",
             "[test_func_1 @ <base>/invalid-script-source.js]"
-            " (this=<addr>, argc=0)",
+            " (this=<addr>)",
             "[<anonymous> @ <base>/invalid-script-source.js:1:1]"
-            " (this=<addr>, argc=1)",
+            " (this=<addr>, [0]=<addr> <FixedArray>)",
         ),
     ),
     CorruptionCase(
@@ -62,11 +62,11 @@ CORRUPTION_CASES = (
         script_path="fixtures/invalid-shared-function-info.js",
         expected_annotations=(
             "[test_func_2 @ <base>/invalid-shared-function-info.js:9:21]"
-            " (this=<addr>, argc=0)",
+            " (this=<addr>)",
             "[test_func_1 @ <base>/invalid-shared-function-info.js:13:21]"
-            " (this=<addr>, argc=0)",
+            " (this=<addr>)",
             "[<anonymous> @ <base>/invalid-shared-function-info.js:1:1]"
-            " (this=<addr>, argc=1)",
+            " (this=<addr>, [0]=<addr> <FixedArray>)",
         ),
         absent_output=("test_func_3",),
     ),

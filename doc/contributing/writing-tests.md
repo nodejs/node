@@ -237,6 +237,33 @@ argument. It is not a good idea to simply pass `common.mustCall()` to those
 because `common.mustCall()` will ignore the error. Use `common.mustSucceed()`
 instead.
 
+#### Temporary files
+
+Whenever test has to write files or directories, use the common
+[tmpdir module](https://github.com/nodejs/node/tree/HEAD/test/common#tmpdir-module)
+which handles creating and cleaning test-specific temporary directory. Do not
+create files under OS's temporary directory (`os.tmpdir()`) or anywhere else
+outside of the test-specific `tmpdir.path`.
+
+```js
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+
+const tempFile = tmpdir.resolve('fileForWriteTest');
+```
+
+If test spawns child processes that can not utilize this module but might
+create files in OS's tmpdir, change the `TMPDIR` environment variable for them:
+
+```js
+spawnSync('/usr/bin/sort', [tempFile], {
+  env: { ...process.env, TMPDIR: tmpdir.path },
+});
+
+// or simply
+process.env.TMPDIR = tmpdir.path;
+```
+
 #### Countdown module
 
 The common [Countdown module](https://github.com/nodejs/node/tree/HEAD/test/common#countdown-module)

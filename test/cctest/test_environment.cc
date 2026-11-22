@@ -694,8 +694,8 @@ TEST_F(EnvironmentTest, RunAndClearNativeImmediatesSkipsEmptyScope) {
       v8::Function::New(
           context,
           [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-            IntVec* callback_calls =
-                static_cast<IntVec*>(info.Data().As<v8::External>()->Value(
+            IntVec* callback_calls = static_cast<IntVec*>(
+                info.DataV2().As<v8::Value>().As<v8::External>()->Value(
                     v8::kExternalPointerTypeTagDefault));
             callback_calls->push_back(info[0].As<v8::Int32>()->Value());
           },
@@ -1081,8 +1081,8 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
       v8::Function::New(
           context,
           [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-            IntVec* callback_calls =
-                static_cast<IntVec*>(info.Data().As<v8::External>()->Value(
+            IntVec* callback_calls = static_cast<IntVec*>(
+                info.DataV2().As<v8::Value>().As<v8::External>()->Value(
                     v8::kExternalPointerTypeTagDefault));
             callback_calls->push_back(info[0].As<v8::Int32>()->Value());
           },

@@ -175,6 +175,7 @@ const DISALLOWED_FLAGS = [
 
   // Disallowed due to false positives.
   '--check-handle-count',
+  '--enable-inspector',
   '--expose-debug-as',
   '--expose-natives-as',
   '--mock-arraybuffer-allocator',

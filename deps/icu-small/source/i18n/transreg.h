@@ -258,7 +258,7 @@ class TransliteratorRegistry : public UMemory {
      * with the system.
      * @internal
      */
-    StringEnumeration* getAvailableIDs() const;
+    StringEnumeration* getAvailableIDs() const U_LIFETIME_BOUND;
 
     /**
      * == OBSOLETE - remove in ICU 3.4 ==
@@ -415,10 +415,10 @@ class TransliteratorRegistry : public UMemory {
      */
     class Enumeration : public StringEnumeration {
     public:
-        Enumeration(const TransliteratorRegistry& reg);
+        Enumeration(const TransliteratorRegistry& reg U_LIFETIME_BOUND);
         virtual ~Enumeration();
         virtual int32_t count(UErrorCode& status) const override;
-        virtual const UnicodeString* snext(UErrorCode& status) override;
+        virtual const UnicodeString* snext(UErrorCode& status) U_LIFETIME_BOUND override;
         virtual void reset(UErrorCode& status) override;
         static UClassID U_EXPORT2 getStaticClassID();
         virtual UClassID getDynamicClassID() const override;
@@ -454,6 +454,8 @@ class TransliteratorRegistry : public UMemory {
      * Vector of public full IDs.
      */
     Hashtable availableIDs;
+
+    UnicodeString fBogus;
 
     TransliteratorRegistry(const TransliteratorRegistry &other); // forbid copying of this class
     TransliteratorRegistry &operator=(const TransliteratorRegistry &other); // forbid copying of this class

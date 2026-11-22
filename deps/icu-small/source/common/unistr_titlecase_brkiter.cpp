@@ -29,18 +29,20 @@
 
 U_NAMESPACE_BEGIN
 
-UnicodeString &
-UnicodeString::toTitle(BreakIterator *iter) {
+UnicodeString&
+UnicodeString::toTitle(BreakIterator* iter) U_LIFETIME_BOUND {
     return toTitle(iter, Locale::getDefault(), 0);
 }
 
-UnicodeString &
-UnicodeString::toTitle(BreakIterator *iter, const Locale &locale) {
+UnicodeString&
+UnicodeString::toTitle(BreakIterator* iter, const Locale& locale) U_LIFETIME_BOUND {
     return toTitle(iter, locale, 0);
 }
 
-UnicodeString &
-UnicodeString::toTitle(BreakIterator *iter, const Locale &locale, uint32_t options) {
+UnicodeString&
+UnicodeString::toTitle(BreakIterator* iter,
+                       const Locale& locale,
+                       uint32_t options) U_LIFETIME_BOUND {
     LocalPointer<BreakIterator> ownedIter;
     UErrorCode errorCode = U_ZERO_ERROR;
     iter = ustrcase_getTitleBreakIterator(&locale, "", options, iter, ownedIter, errorCode);

@@ -221,7 +221,8 @@ bool ShouldUseMegamorphicAccessBuiltin(FeedbackSource const& source,
     return feedback.AsElementAccess().transition_groups().empty();
   } else if (feedback.kind() == ProcessedFeedback::kNamedAccess) {
     return feedback.AsNamedAccess().maps().empty();
-  } else if (feedback.kind() == ProcessedFeedback::kInsufficient) {
+  } else if (feedback.kind() == ProcessedFeedback::kInsufficient ||
+             feedback.kind() == ProcessedFeedback::kProxy) {
     return false;
   }
   UNREACHABLE();
@@ -482,13 +483,18 @@ void JSGenericLowering::LowerJSDefineNamedOwnProperty(Node* node) {
     node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    Callable callable = CodeFactory::DefineNamedOwnIC(isolate());
+    Callable callable = p.in_literal()
+                            ? CodeFactory::DefineNamedOwnInLiteralIC(isolate())
+                            : CodeFactory::DefineNamedOwnIC(isolate());
     ReplaceWithBuiltinCall(node, callable, flags);
   } else {
     node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    Callable callable = CodeFactory::DefineNamedOwnICInOptimizedCode(isolate());
+    Callable callable =
+        p.in_literal()
+            ? CodeFactory::DefineNamedOwnInLiteralICInOptimizedCode(isolate())
+            : CodeFactory::DefineNamedOwnICInOptimizedCode(isolate());
     ReplaceWithBuiltinCall(node, callable, flags);
   }
 }
@@ -672,19 +678,13 @@ void JSGenericLowering::LowerJSRegExpTest(Node* node) {
 
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   JSCreateClosureNode n(node);
-  CreateClosureParameters const& p = n.Parameters();
-  SharedFunctionInfoRef shared_info = p.shared_info();
+  SharedFunctionInfoRef shared_info = n.shared_info();
   static_assert(n.FeedbackCellIndex() == 0);
   node->InsertInput(zone(), 0,
                     jsgraph()->ConstantNoHole(shared_info, broker()));
   node->RemoveInput(4);  // control
 
-  // Use the FastNewClosure builtin only for functions allocated in new space.
-  if (p.allocation() == AllocationType::kYoung) {
-    ReplaceWithBuiltinCall(node, Builtin::kFastNewClosure);
-  } else {
-    ReplaceWithRuntimeCall(node, Runtime::kNewClosure_Tenured);
-  }
+  ReplaceWithBuiltinCall(node, Builtin::kFastNewClosure);
 }
 
 void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {

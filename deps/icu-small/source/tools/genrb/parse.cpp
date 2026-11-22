@@ -22,7 +22,6 @@
 
 // Safer use of UnicodeString.
 #include <cstdint>
-#include "unicode/umachine.h"
 #ifndef UNISTR_FROM_CHAR_EXPLICIT
 #   define UNISTR_FROM_CHAR_EXPLICIT explicit
 #endif
@@ -50,6 +49,7 @@
 #include "unicode/ustring.h"
 #include "unicode/uscript.h"
 #include "unicode/utf16.h"
+#include "unicode/utypes.h"
 #include "unicode/putil.h"
 #include "charstr.h"
 #include "collationbuilder.h"
@@ -288,6 +288,7 @@ static char *getInvariantString(ParseState* state, uint32_t *line, struct UStrin
     struct UString *tokenValue;
     char           *result;
 
+    stringLength = 0;
     expect(state, TOK_STRING, &tokenValue, comment, line, status);
 
     if (U_FAILURE(*status))
@@ -2057,28 +2058,8 @@ parseInclude(ParseState* state, char *tag, uint32_t startline, const struct UStr
     return result;
 }
 
-
-
-
-
-U_STRING_DECL(k_type_string,    "string",    6);
-U_STRING_DECL(k_type_binary,    "binary",    6);
 U_STRING_DECL(k_type_bin,       "bin",       3);
-U_STRING_DECL(k_type_table,     "table",     5);
-U_STRING_DECL(k_type_table_no_fallback,     "table(nofallback)",         17);
 U_STRING_DECL(k_type_int,       "int",       3);
-U_STRING_DECL(k_type_integer,   "integer",   7);
-U_STRING_DECL(k_type_array,     "array",     5);
-U_STRING_DECL(k_type_alias,     "alias",     5);
-U_STRING_DECL(k_type_intvector, "intvector", 9);
-U_STRING_DECL(k_type_import,    "import",    6);
-U_STRING_DECL(k_type_include,   "include",   7);
-
-/* Various non-standard processing plugins that create one or more special resources. */
-U_STRING_DECL(k_type_plugin_uca_rules,      "process(uca_rules)",        18);
-U_STRING_DECL(k_type_plugin_collation,      "process(collation)",        18);
-U_STRING_DECL(k_type_plugin_transliterator, "process(transliterator)",   23);
-U_STRING_DECL(k_type_plugin_dependency,     "process(dependency)",       19);
 
 typedef enum EResourceType
 {
@@ -2100,48 +2081,34 @@ typedef enum EResourceType
     RESTYPE_RESERVED
 } EResourceType;
 
-static struct {
+static const struct {
     const char *nameChars;   /* only used for debugging */
     const char16_t *nameUChars;
     ParseResourceFunction *parseFunction;
 } gResourceTypes[] = {
     {"Unknown", nullptr, nullptr},
-    {"string", k_type_string, parseString},
-    {"binary", k_type_binary, parseBinary},
-    {"table", k_type_table, parseTable},
-    {"table(nofallback)", k_type_table_no_fallback, nullptr}, /* parseFunction will never be called */
-    {"integer", k_type_integer, parseInteger},
-    {"array", k_type_array, parseArray},
-    {"alias", k_type_alias, parseAlias},
-    {"intvector", k_type_intvector, parseIntVector},
-    {"import", k_type_import, parseImport},
-    {"include", k_type_include, parseInclude},
-    {"process(uca_rules)", k_type_plugin_uca_rules, parseUCARules},
-    {"process(collation)", k_type_plugin_collation, nullptr /* not implemented yet */},
-    {"process(transliterator)", k_type_plugin_transliterator, parseTransliterator},
-    {"process(dependency)", k_type_plugin_dependency, parseDependency},
+    {"string", u"string", parseString},
+    {"binary", u"binary", parseBinary},
+    {"table", u"table", parseTable},
+    {"table(nofallback)", u"table(nofallback)", nullptr}, /* parseFunction will never be called */
+    {"integer", u"integer", parseInteger},
+    {"array", u"array", parseArray},
+    {"alias", u"alias", parseAlias},
+    {"intvector", u"intvector", parseIntVector},
+    {"import", u"import", parseImport},
+    {"include", u"include", parseInclude},
+    /* Various non-standard processing plugins that create one or more special resources. */
+    {"process(uca_rules)", u"process(uca_rules)", parseUCARules},
+    {"process(collation)", u"process(collation)", nullptr /* not implemented yet */},
+    {"process(transliterator)", u"process(transliterator)", parseTransliterator},
+    {"process(dependency)", u"process(dependency)", parseDependency},
     {"reserved", nullptr, nullptr}
 };
 
 void initParser()
 {
-    U_STRING_INIT(k_type_string,    "string",    6);
-    U_STRING_INIT(k_type_binary,    "binary",    6);
     U_STRING_INIT(k_type_bin,       "bin",       3);
-    U_STRING_INIT(k_type_table,     "table",     5);
-    U_STRING_INIT(k_type_table_no_fallback,     "table(nofallback)",         17);
     U_STRING_INIT(k_type_int,       "int",       3);
-    U_STRING_INIT(k_type_integer,   "integer",   7);
-    U_STRING_INIT(k_type_array,     "array",     5);
-    U_STRING_INIT(k_type_alias,     "alias",     5);
-    U_STRING_INIT(k_type_intvector, "intvector", 9);
-    U_STRING_INIT(k_type_import,    "import",    6);
-    U_STRING_INIT(k_type_include,   "include",   7);
-
-    U_STRING_INIT(k_type_plugin_uca_rules,      "process(uca_rules)",        18);
-    U_STRING_INIT(k_type_plugin_collation,      "process(collation)",        18);
-    U_STRING_INIT(k_type_plugin_transliterator, "process(transliterator)",   23);
-    U_STRING_INIT(k_type_plugin_dependency,     "process(dependency)",       19);
 }
 
 static inline UBool isTable(enum EResourceType type) {

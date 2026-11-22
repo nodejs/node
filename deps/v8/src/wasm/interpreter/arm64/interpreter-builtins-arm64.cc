@@ -92,7 +92,7 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
       function_data,
       FieldMemOperand(shared_function_info,
                       offsetof(SharedFunctionInfo, trusted_function_data_)),
-      kWasmExportedFunctionDataIndirectPointerTag);
+      kWasmExportedFunctionDataTrustedPointerTag);
   shared_function_info = no_reg;
 
   LoadWasmInstanceFromFunctionData(masm, function_data, wasm_instance);
@@ -851,6 +851,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // Restore after builtin call.
   __ bind(&finish_param_conversion);
 
+  __ Ldr(cp, MemOperand(fp, kContextOffset));
   __ Ldr(current_param_slot_offset, MemOperand(fp, kCurrentParamOffset));
   __ Add(current_param_slot_offset, current_param_slot_offset, increment);
   __ Ldr(valuetypes_array_ptr, MemOperand(fp, kValueTypesArrayStartOffset));

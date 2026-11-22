@@ -25,49 +25,44 @@
 namespace v8 {
 namespace internal {
 
-
-Tagged<PrimitiveHeapObject> Symbol::description() const {
+Tagged<UnionOf<String, Undefined>> Symbol::description() const {
   return description_.load();
 }
-void Symbol::set_description(Tagged<PrimitiveHeapObject> value,
+void Symbol::set_description(Tagged<UnionOf<String, Undefined>> value,
                              WriteBarrierMode mode) {
   SLOW_DCHECK(IsString(value) || IsUndefined(value));
   description_.store(this, value, mode);
 }
 
 BIT_FIELD_ACCESSORS(Symbol, flags, is_well_known_symbol,
-                    Symbol::IsWellKnownSymbolBit)
+                    Symbol::Flags::IsWellKnownSymbolBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_in_public_symbol_table,
-                    Symbol::IsInPublicSymbolTableBit)
+                    Symbol::Flags::IsInPublicSymbolTableBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_interesting_symbol,
-                    Symbol::IsInterestingSymbolBit)
+                    Symbol::Flags::IsInterestingSymbolBit)
 
 bool Symbol::is_any_private() const {
-  return Symbol::PrivateSymbolKindBits::decode(flags()) !=
-         PrivateSymbolKind::kPublic;
+  return private_symbol_kind() != PrivateSymbolKind::kPublic;
 }
 
 void Symbol::set_private_symbol_kind(PrivateSymbolKind kind) {
-  set_flags(Symbol::PrivateSymbolKindBits::update(flags(), kind));
+  set_flags(flags().with_private_symbol_kind(kind));
 }
 
 bool Symbol::is_private_internal() const {
-  return Symbol::PrivateSymbolKindBits::decode(flags()) ==
-         PrivateSymbolKind::kInternal;
+  return private_symbol_kind() == PrivateSymbolKind::kInternal;
 }
 
 bool Symbol::is_private_brand() const {
-  return Symbol::PrivateSymbolKindBits::decode(flags()) ==
-         PrivateSymbolKind::kBrand;
+  return private_symbol_kind() == PrivateSymbolKind::kBrand;
 }
 
 PrivateSymbolKind Symbol::private_symbol_kind() const {
-  return Symbol::PrivateSymbolKindBits::decode(flags());
+  return flags().private_symbol_kind();
 }
 
 bool Symbol::is_any_private_name() const {
-  return Symbol::PrivateSymbolKindBits::decode(flags()) >=
-         PrivateSymbolKind::kFieldName;
+  return private_symbol_kind() >= PrivateSymbolKind::kFieldName;
 }
 
 bool IsPublicSymbol(Tagged<Object> obj) {

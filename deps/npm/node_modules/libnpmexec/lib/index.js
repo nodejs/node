@@ -263,6 +263,10 @@ const exec = async (opts) => {
     await mkdir(installDir, { recursive: true })
     const npxArb = new Arborist({
       ...flatOptions,
+      // a missing package must actually be installed to the npx cache, so it can be run,
+      // even when these are set: eg, a lifecycle script inherits npm_config_dry_run from `npm publish --dry-run`
+      dryRun: false,
+      packageLockOnly: false,
       path: installDir,
     })
     const lockPath = join(installDir, 'concurrency.lock')

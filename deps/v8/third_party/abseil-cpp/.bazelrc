@@ -1,0 +1,122 @@
+# Copyright 2026 The Abseil Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+common --show_timestamps
+
+# Retry longer to avoid flakes when fetching external dependencies.
+common --http_connector_attempts=10
+common --http_timeout_scaling=2.0
+
+# Link GoogleTest against Abseil.
+build --define=absl=1
+
+test --keep_going
+test --test_env=GTEST_INSTALL_FAILURE_SIGNAL_HANDLER=1
+test --test_env=TZDIR=absl/time/internal/cctz/testdata/zoneinfo
+test --test_output=errors
+test --test_tag_filters=-benchmark
+
+# Configure our Linux Docker toolchain setup.
+common --extra_toolchains=@docker_toolchain//:all
+build:linux --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
+build:linux --copt=-fno-exceptions
+build:linux --copt=-Werror
+build:linux --copt=-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1
+build:linux --features=external_include_paths
+build:linux --per_file_copt=external/.*@-w
+build:linux --host_per_file_copt=external/.*@-w
+
+# Configure our Windows MSVC and ClangCL setup.
+common:windows-msvc --enable_runfiles
+build:windows-msvc --cxxopt=/std:c++17 --host_cxxopt=/std:c++17
+build:windows-msvc --copt=/WX
+build:windows-msvc --per_file_copt=external/.*@/w
+build:windows-msvc --host_per_file_copt=external/.*@/w
+
+build:windows-clangcl --config=windows-msvc
+build:windows-clangcl --compiler=clang-cl
+build:windows-clangcl --copt=-Wno-microsoft-cast
+build:windows-clangcl --extra_execution_platforms=//:x64_windows-clang-cl
+build:windows-clangcl --extra_toolchains=@local_config_cc//:cc-toolchain-x64_windows-clang-cl
+
+# Configure our macOS Xcode setup.
+build:macos --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
+build:macos --copt=-Werror
+build:macos --copt=-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1
+build:macos --features=external_include_paths
+build:macos --per_file_copt=external/.*@-w
+build:macos --host_per_file_copt=external/.*@-w
+
+build:gcc --config=linux --platforms=//ci:linux_gcc
+build:gcc-exceptions --config=gcc --copt=-fexceptions
+build:clang --config=linux --platforms=//ci:linux_clang --conlyopt=-Wno-unused-command-line-argument
+build:clang-exceptions --config=clang --copt=-fexceptions
+build:clang-arm --config=linux --platforms=//ci:linux_arm_clang --conlyopt=-Wno-unused-command-line-argument
+build:libstdc++ --config=clang --features=libstdc++ --copt=-march=haswell
+
+# Sanitizer configurations.
+build:ubsan --features=ubsan
+build:ubsan --copt=-fsanitize=float-divide-by-zero,nullability,undefined
+build:ubsan --copt=-fno-sanitize-recover=float-divide-by-zero,nullability,undefined
+build:ubsan --copt=-fno-sanitize-blacklist
+test:ubsan --test_env=UBSAN_OPTIONS=print_stacktrace=1
+
+build:asan --config=clang --config=ubsan --features=asan
+build:asan --copt=-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG
+build:asan --linkopt=-fsanitize-link-c++-runtime
+test:asan --test_tag_filters=-benchmark,-noasan
+
+build:tsan --config=clang --features=tsan
+build:tsan --copt=-fno-sanitize-blacklist
+build:tsan --build_tag_filters=-notsan
+test:tsan --test_tag_filters=-benchmark,-notsan
+
+# Remote build configuration for CI.
+build:remote-cache --remote_cache=https://storage.googleapis.com/absl-bazel-remote-cache
+build:remote-cache --remote_timeout=1200 --bes_timeout=600s
+build:remote-cache --remote_download_minimal
+# cc_test puts Windows .pdb files in the pdb_file output group rather than
+# runfiles, so explicitly download symbolize_test.pdb when linking hits the
+# remote cache.
+build:remote-cache --remote_download_regex=.*symbolize_test\.pdb$
+# Retry up for up to 15 minutes under heavy load (exponential backoff).
+build:remote-cache --remote_retries=20 --remote_retry_max_delay=60s
+
+build:remote-base --define=EXECUTOR=remote
+build:remote-base --remote_timeout=1200 --bes_timeout=600s
+build:remote-base --jobs=50
+build:remote-base --remote_download_minimal
+# Retry up for up to 15 minutes under heavy load (exponential backoff).
+build:remote-base --remote_retries=20 --remote_retry_max_delay=60s
+
+build:remote --config=remote-base
+build:remote --extra_execution_platforms=//ci:rbe
+build:remote --host_platform=//ci:rbe
+build:remote --platforms=//ci:rbe
+build:remote --remote_cache=grpcs://us-east1-remotebuildexecution.googleapis.com
+build:remote --remote_executor=grpcs://us-east1-remotebuildexecution.googleapis.com
+build:remote --remote_instance_name=projects/google.com:absl-177019/instances/absl-ci-east
+
+build:remote-floor --config=remote
+build:remote-floor --extra_execution_platforms=//ci:rbe-floor
+build:remote-floor --host_platform=//ci:rbe-floor
+build:remote-floor --platforms=//ci:rbe-floor
+
+build:remote-arm --config=remote-base
+build:remote-arm --extra_execution_platforms=//ci:rbe-arm
+build:remote-arm --host_platform=//ci:rbe-arm
+build:remote-arm --platforms=//ci:rbe-arm
+build:remote-arm --remote_cache=grpcs://us-central1-remotebuildexecution.googleapis.com
+build:remote-arm --remote_executor=grpcs://us-central1-remotebuildexecution.googleapis.com
+build:remote-arm --remote_instance_name=projects/google.com:absl-177019/instances/gloop-ci-central

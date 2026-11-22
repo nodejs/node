@@ -5,6 +5,7 @@
 #include "src/compiler/turboshaft/wasm-shuffle-reducer.h"
 
 #include "src/base/vector.h"
+#include "src/compiler/backend/simd-shuffle.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
@@ -1235,6 +1236,115 @@ TEST_F(ReducerTest, ShuffleTwoShuffles) {
     EXPECT_EQ(analyzer.GetDemandedBytes(right_shuffle).bytes(),
               demanded_right.bytes());
     test.Run<WasmShuffleReducer>();
+  }
+}
+
+namespace {
+SimdShuffle::ShuffleArray<kSimd128Size> Mask(
+    const SimdShuffle::CanonicalShuffle shuffle) {
+  const std::optional<SimdShuffle::ShuffleArray<kSimd128Size>> byte_mask =
+      SimdShuffle::TryGetCanonicalMask(shuffle);
+  CHECK(byte_mask.has_value());
+  return *byte_mask;
+}
+}  // namespace
+
+TEST_F(ReducerTest, NarrowShuffle) {
+  using Unary = Simd128UnaryOp::Kind;
+  using Binary = Simd128BinopOp::Kind;
+  using Shuffle = SimdShuffle::ShuffleArray<>;
+  using CanonicalShuffle = SimdShuffle::CanonicalShuffle;
+
+  struct Config {
+    Unary left_extend;
+    Unary right_extend;
+    Shuffle lower_shuffle;
+    Shuffle upper_shuffle;
+    Binary narrow;
+    bool expect_reduced;
+    Shuffle expected_shuffle{};
+  };
+
+  const Shuffle zip8_low = Mask(CanonicalShuffle::kS8x16InterleaveLowHalves);
+  const Shuffle zip16_low = Mask(CanonicalShuffle::kS16x8InterleaveLowHalves);
+  const Shuffle zip16_high = Mask(CanonicalShuffle::kS16x8InterleaveHighHalves);
+  const Shuffle zip32_low = Mask(CanonicalShuffle::kS32x4InterleaveLowHalves);
+  const Shuffle zip32_high = Mask(CanonicalShuffle::kS32x4InterleaveHighHalves);
+
+  const Config configs[] = {
+      {Unary::kI16x8SConvertI8x16Low, Unary::kI16x8SConvertI8x16Low, zip16_low,
+       zip16_high, Binary::kI8x16SConvertI16x8, true, zip8_low},
+      {Unary::kI16x8UConvertI8x16Low, Unary::kI16x8UConvertI8x16Low, zip16_low,
+       zip16_high, Binary::kI8x16UConvertI16x8, true, zip8_low},
+      {Unary::kI32x4SConvertI16x8Low, Unary::kI32x4SConvertI16x8Low, zip32_low,
+       zip32_high, Binary::kI16x8SConvertI32x4, true, zip16_low},
+      {Unary::kI32x4UConvertI16x8Low, Unary::kI32x4UConvertI16x8Low, zip32_low,
+       zip32_high, Binary::kI16x8UConvertI32x4, true, zip16_low},
+      // Right extend's signedness mismatches from narrowing.
+      {Unary::kI16x8SConvertI8x16Low, Unary::kI16x8UConvertI8x16Low, zip16_low,
+       zip16_high, Binary::kI8x16SConvertI16x8, false},
+      // Right extend's lane size mismatches from narrowing.
+      {Unary::kI16x8SConvertI8x16Low, Unary::kI32x4SConvertI16x8Low, zip16_low,
+       zip16_high, Binary::kI8x16SConvertI16x8, false},
+      // Both extends' lane size mismatches from narrowing.
+      {Unary::kI16x8SConvertI8x16Low, Unary::kI16x8SConvertI8x16Low, zip16_low,
+       zip16_high, Binary::kI16x8SConvertI32x4, false},
+      // Lower/upper shuffle's lane size mismatches from widening operations.
+      {Unary::kI32x4SConvertI16x8Low, Unary::kI32x4SConvertI16x8Low, zip16_low,
+       zip32_high, Binary::kI16x8SConvertI32x4, false},
+      {Unary::kI32x4SConvertI16x8Low, Unary::kI32x4SConvertI16x8Low, zip32_low,
+       zip16_high, Binary::kI16x8SConvertI32x4, false}};
+
+  const RegisterRepresentation reps[] = {RegisterRepresentation::Simd128(),
+                                         RegisterRepresentation::Simd128()};
+
+  for (const Config& config : configs) {
+    SCOPED_TRACE(config.left_extend);
+    SCOPED_TRACE(config.right_extend);
+    SCOPED_TRACE(::testing::PrintToString(config.lower_shuffle));
+    SCOPED_TRACE(::testing::PrintToString(config.upper_shuffle));
+    SCOPED_TRACE(config.narrow);
+
+    auto test = CreateFromGraph(base::VectorOf(reps), [&](auto& Asm) {
+      constexpr auto kind = Simd128ShuffleOp::Kind::kI8x16;
+      OpIndex lhs = Asm.Capture(Asm.template GetParameter<Simd128>(0), "lhs");
+      OpIndex rhs = Asm.Capture(Asm.template GetParameter<Simd128>(1), "rhs");
+      OpIndex wide_left = __ Simd128Unary(lhs, config.left_extend);
+      OpIndex wide_right = __ Simd128Unary(rhs, config.right_extend);
+      OpIndex first_shuffle = __ Simd128Shuffle(wide_left, wide_right, kind,
+                                                config.lower_shuffle.data());
+      OpIndex second_shuffle = __ Simd128Shuffle(wide_left, wide_right, kind,
+                                                 config.upper_shuffle.data());
+      OpIndex narrow = Asm.Capture(
+          __ Simd128Binop(first_shuffle, second_shuffle, config.narrow),
+          "narrow");
+      __ Return(narrow);
+    });
+
+    WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+    analyzer.Run();
+    const auto* narrow = test.GetCapture("narrow").GetAs<Simd128BinopOp>();
+    ASSERT_NE(narrow, nullptr);
+    EXPECT_EQ(analyzer.GetNarrowShuffleCandidate(test.graph().Index(*narrow))
+                  .has_value(),
+              config.expect_reduced);
+    test.Run<WasmShuffleReducer>();
+    test.Run<DeadCodeEliminationReducer>();
+
+    if (!config.expect_reduced) {
+      EXPECT_TRUE(test.GetCapture("narrow").GetAs<Simd128BinopOp>());
+      continue;
+    }
+    const auto* shuffle = test.GetCapture("narrow").GetAs<Simd128ShuffleOp>();
+    ASSERT_TRUE(shuffle);
+    EXPECT_EQ(shuffle->kind, Simd128ShuffleOp::Kind::kI8x16);
+    EXPECT_EQ(shuffle->shuffle, config.expected_shuffle);
+    EXPECT_TRUE(test.GetCapture("lhs").Is(shuffle->left()));
+    EXPECT_TRUE(test.GetCapture("rhs").Is(shuffle->right()));
+    EXPECT_EQ(test.CountOp(Opcode::kSimd128Binop), 0u);
+    EXPECT_EQ(test.CountOp(Opcode::kSimd128Unary), 0u);
+    EXPECT_EQ(test.CountOp(Opcode::kSimd128Shuffle), 1u);
+    EXPECT_TRUE(analyzer.ShouldReduce());
   }
 }
 

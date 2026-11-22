@@ -191,13 +191,13 @@ MaybeDirectHandle<String> Uri::Decode(Isolate* isolate,
   }
 
   if (two_byte_buffer.empty()) {
-    return isolate->factory()->NewStringFromOneByte(base::Vector<const uint8_t>(
-        one_byte_buffer.data(), static_cast<int>(one_byte_buffer.size())));
+    return isolate->factory()->NewStringFromOneByte(
+        base::VectorOf(one_byte_buffer));
   }
 
   DirectHandle<SeqTwoByteString> result;
-  int result_length =
-      static_cast<int>(one_byte_buffer.size() + two_byte_buffer.size());
+  uint32_t result_length =
+      static_cast<uint32_t>(one_byte_buffer.size() + two_byte_buffer.size());
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewRawTwoByteString(result_length));
 

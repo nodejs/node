@@ -180,6 +180,45 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
                 tracer->ExternalAllocationThroughputInBytesPerMillisecond()));
 }
 
+TEST_F(GCTracerTest, LowAllocationRateWithZeroEmbedderAllocation) {
+  if (v8_flags.stress_incremental_marking) return;
+  Heap* heap = i_isolate()->heap();
+  GCTracer* tracer = heap->tracer();
+  tracer->ResetForTesting();
+  tracer->allocation_time_ = base::TimeTicks();
+
+  // Two samples 100 ms apart. Young and old generation allocate a little;
+  // the embedder (CppHeap) and external memory allocate nothing at all, as
+  // in an embedder that never uses cppgc (e.g. Node.js without node:vm).
+  tracer->SampleAllocation(base::TimeTicks::FromMsTicksForTesting(0), 0, 0, 0,
+                           0);
+  tracer->SampleAllocation(base::TimeTicks::FromMsTicksForTesting(100), 100,
+                           100, 0, 0);
+
+  EXPECT_DOUBLE_EQ(0.0,
+                   tracer->EmbedderAllocationThroughputInBytesPerMillisecond());
+  EXPECT_TRUE(heap->HasLowAllocationRate());
+}
+
+TEST_F(GCTracerTest, HighAllocationRateWithEmbedderAllocation) {
+  if (v8_flags.stress_incremental_marking) return;
+  Heap* heap = i_isolate()->heap();
+  GCTracer* tracer = heap->tracer();
+  tracer->ResetForTesting();
+  tracer->allocation_time_ = base::TimeTicks();
+
+  // Same as above, but the embedder allocates heavily: 1 GB over 100 ms is
+  // ~10^7 B/ms, so the embedder term must still report a high allocation
+  // rate (mu = 200000 / (10^7 + 200000) < 0.993).
+  tracer->SampleAllocation(base::TimeTicks::FromMsTicksForTesting(0), 0, 0, 0,
+                           0);
+  tracer->SampleAllocation(base::TimeTicks::FromMsTicksForTesting(100), 100,
+                           100, size_t{1} << 30, 0);
+
+  EXPECT_GT(tracer->EmbedderAllocationThroughputInBytesPerMillisecond(), 0.0);
+  EXPECT_FALSE(heap->HasLowAllocationRate());
+}
+
 TEST_F(GCTracerTest, RegularScope) {
   if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();

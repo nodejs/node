@@ -609,16 +609,20 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
             smi_handler.has_value() && smi_handler.value().IsSmi()) {
           MapRef target_map = target_map_obj.value().AsMap();
           MapRef handler_map = handler_map_obj.value().AsMap();
-          float frequency = 0.0f;
-          OptionalObjectRef count_obj =
-              data_handler.data(this, LoadHandler::kProxyCounterDataIndex);
-          DCHECK(count_obj.has_value() && count_obj.value().IsSmi());
-          int count = count_obj.value().AsSmi();
-          int invocation_count = nexus.vector()->invocation_count(kRelaxedLoad);
-          frequency = static_cast<float>(count) / std::max(1, invocation_count);
-          return *zone()->New<ProxyFeedback>(
-              *name, maps[0], target_map, handler_map, *trap_method,
-              smi_handler.value().AsSmi(), frequency, kind);
+          if (!target_map.is_deprecated() && !handler_map.is_deprecated()) {
+            float frequency = 0.0f;
+            OptionalObjectRef count_obj =
+                data_handler.data(this, LoadHandler::kProxyCounterDataIndex);
+            DCHECK(count_obj.has_value() && count_obj.value().IsSmi());
+            int count = count_obj.value().AsSmi();
+            int invocation_count =
+                nexus.vector()->invocation_count(kRelaxedLoad);
+            frequency =
+                static_cast<float>(count) / std::max(1, invocation_count);
+            return *zone()->New<ProxyFeedback>(
+                name->UnpackIfThin(this), maps[0], target_map, handler_map,
+                *trap_method, smi_handler.value().AsSmi(), frequency, kind);
+          }
         }
       }
     }

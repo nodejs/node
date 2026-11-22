@@ -57,20 +57,21 @@ if [ "$ARCH" = "s390x" ] || [ "$ARCH" = "ppc64le" ]; then
           -e '/-fsanitize-ignore-for-ubsan-feature/d' \
           -e '/-fdiagnostics-show-inlining-chain/d' {} \;
       fi
-      # Patch to match libadler/libadler2 based on what is present.
+      # Chromium's std is built without backtrace support, so its stdlib list
+      # leaves out the backtrace crates. The system std is built with it and
+      # needs them linked. Match libadler/libadler2 based on what is present.
       LIBADLER=$(basename "$(find "$(rustc --print sysroot)/lib/rustlib/" -type f -name "libadler*")" | cut -d '-' -f 1) || true
       case "$LIBADLER" in
-        libadler2) sed -i -e 's/"adler"/"adler2"/g' build/rust/std/BUILD.gn
-          ;;
-        libadler) sed -i -e 's/"adler2"/"adler"/g' build/rust/std/BUILD.gn
-          ;;
+        libadler2|libadler) ;;
         *) echo "Warning: unable to detect libadler/libadler2 (found ${LIBADLER})"
+          LIBADLER=libadler2
           ;;
       esac
+      GN_RUST_ARGS="${GN_RUST_ARGS} added_rust_stdlib_libs=[\"addr2line\",\"gimli\",\"miniz_oxide\",\"${LIBADLER#lib}\"]"
       ;;
     *) GN_COMPILER_OPTS="treat_warnings_as_errors=false use_custom_libcxx=false" ;;
   esac
-  gn gen -v "out.gn/$BUILD_ARCH_TYPE" --args="$GN_COMPILER_OPTS is_component_build=false is_debug=false v8_target_cpu=\"$TARGET_ARCH\" target_cpu=\"$TARGET_ARCH\" v8_enable_backtrace=true v8_use_metagen_instance_types=false ${GN_RUST_ARGS} $CC_WRAPPER"
+  gn gen -v "out.gn/$BUILD_ARCH_TYPE" --args="$GN_COMPILER_OPTS is_component_build=false is_debug=false v8_target_cpu=\"$TARGET_ARCH\" target_cpu=\"$TARGET_ARCH\" v8_enable_backtrace=true v8_use_metagen=false ${GN_RUST_ARGS} $CC_WRAPPER"
   ninja -v -C "out.gn/$BUILD_ARCH_TYPE" "${JOBS_ARG}" d8 cctest inspector-test
 else
   DEPOT_TOOLS_DIR="$(cd depot_tools && pwd)"

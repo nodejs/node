@@ -8,11 +8,17 @@ const mockNpm = async (t, opts = {}) => {
   return _mockNpm(t, opts)
 }
 
-const setupProject = ({ allowScripts, withScripts = ['canvas'], noScripts = [] } = {}) => {
+const setupProject = ({
+  allowScripts,
+  withScripts = ['canvas'],
+  noScripts = [],
+  extraneous = false,
+} = {}) => {
   const pkg = {
     name: 'host',
     version: '1.0.0',
-    dependencies: Object.fromEntries([...withScripts, ...noScripts].map((n) => [n, '*'])),
+    dependencies: extraneous ? {}
+    : Object.fromEntries([...withScripts, ...noScripts].map((n) => [n, '*'])),
   }
   if (allowScripts !== undefined) {
     pkg.allowScripts = allowScripts
@@ -138,6 +144,29 @@ t.test('install-scripts ls lists unreviewed packages', async t => {
   t.match(out, /2 packages have install scripts blocked because they are not covered by allowScripts/)
   t.match(out, /canvas@1\.0\.0/)
   t.match(out, /sharp@1\.0\.0/)
+})
+
+t.test('install-scripts ls lists extraneous packages on disk', async t => {
+  for (const json of [false, true]) {
+    await t.test(json ? 'json' : 'text', async t => {
+      const { npm, joinedOutput } = await mockNpm(t, {
+        prefixDir: setupProject({ extraneous: true }),
+        config: { json },
+      })
+      await npm.exec('install-scripts', ['ls'])
+      if (json) {
+        t.strictSame(JSON.parse(joinedOutput()), {
+          allowScripts: [{
+            name: 'canvas',
+            changes: [{ key: 'canvas@1.0.0', change: 'pending' }],
+          }],
+        })
+      } else {
+        t.match(joinedOutput(), /1 package has install scripts blocked/)
+        t.match(joinedOutput(), /canvas@1\.0\.0/)
+      }
+    })
+  }
 })
 
 t.test('install-scripts ls with no unreviewed says so', async t => {

@@ -105,9 +105,17 @@ debug::Location DebugScopeIterator::GetEndLocation() {
       ->GetSourceLocation(iterator_.end_position());
 }
 
-bool DebugScopeIterator::DeclaresLocals() {
+v8::debug::ScopeIterator::VariableInfo DebugScopeIterator::GetVariableInfo() {
   DCHECK(!Done());
-  return iterator_.DeclaresLocals(i::ScopeIterator::Mode::ALL);
+  switch (iterator_.GetVariableInfo(i::ScopeIterator::Mode::ALL)) {
+    case i::ScopeIterator::VariableInfo::kEmpty:
+      return VariableInfo::kEmpty;
+    case i::ScopeIterator::VariableInfo::kAllUnavailable:
+      return VariableInfo::kAllUnavailable;
+    case i::ScopeIterator::VariableInfo::kAvailable:
+      return VariableInfo::kAvailable;
+  }
+  UNREACHABLE();
 }
 
 bool DebugScopeIterator::SetVariableValue(v8::Local<v8::String> name,

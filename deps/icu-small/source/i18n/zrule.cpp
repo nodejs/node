@@ -93,8 +93,12 @@ izrule_getName(IZRule* rule, char16_t* & name, int32_t & nameLength) {
     UnicodeString s;
     ((InitialTimeZoneRule*)rule)->InitialTimeZoneRule::getName(s);
     nameLength = s.length();
-    name = (char16_t*)uprv_malloc(nameLength);
-    memcpy(name, s.getBuffer(), nameLength);
+    name = (char16_t*)uprv_malloc(nameLength * sizeof(char16_t));
+    if (name == nullptr) {
+        nameLength = 0;
+        return;
+    }
+    memcpy(name, s.getBuffer(), nameLength * sizeof(char16_t));
 }
 
 U_CAPI int32_t U_EXPORT2

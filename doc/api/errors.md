@@ -1757,6 +1757,14 @@ provided.
 
 The `Http2Session` closed with a non-zero error code.
 
+<a id="ERR_HTTP2_SESSION_MEMORY_EXCEEDED"></a>
+
+### `ERR_HTTP2_SESSION_MEMORY_EXCEEDED`
+
+A request was rejected before being sent because the `Http2Session` was using
+more memory than its `maxSessionMemory` setting allows. Nothing was sent to the
+peer, so the request can be retried. The session remains usable.
+
 <a id="ERR_HTTP2_SETTINGS_CANCEL"></a>
 
 ### `ERR_HTTP2_SETTINGS_CANCEL`
@@ -3358,8 +3366,8 @@ disabled.
 
 ### `ERR_TLS_RENEGOTIATION_UNSUPPORTED`
 
-An attempt was made to renegotiate TLS, but the TLS implementation does not
-support caller-initiated renegotiation.
+An attempt was made to renegotiate TLS, or to allow renegotiation on a server,
+but the TLS implementation does not support it.
 
 <a id="ERR_TLS_REQUIRED_SERVER_NAME"></a>
 

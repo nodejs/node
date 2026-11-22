@@ -9,6 +9,8 @@
 #ifndef LLVM_LIBC_MACROS_LINUX_FCNTL_MACROS_H
 #define LLVM_LIBC_MACROS_LINUX_FCNTL_MACROS_H
 
+#include "sys-stat-macros.h"
+
 // File creation and file status flags.
 #define O_APPEND 000002000
 #define O_ASYNC 000020000
@@ -22,6 +24,7 @@
 #define O_NDELAY O_NONBLOCK
 #define O_PATH 010000000
 #define O_SYNC 004010000
+#define O_RSYNC O_SYNC
 #define O_TRUNC 000001000
 
 #ifdef __aarch64__
@@ -58,6 +61,10 @@
 // should not be followed.
 #define AT_SYMLINK_NOFOLLOW 0x100
 
+// Special flag for functions like linkat to convey that symlinks
+// should be followed.
+#define AT_SYMLINK_FOLLOW 0x400
+
 // Allow empty relative pathname.
 #define AT_EMPTY_PATH 0x1000
 
@@ -82,6 +89,7 @@
 #define F_SETLKW64 14
 #define F_SETOWN_EX 15
 #define F_GETOWN_EX 16
+#define F_DUPFD_CLOEXEC 1030
 
 // Open File Description Locks.
 #define F_OFD_GETLK 36

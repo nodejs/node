@@ -5,7 +5,8 @@
 #include "src/inspector/v8-serialization-duplicate-tracker.h"
 
 #include "include/v8-context.h"
-#include "include/v8-external.h"
+#include "include/v8-isolate.h"
+#include "include/v8-primitive.h"
 #include "src/base/logging.h"
 
 namespace v8_inspector {
@@ -13,17 +14,24 @@ namespace v8_inspector {
 std::unique_ptr<protocol::DictionaryValue>
 V8SerializationDuplicateTracker::LinkExistingOrCreate(
     v8::Local<v8::Value> v8Value, bool* isKnown) {
+  // Look up whether this V8 value was already serialized.
+  protocol::DictionaryValue* maybeKnownSerializedValue = nullptr;
+  // Bail out if the V8 Map lookup failed (e.g. on stack overflow).
+  if (!FindKnownSerializedValue(v8Value, &maybeKnownSerializedValue)) {
+    return nullptr;
+  }
+
   std::unique_ptr<protocol::DictionaryValue> result =
       protocol::DictionaryValue::create();
-
-  protocol::DictionaryValue* maybeKnownSerializedValue =
-      FindKnownSerializedValue(v8Value);
 
   if (maybeKnownSerializedValue == nullptr) {
     *isKnown = false;
     // Keep reference to the serialized value, so that
     // `weakLocalObjectReference` can be set later.
-    SetKnownSerializedValue(v8Value, result.get());
+    if (!SetKnownSerializedValue(v8Value, result.get())) {
+      // Bail out if storing into the V8 Map failed (e.g. on stack overflow).
+      return nullptr;
+    }
   } else {
     *isKnown = true;
 
@@ -46,28 +54,48 @@ V8SerializationDuplicateTracker::LinkExistingOrCreate(
   return result;
 }
 
-void V8SerializationDuplicateTracker::SetKnownSerializedValue(
+bool V8SerializationDuplicateTracker::SetKnownSerializedValue(
     v8::Local<v8::Value> v8Value, protocol::DictionaryValue* serializedValue) {
-  m_v8ObjectToSerializedDictionary =
-      m_v8ObjectToSerializedDictionary
-          ->Set(m_context, v8Value,
-                v8::External::New(v8::Isolate::GetCurrent(), serializedValue,
-                                  v8::kDictionaryValueTag))
-          .ToLocalChecked();
+  // Don't store the raw `serializedValue` pointer in the (in-sandbox) map,
+  // but only its index into `m_serializedValues`.
+  int32_t index = static_cast<int32_t>(m_serializedValues.size());
+  v8::Local<v8::Map> map;
+  if (!m_v8ObjectToSerializedDictionary
+           ->Set(m_context, v8Value,
+                 v8::Integer::New(v8::Isolate::GetCurrent(), index))
+           .ToLocal(&map)) {
+    // Return false when Map::Set fails instead of aborting via ToLocalChecked.
+    return false;
+  }
+  // Record the serialized dictionary and update the map handle on success.
+  m_serializedValues.push_back(serializedValue);
+  m_v8ObjectToSerializedDictionary = map;
+  return true;
 }
 
-protocol::DictionaryValue*
-V8SerializationDuplicateTracker::FindKnownSerializedValue(
-    v8::Local<v8::Value> v8Value) {
+bool V8SerializationDuplicateTracker::FindKnownSerializedValue(
+    v8::Local<v8::Value> v8Value, protocol::DictionaryValue** result) {
   v8::Local<v8::Value> knownValue;
+  // Abort lookup if Map::Get fails due to an exception or stack overflow.
   if (!m_v8ObjectToSerializedDictionary->Get(m_context, v8Value)
-           .ToLocal(&knownValue) ||
-      knownValue->IsUndefined()) {
-    return nullptr;
+           .ToLocal(&knownValue)) {
+    return false;
+  }
+  // Treat a non-Int32 entry (e.g. undefined when absent) as not found.
+  if (!knownValue->IsInt32()) {
+    *result = nullptr;
+    return true;
   }
 
-  return static_cast<protocol::DictionaryValue*>(
-      knownValue.As<v8::External>()->Value(v8::kDictionaryValueTag));
+  // The map lives in the sandbox and might have been corrupted, so the index
+  // must be treated as untrusted and bounds-checked.
+  int32_t index = knownValue.As<v8::Int32>()->Value();
+  if (index < 0 || static_cast<size_t>(index) >= m_serializedValues.size()) {
+    *result = nullptr;
+    return true;
+  }
+  *result = m_serializedValues[index];
+  return true;
 }
 
 V8SerializationDuplicateTracker::V8SerializationDuplicateTracker(

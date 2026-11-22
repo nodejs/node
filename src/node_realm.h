@@ -128,6 +128,13 @@ class Realm : public MemoryRetainer {
   // GetBindingData<T>(args) later.
   template <std::derived_from<BaseObject> T, typename... Args>
   T* AddBindingData(v8::Local<v8::Object> target, Args&&... args);
+  // Recreates binding data of type T on `holder` in the realm of `context`
+  // when deserializing a snapshot. Used to implement the static Deserialize()
+  // method of snapshotable binding data.
+  template <std::derived_from<BaseObject> T, typename... Args>
+  static void DeserializeBindingData(v8::Local<v8::Context> context,
+                                     v8::Local<v8::Object> holder,
+                                     Args&&... args);
   template <typename T, typename U>
   static inline T* GetBindingData(const v8::PropertyCallbackInfo<U>& info);
   template <typename T>

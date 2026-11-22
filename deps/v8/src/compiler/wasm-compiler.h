@@ -26,31 +26,19 @@
 #include "src/wasm/wasm-result.h"
 #include "src/zone/zone.h"
 
-namespace v8 {
-
-class CFunctionInfo;
-
-namespace internal {
-enum class AbortReason : uint8_t;
+namespace v8::internal {
 struct AssemblerOptions;
 
 namespace compiler {
 // Forward declarations for some compiler data structures.
-class TFGraph;
 class MachineGraph;
 class Node;
 class NodeOriginTable;
-class Operator;
 class SourcePositionTable;
-struct WasmCompilationData;
-class WasmGraphAssembler;
 }  // namespace compiler
 
 namespace wasm {
-struct DecodeStruct;
-class WasmCode;
 class WireBytesStorage;
-enum class LoadTransformationKind : uint8_t;
 enum Suspend : int;
 enum CallOrigin { kCalledFromWasm, kCalledFromJS };
 }  // namespace wasm
@@ -95,19 +83,6 @@ constexpr const MachineSignature* CWasmEntrySignature() {
   return &kCWasmEntrySig;
 }
 
-struct WasmLoopInfo {
-  Node* header;
-  uint32_t nesting_depth;
-  // This loop has, to our best knowledge, no other loops nested within it. A
-  // loop can obtain inner loops despite this after inlining.
-  bool can_be_innermost;
-
-  WasmLoopInfo(Node* header, uint32_t nesting_depth, bool can_be_innermost)
-      : header(header),
-        nesting_depth(nesting_depth),
-        can_be_innermost(can_be_innermost) {}
-};
-
 struct WasmCompilationData {
   explicit WasmCompilationData(const wasm::FunctionBody& func_body)
       : func_body(func_body) {}
@@ -117,141 +92,19 @@ struct WasmCompilationData {
   const wasm::FunctionBody& func_body;
   const wasm::WireBytesStorage* wire_bytes_storage;
   NodeOriginTable* node_origins{nullptr};
-  std::vector<WasmLoopInfo>* loop_infos{nullptr};
   std::unique_ptr<wasm::AssumptionsJournal> assumptions{};
   SourcePositionTable* source_positions{nullptr};
   int func_index;
   wasm::Validation validate_callees{wasm::kAlreadyValidated};
 };
 
-// Abstracts details of building TurboFan graph nodes for wasm to separate
-// the wasm decoder from the internal details of TurboFan.
-class WasmGraphBuilder {
- public:
-  // ParameterMode specifies how the instance is passed.
-  enum ParameterMode {
-    // Normal wasm functions pass the instance as an implicit first parameter.
-    kInstanceParameterMode,
-    // For Wasm-to-JS and C-API wrappers, a {WasmImportData} object is
-    // passed as first parameter.
-    kWasmImportDataMode,
-    // For JS-to-Wasm wrappers (which are JS functions), we load the Wasm
-    // instance from the JS function data. The generated code objects live on
-    // the JS heap, so those compilation pass an isolate.
-    kJSFunctionAbiMode,
-    // The JS-to-JS wrapper does not have an associated instance.
-    // The C-entry stub uses a custom ABI (see {CWasmEntryParameters}).
-    kNoSpecialParameterMode
-  };
+bool TryWasmInlining(int fct_index, wasm::NativeModule* native_module,
+                     int inlining_id, MachineGraph* mcgraph,
+                     SourcePositionTable* spt);
 
-  V8_EXPORT_PRIVATE WasmGraphBuilder(
-      wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
-      const wasm::FunctionSig* sig, compiler::SourcePositionTable* spt,
-      ParameterMode parameter_mode, Isolate* isolate,
-      wasm::WasmEnabledFeatures enabled_features,
-      const wasm::CanonicalSig* wrapper_sig = nullptr);
-
-  V8_EXPORT_PRIVATE ~WasmGraphBuilder();
-
-  bool TryWasmInlining(int fct_index, wasm::NativeModule* native_module,
-                       int inlining_id);
-
-  //-----------------------------------------------------------------------
-  // Operations independent of {control} or {effect}.
-  //-----------------------------------------------------------------------
-  void Start(unsigned params);
-  Node* Param(int index, const char* debug_name = nullptr);
-  void TerminateThrow(Node* effect, Node* control);
-  Node* Int32Constant(int32_t value);
-
-  //-----------------------------------------------------------------------
-  // Operations that read and/or write {control} and {effect}.
-  //-----------------------------------------------------------------------
-
-  Node* Return(base::Vector<Node*> nodes);
-  template <typename... Nodes>
-  Node* Return(Node* fst, Nodes*... more) {
-    Node* arr[] = {fst, more...};
-    return Return(base::ArrayVector(arr));
-  }
-
-  Node* effect();
-  Node* control();
-  Node* SetEffect(Node* node);
-  Node* SetControl(Node* node);
-  void SetEffectControl(Node* effect, Node* control);
-  Node* SetEffectControl(Node* effect_and_control) {
-    SetEffectControl(effect_and_control, effect_and_control);
-    return effect_and_control;
-  }
-
-  // Overload for when we want to provide a specific signature, rather than
-  // build one using sig_, for example after scalar lowering.
-  V8_EXPORT_PRIVATE void LowerInt64(Signature<MachineRepresentation>* sig);
-  V8_EXPORT_PRIVATE void LowerInt64(wasm::CallOrigin origin);
-
-  bool has_simd() const { return has_simd_; }
-
-  MachineGraph* mcgraph() { return mcgraph_; }
-  TFGraph* graph();
-  Zone* graph_zone();
-
- protected:
-  Node* NoContextConstant();
-
-  Node* BuildLoadIsolateRoot();
-  Node* UndefinedValue();
-
-  Node* BuildCallNode(size_t param_count, base::Vector<Node*> args,
-                      Node* instance_node, const Operator* op,
-                      Node* frame_state = nullptr);
-  template <typename T>
-  Node* BuildWasmCall(const Signature<T>* sig, base::Vector<Node*> args,
-                      base::Vector<Node*> rets, Node* implicit_first_arg,
-                      bool indirect, Node* frame_state = nullptr);
-
-  //-----------------------------------------------------------------------
-  // Operations involving the CEntry, a dependency we want to remove
-  // to get off the GC heap.
-  //-----------------------------------------------------------------------
-  Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, Node* js_context,
-                                      Node** parameters, int parameter_count);
-
-  void Assert(Node* condition, AbortReason abort_reason);
-
-  std::unique_ptr<WasmGraphAssembler> gasm_;
-  Zone* const zone_;
-  MachineGraph* const mcgraph_;
-  wasm::CompilationEnv* const env_;
-  // For the main WasmGraphBuilder class, this is identical to the features
-  // field in {env_}, but the WasmWrapperGraphBuilder subclass doesn't have
-  // that, so common code should use this field instead.
-  wasm::WasmEnabledFeatures enabled_features_;
-
-  Node** parameters_;
-
-  SetOncePointer<Node> stack_check_code_node_;
-  SetOncePointer<const Operator> stack_check_call_operator_;
-
-  bool has_simd_ = false;
-  bool needs_stack_check_ = false;
-
-  const wasm::FunctionSig* const function_sig_;
-  const wasm::CanonicalSig* const wrapper_sig_{nullptr};
-
-  compiler::SourcePositionTable* const source_position_table_ = nullptr;
-  int inlining_id_ = -1;
-  const ParameterMode parameter_mode_;
-  Isolate* const isolate_;
-  SetOncePointer<Node> instance_data_node_;
-  NullCheckStrategy null_check_strategy_;
-  static constexpr int kNoCachedMemoryIndex = -1;
-  int cached_memory_index_ = kNoCachedMemoryIndex;
-};
-
-V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
-    Zone* zone, MachineGraph* mcgraph, const wasm::CanonicalSig* signature,
-    Isolate* isolate, compiler::SourcePositionTable* spt, Node* frame_state);
+void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
+                                 const wasm::CanonicalSig* signature,
+                                 Isolate* isolate, Node* frame_state);
 
 AssemblerOptions WasmAssemblerOptions();
 AssemblerOptions WasmStubAssemblerOptions();
@@ -261,7 +114,6 @@ Signature<MachineRepresentation>* CreateMachineSignature(
     Zone* zone, const Signature<T>* sig, wasm::CallOrigin origin);
 
 }  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_COMPILER_WASM_COMPILER_H_

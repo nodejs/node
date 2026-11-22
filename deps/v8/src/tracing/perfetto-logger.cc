@@ -175,6 +175,20 @@ void WriteJsCode(Isolate* isolate, const CodeTraceContext& ctx,
         break;
       }
 
+#if V8_ENABLE_WEBASSEMBLY
+      if (code->builtin_id() == Builtin::kJSToWasmWrapper ||
+          code->builtin_id() == Builtin::kWasmPromising ||
+          code->builtin_id() == Builtin::kWasmResume ||
+          code->builtin_id() == Builtin::kWasmReject ||
+#if V8_ENABLE_DRUMBRAKE
+          code->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
+#endif
+          code->builtin_id() == Builtin::kWasmStressSwitch) {
+        tier = V8JsCode::TIER_UNKNOWN;
+        break;
+      }
+#endif
+
       // kEmptyFunction is used as a placeholder sometimes.
       DCHECK_EQ(code->builtin_id(), Builtin::kEmptyFunction);
       DCHECK(!code->has_instruction_stream());
@@ -194,6 +208,10 @@ void WriteJsCode(Isolate* isolate, const CodeTraceContext& ctx,
       tier = V8JsCode::TIER_TURBOFAN;
       break;
 
+    case CodeKind::JS_TO_WASM_FUNCTION:
+      tier = V8JsCode::TIER_UNKNOWN;
+      break;
+
     case CodeKind::BYTECODE_HANDLER:
     case CodeKind::FOR_TESTING:
     case CodeKind::FOR_TESTING_JS:
@@ -201,7 +219,6 @@ void WriteJsCode(Isolate* isolate, const CodeTraceContext& ctx,
     case CodeKind::WASM_FUNCTION:
     case CodeKind::WASM_TO_CAPI_FUNCTION:
     case CodeKind::WASM_TO_JS_FUNCTION:
-    case CodeKind::JS_TO_WASM_FUNCTION:
     case CodeKind::C_WASM_ENTRY:
     case CodeKind::WASM_STACK_ENTRY:
       UNREACHABLE();

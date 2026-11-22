@@ -15,7 +15,7 @@
 #define LLVM_LIBC_SRC___SUPPORT_OSUTIL_SYSCALL_WRAPPERS_RENAME_H
 
 #include "hdr/fcntl_macros.h"
-#include "src/__support/OSUtil/linux/syscall.h" // syscall_impl
+#include "src/__support/OSUtil/linux/syscall.h" // syscall_checked
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
@@ -26,19 +26,16 @@ namespace linux_syscalls {
 
 LIBC_INLINE ErrorOr<int> rename(const char *oldpath, const char *newpath) {
 #ifdef SYS_renameat2
-  int ret =
-      syscall_impl<int>(SYS_renameat2, AT_FDCWD, oldpath, AT_FDCWD, newpath, 0);
+  return syscall_checked<int>(SYS_renameat2, AT_FDCWD, oldpath, AT_FDCWD,
+                              newpath, 0);
 #elif defined(SYS_renameat)
-  int ret =
-      syscall_impl<int>(SYS_renameat, AT_FDCWD, oldpath, AT_FDCWD, newpath);
+  return syscall_checked<int>(SYS_renameat, AT_FDCWD, oldpath, AT_FDCWD,
+                              newpath);
 #elif defined(SYS_rename)
-  int ret = syscall_impl<int>(SYS_rename, oldpath, newpath);
+  return syscall_checked<int>(SYS_rename, oldpath, newpath);
 #else
 #error "rename, renameat and renameat2 syscalls not available."
 #endif
-  if (ret < 0)
-    return Error(-ret);
-  return ret;
 }
 
 } // namespace linux_syscalls

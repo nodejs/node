@@ -295,15 +295,14 @@ FCDUTF16CollationIterator::previousCodePoint(UErrorCode &errorCode) {
                 return U_SENTINEL;
             }
             c = *--pos;
-            if(CollationFCD::hasLccc(c)) {
-                if(CollationFCD::maybeTibetanCompositeVowel(c) ||
-                        (pos != start && CollationFCD::hasTccc(*(pos - 1)))) {
-                    ++pos;
-                    if(!previousSegment(errorCode)) {
-                        return U_SENTINEL;
-                    }
-                    c = *--pos;
+            if (CollationFCD::hasLccc(c) &&
+                    (CollationFCD::maybeTibetanCompositeVowel(c) ||
+                        CollationFCD::hasTcccBefore(start, pos))) {
+                ++pos;
+                if(!previousSegment(errorCode)) {
+                    return U_SENTINEL;
                 }
+                c = *--pos;
             }
             break;
         } else if(checkDir == 0 && pos != start) {

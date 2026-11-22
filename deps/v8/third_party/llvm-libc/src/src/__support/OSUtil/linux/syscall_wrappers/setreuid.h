@@ -25,7 +25,13 @@ namespace LIBC_NAMESPACE_DECL {
 namespace linux_syscalls {
 
 LIBC_INLINE ErrorOr<int> setreuid(uid_t ruid, uid_t euid) {
+#if defined(SYS_setreuid32)
+  return syscall_checked<int>(SYS_setreuid32, ruid, euid);
+#elif defined(SYS_setreuid)
   return syscall_checked<int>(SYS_setreuid, ruid, euid);
+#else
+#error "SYS_setreuid and SYS_setreuid32 syscalls not available."
+#endif
 }
 
 } // namespace linux_syscalls

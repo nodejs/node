@@ -5,7 +5,9 @@
 #ifndef V8_BASE_NUMBERS_BIGNUM_DTOA_H_
 #define V8_BASE_NUMBERS_BIGNUM_DTOA_H_
 
-#include "src/base/vector.h"
+#include <span>
+
+#include "src/base/base-export.h"
 
 namespace v8 {
 namespace base {
@@ -53,7 +55,7 @@ enum BignumDtoaMode {
 // 'BignumDtoa' expects the given buffer to be big enough to hold all digits
 // and a terminating null-character.
 V8_BASE_EXPORT void BignumDtoa(double v, BignumDtoaMode mode,
-                               int requested_digits, Vector<char> buffer,
+                               int requested_digits, std::span<char> buffer,
                                int* length, int* point);
 
 }  // namespace base

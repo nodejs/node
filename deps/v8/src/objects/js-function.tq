@@ -36,7 +36,7 @@ extern class JSWrappedFunction extends
 @cppObjectLayoutDefinition
 extern class JSFunction extends JSFunctionOrBoundFunctionOrWrappedFunction {
   dispatch_handle: int32;
-  @if(TAGGED_SIZE_8_BYTES) padding: int32;
+  @if(TAGGED_SIZE_8_BYTES) padding: uint32;
   shared_function_info: SharedFunctionInfo;
   context: Context;
   feedback_cell: FeedbackCell;

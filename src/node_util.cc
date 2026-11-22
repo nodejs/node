@@ -209,7 +209,9 @@ static uint32_t GetUVHandleTypeCode(const uv_handle_type type) {
     case UV_UNKNOWN_HANDLE:
       return 5;
     default:
-      ABORT();
+      // The type is known by libuv, just not exposed to JS land, so report it
+      // as `UNKNOWN`.
+      return 5;
   }
 }
 
@@ -374,7 +376,7 @@ static void DefineLazyPropertiesGetter(
   }
 
   Realm* realm = Realm::GetCurrent(context);
-  Local<Value> arg = info.Data();
+  Local<Value> arg = info.DataV2().As<Value>();
   Local<Value> require_result;
   if (!realm->builtin_module_require()
            ->Call(context, Null(isolate), 1, &arg)

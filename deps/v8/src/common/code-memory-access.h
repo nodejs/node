@@ -194,9 +194,10 @@ class V8_EXPORT ThreadIsolation {
 
   static void UnregisterWasmAllocation(Address addr, size_t size);
 
-  // Check for a potential dead lock in case we want to lookup the jit
-  // allocation from inside a signal handler.
-  static bool CanLookupStartOfJitAllocationAt(Address inner_pointer);
+  // Try to lookup the start of a jit allocation from inside a signal handler,
+  // returning std::nullopt if a required lock is already held.
+  static std::optional<Address> TryLookupStartOfJitAllocationAt(
+      Address inner_pointer);
   static std::optional<Address> StartOfJitAllocationAt(Address inner_pointer);
 
   // Write-protect a given range of memory. Address and size need to be page
@@ -261,6 +262,10 @@ class V8_EXPORT ThreadIsolation {
   class V8_EXPORT JitPageReference {
    public:
     JitPageReference(class JitPage* page, Address address);
+    JitPageReference(base::MutexGuard&& page_lock, class JitPage* page,
+                     Address address);
+    static std::optional<JitPageReference> TryLock(class JitPage* page,
+                                                   Address address);
     JitPageReference(JitPageReference&&) V8_NOEXCEPT = default;
     JitPageReference(const JitPageReference&) = delete;
     JitPageReference& operator=(const JitPageReference&) = delete;
@@ -279,7 +284,8 @@ class V8_EXPORT ThreadIsolation {
                                      const std::vector<base::Address>& addr);
     void UnregisterRange(base::Address addr, size_t size);
 
-    base::Address StartOfAllocationAt(base::Address inner_pointer);
+    std::optional<base::Address> StartOfAllocationAt(
+        base::Address inner_pointer);
     std::pair<base::Address, JitAllocation&> AllocationContaining(
         base::Address addr);
     base::Address EndOfLastAllocation();
@@ -312,8 +318,6 @@ class V8_EXPORT ThreadIsolation {
     size_t size_;
 
     friend class JitPageReference;
-    // Allow CanLookupStartOfJitAllocationAt to check if the mutex is locked.
-    friend bool ThreadIsolation::CanLookupStartOfJitAllocationAt(Address);
   };
 
  private:
@@ -363,6 +367,8 @@ class V8_EXPORT ThreadIsolation {
   static JitPageReference LookupJitPageLocked(Address addr, size_t size);
   static std::optional<JitPageReference> TryLookupJitPage(Address addr,
                                                           size_t size);
+  static std::optional<JitPageReference> TryLookupJitPageWithoutBlocking(
+      Address addr);
   // The caller needs to hold a lock of the jit_pages_mutex_
   static std::optional<JitPageReference> TryLookupJitPageLocked(Address addr,
                                                                 size_t size);

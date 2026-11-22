@@ -5,6 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_H_
 #define V8_BUILTINS_BUILTINS_H_
 
+#include "include/v8-object.h"
 #include "src/base/bounds.h"
 #include "src/base/flags.h"
 #include "src/base/vector.h"
@@ -279,8 +280,7 @@ class Builtins {
   // Convenience wrappers.
   //
   static inline constexpr Builtin RecordWrite(SaveFPRegsMode fp_mode);
-  static inline constexpr Builtin IndirectPointerBarrier(
-      SaveFPRegsMode fp_mode);
+  static inline constexpr Builtin TrustedPointerBarrier(SaveFPRegsMode fp_mode);
   static inline constexpr Builtin EphemeronKeyBarrier(SaveFPRegsMode fp_mode);
 
   static inline constexpr Builtin AdaptorWithBuiltinExitFrame(
@@ -436,7 +436,9 @@ class Builtins {
       DirectHandle<FunctionTemplateInfo> function,
       DirectHandle<Object> receiver,
       base::Vector<const DirectHandle<Object>> args,
-      DirectHandle<HeapObject> new_target);
+      DirectHandle<HeapObject> new_target,
+      SideEffectType overrider_side_effect_type =
+          SideEffectType::kHasSideEffect);
 
   static void Generate_Adaptor(MacroAssembler* masm, int formal_parameter_count,
                                Address builtin_address);

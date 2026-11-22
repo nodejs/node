@@ -73,7 +73,7 @@ echo "Replacing existing c-ares"
 replace_dir "$DEPS_DIR/cares" "$ARES_FOLDER"
 
 echo "Updating cares.gyp"
-"$NODE" "$ROOT/tools/dep_updaters/update-c-ares.mjs"
+"$NODE" "$BASE_DIR/tools/dep_updaters/update-c-ares.mjs"
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need

@@ -3502,6 +3502,9 @@ npx codemod@latest @nodejs/crypto-rsa-pss-update
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67488
+    description: End-of-Life.
   - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/40117
     description: Runtime deprecation.
@@ -3511,10 +3514,11 @@ changes:
                  with `--pending-deprecation` support.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The remapping of specifiers ending in `"/"` like `import 'pkg/x/'` is deprecated
-for package `"exports"` and `"imports"` pattern resolutions.
+The remapping of specifiers ending in `"/"` like `import 'pkg/x/'` is no longer
+supported for package `"exports"` and `"imports"` pattern resolutions. Such
+specifiers throw an [`ERR_INVALID_MODULE_SPECIFIER`][] error.
 
 ### DEP0156: `.aborted` property and `'abort'`, `'aborted'` event in `http`
 
@@ -3758,6 +3762,9 @@ that will be removed in a future V8 release.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67488
+    description: End-of-Life.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44495
     description: Runtime deprecation.
@@ -3767,12 +3774,12 @@ changes:
                  with `--pending-deprecation` support.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Package imports and exports targets mapping into paths including a double slash
-(of _"/"_ or _"\\"_) are deprecated and will fail with a resolution validation
-error in a future release. This same deprecation also applies to pattern matches
-starting or ending in a slash.
+(of _"/"_ or _"\\"_) throw an [`ERR_INVALID_PACKAGE_TARGET`][] error. Pattern
+matches starting or ending in a slash, or containing a double slash, throw an
+[`ERR_INVALID_MODULE_SPECIFIER`][] error.
 
 ### DEP0167: Weak `DiffieHellmanGroup` instances (`modp1`, `modp2`, `modp5`)
 
@@ -4031,6 +4038,9 @@ npx codemod@latest @nodejs/dirent-path-to-parent-path
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67490
+    description: End-of-Life.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51880
     description: Runtime deprecation.
@@ -4041,11 +4051,13 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Calling `Hash` class directly with `Hash()` or `new Hash()` is
-deprecated due to being internals, not intended for public use.
-Please use the [`crypto.createHash()`][] method to create Hash instances.
+Calling `Hash` class directly with `Hash()` or `new Hash()` throws an
+`ERR_ILLEGAL_CONSTRUCTOR` error. The constructor is internal and not intended
+for public use. Use the [`crypto.createHash()`][] method to create Hash
+instances. The class remains exported, so `instanceof crypto.Hash` checks
+continue to work.
 
 ### DEP0180: `fs.Stats` constructor
 
@@ -4068,6 +4080,9 @@ deprecated due to being internals, not intended for public use.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67490
+    description: End-of-Life.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52071
     description: Runtime deprecation.
@@ -4076,11 +4091,13 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Calling `Hmac` class directly with `Hmac()` or `new Hmac()` is
-deprecated due to being internals, not intended for public use.
-Please use the [`crypto.createHmac()`][] method to create Hmac instances.
+Calling `Hmac` class directly with `Hmac()` or `new Hmac()` throws an
+`ERR_ILLEGAL_CONSTRUCTOR` error. The constructor is internal and not intended
+for public use. Use the [`crypto.createHmac()`][] method to create Hmac
+instances. The class remains exported, so `instanceof crypto.Hmac` checks
+continue to work.
 
 ### DEP0182: Short GCM authentication tags without explicit `authTagLength`
 
@@ -4190,6 +4207,9 @@ npx codemod@latest @nodejs/repl-classes-with-new
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67494
+    description: End-of-Life.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/55753
     description: Runtime deprecation.
@@ -4201,10 +4221,10 @@ changes:
     description: Documentation-only.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Passing non-supported argument types is deprecated and, instead of returning `false`,
-will throw an error in a future version.
+Passing non-supported argument types to `fs.existsSync()` throws an
+`ERR_INVALID_ARG_TYPE` error instead of returning `false`.
 
 ### DEP0188: `process.features.ipv6` and `process.features.uv`
 
@@ -4861,6 +4881,55 @@ Type: Documentation-only
 `node:util`'s `util.TextDecoder` and `util.TextEncoder` are deprecated.
 Use global `TextDecoder` and `TextEncoder` instead.
 
+### DEP0213: TLS renegotiation
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67532
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+TLS renegotiation is deprecated and will be disabled by default in future.
+This functionality will be largely removed in a subsequent release. Only a
+client accepting server-initiated renegotiation requests is expected to
+remain supported, and on an opt-in basis for legacy server compatibility.
+
+This only affects TLS 1.2. TLS 1.3 removed renegotiation from the standard,
+and so this has never been supported.
+
+Avoid using TLS renegotiation. A server that needs a client certificate should
+request it in the initial configuration, with the `requestCert` option of
+[`tls.createServer()`][]. A client that needs to change the configuration of
+an existing connection should create a new connection.
+
+This affects multiple TLS APIs:
+
+* Node.js TLS clients needing to initiate renegotiation locally, or accept
+  renegotiation requested by the server, should opt in by setting the
+  `allowRenegotiation` option of [`tls.connect()`][].
+* Node.js TLS servers needing to initiate renegotiation locally, or accept
+  renegotiation requested by the client, should opt in by setting the
+  `allowRenegotiation` option of [`tls.createServer()`][].
+  If renegotiation by clients is removed in future, setting this option to
+  `true` on a server will throw an error.
+* In either case, initiating renegotiation ([`tlsSocket.renegotiate()`][])
+  should be avoided by using alternative mechanisms. When renegotiation is
+  disabled by default this method will only work on connections created
+  with the `allowRenegotiation` option, and will throw an error if not.
+  If initiating renegotiation is removed in future, this method will throw
+  an error.
+* Using [`tlsSocket.disableRenegotiation()`][] to disable renegotiation will
+  no longer be necessary when it is disabled by default. This will become a
+  no-op in most configurations.
+* The `tls.CLIENT_RENEG_LIMIT` and `tls.CLIENT_RENEG_WINDOW` properties which
+  limit renegotiation will become unused in default configurations.
+  If renegotiation by clients is removed in future these are likely to be
+  removed.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
@@ -4882,6 +4951,8 @@ Use global `TextDecoder` and `TextEncoder` instead.
 [`CryptoKey`]: webcrypto.md#class-cryptokey
 [`Decipheriv`]: crypto.md#class-decipheriv
 [`Duplex.toWeb()`]: stream.md#streamduplextowebstreamduplex-options
+[`ERR_INVALID_MODULE_SPECIFIER`]: errors.md#err_invalid_module_specifier
+[`ERR_INVALID_PACKAGE_TARGET`]: errors.md#err_invalid_package_target
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`KeyObject.from()`]: crypto.md#static-method-keyobjectfromkey
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
@@ -4985,8 +5056,11 @@ Use global `TextDecoder` and `TextEncoder` instead.
 [`tls.SecureContext`]: tls.md#tlscreatesecurecontextoptions
 [`tls.TLSSocket`]: tls.md#class-tlstlssocket
 [`tls.checkServerIdentity()`]: tls.md#tlscheckserveridentityhostname-cert
+[`tls.connect()`]: tls.md#tlsconnectoptions-callback
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
 [`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
+[`tlsSocket.disableRenegotiation()`]: tls.md#tlssocketdisablerenegotiation
+[`tlsSocket.renegotiate()`]: tls.md#tlssocketrenegotiateoptions-callback
 [`url.format()`]: url.md#urlformaturlobject
 [`url.format(urlString)`]: url.md#urlformaturlstring
 [`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost

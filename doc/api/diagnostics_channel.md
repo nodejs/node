@@ -1937,6 +1937,25 @@ Emitted when server sends a response.
 
 > Stability: 1 - Experimental
 
+##### Event: `'http2.client.request.headers'`
+
+* `headers` {HTTP/2 Headers Object | string\[]}
+* `session` {http2.ClientHttp2Session}
+
+Emitted when `ClientHttp2Session#request()` is called, before the request
+headers are validated and serialized. The `headers` object is a copy of the
+one passed to `request()` by the caller (or a newly created object when no
+headers were passed), and it can be mutated in place to add or modify request
+headers before they are sent. Mutating it does not affect the headers
+object passed by the caller. This allows subscribers such as tracing
+instrumentation to inject context headers (e.g. `traceparent`) into outgoing
+HTTP/2 requests.
+Headers injected this way are subject to the same validation as headers
+passed directly to `request()`. To take effect, headers must be mutated in
+place. Unlike `'http2.client.stream.created'`, which is published after
+the request headers have been serialized, mutations made by subscribers to
+this channel affect the headers that are sent.
+
 ##### Event: `'http2.client.stream.created'`
 
 * `stream` {ClientHttp2Stream}
@@ -2240,6 +2259,20 @@ added: v16.18.0
 
 Emitted when a new thread is created.
 
+##### Event: `'worker_threads.main.registry'`
+
+* `threadIds` {number\[]} A snapshot of the registered worker thread IDs.
+
+Emitted only on the main thread whenever the worker thread registry changes,
+including workers created by other workers. Each event contains a snapshot of
+the registered worker thread IDs. The main thread's ID (`0`) is not included.
+
+The registry tracks workers through their internal messaging ports. Registration
+can occur before a worker is online. Removal occurs when the parent thread
+processes the worker's exit and can be delayed if the parent thread is blocked.
+Consequently, a snapshot does not guarantee that every listed worker is ready or
+still running.
+
 #### SQLite
 
 <!-- YAML
@@ -2278,6 +2311,53 @@ statement is garbage collected. Subscribers must not close the database or the
 statement, since both are still in use while the event is being delivered; see
 [`database.close()`][] and [`statement.close()`][].
 
+#### libuv Thread Pool
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+##### Event: `'uv.threadpool.work.<type>'`
+
+Each kind of work submitted to the [libuv thread pool][] has a separate channel
+named by appending its `type` to `'uv.threadpool.work.'`.
+
+Supported values for `<type>` are:
+
+* `'crypto'`
+
+* `'fs.cp'`
+
+* `'fs.readfile'`
+
+* `'fs.writefile'`
+
+* `'glob'`
+
+* `'histogram.qrde'`
+
+* `'node_api'`
+
+* `'readdir_recursive'`
+
+* `'node_sqlite3.BackupJob'`
+
+* `'zlib'`
+
+Messages contain:
+
+* `enqueued` {number} When the work was submitted to the pool.
+
+* `started` {number|null} When execution started, or `null` if cancelled.
+
+* `ended` {number|null} When execution ended, or `null` if cancelled.
+
+Emitted after the work finishes and before its completion callback. Timestamps
+use the [`performance.now()`][] timeline. `started - enqueued` is queue time;
+`ended - started` is execution time.
+
 [BoundedChannel Channels]: #boundedchannel-channels
 [Test instrumentation and OpenTelemetry]: test.md#test-instrumentation-and-opentelemetry
 [TracingChannel Channels]: #tracingchannel-channels
@@ -2305,9 +2385,11 @@ statement, since both are still in use while the event is being delivered; see
 [`error` event]: #errorevent
 [`locks.request()`]: worker_threads.md#locksrequestname-options-callback
 [`net.Server.listen()`]: net.md#serverlisten
+[`performance.now()`]: perf_hooks.md#performancenow
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
 [`statement.close()`]: sqlite.md#statementclose
 [`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [context loss]: async_context.md#troubleshooting-context-loss
+[libuv thread pool]: https://docs.libuv.org/en/v1.x/threadpool.html
 [thenable object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables

@@ -527,7 +527,6 @@ class PromotedPageRecordMigratedSlotVisitor final
                                       MaybeObjectSize maybe_object_size) {
     ArrayBufferExtension* extension = object->extension();
     if (extension) {
-      extension->InitializationBarrier();
       extension->YoungMarkPromoted();
     }
     return NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::
@@ -679,7 +678,7 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(MutablePage* page) {
       page->ReleaseSlotSet(SURVIVOR_TO_EXTERNAL_POINTER);
     } else {
       DCHECK_EQ(OLD_SPACE, page->owner_identity());
-      DCHECK(!page->Chunk()->IsEvacuationCandidate());
+      DCHECK(!page->is_evacuation_candidate());
       const ZappingMode zapping_mode = ShouldZapDeadObjectsOnPage();
       Address dead_start = page->area_start();
       for (auto [object, size] :
@@ -1188,7 +1187,7 @@ void Sweeper::RawSweep(NormalPage* p,
          space->identity() == TRUSTED_SPACE ||
          space->identity() == SHARED_TRUSTED_SPACE ||
          (space->identity() == NEW_SPACE && v8_flags.minor_ms));
-  DCHECK(!p->Chunk()->IsEvacuationCandidate());
+  DCHECK(!p->is_evacuation_candidate());
   DCHECK(!p->SweepingDone());
   DCHECK(!p->is_black_allocated());
   DCHECK_IMPLIES(space->identity() == NEW_SPACE,

@@ -412,7 +412,7 @@ public:
     virtual ~PluralKeywordEnumeration();
     static UClassID U_EXPORT2 getStaticClassID();
     virtual UClassID getDynamicClassID() const override;
-    virtual const UnicodeString* snext(UErrorCode& status) override;
+    virtual const UnicodeString* snext(UErrorCode& status) U_LIFETIME_BOUND override;
     virtual void reset(UErrorCode& status) override;
     virtual int32_t count(UErrorCode& status) const override;
 private:
@@ -425,7 +425,7 @@ class U_I18N_API PluralAvailableLocalesEnumeration: public StringEnumeration {
   public:
     PluralAvailableLocalesEnumeration(UErrorCode &status);
     virtual ~PluralAvailableLocalesEnumeration();
-    virtual const char* next(int32_t *resultLength, UErrorCode& status) override;
+    virtual const char* next(int32_t* resultLength, UErrorCode& status) U_LIFETIME_BOUND override;
     virtual void reset(UErrorCode& status) override;
     virtual int32_t count(UErrorCode& status) const override;
   private:

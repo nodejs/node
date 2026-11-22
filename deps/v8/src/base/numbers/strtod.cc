@@ -8,7 +8,10 @@
 
 #include <cmath>
 #include <limits>
+#include <string_view>
 
+#include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/base/numbers/bignum.h"
 #include "src/base/numbers/cached-powers.h"
 #include "src/base/numbers/double.h"
@@ -70,25 +73,25 @@ static const int kExactPowersOfTenSize = arraysize(exact_powers_of_ten);
 // we round up to 780.
 static const int kMaxSignificantDecimalDigits = 780;
 
-static Vector<const char> TrimLeadingZeros(Vector<const char> buffer) {
-  for (int i = 0; i < buffer.length(); i++) {
+static std::string_view TrimLeadingZeros(std::string_view buffer) {
+  for (size_t i = 0; i < buffer.length(); i++) {
     if (buffer[i] != '0') {
-      return buffer.SubVector(i, buffer.length());
+      return buffer.substr(i);
     }
   }
-  return Vector<const char>(buffer.begin(), 0);
+  return {};
 }
 
-static Vector<const char> TrimTrailingZeros(Vector<const char> buffer) {
-  for (int i = buffer.length() - 1; i >= 0; --i) {
+static std::string_view TrimTrailingZeros(std::string_view buffer) {
+  for (int i = static_cast<int>(buffer.length()) - 1; i >= 0; --i) {
     if (buffer[i] != '0') {
-      return buffer.SubVector(0, i + 1);
+      return buffer.substr(0, i + 1);
     }
   }
-  return Vector<const char>(buffer.begin(), 0);
+  return {};
 }
 
-static void TrimToMaxSignificantDigits(Vector<const char> buffer, int exponent,
+static void TrimToMaxSignificantDigits(std::string_view buffer, int exponent,
                                        char* significant_buffer,
                                        int* significant_exponent) {
   for (int i = 0; i < kMaxSignificantDecimalDigits - 1; ++i) {
@@ -100,8 +103,8 @@ static void TrimToMaxSignificantDigits(Vector<const char> buffer, int exponent,
   // Set the last digit to be non-zero. This is sufficient to guarantee
   // correct rounding.
   significant_buffer[kMaxSignificantDecimalDigits - 1] = '1';
-  *significant_exponent =
-      exponent + (buffer.length() - kMaxSignificantDecimalDigits);
+  *significant_exponent = exponent + (static_cast<int>(buffer.length()) -
+                                      kMaxSignificantDecimalDigits);
 }
 
 // Reads digits from the buffer and converts them to a uint64.
@@ -109,11 +112,12 @@ static void TrimToMaxSignificantDigits(Vector<const char> buffer, int exponent,
 // When the string starts with "1844674407370955161" no further digit is read.
 // Since 2^64 = 18446744073709551616 it would still be possible read another
 // digit if it was less or equal than 6, but this would complicate the code.
-static uint64_t ReadUint64(Vector<const char> buffer,
+static uint64_t ReadUint64(std::string_view buffer,
                            int* number_of_read_digits) {
   uint64_t result = 0;
   int i = 0;
-  while (i < buffer.length() && result <= (kMaxUint64 / 10 - 1)) {
+  int length = static_cast<int>(buffer.length());
+  while (i < length && result <= (kMaxUint64 / 10 - 1)) {
     int digit = buffer[i++] - '0';
     DCHECK(0 <= digit && digit <= 9);
     result = 10 * result + digit;
@@ -126,11 +130,12 @@ static uint64_t ReadUint64(Vector<const char> buffer,
 // The returned DiyFp is not necessarily normalized.
 // If remaining_decimals is zero then the returned DiyFp is accurate.
 // Otherwise it has been rounded and has error of at most 1/2 ulp.
-static void ReadDiyFp(Vector<const char> buffer, DiyFp* result,
+static void ReadDiyFp(std::string_view buffer, DiyFp* result,
                       int* remaining_decimals) {
   int read_digits;
   uint64_t significand = ReadUint64(buffer, &read_digits);
-  if (buffer.length() == read_digits) {
+  int length = static_cast<int>(buffer.length());
+  if (length == read_digits) {
     *result = DiyFp(significand, 0);
     *remaining_decimals = 0;
   } else {
@@ -141,11 +146,11 @@ static void ReadDiyFp(Vector<const char> buffer, DiyFp* result,
     // Compute the binary exponent.
     int exponent = 0;
     *result = DiyFp(significand, exponent);
-    *remaining_decimals = buffer.length() - read_digits;
+    *remaining_decimals = length - read_digits;
   }
 }
 
-static bool DoubleStrtod(Vector<const char> trimmed, int exponent,
+static bool DoubleStrtod(std::string_view trimmed, int exponent,
                          double* result) {
 #if (V8_TARGET_ARCH_IA32 || defined(USE_SIMULATOR)) && !defined(_MSC_VER)
   // On x86 the floating-point stack can be 64 or 80 bits wide. If it is
@@ -160,7 +165,8 @@ static bool DoubleStrtod(Vector<const char> trimmed, int exponent,
   USE(kExactPowersOfTenSize);
   return false;
 #else
-  if (trimmed.length() <= kMaxExactDoubleIntegerDecimalDigits) {
+  int length = static_cast<int>(trimmed.length());
+  if (length <= kMaxExactDoubleIntegerDecimalDigits) {
     int read_digits;
     // The trimmed input fits into a double.
     // If the 10^exponent (resp. 10^-exponent) fits into a double too then we
@@ -171,26 +177,25 @@ static bool DoubleStrtod(Vector<const char> trimmed, int exponent,
     if (exponent < 0 && -exponent < kExactPowersOfTenSize) {
       // 10^-exponent fits into a double.
       *result = static_cast<double>(ReadUint64(trimmed, &read_digits));
-      DCHECK(read_digits == trimmed.length());
+      DCHECK(read_digits == length);
       *result /= exact_powers_of_ten[-exponent];
       return true;
     }
     if (0 <= exponent && exponent < kExactPowersOfTenSize) {
       // 10^exponent fits into a double.
       *result = static_cast<double>(ReadUint64(trimmed, &read_digits));
-      DCHECK(read_digits == trimmed.length());
+      DCHECK(read_digits == length);
       *result *= exact_powers_of_ten[exponent];
       return true;
     }
-    int remaining_digits =
-        kMaxExactDoubleIntegerDecimalDigits - trimmed.length();
+    int remaining_digits = kMaxExactDoubleIntegerDecimalDigits - length;
     if ((0 <= exponent) &&
         (exponent - remaining_digits < kExactPowersOfTenSize)) {
       // The trimmed string was short and we can multiply it with
       // 10^remaining_digits. As a result the remaining exponent now fits
       // into a double too.
       *result = static_cast<double>(ReadUint64(trimmed, &read_digits));
-      DCHECK(read_digits == trimmed.length());
+      DCHECK(read_digits == length);
       *result *= exact_powers_of_ten[remaining_digits];
       *result *= exact_powers_of_ten[exponent - remaining_digits];
       return true;
@@ -231,8 +236,7 @@ static DiyFp AdjustmentPowerOfTen(int exponent) {
 // If the function returns true then the result is the correct double.
 // Otherwise it is either the correct double or the double that is just below
 // the correct double.
-static bool DiyFpStrtod(Vector<const char> buffer, int exponent,
-                        double* result) {
+static bool DiyFpStrtod(std::string_view buffer, int exponent, double* result) {
   DiyFp input;
   int remaining_decimals;
   ReadDiyFp(buffer, &input, &remaining_decimals);
@@ -265,7 +269,8 @@ static bool DiyFpStrtod(Vector<const char> buffer, int exponent,
     int adjustment_exponent = exponent - cached_decimal_exponent;
     DiyFp adjustment_power = AdjustmentPowerOfTen(adjustment_exponent);
     input.Multiply(adjustment_power);
-    if (kMaxUint64DecimalDigits - buffer.length() >= adjustment_exponent) {
+    if (kMaxUint64DecimalDigits - static_cast<int>(buffer.length()) >=
+        adjustment_exponent) {
       // The product of input with the adjustment power fits into a 64 bit
       // integer.
       DCHECK_EQ(DiyFp::kSignificandSize, 64);
@@ -345,7 +350,7 @@ static bool DiyFpStrtod(Vector<const char> buffer, int exponent,
 //   buffer.length() + exponent <= kMaxDecimalPower + 1
 //   buffer.length() + exponent > kMinDecimalPower
 //   buffer.length() <= kMaxDecimalSignificantDigits
-static double BignumStrtod(Vector<const char> buffer, int exponent,
+static double BignumStrtod(std::string_view buffer, int exponent,
                            double guess) {
   if (guess == std::numeric_limits<double>::infinity()) {
     return guess;
@@ -353,8 +358,8 @@ static double BignumStrtod(Vector<const char> buffer, int exponent,
 
   DiyFp upper_boundary = Double(guess).UpperBoundary();
 
-  DCHECK(buffer.length() + exponent <= kMaxDecimalPower + 1);
-  DCHECK_GT(buffer.length() + exponent, kMinDecimalPower);
+  DCHECK(static_cast<int>(buffer.length()) + exponent <= kMaxDecimalPower + 1);
+  DCHECK_GT(static_cast<int>(buffer.length()) + exponent, kMinDecimalPower);
   DCHECK_LE(buffer.length(), kMaxSignificantDecimalDigits);
   // Make sure that the Bignum will be able to hold all our numbers.
   // Our Bignum implementation has a separate field for exponents. Shifts will
@@ -388,24 +393,25 @@ static double BignumStrtod(Vector<const char> buffer, int exponent,
   }
 }
 
-double Strtod(Vector<const char> buffer, int exponent) {
-  Vector<const char> left_trimmed = TrimLeadingZeros(buffer);
-  Vector<const char> trimmed = TrimTrailingZeros(left_trimmed);
-  exponent += left_trimmed.length() - trimmed.length();
+double Strtod(std::string_view buffer, int exponent) {
+  std::string_view left_trimmed = TrimLeadingZeros(buffer);
+  std::string_view trimmed = TrimTrailingZeros(left_trimmed);
+  exponent += static_cast<int>(left_trimmed.length() - trimmed.length());
   if (trimmed.empty()) return 0.0;
-  if (trimmed.length() > kMaxSignificantDecimalDigits) {
+  int trimmed_length = static_cast<int>(trimmed.length());
+  if (trimmed_length > kMaxSignificantDecimalDigits) {
     char significant_buffer[kMaxSignificantDecimalDigits];
     int significant_exponent;
     TrimToMaxSignificantDigits(trimmed, exponent, significant_buffer,
                                &significant_exponent);
     return Strtod(
-        Vector<const char>(significant_buffer, kMaxSignificantDecimalDigits),
+        std::string_view(significant_buffer, kMaxSignificantDecimalDigits),
         significant_exponent);
   }
-  if (exponent + trimmed.length() - 1 >= kMaxDecimalPower) {
+  if (exponent + trimmed_length - 1 >= kMaxDecimalPower) {
     return std::numeric_limits<double>::infinity();
   }
-  if (exponent + trimmed.length() <= kMinDecimalPower) return 0.0;
+  if (exponent + trimmed_length <= kMinDecimalPower) return 0.0;
 
   double guess;
   if (DoubleStrtod(trimmed, exponent, &guess) ||

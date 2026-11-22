@@ -1818,13 +1818,20 @@ used exclusively on HTTP/2 Servers. `Http2Stream` instances on the server
 provide additional methods such as `http2stream.pushStream()` and
 `http2stream.respond()` that are only relevant on the server.
 
-#### `http2stream.additionalHeaders(headers)`
+#### `http2stream.additionalHeaders(headers[, callback])`
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67470
+    description: Added the `callback` argument.
 -->
 
 * `headers` {HTTP/2 Headers Object}
+* `callback` {Function} Optional, called once the `HEADERS` frame has been
+  written to the socket, or with an error if it could not be written.
+  * `err` {Error|null}
 
 Sends an additional informational `HEADERS` frame to the connected HTTP/2 peer.
 
@@ -4904,6 +4911,45 @@ const server = http2.createServer((req, res) => {
 });
 ```
 
+#### `response.setHeaders(headers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `headers` {Headers|Map}
+
+Sets multiple header values for implicit headers.
+`headers` must be an instance of [`Headers`][] or `Map`.
+If a header already exists in the to-be-sent headers,
+its value will be replaced.
+
+```js
+const headers = new Headers({ foo: 'bar' });
+response.setHeaders(headers);
+```
+
+or
+
+```js
+const headers = new Map([['foo', 'bar']]);
+response.setHeaders(headers);
+```
+
+When headers have been set with [`response.setHeaders()`][],
+they will be merged with any headers passed to [`response.writeHead()`][],
+with the headers passed to [`response.writeHead()`][] given precedence.
+
+```js
+// Returns content-type = text/plain
+const server = http2.createServer((req, res) => {
+  const headers = new Headers({ 'Content-Type': 'text/html' });
+  res.setHeaders(headers);
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('ok');
+});
+```
+
 #### `response.setTimeout(msecs[, callback])`
 
 <!-- YAML
@@ -5057,23 +5103,40 @@ Returns `true` if the entire data was flushed successfully to the kernel
 buffer. Returns `false` if all or part of the data was queued in user memory.
 `'drain'` will be emitted when the buffer is free again.
 
-#### `response.writeContinue()`
+#### `response.writeContinue([callback])`
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67470
+    description: Added the `callback` argument.
 -->
+
+* `callback` {Function} Optional, called once the informational headers
+  have been written to the socket, or with an error if they could not be
+  written. It is not called if nothing is sent.
+  * `err` {Error|null}
 
 Sends a status `100 Continue` to the client, indicating that the request body
 should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 `Http2SecureServer`.
 
-#### `response.writeEarlyHints(hints)`
+#### `response.writeEarlyHints(hints[, callback])`
 
 <!-- YAML
 added: v18.11.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67470
+    description: Added the `callback` argument.
 -->
 
 * `hints` {Object}
+* `callback` {Function} Optional, called once the informational headers
+  have been written to the socket, or with an error if they could not be
+  written. It is not called if nothing is sent.
+  * `err` {Error|null}
 
 Sends a status `103 Early Hints` to the client with a Link header,
 indicating that the user agent can preload/preconnect the linked resources.
@@ -5097,12 +5160,16 @@ response.writeEarlyHints({
 });
 ```
 
-#### `response.writeInformation(statusCode[, headers])`
+#### `response.writeInformation(statusCode[, headers[, callback]])`
 
 <!-- YAML
 added:
   - v26.2.0
   - v24.18.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67470
+    description: Added the `callback` argument.
 -->
 
 * `statusCode` {number} An HTTP 1xx informational status code, between `100`
@@ -5110,6 +5177,10 @@ added:
   allowed in HTTP/2.
 * `headers` {Object} An optional object of headers to send with the
   informational response.
+* `callback` {Function} Optional, called once the informational headers
+  have been written to the socket, or with an error if they could not be
+  written. It is not called if nothing is sent.
+  * `err` {Error|null}
 
 Sends an arbitrary HTTP 1xx informational response, equivalent in HTTP/2 to a
 `HEADERS` frame whose `:status` pseudo-header is a 1xx code. May be called
@@ -5302,6 +5373,7 @@ you need to implement any fall-back behavior yourself.
 [`Duplex`]: stream.md#class-streamduplex
 [`ERR_HTTP2_STREAM_ABORTED`]: errors.md#err_http2_stream_aborted
 [`ERR_HTTP2_STREAM_ERROR`]: errors.md#err_http2_stream_error
+[`Headers`]: globals.md#class-headers
 [`Http2ServerRequest`]: #class-http2http2serverrequest
 [`Http2ServerResponse`]: #class-http2http2serverresponse
 [`Http2Session` and Sockets]: #http2session-and-sockets
@@ -5330,12 +5402,13 @@ you need to implement any fall-back behavior yourself.
 [`request.socket`]: #requestsocket
 [`response.end()`]: #responseenddata-encoding-callback
 [`response.setHeader()`]: #responsesetheadername-value
+[`response.setHeaders()`]: #responsesetheadersheaders
 [`response.socket`]: #responsesocket
 [`response.writableEnded`]: #responsewritableended
 [`response.write()`]: #responsewritechunk-encoding-callback
 [`response.write(data, encoding)`]: http.md#responsewritechunk-encoding-callback
-[`response.writeContinue()`]: #responsewritecontinue
-[`response.writeEarlyHints()`]: #responsewriteearlyhintshints
+[`response.writeContinue()`]: #responsewritecontinuecallback
+[`response.writeEarlyHints()`]: #responsewriteearlyhintshints-callback
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
 [`server.close()`]: #serverclosecallback
 [`server.maxHeadersCount`]: http.md#servermaxheaderscount

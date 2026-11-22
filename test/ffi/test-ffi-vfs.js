@@ -5,7 +5,6 @@ common.skipIfFFIMissing();
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { test } = require('node:test');
 const tmpdir = require('../common/tmpdir');
@@ -99,7 +98,7 @@ test('closed library images give their fd numbers back', { skip: !common.isLinux
     process.execPath, '--disable-warning=ExperimentalWarning', '-e', child,
   ], {
     encoding: 'utf8',
-    env: { ...process.env, TMPDIR: path.join(os.tmpdir(), 'no-such-directory') },
+    env: { ...process.env, TMPDIR: tmpdir.resolve('no-such-directory') },
   });
   assert.strictEqual(status, 0, stderr);
 });

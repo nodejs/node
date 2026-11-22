@@ -3107,11 +3107,15 @@ bool KDF::derive(const Buffer<unsigned char>& out,
 
 const EVP_MD* getDigestByName(const char* name) {
 #if NCRYPTO_USE_BORINGSSL
-  // BoringSSL exposes SHA-3 through EVP_MD descriptors without registering
-  // their names or assigning them NIDs.
+  // BoringSSL exposes SHA-3 and SHAKE256 through EVP_MD descriptors without
+  // registering their names or assigning them NIDs.
   if (CaseInsensitiveNameEqual()(name, "sha3-256")) return EVP_sha3_256();
   if (CaseInsensitiveNameEqual()(name, "sha3-384")) return EVP_sha3_384();
   if (CaseInsensitiveNameEqual()(name, "sha3-512")) return EVP_sha3_512();
+  if (CaseInsensitiveNameEqual()(name, "shake256") ||
+      CaseInsensitiveNameEqual()(name, "shake-256")) {
+    return EVP_shake256();
+  }
 #endif
   return EVP_get_digestbyname(name);
 }
@@ -3632,6 +3636,8 @@ const BoringSSLKeyAlgorithm kBoringSSLKeyAlgorithms[] = {
     {KeyAlgorithm::ML_DSA_87.name(), EVP_PKEY_ML_DSA_87, EVP_pkey_ml_dsa_87},
     {KeyAlgorithm::ML_KEM_768.name(), EVP_PKEY_ML_KEM_768, EVP_pkey_ml_kem_768},
     {KeyAlgorithm::ML_KEM_1024.name(), EVP_PKEY_ML_KEM_1024, EVP_pkey_ml_kem_1024},
+    {KeyAlgorithm::SLH_DSA_SHA2_128S.name(), EVP_PKEY_SLH_DSA_SHA2_128S, EVP_pkey_slh_dsa_sha2_128s},
+    {KeyAlgorithm::SLH_DSA_SHAKE_256F.name(), EVP_PKEY_SLH_DSA_SHAKE_256F, EVP_pkey_slh_dsa_shake_256f},
 };
 // NOLINTEND(whitespace/line_length)
 // clang-format on
@@ -7073,18 +7079,16 @@ bool EVPKeyCtxPointer::setRsaPssSaltlen(int salt_len) {
   return EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen(ctx_.get(), salt_len) > 0;
 }
 
-bool EVPKeyCtxPointer::setRsaImplicitRejection() {
+bool EVPKeyCtxPointer::supportsRsaImplicitRejection() const {
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   if (!ctx_) return false;
-  return EVP_PKEY_CTX_ctrl_str(
-             ctx_.get(), "rsa_pkcs1_implicit_rejection", "1") > 0;
-  // From the doc -2 means that the option is not supported.
-  // The default for the option is enabled and if it has been
-  // specifically disabled we want to respect that so we will
-  // not throw an error if the option is supported regardless
-  // of how it is set. The call to set the value
-  // will not affect what is used since a different context is
-  // used in the call if the option is supported
+  const OSSL_PARAM* settable = EVP_PKEY_CTX_settable_params(ctx_.get());
+  // OSSL_ASYM_CIPHER_PARAM_IMPLICIT_REJECTION is not defined by OpenSSL 3.0.
+  const OSSL_PARAM* param =
+      settable == nullptr
+          ? nullptr
+          : OSSL_PARAM_locate_const(settable, "implicit-rejection");
+  return param != nullptr && param->data_type == OSSL_PARAM_UNSIGNED_INTEGER;
 #elif defined(OPENSSL_IS_BORINGSSL)
   // TODO(jasnell): Boringssl appears not to support this operation.
   // Is there an alternative approach that Boringssl does support?
@@ -8277,8 +8281,7 @@ const EVP_MD* EVPMDCtxPointer::getDigest() const {
 }
 
 bool EVPMDCtxPointer::hasXofFlag() const {
-  if (!ctx_) return false;
-  return (EVP_MD_flags(getDigest()) & EVP_MD_FLAG_XOF) == EVP_MD_FLAG_XOF;
+  return Digest(getDigest()).isXof();
 }
 
 bool EVPMDCtxPointer::copyTo(const EVPMDCtxPointer& other) const {
@@ -8287,128 +8290,74 @@ bool EVPMDCtxPointer::copyTo(const EVPMDCtxPointer& other) const {
   return true;
 }
 
-std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInit(const EVPKeyPointer& key,
-                                                       const Digest& digest) {
+namespace {
+enum class SignatureOperation { Sign, Verify };
+
+template <SignatureOperation operation>
+std::optional<EVP_PKEY_CTX*> InitializeSignature(
+    EVP_MD_CTX* mdctx,
+    const EVPKeyPointer& key,
+    const Digest& digest,
+    const Buffer<const unsigned char>* context_string) {
+  constexpr auto init = operation == SignatureOperation::Sign
+                            ? EVP_DigestSignInit
+                            : EVP_DigestVerifyInit;
   EVP_PKEY_CTX* ctx = nullptr;
-  if (!EVP_DigestSignInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
+  if (context_string == nullptr) {
+    if (!init(mdctx, &ctx, digest, nullptr, key.get())) return std::nullopt;
+    return ctx;
+  }
+
+#if NCRYPTO_USE_BORINGSSL
+  if (!init(mdctx, &ctx, digest, nullptr, key.get()) ||
+      EVP_PKEY_CTX_set1_signature_context_string(
+          ctx, context_string->data, context_string->len) <= 0) {
     return std::nullopt;
   }
+#elif NCRYPTO_USE_OPENSSL_PROVIDER
+  std::array<OSSL_PARAM, 3> params;
+  size_t count = 0;
+  // Ed25519 requires the instance parameter to switch into Ed25519ctx mode.
+  // Without it, OpenSSL silently ignores the context string.
+  if (key.isA(KeyAlgorithm::ED25519)) {
+    params[count++] = OSSL_PARAM_construct_utf8_string(
+        kSignatureInstance, const_cast<char*>("Ed25519ctx"), 0);
+  }
+  params[count++] = OSSL_PARAM_construct_octet_string(
+      kSignatureContextString,
+      const_cast<unsigned char*>(context_string->data),
+      context_string->len);
+  params[count] = OSSL_PARAM_END;
+
+  constexpr auto init_ex = operation == SignatureOperation::Sign
+                               ? EVP_DigestSignInit_ex
+                               : EVP_DigestVerifyInit_ex;
+  // Preserve the context-taking provider path's implicit digest selection.
+  if (!init_ex(
+          mdctx, &ctx, nullptr, nullptr, nullptr, key.get(), params.data())) {
+    return std::nullopt;
+  }
+#else
+#error "Unsupported crypto backend"
+#endif
   return ctx;
+}
+}  // namespace
+
+std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInit(
+    const EVPKeyPointer& key,
+    const Digest& digest,
+    const Buffer<const unsigned char>* context_string) {
+  return InitializeSignature<SignatureOperation::Sign>(
+      ctx_.get(), key, digest, context_string);
 }
 
 std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInit(
-    const EVPKeyPointer& key, const Digest& digest) {
-  EVP_PKEY_CTX* ctx = nullptr;
-  if (!EVP_DigestVerifyInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
-    return std::nullopt;
-  }
-  return ctx;
-}
-
-std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInitWithContext(
     const EVPKeyPointer& key,
     const Digest& digest,
-    const Buffer<const unsigned char>& context_string) {
-#ifdef OPENSSL_IS_BORINGSSL
-  EVP_PKEY_CTX* ctx = nullptr;
-  if (!EVP_DigestSignInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
-    return std::nullopt;
-  }
-  if (EVP_PKEY_CTX_set1_signature_context_string(
-          ctx, context_string.data, context_string.len) <= 0) {
-    return std::nullopt;
-  }
-  return ctx;
-#elif NCRYPTO_USE_OPENSSL_PROVIDER
-  EVP_PKEY_CTX* ctx = nullptr;
-
-  // Ed25519 requires the INSTANCE param to switch into Ed25519ctx mode.
-  // Without it, OpenSSL silently ignores the context string.
-  if (key.isA(KeyAlgorithm::ED25519)) {
-    const OSSL_PARAM params[] = {
-        OSSL_PARAM_construct_utf8_string(
-            kSignatureInstance, const_cast<char*>("Ed25519ctx"), 0),
-        OSSL_PARAM_construct_octet_string(
-            kSignatureContextString,
-            const_cast<unsigned char*>(context_string.data),
-            context_string.len),
-        OSSL_PARAM_END};
-
-    if (!EVP_DigestSignInit_ex(
-            ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
-      return std::nullopt;
-    }
-    return ctx;
-  }
-
-  const OSSL_PARAM params[] = {
-      OSSL_PARAM_construct_octet_string(
-          kSignatureContextString,
-          const_cast<unsigned char*>(context_string.data),
-          context_string.len),
-      OSSL_PARAM_END};
-
-  if (!EVP_DigestSignInit_ex(
-          ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
-    return std::nullopt;
-  }
-  return ctx;
-#else
-#error "Unsupported crypto backend"
-#endif
-}
-
-std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInitWithContext(
-    const EVPKeyPointer& key,
-    const Digest& digest,
-    const Buffer<const unsigned char>& context_string) {
-#ifdef OPENSSL_IS_BORINGSSL
-  EVP_PKEY_CTX* ctx = nullptr;
-  if (!EVP_DigestVerifyInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
-    return std::nullopt;
-  }
-  if (EVP_PKEY_CTX_set1_signature_context_string(
-          ctx, context_string.data, context_string.len) <= 0) {
-    return std::nullopt;
-  }
-  return ctx;
-#elif NCRYPTO_USE_OPENSSL_PROVIDER
-  EVP_PKEY_CTX* ctx = nullptr;
-
-  // Ed25519 requires the INSTANCE param to switch into Ed25519ctx mode.
-  // Without it, OpenSSL silently ignores the context string.
-  if (key.isA(KeyAlgorithm::ED25519)) {
-    const OSSL_PARAM params[] = {
-        OSSL_PARAM_construct_utf8_string(
-            kSignatureInstance, const_cast<char*>("Ed25519ctx"), 0),
-        OSSL_PARAM_construct_octet_string(
-            kSignatureContextString,
-            const_cast<unsigned char*>(context_string.data),
-            context_string.len),
-        OSSL_PARAM_END};
-
-    if (!EVP_DigestVerifyInit_ex(
-            ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
-      return std::nullopt;
-    }
-    return ctx;
-  }
-
-  const OSSL_PARAM params[] = {
-      OSSL_PARAM_construct_octet_string(
-          kSignatureContextString,
-          const_cast<unsigned char*>(context_string.data),
-          context_string.len),
-      OSSL_PARAM_END};
-
-  if (!EVP_DigestVerifyInit_ex(
-          ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
-    return std::nullopt;
-  }
-  return ctx;
-#else
-#error "Unsupported crypto backend"
-#endif
+    const Buffer<const unsigned char>* context_string) {
+  return InitializeSignature<SignatureOperation::Verify>(
+      ctx_.get(), key, digest, context_string);
 }
 
 DataPointer EVPMDCtxPointer::signOneShot(
@@ -9052,6 +9001,18 @@ size_t Dsa::getDivisorLength() const {
 size_t Digest::size() const {
   if (md_ == nullptr) return 0;
   return EVP_MD_size(md_);
+}
+
+bool Digest::isXof() const {
+  if (md_ == nullptr) return false;
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  return (EVP_MD_flags(md_) & EVP_MD_FLAG_XOF) != 0;
+#elif defined(OPENSSL_IS_BORINGSSL)
+  // BoringSSL does not set EVP_MD_FLAG_XOF on its SHAKE256 descriptor.
+  return md_ == EVP_shake256();
+#else
+#error "Unsupported crypto backend"
+#endif
 }
 
 #if !NCRYPTO_USE_BORINGSSL

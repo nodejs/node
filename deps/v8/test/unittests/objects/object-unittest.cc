@@ -212,7 +212,7 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
   DirectHandle<ScopeInfo> empty_function_scope_info(
       isolate()->empty_function()->shared()->scope_info(), i_isolate());
 
-  EXPECT_EQ(scope_info->Flags(), empty_function_scope_info->Flags());
+  EXPECT_EQ(scope_info->flags(), empty_function_scope_info->flags());
   EXPECT_EQ(scope_info->ParameterCount(),
             empty_function_scope_info->ParameterCount());
   EXPECT_EQ(scope_info->ContextLocalCount(),
@@ -224,8 +224,9 @@ TEST_F(TestWithNativeContext, CanOnlyAccessFixedFormalParameters) {
     DirectHandle<JSFunction> function = RunJS<JSFunction>(f);
     DirectHandle<ScopeInfo> scope_info(function->shared()->scope_info(),
                                        i_isolate());
-    auto flags = scope_info->Flags();
-    EXPECT_EQ(allocates, ScopeInfo::AllocatesArgumentsBit::decode(flags));
+    auto flags = scope_info->flags();
+    EXPECT_EQ(allocates,
+              ScopeInfo::Flags::AllocatesArgumentsBit::decode(flags));
     EXPECT_EQ(only_fixed, scope_info->CanOnlyAccessFixedFormalParameters());
   };
   run("(function(){})", false, false);
@@ -286,7 +287,7 @@ static void CheckObject(Isolate* isolate, DirectHandle<Object> obj,
   DirectHandle<String> print_string = String::Flatten(
       isolate,
       indirect_handle(Object::NoSideEffectsToString(isolate, obj), isolate));
-  CHECK(print_string->IsOneByteEqualTo(base::CStrVector(string)));
+  CHECK(print_string->IsOneByteEqualTo(string));
 }
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
@@ -562,6 +563,26 @@ TEST_F(ObjectTest, ObjectMethodsThatTruncateMinusZero) {
   CHECK(IsZero(*result));
 }
 
+TEST_F(ObjectTest, ToUint32) {
+  Factory* factory = i_isolate()->factory();
+
+  DirectHandle<Object> pos_smi(Smi::FromInt(42), i_isolate());
+  DirectHandle<Number> pos_res =
+      Object::ToUint32(i_isolate(), pos_smi).ToHandleChecked();
+  EXPECT_TRUE(IsSmi(*pos_res));
+  EXPECT_EQ(42.0, Object::NumberValue(*pos_res));
+
+  DirectHandle<Object> neg_smi(Smi::FromInt(-37), i_isolate());
+  DirectHandle<Number> neg_res =
+      Object::ToUint32(i_isolate(), neg_smi).ToHandleChecked();
+  EXPECT_EQ(4294967259.0, Object::NumberValue(*neg_res));
+
+  DirectHandle<Object> neg_str = factory->NewStringFromAsciiChecked("-37");
+  DirectHandle<Number> str_res =
+      Object::ToUint32(i_isolate(), neg_str).ToHandleChecked();
+  EXPECT_EQ(4294967259.0, Object::NumberValue(*str_res));
+}
+
 #define TEST_FUNCTION_KIND(Name)                                            \
   TEST_F(ObjectTest, Name) {                                                \
     for (uint32_t i = 0;                                                    \
@@ -735,11 +756,11 @@ bool FunctionKindIsConstructable(FunctionKind kind) {
 }
 TEST_FUNCTION_KIND(IsConstructable)
 
-bool FunctionKindIsStrictFunctionWithoutPrototype(FunctionKind kind) {
+bool FunctionKindIsFunctionWithoutPrototype(FunctionKind kind) {
   return IsArrowFunction(kind) || IsConciseMethod(kind) ||
          IsAccessorFunction(kind);
 }
-TEST_FUNCTION_KIND(IsStrictFunctionWithoutPrototype)
+TEST_FUNCTION_KIND(IsFunctionWithoutPrototype)
 
 #undef TEST_FUNCTION_KIND
 
@@ -1008,6 +1029,16 @@ TEST_F(ObjectTest, JSObjectCopy) {
   value1 = Object::GetProperty(i_isolate(), obj, first).ToHandleChecked();
   value2 = Object::GetProperty(i_isolate(), clone, second).ToHandleChecked();
   EXPECT_EQ(*value1, *value2);
+}
+
+TEST_F(ObjectTest, CorrectnessFuzzerSuppressionsFatalNoSecurityImpact) {
+  v8::HandleScope scope(isolate());
+  SaveFlags save_flags;
+  v8_flags.correctness_fuzzer_suppressions = true;
+  EXPECT_DEATH_IF_SUPPORTED(
+      RunJS("1n << (1n << 30n)"),
+      "Fatal error with no security impact:\n# Aborting on invalid BigInt "
+      "length");
 }
 
 }  // namespace internal

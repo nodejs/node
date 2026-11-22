@@ -108,8 +108,7 @@ class FastCApiObject {
           "Invalid parameter, destination array is too small.");
       return;
     }
-    uint8_t* memory =
-        reinterpret_cast<uint8_t*>(out.As<Uint8Array>()->Buffer()->Data());
+    uint8_t* memory = reinterpret_cast<uint8_t*>(array->GetBuffer()->Data());
     memcpy(memory, source.data, source.length);
   }
 
@@ -382,7 +381,7 @@ class FastCApiObject {
       return 0;
     }
     T* memory = reinterpret_cast<T*>(
-        typed_array_arg.As<TypedArray>()->Buffer()->Data());
+        typed_array_arg.As<TypedArray>()->GetBuffer()->Data());
     size_t length = typed_array_arg.As<TypedArray>()->ByteLength() / sizeof(T);
     double sum = 0;
     for (size_t i = 0; i < length; ++i) {
@@ -415,7 +414,7 @@ class FastCApiObject {
     Local<TypedArray> typed_array_arg = info[0].As<TypedArray>();
     size_t length = typed_array_arg->Length();
 
-    void* data = typed_array_arg->Buffer()->GetBackingStore()->Data();
+    void* data = typed_array_arg->GetBuffer()->GetBackingStore()->Data();
     if (typed_array_arg->IsUint8Array() || typed_array_arg->IsInt32Array() ||
         typed_array_arg->IsUint32Array() ||
         typed_array_arg->IsBigInt64Array() ||
@@ -1094,7 +1093,7 @@ class FastCApiObject {
 
     v8::Local<v8::WasmMemoryObject> wasm_memory =
         mem.As<v8::WasmMemoryObject>();
-    v8::Local<v8::ArrayBuffer> buffer = wasm_memory->Buffer();
+    v8::Local<v8::ArrayBufferBase> buffer = wasm_memory->GetBuffer();
     if (address >= buffer->ByteLength()) {
       isolate->ThrowError("Address out of bounds for Wasm memory.");
       return true;

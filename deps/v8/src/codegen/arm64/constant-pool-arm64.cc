@@ -76,7 +76,8 @@ void ConstantPool::EmitAndClear(Jump require_jump) {
   //  1) Encode the size of the constant pool, for use by the disassembler.
   //  2) Terminate the program, to try to prevent execution from accidentally
   //     flowing into the constant pool.
-  //  3) align the 64bit pool entries to 64-bit.
+  //  3) align the 64bit pool entries to 64-bit, with a 32-bit entry if there
+  //     is one.
   // TODO(all): Make the alignment part less fragile. Currently code is
   // allocated as a byte array so there are no guarantees the alignment will
   // be preserved on compaction. Currently it works as allocation seems to be
@@ -87,8 +88,7 @@ void ConstantPool::EmitAndClear(Jump require_jump) {
 
   assm_->RecordComment("[ Constant Pool");
   EmitPrologue(require_alignment);
-  if (require_alignment == Alignment::kRequired) assm_->Align(kInt64Size);
-  EmitEntries();
+  EmitEntries(require_alignment);
   assm_->RecordComment("]");
 
   if (after_pool.is_linked()) assm_->bind(&after_pool);
@@ -135,7 +135,25 @@ void ConstantPool::SetNextCheckIn(size_t instructions) {
       assm_->pc_offset() + static_cast<int>(instructions * kInstrSize);
 }
 
-void ConstantPool::EmitEntries() {
+void ConstantPool::EmitEntries(Alignment require_alignment) {
+  if (require_alignment == Alignment::kRequired) {
+    if (Entry32Count() == 0) {
+      assm_->Align(kInt64Size);
+    } else {
+      // 32-bit entries sort last, so put the last entry in the alignment gap
+      // instead of a nop.
+      auto last = std::prev(entries_.end());
+      DCHECK(last->first.is_value32());
+      auto first = last->first.AllowsDeduplication()
+                       ? entries_.lower_bound(last->first)
+                       : last;
+      for (auto it = first; it != entries_.end(); ++it) {
+        SetLoadOffsetToConstPoolEntry(it->second, assm_->pc(), it->first);
+      }
+      Emit(last->first);
+      entries_.erase(first, entries_.end());
+    }
+  }
   for (auto iter = entries_.begin(); iter != entries_.end();) {
     DCHECK(iter->first.is_value32() || IsAligned(assm_->pc_offset(), 8));
     auto range = entries_.equal_range(iter->first);
@@ -174,10 +192,12 @@ bool ConstantPool::ShouldEmitNow(Jump require_jump, size_t margin) const {
   // (C) {dist32/64} exceeds the desired approximate distance to the pool.
   int worst_case_size = ComputeSize(Jump::kRequired, Alignment::kRequired);
   size_t pool_end_32 = assm_->pc_offset() + margin + worst_case_size;
-  size_t pool_end_64 = pool_end_32 - Entry32Count() * kInt32Size;
+  size_t pool_end_64 =
+      pool_end_32 - Entry32CountAfter64(Alignment::kRequired) * kInt32Size;
   if (Entry64Count() != 0) {
-    // The 64-bit constants are always emitted before the 32-bit constants, so
-    // we subtract the size of the 32-bit constants from {size}.
+    // The 64-bit constants are emitted before the 32-bit constants, except
+    // one that may fill the alignment gap, so we subtract the size of the
+    // 32-bit constants after them from {size}.
     size_t dist64 = pool_end_64 - first_use_64_;
     bool next_check_too_late = dist64 + 2 * kCheckInterval >= kMaxDistToPool64;
     bool opportune_emission_without_jump =
@@ -205,10 +225,19 @@ bool ConstantPool::ShouldEmitNow(Jump require_jump, size_t margin) const {
 int ConstantPool::ComputeSize(Jump require_jump,
                               Alignment require_alignment) const {
   int size_up_to_marker = PrologueSize(require_jump);
+  // The alignment gap holds a nop or a 32-bit entry.
   int alignment = require_alignment == Alignment::kRequired ? kInstrSize : 0;
   size_t size_after_marker =
-      Entry32Count() * kInt32Size + alignment + Entry64Count() * kInt64Size;
+      alignment + Entry64Count() * kInt64Size +
+      Entry32CountAfter64(require_alignment) * kInt32Size;
   return size_up_to_marker + static_cast<int>(size_after_marker);
+}
+
+size_t ConstantPool::Entry32CountAfter64(Alignment require_alignment) const {
+  if (require_alignment == Alignment::kRequired && Entry32Count() != 0) {
+    return Entry32Count() - 1;
+  }
+  return Entry32Count();
 }
 
 Alignment ConstantPool::IsAlignmentRequiredIfEmittedAt(Jump require_jump,
@@ -229,7 +258,8 @@ bool ConstantPool::IsInImmRangeIfEmittedAt(int pc_offset) {
       IsAlignmentRequiredIfEmittedAt(Jump::kRequired, pc_offset);
   size_t pool_end_32 =
       pc_offset + ComputeSize(Jump::kRequired, require_alignment);
-  size_t pool_end_64 = pool_end_32 - Entry32Count() * kInt32Size;
+  size_t pool_end_64 =
+      pool_end_32 - Entry32CountAfter64(require_alignment) * kInt32Size;
   bool entries_in_range_32 =
       Entry32Count() == 0 || (pool_end_32 < first_use_32_ + kMaxDistToPool32);
   bool entries_in_range_64 =

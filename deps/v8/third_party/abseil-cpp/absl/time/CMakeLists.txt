@@ -202,6 +202,8 @@ absl_cc_test(
     absl::synchronization
     absl::time
     GTest::gmock_main
+  SHARD_COUNT
+    4
 )
 
 absl_cc_test(

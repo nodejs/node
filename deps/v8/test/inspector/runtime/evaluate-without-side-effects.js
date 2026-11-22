@@ -65,6 +65,11 @@ Protocol.Debugger.onPaused(message => {
     throwOnSideEffect: true,
     replMode: true,
   }));
+  InspectorTest.logMessage(await Protocol.Runtime.evaluate({
+    expression: "#bar in foo",
+    throwOnSideEffect: true,
+    replMode: true,
+  }));
 
   InspectorTest.completeTest();
 })();

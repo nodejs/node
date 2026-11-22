@@ -8,7 +8,8 @@
 #include "src/objects/number-string-cache.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/base/bits.h"
+#include <bit>
+
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
@@ -79,8 +80,7 @@ void SmiStringCache::Set(Isolate* isolate, InternalIndex entry,
       !isolate->MemorySaverModeEnabled()) {
     // Allocate full-size cache, recompute the entry and proceed with adding
     // the entry.
-    uint32_t full_size =
-        base::bits::RoundUpToPowerOfTwo32(v8_flags.smi_string_cache_size);
+    uint32_t full_size = std::bit_ceil(v8_flags.smi_string_cache_size.value());
     CHECK_LT(kInitialSize, full_size);
     CHECK_LE(full_size, kMaxCapacity);
     // TODO(ishell): consider copying entries from previous table.
@@ -173,7 +173,7 @@ void DoubleStringCache::Set(Isolate* isolate, InternalIndex entry_index,
     // Allocate full-size cache, recompute the entry and proceed with adding
     // the entry.
     uint32_t full_size =
-        base::bits::RoundUpToPowerOfTwo32(v8_flags.double_string_cache_size);
+        std::bit_ceil(v8_flags.double_string_cache_size.value());
     CHECK_LT(kInitialSize, full_size);
     CHECK_LE(full_size, kMaxCapacity);
     cache = DoubleStringCache::New(isolate, full_size);

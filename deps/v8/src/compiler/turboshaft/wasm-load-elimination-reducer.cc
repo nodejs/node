@@ -341,6 +341,9 @@ void WasmLoadEliminationAnalyzer::ProcessStructAtomicRMW(
   memory_.Invalidate(op);
   // See ProcessStructGet/Set.
   memory_.InvalidateMutableSharedBase();
+
+  // Updating aliases if the value stored was known as non-aliasing.
+  InvalidateIfAlias(op.value());
 }
 
 void WasmLoadEliminationAnalyzer::ProcessArrayAtomicRMW(
@@ -349,6 +352,9 @@ void WasmLoadEliminationAnalyzer::ProcessArrayAtomicRMW(
   // the state because array atomic operations could be used to sync among
   // threads.
   memory_.InvalidateMutableSharedBase();
+
+  // Updating aliases if the value stored was known as non-aliasing.
+  InvalidateIfAlias(op.value());
 }
 
 void WasmLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
@@ -393,6 +399,9 @@ void WasmLoadEliminationAnalyzer::ProcessArraySet(OpIndex op_idx,
     // among threads.
     memory_.InvalidateMutableSharedBase();
   }
+
+  // Updating aliases if the value stored was known as non-aliasing.
+  InvalidateIfAlias(op.value());
 }
 
 void WasmLoadEliminationAnalyzer::ProcessArrayLength(
@@ -567,7 +576,7 @@ OpIndex WasmLoadEliminationAnalyzer::MaybeReplacePhi(const PhiOp& phi) {
   DCHECK_GT(inputs.size(), 0);
 
   bool same_inputs = true;
-  OpIndex first = memory_.ResolveBase(inputs.first());
+  OpIndex first = memory_.ResolveBase(inputs.front());
   for (const OpIndex& input : inputs.SubVectorFrom(1)) {
     if (memory_.ResolveBase(input) != first) {
       same_inputs = false;

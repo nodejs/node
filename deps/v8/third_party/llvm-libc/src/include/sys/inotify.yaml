@@ -1,0 +1,82 @@
+header: sys/inotify.h
+standards:
+  - linux
+macros:
+  - macro_name: IN_ACCESS
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_MODIFY
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_ATTRIB
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_CLOSE_WRITE
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_CLOSE_NOWRITE
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_CLOSE
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_OPEN
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_MOVED_FROM
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_MOVED_TO
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_MOVE
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_CREATE
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_DELETE
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_DELETE_SELF
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_MOVE_SELF
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_UNMOUNT
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_Q_OVERFLOW
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_IGNORED
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_ONLYDIR
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_DONT_FOLLOW
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_EXCL_UNLINK
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_MASK_CREATE
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_MASK_ADD
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_ISDIR
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_ONESHOT
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_ALL_EVENTS
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_CLOEXEC
+    macro_header: sys-inotify-macros.h
+  - macro_name: IN_NONBLOCK
+    macro_header: sys-inotify-macros.h
+types:
+  - type_name: struct_inotify_event
+enums: []
+objects: []
+functions:
+  - name: inotify_init
+    return_type: int
+    arguments:
+      - type: void
+  - name: inotify_init1
+    return_type: int
+    arguments:
+      - type: int
+  - name: inotify_add_watch
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: uint32_t
+  - name: inotify_rm_watch
+    return_type: int
+    arguments:
+      - type: int
+      - type: int

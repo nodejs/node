@@ -1,0 +1,24 @@
+Tests that CommandLineAPIScope uses HasRealNamedProperty and does not trigger a Proxy has trap on globalThis.
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 2
+            type : number
+            value : 2
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : {
+                globalDebugType : undefined
+                leakedDebugType : undefined
+                sideEffectTriggered : false
+            }
+        }
+    }
+}

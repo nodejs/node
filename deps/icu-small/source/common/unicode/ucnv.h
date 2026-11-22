@@ -551,11 +551,11 @@ U_CAPI UConverter* U_EXPORT2 ucnv_clone(const UConverter *cnv, UErrorCode *statu
  * @return pointer to the new clone
  * @deprecated ICU 71 Use ucnv_clone() instead.
  */
-U_DEPRECATED UConverter * U_EXPORT2
-ucnv_safeClone(const UConverter *cnv,
-               void             *stackBuffer,
-               int32_t          *pBufferSize,
-               UErrorCode       *status);
+U_DEPRECATED UConverter* U_EXPORT2
+ucnv_safeClone(const UConverter* cnv,
+               void* stackBuffer U_LIFETIME_BOUND,
+               int32_t* pBufferSize,
+               UErrorCode* status);
 
 /**
  * \def U_CNV_SAFECLONE_BUFFERSIZE
@@ -868,8 +868,8 @@ ucnv_getDisplayName(const UConverter *converter,
  * @see ucnv_getDisplayName
  * @stable ICU 2.0
  */
-U_CAPI const char * U_EXPORT2
-ucnv_getName(const UConverter *converter, UErrorCode *err);
+U_CAPI const char* U_EXPORT2
+ucnv_getName(const UConverter* converter U_LIFETIME_BOUND, UErrorCode* err);
 
 /**
  * Gets a codepage number associated with the converter. This is not guaranteed

@@ -227,12 +227,12 @@ cleanup:
 #endif
 
 U_CAPI wchar_t* U_EXPORT2
-u_strToWCS(wchar_t *dest, 
+u_strToWCS(wchar_t* dest U_LIFETIME_BOUND,
            int32_t destCapacity,
-           int32_t *pDestLength,
-           const char16_t *src,
+           int32_t* pDestLength,
+           const char16_t* src,
            int32_t srcLength,
-           UErrorCode *pErrorCode){
+           UErrorCode* pErrorCode) {
 
     /* args check */
     if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)){
@@ -483,12 +483,12 @@ cleanup:
 #endif
 
 U_CAPI char16_t* U_EXPORT2
-u_strFromWCS(char16_t   *dest,
-             int32_t destCapacity, 
-             int32_t *pDestLength,
-             const wchar_t *src,
+u_strFromWCS(char16_t* dest U_LIFETIME_BOUND,
+             int32_t destCapacity,
+             int32_t* pDestLength,
+             const wchar_t* src,
              int32_t srcLength,
-             UErrorCode *pErrorCode)
+             UErrorCode* pErrorCode)
 {
 
     /* args check */

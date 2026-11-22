@@ -89,7 +89,8 @@ if (!common.hasIntl) {
   // Check with toLocaleString
   {
     const localeString = dtf.format(date0);
-    assert.strictEqual(localeString, 'Jan 70');
+    // CLDR 49 prepends a U+2019 RIGHT SINGLE QUOTATION MARK to `yy` formats for English locales
+    assert.match(localeString, /Jan \u2019?70/);
   }
   // Options to request GMT
   const optsGMT = { timeZone: GMT };

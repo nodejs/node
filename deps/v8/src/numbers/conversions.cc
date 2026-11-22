@@ -12,9 +12,9 @@
 #include <optional>
 
 #include "include/v8config.h"
-#include "src/base/fpu.h"
 #include "src/base/numbers/dtoa.h"
 #include "src/base/numbers/strtod.h"
+#include "src/base/unique-array.h"
 #include "src/bigint/bigint-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
@@ -224,14 +224,6 @@ uint8_t SignificandToChars(uint64_t n, char* buffer) {
 // This simple base class does not allow formatted output.
 class SimpleStringBuilder final {
  public:
-  // Create a string builder with a buffer of the given size. The
-  // buffer is allocated through NewArray<char> and must be
-  // deallocated by the caller of Finalize().
-  explicit SimpleStringBuilder(size_t size) {
-    buffer_ = base::Vector<char>::New(size);
-    cursor_ = buffer_.begin();
-  }
-
   SimpleStringBuilder(char* buffer, size_t size)
       : buffer_(buffer, size), cursor_(buffer) {}
 
@@ -776,8 +768,7 @@ class NumberParseIntHelper : public StringToIntHelper {
 
     SLOW_DCHECK(buffer_pos < kBufferSize);
     buffer[buffer_pos] = '\0';
-    base::Vector<const char> buffer_vector(buffer, buffer_pos);
-    result_ = Strtod(buffer_vector, 0);
+    result_ = base::Strtod({buffer, buffer_pos}, 0);
     set_state(State::kDone);
   }
 
@@ -952,7 +943,7 @@ double InternalStringToDouble(const Char* current, const Char* end,
 
 double StringToDouble(const char* str, ConversionFlag flags,
                       double empty_string_val) {
-  // We use {base::OneByteVector} instead of {base::CStrVector} to avoid
+  // We use {base::OneByteVector} instead of {std::string_view} to avoid
   // instantiating the InternalStringToDouble() template for {const char*} as
   // well.
   return StringToDouble(base::OneByteVector(str), flags, empty_string_val);
@@ -1262,9 +1253,8 @@ std::string_view DoubleToFixedStringView(double value, int f,
       kDoubleToFixedMaxDigitsBeforePoint + kMaxFractionDigits + 1;
   char decimal_rep[kDecimalRepCapacity];
   int decimal_rep_length;
-  base::DoubleToAscii(value, base::DTOA_FIXED, f,
-                      base::Vector<char>(decimal_rep, kDecimalRepCapacity),
-                      &sign, &decimal_rep_length, &decimal_point);
+  base::DoubleToAscii(value, base::DTOA_FIXED, f, decimal_rep, &sign,
+                      &decimal_rep_length, &decimal_point);
 
   // Create a representation that is padded with zeros if needed.
   int zero_prefix_length = 0;
@@ -1283,7 +1273,8 @@ std::string_view DoubleToFixedStringView(double value, int f,
   unsigned rep_length =
       zero_prefix_length + decimal_rep_length + zero_postfix_length;
   // TODO(pthier): Get rid of this intermediate string builder.
-  base::Vector<char> rep_buffer = base::Vector<char>::New(rep_length + 1);
+  base::UniqueArray<char> rep_buffer =
+      base::UniqueArray<char>::NewForOverwrite(rep_length + 1);
   SimpleStringBuilder rep_builder(rep_buffer.begin(), rep_buffer.size());
   rep_builder.AddPadding('0', zero_prefix_length);
   rep_builder.AddString(decimal_rep, decimal_rep_length);
@@ -1301,7 +1292,6 @@ std::string_view DoubleToFixedStringView(double value, int f,
     builder.AddCharacter('.');
     builder.AddSubstring(rep_buffer.begin() + decimal_point, f);
   }
-  DeleteArray(rep_buffer.begin());
   return {buffer.begin(), builder.Finalize()};
 }
 
@@ -1357,14 +1347,12 @@ std::string_view DoubleToExponentialStringView(double value, int f,
   int decimal_rep_length;
 
   if (f == -1) {
-    base::DoubleToAscii(value, base::DTOA_SHORTEST, 0,
-                        base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
-                        &sign, &decimal_rep_length, &decimal_point);
+    base::DoubleToAscii(value, base::DTOA_SHORTEST, 0, decimal_rep, &sign,
+                        &decimal_rep_length, &decimal_point);
     f = decimal_rep_length - 1;
   } else {
-    base::DoubleToAscii(value, base::DTOA_PRECISION, f + 1,
-                        base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
-                        &sign, &decimal_rep_length, &decimal_point);
+    base::DoubleToAscii(value, base::DTOA_PRECISION, f + 1, decimal_rep, &sign,
+                        &decimal_rep_length, &decimal_point);
   }
   DCHECK_GT(decimal_rep_length, 0);
   DCHECK(decimal_rep_length <= f + 1);
@@ -1394,9 +1382,8 @@ std::string_view DoubleToPrecisionStringView(double value, int p,
   char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
-  base::DoubleToAscii(value, base::DTOA_PRECISION, p,
-                      base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
-                      &sign, &decimal_rep_length, &decimal_point);
+  base::DoubleToAscii(value, base::DTOA_PRECISION, p, decimal_rep, &sign,
+                      &decimal_rep_length, &decimal_point);
   DCHECK(decimal_rep_length <= p);
 
   int exponent = decimal_point - 1;
@@ -1465,20 +1452,9 @@ std::string_view DoubleToRadixStringView(double value, int radix,
   double fraction = value - integer;
   // We only compute fractional digits up to the input double's precision.
   double delta = 0.5 * (base::Double(value).NextDouble() - value);
-  bool delta_is_positive = true;
-  // If the delta rounded down to zero, use the minimum (denormal) delta
-  // value. Be careful around denormal flushing when doing so.
-  if (delta <= 0) {
-    if (base::FPU::GetFlushDenormals()) {
-      // We're flushing the delta value to zero, so the loop below won't
-      // make progress. Skip it instead.
-      delta_is_positive = false;
-    } else {
-      static_assert(base::Double(0.0).NextDouble() > 0);
-      delta = base::Double(0.0).NextDouble();
-    }
-  }
-  if (delta_is_positive && fraction >= delta) {
+  delta = std::max(base::Double(0.0).NextDouble(), delta);
+  DCHECK_GT(delta, 0.0);
+  if (fraction >= delta) {
     // Insert decimal point.
     buffer[fraction_cursor++] = '.';
     do {

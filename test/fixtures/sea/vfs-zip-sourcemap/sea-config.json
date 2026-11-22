@@ -1,0 +1,7 @@
+{
+  "main": "sea.js",
+  "output": "sea-prep.blob",
+  "useVfs": true,
+  "vfsArchive": "assets.zip",
+  "execArgv": ["--enable-source-maps"]
+}

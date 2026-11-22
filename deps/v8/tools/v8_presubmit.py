@@ -36,7 +36,8 @@ import json
 import multiprocessing
 import optparse
 import os
-from os.path import abspath, join, dirname, basename, exists, isfile, isdir
+from os.path import (abspath, join, dirname, basename, exists, isfile, isdir,
+                     relpath)
 import pickle
 import re
 import subprocess
@@ -249,13 +250,21 @@ class SourceFileProcessor(object):
   files and invoke a custom check on the files.
   """
 
+  # Checked-in generated files. The build compares them against the
+  # generator output, so editing them to satisfy a source check does not
+  # work. See src/gen/README.md. PRESUBMIT.py skips the same paths.
+  GENERATED_PATHS = (join('src', 'gen') + os.sep,)
+
   def RunOnPath(self, path):
     """Runs processor on all files under the given path."""
 
     all_files = []
     for file in self.GetPathsToSearch():
       all_files += self.FindFilesIn(join(path, file))
-    return self.ProcessFiles(all_files)
+    return self.ProcessFiles([
+        f for f in all_files
+        if not relpath(f, path).startswith(SourceFileProcessor.GENERATED_PATHS)
+    ])
 
   def RunOnFiles(self, files):
     """Runs processor only on affected files."""

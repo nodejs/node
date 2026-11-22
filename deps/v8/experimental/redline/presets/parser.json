@@ -1,0 +1,7 @@
+{
+  "selection": {"seeds": {"strategy": "rarity"}, "partners": {"strategy": "rarity-partner"},
+    "mutators": {"strategy": "adaptive", "params": {"weights": {"Splice": 4, "Combine": 2}}},
+    "generators": {"strategy": "adaptive", "params": {"weights": {
+      "ClassDecl": 5, "Destructuring": 4, "ArrowDecl": 4, "TemplateDecl": 3, "LabeledBlock": 2,
+      "UsingDecl": 2, "AwaitUsingDecl": 2, "Eval": 2, "With": 1}}}}
+}

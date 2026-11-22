@@ -71,7 +71,7 @@ void LiftoffAssembler::PushException() {
 }
 
 void LiftoffAssembler::PushConstant(ValueKind kind, int32_t i32_const) {
-  V8_ASSUME(kind == kI32 || kind == kI64);
+  V8_ASSUME(kind == kI32 || kind == kI64 || kind == kF32 || kind == kF64);
   cache_state_.stack_state.emplace_back(kind, i32_const, NextSpillOffset(kind));
 }
 

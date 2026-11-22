@@ -122,7 +122,7 @@ public:
      * @return *this
      * @stable ICU 60
      */
-    Edits &operator=(const Edits &other);
+    Edits& operator=(const Edits& other) U_LIFETIME_BOUND;
 
     /**
      * Move assignment operator, might leave src empty.
@@ -132,7 +132,7 @@ public:
      * @return *this
      * @stable ICU 60
      */
-    Edits &operator=(Edits &&src) noexcept;
+    Edits& operator=(Edits&& src) noexcept U_LIFETIME_BOUND;
 
     /**
      * Resets the data but may not release memory.
@@ -219,7 +219,7 @@ public:
          * Assignment operator.
          * @stable ICU 59
          */
-        Iterator &operator=(const Iterator &other) = default;
+        Iterator& operator=(const Iterator& other) U_LIFETIME_BOUND = default;
 
         /**
          * Advances the iterator to the next edit.
@@ -397,13 +397,13 @@ public:
          * should not depend on the contents of the return string.
          * @internal
          */
-        UnicodeString& toString(UnicodeString& appendTo) const;
+        UnicodeString& toString(UnicodeString& appendTo U_LIFETIME_BOUND) const;
 #endif  // U_HIDE_INTERNAL_API
 
     private:
         friend class Edits;
 
-        Iterator(const uint16_t *a, int32_t len, UBool oc, UBool crs);
+        Iterator(const uint16_t* a U_LIFETIME_BOUND, int32_t len, UBool oc, UBool crs);
 
         int32_t readLength(int32_t head);
         void updateNextIndexes();
@@ -435,7 +435,7 @@ public:
      * @return an Iterator that merges adjacent changes.
      * @stable ICU 59
      */
-    Iterator getCoarseChangesIterator() const {
+    Iterator getCoarseChangesIterator() const U_LIFETIME_BOUND {
         return Iterator(array, length, true, true);
     }
 
@@ -447,7 +447,7 @@ public:
      * @return an Iterator that merges adjacent changes.
      * @stable ICU 59
      */
-    Iterator getCoarseIterator() const {
+    Iterator getCoarseIterator() const U_LIFETIME_BOUND {
         return Iterator(array, length, false, true);
     }
 
@@ -459,7 +459,7 @@ public:
      * @return an Iterator that separates adjacent changes.
      * @stable ICU 59
      */
-    Iterator getFineChangesIterator() const {
+    Iterator getFineChangesIterator() const U_LIFETIME_BOUND {
         return Iterator(array, length, true, false);
     }
 
@@ -470,7 +470,7 @@ public:
      * @return an Iterator that separates adjacent changes.
      * @stable ICU 59
      */
-    Iterator getFineIterator() const {
+    Iterator getFineIterator() const U_LIFETIME_BOUND {
         return Iterator(array, length, false, false);
     }
 
@@ -501,12 +501,12 @@ public:
      * @return *this, with the merged edits appended
      * @stable ICU 60
      */
-    Edits &mergeAndAppend(const Edits &ab, const Edits &bc, UErrorCode &errorCode);
+    Edits& mergeAndAppend(const Edits& ab, const Edits& bc, UErrorCode& errorCode) U_LIFETIME_BOUND;
 
 private:
     void releaseArray() noexcept;
-    Edits &copyArray(const Edits &other);
-    Edits &moveArray(Edits &src) noexcept;
+    Edits& copyArray(const Edits& other) U_LIFETIME_BOUND;
+    Edits& moveArray(Edits& src) noexcept U_LIFETIME_BOUND;
 
     void setLastUnit(int32_t last) { array[length - 1] = static_cast<uint16_t>(last); }
     int32_t lastUnit() const { return length > 0 ? array[length - 1] : 0xffff; }

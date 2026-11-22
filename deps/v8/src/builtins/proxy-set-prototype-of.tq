@@ -39,8 +39,7 @@ transitioning builtin ProxySetPrototypeOf(
     // 9. If booleanTrapResult is false, return false.
     if (!ToBoolean(trapResult)) {
       if (doThrow == True) {
-        ThrowTypeError(
-            MessageTemplate::kProxyTrapReturnedFalsishFor, kTrapName);
+        ThrowTypeError(MessageTemplate::kProxyTrapReturnedFalsish, kTrapName);
       }
       return False;
     }

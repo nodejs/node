@@ -39,6 +39,8 @@ class V8_EXPORT_PRIVATE CodeFactory final {
                                               TypeofMode typeof_mode);
   static Callable DefineNamedOwnIC(Isolate* isolate);
   static Callable DefineNamedOwnICInOptimizedCode(Isolate* isolate);
+  static Callable DefineNamedOwnInLiteralIC(Isolate* isolate);
+  static Callable DefineNamedOwnInLiteralICInOptimizedCode(Isolate* isolate);
 
   static Callable CallApiCallback(Isolate* isolate);
 

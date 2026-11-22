@@ -7,7 +7,6 @@
 #include <atomic>
 
 #include "include/v8-platform.h"
-#include "src/base/fpu.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/codegen/compiler.h"
@@ -420,8 +419,6 @@ void LazyCompileDispatcher::ScheduleIdleTaskFromAnyThread(
 }
 
 void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
-  base::FlushDenormalsScope flush_denormals_scope(isolate_->flush_denormals());
-
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
               "V8.LazyCompileDispatcherDoBackgroundWork");
 

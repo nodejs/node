@@ -75,9 +75,23 @@ class Arguments {
     // Corruption of certain heap objects (see e.g. crbug.com/1507223) can lead
     // to OOB arguments access, and therefore OOB stack access. This SBXCHECK
     // defends against that.
-    // Note: "LE" is intentional: it's okay to compute the address of the
-    // first nonexistent entry.
+    SBXCHECK_LT(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
+    return address_of_arg_at_unchecked(index);
+  }
+
+  // Allowed for callers that only compute a past-the-end address and do not
+  // dereference it (e.g. BuiltinArguments::address_of_first_argument).
+  V8_INLINE Address* address_of_arg_at_or_end(int index) const {
     SBXCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
+    return address_of_arg_at_unchecked(index);
+  }
+
+  // Get the total number of arguments including the receiver.
+  V8_INLINE int length() const { return static_cast<int>(length_); }
+  V8_INLINE uint32_t ulength() const { return static_cast<uint32_t>(length_); }
+
+ private:
+  V8_INLINE Address* address_of_arg_at_unchecked(int index) const {
     uintptr_t offset = index * kSystemPointerSize;
     if (arguments_type == ArgumentsType::kJS) {
       offset = (length_ - index - 1) * kSystemPointerSize;
@@ -86,11 +100,6 @@ class Arguments {
                                       offset);
   }
 
-  // Get the total number of arguments including the receiver.
-  V8_INLINE int length() const { return static_cast<int>(length_); }
-  V8_INLINE uint32_t ulength() const { return static_cast<uint32_t>(length_); }
-
- private:
   intptr_t length_;
   Address* arguments_;
 };

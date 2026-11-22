@@ -26,8 +26,16 @@ spawnSyncAndAssert(process.execPath, [
     assertProbeJson(output, {
       v: 2,
       probes: [
-        { expr: 'value', target: { suffix: 'probe-late-target.mjs', line: 3 } },
-        { expr: 'value', target: { suffix: 'probe-late-target.cjs', line: 5 } },
+        {
+          expr: 'value',
+          target: { suffix: 'probe-late-target.mjs', line: 3 },
+          locations: [{ url: esmUrl, line: 3, column: 3 }],
+        },
+        {
+          expr: 'value',
+          target: { suffix: 'probe-late-target.cjs', line: 5 },
+          locations: [{ url: cjsUrl, line: 5, column: 3 }],
+        },
       ],
       results: [
         {

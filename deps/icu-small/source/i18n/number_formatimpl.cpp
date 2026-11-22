@@ -24,6 +24,17 @@ using namespace icu;
 using namespace icu::number;
 using namespace icu::number::impl;
 
+namespace {
+
+// Maximum number of integer or fraction digits we will output during formatting.
+// Set to 999,999 to allow valid large-range performance tests (e.g., test21684_Performance
+// formatting -1e99999) while preventing runaway loops, allocation spikes, and timeouts
+// when formatting numbers with hugely out-of-bounds magnitudes (like scale/1e200000000).
+// This value may be tuned to a smaller value later if necessary.
+constexpr int32_t kMaxFormattedDigits = 999999;
+
+}  // namespace
+
 
 NumberFormatterImpl::NumberFormatterImpl(const MacroProps& macros, UErrorCode& status)
     : NumberFormatterImpl(macros, true, status) {
@@ -188,16 +199,14 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
     if (macros.symbols.isDecimalFormatSymbols()) {
         fMicros.simple.symbols = macros.symbols.getDecimalFormatSymbols();
     } else {
+        auto localeWithCurrency = macros.locale;
+        CharString currency8;
+        currency8.appendInvariantChars(currency.getISOCurrency(), 3, status);
+        localeWithCurrency.setKeywordValue("currency", currency8.data(), status);
         LocalPointer<DecimalFormatSymbols> newSymbols(
-            new DecimalFormatSymbols(macros.locale, *ns, status), status);
+            new DecimalFormatSymbols(localeWithCurrency, *ns, status), status);
         if (U_FAILURE(status)) {
             return nullptr;
-        }
-        if (isCurrency) {
-            newSymbols->setCurrency(currency.getISOCurrency(), status);
-            if (U_FAILURE(status)) {
-                return nullptr;
-            }
         }
         fMicros.simple.symbols = newSymbols.getAlias();
         fSymbols.adoptInstead(newSymbols.orphan());
@@ -537,6 +546,11 @@ int32_t NumberFormatterImpl::writeNumber(
                 status);
 
     } else {
+        if (quantity.getUpperDisplayMagnitude() + 1 > kMaxFormattedDigits ||
+            -quantity.getLowerDisplayMagnitude() > kMaxFormattedDigits) {
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return 0;
+        }
         // Add the integer digits
         length += writeIntegerDigits(
             micros,
@@ -594,8 +608,13 @@ int32_t NumberFormatterImpl::writeIntegerDigits(
         FormattedStringBuilder& string,
         int32_t index,
         UErrorCode& status) {
+    if (U_FAILURE(status)) { return 0; }
     int length = 0;
     int integerCount = quantity.getUpperDisplayMagnitude() + 1;
+    if (integerCount > kMaxFormattedDigits) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
     for (int i = 0; i < integerCount; i++) {
         // Add grouping separator
         if (micros.grouping.groupAtPosition(i, quantity)) {
@@ -629,8 +648,13 @@ int32_t NumberFormatterImpl::writeFractionDigits(
         FormattedStringBuilder& string,
         int32_t index,
         UErrorCode& status) {
+    if (U_FAILURE(status)) { return 0; }
     int length = 0;
     int fractionCount = -quantity.getLowerDisplayMagnitude();
+    if (fractionCount > kMaxFormattedDigits) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
     for (int i = 0; i < fractionCount; i++) {
         // Get and append the next digit value
         int8_t nextDigit = quantity.getDigit(-i - 1);

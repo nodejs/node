@@ -2,11 +2,11 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+use crate::Date;
+use crate::Gregorian;
 use crate::cal::abstract_gregorian::AbstractGregorianYear;
 use crate::cal::gregorian::GregorianDateInner;
 use crate::calendar_arithmetic::ArithmeticDate;
-use crate::Date;
-use crate::Gregorian;
 
 impl From<jiff::civil::Date> for Date<Gregorian> {
     fn from(jiff: jiff::civil::Date) -> Self {

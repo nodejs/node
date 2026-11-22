@@ -1283,12 +1283,15 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&non_null_proto);
     {
       new_properties = EmptyFixedArrayConstant();
-      map = LoadObjectFunctionInitialMap(native_context);
+      TNode<JSFunction> object_function = Cast(LoadContextElementNoCell(
+          native_context, Context::OBJECT_FUNCTION_INDEX));
+      map = CAST(LoadJSFunctionPrototypeOrInitialMap(object_function));
       GotoIf(TaggedEqual(prototype, LoadMapPrototype(map.value())),
              &instantiate_map);
+      TNode<Map> prototype_map = LoadMap(CAST(prototype));
       // Try loading the prototype info.
       TNode<PrototypeInfo> prototype_info =
-          LoadMapPrototypeInfo(LoadMap(CAST(prototype)), &call_runtime);
+          LoadMapPrototypeInfo(prototype_map, &call_runtime);
       Comment("Load ObjectCreateMap from PrototypeInfo");
       TNode<HeapObject> derived_maps = CAST(LoadObjectField(
           prototype_info, offsetof(PrototypeInfo, derived_maps_)));
@@ -1300,6 +1303,20 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       TNode<MaybeObject> maybe_map = UncheckedCast<MaybeObject>(LoadObjectField(
           derived_maps, IntPtrConstant(WeakArrayList::kHeaderSize)));
       map = CAST(GetHeapObjectAssumeWeak(maybe_map, &call_runtime));
+      // Only use the cached map in PrototypeInfo if the prototype belongs to
+      // the same native context, matching Map::GetObjectCreateMap.
+      TNode<BoolT> is_same_context;
+      {
+        TNode<JSFunction> constructor =
+            CAST(LoadMapConstructorOrBackPointerOrNativeContext(map.value()));
+        // Given that we already have both object_function and the initial map,
+        // this is a faster version of BelongsToSameNativeContextAs.
+        is_same_context = TaggedEqual(constructor, object_function);
+        CSA_DCHECK(this, Word32Equal(is_same_context,
+                                     BelongsToSameNativeContextAs(
+                                         map.value(), native_context)));
+      }
+      GotoIfNot(is_same_context, &call_runtime);
       Goto(&instantiate_map);
     }
 

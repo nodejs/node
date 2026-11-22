@@ -41,6 +41,9 @@ function getAll() {
 
   const req = net.connect(server.address().port);
   req.resume();
+  req.on('error', (err) => {
+    if (err?.code !== 'ECONNRESET') throw err;
+  });
   req.setTimeout(10, function() {
     req.destroy();
     done++;

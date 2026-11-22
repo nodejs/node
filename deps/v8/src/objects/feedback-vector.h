@@ -16,6 +16,7 @@
 #include "src/base/small-vector.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/map.h"
@@ -294,6 +295,7 @@ V8_OBJECT class ClosureFeedbackCellArray
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
@@ -303,19 +305,43 @@ class NexusConfig;
 // of length determined by the feedback metadata.
 V8_OBJECT class FeedbackVector : public HeapObject {
  public:
-  // Bit positions in |osr_state|.
-  using OsrUrgencyBits = base::BitField<uint32_t, 0, 3, uint8_t>;
-  using MaybeHasTurbofanOsrCodeBit = OsrUrgencyBits::Next<bool, 1>;
-  using MaybeHasMaglevOsrCodeBit = MaybeHasTurbofanOsrCodeBit::Next<bool, 1>;
-  using DontUseTheseBitsUnlessBeneficialBits =
-      MaybeHasMaglevOsrCodeBit::Next<uint32_t, 3>;
-  // Bit positions in |flags|.
-  using TieringInProgressBit = base::BitField<bool, 0, 1, uint16_t>;
-  using OsrTieringInProgressBit = TieringInProgressBit::Next<bool, 1>;
-  using InterruptBudgetResetByIcChangeBit =
-      OsrTieringInProgressBit::Next<bool, 1>;
-  using AllYourBitsAreBelongToJgruberBits =
-      InterruptBudgetResetByIcChangeBit::Next<uint32_t, 13>;
+  inline FeedbackVector(
+      const AllocationWitness& witness, int32_t length,
+      Tagged<SharedFunctionInfo> shared_function_info,
+      Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array,
+      Tagged<FeedbackCell> parent_feedback_cell);
+
+  struct OsrState : BitFieldGroup<OsrState, uint8_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using OsrUrgencyBits = First<uint32_t, 3>;
+    using MaybeHasTurbofanOsrCodeBit = OsrUrgencyBits::Next<bool, 1>;
+    using MaybeHasMaglevOsrCodeBit = MaybeHasTurbofanOsrCodeBit::Next<bool, 1>;
+    using DontUseTheseBitsUnlessBeneficialBits =
+        MaybeHasMaglevOsrCodeBit::Next<uint32_t, 3>;
+
+    BIT_FIELD_GROUP_ACCESSORS(osr_urgency, OsrUrgencyBits)
+    BIT_FIELD_GROUP_ACCESSORS(maybe_has_turbofan_osr_code,
+                              MaybeHasTurbofanOsrCodeBit)
+    BIT_FIELD_GROUP_ACCESSORS(maybe_has_maglev_osr_code,
+                              MaybeHasMaglevOsrCodeBit)
+  };
+
+  struct Flags : BitFieldGroup<Flags, uint16_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using TieringInProgressBit = First<bool, 1>;
+    using OsrTieringInProgressBit = TieringInProgressBit::Next<bool, 1>;
+    using InterruptBudgetResetByIcChangeBit =
+        OsrTieringInProgressBit::Next<bool, 1>;
+    using AllYourBitsAreBelongToJgruberBits =
+        InterruptBudgetResetByIcChangeBit::Next<uint32_t, 13>;
+
+    BIT_FIELD_GROUP_ACCESSORS(tiering_in_progress, TieringInProgressBit)
+    BIT_FIELD_GROUP_ACCESSORS(osr_tiering_in_progress, OsrTieringInProgressBit)
+    BIT_FIELD_GROUP_ACCESSORS(interrupt_budget_reset_by_ic_change,
+                              InterruptBudgetResetByIcChangeBit)
+  };
 
   inline bool is_empty() const;
 
@@ -325,7 +351,6 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   DECL_ACQUIRE_GETTER(metadata, Tagged<FeedbackMetadata>)
 
   inline SafeHeapObjectSize length() const;
-  inline void set_length(int32_t value);
 
   inline int32_t invocation_count() const;
   inline int32_t invocation_count(RelaxedLoadTag) const;
@@ -339,25 +364,17 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   inline void set_invocation_count_before_stable(uint8_t value,
                                                  RelaxedStoreTag);
 
-  inline uint8_t osr_state() const;
-  inline void set_osr_state(uint8_t value);
+  inline OsrState osr_state() const;
+  inline void set_osr_state(OsrState value);
 
-  inline uint16_t flags() const;
-  inline void set_flags(uint16_t value);
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   inline Tagged<SharedFunctionInfo> shared_function_info() const;
-  inline void set_shared_function_info(
-      Tagged<SharedFunctionInfo> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array() const;
-  inline void set_closure_feedback_cell_array(
-      Tagged<ClosureFeedbackCellArray> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<FeedbackCell> parent_feedback_cell() const;
-  inline void set_parent_feedback_cell(
-      Tagged<FeedbackCell> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // In case a function deoptimizes we set invocation_count_before_stable to
   // this sentinel.
@@ -367,7 +384,7 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   // the function becomes hotter. When the current loop depth is less than the
   // osr_urgency, JumpLoop calls into runtime to attempt OSR optimization.
   static constexpr int kMaxOsrUrgency = 6;
-  static_assert(OsrUrgencyBits::is_valid(kMaxOsrUrgency));
+  static_assert(OsrState::OsrUrgencyBits::is_valid(kMaxOsrUrgency));
   inline int osr_urgency() const;
   inline void set_osr_urgency(int urgency);
   inline void reset_osr_urgency();
@@ -381,9 +398,6 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   inline bool maybe_has_turbofan_osr_code() const;
   inline bool maybe_has_optimized_osr_code() const;
   inline void set_maybe_has_optimized_osr_code(bool value, CodeKind code_kind);
-
-  // The `osr_state` contains the osr_urgency and maybe_has_optimized_osr_code.
-  inline void reset_osr_state();
 
   // Optimized OSR'd code is cached in JumpLoop feedback vector slots. The
   // slots either contain a Code object or the ClearedValue.
@@ -419,8 +433,6 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   // TODO(olivf): Have a more granular (e.g., per loop) mechanism.
   inline bool was_once_deoptimized() const;
   inline void set_was_once_deoptimized();
-
-  void reset_flags();
 
   // Conversion from a slot to an integer index to the underlying array.
   static int GetIndex(FeedbackSlot slot) { return slot.ToInt(); }
@@ -554,23 +566,25 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   friend NexusConfig;
 
  public:
-  int32_t length_;
-  std::atomic<int32_t> invocation_count_;
+  V8_TQ_CONST const int32_t length_;
+  std::atomic<int32_t> invocation_count_ = 0;
 #if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
+  const uint32_t optional_padding_ = 0;
 #endif
-  std::atomic<uint8_t> invocation_count_before_stable_;
-  uint8_t osr_state_;
-  uint16_t flags_;
-  TaggedMember<SharedFunctionInfo> shared_function_info_;
-  TaggedMember<ClosureFeedbackCellArray> closure_feedback_cell_array_;
-  TaggedMember<FeedbackCell> parent_feedback_cell_;
+  std::atomic<uint8_t> invocation_count_before_stable_ = 0;
+  OsrState osr_state_;
+  Flags flags_;
+  const TaggedMember<SharedFunctionInfo> shared_function_info_;
+  const TaggedMember<ClosureFeedbackCellArray> closure_feedback_cell_array_;
+  const TaggedMember<FeedbackCell> parent_feedback_cell_;
 
  private:
   // Variable-length tail: each slot is a maybe-weak feedback value. Access
   // goes through Get/SynchronizedGet/Set; callers should not reach the tail
   // directly.
-  FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, raw_feedback_slots);
+  V8_TQ_TAIL_LENGTH(length);
+  FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, raw_feedback_slots,
+                        V8_TQ_RELAXED);
 } V8_OBJECT_END;
 
 inline constexpr int FeedbackVector::kHeaderSize =
@@ -764,9 +778,11 @@ class SharedFeedbackSlot {
 // after the int32s of the slots.
 V8_OBJECT class FeedbackMetadata : public HeapObject {
  public:
+  inline FeedbackMetadata(const AllocationWitness& witness, int32_t slot_count,
+                          int32_t create_closure_slot_count);
+
   // The number of slots that this metadata contains. Stored as an int32.
   inline int32_t slot_count() const { return slot_count_; }
-  inline void set_slot_count(int32_t value) { slot_count_ = value; }
 
   // The number of feedback cells required for create closures. Stored as an
   // int32.
@@ -774,9 +790,6 @@ V8_OBJECT class FeedbackMetadata : public HeapObject {
   // can save 4 bytes.
   inline int32_t create_closure_slot_count() const {
     return create_closure_slot_count_;
-  }
-  inline void set_create_closure_slot_count(int32_t value) {
-    create_closure_slot_count_ = value;
   }
 
   // Get slot_count using an acquire load.
@@ -850,8 +863,8 @@ V8_OBJECT class FeedbackMetadata : public HeapObject {
                            kInt32Size * kBitsPerByte, uint32_t>;
 
  public:
-  int32_t slot_count_;
-  int32_t create_closure_slot_count_;
+  const int32_t slot_count_;
+  const int32_t create_closure_slot_count_;
 } V8_OBJECT_END;
 
 inline constexpr int FeedbackMetadata::kHeaderSize = sizeof(FeedbackMetadata);

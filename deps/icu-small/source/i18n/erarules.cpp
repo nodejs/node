@@ -17,6 +17,7 @@
 #include "erarules.h"
 #include "gregoimp.h"
 #include "uassert.h"
+#include "uinvchar.h"
 #include "uvectr32.h"
 
 U_NAMESPACE_BEGIN
@@ -103,22 +104,49 @@ static int32_t compareEncodedDateWithYMD(int encoded, int year, int month, int d
     }
 }
 
-EraRules::EraRules(LocalMemory<int32_t>& startDatesIn, int32_t startDatesLengthIn, int32_t minEraIn, int32_t numErasIn)
-    : startDatesLength(startDatesLengthIn), minEra(minEraIn), numEras(numErasIn) {
+EraRules::EraRules(const char* calTypeId, LocalMemory<int32_t>& startDatesIn, int32_t startDatesLengthIn,
+        int32_t minEraIn, int32_t numErasIn)
+        : startDatesLength(startDatesLengthIn), minEra(minEraIn), numEras(numErasIn), inheritEraRules(nullptr) {
+    U_ASSERT(uprv_strlen(calTypeId) <= MAX_CAL_ID_LENGTH);
+    uprv_strcpy(this->calTypeId, calTypeId);
     startDates = std::move(startDatesIn);
     initCurrentEra();
 }
 
 EraRules::~EraRules() {
+    delete inheritEraRules;
 }
 
-EraRules* EraRules::createInstance(const char *calType, UBool includeTentativeEra, UErrorCode& status) {
+EraRules* EraRules::createInstance(const char *calTypeId, UBool includeTentativeEra, UErrorCode& status) {
     if(U_FAILURE(status)) {
         return nullptr;
     }
+    if (calTypeId == nullptr || uprv_strlen(calTypeId) > MAX_CAL_ID_LENGTH) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return nullptr;
+    }
+
     LocalUResourceBundlePointer rb(ures_openDirect(nullptr, "supplementalData", &status));
     ures_getByKey(rb.getAlias(), "calendarData", rb.getAlias(), &status);
-    ures_getByKey(rb.getAlias(), calType, rb.getAlias(), &status);
+    ures_getByKey(rb.getAlias(), calTypeId, rb.getAlias(), &status);
+
+    // Check they key "inheritEras" to see if this calendar inherits eras from another calendar.
+    const char *inheritCalType = nullptr;
+    char inheritCalTypeBuf[MAX_CAL_ID_LENGTH + 1];
+    int32_t inheritCalTypeLen = 0;
+    UErrorCode tmpStatus = U_ZERO_ERROR;
+    const UChar *inheritCalTypeStr = ures_getStringByKey(rb.getAlias(), "inheritEras", &inheritCalTypeLen, &tmpStatus);
+    if (U_SUCCESS(tmpStatus)) {
+        if (inheritCalTypeLen > MAX_CAL_ID_LENGTH && !uprv_isInvariantUString(inheritCalTypeStr, inheritCalTypeLen)) {
+            // calendar type ID from data is too long or not in ASCII
+            status = U_INVALID_FORMAT_ERROR;
+            return nullptr;
+        }
+        u_UCharsToChars(inheritCalTypeStr, inheritCalTypeBuf, inheritCalTypeLen);
+        inheritCalTypeBuf[inheritCalTypeLen] = 0;
+        inheritCalType = inheritCalTypeBuf;
+    }
+
     ures_getByKey(rb.getAlias(), "eras", rb.getAlias(), &status);
 
     if (U_FAILURE(status)) {
@@ -257,11 +285,47 @@ EraRules* EraRules::createInstance(const char *calType, UBool includeTentativeEr
     for (int32_t eraIdx = 0; eraIdx < eraStartDates.size(); eraIdx++) {
         startDates[eraIdx] = eraStartDates.elementAti(eraIdx);
     }
-    EraRules *result = new EraRules(startDates, eraStartDates.size(), minEra, numEras);
-    if (result == nullptr) {
-        status = U_MEMORY_ALLOCATION_ERROR;
+    LocalPointer<EraRules> result(new EraRules(calTypeId, startDates, eraStartDates.size(), minEra, numEras), status);
+    if (U_FAILURE(status)) {
+        return nullptr;
     }
-    return result;
+
+    // Initialize era rules from inherited calendar
+    if (inheritCalType) {
+        tmpStatus = U_ZERO_ERROR;
+        LocalPointer<EraRules> tmpEraRules(createInstance(inheritCalType, includeTentativeEra, status), tmpStatus);
+        if (U_FAILURE(tmpStatus)) {
+            status = tmpStatus;
+            return nullptr;
+        }
+        if (U_FAILURE(status)) {
+            return nullptr;
+        }
+        result->inheritEraRules = tmpEraRules.orphan();
+    }
+
+    return result.orphan();
+}
+
+int32_t EraRules::getNextEraCode(int32_t eraCode) const {
+    int32_t nextEra = eraCode + 1;
+    if (nextEra < minEra) {
+        if (inheritEraRules != nullptr) {
+            if (nextEra > inheritEraRules->getMaxEraCode()) {
+                nextEra = minEra;
+            } else {
+                nextEra = inheritEraRules->getNextEraCode(eraCode);
+            }
+        } else {
+            nextEra = minEra;
+        }
+    } else {
+        int32_t maxEra = getMaxEraCode();
+        if (nextEra > maxEra) {
+            nextEra = maxEra;
+        }
+    }
+    return nextEra;
 }
 
 void EraRules::getStartDate(int32_t eraCode, int32_t (&fields)[3], UErrorCode& status) const {
@@ -269,7 +333,14 @@ void EraRules::getStartDate(int32_t eraCode, int32_t (&fields)[3], UErrorCode& s
         return;
     }
     int32_t startDate = 0;
-    if (eraCode >= minEra) {
+    if (eraCode < minEra) {
+        if (inheritEraRules != nullptr) {
+            if (eraCode >= inheritEraRules->getMinEraCode()) {
+                inheritEraRules->getStartDate(eraCode, fields, status);
+                return;
+            }
+        }
+    } else {
         int32_t startIdx = eraCode - minEra;
         if (startIdx < startDatesLength) {
             startDate = startDates[startIdx];
@@ -289,22 +360,9 @@ int32_t EraRules::getStartYear(int32_t eraCode, UErrorCode& status) const {
     if(U_FAILURE(status)) {
         return year;
     }
-    int32_t startDate = 0;
-    if (eraCode >= minEra) {
-        int32_t startIdx = eraCode - minEra;
-        if (startIdx < startDatesLength) {
-            startDate = startDates[startIdx];
-        }
-    }
-    if (isSet(startDate)) {
-        int fields[3];
-        decodeDate(startDate, fields);
-        year = fields[0];
-        return year;
-    }
-    // We did not find the requested eraCode in our data
-    status = U_ILLEGAL_ARGUMENT_ERROR;
-    return year;
+    int32_t fields[3] = {0, 0, 0};
+    getStartDate(eraCode, fields, status);
+    return fields[0];
 }
 
 int32_t EraRules::getEraCode(int32_t year, int32_t month, int32_t day, UErrorCode& status) const {
@@ -327,6 +385,7 @@ int32_t EraRules::getEraCode(int32_t year, int32_t month, int32_t day, UErrorCod
                 return minEra + startIdx;
             }
         }
+        return minEra + startDatesLength - 1;
     }
     // Linear search from the end, which should hit the most likely eras first.
     // Also this is the most efficient for any era if we have < 8 or so eras, so only less
@@ -342,10 +401,19 @@ int32_t EraRules::getEraCode(int32_t year, int32_t month, int32_t day, UErrorCod
             return minEra + startIdx;
         }
     }
+
+    // Note: Inherit era rules should be only applied to date before the start of minEra.
+    if (inheritEraRules != nullptr) {
+        return inheritEraRules->getEraCode(year, month, day, status);
+    }
+
     return minEra;
 }
 
 void EraRules::initCurrentEra() {
+    // Note: This implementation assumes current era is the primary era rules,
+    // not in inherited era rules.
+
     // Compute local wall time in millis using ICU's default time zone.
     UErrorCode ec = U_ZERO_ERROR;
     UDate localMillis = ucal_getNow();

@@ -4,6 +4,7 @@
 
 #include "include/cppgc/platform.h"
 
+#include "include/cppgc/common.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -104,5 +105,19 @@ void InitializeProcess(PageAllocator* page_allocator,
 }
 
 void ShutdownProcess() { internal::g_page_allocator = nullptr; }
+
+StackStartScope::StackStartScope(void* stack_start)
+    : previous_stack_start_(
+          v8::base::Stack::SetCurrentThreadStackStart(stack_start)) {
+  CHECK_NOT_NULL(stack_start);
+  CHECK_IMPLIES(previous_stack_start_, stack_start <= previous_stack_start_);
+}
+
+StackStartScope::~StackStartScope() {
+  void* stack_start =
+      v8::base::Stack::SetCurrentThreadStackStart(previous_stack_start_);
+  CHECK_NOT_NULL(stack_start);
+  CHECK_IMPLIES(previous_stack_start_, stack_start <= previous_stack_start_);
+}
 
 }  // namespace cppgc

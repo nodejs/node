@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <format>
+#include <string_view>
+
 #include "include/v8-context.h"
 #include "include/v8-function.h"
 #include "include/v8-isolate.h"
@@ -9,8 +12,11 @@
 #include "include/v8-platform.h"
 #include "include/v8-primitive.h"
 #include "include/v8-script.h"
+#include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/common/synchronization-point-support.h"
+#include "src/objects/script-inl.h"
+#include "src/objects/string-inl.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -195,6 +201,210 @@ TEST_F(DeserializeTest, OffThreadDeserialize) {
     CHECK(!source.GetCachedData()->rejected);
     CHECK(!script->Run(context()).IsEmpty());
     CHECK_EQ(RunGlobalFunc("foo"), v8::Integer::New(isolate(), 42));
+  }
+}
+
+namespace {
+
+std::string LongMagicCommentValue() {
+  return std::format("data:application/json;base64,{:A>2000}", "");
+}
+
+std::string SourceWithLongMagicComments(
+    std::string_view body = "function foo() { return 42; }") {
+  return std::format(
+      "{0}\n//# sourceURL={1}\n//# sourceMappingURL={1}\n//# debugId={1}\n",
+      body, LongMagicCommentValue());
+}
+
+// Compiled scripts have the source map URL magic comment value as a slice of
+// the source (the source URL and debug ID are sequential copies). The code
+// cache contains it as a sequential string, since the slice could not be
+// deserialized off-thread, where the source is not available.
+void CheckLongMagicCommentValues(Isolate* isolate, Local<Script> script,
+                                 bool expect_slices) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::DirectHandle<i::Script> i_script(
+      i::Cast<i::Script>(
+          Utils::OpenDirectHandle(*script->GetUnboundScript())->script()),
+      i_isolate);
+  std::string value = LongMagicCommentValue();
+  // The source URL and debug ID are always sequential strings.
+  i::Tagged<i::Object> copied_fields[] = {i_script->source_url(),
+                                          i_script->debug_id()};
+  for (i::Tagged<i::Object> field : copied_fields) {
+    CHECK(i::IsSeqString(field));
+    CHECK(i::Cast<i::String>(field)->IsEqualTo(
+        base::OneByteVector(value.data(), value.size())));
+  }
+  i::Tagged<i::Object> source_mapping_url = i_script->source_mapping_url();
+  CHECK_EQ(expect_slices, i::IsSlicedString(source_mapping_url));
+  if (expect_slices) {
+    CHECK_EQ(i::Cast<i::SlicedString>(source_mapping_url)->parent(),
+             i_script->source());
+  }
+  CHECK(i::Cast<i::String>(source_mapping_url)
+            ->IsEqualTo(base::OneByteVector(value.data(), value.size())));
+}
+
+}  // namespace
+
+TEST_F(DeserializeTest, DeserializeLongMagicComments) {
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
+  std::string source_text = SourceWithLongMagicComments();
+
+  {
+    IsolateAndContextScope scope(this);
+    Local<Script> script =
+        Script::Compile(context(), NewString(source_text.c_str()))
+            .ToLocalChecked();
+    CheckLongMagicCommentValues(isolate(), script, true);
+    cached_data.reset(
+        ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+  }
+
+  {
+    IsolateAndContextScope scope(this);
+    ScriptCompiler::Source source(NewString(source_text.c_str()),
+                                  cached_data.release());
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    CHECK(!source.GetCachedData()->rejected);
+    CheckLongMagicCommentValues(isolate(), script, false);
+    CHECK(!script->Run(context()).IsEmpty());
+    CHECK_EQ(RunGlobalFunc("foo"), Integer::New(isolate(), 42));
+  }
+}
+
+TEST_F(DeserializeTest, OffThreadDeserializeLongMagicComments) {
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
+  std::string source_text = SourceWithLongMagicComments();
+
+  {
+    IsolateAndContextScope scope(this);
+    Local<Script> script =
+        Script::Compile(context(), NewString(source_text.c_str()))
+            .ToLocalChecked();
+    CheckLongMagicCommentValues(isolate(), script, true);
+    cached_data.reset(
+        ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+  }
+
+  {
+    IsolateAndContextScope scope(this);
+    DeserializeThread deserialize_thread(
+        ScriptCompiler::StartConsumingCodeCache(
+            isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                           cached_data->data, cached_data->length,
+                           ScriptCompiler::CachedData::BufferNotOwned)));
+    CHECK(deserialize_thread.Start());
+    deserialize_thread.Join();
+
+    ScriptCompiler::Source source(NewString(source_text.c_str()),
+                                  cached_data.release(),
+                                  deserialize_thread.TakeTask().release());
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    CHECK(!source.GetCachedData()->rejected);
+    CheckLongMagicCommentValues(isolate(), script, false);
+    CHECK(!script->Run(context()).IsEmpty());
+    CHECK_EQ(RunGlobalFunc("foo"), Integer::New(isolate(), 42));
+  }
+}
+
+TEST_F(DeserializeTest, DeserializeLongMagicCommentsFromTwoByteSource) {
+  // The source is two-byte, but the magic comment values are one-byte. The
+  // values are two-byte slices of the source, but should be cached (and
+  // deserialized) as one-byte strings.
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
+  std::string source_text = SourceWithLongMagicComments(
+      "var s = '\xD7\x90';\nfunction foo() { return 42; }");
+
+  {
+    IsolateAndContextScope scope(this);
+    Local<Script> script =
+        Script::Compile(context(), NewString(source_text.c_str()))
+            .ToLocalChecked();
+    CheckLongMagicCommentValues(isolate(), script, true);
+    i::DirectHandle<i::Script> i_script(
+        i::Cast<i::Script>(
+            Utils::OpenDirectHandle(*script->GetUnboundScript())->script()),
+        reinterpret_cast<i::Isolate*>(isolate()));
+    CHECK(i::Cast<i::String>(i_script->source())->IsTwoByteRepresentation());
+    cached_data.reset(
+        ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+  }
+
+  for (bool off_thread : {false, true}) {
+    IsolateAndContextScope scope(this);
+    auto data = std::make_unique<ScriptCompiler::CachedData>(
+        cached_data->data, cached_data->length,
+        ScriptCompiler::CachedData::BufferNotOwned);
+    std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task;
+    if (off_thread) {
+      DeserializeThread deserialize_thread(
+          ScriptCompiler::StartConsumingCodeCache(
+              isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                             cached_data->data, cached_data->length,
+                             ScriptCompiler::CachedData::BufferNotOwned)));
+      CHECK(deserialize_thread.Start());
+      deserialize_thread.Join();
+      task = deserialize_thread.TakeTask();
+    }
+    ScriptCompiler::Source source(NewString(source_text.c_str()),
+                                  data.release(), task.release());
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    CHECK(!source.GetCachedData()->rejected);
+    CheckLongMagicCommentValues(isolate(), script, false);
+    i::DirectHandle<i::Script> i_script(
+        i::Cast<i::Script>(
+            Utils::OpenDirectHandle(*script->GetUnboundScript())->script()),
+        reinterpret_cast<i::Isolate*>(isolate()));
+    i::Tagged<i::Object> fields[] = {i_script->source_url(),
+                                     i_script->source_mapping_url(),
+                                     i_script->debug_id()};
+    for (i::Tagged<i::Object> field : fields) {
+      CHECK(i::IsSeqOneByteString(field));
+    }
+  }
+}
+
+TEST_F(DeserializeTest, DeserializeKeepsApiSourceMapURL) {
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
+  std::string source_text = SourceWithLongMagicComments();
+  auto compile = [&](ScriptCompiler::CachedData* data) {
+    ScriptOrigin origin(NewString("origin.js"), 0, 0, false, -1,
+                        NewString("api.js.map"));
+    ScriptCompiler::Source source(NewString(source_text.c_str()), origin, data);
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                data ? ScriptCompiler::kConsumeCodeCache
+                                     : ScriptCompiler::kNoCompileOptions)
+            .ToLocalChecked();
+    CHECK(!data || !source.GetCachedData()->rejected);
+    String::Utf8Value url(isolate(),
+                          script->GetUnboundScript()->GetSourceMappingURL());
+    CHECK_EQ(0, strcmp("api.js.map", *url));
+    return script;
+  };
+
+  {
+    IsolateAndContextScope scope(this);
+    Local<Script> script = compile(nullptr);
+    cached_data.reset(
+        ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+  }
+
+  {
+    IsolateAndContextScope scope(this);
+    compile(cached_data.release());
   }
 }
 

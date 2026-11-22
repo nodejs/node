@@ -252,8 +252,7 @@ constexpr int kRegisterPassedArguments = arraysize(kCArgRegs);
 
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
-  // No argument padding required.
-  return 0;
+  return V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? (argument_count & 1) : 0;
 }
 
 constexpr AliasingKind kFPAliasing = AliasingKind::kOverlap;

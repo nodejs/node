@@ -10,10 +10,12 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include <memory>
+#include <string_view>
 #include <vector>
 
 #include "include/v8-wasm.h"  // For WasmStreaming::ModuleCachingInterface.
 #include "src/base/macros.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-constants.h"
@@ -67,7 +69,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   virtual void OnFinishedChunk() = 0;
   // Report the end of the stream. This will be called even after an error has
   // been detected. In any case, the parameter is the total received bytes.
-  virtual void OnFinishedStream(base::OwnedVector<const uint8_t> bytes,
+  virtual void OnFinishedStream(base::UniqueArray<const uint8_t> bytes,
                                 bool after_error) = 0;
   // Report the abortion of the stream.
   virtual void OnAbort() = 0;
@@ -77,7 +79,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   // taken over by the deserialized module (the parameter will be reset to an
   // empty vector); otherwise ownership stays with the caller.
   virtual bool Deserialize(base::Vector<const uint8_t> module_bytes,
-                           base::OwnedVector<const uint8_t>& wire_bytes) = 0;
+                           base::UniqueArray<const uint8_t>& wire_bytes) = 0;
 };
 
 // The StreamingDecoder takes a sequence of byte arrays, each received by a call
@@ -124,7 +126,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   const std::string& url() const { return *url_; }
   std::shared_ptr<const std::string> shared_url() const { return url_; }
 
-  void SetUrl(base::Vector<const char> url) {
+  void SetUrl(std::string_view url) {
     // We shouldn't modify {url_} while it is being read. The API contract
     // hence states that {SetUrl()} must be called early.
     // Enforcing this with a CHECK is possibly racy when an attacker with an
@@ -132,7 +134,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
     // becomes a problem, we can add a lock. As an attack mitigation, a CHECK
     // that fails most of the time is probably good enough.
     SBXCHECK_EQ(stream_state_, kReceivingBytes);
-    url_->assign(url.begin(), url.size());
+    url_->assign(url);
     // Safely crash if a race did happen:
     SBXCHECK_EQ(stream_state_, kReceivingBytes);
   }

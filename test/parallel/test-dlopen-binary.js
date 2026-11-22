@@ -1,6 +1,7 @@
 // Flags: --expose-internals
 'use strict';
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
@@ -22,7 +23,7 @@ const bytes = fs.readFileSync(addonPath);
 const flags = (os.constants.dlopen?.RTLD_LAZY) || 0;
 
 // A path that does not exist on disk, as a VFS-resident addon would be.
-const fakePath = path.join(os.tmpdir(), 'nonexistent-vfs-dir', 'binding.node');
+const fakePath = tmpdir.resolve('nonexistent-vfs-dir', 'binding.node');
 assert.ok(!fs.existsSync(fakePath));
 
 const m = { exports: {} };

@@ -28,7 +28,7 @@ ErrorOr<size_t> printf_main_modular(Writer<mode> *writer,
                                     internal::ArgList &args) {
   Parser<internal::ArgList, char> parser(str, args);
   int result = 0;
-  for (FormatSection cur_section = parser.get_next_section();
+  for (FormatSection<char> cur_section = parser.get_next_section();
        !cur_section.raw_string.empty();
        cur_section = parser.get_next_section()) {
     if (cur_section.has_conv)

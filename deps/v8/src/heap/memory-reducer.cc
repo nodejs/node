@@ -6,6 +6,7 @@
 
 #include "src/flags/flags.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/heap-controller.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/local-heap-inl.h"
@@ -15,31 +16,42 @@
 namespace v8 {
 namespace internal {
 
-const int MemoryReducer::kShortDelayMs = 500;
-const int MemoryReducer::kWatchdogDelayMs = 100000;
-const double MemoryReducer::kCommittedMemoryFactor = 1.1;
-const size_t MemoryReducer::kCommittedMemoryDelta = 10 * MB;
-
-MemoryReducer::MemoryReducer(Heap* heap)
-    : heap_(heap),
-      taskrunner_(heap->GetForegroundTaskRunner(TaskPriority::kUserVisible)),
-      state_(State::CreateUninitialized()),
-      js_calls_counter_(0),
-      js_calls_sample_time_ms_(0.0) {
-  DCHECK(v8_flags.incremental_marking);
-  DCHECK(v8_flags.memory_reducer);
-}
-
-MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
-    : CancelableTask(memory_reducer->heap()->isolate()),
-      memory_reducer_(memory_reducer) {}
-
 namespace {
 size_t GetCommitedSize(Heap* heap) {
   return heap->CommittedOldGenerationMemory() + heap->EmbedderSizeOfObjects() +
          heap->external_memory();
 }
 }  // namespace
+
+MemoryReducerBase::MemoryReducerBase(Heap* heap)
+    : heap_(heap),
+      task_runner_(heap->GetForegroundTaskRunner(TaskPriority::kUserVisible)) {
+  DCHECK(v8_flags.incremental_marking);
+  DCHECK(v8_flags.memory_reducer);
+}
+
+std::unique_ptr<MemoryReducerBase> MemoryReducerBase::Create(Heap* heap) {
+  if (v8_flags.memory_reducer_limit_based) {
+    return std::make_unique<LimitBasedMemoryReducer>(heap);
+  } else {
+    return std::make_unique<MemoryReducer>(heap);
+  }
+}
+
+const int MemoryReducer::kShortDelayMs = 500;
+const int MemoryReducer::kWatchdogDelayMs = 100000;
+const double MemoryReducer::kCommittedMemoryFactor = 1.1;
+const size_t MemoryReducer::kCommittedMemoryDelta = 10 * MB;
+
+MemoryReducer::MemoryReducer(Heap* heap)
+    : MemoryReducerBase(heap),
+      state_(State::CreateUninitialized()),
+      js_calls_counter_(0),
+      js_calls_sample_time_ms_(0.0) {}
+
+MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
+    : CancelableTask(memory_reducer->heap()->isolate()),
+      memory_reducer_(memory_reducer) {}
 
 void MemoryReducer::TimerTask::RunInternal() {
   Heap* heap = memory_reducer_->heap();
@@ -76,7 +88,6 @@ void MemoryReducer::TimerTask::RunInternal() {
   };
   memory_reducer_->NotifyTimer(event);
 }
-
 
 void MemoryReducer::NotifyTimer(const Event& event) {
   if (state_.id() != kWait) return;
@@ -152,8 +163,8 @@ bool MemoryReducer::WatchdogGC(const State& state, const Event& event) {
          event.time_ms > state.last_gc_time_ms() + kWatchdogDelayMs;
 }
 
-
-// For specification of this function see the comment for MemoryReducer class.
+// For specification of this function see the comment for MemoryReducer
+// class.
 MemoryReducer::State MemoryReducer::Step(const State& state,
                                          const Event& event) {
   DCHECK(v8_flags.memory_reducer);
@@ -234,16 +245,97 @@ void MemoryReducer::ScheduleTimer(double delay_ms) {
   if (heap()->IsTearingDown()) return;
   // Leave some room for precision error in task scheduler.
   const double kSlackMs = 100;
-  taskrunner_->PostDelayedTask(std::make_unique<MemoryReducer::TimerTask>(this),
-                               (delay_ms + kSlackMs) / 1000.0);
+  task_runner_->PostDelayedTask(
+      std::make_unique<MemoryReducer::TimerTask>(this),
+      (delay_ms + kSlackMs) / 1000.0);
 }
-
-void MemoryReducer::TearDown() { state_ = State::CreateUninitialized(); }
 
 // static
 int MemoryReducer::MaxNumberOfGCs() {
-  DCHECK_GT(v8_flags.memory_reducer_gc_count, 0);
+  DCHECK_GT(v8_flags.memory_reducer_gc_count, 0u);
   return v8_flags.memory_reducer_gc_count;
+}
+
+LimitBasedMemoryReducer::LimitBasedMemoryReducer(Heap* heap)
+    : MemoryReducerBase(heap) {}
+
+void LimitBasedMemoryReducer::NotifyMarkCompact(
+    size_t committed_memory_before) {
+  ScheduleTimer(
+      base::TimeDelta::FromMilliseconds(v8_flags.memory_reducer_delay_ms));
+}
+
+void LimitBasedMemoryReducer::NotifyPossibleGarbage() {
+  if (!desired_run_time_.has_value()) {
+    ScheduleTimer(
+        base::TimeDelta::FromMilliseconds(v8_flags.memory_reducer_delay_ms));
+  }
+}
+
+bool LimitBasedMemoryReducer::ShouldGrowHeapSlowly() { return false; }
+
+void LimitBasedMemoryReducer::ScheduleTimer(base::TimeDelta delay) {
+  DCHECK_LE(base::TimeDelta(), delay);
+  if (heap_->IsTearingDown()) return;
+
+  if (!desired_run_time_.has_value()) {
+    task_runner_->PostDelayedTask(
+        std::make_unique<LimitBasedMemoryReducer::TimerTask>(this),
+        delay.InSecondsF());
+  }
+  desired_run_time_ = base::TimeTicks::Now() + delay;
+}
+
+LimitBasedMemoryReducer::TimerTask::TimerTask(
+    LimitBasedMemoryReducer* memory_reducer)
+    : CancelableTask(memory_reducer->heap()->isolate()),
+      memory_reducer_(memory_reducer) {}
+
+void LimitBasedMemoryReducer::TimerTask::RunInternal() {
+  const base::TimeTicks desired_run_time = *memory_reducer_->desired_run_time_;
+  memory_reducer_->desired_run_time_.reset();
+  auto now = base::TimeTicks::Now();
+  if (now < desired_run_time) {
+    // A GC since the task was posted may have pushed `desired_run_time_`
+    // forward without posting a new task. Reschedule for the remaining delay.
+    memory_reducer_->ScheduleTimer(desired_run_time - now);
+    return;
+  }
+  auto heap = memory_reducer_->heap();
+  SetCurrentIsolateScope isolate_scope(heap->isolate());
+  SetCurrentLocalHeapScope thread_local_scope(heap->isolate());
+
+  heap->allocator()->new_space_allocator()->FreeLinearAllocationArea();
+  heap->tracer()->SampleAllocation(now, heap->NewSpaceAllocationCounter(),
+                                   heap->OldGenerationAllocationCounter(),
+                                   heap->EmbedderAllocationCounter(),
+                                   heap->ExternalAllocationCounter());
+  if (!heap->incremental_marking()->CanAndShouldBeStarted() ||
+      heap->incremental_marking()->IsMinorMarking()) {
+    memory_reducer_->NotifyPossibleGarbage();
+    return;
+  }
+  if (heap->incremental_marking()->IsMarking()) {
+    // The task will be rescheduled when the GC is finalized through
+    // NotifyMarkCompact().
+    return;
+  }
+  if (heap->limits()->using_initial_limit()) {
+    if (!heap->incremental_marking()->IsBelowActivationThresholds()) {
+      heap->StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
+                                    GarbageCollectionReason::kMemoryReducer,
+                                    kGCCallbackFlagCollectAllExternalMemory);
+    }
+  } else {
+    heap->limits()->UpdateAllocationLimits(
+        heap->CurrentHeapGrowingMode(), heap->limits()->AtMostCurrentLimits(),
+        "MemoryReducer");
+    GCFlags gc_flags = GCFlag::kReduceMemoryFootprint;
+    heap->StartIncrementalMarkingIfAllocationLimitIsReached(
+        heap->main_thread_local_heap(), gc_flags,
+        kGCCallbackFlagCollectAllExternalMemory,
+        GarbageCollectionReason::kMemoryReducer);
+  }
 }
 
 }  // namespace internal

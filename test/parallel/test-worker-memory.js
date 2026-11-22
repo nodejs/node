@@ -8,11 +8,11 @@ const util = require('util');
 const { Worker } = require('worker_threads');
 
 let numWorkers = +process.env.JOBS || require('os').availableParallelism();
-if (numWorkers > 20) {
-  // Cap the number of workers at 20 (as an even divisor of 60 used as
+if (numWorkers > 10) {
+  // Cap the number of workers at 10 (as an even divisor of 60 used as
   // the total number of workers started) otherwise the test fails on
   // machines with high core counts.
-  numWorkers = 20;
+  numWorkers = 10;
 }
 
 // Verify that a Worker's memory isn't kept in memory after the thread finishes.

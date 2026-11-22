@@ -700,6 +700,16 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
 
   if (where & SSL_CB_HANDSHAKE_START) {
     Debug(c, "SSLInfoCallback(SSL_CB_HANDSHAKE_START);");
+#ifndef OPENSSL_IS_BORINGSSL
+    // The TLS library answers a peer's attempt to renegotiate with a
+    // no_renegotiation alert when renegotiation is disabled, and then reports
+    // the handshake as done without having done one.
+    c->flags_.renegotiation_refused =
+        c->flags_.established &&
+        (SSL_get_options(ssl) & SSL_OP_NO_RENEGOTIATION) != 0;
+    if (c->flags_.renegotiation_refused) return;
+#endif
+
     // Start is tracked to limit number and frequency of renegotiation attempts,
     // since excessive renegotiation may be an attack.
     Local<Value> callback;
@@ -717,6 +727,10 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
   if (where & SSL_CB_HANDSHAKE_DONE && !SSL_renegotiate_pending(ssl)) {
     Debug(c, "SSLInfoCallback(SSL_CB_HANDSHAKE_DONE);");
     CHECK(!SSL_renegotiate_pending(ssl));
+    if (c->flags_.renegotiation_refused) {
+      c->flags_.renegotiation_refused = false;
+      return;
+    }
     Local<Value> callback;
 
     c->flags_.established = true;
@@ -887,13 +901,17 @@ void TLSWrap::ClearOut() {
   int length = 0;
   int read;
 
-  // Emits out[0, length). Returns false if JS destroyed the SSL context.
+  // Emits out[0, length). Returns false if reading cannot continue.
   auto emit = [&]() {
     char* current = out;
     while (length > 0) {
       int avail = length;
 
       uv_buf_t buf = EmitAlloc(avail);
+      if (buf.base == nullptr || buf.len == 0) {
+        EmitRead(UV_ENOBUFS, buf);
+        return false;
+      }
       if (static_cast<int>(buf.len) < avail)
         avail = buf.len;
       memcpy(buf.base, current, avail);
@@ -1456,6 +1474,19 @@ void TLSWrap::EnableKeylogCallback(const FunctionCallbackInfo<Value>& args) {
 #else
 # define HAVE_SSL_TRACE 1
 #endif
+
+void TLSWrap::DisableRenegotiation(const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+  if (!wrap->ssl_) return;
+#if NCRYPTO_USE_OPENSSL_PROVIDER
+  SSL_set_options(wrap->ssl_.get(), SSL_OP_NO_RENEGOTIATION);
+#elif NCRYPTO_USE_BORINGSSL
+  SSL_set_renegotiate_mode(wrap->ssl_.get(), ssl_renegotiate_never);
+#else
+#error "Unsupported crypto backend"
+#endif
+}
 
 void TLSWrap::EnableTrace(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
@@ -2453,6 +2484,7 @@ void TLSWrap::Initialize(
   SetProtoMethod(isolate, t, "certCbDone", CertCbDone);
   SetProtoMethod(isolate, t, "clientHelloDone", ClientHelloDone);
   SetProtoMethod(isolate, t, "destroySSL", DestroySSL);
+  SetProtoMethod(isolate, t, "disableRenegotiation", DisableRenegotiation);
   SetProtoMethod(isolate, t, "enableCertCb", EnableCertCb);
   SetProtoMethod(isolate, t, "enableALPNCb", EnableALPNCb);
   SetProtoMethod(isolate, t, "enableKeylogCallback", EnableKeylogCallback);
@@ -2528,6 +2560,7 @@ void TLSWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CertCbDone);
   registry->Register(ClientHelloDone);
   registry->Register(DestroySSL);
+  registry->Register(DisableRenegotiation);
   registry->Register(EnableCertCb);
   registry->Register(EnableALPNCb);
   registry->Register(EnableKeylogCallback);

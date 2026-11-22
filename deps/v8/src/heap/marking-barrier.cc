@@ -41,7 +41,7 @@ MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
 
 MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 
-void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
+void MarkingBarrier::Write(Tagged<HeapObject> host, TrustedPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklists_.has_value());
@@ -175,7 +175,7 @@ void SetGenerationPageFlags(Space* space, MarkingMode marking_mode) {
                        std::is_same_v<Space, TrustedLargeObjectSpace> ||
                        std::is_same_v<Space, CodeLargeObjectSpace>) {
     for (auto* p : *space) {
-      DCHECK(p->Chunk()->IsLargePage());
+      DCHECK(p->is_large());
       p->SetOldGenerationPageFlags(marking_mode);
     }
   } else if constexpr (std::is_same_v<Space, NewSpace>) {
@@ -185,7 +185,7 @@ void SetGenerationPageFlags(Space* space, MarkingMode marking_mode) {
   } else {
     static_assert(std::is_same_v<Space, NewLargeObjectSpace>);
     for (auto* p : *space) {
-      DCHECK(p->Chunk()->IsLargePage());
+      DCHECK(p->is_large());
       p->SetYoungGenerationPageFlags(marking_mode);
     }
   }

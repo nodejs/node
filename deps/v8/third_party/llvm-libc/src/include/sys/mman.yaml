@@ -41,14 +41,14 @@ functions:
       - posix
     return_type: int
     arguments:
-      - type: void *
+      - type: const void *
       - type: size_t
   - name: mlock2
     standards:
       - linux
     return_type: int
     arguments:
-      - type: void *
+      - type: const void *
       - type: size_t
       - type: unsigned int
   - name: mlockall
@@ -99,7 +99,7 @@ functions:
       - posix
     return_type: int
     arguments:
-      - type: void *
+      - type: const void *
       - type: size_t
   - name: munlockall
     standards:

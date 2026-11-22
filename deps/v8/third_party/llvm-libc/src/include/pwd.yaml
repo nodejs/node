@@ -14,6 +14,15 @@ functions:
       - posix
     return_type: struct passwd *
     arguments: []
+  - name: getpwent_r
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: struct passwd *
+      - type: char *
+      - type: size_t
+      - type: struct passwd **
   - name: setpwent
     standards:
       - posix

@@ -221,10 +221,12 @@ std::string HeapProfiler::TakeSnapshotToString(
 
 bool HeapProfiler::StartSamplingHeapProfiler(
     uint64_t sample_interval, int stack_depth,
-    v8::HeapProfiler::SamplingFlags flags) {
+    v8::HeapProfiler::SamplingFlags flags,
+    v8::SampleContextExtractor sample_context_extractor) {
   if (sampling_heap_profiler_) return false;
-  sampling_heap_profiler_.reset(new SamplingHeapProfiler(
-      heap(), names_.get(), sample_interval, stack_depth, flags));
+  sampling_heap_profiler_.reset(
+      new SamplingHeapProfiler(heap(), names_.get(), sample_interval,
+                               stack_depth, flags, sample_context_extractor));
   return true;
 }
 
@@ -339,6 +341,10 @@ DirectHandle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (ids_->FindEntry(obj.address()) == id) {
+      if (IsInaccessible(obj)) {
+        DCHECK(IsWasmNull(obj));  // Currently the only inaccessible object.
+        return isolate()->factory()->null_value();
+      }
       return DirectHandle<HeapObject>(obj, isolate());
     }
   }

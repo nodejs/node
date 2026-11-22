@@ -94,6 +94,30 @@ char* PrintHexBytesCore(char* ptr, uint32_t num_bytes, const uint8_t* start) {
   return ptr;
 }
 
+void WriteEscaped(StringBuilder& out, const char* text, size_t length) {
+  for (size_t i = 0; i < length; i++) {
+    uint8_t c = static_cast<uint8_t>(text[i]);
+    if (c >= 32 && c != '\\') {
+      out << static_cast<char>(c);
+      continue;
+    }
+    switch (c) {
+      // C/C++ also knows '\a', but JS does not, and we want to be language
+      // agnostic, so play it safe and fall through to the hex escape.
+      // clang-format off
+      case '\b': out << "\\b"; break;
+      case '\t': out << "\\t"; break;
+      case '\n': out << "\\n"; break;
+      case '\v': out << "\\v"; break;
+      case '\f': out << "\\f"; break;
+      case '\r': out << "\\r"; break;
+      case '\\': out << "\\\\"; break;
+      default: out << "\\x" << kHexChars[c >> 4] << kHexChars[c & 0xf]; break;
+        // clang-format on
+    }
+  }
+}
+
 class InstructionStatistics {
  public:
   void Record(WasmOpcode opcode, uint32_t size) {
@@ -434,7 +458,9 @@ class HexDumpModuleDis : public ITracer {
 
   void Description(const char* desc) override { description_ << desc; }
   void Description(const char* desc, size_t length) override {
-    description_.write(desc, length);
+    // Arbitrary strings from the wire bytes go through here. We could pass
+    // them through as they are, but it's nice to escape control characters.
+    WriteEscaped(description_, desc, length);
   }
   void Description(uint32_t number) override {
     if (description_.length() != 0) description_ << " ";

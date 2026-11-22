@@ -50,7 +50,7 @@ template <typename T> struct DoubleWide final : cpp::array<T, 2> {
 };
 
 // Converts an unsigned value into a DoubleWide<half_width_t<T>>.
-template <typename T> LIBC_INLINE constexpr auto split(T value) {
+template <typename T> LIBC_ALWAYS_INLINE constexpr auto split(T value) {
   static_assert(cpp::is_unsigned_v<T>);
   using half_type = half_width_t<T>;
   return DoubleWide<half_type>(
@@ -59,19 +59,21 @@ template <typename T> LIBC_INLINE constexpr auto split(T value) {
 }
 
 // The low part of a DoubleWide value.
-template <typename T> LIBC_INLINE constexpr T lo(const DoubleWide<T> &value) {
+template <typename T>
+LIBC_ALWAYS_INLINE constexpr T lo(const DoubleWide<T> &value) {
   return value[0];
 }
 // The high part of a DoubleWide value.
-template <typename T> LIBC_INLINE constexpr T hi(const DoubleWide<T> &value) {
+template <typename T>
+LIBC_ALWAYS_INLINE constexpr T hi(const DoubleWide<T> &value) {
   return value[1];
 }
 // The low part of an unsigned value.
-template <typename T> LIBC_INLINE constexpr half_width_t<T> lo(T value) {
+template <typename T> LIBC_ALWAYS_INLINE constexpr half_width_t<T> lo(T value) {
   return lo(split(value));
 }
 // The high part of an unsigned value.
-template <typename T> LIBC_INLINE constexpr half_width_t<T> hi(T value) {
+template <typename T> LIBC_ALWAYS_INLINE constexpr half_width_t<T> hi(T value) {
   return hi(split(value));
 }
 
@@ -239,9 +241,40 @@ LIBC_INLINE constexpr word multiply_with_carry(cpp::array<word, O> &dst,
 }
 
 template <typename word, size_t N>
-LIBC_INLINE constexpr void quick_mul_hi(cpp::array<word, N> &dst,
-                                        const cpp::array<word, N> &lhs,
-                                        const cpp::array<word, N> &rhs) {
+LIBC_ALWAYS_INLINE constexpr void quick_mul_hi(cpp::array<word, N> &dst,
+                                               const cpp::array<word, N> &lhs,
+                                               const cpp::array<word, N> &rhs) {
+  if constexpr (N == 1) {
+    if constexpr (cpp::is_same_v<word, uint8_t>) {
+      dst[0] = hi<uint16_t>(uint16_t(lhs[0]) * uint16_t(rhs[0]));
+    } else if constexpr (cpp::is_same_v<word, uint16_t>) {
+      dst[0] = hi<uint32_t>(uint32_t(lhs[0]) * uint32_t(rhs[0]));
+    }
+#ifdef LIBC_TYPES_HAS_INT64
+    else if constexpr (cpp::is_same_v<word, uint32_t>) {
+      dst[0] = hi<uint64_t>(uint64_t(lhs[0]) * uint64_t(rhs[0]));
+    }
+#endif // LIBC_TYPES_HAS_INT64
+#ifdef LIBC_TYPES_HAS_INT128
+    else if constexpr (cpp::is_same_v<word, uint64_t>) {
+      dst[0] = hi<__uint128_t>(__uint128_t(lhs[0]) * __uint128_t(rhs[0]));
+    }
+#endif // LIBC_TYPES_HAS_INT128
+    else {
+      // Split the single word into half-words and perform 3 half-word
+      // multiplications instead of 4.
+      word a = lhs[0];
+      word b = rhs[0];
+      word a_lo = lo(a);
+      word a_hi = hi(a);
+      word b_lo = lo(b);
+      word b_hi = hi(b);
+      word t1 = a_hi * b_lo;
+      word t2 = a_lo * b_hi + lo(t1);
+      dst[0] = a_hi * b_hi + hi(t1) + hi(t2);
+    }
+    return;
+  }
   Accumulator<word> acc;
   word carry = 0;
   // First round of accumulation for those at N - 1 in the full product.
@@ -638,7 +671,11 @@ public:
   // `Bits` least significant bits of the full product, while this function will
   // approximate `Bits` most significant bits of the full product with errors
   // bounded by:
-  //   0 <= (a.full_mul(b) >> Bits) - a.quick_mul_hi(b)) <= WORD_COUNT - 1.
+  //   0 <= (a.full_mul(b) >> Bits) - a.quick_mul_hi(b)) <= max(WORD_COUNT - 1,
+  //   1)
+  // (when WORD_COUNT == 1 and WordType is natively supported by a double-width
+  // integer type, the error is 0; otherwise when split into half-words, the
+  // error is bounded by 1).
   //
   // An example usage of this is to quickly (but less accurately) compute the
   // product of (normalized) mantissas of floating point numbers:
@@ -651,11 +688,12 @@ public:
   // Performance summary:
   //   Number of 64-bit x 64-bit -> 128-bit multiplications performed.
   //   Bits  WORD_COUNT  ful_mul  quick_mul_hi  Error bound
+  //     64      1         1           1            0 (1 without int128)
   //    128      2         4           3            1
   //    196      3         9           6            2
   //    256      4        16          10            3
   //    512      8        64          36            7
-  LIBC_INLINE constexpr BigInt quick_mul_hi(const BigInt &other) const {
+  LIBC_ALWAYS_INLINE constexpr BigInt quick_mul_hi(const BigInt &other) const {
     BigInt result{};
     multiword::quick_mul_hi(result.val, val, other.val);
     return result;

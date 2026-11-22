@@ -706,9 +706,8 @@ class WasmInJsInliningInterface {
   }
   void AssertNotNullTypecheck(FullDecoder* decoder, const Value& obj,
                               Value* result) {
-    __ TrapIf(__ IsNull(obj.get<Object>(), obj.type), frame_state_,
-              TrapId::kTrapIllegalCast);
-    Forward(decoder, obj, result);
+    result->op = __ AssertNotNull(obj.get<Object>(), frame_state_, obj.type,
+                                  TrapId::kTrapIllegalCast);
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
@@ -740,7 +739,7 @@ class WasmInJsInliningInterface {
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
                             frame_state_);
     result->op = __ ArrayGet(array_value, index.get<Word32>(), imm.array_type,
-                             is_signed, {});
+                             is_signed, {}, imm.heap_type().is_shared());
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
@@ -750,7 +749,7 @@ class WasmInJsInliningInterface {
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
                             frame_state_);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
-                imm.array_type->element_type(), {},
+                imm.array_type->element_type(), imm.array_type->is_shared(), {},
                 wasm::ArrayIndexImmediateToWriteBarrier(imm),
                 ArraySetOp::Kind::kAssign);
   }
@@ -758,7 +757,8 @@ class WasmInJsInliningInterface {
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
     result->op = __ ArrayLength(
         array_obj.get<WasmArrayNullable>(), frame_state_,
-        array_obj.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck);
+        array_obj.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck,
+        array_obj.type.is_shared());
   }
 
   V<FixedArray> managed_object_maps() {

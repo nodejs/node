@@ -188,7 +188,9 @@
 // acquired, and the destructor should use `UNLOCK_FUNCTION()` with no
 // arguments; the analysis will assume that the destructor unlocks whatever the
 // constructor locked.
-#if ABSL_HAVE_ATTRIBUTE(scoped_lockable)
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::scoped_lockable)
+#define ABSL_SCOPED_LOCKABLE [[clang::scoped_lockable]]
+#elif ABSL_HAVE_ATTRIBUTE(scoped_lockable)
 #define ABSL_SCOPED_LOCKABLE __attribute__((scoped_lockable))
 #else
 #define ABSL_SCOPED_LOCKABLE

@@ -21,6 +21,9 @@ let instance = builder.instantiate();
 // CHECK-LABEL: V8.TFTurboshaftWasmDeadCodeElimination
 // CHECK: MERGE B0
 // CHECK-NEXT: 0: Parameter()[1]
-// CHECK-NEXT: 1: Constant()[word32: 0]
-// CHECK-NEXT: 2: Return(#1, #0)[0]
+// TODO(jkummerow): Implement type-based optimizations for ExternConvertAny
+// and rephrase this test (using an input type that's statically guaranteed
+// not to be a Custom Descriptor) so that it will again emit the following IR:
+// CHECK-NEXT-disabled: 1: Constant()[word32: 0]
+// CHECK-NEXT-disabled: 2: Return(#1, #0)
 instance.exports.externConvertAny();

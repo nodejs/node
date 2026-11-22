@@ -1,0 +1,3 @@
+Tests that an OOM break triggered at the entry of a blackboxed function with a non-blackboxed caller pauses
+reason: OOM
+Test finished normally.

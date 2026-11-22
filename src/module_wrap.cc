@@ -28,6 +28,7 @@ using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
 using v8::Data;
+using v8::DictionaryTemplate;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::FixedArray;
@@ -570,9 +571,13 @@ static Local<Object> createImportAttributesContainer(
     Local<FixedArray> raw_attributes,
     const int elements_per_attribute) {
   CHECK_EQ(raw_attributes->Length() % elements_per_attribute, 0);
-  size_t num_attributes = raw_attributes->Length() / elements_per_attribute;
-  LocalVector<Name> names(isolate, num_attributes);
-  LocalVector<Value> values(isolate, num_attributes);
+  Local<Context> context = realm->context();
+
+  // v8::Object::New() with a prototype argument always creates the object in
+  // dictionary mode. Null the prototype of an ordinary object instead, so that
+  // the attributes, which the loader reads for every import, get a fast map.
+  Local<Object> attributes = Object::New(isolate);
+  attributes->SetPrototype(context, Null(isolate)).Check();
 
   for (int i = 0; i < raw_attributes->Length(); i += elements_per_attribute) {
     Local<Data> key = raw_attributes->Get(i);
@@ -580,15 +585,12 @@ static Local<Object> createImportAttributesContainer(
     DCHECK(DataIsString(key));
     DCHECK(DataIsString(value));
 
-    int idx = i / elements_per_attribute;
-    names[idx] = key.As<String>();
-    values[idx] = value.As<String>();
+    attributes
+        ->CreateDataProperty(context, key.As<String>(), value.As<String>())
+        .Check();
   }
 
-  Local<Object> attributes = Object::New(
-      isolate, Null(isolate), names.data(), values.data(), num_attributes);
-  attributes->SetIntegrityLevel(realm->context(), v8::IntegrityLevel::kFrozen)
-      .Check();
+  attributes->SetIntegrityLevel(context, v8::IntegrityLevel::kFrozen).Check();
   return attributes;
 }
 
@@ -597,6 +599,21 @@ static Local<Array> createModuleRequestsContainer(
   EscapableHandleScope scope(isolate);
   Local<Context> context = realm->context();
   LocalVector<Value> requests(isolate, raw_requests->Length());
+
+  // v8::Object::New() with names and values always creates the object in
+  // dictionary mode. Use a DictionaryTemplate instead so that the requests,
+  // which the loader reads for every import while linking, get a fast map.
+  Environment* env = realm->env();
+  Local<DictionaryTemplate> tmpl = env->module_request_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "specifier",
+        "attributes",
+        "phase",
+    };
+    tmpl = DictionaryTemplate::New(isolate, names);
+    env->set_module_request_template(tmpl);
+  }
 
   for (int i = 0; i < raw_requests->Length(); i++) {
     DCHECK(raw_requests->Get(i)->IsModuleRequest());
@@ -612,20 +629,14 @@ static Local<Array> createModuleRequestsContainer(
         createImportAttributesContainer(realm, isolate, raw_attributes, 3);
     ModuleImportPhase phase = module_request->GetPhase();
 
-    Local<Name> names[] = {
-        realm->isolate_data()->specifier_string(),
-        realm->isolate_data()->attributes_string(),
-        realm->isolate_data()->phase_string(),
-    };
-    Local<Value> values[] = {
+    MaybeLocal<Value> values[] = {
         specifier,
         attributes,
         Integer::New(isolate, to_phase_constant(phase)),
     };
-    DCHECK_EQ(arraysize(names), arraysize(values));
 
     Local<Object> request =
-        Object::New(isolate, Null(isolate), names, values, arraysize(names));
+        NewDictionaryInstanceNullProto(context, tmpl, values).ToLocalChecked();
     request->SetIntegrityLevel(context, v8::IntegrityLevel::kFrozen).Check();
 
     requests[i] = request;
@@ -1259,7 +1270,7 @@ static void ImportMetaResolveLazyGetter(
 
   // This should be createImportMetaResolve(). The loader argument is already
   // bound at initialization time.
-  Local<Value> args[] = {info.Data()};
+  Local<Value> args[] = {info.DataV2().As<Value>()};
   Local<Value> ret;
   if (!initializer
            ->Call(context, Undefined(realm->isolate()), arraysize(args), args)
@@ -1290,7 +1301,7 @@ static void PathHelpersLazyGetter(Local<v8::Name> name,
   }
   Environment* env = Environment::GetCurrent(context);
 
-  node::Utf8Value url(isolate, info.Data());
+  node::Utf8Value url(isolate, info.DataV2().As<Value>());
   auto file_url = ada::parse(url.ToStringView());
   CHECK(file_url);
   auto file_path = url::FileURLToPath(env, *file_url);

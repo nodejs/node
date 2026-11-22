@@ -52,6 +52,42 @@ t.test('registry package', async t => {
   t.ok(exists.isFile(), 'bin ran, creating file')
 })
 
+t.test('registry package with dry-run set', async t => {
+  const registry = new MockRegistry({
+    tap: t,
+    registry: 'https://registry.npmjs.org/',
+  })
+
+  const manifest = registry.manifest({ name: '@npmcli/npx-dry-run-test' })
+  manifest.versions['1.0.0'].bin = { 'npx-dry-run-test': 'index.js' }
+
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      audit: false,
+      yes: true,
+      'dry-run': true,
+    },
+    prefixDir: {
+      'npm-exec-test': {
+        'package.json': JSON.stringify(manifest),
+        'index.js': `#!/usr/bin/env node
+  require('fs').writeFileSync('npm-exec-test-success', '')`,
+      },
+    },
+  })
+
+  await registry.package({
+    times: 2,
+    manifest,
+    tarballs: {
+      '1.0.0': path.join(npm.prefix, 'npm-exec-test'),
+    } })
+
+  await npm.exec('exec', ['@npmcli/npx-dry-run-test'])
+  const exists = await fs.stat(path.join(npm.prefix, 'npm-exec-test-success'))
+  t.ok(exists.isFile(), 'package was installed and bin ran, creating file')
+})
+
 t.test('--prefix', async t => {
   const registry = new MockRegistry({
     tap: t,

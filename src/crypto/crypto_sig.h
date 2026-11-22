@@ -9,6 +9,8 @@
 #include "env.h"
 #include "memory_tracker.h"
 
+#include <optional>
+
 namespace node {
 namespace crypto {
 static const unsigned int kNoDsaSignature = static_cast<unsigned int>(-1);
@@ -97,21 +99,13 @@ class Verify final : public SignBase {
 
 struct SignConfiguration final : public MemoryRetainer {
   enum class Mode { Sign, Verify };
-  enum Flags {
-    kHasNone = 0,
-    kHasSaltLength = 1,
-    kHasPadding = 2,
-    kHasContextString = 4
-  };
-
   Mode mode;
   KeyObjectData key;
   ByteSource data;
   ByteSource signature;
   ncrypto::Digest digest;
-  int flags = SignConfiguration::kHasNone;
-  int padding = 0;
-  int salt_length = 0;
+  std::optional<int> padding;
+  std::optional<int> salt_length;
   DSASigEnc dsa_encoding = DSASigEnc::DER;
   ByteSource context_string;
 

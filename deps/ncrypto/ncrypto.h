@@ -309,6 +309,7 @@ class Digest final {
   NCRYPTO_DISALLOW_MOVE(Digest)
 
   size_t size() const;
+  bool isXof() const;
 
   inline const EVP_MD* get() const { return md_; }
   inline operator const EVP_MD*() const { return md_; }
@@ -1160,7 +1161,7 @@ class EVPKeyCtxPointer final {
   bool setRsaPssKeygenMd(const Digest& md);
   bool setRsaPssKeygenMgf1Md(const Digest& md);
   bool setRsaPssSaltlen(int salt_len);
-  bool setRsaImplicitRejection();
+  bool supportsRsaImplicitRejection() const;
   bool setRsaOaepLabel(DataPointer&& data);
 
   bool setSignatureMd(const EVPMDCtxPointer& md);
@@ -1943,19 +1944,14 @@ class EVPMDCtxPointer final {
   bool digestFinalInto(Buffer<void>* buf);
   size_t getExpectedSize();
 
-  std::optional<EVP_PKEY_CTX*> signInit(const EVPKeyPointer& key,
-                                        const Digest& digest);
-  std::optional<EVP_PKEY_CTX*> verifyInit(const EVPKeyPointer& key,
-                                          const Digest& digest);
-
-  std::optional<EVP_PKEY_CTX*> signInitWithContext(
+  std::optional<EVP_PKEY_CTX*> signInit(
       const EVPKeyPointer& key,
       const Digest& digest,
-      const Buffer<const unsigned char>& context_string);
-  std::optional<EVP_PKEY_CTX*> verifyInitWithContext(
+      const Buffer<const unsigned char>* context_string = nullptr);
+  std::optional<EVP_PKEY_CTX*> verifyInit(
       const EVPKeyPointer& key,
       const Digest& digest,
-      const Buffer<const unsigned char>& context_string);
+      const Buffer<const unsigned char>* context_string = nullptr);
 
   DataPointer signOneShot(const Buffer<const unsigned char>& buf) const;
   DataPointer sign(const Buffer<const unsigned char>& buf) const;

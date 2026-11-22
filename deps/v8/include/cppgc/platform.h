@@ -26,6 +26,60 @@ using TaskRunner = v8::TaskRunner;
 using TracingController = v8::TracingController;
 
 /**
+ * Interface for observing object-level allocations and deallocations in cppgc.
+ *
+ * Implementations of these methods must not allocate on the managed heap(s)
+ * (C++ or JS) or otherwise call back into V8.
+ */
+class V8_EXPORT AllocationSampler {
+ public:
+  virtual ~AllocationSampler() = default;
+
+  /**
+   * Returns the desired sampling interval in bytes. Embedders must return a
+   * non-zero value to activate periodic sampling. Must not allocate on the
+   * managed heap(s) (C++ or JS) or otherwise call back into V8.
+   *
+   * \returns the configured mean sampling interval in bytes, or 0 if unset.
+   */
+  virtual size_t GetSampleInterval() const { return 0; }
+
+  /**
+   * Invoked when an object or memory chunk is allocated. Must not allocate on
+   * the managed heap(s) (C++ or JS) or otherwise call back into V8.
+   *
+   * \param address Pointer to the allocated memory.
+   * \param size Total size of the allocation in bytes (including object
+   * header).
+   * \returns true if this allocation was selected as a sample and should be
+   * tracked for deallocation, false otherwise.
+   */
+  virtual bool OnAllocated(void* address, size_t size) = 0;
+
+  /**
+   * Invoked when an allocated object or memory chunk is freed/reclaimed. Must
+   * not allocate on the managed heap(s) (C++ or JS) or otherwise call back into
+   * V8.
+   *
+   * \param address Pointer to the allocated memory.
+   */
+  virtual void OnFreed(void* address) = 0;
+
+  /**
+   * Invoked when a sampled object is moved to a new location. Must not allocate
+   * on the managed heap(s) (C++ or JS) or otherwise call back into V8.
+   *
+   * \param from Pointer to the old memory location.
+   * \param to Pointer to the new memory location.
+   * \param size Total size of the allocation in bytes (including object
+   * header).
+   * \returns true if the moved allocation was selected as a sample and should
+   * be tracked for deallocation, false otherwise.
+   */
+  virtual bool OnMove(void* from, void* to, size_t size) = 0;
+};
+
+/**
  * Platform interface used by Heap. Contains allocators and executors.
  */
 class V8_EXPORT Platform {

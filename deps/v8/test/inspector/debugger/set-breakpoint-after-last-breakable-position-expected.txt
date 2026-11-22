@@ -1,0 +1,31 @@
+Checks that breakpoints after the last breakable position of a function resolve forward into nested functions.
+Setting breakpoint at line 3:
+  function inner() {
+    #return 1;
+  }
+
+Setting breakpoint at line 10:
+  function inner() {
+    #return 2;
+  }
+
+Setting breakpoint at line 17:
+  function inner() {
+    #return 3;
+  }
+
+Evaluating returnBeforeInner()():
+  function inner() {
+    #return 1;
+  }
+
+Evaluating try { throwBeforeInner(); } catch (inner) { inner(); }:
+  function inner() {
+    #return 2;
+  }
+
+Evaluating liveCodeBeforeInner()():
+  function inner() {
+    #return 3;
+  }
+

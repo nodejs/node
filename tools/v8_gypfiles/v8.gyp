@@ -648,7 +648,7 @@
       ],
       'direct_dependent_settings': {
         'sources': [
-          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?sources = ")',
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?sources \\+= ")',
         ],
         'conditions': [
           ['v8_enable_snapshot_compression==1', {
@@ -1452,6 +1452,9 @@
         }],
         ['node_shared_abseil=="false"', {
           'dependencies': ['abseil.gyp:abseil'],
+        }],
+        ['node_shared_simdutf=="false"', {
+          'dependencies': ['simdutf.gyp:simdutf'],
         }],
       ],
     },  # torque_base

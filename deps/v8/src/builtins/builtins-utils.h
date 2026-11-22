@@ -52,20 +52,22 @@ class BuiltinArguments : public JavaScriptArguments {
   // Note: this should return the address after the receiver,
   // even when length() == 1.
   inline Address* address_of_first_argument() const {
-    return address_of_arg_at(kFirstArgsIndex);
+    return address_of_arg_at_or_end(kFirstArgsIndex);
   }
 
   static constexpr int kNewTargetIndex = 0;
   static constexpr int kTargetIndex = 1;
   static constexpr int kArgcIndex = 2;
 
-  // This padding is required only on arm64 to keep the SP 16-byte aligned.
+  // This padding is required on arm64 (and x64 with 16-byte stack alignment) to
+  // keep the SP 16-byte aligned.
   static constexpr int kOptionalPaddingIndex = 3;
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || \
+    (V8_TARGET_ARCH_X64 && V8_X64_16BYTE_STACK_ALIGNMENT_BOOL)
   static constexpr int kNumExtraArgs = 4;
 #else
   static constexpr int kNumExtraArgs = 3;
-#endif  // V8_TARGET_ARCH_ARM64
+#endif
 
   static constexpr int kNumExtraArgsWithReceiver = kNumExtraArgs + 1;
 

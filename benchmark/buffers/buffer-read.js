@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common.js');
+const assert = require('assert');
 const { Buffer } = require('buffer');
 
 const types = [
@@ -32,10 +33,12 @@ function main({ n, buffer, type }) {
   const fn = `read${type}`;
 
   buff.writeDoubleLE(0, 0);
+  let result;
   bench.start();
 
   for (let i = 0; i !== n; i++) {
-    buff[fn](0);
+    result = buff[fn](0);
   }
   bench.end(n);
+  assert.notStrictEqual(result, undefined);
 }

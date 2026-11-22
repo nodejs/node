@@ -1338,6 +1338,18 @@ TEST(MutatingTest, SortWithPredicate) {
   EXPECT_THAT(test_vector, ElementsAre(4, 3, 2, 1));
 }
 
+TEST(MutatingTest, SortTemporarySpan) {
+  std::vector<int> test_vector = {2, 3, 1, 4};
+  absl::c_sort(absl::MakeSpan(test_vector));
+  EXPECT_THAT(test_vector, ElementsAre(1, 2, 3, 4));
+}
+
+TEST(MutatingTest, SortTemporarySpanWithPredicate) {
+  std::vector<int> test_vector = {2, 3, 1, 4};
+  absl::c_sort(absl::MakeSpan(test_vector), std::greater<int>());
+  EXPECT_THAT(test_vector, ElementsAre(4, 3, 2, 1));
+}
+
 // For absl::c_stable_sort tests. Needs an operator< that does not cover all
 // fields so that the test can check the sort preserves order of equal elements.
 struct Element {
@@ -1369,6 +1381,24 @@ TEST(MutatingTest, StableSortWithPredicate) {
   absl::c_stable_sort(test_vector, [](const Element& e1, const Element& e2) {
     return e2 < e1;
   });
+  EXPECT_THAT(test_vector,
+              ElementsAre(IsElement(2, 1), IsElement(2, 0), IsElement(2, 2),
+                          IsElement(1, 1), IsElement(1, 0)));
+}
+
+TEST(MutatingTest, StableSortTemporarySpan) {
+  std::vector<Element> test_vector = {{1, 1}, {2, 1}, {2, 0}, {1, 0}, {2, 2}};
+  absl::c_stable_sort(absl::MakeSpan(test_vector));
+  EXPECT_THAT(test_vector,
+              ElementsAre(IsElement(1, 1), IsElement(1, 0), IsElement(2, 1),
+                          IsElement(2, 0), IsElement(2, 2)));
+}
+
+TEST(MutatingTest, StableSortTemporarySpanWithPredicate) {
+  std::vector<Element> test_vector = {{1, 1}, {2, 1}, {2, 0}, {1, 0}, {2, 2}};
+  absl::c_stable_sort(
+      absl::MakeSpan(test_vector),
+      [](const Element& e1, const Element& e2) { return e2 < e1; });
   EXPECT_THAT(test_vector,
               ElementsAre(IsElement(2, 1), IsElement(2, 0), IsElement(2, 2),
                           IsElement(1, 1), IsElement(1, 0)));

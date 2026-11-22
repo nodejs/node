@@ -132,9 +132,9 @@ if (isBoringSSL) {
                      'd14a028c2a3a2bc9476102bb288234c4' +
                      '15a2b01f828ea62ac5b3e42f');
 
-  // Non-XOF hash functions should fail when outputLength isn't their actual outputLength
+  // Non-XOF hash functions reject lengths other than their digest size.
   assert.throws(() => crypto.hash('sha224', '', { outputLength: 32 }),
-                { message: 'Output length 32 is invalid for sha224, which does not support XOF' });
+                invalidXofLength);
   assert.throws(() => crypto.hash('sha224', '', { outputLength: 0 }),
-                { message: 'Output length 0 is invalid for sha224, which does not support XOF' });
+                invalidXofLength);
 }

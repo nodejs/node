@@ -131,6 +131,12 @@ class GraphCycles {
   // very full.
   void TestOnlyAddNodes(uint32_t n);
 
+  // Test-only method to set how far apart the ranks of new nodes are, and how
+  // far below (above) all other nodes a node is moved. The default is 2^32. A
+  // stride of up to 2^61 makes the ranks beyond the lowest and highest ones run
+  // out after a few new nodes or moves.
+  void TestOnlySetRankStride(int64_t stride);
+
   // ----------------------------------------------------
   struct Rep;
  private:

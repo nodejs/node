@@ -298,7 +298,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case MachineRepresentation::kProtectedPointer:
           os << "|pp";
           break;
-        case MachineRepresentation::kIndirectPointer:
+        case MachineRepresentation::kTrustedPointer:
           os << "|ip";
           break;
         case MachineRepresentation::kSandboxedPointer:
@@ -1081,7 +1081,7 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
       return rep;
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }

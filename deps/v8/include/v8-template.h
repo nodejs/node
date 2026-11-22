@@ -114,7 +114,7 @@ class V8_EXPORT Template : public Data {
    */
   void SetLazyDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
-      Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
+      Local<Data> data = Local<Data>(), PropertyAttribute attribute = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 
@@ -218,7 +218,7 @@ using NamedPropertySetterCallbackV2 =
                     const PropertyCallbackInfo<Boolean>& info);
 // TODO(https://crbug.com/348660658): deprecate and remove.
 using NamedPropertySetterCallback  //
-    V8_DEPRECATE_SOON("Use NamedPropertySetterCallbackV2 instead.") =
+    V8_DEPRECATED("Use NamedPropertySetterCallbackV2 instead.") =
         Intercepted (*)(Local<Name> property, Local<Value> value,
                         const PropertyCallbackInfo<void>& info);
 
@@ -318,7 +318,7 @@ using NamedPropertyDefinerCallbackV2 =
                     const PropertyCallbackInfo<Boolean>& info);
 // TODO(https://crbug.com/348660658): deprecate and remove.
 using NamedPropertyDefinerCallback  //
-    V8_DEPRECATE_SOON("Use NamedPropertyDefinerCallbackV2 instead.") =
+    V8_DEPRECATED("Use NamedPropertyDefinerCallbackV2 instead.") =
         Intercepted (*)(Local<Name> property, const PropertyDescriptor& desc,
                         const PropertyCallbackInfo<void>& info);
 
@@ -353,7 +353,7 @@ using IndexedPropertyGetterCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
 // TODO(https://crbug.com/348660658): deprecate and remove.
 using IndexedPropertyGetterCallbackV2  //
-    V8_DEPRECATE_SOON("Use IndexedPropertyGetterCallback instead.") =
+    V8_DEPRECATED("Use IndexedPropertyGetterCallback instead.") =
         IndexedPropertyGetterCallback;
 
 /**
@@ -364,7 +364,7 @@ using IndexedPropertySetterCallback =
                     const PropertyCallbackInfo<Boolean>& info);
 // TODO(https://crbug.com/348660658): deprecate and remove.
 using IndexedPropertySetterCallbackV2  //
-    V8_DEPRECATE_SOON("Use IndexedPropertySetterCallback instead.") =
+    V8_DEPRECATED("Use IndexedPropertySetterCallback instead.") =
         Intercepted (*)(uint32_t index, Local<Value> value,
                         const PropertyCallbackInfo<void>& info);
 
@@ -375,7 +375,7 @@ using IndexedPropertyQueryCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Integer>& info);
 // TODO(https://crbug.com/348660658): deprecate and remove.
 using IndexedPropertyQueryCallbackV2  //
-    V8_DEPRECATE_SOON("Use IndexedPropertyQueryCallback instead.") =
+    V8_DEPRECATED("Use IndexedPropertyQueryCallback instead.") =
         IndexedPropertyQueryCallback;
 
 /**
@@ -385,7 +385,7 @@ using IndexedPropertyDeleterCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Boolean>& info);
 // TODO(https://crbug.com/348660658): deprecate and remove.
 using IndexedPropertyDeleterCallbackV2  //
-    V8_DEPRECATE_SOON("Use IndexedPropertyDeleterCallback instead.") =
+    V8_DEPRECATED("Use IndexedPropertyDeleterCallback instead.") =
         IndexedPropertyDeleterCallback;
 
 /**
@@ -405,7 +405,7 @@ using IndexedPropertyDefinerCallback =
                     const PropertyCallbackInfo<Boolean>& info);
 // TODO(https://crbug.com/348660658): deprecate and remove.
 using IndexedPropertyDefinerCallbackV2  //
-    V8_DEPRECATE_SOON("Use IndexedPropertyDefinerCallback instead.") =
+    V8_DEPRECATED("Use IndexedPropertyDefinerCallback instead.") =
         Intercepted (*)(uint32_t index, const PropertyDescriptor& desc,
                         const PropertyCallbackInfo<void>& info);
 
@@ -416,7 +416,7 @@ using IndexedPropertyDescriptorCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
 // TODO(https://crbug.com/348660658): deprecate and remove.
 using IndexedPropertyDescriptorCallbackV2  //
-    V8_DEPRECATE_SOON("Use IndexedPropertyDescriptorCallback instead.") =
+    V8_DEPRECATED("Use IndexedPropertyDescriptorCallback instead.") =
         IndexedPropertyDescriptorCallback;
 
 /**

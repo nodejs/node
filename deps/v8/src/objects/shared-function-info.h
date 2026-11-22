@@ -14,6 +14,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/function-syntax-kind.h"
@@ -78,11 +79,12 @@ using CreateSourcePositions =
 // +-------------------------------+
 V8_OBJECT class PreparseData : public HeapObject {
  public:
+  inline PreparseData(const AllocationWitness& witness, int data_length,
+                      int children_length);
+
   int32_t data_length() const { return data_length_; }
-  void set_data_length(int32_t value) { data_length_ = value; }
 
   int32_t children_length() const { return children_length_; }
-  void set_children_length(int32_t value) { children_length_ = value; }
 
   inline uint8_t get(int index) const;
   inline void set(int index, uint8_t value);
@@ -126,8 +128,9 @@ V8_OBJECT class PreparseData : public HeapObject {
 
   inline int children_start_offset() const;
 
-  int32_t data_length_;
-  int32_t children_length_;
+  const int32_t data_length_;
+  const int32_t children_length_;
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(char, data_and_children);
 } V8_OBJECT_END;
 
@@ -265,42 +268,87 @@ using NameOrScopeInfoT = UnionOf<Smi, String, ScopeInfo>;
 // shared by multiple instances of the function.
 V8_OBJECT class SharedFunctionInfo : public HeapObject {
  public:
-  // Bit positions in |flags|.
-  using FunctionKindBits = base::BitField<FunctionKind, 0, 5, uint32_t>;
-  using IsNativeBit = FunctionKindBits::Next<bool, 1>;
-  using IsStrictBit = IsNativeBit::Next<bool, 1>;
-  using FunctionSyntaxKindBits = IsStrictBit::Next<FunctionSyntaxKind, 3>;
-  using IsClassConstructorBit = FunctionSyntaxKindBits::Next<bool, 1>;
-  using HasDuplicateParametersBit = IsClassConstructorBit::Next<bool, 1>;
-  using AllowLazyCompilationBit = HasDuplicateParametersBit::Next<bool, 1>;
-  using FunctionMapIndexBits = AllowLazyCompilationBit::Next<uint32_t, 5>;
-  using DisabledOptimizationReasonBits =
-      FunctionMapIndexBits::Next<BailoutReason, 4>;
-  using RequiresInstanceMembersInitializerBit =
-      DisabledOptimizationReasonBits::Next<bool, 1>;
-  using ConstructAsBuiltinBit =
-      RequiresInstanceMembersInitializerBit::Next<bool, 1>;
-  using NameShouldPrintAsAnonymousBit = ConstructAsBuiltinBit::Next<bool, 1>;
-  using HasReportedBinaryCoverageBit =
-      NameShouldPrintAsAnonymousBit::Next<bool, 1>;
-  using IsTopLevelBit = HasReportedBinaryCoverageBit::Next<bool, 1>;
-  using PropertiesAreFinalBit = IsTopLevelBit::Next<bool, 1>;
-  using PrivateNameLookupSkipsOuterClassBit =
-      PropertiesAreFinalBit::Next<bool, 1>;
-  using IsHoistedInContextBit =
-      PrivateNameLookupSkipsOuterClassBit::Next<bool, 1>;
-  using ClassInitializerAllowsAwaitBit = IsHoistedInContextBit::Next<bool, 1>;
-  // Bit positions in |flags2|.
-  using ClassScopeHasPrivateBrandBit = base::BitField<bool, 0, 1, uint8_t>;
-  using HasStaticPrivateMethodsOrAccessorsBit =
-      ClassScopeHasPrivateBrandBit::Next<bool, 1>;
-  using IsSparkplugCompilingBit =
-      HasStaticPrivateMethodsOrAccessorsBit::Next<bool, 1>;
-  using MaglevCompilationFailedBit = IsSparkplugCompilingBit::Next<bool, 1>;
-  using CachedTieringDecisionBits =
-      MaglevCompilationFailedBit::Next<CachedTieringDecision, 3>;
-  using FunctionContextIndependentCompiledBit =
-      CachedTieringDecisionBits::Next<bool, 1>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using FunctionKindBits = base::BitField<FunctionKind, 0, 5, uint32_t>;
+    using IsNativeBit = FunctionKindBits::Next<bool, 1>;
+    using IsStrictBit = IsNativeBit::Next<bool, 1>;
+    using FunctionSyntaxKindBits = IsStrictBit::Next<FunctionSyntaxKind, 3>;
+    using IsClassConstructorBit = FunctionSyntaxKindBits::Next<bool, 1>;
+    using HasDuplicateParametersBit = IsClassConstructorBit::Next<bool, 1>;
+    using AllowLazyCompilationBit = HasDuplicateParametersBit::Next<bool, 1>;
+    using FunctionMapIndexBits = AllowLazyCompilationBit::Next<uint32_t, 5>;
+    using DisabledOptimizationReasonBits =
+        FunctionMapIndexBits::Next<BailoutReason, 4>;
+    using RequiresInstanceMembersInitializerBit =
+        DisabledOptimizationReasonBits::Next<bool, 1>;
+    using ConstructAsBuiltinBit =
+        RequiresInstanceMembersInitializerBit::Next<bool, 1>;
+    using NameShouldPrintAsAnonymousBit = ConstructAsBuiltinBit::Next<bool, 1>;
+    using HasReportedBinaryCoverageBit =
+        NameShouldPrintAsAnonymousBit::Next<bool, 1>;
+    using IsTopLevelBit = HasReportedBinaryCoverageBit::Next<bool, 1>;
+    using PropertiesAreFinalBit = IsTopLevelBit::Next<bool, 1>;
+    using PrivateNameLookupSkipsOuterClassBit =
+        PropertiesAreFinalBit::Next<bool, 1>;
+    using IsHoistedInContextBit =
+        PrivateNameLookupSkipsOuterClassBit::Next<bool, 1>;
+    using ClassInitializerAllowsAwaitBit = IsHoistedInContextBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(function_kind, FunctionKindBits)
+    BIT_FIELD_GROUP_ACCESSORS(is_native, IsNativeBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_strict, IsStrictBit)
+    BIT_FIELD_GROUP_ACCESSORS(function_syntax_kind, FunctionSyntaxKindBits)
+    BIT_FIELD_GROUP_ACCESSORS(is_class_constructor, IsClassConstructorBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_duplicate_parameters,
+                              HasDuplicateParametersBit)
+    BIT_FIELD_GROUP_ACCESSORS(allow_lazy_compilation, AllowLazyCompilationBit)
+    BIT_FIELD_GROUP_ACCESSORS(function_map_index, FunctionMapIndexBits)
+    BIT_FIELD_GROUP_ACCESSORS(disabled_optimization_reason,
+                              DisabledOptimizationReasonBits)
+    BIT_FIELD_GROUP_ACCESSORS(requires_instance_members_initializer,
+                              RequiresInstanceMembersInitializerBit)
+    BIT_FIELD_GROUP_ACCESSORS(construct_as_builtin, ConstructAsBuiltinBit)
+    BIT_FIELD_GROUP_ACCESSORS(name_should_print_as_anonymous,
+                              NameShouldPrintAsAnonymousBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_reported_binary_coverage,
+                              HasReportedBinaryCoverageBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_top_level, IsTopLevelBit)
+    BIT_FIELD_GROUP_ACCESSORS(properties_are_final, PropertiesAreFinalBit)
+    BIT_FIELD_GROUP_ACCESSORS(private_name_lookup_skips_outer_class,
+                              PrivateNameLookupSkipsOuterClassBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_hoisted_in_context, IsHoistedInContextBit)
+    BIT_FIELD_GROUP_ACCESSORS(class_initializer_allows_await,
+                              ClassInitializerAllowsAwaitBit)
+  };
+
+  struct Flags2 : BitFieldGroup<Flags2, uint8_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using ClassScopeHasPrivateBrandBit = base::BitField<bool, 0, 1, uint8_t>;
+    using HasStaticPrivateMethodsOrAccessorsBit =
+        ClassScopeHasPrivateBrandBit::Next<bool, 1>;
+    using IsSparkplugCompilingBit =
+        HasStaticPrivateMethodsOrAccessorsBit::Next<bool, 1>;
+    using MaglevCompilationFailedBit = IsSparkplugCompilingBit::Next<bool, 1>;
+    using CachedTieringDecisionBits =
+        MaglevCompilationFailedBit::Next<CachedTieringDecision, 3>;
+    using FunctionContextIndependentCompiledBit =
+        CachedTieringDecisionBits::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(class_scope_has_private_brand,
+                              ClassScopeHasPrivateBrandBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_static_private_methods_or_accessors,
+                              HasStaticPrivateMethodsOrAccessorsBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_sparkplug_compiling, IsSparkplugCompilingBit)
+    BIT_FIELD_GROUP_ACCESSORS(maglev_compilation_failed,
+                              MaglevCompilationFailedBit)
+    BIT_FIELD_GROUP_ACCESSORS(cached_tiering_decision,
+                              CachedTieringDecisionBits)
+    BIT_FIELD_GROUP_ACCESSORS(function_context_independent_compiled,
+                              FunctionContextIndependentCompiledBit)
+  };
 
   // Primitive header accessors (equivalents of the previously Torque-
   // generated inline getters/setters). Kept in the same order as the
@@ -334,12 +382,14 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   inline uint16_t feedback_slot() const;
   inline void set_feedback_slot(uint16_t value);
 
-  // This initializes the SharedFunctionInfo after allocation. It must
-  // initialize all fields, and leave the SharedFunctionInfo in a state where
-  // it is safe for the GC to visit it.
+  // Initializes the SharedFunctionInfo after allocation. Leaves the
+  // SharedFunctionInfo in a state where it is safe for the GC to visit it.
   //
-  // Important: This function MUST not allocate.
-  void Init(ReadOnlyRoots roots, int unique_id);
+  // Important: These constructors MUST not allocate.
+  SharedFunctionInfo(const AllocationWitness& witness, int unique_id);
+  SharedFunctionInfo(const AllocationWitness& witness,
+                     Tagged<SharedFunctionInfo> other,
+                     IsolateForSandbox isolate);
 
   V8_EXPORT_PRIVATE static constexpr Tagged<Smi> const kNoSharedNameSentinel =
       Smi::zero();
@@ -483,7 +533,7 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   inline Tagged<Object> GetUntrustedData() const;
 
   // Helper function for use when a specific data type is expected.
-  template <typename T, IndirectPointerTagRange tag_range>
+  template <typename T, TrustedPointerTagRange tag_range>
   inline Tagged<T> GetTrustedData(IsolateForSandbox isolate) const;
 
   // Some code may encounter unreachable unusable objects and needs to skip
@@ -498,7 +548,7 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   // "trusted" part containing a trusted pointer and the regular/untrusted part
   // containing a tagged pointer. In that case, code accessing the data field
   // will first load the trusted data field. If that is empty (i.e.
-  // kNullIndirectPointerHandle), it will then load the regular field. With
+  // kNullTrustedPointerHandle), it will then load the regular field. With
   // that, the only racy transition would be a tagged -> trusted transition
   // (one thread may first read the empty trusted pointer, then another thread
   // transitions to the trusted field, clearing the tagged field, and then the
@@ -520,8 +570,8 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   inline bool HasUntrustedData() const;
 
  public:
-  static constexpr IndirectPointerTagRange kTrustedDataIndirectPointerRange =
-      kSFITrustedDataIndirectPointerRange;
+  static constexpr TrustedPointerTagRange kTrustedDataTrustedPointerRange =
+      kSFITrustedDataTrustedPointerRange;
 
   inline bool IsApiFunction() const;
   inline bool is_class_constructor() const;
@@ -548,6 +598,11 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   DECL_GETTER(HasBaselineCode, bool)
   DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Tagged<Code>)
   inline void FlushBaselineCode();
+  struct BytecodeArrays {
+    Tagged<BytecodeArray> original;
+    Tagged<BytecodeArray> active;
+  };
+  inline BytecodeArrays GetBytecodeArrays(Isolate* isolate) const;
   inline Tagged<BytecodeArray> GetActiveBytecodeArray(Isolate* isolate) const;
   inline void SetActiveBytecodeArray(Tagged<BytecodeArray> bytecode,
                                      IsolateForSandbox isolate);
@@ -646,9 +701,9 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   inline bool HasSharedName() const;
 
   // [flags] Bit field containing various flags about the function.
-  DECL_RELAXED_INT32_ACCESSORS(flags)
+  DECL_RELAXED_PRIMITIVE_ACCESSORS(flags, Flags)
   DECL_RELAXED_INT32_ACCESSORS(function_literal_id)
-  DECL_UINT8_ACCESSORS(flags2)
+  DECL_PRIMITIVE_ACCESSORS(flags2, Flags2)
 
   DECL_UINT16_ACCESSORS(age)
 
@@ -907,11 +962,12 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   class BodyDescriptor;
 
   // Bailout reasons must fit in the DisabledOptimizationReason bitfield.
-  static_assert(DisabledOptimizationReasonBits::is_valid(
+  static_assert(Flags::DisabledOptimizationReasonBits::is_valid(
       BailoutReason::kLastErrorMessage));
 
-  static_assert(FunctionKindBits::is_valid(FunctionKind::kLastFunctionKind));
-  static_assert(FunctionSyntaxKindBits::is_valid(
+  static_assert(
+      Flags::FunctionKindBits::is_valid(FunctionKind::kLastFunctionKind));
+  static_assert(Flags::FunctionSyntaxKindBits::is_valid(
       FunctionSyntaxKind::kLastFunctionSyntaxKind));
 
   // Sets the bytecode in {shared}'s DebugInfo as the bytecode to
@@ -953,8 +1009,8 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   inline uint16_t get_property_estimate_from_literal(FunctionLiteral* literal);
 
   // For ease of use of the BITFIELD macro.
-  inline int32_t relaxed_flags() const;
-  inline void set_relaxed_flags(int32_t flags);
+  inline Flags relaxed_flags() const;
+  inline void set_relaxed_flags(Flags flags);
 
   template <typename Impl>
   friend class FactoryBase;
@@ -965,23 +1021,32 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   inline Tagged<BytecodeArray> GetBytecodeArrayInternal(Isolate* isolate) const;
 
  public:
-  TrustedPointerMember<ExposedTrustedObject, kTrustedDataIndirectPointerRange>
+  V8_TQ_CUSTOM_WEAK
+  TrustedPointerMember<ExposedTrustedObject, kTrustedDataTrustedPointerRange>
       trusted_function_data_;
-  TaggedMember<Object> untrusted_function_data_;
-  TaggedMember<NameOrScopeInfoT> name_or_scope_info_;
+  // Set the function data to the "illegal" builtin by default. Ideally we'd use
+  // some sort of "uninitialized" marker here, but it's cheaper to use a valid
+  // builtin and avoid having to do uninitialized checks elsewhere.
+  TaggedMember<Object> untrusted_function_data_{
+      Smi::FromEnum(Builtin::kIllegal)};
+  // Set the name to the no-name sentinel, this can be updated later.
+  TaggedMember<UnionOf<Smi, String, ScopeInfo>> name_or_scope_info_{
+      kNoSharedNameSentinel};
   TaggedMember<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
       outer_scope_info_or_feedback_metadata_;
-  TaggedMember<HeapObject> script_;
-  uint16_t length_;
-  uint16_t formal_parameter_count_;
-  uint16_t function_token_offset_;
-  uint8_t expected_nof_properties_;
-  uint8_t flags2_;
-  std::atomic<uint32_t> flags_;
-  std::atomic<int32_t> function_literal_id_;
+  TaggedMember<HeapObject> script_ V8_TQ_TYPE(Script | Undefined);
+  uint16_t length_ = 0;
+  uint16_t formal_parameter_count_ = JSParameterCount(0);
+  uint16_t function_token_offset_ = 0;
+  uint8_t expected_nof_properties_ = 0;
+  Flags2 flags2_;
+  // All flags default to false or 0, except ConstructAsBuiltinBit just because
+  // we're using the kIllegal builtin.
+  std::atomic<Flags> flags_ = Flags().with_construct_as_builtin(true);
+  std::atomic<int32_t> function_literal_id_ = kInvalidInfoId;
   int32_t unique_id_;
-  std::atomic<uint16_t> age_;
-  std::atomic<uint16_t> feedback_slot_;
+  std::atomic<uint16_t> age_ = 0;
+  std::atomic<uint16_t> feedback_slot_ = 0;
 } V8_OBJECT_END;
 
 inline constexpr int SharedFunctionInfo::kEndOfStrongFieldsOffset =
@@ -1105,9 +1170,9 @@ V8_OBJECT class OnHeapBasicBlockProfilerData : public HeapObject {
     return sizeof(OnHeapBasicBlockProfilerData);
   }
 
-  TaggedMember<ByteArray> block_ids_;
-  TaggedMember<ByteArray> counts_;
-  TaggedMember<ByteArray> branches_;
+  TaggedMember<ByteArray> block_ids_ V8_TQ_TYPE(FixedInt32Array);
+  TaggedMember<ByteArray> counts_ V8_TQ_TYPE(FixedUInt32Array);
+  TaggedMember<ByteArray> branches_ V8_TQ_TYPE(PodArrayOfIntegerPairs);
   TaggedMember<String> name_;
   TaggedMember<String> schedule_;
   TaggedMember<String> code_;

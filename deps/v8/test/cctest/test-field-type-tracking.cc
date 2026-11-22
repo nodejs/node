@@ -1565,7 +1565,7 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
       Factory* factory = isolate->factory();
       DirectHandle<String> name = factory->empty_string();
       DirectHandle<Map> sloppy_map =
-          Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
+          Map::CopyInitialMap(isolate, isolate->function_map());
       DirectHandle<SharedFunctionInfo> info =
           factory->NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal, 0,
                                                    kDontAdapt);
@@ -2852,7 +2852,7 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
 
   DirectHandle<String> name = factory->empty_string();
   DirectHandle<Map> sloppy_map =
-      Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
+      Map::CopyInitialMap(isolate, isolate->function_map());
   DirectHandle<SharedFunctionInfo> info =
       factory->NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal, 0,
                                                kDontAdapt);
@@ -2915,7 +2915,7 @@ TEST(HoleyHeapNumber) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  auto mhn = isolate->factory()->NewHeapNumberWithHoleNaN();
+  auto mhn = isolate->factory()->NewHeapNumberFromBits(kHoleNanInt64);
   CHECK_EQ(kHoleNanInt64, mhn->value_as_bits());
 
   mhn = isolate->factory()->NewHeapNumber(0.0);
@@ -2930,8 +2930,7 @@ TEST(HoleyHeapNumber) {
   DirectHandle<Object> obj =
       Object::NewStorageFor(isolate, isolate->factory()->uninitialized_value(),
                             Representation::Double());
-  CHECK(IsHeapNumber(*obj));
-  CHECK_EQ(kHoleNanInt64, Cast<HeapNumber>(*obj)->value_as_bits());
+  CHECK(IsUninitializedHeapNumber(*obj));
 
   obj = Object::NewStorageFor(isolate, mhn, Representation::Double());
   CHECK(IsHeapNumber(*obj));

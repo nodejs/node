@@ -18,7 +18,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 3
                     lineNumber : 5
@@ -92,10 +92,10 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
-                    columnNumber : 13
-                    lineNumber : 14
+                    columnNumber : 3
+                    lineNumber : 15
                     scriptId : <scriptId>
                 }
                 name : run
@@ -106,11 +106,11 @@ Running test: testScopesPaused
                     type : object
                 }
                 startLocation : {
-                    columnNumber : 4
-                    lineNumber : 12
+                    columnNumber : 2
+                    lineNumber : 11
                     scriptId : <scriptId>
                 }
-                type : local
+                type : block
             }
             [1] : {
                 endLocation : {
@@ -201,7 +201,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 13
                     lineNumber : 14
@@ -222,6 +222,27 @@ Running test: testScopesPaused
                 type : local
             }
             [1] : {
+                emptyReason : no-variables
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : block
+            }
+            [2] : {
                 endLocation : {
                     columnNumber : 1
                     lineNumber : 19
@@ -241,7 +262,7 @@ Running test: testScopesPaused
                 }
                 type : closure
             }
-            [2] : {
+            [3] : {
                 object : {
                     className : global
                     description : global
@@ -275,7 +296,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 2
                     lineNumber : 11
@@ -296,6 +317,27 @@ Running test: testScopesPaused
                 type : local
             }
             [1] : {
+                emptyReason : no-variables
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : block
+            }
+            [2] : {
                 endLocation : {
                     columnNumber : 1
                     lineNumber : 19
@@ -315,7 +357,7 @@ Running test: testScopesPaused
                 }
                 type : closure
             }
-            [2] : {
+            [3] : {
                 object : {
                     className : global
                     description : global
@@ -437,7 +479,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 13
                     lineNumber : 14
@@ -458,6 +500,27 @@ Running test: testScopesPaused
                 type : local
             }
             [1] : {
+                emptyReason : no-variables
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : block
+            }
+            [2] : {
                 endLocation : {
                     columnNumber : 1
                     lineNumber : 19
@@ -477,7 +540,7 @@ Running test: testScopesPaused
                 }
                 type : closure
             }
-            [2] : {
+            [3] : {
                 object : {
                     className : global
                     description : global
@@ -511,7 +574,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 2
                     lineNumber : 11
@@ -532,6 +595,27 @@ Running test: testScopesPaused
                 type : local
             }
             [1] : {
+                emptyReason : no-variables
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : block
+            }
+            [2] : {
                 endLocation : {
                     columnNumber : 1
                     lineNumber : 19
@@ -551,7 +635,7 @@ Running test: testScopesPaused
                 }
                 type : closure
             }
-            [2] : {
+            [3] : {
                 object : {
                     className : global
                     description : global
@@ -673,7 +757,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 13
                     lineNumber : 14
@@ -694,6 +778,27 @@ Running test: testScopesPaused
                 type : local
             }
             [1] : {
+                emptyReason : no-variables
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : block
+            }
+            [2] : {
                 endLocation : {
                     columnNumber : 1
                     lineNumber : 19
@@ -713,7 +818,7 @@ Running test: testScopesPaused
                 }
                 type : closure
             }
-            [2] : {
+            [3] : {
                 object : {
                     className : global
                     description : global
@@ -747,7 +852,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 2
                     lineNumber : 11
@@ -768,6 +873,27 @@ Running test: testScopesPaused
                 type : local
             }
             [1] : {
+                emptyReason : no-variables
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : block
+            }
+            [2] : {
                 endLocation : {
                     columnNumber : 1
                     lineNumber : 19
@@ -787,7 +913,7 @@ Running test: testScopesPaused
                 }
                 type : closure
             }
-            [2] : {
+            [3] : {
                 object : {
                     className : global
                     description : global
@@ -909,7 +1035,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 3
                     lineNumber : 9
@@ -983,7 +1109,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 13
                     lineNumber : 14
@@ -1004,6 +1130,27 @@ Running test: testScopesPaused
                 type : local
             }
             [1] : {
+                emptyReason : no-variables
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : block
+            }
+            [2] : {
                 endLocation : {
                     columnNumber : 1
                     lineNumber : 19
@@ -1023,7 +1170,7 @@ Running test: testScopesPaused
                 }
                 type : closure
             }
-            [2] : {
+            [3] : {
                 object : {
                     className : global
                     description : global
@@ -1057,7 +1204,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 2
                     lineNumber : 11
@@ -1078,6 +1225,27 @@ Running test: testScopesPaused
                 type : local
             }
             [1] : {
+                emptyReason : no-variables
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : block
+            }
+            [2] : {
                 endLocation : {
                     columnNumber : 1
                     lineNumber : 19
@@ -1097,7 +1265,7 @@ Running test: testScopesPaused
                 }
                 type : closure
             }
-            [2] : {
+            [3] : {
                 object : {
                     className : global
                     description : global

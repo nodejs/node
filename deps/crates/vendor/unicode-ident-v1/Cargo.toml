@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.71"
 name = "unicode-ident"
-version = "1.0.24"
+version = "1.0.26"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 build = false
 autolib = false

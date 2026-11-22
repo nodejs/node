@@ -535,6 +535,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   size_t max_packet_size() const;
   void set_priority_supported(bool on = true);
 
+  // Check whether flow control permits opening another stream
+  bool CanImmediatelyOpenStream(Direction direction);
+
   // Open a new locally-initialized stream with the specified directionality.
   // If the session is not yet in a state where the stream can be opened --
   // such as when the handshake is not yet sufficiently far along and ORTT
@@ -546,6 +549,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void ExtendStreamOffset(stream_id id, size_t amount);
   void ExtendOffset(size_t amount);
   void SetLastError(QuicError&& error);
+  bool IsNoError(const QuicError& error) const;
+  v8::MaybeLocal<v8::Value> ToV8ErrorValue(const QuicError& error) const;
   uint64_t max_data_left() const;
 
   // Transport operations that protocol applications (e.g. HTTP/3) invoke on

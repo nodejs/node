@@ -225,7 +225,7 @@ void StackMemory::Iterate(v8::internal::RootVisitor* v, Isolate* isolate,
   }
 }
 
-bool StackMemory::Grow(Address current_fp, size_t min_size) {
+bool StackMemory::Grow(Address parent_frame_fp, size_t min_size) {
   DCHECK(owned_);
   while (V8_UNLIKELY(active_segment_->next_segment_ != nullptr &&
                      active_segment_->next_segment_->size_ < min_size)) {
@@ -261,7 +261,7 @@ bool StackMemory::Grow(Address current_fp, size_t min_size) {
     active_segment_->next_segment_ = new_segment;
     active_segment_ = new_segment;
   }
-  active_segment_->old_fp = current_fp;
+  active_segment_->parent_frame_fp = parent_frame_fp;
   size_ += active_segment_->size_;
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Grow stack #%d by %zu bytes (limit: %p, base: %p)\n", id_,
@@ -279,9 +279,9 @@ bool StackMemory::Grow(Address current_fp, size_t min_size) {
 Address StackMemory::Shrink() {
   DCHECK(owned_);
   DCHECK_NE(active_segment_->prev_segment_, nullptr);
-  Address old_fp = active_segment_->old_fp;
+  Address parent_frame_fp = active_segment_->parent_frame_fp;
   size_ -= active_segment_->size_;
-  active_segment_->old_fp = 0;
+  active_segment_->parent_frame_fp = 0;
   active_segment_ = active_segment_->prev_segment_;
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Shrink stack #%d (limit: %p, base: %p)\n", id_,
@@ -293,7 +293,7 @@ Address StackMemory::Shrink() {
       reinterpret_cast<uintptr_t>(active_segment_->limit_),
       active_segment_->base());
 #endif
-  return old_fp;
+  return parent_frame_fp;
 }
 
 void StackMemory::ShrinkTo(Address stack_address) {
@@ -365,6 +365,17 @@ void StackPool::ReleaseFinishedStacks() {
 
 size_t StackPool::Size() const {
   return freelist_.size() * sizeof(decltype(freelist_)::value_type) + size_;
+}
+
+Address StackMemory::GetParentSegmentOldFP(Address child_fp) const {
+  for (auto segment = active_segment_; segment;
+       segment = segment->prev_segment_) {
+    if (reinterpret_cast<Address>(segment->limit_) <= child_fp &&
+        child_fp <= segment->base()) {
+      return segment->parent_frame_fp;
+    }
+  }
+  return 0;
 }
 
 }  // namespace v8::internal::wasm

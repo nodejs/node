@@ -1750,7 +1750,7 @@ typedef enum UTimeZoneLocalOption UTimeZoneLocalOption; /**< @stable ICU 69 */
 * is, the offset not including DST adjustments.
 * If the status is set to one of the error code, the value set is unspecified.
 * @param dstOffset output parameter to receive the DST offset,
-* that is, the offset to be added to `rawOffset' to obtain the
+* that is, the offset to be added to `rawOffset` to obtain the
 * total offset between local and GMT time. If DST is not in
 * effect, this value is zero; otherwise it is a positive value,
 * typically one hour.

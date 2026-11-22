@@ -164,7 +164,7 @@ protected:
 };
 
 DataBuilderCollationIterator::DataBuilderCollationIterator(CollationDataBuilder &b)
-        : CollationIterator(&builderData, /*numeric=*/ false),
+        : CollationIterator(&builderData, /*nullTrie=*/ nullptr, /*numeric=*/ false),
           builder(b), builderData(b.nfcImpl),
           s(nullptr), pos(0) {
     builderData.base = builder.base;
@@ -205,7 +205,7 @@ DataBuilderCollationIterator::fetchCEs(const UnicodeString &str, int32_t start,
             d = &builderData;
         }
         appendCEsFromCE32(d, c, ce32, /*forward=*/ true, errorCode);
-        U_ASSERT(U_SUCCESS(errorCode));
+        if(U_FAILURE(errorCode)) { return 0; }
         for(int32_t i = 0; i < getCEsLength(); ++i) {
             int64_t ce = getCE(i);
             if(ce != 0) {
@@ -1701,6 +1701,10 @@ CollationDataBuilder::addContextTrie(uint32_t defaultCE32, UCharsTrieBuilder &tr
     int32_t index = contexts.indexOf(context);
     if(index < 0) {
         index = contexts.length();
+        if (index + context.length() > Collation::MAX_INDEX) {
+            errorCode = U_BUFFER_OVERFLOW_ERROR;
+            return -1;
+        }
         contexts.append(context);
     }
     return index;

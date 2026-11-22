@@ -21,6 +21,22 @@ namespace LIBC_NAMESPACE_DECL {
 
 namespace asin_internal {
 
+// Single-precision approximation of asin(x) / x for |x| <= 0.5, evaluated
+// at xsq = x * x.  The coefficients are the same as those used by asinf16,
+// generated with Sollya:
+// > prec = 200;
+// > display = hexadecimal;
+// > P = fpminimax(asin(x)/x, [|0, 2, 4, 6, 8|], [|SG...|], [0, 0.5]);
+// > dirtyinfnorm(asin(x)/x - P, [0, 0.5]);
+//   0x1p-23
+// This approximation is intended for 16-bit results, not float results.
+LIBC_INLINE LIBC_CONSTEXPR float asin_eval_float(float xsq) {
+  float x4 = xsq * xsq;
+  float c0 = fputil::multiply_add(xsq, 0x1.554c2ap-3f, 0x1.000002p0f);
+  float c1 = fputil::multiply_add(xsq, 0x1.43b2d6p-5f, 0x1.3541ccp-4f);
+  return fputil::polyeval(x4, c0, c1, 0x1.a0d73ep-5f);
+}
+
 using DoubleDouble = fputil::DoubleDouble;
 using DFloat128 = fputil::DyadicFloat<128>;
 

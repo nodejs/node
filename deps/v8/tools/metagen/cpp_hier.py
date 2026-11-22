@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 """Harvest the class hierarchy from C++ V8_OBJECT headers via libclang.
 
-Produces `ClassInfo` records (see instance_types.py) for every class
+Produces `ClassInfo` objects (see instance_types.py) for every class
 that transitively inherits HeapObject in the input headers, sourced from the
 `[[clang::annotate("V8_IT_*")]]` markers carried by aliases in each class
 body. Feed the list into `instance_types.assign_instance_types` to drive IT
@@ -25,6 +25,13 @@ Inheritance is resolved through templates by the shared harness in
 This module references `clang.cindex` at import time, so
 `clang_bootstrap.bootstrap()` must have run first -- metagen.py does
 that before importing us.
+
+TODO(jgruber): Rename to parse.py and scan_cpp to parse_driver; the
+module's job is the libclang parse and the ParsedTU built from it.
+Rename _harvest_classes to _index_classes and move its ClassInfo
+derivation out into it_extract.py, the twin of layout_extract.py, so
+that the pipeline reads as one parse, one index, two extractions.
+Drop the harvest vocabulary here and in metagen.py at the same time.
 """
 
 from __future__ import annotations
@@ -51,18 +58,54 @@ _V8_IT_ORDER_RE = re.compile(r"^V8_IT_ORDER\((FIRST|LAST)\)$")
 # Anchored, because the V8_OBJECTS_<NAME>_H_ include guards share a
 # prefix with V8_OBJECT and would otherwise match.
 _MARKER_MACRO_RE = re.compile(
-    r"^(V8_IT_[A-Z_]+|V8_ABSTRACT_OBJECT"
+    r"^(V8_IT_[A-Z_]+|V8_TQ_[A-Z_]+|V8_ABSTRACT_OBJECT"
     r"|V8_OBJECT(_END|_PUSH|_POP|_INNER_CLASS(_END)?)?)$")
+
+
+@dataclasses.dataclass
+class ParsedTU:
+  """The parsed translation unit and its indexes.
+
+  Instance-type and layout extraction share these indexes. `tu` keeps
+  every cursor alive. Each consumer adds the declarations it reads to
+  `visited`; visited_files() collects their paths for the depfile.
+  """
+  tu: cindex.TranslationUnit
+  templates_idx: dict[str, list[cindex.Cursor]]
+  # Every v8::internal class-like definition that reaches HeapObject,
+  # keyed by unqualified name (ambiguity is fatal during the scan).
+  heap_classes: dict[str, cindex.Cursor]
+  # Namespace-scope type aliases keyed by unqualified name, first one
+  # wins. Class-scope aliases are left out so that a member such as
+  # Internals::Tagged_t cannot shadow the namespace alias.
+  aliases: dict[str, cindex.Cursor]
+  visited: set[cindex.Cursor]
 
 
 @dataclasses.dataclass
 class ScanResult:
   classes: list[ClassInfo]
-  # Absolute paths of the files the harvest read a fact out of -- class
-  # declarations, the bases and templates it resolved through, and the
-  # marker definitions. Derived from the walk, not filtered from the
-  # include list, so it stays correct when a declaration moves.
-  provenance: list[str] = dataclasses.field(default_factory=list)
+  parsed: ParsedTU
+
+
+def visited_files(visited: set[cindex.Cursor], v8_root: str) -> list[str]:
+  """Absolute paths of the checkout files holding a visited declaration:
+  the classes, the bases and templates resolved through, field types,
+  and the marker definitions. Derived from the walk, not filtered from
+  the include list, so it stays correct when a declaration moves."""
+  files: set[str] = set()
+  # Prefix test rather than os.path.commonpath, which raises across
+  # drives on Windows -- and `visited` reaches the toolchain and sysroot
+  # declarations, which need not share the checkout's drive.
+  root = os.path.abspath(v8_root) + os.sep
+  for cursor in visited:
+    loc = cursor.location
+    if loc is None or loc.file is None:
+      continue
+    path = os.path.abspath(loc.file.name)
+    if path.startswith(root):
+      files.add(path)
+  return sorted(files)
 
 
 def _annotations(cursor: cindex.Cursor) -> list[str]:
@@ -155,81 +198,60 @@ def _class_info_from_cursor(
 def _dump_parse_failure(v8_root: str,
                         driver_path: str,
                         parse_flags: list[str],
-                        reason: str,
                         parse_cwd: str | None = None) -> None:
-  """Re-run the parse through the clang binary and forward its stderr.
-
-  Covers both ways the parse fails. On an unrecoverable TU the Python
-  binding drops the diagnostics: CXTranslationUnit is NULL and
-  from_source raises, so all we have is "Error parsing translation
-  unit". On a TU that parsed with errors we have diagnostics but not the
-  `In file included from ...` stacks, which are what show a header
-  resolving to a different file than the build's compile uses. clang
-  prints both.
-
-  Best-effort: if the bundled clang is missing or won't spawn, we log
-  that and let the caller fail as it would have anyway.
-  """
-  # libclang's argv mirrors the GCC-style clang driver, not clang-cl.
-  # On Linux/Mac the Chromium toolchain ships clang directly; on
-  # Windows it ships only clang-cl.exe -- invoke that with
-  # --driver-mode=g++ to make it parse the same flag set libclang did.
-  # Probe both <v8_root>/third_party/... and <v8_root>/../third_party/...
-  # to handle Chromium subproject builds where the toolchain lives at
-  # the chromium toplevel.
-  clang_extra_args: list[str] = []
+  """Ask clang for diagnostics when libclang returned no translation unit."""
+  # libclang takes GCC-style arguments, including on Windows.
+  clang_extra_args = []
   if sys.platform == "win32":
     clang_rel = "third_party/llvm-build/Release+Asserts/bin/clang-cl.exe"
     clang_extra_args = ["--driver-mode=g++"]
   else:
     clang_rel = "third_party/llvm-build/Release+Asserts/bin/clang"
-  clang_bin = ""
+  # Chromium builds keep the toolchain above the V8 checkout.
   for root in (v8_root, os.path.abspath(os.path.join(v8_root, os.pardir))):
-    candidate = os.path.join(root, clang_rel)
-    if os.path.isfile(candidate):
-      clang_bin = candidate
+    clang_bin = os.path.join(root, clang_rel)
+    if os.path.isfile(clang_bin):
       break
-  print(
-      f"[metagen] {reason}; re-running via clang -fsyntax-only to surface "
-      "diagnostics:",
-      file=sys.stderr)
-  print(f"[metagen]   clang: {clang_bin}", file=sys.stderr)
-  print(f"[metagen]   driver: {driver_path}", file=sys.stderr)
-  print(
-      f"[metagen]   flags ({len(parse_flags)}): "
-      f"{' '.join(parse_flags[:12])}{' ...' if len(parse_flags) > 12 else ''}",
-      file=sys.stderr)
-  if not clang_bin or not os.path.isfile(clang_bin):
+  else:
     print(
-        f"[metagen]   (clang binary not found; cannot re-run)", file=sys.stderr)
+        "metagen: note: clang is unavailable for additional diagnostics.",
+        file=sys.stderr)
     return
+
+  # Match PARSE_SKIP_FUNCTION_BODIES: bodies can reference declarations
+  # that have not been generated yet.
   try:
     proc = subprocess.run(
-        [clang_bin] + clang_extra_args + ["-fsyntax-only", driver_path] +
-        parse_flags,
+        [clang_bin] + clang_extra_args + [
+            "-fsyntax-only", "-Xclang", "-skip-function-bodies", "-w",
+            driver_path
+        ] + parse_flags,
         cwd=parse_cwd or v8_root,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-  except (OSError, subprocess.SubprocessError) as e:
-    print(f"[metagen]   (subprocess failed: {e})", file=sys.stderr)
+        timeout=60)
+  except subprocess.TimeoutExpired:
+    print(
+        "metagen: note: clang diagnostic rerun timed out after 60 seconds.",
+        file=sys.stderr)
     return
-  if proc.stderr:
-    print("[metagen] clang stderr (first 80 lines):", file=sys.stderr)
-    for line in proc.stderr.splitlines()[:80]:
-      print(f"[metagen]   {line}", file=sys.stderr)
-  print(f"[metagen] clang exited with {proc.returncode}", file=sys.stderr)
+  except OSError as e:
+    print(
+        f"metagen: note: could not run clang for diagnostics: {e}",
+        file=sys.stderr)
+    return
+  if proc.returncode != 1:
+    print(
+        f"metagen: note: clang diagnostic rerun exited with {proc.returncode}.",
+        file=sys.stderr)
 
 
 def scan_cpp(v8_root: str,
              driver_path: str,
              flags: list[str],
              parse_cwd: str | None = None) -> ScanResult:
-  """Parse `driver_path` via libclang and return ClassInfo records.
+  """Parse `driver_path` via libclang and return ClassInfo objects.
 
   The driver's active direct includes are the headers to harvest. The order of
-  returned records mirrors AST preorder, which equals (header inclusion order,
+  returned classes mirrors AST preorder, which equals (header inclusion order,
   source-position order within each header). That order is stable for a given
   driver + V8 tree.
 
@@ -261,16 +283,14 @@ def scan_cpp(v8_root: str,
     try:
       tu = index.parse(driver_path, args=parse_flags, options=options)
     except cindex.TranslationUnitLoadError:
-      # libclang couldn't even start the parse -- typically a sysroot
-      # / include-path / target-triple mismatch (Windows MSVC paths,
-      # missing builtin headers, ...). At this point the TU is NULL
-      # so we have no diagnostics to read via libclang. Re-run the
-      # parse via the clang binary as a subprocess; its stderr carries
-      # the actual error.
-      _dump_parse_failure(v8_root, driver_path, parse_flags,
-                          "libclang refused the TU", parse_cwd)
-      raise
-    _reject_recovery_ast(tu, v8_root, driver_path, parse_flags, parse_cwd)
+      print(
+          f"{driver_path}: error: libclang could not parse the translation "
+          "unit.",
+          file=sys.stderr,
+          flush=True)
+      _dump_parse_failure(v8_root, driver_path, parse_flags, parse_cwd)
+      sys.exit(1)
+    _reject_recovery_ast(tu)
     return _harvest_classes(tu, v8_root)
   finally:
     if saved_cwd is not None:
@@ -278,40 +298,10 @@ def scan_cpp(v8_root: str,
 
 
 def _position(cursor: cindex.Cursor, v8_root: str) -> str:
-  """`file.h:line:col`, relative to v8_root so the harvest's output and
-  its diagnostics are reproducible across checkouts."""
-  loc = cursor.location
-  fname = os.path.relpath(loc.file.name, v8_root) if loc.file else "<unknown>"
-  return f"{fname}:{loc.line}:{loc.column}"
+  return extract.position(cursor, v8_root) or "<unknown>"
 
 
-_SCOPE_KINDS = (cindex.CursorKind.NAMESPACE, cindex.CursorKind.CLASS_DECL,
-                cindex.CursorKind.STRUCT_DECL, cindex.CursorKind.CLASS_TEMPLATE,
-                cindex.CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION)
-
-
-def _qualified_name(cursor: cindex.Cursor) -> str:
-  """Return `cursor`'s name with its namespaces and enclosing classes,
-  e.g. "v8::internal::FixedArray::Iterator".
-
-  The enclosing classes are what separates the four v8::internal classes
-  named Iterator; the namespaces are what separates v8::Context from the
-  object.
-  """
-  parts = [cursor.spelling]
-  parent = cursor.semantic_parent
-  while parent is not None and parent.kind != cindex.CursorKind.TRANSLATION_UNIT:
-    if parent.kind in _SCOPE_KINDS:
-      parts.append(parent.spelling)
-    parent = parent.semantic_parent
-  return "::".join(reversed(parts))
-
-
-def _reject_recovery_ast(tu,
-                         v8_root: str,
-                         driver_path: str,
-                         parse_flags: list[str],
-                         parse_cwd: str | None = None) -> None:
+def _reject_recovery_ast(tu) -> None:
   """Exit unless the TU parsed cleanly.
 
   Never consume Clang's recovery AST. A missing declaration can corrupt a
@@ -321,16 +311,10 @@ def _reject_recovery_ast(tu,
   errors = [d for d in tu.diagnostics if d.severity >= cindex.Diagnostic.Error]
   if not errors:
     return
-  for d in errors[:30]:
-    print(
-        f"[metagen] diag {d.severity} {d.location}: {d.spelling}",
-        file=sys.stderr)
-  if len(errors) > 30:
-    print(f"[metagen] ... and {len(errors) - 30} more", file=sys.stderr)
-  _dump_parse_failure(v8_root, driver_path, parse_flags,
-                      f"libclang reported {len(errors)} error diagnostic(s)",
-                      parse_cwd)
-  print("[metagen] refusing to harvest a recovery AST.", file=sys.stderr)
+  for diagnostic in errors:
+    print(diagnostic.format(), file=sys.stderr)
+    for note in diagnostic.children:
+      print(note.format(), file=sys.stderr)
   sys.exit(1)
 
 
@@ -363,36 +347,33 @@ def _harvest_classes(tu, v8_root: str) -> ScanResult:
                      cindex.CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION)
   _HARVEST_KINDS = (cindex.CursorKind.CLASS_DECL,
                     cindex.CursorKind.CLASS_TEMPLATE)
+  _ALIAS_KINDS = (cindex.CursorKind.TYPEDEF_DECL,
+                  cindex.CursorKind.TYPE_ALIAS_DECL)
+  _NAMESPACE_KINDS = (cindex.CursorKind.TRANSLATION_UNIT,
+                      cindex.CursorKind.NAMESPACE)
   templates_idx: dict[str, list[cindex.Cursor]] = {}
   raw_candidates: dict[str, cindex.Cursor] = {}
+  aliases: dict[str, cindex.Cursor] = {}
   # Cursors that lost an unqualified-name collision, for the check below.
   shadowed: dict[str, list[cindex.Cursor]] = {}
 
-  def _walk(cur):
+  def _walk(cur, parent_kind):
     k = cur.kind
+    if k in _ALIAS_KINDS and parent_kind in _NAMESPACE_KINDS:
+      aliases.setdefault(cur.spelling, cur)
     if k in _TEMPLATE_KINDS and cur.is_definition():
       templates_idx.setdefault(cur.spelling, []).append(cur)
     if k in _HARVEST_KINDS and cur.is_definition():
-      # V8_IT_NO_AUTO_CHECKER normally excludes the class from the harvest.
-      # Combined with V8_IT_OWN_TYPE, it instead keeps the class in the IT
-      # tree while suppressing only its generated checker buckets.
-      no_auto_checker = _has_annotation(cur, _V8_IT_NO_AUTO_CHECKER)
-      own_type = _has_annotation(cur, _V8_IT_OWN_TYPE)
-      if not no_auto_checker or own_type:
-        loc = cur.location
-        # The driver reaches far more than the objects -- the public API
-        # headers among it -- and `raw_candidates` is keyed by unqualified
-        # name, so v8::Context would claim the key of the object it shares
-        # a name with and never be reconsidered. Select on the namespace:
-        # the harvest wants v8::internal and nothing else.
-        if _qualified_name(cur).startswith("v8::internal::"):
-          if raw_candidates.setdefault(cur.spelling, cur) != cur:
-            shadowed.setdefault(cur.spelling, []).append(cur)
+      # The driver reaches include/ API headers, and `raw_candidates` is keyed
+      # by unqualified name. Avoid cross-namespace collisions.
+      if extract.qualified_name(cur).startswith("v8::internal::"):
+        if raw_candidates.setdefault(cur.spelling, cur) != cur:
+          shadowed.setdefault(cur.spelling, []).append(cur)
     if k in _DESCEND_KINDS or k in _TEMPLATE_KINDS:
       for child in cur.get_children():
-        _walk(child)
+        _walk(child, k)
 
-  _walk(tu.cursor)
+  _walk(tu.cursor, None)
 
   def _reaches_heap_object(cur: cindex.Cursor) -> bool:
     return cur.spelling == extract.HEAP_OBJECT_ROOT or (
@@ -415,10 +396,10 @@ def _harvest_classes(tu, v8_root: str) -> ScanResult:
     claimants = {}
     for cur in [winner] + losers:
       if _reaches_heap_object(cur):
-        claimants.setdefault(_qualified_name(cur), cur)
+        claimants.setdefault(extract.qualified_name(cur), cur)
     if not claimants:
       continue
-    if len(claimants) > 1 or _qualified_name(winner) not in claimants:
+    if len(claimants) > 1 or extract.qualified_name(winner) not in claimants:
       print(
           f"[metagen] `{name}` is claimed by more than one v8::internal "
           f"class that reaches {extract.HEAP_OBJECT_ROOT}:",
@@ -442,12 +423,21 @@ def _harvest_classes(tu, v8_root: str) -> ScanResult:
   # ruled a candidate out: a header that keeps a class out of the
   # harvest decides the output too.
   visited: set[cindex.Cursor] = set()
-  candidates: dict[str, cindex.Cursor] = {
+  heap_classes: dict[str, cindex.Cursor] = {
       name: cur
       for name, cur in raw_candidates.items()
       if name == extract.HEAP_OBJECT_ROOT or extract.resolve_logical_base(
           cur, frozenset(), templates=templates_idx, visited=visited)
       is not None
+  }
+
+  # Layout extraction includes classes excluded from generated checkers because
+  # they still define layouts and base classes.
+  candidates: dict[str, cindex.Cursor] = {
+      name: cur
+      for name, cur in heap_classes.items()
+      if not _has_annotation(cur, _V8_IT_NO_AUTO_CHECKER) or
+      _has_annotation(cur, _V8_IT_OWN_TYPE)
   }
 
   # Compute the leaf set. A candidate is a leaf if no other candidate
@@ -500,17 +490,11 @@ def _harvest_classes(tu, v8_root: str) -> ScanResult:
         _MARKER_MACRO_RE.match(cursor.spelling)):
       visited.add(cursor)
 
-  provenance: set[str] = set()
-  # Prefix test rather than os.path.commonpath, which raises across
-  # drives on Windows -- and `visited` reaches the toolchain and sysroot
-  # declarations, which need not share the checkout's drive.
-  root = os.path.abspath(v8_root) + os.sep
-  for cursor in visited:
-    loc = cursor.location
-    if loc is None or loc.file is None:
-      continue
-    path = os.path.abspath(loc.file.name)
-    if path.startswith(root):
-      provenance.add(path)
-
-  return ScanResult(classes=classes, provenance=sorted(provenance))
+  return ScanResult(
+      classes=classes,
+      parsed=ParsedTU(
+          tu=tu,
+          templates_idx=templates_idx,
+          heap_classes=heap_classes,
+          aliases=aliases,
+          visited=visited))

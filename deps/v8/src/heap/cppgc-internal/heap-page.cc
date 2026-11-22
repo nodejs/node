@@ -119,8 +119,7 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
                 .linear_allocation_buffer()
                 .size());
 
-    PlatformAwareObjectStartBitmap& bitmap =
-        NormalPage::From(this)->object_start_bitmap();
+    ObjectStartBitmap& bitmap = NormalPage::From(this)->object_start_bitmap();
     const HeapObjectHeader* header = bitmap.FindHeader<AccessMode::kNonAtomic>(
         static_cast<ConstAddress>(address));
 

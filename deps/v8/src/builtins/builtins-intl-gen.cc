@@ -9,6 +9,7 @@
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/codegen/code-stub-assembler-inl.h"
+#include "src/objects/intl-objects.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-list-format.h"
 #include "src/objects/objects-inl.h"
@@ -48,12 +49,12 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
   // Jumps to {target} if the first two characters of {seq_string} equal
   // {pattern} ignoring case.
   void JumpIfStartsWithIgnoreCase(TNode<SeqOneByteString> seq_string,
-                                  const char* pattern, Label* target) {
+                                  std::string_view pattern, Label* target) {
     size_t effective_offset =
         OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag;
     TNode<Uint16T> raw =
         Load<Uint16T>(seq_string, IntPtrConstant(effective_offset));
-    DCHECK_EQ(strlen(pattern), 2);
+    DCHECK_EQ(pattern.length(), 2);
 #if V8_TARGET_BIG_ENDIAN
     int raw_pattern = (pattern[0] << 8) + pattern[1];
 #else
@@ -141,9 +142,9 @@ void IntlBuiltinsAssembler::ToLowerCaseImpl(
   to_direct.TryToDirect(&runtime);
 
   if (kind == ToLowerCaseKind::kToLocaleLowerCase) {
-    Label fast(this), check_locale(this);
+    Label fast(this), check_locale(this), is_undefined(this);
     // Check for fast locales.
-    GotoIf(IsUndefined(maybe_locales), &fast);
+    GotoIf(IsUndefined(maybe_locales), &is_undefined);
     // Passing a Smi as locales requires performing a ToObject conversion
     // followed by reading the length property and the "indexed" properties of
     // it until a valid locale is found.
@@ -162,11 +163,18 @@ void IntlBuiltinsAssembler::ToLowerCaseImpl(
     GotoIf(IsNonAlpha(GetChar(locale, 4)), &runtime);
     Goto(&check_locale);
 
+    Bind(&is_undefined);
+    GotoIf(Word32NotEqual(
+               Load<Uint8T>(IsolateField(
+                   IsolateFieldId::kDefaultLocaleMayRequireSpecialCaseMapping)),
+               Int32Constant(0)),
+           &runtime);
+    Goto(&fast);
+
     Bind(&check_locale);
-    JumpIfStartsWithIgnoreCase(locale, "az", &runtime);
-    JumpIfStartsWithIgnoreCase(locale, "el", &runtime);
-    JumpIfStartsWithIgnoreCase(locale, "lt", &runtime);
-    JumpIfStartsWithIgnoreCase(locale, "tr", &runtime);
+    for (std::string_view special_locale : Intl::kCaseMappingSpecialLocales) {
+      JumpIfStartsWithIgnoreCase(locale, special_locale, &runtime);
+    }
     Goto(&fast);
 
     Bind(&fast);

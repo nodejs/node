@@ -1609,7 +1609,7 @@ Reduction JSTypedLowering::ReduceJSHasContextExtension(Node* node) {
       UseInfo::TruncatingWord32());
   TNode<Word32T> flags_masked = gasm.Word32And(
       scope_info_flags,
-      gasm.Uint32Constant(ScopeInfo::HasContextExtensionSlotBit::kMask));
+      gasm.Uint32Constant(ScopeInfo::Flags::HasContextExtensionSlotBit::kMask));
   TNode<Word32T> no_extension =
       gasm.Word32Equal(flags_masked, gasm.Uint32Constant(0));
   TNode<Word32T> has_extension =
@@ -1922,7 +1922,7 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   node->InsertInput(zone, 2, target);
   node->InsertInput(zone, 3, argc_node);
 
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
   // Make sure we insert required stack-alignment padding between extra
   // arguments and JS arguments.
   static_assert(BuiltinArguments::kOptionalPaddingIndex == 3);
@@ -1933,7 +1933,7 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
 #else
   // No padding required.
   static_assert(BuiltinArguments::kNumExtraArgs == 3);
-#endif  // V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_ARM64 || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
 
   int cursor = arity + kStub + BuiltinArguments::kNumExtraArgsWithReceiver;
 
@@ -2084,9 +2084,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     function = target_type.AsHeapConstant()->Ref().AsJSFunction();
     shared = function->shared(broker());
   } else if (target->opcode() == IrOpcode::kJSCreateClosure) {
-    CreateClosureParameters const& ccp =
-        JSCreateClosureNode{target}.Parameters();
-    shared = ccp.shared_info();
+    shared = JSCreateClosureNode{target}.shared_info();
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
     shared = cell.shared_function_info(broker());
@@ -2143,9 +2141,14 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     Node* new_target = jsgraph()->UndefinedConstant();
 
     // TODO(412398354): use the dispatch handle here to avoid a runtime check.
-    int formal_count =
-        shared->internal_formal_parameter_count_without_receiver_deprecated();
-    if (formal_count > arity) {
+    int expected_formal_parameter_count =
+        shared->internal_formal_parameter_count_with_receiver_deprecated();
+
+    if (expected_formal_parameter_count > JSParameterCount(arity)) {
+      DCHECK_NE(expected_formal_parameter_count, kDontAdaptArgumentsSentinel);
+      // Formal parameter count without receiver.
+      int formal_count = expected_formal_parameter_count - kJSArgcReceiverSlots;
+
       node->RemoveInput(n.FeedbackVectorIndex());
       // Underapplication. Massage the arguments to match the expected number of
       // arguments.
@@ -2163,10 +2166,10 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
           graph()->zone(), formal_count + 4,
           jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle.value()));
 #endif
-      NodeProperties::ChangeOp(node,
-                               common()->Call(Linkage::GetJSCallDescriptor(
-                                   graph()->zone(), false, 1 + formal_count,
-                                   flags | CallDescriptor::kCanUseRoots)));
+      NodeProperties::ChangeOp(
+          node, common()->Call(Linkage::GetJSCallDescriptor(
+                    graph()->zone(), false, JSParameterCount(formal_count),
+                    expected_formal_parameter_count, flags)));
     } else if (shared->HasBuiltinId() &&
                Builtins::IsCpp(shared->builtin_id())) {
       // Patch {node} to a direct CEntry call.
@@ -2177,7 +2180,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
       // This SBXCHECK is a defense-in-depth measure to ensure that we always
       // generate valid calls here (with matching signatures).
-      SBXCHECK_GE(arity + kJSArgcReceiverSlots,
+      SBXCHECK_GE(JSParameterCount(arity),
                   Builtins::GetFormalParameterCount(builtin));
 
       // Patch {node} to a direct code object call.
@@ -2209,10 +2212,10 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
           graph()->zone(), arity + 4,
           jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle.value()));
 #endif
-      NodeProperties::ChangeOp(node,
-                               common()->Call(Linkage::GetJSCallDescriptor(
-                                   graph()->zone(), false, 1 + arity,
-                                   flags | CallDescriptor::kCanUseRoots)));
+      NodeProperties::ChangeOp(
+          node, common()->Call(Linkage::GetJSCallDescriptor(
+                    graph()->zone(), false, JSParameterCount(arity),
+                    expected_formal_parameter_count, flags)));
     }
     return Changed(node);
   }
@@ -2248,6 +2251,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
+  CHECK(!v8_flags.forin_enumerator_holder);
   JSForInNextNode n(node);
   Node* receiver = n.receiver();
   Node* cache_array = n.cache_array();
@@ -2361,6 +2365,7 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
+  CHECK(!v8_flags.forin_enumerator_holder);
   JSForInPrepareNode n(node);
   Node* enumerator = n.enumerator();
   Effect effect = n.effect();
@@ -2504,7 +2509,7 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
 Reduction JSTypedLowering::ReduceJSLoadMessage(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadMessage, node->opcode());
   ExternalReference const ref =
-      ExternalReference::address_of_pending_message(isolate());
+      ExternalReference::Create(IsolateFieldId::kPendingMessage);
   node->ReplaceInput(0, jsgraph()->ExternalConstant(ref));
   NodeProperties::ChangeOp(node, simplified()->LoadMessage());
   return Changed(node);
@@ -2513,7 +2518,7 @@ Reduction JSTypedLowering::ReduceJSLoadMessage(Node* node) {
 Reduction JSTypedLowering::ReduceJSStoreMessage(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreMessage, node->opcode());
   ExternalReference const ref =
-      ExternalReference::address_of_pending_message(isolate());
+      ExternalReference::Create(IsolateFieldId::kPendingMessage);
   Node* value = NodeProperties::GetValueInput(node, 0);
   node->ReplaceInput(0, jsgraph()->ExternalConstant(ref));
   node->ReplaceInput(1, value);
@@ -2830,7 +2835,7 @@ Reduction JSTypedLowering::ReduceJSAsyncFunctionAwait(Node* node) {
           AccessBuilder::ForJSObjectOffset(offsetof(JSPromise, flags_))),
       value,
       jsgraph()->SmiConstant(v8::Promise::kFulfilled |
-                             JSPromise::HasHandlerBit::kMask),
+                             JSPromise::Flags::HasHandlerBit::kMask),
       fast_effect, fast_control);
 
   // Note: resume_mode is NOT set here — the AsyncResumeTask handler in

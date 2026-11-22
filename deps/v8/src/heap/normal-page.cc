@@ -28,33 +28,19 @@ NormalPage::NormalPage(Heap* heap, BaseSpace* space, size_t size,
 void NormalPage::AllocateFreeListCategories() {
   DCHECK_NULL(categories_);
   categories_ =
-      new FreeListCategory*[owner()->free_list()->number_of_categories()]();
-  for (int i = kFirstCategory; i <= owner()->free_list()->last_category();
-       i++) {
-    DCHECK_NULL(categories_[i]);
-    categories_[i] = new FreeListCategory();
-  }
+      new FreeListCategory[owner()->free_list()->number_of_categories()];
 }
 
 void NormalPage::InitializeFreeListCategories() {
   for (int i = kFirstCategory; i <= owner()->free_list()->last_category();
        i++) {
-    categories_[i]->Initialize(static_cast<FreeListCategoryType>(i));
+    categories_[i].Initialize(static_cast<FreeListCategoryType>(i));
   }
 }
 
 void NormalPage::ReleaseFreeListCategories() {
-  if (categories_ != nullptr) {
-    for (int i = kFirstCategory; i <= owner()->free_list()->last_category();
-         i++) {
-      if (categories_[i] != nullptr) {
-        delete categories_[i];
-        categories_[i] = nullptr;
-      }
-    }
-    delete[] categories_;
-    categories_ = nullptr;
-  }
+  delete[] categories_;
+  categories_ = nullptr;
 }
 
 NormalPage* NormalPage::ConvertNewToOld(NormalPage* old_page,

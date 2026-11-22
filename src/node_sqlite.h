@@ -534,6 +534,13 @@ class SQLTagStore : public BaseObject {
       Environment* env,
       Statement* stmt,
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  // Performs the state checks, statement preparation, and parameter binding
+  // shared by Run(), Iterate(), Get(), and All(). On success, `*out` is set to
+  // the prepared statement. On failure, a JavaScript exception is pending and
+  // `*out` is left empty.
+  static void PrepareForExecution(
+      const v8::FunctionCallbackInfo<v8::Value>& args,
+      BaseObjectPtr<Statement>* out);
   BaseObjectWeakPtr<Database> database_;
   LRUCache<std::string, BaseObjectPtr<Statement>> sql_tags_;
   friend class StatementExecutionHelper;

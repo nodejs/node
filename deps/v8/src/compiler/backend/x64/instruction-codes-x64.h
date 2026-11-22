@@ -191,7 +191,7 @@ namespace compiler {
   V(X64Float64Neg)                                   \
   V(X64Float32Abs)                                   \
   V(X64Float32Neg)                                   \
-  V(X64MovqStoreIndirectPointer)                     \
+  V(X64MovqStoreTrustedPointer)                      \
   V(X64MovqEncodeSandboxedPointer)                   \
   V(X64MovqDecodeSandboxedPointer)                   \
   V(X64BitcastFI)                                    \

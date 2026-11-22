@@ -523,20 +523,25 @@ class Node {
     )
   }
 
-  getBundler (path = []) {
+  getBundler (seen = new Set()) {
+    const isArray = Array.isArray(seen)
     // made a cycle, definitely not bundled!
-    if (path.includes(this)) {
+    if (isArray ? seen.includes(this) : seen.has(this)) {
       return null
     }
 
-    path.push(this)
+    if (isArray) {
+      seen.push(this)
+    } else {
+      seen.add(this)
+    }
 
     const parent = this[_parent]
     if (!parent) {
       return null
     }
 
-    const pBundler = parent.getBundler(path)
+    const pBundler = parent.getBundler(seen)
     if (pBundler) {
       return pBundler
     }
@@ -553,7 +558,7 @@ class Node {
     // then they are not bundled.  Ie, installing a package with
     // unmet bundled deps will not cause your deps to be bundled.
     for (const edge of this.edgesIn) {
-      const eBundler = edge.from.getBundler(path)
+      const eBundler = edge.from.getBundler(seen)
       if (!eBundler) {
         continue
       }
@@ -1505,6 +1510,11 @@ class Node {
   }
 
   [_reloadNamedEdges] (name, rootLoc = this.location) {
+    if (!this.edgesOut.size && !this.children.size && !this.fsChildren.size) {
+      // With no outgoing edges or descendants, there is nothing to refresh or traverse.
+      return
+    }
+
     const edge = this.edgesOut.get(name)
     // if we don't have an edge, do nothing, but keep descending
     const rootLocResolved = edge && edge.to &&

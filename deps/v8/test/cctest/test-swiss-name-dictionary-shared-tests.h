@@ -57,7 +57,8 @@ struct SharedSwissTableTests {
   // H1 values are used modulo the capacity of the table, this has no further
   // effects. Note that using just this value itself as an H1 value means that a
   // key will (try to) occupy bucket 0.
-  static const int kBigModulus = (1 << 22);
+  static const uint32_t kBigModulus =
+      V8_LOWER_LIMITS_MODE_BOOL ? (1 << 18) : (1 << 22);
   static_assert(SwissNameDictionary::IsValidCapacity(kBigModulus));
 
   // Returns elements from TS::distinct_property_details in a deterministic
@@ -73,13 +74,13 @@ struct SharedSwissTableTests {
   // Capacity() - 2, and Capacity() - 1. (But only three of those if the table
   // can't hold 4 elements without resizing).
   static void AddAtBoundaries(TS& s) {
-    int capacity = s.initial_capacity;
-    std::vector<int> interesting_indices = s.boundary_indices(capacity);
+    uint32_t capacity = s.initial_capacity;
+    std::vector<uint32_t> interesting_indices = s.boundary_indices(capacity);
 
     s.CheckCounts(capacity, 0, 0);
 
     int count = 0;
-    for (int index : interesting_indices) {
+    for (uint32_t index : interesting_indices) {
       std::string key = "k" + std::to_string(index);
       std::string value = "v" + std::to_string(index);
       PropertyDetails details = distinct_details(count++);
@@ -95,10 +96,10 @@ struct SharedSwissTableTests {
   // appending the actual index (e.g., 0, ...., counts - 1) to |key_prefix| and
   // |value_prefix|, respectively. The property details are taken from
   // |distinct_property_details|.
-  static void AddMultiple(TS& s, int count, std::string key_prefix = "key",
+  static void AddMultiple(TS& s, uint32_t count, std::string key_prefix = "key",
                           std::string value_prefix = "value",
                           int details_offset = 0) {
-    for (int i = 0; i < count; ++i) {
+    for (uint32_t i = 0; i < count; ++i) {
       std::string key = key_prefix + std::to_string(i);
       std::string value = value_prefix + std::to_string(i);
       PropertyDetails d = distinct_details(i);
@@ -108,14 +109,15 @@ struct SharedSwissTableTests {
 
   // Checks that |count| entries exist, as they would have been added by a call
   // to AddMultiple with the same arguments.
-  static void CheckMultiple(TS& s, int count, std::string key_prefix = "key",
+  static void CheckMultiple(TS& s, uint32_t count,
+                            std::string key_prefix = "key",
                             std::string value_prefix = "value",
                             int details_offset = 0) {
     DCHECK_LE(count,
               SwissNameDictionary::MaxUsableCapacity(s.initial_capacity));
 
     std::vector<std::string> expected_keys;
-    for (int i = 0; i < count; ++i) {
+    for (uint32_t i = 0; i < count; ++i) {
       std::string key = key_prefix + std::to_string(i);
       expected_keys.push_back(key);
       std::string value = value_prefix + std::to_string(i);
@@ -268,13 +270,13 @@ struct SharedSwissTableTests {
     TS::WithAllInterestingInitialCapacities([](TS& s) {
       AddAtBoundaries(s);
 
-      int capacity = s.initial_capacity;
+      uint32_t capacity = s.initial_capacity;
 
-      std::vector<int> boundary_indices = s.boundary_indices(capacity);
-      int size = static_cast<int>(boundary_indices.size());
+      std::vector<uint32_t> boundary_indices = s.boundary_indices(capacity);
+      uint32_t size = static_cast<uint32_t>(boundary_indices.size());
 
       int count = 0;
-      for (int index : boundary_indices) {
+      for (uint32_t index : boundary_indices) {
         std::string key = "k" + std::to_string(index);
         std::string value = "v" + std::to_string(index);
         PropertyDetails details = distinct_details(count++);
@@ -295,13 +297,13 @@ struct SharedSwissTableTests {
     TS::WithAllInterestingInitialCapacities([](TS& s) {
       AddAtBoundaries(s);
 
-      int capacity = s.initial_capacity;
+      uint32_t capacity = s.initial_capacity;
 
-      std::vector<int> boundary_indices = s.boundary_indices(capacity);
+      std::vector<uint32_t> boundary_indices = s.boundary_indices(capacity);
       int size = static_cast<int>(boundary_indices.size());
 
       int count = 0;
-      for (int index : boundary_indices) {
+      for (uint32_t index : boundary_indices) {
         std::string key = "k" + std::to_string(index);
         std::string value = "newv" + std::to_string(index);
         // setting offset means getting other PropertyDetails than before
@@ -311,7 +313,7 @@ struct SharedSwissTableTests {
       }
 
       count = 0;
-      for (int index : boundary_indices) {
+      for (uint32_t index : boundary_indices) {
         std::string key = "k" + std::to_string(index);
         std::string value = "newv" + std::to_string(index);
         PropertyDetails details = distinct_details(count++, size);
@@ -330,29 +332,30 @@ struct SharedSwissTableTests {
     if (!TestRunner::IsEnabled()) return;
     // The maximum value of {TS::boundary_indices(capacity).size()} for any
     // |capacity|.
-    int count = 4;
+    uint32_t count = 4;
 
     // Due to shrink-on-delete, we create a new dictionary prior to each
     // deletion, so that we don't re-hash (which would defeat the purpose of
     // this test).
-    for (int i = 0; i < count; ++i) {
+    for (uint32_t i = 0; i < count; ++i) {
       // In this iteration, we delete the i-th element of |boundary_indices|.
 
       TS::WithAllInterestingInitialCapacities([&](TS& s) {
-        std::vector<int> boundary_indices =
+        std::vector<uint32_t> boundary_indices =
             TS::boundary_indices(s.initial_capacity);
-        int number_of_entries = static_cast<int>(boundary_indices.size());
+        uint32_t number_of_entries =
+            static_cast<uint32_t>(boundary_indices.size());
         DCHECK_GE(count, number_of_entries);
 
-        if (i >= static_cast<int>(boundary_indices.size())) {
+        if (i >= number_of_entries) {
           // Nothing to do.
           return;
         }
 
         AddAtBoundaries(s);
 
-        int entry_to_delete = boundary_indices[i];
-        int h1 = entry_to_delete + kBigModulus;
+        uint32_t entry_to_delete = boundary_indices[i];
+        uint32_t h1 = entry_to_delete + kBigModulus;
 
         // We know that the key in question was added at bucket
         // |entry_to_delete| by AddAtBoundaries.
@@ -361,9 +364,10 @@ struct SharedSwissTableTests {
         s.CheckKeyAbsent(key);
 
         // Account for the fact that a shrink-on-delete may have happened.
-        int expected_capacity = number_of_entries - 1 < s.initial_capacity / 4
-                                    ? s.initial_capacity / 2
-                                    : s.initial_capacity;
+        uint32_t expected_capacity =
+            number_of_entries - 1 < s.initial_capacity / 4
+                ? s.initial_capacity / 2
+                : s.initial_capacity;
         s.CheckCounts(expected_capacity, number_of_entries - 1);
       });
     }
@@ -378,15 +382,15 @@ struct SharedSwissTableTests {
     TS::WithAllInterestingInitialCapacities([](TS& s) {
       AddAtBoundaries(s);
 
-      int capacity = s.initial_capacity;
+      uint32_t capacity = s.initial_capacity;
 
-      std::vector<int> boundary_indices = s.boundary_indices(capacity);
+      std::vector<uint32_t> boundary_indices = s.boundary_indices(capacity);
 
       std::vector<std::string> keys, values;
       std::vector<PropertyDetails> details;
 
       int count = 0;
-      for (int index : boundary_indices) {
+      for (uint32_t index : boundary_indices) {
         std::string key = "additional_k" + std::to_string(index);
         std::string value = "additional_v" + std::to_string(index);
 
@@ -398,7 +402,7 @@ struct SharedSwissTableTests {
       }
 
       count = 0;
-      for (int entry : boundary_indices) {
+      for (uint32_t entry : boundary_indices) {
         std::string key = keys[count];
         std::string value = values[count];
         PropertyDetails d = details[count];
@@ -412,7 +416,7 @@ struct SharedSwissTableTests {
       // The entries added by AddAtBoundaries must also still be there, at their
       // original indices.
       count = 0;
-      for (int index : boundary_indices) {
+      for (uint32_t index : boundary_indices) {
         std::string key = "k" + std::to_string(index);
         std::string value = "v" + std::to_string(index);
         PropertyDetails detail = distinct_property_details.at(count++);
@@ -474,8 +478,8 @@ struct SharedSwissTableTests {
       // entries, and then delete every second one of those. Note that we do
       // this all on a single table, meaning that the entries from the previous
       // value of |exponent| are still present.
-      int added = 0;
-      int deleted = 0;
+      uint32_t added = 0;
+      uint32_t deleted = 0;
       int offset = 0;
       for (int exponent = 0; exponent <= max_exponent; ++exponent) {
         int count = 1 << exponent;
@@ -495,14 +499,14 @@ struct SharedSwissTableTests {
           ++deleted;
         }
 
-        s.CheckCounts(kNoInt, added - deleted, kNoInt);
+        s.CheckCounts(kNoUint32, added - deleted, kNoUint32);
         offset += count;
       }
 
       // Some internal consistency checks on the test itself:
       DCHECK_EQ((1 << (max_exponent + 1)) - 1, offset);
-      DCHECK_EQ(offset, added);
-      DCHECK_EQ(offset / 2, deleted);
+      DCHECK_EQ(static_cast<uint32_t>(offset), added);
+      DCHECK_EQ(static_cast<uint32_t>(offset / 2), deleted);
 
       // Check that those entries that we expect are indeed present.
       for (int i = 0; i < offset; i += 2) {
@@ -521,7 +525,8 @@ struct SharedSwissTableTests {
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacities({4, 8, 16, 128}, [](TS& s) {
-      int count = SwissNameDictionary::MaxUsableCapacity(s.initial_capacity);
+      uint32_t count =
+          SwissNameDictionary::MaxUsableCapacity(s.initial_capacity);
 
       AddMultiple(s, count, "resize2");
 
@@ -543,9 +548,9 @@ struct SharedSwissTableTests {
     // Determine those capacities, allowing 100% max load factor. We trust
     // MaxUsableCapacity to tell us which capacities that are (e.g., 4 and 8),
     // because we tested that function separately elsewhere.
-    std::vector<int> capacities_allowing_full_utilization;
-    for (int c = SwissNameDictionary::kInitialCapacity;
-         c <= static_cast<int>(SwissNameDictionary::kGroupWidth); c *= 2) {
+    std::vector<uint32_t> capacities_allowing_full_utilization;
+    for (uint32_t c = SwissNameDictionary::kInitialCapacity;
+         c <= SwissNameDictionary::kGroupWidth; c *= 2) {
       if (SwissNameDictionary::MaxUsableCapacity(c) == c) {
         capacities_allowing_full_utilization.push_back(c);
       }
@@ -580,16 +585,16 @@ struct SharedSwissTableTests {
     // larger capacities.
     // TODO(v8:11330) Revisit this once the actual CSA/Torque versions are run
     // by the test suite, which will speed things up.
-    std::vector<int> capacities_to_test =
+    std::vector<uint32_t> capacities_to_test =
         TS::IsRuntimeTest() ? interesting_initial_capacities
                             : capacities_for_slow_sanitizer_tests;
 
     TS::WithInitialCapacities(capacities_to_test, [](TS& s) {
       std::vector<std::string> expected_keys;
-      int count = std::min(
-          SwissNameDictionary::MaxUsableCapacity(s.initial_capacity), 1000);
+      uint32_t count = std::min(
+          SwissNameDictionary::MaxUsableCapacity(s.initial_capacity), 1000u);
 
-      for (int i = 0; i < count; ++i) {
+      for (uint32_t i = 0; i < count; ++i) {
         std::string key = "enumkey" + std::to_string(i);
         expected_keys.push_back(key);
         s.Add(Key{key});
@@ -620,10 +625,10 @@ struct SharedSwissTableTests {
         // is 4 and the group size is 8, the three deletes above caused a
         // shrink, which in this case was just a rehash. So we need to add 4
         // elements to cause a resize.
-        int resize_at =
+        uint32_t resize_at =
             SwissNameDictionary::MaxUsableCapacity(s.initial_capacity) + 4;
 
-        for (int i = count; i < resize_at; ++i) {
+        for (uint32_t i = count; i < resize_at; ++i) {
           std::string key = "enumkey" + std::to_string(i);
           expected_keys.push_back(key);
           s.Add(Key{key});
@@ -639,14 +644,14 @@ struct SharedSwissTableTests {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    int i = 0;
+    uint32_t i = 0;
     TS::WithAllInterestingInitialCapacities([&](TS& s) {
       // Let's try a few different values for h1, starting at big_modulus;.
-      int first_h1 = i * 13 + kBigModulus;
-      int second_h1 = first_h1 + s.initial_capacity;
+      uint32_t first_h1 = i * 13 + kBigModulus;
+      uint32_t second_h1 = first_h1 + s.initial_capacity;
 
-      int first_entry = first_h1 % s.initial_capacity;
-      int second_entry = (first_h1 + 1) % s.initial_capacity;
+      uint32_t first_entry = first_h1 % s.initial_capacity;
+      uint32_t second_entry = (first_h1 + 1) % s.initial_capacity;
 
       // Add two keys with same H1 modulo capacity and same H2.
       Key k1{"first_key", FakeH1{first_h1}, FakeH2{42}};
@@ -690,10 +695,10 @@ struct SharedSwissTableTests {
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(128, [](TS& s) {
-      int h1 = 33;     // Arbitrarily chosen.
-      int count = 37;  // Will lead to more than 2 groups being filled.
+      uint32_t h1 = 33;     // Arbitrarily chosen.
+      uint32_t count = 37;  // Will lead to more than 2 groups being filled.
 
-      for (int i = 0; i < count; ++i) {
+      for (uint32_t i = 0; i < count; ++i) {
         std::string key = "key" + std::to_string(i);
         std::string value = "value" + std::to_string(i);
 
@@ -728,31 +733,34 @@ struct SharedSwissTableTests {
     // This test times out in CSA mode when testing the larger capacities.
     // TODO(v8:11330) Revisit this once the actual CSA/Torque versions are run
     // by the test suite, which will speed things up.
-    std::vector<int> capacities_to_test = TS::IsRuntimeTest()
-                                              ? interesting_initial_capacities
-                                              : capacities_for_slow_debug_tests;
+    std::vector<uint32_t> capacities_to_test =
+        TS::IsRuntimeTest() ? interesting_initial_capacities
+                            : capacities_for_slow_debug_tests;
 
-    int width = SwissNameDictionary::kGroupWidth;
-    for (int offset_from_end = 0; offset_from_end < width; ++offset_from_end) {
+    uint32_t width = SwissNameDictionary::kGroupWidth;
+    for (uint32_t offset_from_end = 0; offset_from_end < width;
+         ++offset_from_end) {
       TS::WithInitialCapacities(capacities_to_test, [&](TS& s) {
-        int capacity = s.initial_capacity;
-        int first_bucket = capacity - offset_from_end;
+        uint32_t capacity = s.initial_capacity;
+        if (capacity < offset_from_end) {
+          return;
+        }
+        uint32_t first_bucket = capacity - offset_from_end;
 
         // How many entries to add (carefully chosen not to cause a resize).
-        int filler_entries =
+        uint32_t filler_entries =
             std::min(width, SwissNameDictionary::MaxUsableCapacity(capacity)) -
             1;
 
-        if (first_bucket < 0 ||
-            // No wraparound in this case:
-            first_bucket + filler_entries < capacity) {
+        // No wraparound in this case:
+        if (first_bucket + filler_entries < capacity) {
           return;
         }
 
         // Starting at bucket |first_bucket|, add a sequence of |kGroupWidth|
         // - 1 (if table can take that many, see calculation of |filler_entries|
         // above) entries in a single collision chain.
-        for (int f = 0; f < filler_entries; ++f) {
+        for (uint32_t f = 0; f < filler_entries; ++f) {
           std::string key = "filler" + std::to_string(f);
           s.Add(Key{key, FakeH1{first_bucket}});
         }
@@ -769,7 +777,7 @@ struct SharedSwissTableTests {
 
         // Now delete the entries in between and make sure that this
         // doesn't break anything.
-        for (int f = 0; f < filler_entries; ++f) {
+        for (uint32_t f = 0; f < filler_entries; ++f) {
           std::string key = "filler" + std::to_string(f);
           s.DeleteByKey(Key{key, FakeH1{first_bucket}});
         }
@@ -783,7 +791,7 @@ struct SharedSwissTableTests {
     // This test may fully fill the table and hardly depends on the underlying
     // shape (e.g., meta table structure). Thus not testing overly large
     // capacities.
-    std::vector<int> capacities_to_test = {4, 8, 16, 128, 1024};
+    std::vector<uint32_t> capacities_to_test = {4, 8, 16, 128, 1024};
     if (TS::IsRuntimeTest()) {
       TS::WithInitialCapacities(capacities_to_test, [](TS& s) {
         if (s.initial_capacity <= 8) {
@@ -802,7 +810,7 @@ struct SharedSwissTableTests {
           s.CheckDataAtKey(Key{"key2"}, kIndexUnknown, "value2");
           s.CheckEnumerationOrder({"key1", "key2"});
         } else {
-          int count =
+          uint32_t count =
               SwissNameDictionary::MaxUsableCapacity(s.initial_capacity) - 5;
           AddMultiple(s, count);
 
@@ -816,7 +824,7 @@ struct SharedSwissTableTests {
           s.RehashInplace();
 
           std::vector<std::string> expected_enum_order;
-          for (int i = 0; i < count; ++i) {
+          for (uint32_t i = 0; i < count; ++i) {
             if (i == 1 || i == 2 || i == count - 1) {
               // These are the keys we deleted.
               continue;
@@ -841,7 +849,7 @@ struct SharedSwissTableTests {
     if (TS::IsRuntimeTest()) {
       TS::WithInitialCapacity(32, [&](TS& s) {
         // Filling less than a forth of the table:
-        int count = 4;
+        uint32_t count = 4;
 
         AddMultiple(s, count);
 
@@ -850,7 +858,7 @@ struct SharedSwissTableTests {
         CheckMultiple(s, count, "key", "value", 0);
 
         // Shrink doesn't shrink to fit, but only halves the capacity.
-        int expected_capacity = s.initial_capacity / 2;
+        uint32_t expected_capacity = s.initial_capacity / 2;
         s.CheckCounts(expected_capacity, 4, 0);
 
         s.CheckEnumerationOrder({"key0", "key1", "key2", "key3"});
@@ -902,12 +910,12 @@ struct SharedSwissTableTests {
     // larger capacities.
     // TODO(v8:11330) Revisit this once the actual CSA/Torque versions are run
     // by the test suite, which will speed things up.
-    std::vector<int> capacities_to_test =
+    std::vector<uint32_t> capacities_to_test =
         TS::IsRuntimeTest() ? interesting_initial_capacities
                             : capacities_for_slow_sanitizer_tests;
     TS::WithInitialCapacities(capacities_to_test, [](TS& s) {
-      int fill = std::min(
-          1000,
+      uint32_t fill = std::min(
+          1000u,
           // -2 due to the two manually added keys below.
           SwissNameDictionary::MaxUsableCapacity(s.initial_capacity) - 2);
       AddMultiple(s, fill);

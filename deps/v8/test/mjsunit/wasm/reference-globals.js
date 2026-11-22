@@ -453,3 +453,25 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(42, instance.exports.getter());
   assertTraps(kTrapIllegalCast, () => instance.exports.getter_fail());
 })();
+
+(function TestAnyConvertExtern() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  let imported_global = builder.addImportedGlobal(
+      "m", "imported", kWasmExternRef, false, false);
+
+  let defined_global = builder.addGlobal(
+      kWasmAnyRef, false, false,
+      [kExprGlobalGet, imported_global, kGCPrefix, kExprAnyConvertExtern]
+  );
+
+  let tester = builder.addFunction("tester", kSig_i_v)
+    .addBody([kExprGlobalGet, defined_global.index, kExprRefIsNull])
+    .exportFunc();
+
+  let wasm = builder.instantiate({m: {imported: null }}).exports;
+
+  assertEquals(1, wasm.tester());
+})();

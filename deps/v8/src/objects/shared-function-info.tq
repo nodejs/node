@@ -22,7 +22,7 @@ type FunctionSyntaxKind extends uint8 constexpr 'FunctionSyntaxKind';
 type BailoutReason extends uint8 constexpr 'BailoutReason';
 type CachedTieringDecision extends uint8 constexpr 'CachedTieringDecision';
 
-@cppScope('SharedFunctionInfo')
+@cppScope('SharedFunctionInfo::Flags')
 bitfield struct SharedFunctionInfoFlags extends uint32 {
   // Have FunctionKind first to make it cheaper to access.
   function_kind: FunctionKind: 5 bit;
@@ -45,7 +45,7 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   class_initializer_allows_await: bool: 1 bit;
 }
 
-@cppScope('SharedFunctionInfo')
+@cppScope('SharedFunctionInfo::Flags2')
 bitfield struct SharedFunctionInfoFlags2 extends uint8 {
   class_scope_has_private_brand: bool: 1 bit;
   has_static_private_methods_or_accessors: bool: 1 bit;
@@ -77,7 +77,7 @@ extern class SharedFunctionInfo extends HeapObject {
   // trusted_function_data in the future (see TODO above), then maybe consider
   // renaming this field as untrusted_function_data may be a bit awkward.
   untrusted_function_data: Object;
-  name_or_scope_info: String|NoSharedNameSentinel|ScopeInfo;
+  name_or_scope_info: Smi|String|ScopeInfo;
   outer_scope_info_or_feedback_metadata: ScopeInfo|FeedbackMetadata|TheHole;
   script: Script|Undefined;
   // [length]: The function length - usually the number of declared parameters

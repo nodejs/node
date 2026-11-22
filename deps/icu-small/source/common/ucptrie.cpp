@@ -18,10 +18,13 @@
 #include "uassert.h"
 #include "ucptrie_impl.h"
 
-U_CAPI UCPTrie * U_EXPORT2
-ucptrie_openFromBinary(UCPTrieType type, UCPTrieValueWidth valueWidth,
-                       const void *data, int32_t length, int32_t *pActualLength,
-                       UErrorCode *pErrorCode) {
+U_CAPI UCPTrie* U_EXPORT2
+ucptrie_openFromBinary(UCPTrieType type,
+                       UCPTrieValueWidth valueWidth,
+                       const void* data U_LIFETIME_BOUND,
+                       int32_t length,
+                       int32_t* pActualLength,
+                       UErrorCode* pErrorCode) {
     if (U_FAILURE(*pErrorCode)) {
         return nullptr;
     }

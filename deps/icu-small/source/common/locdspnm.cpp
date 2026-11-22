@@ -44,26 +44,26 @@ public:
     ICUDataTable(const char* path, const Locale& locale);
     ~ICUDataTable() = default;
 
-    const Locale& getLocale();
+    const Locale& getLocale() U_LIFETIME_BOUND;
 
     UnicodeString& get(const char* tableKey, const char* itemKey,
-                        UnicodeString& result) const;
+                       UnicodeString& result U_LIFETIME_BOUND) const;
     UnicodeString& get(const char* tableKey, const char* subTableKey, const char* itemKey,
-                        UnicodeString& result) const;
+                       UnicodeString& result U_LIFETIME_BOUND) const;
 
     UnicodeString& getNoFallback(const char* tableKey, const char* itemKey,
-                                UnicodeString &result) const;
+                                 UnicodeString& result U_LIFETIME_BOUND) const;
     UnicodeString& getNoFallback(const char* tableKey, const char* subTableKey, const char* itemKey,
-                                UnicodeString &result) const;
+                                 UnicodeString& result U_LIFETIME_BOUND) const;
 };
 
-inline UnicodeString &
-ICUDataTable::get(const char* tableKey, const char* itemKey, UnicodeString& result) const {
+inline UnicodeString& ICUDataTable::get(const char* tableKey, const char* itemKey,
+                                        UnicodeString& result U_LIFETIME_BOUND) const {
     return get(tableKey, nullptr, itemKey, result);
 }
 
-inline UnicodeString &
-ICUDataTable::getNoFallback(const char* tableKey, const char* itemKey, UnicodeString& result) const {
+inline UnicodeString& ICUDataTable::getNoFallback(const char* tableKey, const char* itemKey,
+                                                  UnicodeString& result U_LIFETIME_BOUND) const {
     return getNoFallback(tableKey, nullptr, itemKey, result);
 }
 
@@ -74,13 +74,13 @@ ICUDataTable::ICUDataTable(const char* path, const Locale& locale)
 }
 
 const Locale&
-ICUDataTable::getLocale() {
+ICUDataTable::getLocale() U_LIFETIME_BOUND {
   return locale;
 }
 
-UnicodeString &
+UnicodeString&
 ICUDataTable::get(const char* tableKey, const char* subTableKey, const char* itemKey,
-                  UnicodeString &result) const {
+                  UnicodeString &result U_LIFETIME_BOUND) const {
   UErrorCode status = U_ZERO_ERROR;
   int32_t len = 0;
 
@@ -93,9 +93,9 @@ ICUDataTable::get(const char* tableKey, const char* subTableKey, const char* ite
   return result.setTo(UnicodeString(itemKey, -1, US_INV));
 }
 
-UnicodeString &
+UnicodeString&
 ICUDataTable::getNoFallback(const char* tableKey, const char* subTableKey, const char* itemKey,
-                            UnicodeString& result) const {
+                            UnicodeString& result U_LIFETIME_BOUND) const {
   UErrorCode status = U_ZERO_ERROR;
   int32_t len = 0;
 
@@ -127,28 +127,28 @@ public:
 
   virtual ~DefaultLocaleDisplayNames();
 
-  virtual const Locale& getLocale() const;
+  virtual const Locale& getLocale() const U_LIFETIME_BOUND;
   virtual UDialectHandling getDialectHandling() const;
 
   virtual UnicodeString& localeDisplayName(const Locale& locale,
-                                           UnicodeString& result) const;
+                                           UnicodeString& result U_LIFETIME_BOUND) const;
   virtual UnicodeString& localeDisplayName(const char* localeId,
-                                           UnicodeString& result) const;
+                                           UnicodeString& result U_LIFETIME_BOUND) const;
   virtual UnicodeString& languageDisplayName(const char* lang,
-                                             UnicodeString& result) const;
+                                             UnicodeString& result U_LIFETIME_BOUND) const;
   virtual UnicodeString& scriptDisplayName(const char* script,
-                                           UnicodeString& result) const;
+                                           UnicodeString& result U_LIFETIME_BOUND) const;
   virtual UnicodeString& scriptDisplayName(UScriptCode scriptCode,
-                                           UnicodeString& result) const;
+                                           UnicodeString& result U_LIFETIME_BOUND) const;
   virtual UnicodeString& regionDisplayName(const char* region,
-                                           UnicodeString& result) const;
+                                           UnicodeString& result U_LIFETIME_BOUND) const;
   virtual UnicodeString& variantDisplayName(const char* variant,
-                                            UnicodeString& result) const;
+                                            UnicodeString& result U_LIFETIME_BOUND) const;
   virtual UnicodeString& keyDisplayName(const char* key,
-                                        UnicodeString& result) const;
+                                        UnicodeString& result U_LIFETIME_BOUND) const;
   virtual UnicodeString& keyValueDisplayName(const char* key,
                                              const char* value,
-                                             UnicodeString& result) const;
+                                             UnicodeString& result U_LIFETIME_BOUND) const;
 };
 
 DefaultLocaleDisplayNames::DefaultLocaleDisplayNames(UDialectHandling dialectHandling)
@@ -159,7 +159,7 @@ DefaultLocaleDisplayNames::~DefaultLocaleDisplayNames() {
 }
 
 const Locale&
-DefaultLocaleDisplayNames::getLocale() const {
+DefaultLocaleDisplayNames::getLocale() const U_LIFETIME_BOUND {
   return Locale::getRoot();
 }
 
@@ -170,31 +170,31 @@ DefaultLocaleDisplayNames::getDialectHandling() const {
 
 UnicodeString&
 DefaultLocaleDisplayNames::localeDisplayName(const Locale& locale,
-                                             UnicodeString& result) const {
+                                             UnicodeString& result U_LIFETIME_BOUND) const {
   return result = UnicodeString(locale.getName(), -1, US_INV);
 }
 
 UnicodeString&
 DefaultLocaleDisplayNames::localeDisplayName(const char* localeId,
-                                             UnicodeString& result) const {
+                                             UnicodeString& result U_LIFETIME_BOUND) const {
   return result = UnicodeString(localeId, -1, US_INV);
 }
 
 UnicodeString&
 DefaultLocaleDisplayNames::languageDisplayName(const char* lang,
-                                               UnicodeString& result) const {
+                                               UnicodeString& result U_LIFETIME_BOUND) const {
   return result = UnicodeString(lang, -1, US_INV);
 }
 
 UnicodeString&
 DefaultLocaleDisplayNames::scriptDisplayName(const char* script,
-                                             UnicodeString& result) const {
+                                             UnicodeString& result U_LIFETIME_BOUND) const {
   return result = UnicodeString(script, -1, US_INV);
 }
 
 UnicodeString&
 DefaultLocaleDisplayNames::scriptDisplayName(UScriptCode scriptCode,
-                                             UnicodeString& result) const {
+                                             UnicodeString& result U_LIFETIME_BOUND) const {
   const char* name = uscript_getName(scriptCode);
   if (name) {
     return result = UnicodeString(name, -1, US_INV);
@@ -204,26 +204,26 @@ DefaultLocaleDisplayNames::scriptDisplayName(UScriptCode scriptCode,
 
 UnicodeString&
 DefaultLocaleDisplayNames::regionDisplayName(const char* region,
-                                             UnicodeString& result) const {
+                                             UnicodeString& result U_LIFETIME_BOUND) const {
   return result = UnicodeString(region, -1, US_INV);
 }
 
 UnicodeString&
 DefaultLocaleDisplayNames::variantDisplayName(const char* variant,
-                                              UnicodeString& result) const {
+                                              UnicodeString& result U_LIFETIME_BOUND) const {
   return result = UnicodeString(variant, -1, US_INV);
 }
 
 UnicodeString&
 DefaultLocaleDisplayNames::keyDisplayName(const char* key,
-                                          UnicodeString& result) const {
+                                          UnicodeString& result U_LIFETIME_BOUND) const {
   return result = UnicodeString(key, -1, US_INV);
 }
 
 UnicodeString&
 DefaultLocaleDisplayNames::keyValueDisplayName(const char* /* key */,
                                                const char* value,
-                                               UnicodeString& result) const {
+                                               UnicodeString& result U_LIFETIME_BOUND) const {
   return result = UnicodeString(value, -1, US_INV);
 }
 
@@ -272,40 +272,48 @@ public:
     LocaleDisplayNamesImpl(const Locale& locale, UDisplayContext *contexts, int32_t length);
     virtual ~LocaleDisplayNamesImpl();
 
-    virtual const Locale& getLocale() const override;
+    virtual const Locale& getLocale() const U_LIFETIME_BOUND override;
     virtual UDialectHandling getDialectHandling() const override;
     virtual UDisplayContext getContext(UDisplayContextType type) const override;
 
     virtual UnicodeString& localeDisplayName(const Locale& locale,
-                                                UnicodeString& result) const override;
+                                             UnicodeString& result U_LIFETIME_BOUND) const override;
     virtual UnicodeString& localeDisplayName(const char* localeId,
-                                                UnicodeString& result) const override;
-    virtual UnicodeString& languageDisplayName(const char* lang,
-                                               UnicodeString& result) const override;
+                                             UnicodeString& result U_LIFETIME_BOUND) const override;
+    virtual UnicodeString&
+    languageDisplayName(const char* lang, UnicodeString& result U_LIFETIME_BOUND) const override;
     virtual UnicodeString& scriptDisplayName(const char* script,
-                                                UnicodeString& result) const override;
+                                             UnicodeString& result U_LIFETIME_BOUND) const override;
     virtual UnicodeString& scriptDisplayName(UScriptCode scriptCode,
-                                                UnicodeString& result) const override;
+                                             UnicodeString& result U_LIFETIME_BOUND) const override;
     virtual UnicodeString& regionDisplayName(const char* region,
-                                                UnicodeString& result) const override;
-    virtual UnicodeString& variantDisplayName(const char* variant,
-                                                UnicodeString& result) const override;
+                                             UnicodeString& result U_LIFETIME_BOUND) const override;
+    virtual UnicodeString&
+    variantDisplayName(const char* variant, UnicodeString& result U_LIFETIME_BOUND) const override;
     virtual UnicodeString& keyDisplayName(const char* key,
-                                                UnicodeString& result) const override;
-    virtual UnicodeString& keyValueDisplayName(const char* key,
-                                                const char* value,
-                                                UnicodeString& result) const override;
+                                          UnicodeString& result U_LIFETIME_BOUND) const override;
+    virtual UnicodeString&
+    keyValueDisplayName(const char* key, const char* value,
+                        UnicodeString& result U_LIFETIME_BOUND) const override;
+
 private:
-    UnicodeString& localeIdName(const char* localeId,
-                                UnicodeString& result, bool substitute) const;
-    UnicodeString& appendWithSep(UnicodeString& buffer, const UnicodeString& src) const;
-    UnicodeString& adjustForUsageAndContext(CapContextUsage usage, UnicodeString& result) const;
-    UnicodeString& scriptDisplayName(const char* script, UnicodeString& result, bool skipAdjust) const;
-    UnicodeString& regionDisplayName(const char* region, UnicodeString& result, bool skipAdjust) const;
-    UnicodeString& variantDisplayName(const char* variant, UnicodeString& result, bool skipAdjust) const;
-    UnicodeString& keyDisplayName(const char* key, UnicodeString& result, bool skipAdjust) const;
+    UnicodeString& localeIdName(const char* localeId, UnicodeString& result U_LIFETIME_BOUND,
+                                bool substitute) const;
+    UnicodeString& appendWithSep(UnicodeString& buffer U_LIFETIME_BOUND,
+                                 const UnicodeString& src) const;
+    UnicodeString& adjustForUsageAndContext(CapContextUsage usage,
+                                            UnicodeString& result U_LIFETIME_BOUND) const;
+    UnicodeString& scriptDisplayName(const char* script, UnicodeString& result U_LIFETIME_BOUND,
+                                     bool skipAdjust) const;
+    UnicodeString& regionDisplayName(const char* region, UnicodeString& result U_LIFETIME_BOUND,
+                                     bool skipAdjust) const;
+    UnicodeString& variantDisplayName(const char* variant, UnicodeString& result U_LIFETIME_BOUND,
+                                      bool skipAdjust) const;
+    UnicodeString& keyDisplayName(const char* key, UnicodeString& result U_LIFETIME_BOUND,
+                                  bool skipAdjust) const;
     UnicodeString& keyValueDisplayName(const char* key, const char* value,
-                                        UnicodeString& result, bool skipAdjust) const;
+                                       UnicodeString& result U_LIFETIME_BOUND,
+                                       bool skipAdjust) const;
     void initialize();
 
     struct CapitalizationContextSink;
@@ -483,7 +491,7 @@ LocaleDisplayNamesImpl::~LocaleDisplayNamesImpl() {
 }
 
 const Locale&
-LocaleDisplayNamesImpl::getLocale() const {
+LocaleDisplayNamesImpl::getLocale() const U_LIFETIME_BOUND {
     return locale;
 }
 
@@ -511,7 +519,7 @@ LocaleDisplayNamesImpl::getContext(UDisplayContextType type) const {
 
 UnicodeString&
 LocaleDisplayNamesImpl::adjustForUsageAndContext(CapContextUsage usage,
-                                                UnicodeString& result) const {
+                                                 UnicodeString& result U_LIFETIME_BOUND) const {
 #if !UCONFIG_NO_BREAK_ITERATION
     // check to see whether we need to titlecase result
     if ( result.length() > 0 && u_islower(result.char32At(0)) && capitalizationBrkIter!= nullptr &&
@@ -527,7 +535,7 @@ LocaleDisplayNamesImpl::adjustForUsageAndContext(CapContextUsage usage,
 
 UnicodeString&
 LocaleDisplayNamesImpl::localeDisplayName(const Locale& loc,
-                                          UnicodeString& result) const {
+                                          UnicodeString& result U_LIFETIME_BOUND) const {
   if (loc.isBogus()) {
     result.setToBogus();
     return result;
@@ -669,7 +677,7 @@ LocaleDisplayNamesImpl::localeDisplayName(const Locale& loc,
 }
 
 UnicodeString&
-LocaleDisplayNamesImpl::appendWithSep(UnicodeString& buffer, const UnicodeString& src) const {
+LocaleDisplayNamesImpl::appendWithSep(UnicodeString& buffer U_LIFETIME_BOUND, const UnicodeString& src) const {
     if (buffer.isEmpty()) {
         buffer.setTo(src);
     } else {
@@ -682,14 +690,14 @@ LocaleDisplayNamesImpl::appendWithSep(UnicodeString& buffer, const UnicodeString
 
 UnicodeString&
 LocaleDisplayNamesImpl::localeDisplayName(const char* localeId,
-                                          UnicodeString& result) const {
+                                          UnicodeString& result U_LIFETIME_BOUND) const {
     return localeDisplayName(Locale(localeId), result);
 }
 
 // private
 UnicodeString&
 LocaleDisplayNamesImpl::localeIdName(const char* localeId,
-                                     UnicodeString& result, bool substitute) const {
+                                     UnicodeString& result U_LIFETIME_BOUND, bool substitute) const {
     if (nameLength == UDISPCTX_LENGTH_SHORT) {
         langData.getNoFallback("Languages%short", localeId, result);
         if (!result.isBogus()) {
@@ -719,7 +727,7 @@ LocaleDisplayNamesImpl::localeIdName(const char* localeId,
 
 UnicodeString&
 LocaleDisplayNamesImpl::languageDisplayName(const char* lang,
-                                            UnicodeString& result) const {
+                                            UnicodeString& result U_LIFETIME_BOUND) const {
     if (uprv_strcmp("root", lang) == 0 || uprv_strchr(lang, '_') != nullptr) {
         return result = UnicodeString(lang, -1, US_INV);
     }
@@ -751,7 +759,7 @@ LocaleDisplayNamesImpl::languageDisplayName(const char* lang,
 
 UnicodeString&
 LocaleDisplayNamesImpl::scriptDisplayName(const char* script,
-                                          UnicodeString& result,
+                                          UnicodeString& result U_LIFETIME_BOUND,
                                           bool skipAdjust) const {
     if (nameLength == UDISPCTX_LENGTH_SHORT) {
         langData.getNoFallback("Scripts%short", script, result);
@@ -769,19 +777,19 @@ LocaleDisplayNamesImpl::scriptDisplayName(const char* script,
 
 UnicodeString&
 LocaleDisplayNamesImpl::scriptDisplayName(const char* script,
-                                          UnicodeString& result) const {
+                                          UnicodeString& result U_LIFETIME_BOUND) const {
     return scriptDisplayName(script, result, false);
 }
 
 UnicodeString&
 LocaleDisplayNamesImpl::scriptDisplayName(UScriptCode scriptCode,
-                                          UnicodeString& result) const {
+                                          UnicodeString& result U_LIFETIME_BOUND) const {
     return scriptDisplayName(uscript_getName(scriptCode), result, false);
 }
 
 UnicodeString&
 LocaleDisplayNamesImpl::regionDisplayName(const char* region,
-                                          UnicodeString& result,
+                                          UnicodeString& result U_LIFETIME_BOUND,
                                           bool skipAdjust) const {
     if (nameLength == UDISPCTX_LENGTH_SHORT) {
          regionData.getNoFallback("Countries%short", region, result);
@@ -799,14 +807,14 @@ LocaleDisplayNamesImpl::regionDisplayName(const char* region,
 
 UnicodeString&
 LocaleDisplayNamesImpl::regionDisplayName(const char* region,
-                                          UnicodeString& result) const {
+                                          UnicodeString& result U_LIFETIME_BOUND) const {
     return regionDisplayName(region, result, false);
 }
 
 
 UnicodeString&
 LocaleDisplayNamesImpl::variantDisplayName(const char* variant,
-                                           UnicodeString& result,
+                                           UnicodeString& result U_LIFETIME_BOUND,
                                            bool skipAdjust) const {
     // don't have a resource for short variant names
     if (substitute == UDISPCTX_SUBSTITUTE) {
@@ -819,13 +827,13 @@ LocaleDisplayNamesImpl::variantDisplayName(const char* variant,
 
 UnicodeString&
 LocaleDisplayNamesImpl::variantDisplayName(const char* variant,
-                                           UnicodeString& result) const {
+                                           UnicodeString& result U_LIFETIME_BOUND) const {
     return variantDisplayName(variant, result, false);
 }
 
 UnicodeString&
 LocaleDisplayNamesImpl::keyDisplayName(const char* key,
-                                       UnicodeString& result,
+                                       UnicodeString& result U_LIFETIME_BOUND,
                                        bool skipAdjust) const {
     // don't have a resource for short key names
     if (substitute == UDISPCTX_SUBSTITUTE) {
@@ -838,14 +846,14 @@ LocaleDisplayNamesImpl::keyDisplayName(const char* key,
 
 UnicodeString&
 LocaleDisplayNamesImpl::keyDisplayName(const char* key,
-                                       UnicodeString& result) const {
+                                       UnicodeString& result U_LIFETIME_BOUND) const {
     return keyDisplayName(key, result, false);
 }
 
 UnicodeString&
 LocaleDisplayNamesImpl::keyValueDisplayName(const char* key,
                                             const char* value,
-                                            UnicodeString& result,
+                                            UnicodeString& result U_LIFETIME_BOUND,
                                             bool skipAdjust) const {
     if (uprv_strcmp(key, "currency") == 0) {
         // ICU4C does not have ICU4J CurrencyDisplayInfo equivalent for now.
@@ -880,7 +888,7 @@ LocaleDisplayNamesImpl::keyValueDisplayName(const char* key,
 UnicodeString&
 LocaleDisplayNamesImpl::keyValueDisplayName(const char* key,
                                             const char* value,
-                                            UnicodeString& result) const {
+                                            UnicodeString& result U_LIFETIME_BOUND) const {
     return keyValueDisplayName(key, value, result, false);
 }
 
@@ -939,8 +947,8 @@ uldn_close(ULocaleDisplayNames *ldn) {
   delete (LocaleDisplayNames *)ldn;
 }
 
-U_CAPI const char * U_EXPORT2
-uldn_getLocale(const ULocaleDisplayNames *ldn) {
+U_CAPI const char* U_EXPORT2
+uldn_getLocale(const ULocaleDisplayNames* ldn U_LIFETIME_BOUND) {
   if (ldn) {
     return ((const LocaleDisplayNames *)ldn)->getLocale().getName();
   }

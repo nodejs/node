@@ -474,7 +474,8 @@ Makes a request to a secure web server.
 The following additional `options` from [`tls.connect()`][] are also accepted:
 `ca`, `cert`, `ciphers`, `crl`, `dhparam`, `ecdhCurve`, `honorCipherOrder`,
 `key`, `passphrase`, `pfx`, `rejectUnauthorized`, `secureOptions`,
-`secureProtocol`, `servername`, `sessionIdContext`, `highWaterMark`.
+`secureProtocol`, `servername`, `sessionIdContext`, `highWaterMark`,
+`allowRenegotiation`.
 
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
 string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]

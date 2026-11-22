@@ -18,7 +18,7 @@ extern class TurbofanType extends HeapObject {}
 // of 64 bit bitsets.
 @cppScope('TurbofanTypeLowBits')
 bitfield struct TurbofanTypeLowBits extends uint32 {
-  _unused_padding_field_1: bool: 1 bit;
+  unused_padding_field1: bool: 1 bit;
   other_unsigned31: bool: 1 bit;
   other_unsigned32: bool: 1 bit;
   other_signed32: bool: 1 bit;
@@ -30,7 +30,7 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
   boolean: bool: 1 bit;
   unsigned30: bool: 1 bit;
   minus_zero: bool: 1 bit;
-  naN: bool: 1 bit;
+  nan: bool: 1 bit;
   symbol: bool: 1 bit;
   internalized_string: bool: 1 bit;
   other_callable: bool: 1 bit;
@@ -44,9 +44,9 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
   other_internal: bool: 1 bit;
   external_pointer: bool: 1 bit;
   array: bool: 1 bit;
-  unsigned_big_int_63: bool: 1 bit;
-  other_unsigned_big_int_64: bool: 1 bit;
-  negative_big_int_63: bool: 1 bit;
+  unsigned_big_int63: bool: 1 bit;
+  other_unsigned_big_int64: bool: 1 bit;
+  negative_big_int63: bool: 1 bit;
   other_big_int: bool: 1 bit;
   wasm_object: bool: 1 bit;
   sandboxed_pointer: bool: 1 bit;
@@ -119,7 +119,7 @@ macro TestTurbofanBitsetType(
           return bitsetLow.other_number;
         }
       } else if (Float64IsNaN(valueF)) {
-        return bitsetLow.naN;
+        return bitsetLow.nan;
       } else {
         return bitsetLow.other_number;
       }
@@ -164,12 +164,11 @@ macro TestTurbofanBitsetType(
       return bitsetLow.array;
     }
     case (bi: BigInt): {
-      dcheck(!bitsetLow.other_big_int || bitsetLow.other_unsigned_big_int_64);
-      dcheck(!bitsetLow.other_big_int || bitsetLow.negative_big_int_63);
+      dcheck(!bitsetLow.other_big_int || bitsetLow.other_unsigned_big_int64);
+      dcheck(!bitsetLow.other_big_int || bitsetLow.negative_big_int63);
       dcheck(
-          !bitsetLow.other_unsigned_big_int_64 ||
-          bitsetLow.unsigned_big_int_63);
-      dcheck(!bitsetLow.negative_big_int_63 || bitsetLow.unsigned_big_int_63);
+          !bitsetLow.other_unsigned_big_int64 || bitsetLow.unsigned_big_int63);
+      dcheck(!bitsetLow.negative_big_int63 || bitsetLow.unsigned_big_int63);
 
       // On 32 bit architectures, [Un]signedBigInt64 types are not used, yet.
       if (!Is64()) {
@@ -180,19 +179,19 @@ macro TestTurbofanBitsetType(
       if (length > 1) {
         return bitsetLow.other_big_int;
       } else if (length == 0) {
-        return bitsetLow.unsigned_big_int_63;
+        return bitsetLow.unsigned_big_int63;
       }
       dcheck(length == 1);
       const sign = bigint::ReadBigIntSign(bi);
       const digit = bigint::LoadBigIntDigit(bi, 0);
       if (sign == bigint::kPositiveSign) {
-        return bitsetLow.other_unsigned_big_int_64 ||
+        return bitsetLow.other_unsigned_big_int64 ||
             (digit <= Convert<uintptr>(kMaxIntPtr) &&
-             bitsetLow.unsigned_big_int_63);
+             bitsetLow.unsigned_big_int63);
       } else {
         return bitsetLow.other_big_int ||
             (digit <= Convert<uintptr>(kMinIntPtr) &&
-             bitsetLow.negative_big_int_63);
+             bitsetLow.negative_big_int63);
       }
     }
     case (wrapper: JSPrimitiveWrapper): {

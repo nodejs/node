@@ -864,8 +864,7 @@ transitioning javascript builtin IteratorPrototypeReduce(
       //   a. Let next be ? IteratorStep(iterated).
       //   b. If next is false, throw a TypeError exception.
       next = IteratorStep(iterated, fastIteratorResultMap)
-          otherwise ThrowTypeError(
-          MessageTemplate::kIteratorReduceNoInitial, methodName);
+          otherwise ThrowTypeError(MessageTemplate::kIteratorReduceNoInitial);
       //   c. Let accumulator be ? IteratorValue(next).
       accumulator = IteratorValue(next, fastIteratorResultMap);
       //   d. Let counter be 1.

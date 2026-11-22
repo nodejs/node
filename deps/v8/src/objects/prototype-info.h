@@ -21,6 +21,8 @@ class PrototypeSharedClosureInfo;
 // Container for metadata stored on each prototype map.
 V8_OBJECT class PrototypeInfo : public Struct {
  public:
+  inline explicit PrototypeInfo(const AllocationWitness& witness);
+
   // Accessors
   inline Tagged<UnionOf<JSModuleNamespace, Undefined>> module_namespace() const;
   inline void set_module_namespace(
@@ -78,8 +80,13 @@ V8_OBJECT class PrototypeInfo : public Struct {
   static inline void SetObjectCreateMap(DirectHandle<PrototypeInfo> info,
                                         DirectHandle<Map> map,
                                         Isolate* isolate);
+  inline void ClearObjectCreateMap();
+  // Concurrent reader for background compilation. Because a JSGlobalProxy may
+  // navigate concurrently on the main thread and reuse this PrototypeInfo in a
+  // new native context, the caller must verify that the returned map belongs to
+  // the expected native context.
   inline Tagged<MaybeObject> ObjectCreateMap(AcquireLoadTag);
-  inline Tagged<MaybeObject> ObjectCreateMap();
+  inline Tagged<MaybeObject> ObjectCreateMap(Tagged<Context> accessing_context);
 
   static inline void AddDerivedMap(DirectHandle<PrototypeInfo> info,
                                    DirectHandle<Map> to, Isolate* isolate);
@@ -102,11 +109,12 @@ V8_OBJECT class PrototypeInfo : public Struct {
   TaggedMember<UnionOf<FixedArray, Zero, Undefined>>
       prototype_chain_enum_cache_;
   TaggedMember<Smi> registry_slot_;
-  TaggedMember<Smi> bit_field_;
+  TaggedMember<Smi> bit_field_ V8_TQ_TYPE(SmiTagged<PrototypeInfoFlags>);
   TaggedMember<UnionOf<WeakArrayList, Undefined>> derived_maps_;
   TaggedMember<UnionOf<PrototypeSharedClosureInfo, Undefined>>
       prototype_shared_closure_info_;
-  TaggedMember<UnionOf<LoadHandler, Zero>> cached_handler_[kCachedHandlerCount];
+  TaggedMember<UnionOf<LoadHandler, Zero>> cached_handler_
+      V8_TQ_EXTENT_NAME(kPrototypeInfoCachedHandlerCount)[kCachedHandlerCount];
 } V8_OBJECT_END;
 
 // A growing array with an additional API for marking slots "empty". When adding

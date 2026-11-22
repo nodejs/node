@@ -4,6 +4,8 @@
 
 #include "src/objects/ordered-hash-table.h"
 
+#include <bit>
+
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/heap-object-set-map-inl.h"
@@ -25,8 +27,7 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
   // from number of buckets. If we decide to change kLoadFactor
   // to something other than 2, capacity should be stored as another
   // field of this object.
-  capacity =
-      base::bits::RoundUpToPowerOfTwo32(std::max({kInitialCapacity, capacity}));
+  capacity = std::bit_ceil<uint32_t>(std::max({kInitialCapacity, capacity}));
   if (capacity > MaxCapacity()) {
     // Throw RangeError with a generic message.
     THROW_NEW_ERROR(isolate,

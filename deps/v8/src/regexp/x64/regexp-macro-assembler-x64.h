@@ -8,7 +8,7 @@
 #include "src/base/functional/function-ref.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
-#include "src/zone/zone-chunk-list.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -259,6 +259,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // object.
   static constexpr Register code_object_pointer() { return r8; }
 
+  // Register holding the address of the regexp stack's thread-local block,
+  // from which the stack limit, memory top and saved stack pointer are
+  // loaded at Stack::k*Offset.
+  static constexpr Register regexp_stack() { return r12; }
+
   inline ScaleFactor CharSizeScaleFactor() {
     switch (mode()) {
       case LATIN1:
@@ -314,7 +319,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   inline void Drop();
 
   void LoadRegExpStackPointerFromMemory(Register dst);
-  void StoreRegExpStackPointerToMemory(Register src, Register scratch);
+  void StoreRegExpStackPointerToMemory(Register src);
   void PushRegExpBasePointer(Register scratch_pointer, Register scratch);
   void PopRegExpBasePointer(Register scratch_pointer_out, Register scratch);
 
@@ -340,7 +345,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // consistency, we also keep it uninitialized here.
   const NoRootArrayScope no_root_array_scope_;
 
-  ZoneChunkList<int> code_relative_fixup_positions_;
+  ZoneVector<int> code_relative_fixup_positions_;
 
   // One greater than maximal register index actually used.
   int num_registers_;

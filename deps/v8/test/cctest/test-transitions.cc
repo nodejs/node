@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 
+#include <array>
 #include <utility>
 
 #include "src/api/api-inl.h"
@@ -162,9 +163,9 @@ TEST(TransitionArray_DifferentFieldNames) {
   CHECK(IsSmi(map0->raw_transitions()));
 
   for (int i = 0; i < PROPS_COUNT; i++) {
-    base::EmbeddedVector<char, 64> buffer;
-    SNPrintF(buffer, "prop%d", i);
-    Handle<String> name = factory->InternalizeUtf8String(buffer.begin());
+    std::array<char, 64> buffer;
+    base::SNPrintF(buffer, "prop%d", i);
+    Handle<String> name = factory->InternalizeUtf8String(buffer.data());
     Handle<Map> map =
         Map::CopyWithField(isolate, map0, name, FieldType::Any(isolate),
                            attributes, PropertyConstness::kMutable,
@@ -254,9 +255,9 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
 
   // Some number of fields.
   for (int i = 0; i < PROPS_COUNT; i++) {
-    base::EmbeddedVector<char, 64> buffer;
-    SNPrintF(buffer, "prop%d", i);
-    Handle<String> name = factory->InternalizeUtf8String(buffer.begin());
+    std::array<char, 64> buffer;
+    base::SNPrintF(buffer, "prop%d", i);
+    Handle<String> name = factory->InternalizeUtf8String(buffer.data());
     Handle<Map> map =
         Map::CopyWithField(isolate, map0, name, FieldType::Any(isolate), NONE,
                            PropertyConstness::kMutable,
@@ -589,9 +590,9 @@ TEST(TransitionArray_LinearSearchHandlesUnsortedArray) {
 
   Handle<String> names[kCount];
   for (int i = 0; i < kCount; i++) {
-    base::EmbeddedVector<char, 64> buffer;
-    SNPrintF(buffer, "prop%d", i);
-    Handle<String> name = factory->InternalizeUtf8String(buffer.begin());
+    std::array<char, 64> buffer;
+    base::SNPrintF(buffer, "prop%d", i);
+    Handle<String> name = factory->InternalizeUtf8String(buffer.data());
     Handle<Map> next =
         Map::CopyWithField(isolate, map0, name, FieldType::Any(isolate), NONE,
                            PropertyConstness::kMutable,

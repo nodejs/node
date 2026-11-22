@@ -1,0 +1,26 @@
+Untrusted sessions must not terminate execution via Debugger.resume({terminateOnResume:true})
+Runtime.terminateExecution on untrusted session:
+{
+    error : {
+        code : -32000
+        message : Runtime.terminateExecution is not allowed for untrusted clients
+    }
+    id : <messageId>
+}
+Debugger.resume({terminateOnResume:true}):
+{
+    error : {
+        code : -32000
+        message : `terminateOnResume` is not allowed for untrusted clients
+    }
+    id : <messageId>
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : boolean
+            value : true
+        }
+    }
+}

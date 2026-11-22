@@ -2518,13 +2518,7 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
                                      unsigned char* name,
                                      unsigned char* iv,
                                      EVP_CIPHER_CTX* ectx,
-#if NCRYPTO_USE_OPENSSL_PROVIDER
-                                     EVP_MAC_CTX* hctx,
-#elif NCRYPTO_USE_BORINGSSL
-                                     HMAC_CTX* hctx,
-#else
-#error "Unsupported crypto backend"
-#endif
+                                     TicketHmacCtx* hctx,
                                      int enc) {
   static const int kTicketPartSize = 16;
 
@@ -2617,13 +2611,7 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
                                                unsigned char* name,
                                                unsigned char* iv,
                                                EVP_CIPHER_CTX* ectx,
-#if NCRYPTO_USE_OPENSSL_PROVIDER
-                                               EVP_MAC_CTX* hctx,
-#elif NCRYPTO_USE_BORINGSSL
-                                               HMAC_CTX* hctx,
-#else
-#error "Unsupported crypto backend"
-#endif
+                                               TicketHmacCtx* hctx,
                                                int enc) {
   SecureContext* sc = static_cast<SecureContext*>(
       SSL_CTX_get_app_data(SSL_get_SSL_CTX(ssl)));

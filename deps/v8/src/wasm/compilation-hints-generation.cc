@@ -4,7 +4,10 @@
 
 #include "src/wasm/compilation-hints-generation.h"
 
+#include <array>
+
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
@@ -28,7 +31,7 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
     buffer.write_u8(kUnknownSectionCode);
     size_t section_size_offset = buffer.reserve_u32v();
     size_t section_body_begin = buffer.offset();
-    buffer.write_string(base::StaticCharVector(kCompilationPriorityString));
+    buffer.write_string(kCompilationPriorityString);
     uint32_t num_functions = 0;
     size_t num_functions_offset = buffer.reserve_u32v();
     for (uint32_t func_index = module->num_imported_functions;
@@ -73,7 +76,7 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
     buffer.write_u8(kUnknownSectionCode);
     size_t section_size_offset = buffer.reserve_u32v();
     size_t section_body_begin = buffer.offset();
-    buffer.write_string(base::StaticCharVector(kInstructionFrequenciesString));
+    buffer.write_string(kInstructionFrequenciesString);
 
     uint32_t num_functions = 0;
     size_t num_functions_offset = buffer.reserve_u32v();
@@ -132,7 +135,7 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
     buffer.write_u8(kUnknownSectionCode);
     size_t section_size_offset = buffer.reserve_u32v();
     size_t section_body_begin = buffer.offset();
-    buffer.write_string(base::StaticCharVector(kCallTargetsString));
+    buffer.write_string(kCallTargetsString);
 
     uint32_t num_functions = 0;
     size_t num_functions_offset = buffer.reserve_u32v();
@@ -205,13 +208,13 @@ void WriteCompilationHintsToFile(ZoneBuffer& buffer,
   // Write compilation hints to file.
   uint32_t hash =
       static_cast<uint32_t>(GetWireBytesHash(native_module->wire_bytes()));
-  base::EmbeddedVector<char, 48> filename;
-  SNPrintF(filename, "compilation-hints-wasm-%08x.wasm-no-header", hash);
+  std::array<char, 48> filename;
+  base::SNPrintF(filename, "compilation-hints-wasm-%08x.wasm-no-header", hash);
 
-  base::OwnedVector<uint8_t> data = base::OwnedCopyOf(buffer);
+  base::UniqueArray<uint8_t> data = base::UniqueCopyOf(buffer);
 
-  if (FILE* file = base::OS::FOpen(filename.begin(), "wb")) {
-    PrintF("Emitting compilation hints to file '%s'\n", filename.begin());
+  if (FILE* file = base::OS::FOpen(filename.data(), "wb")) {
+    PrintF("Emitting compilation hints to file '%s'\n", filename.data());
     size_t written = fwrite(data.begin(), 1, data.size(), file);
     CHECK_EQ(written, data.size());
     base::Fclose(file);

@@ -629,6 +629,20 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
 #undef SET
 
+  // ngtcp2 only asserts this range. With assertions compiled out, a value
+  // below the minimum gives the congestion controller an initial window it
+  // cannot work with: zero makes it divide by zero as soon as the connection
+  // is created.
+  if (options.max_payload_size < NGTCP2_MAX_UDP_PAYLOAD_SIZE ||
+      options.max_payload_size > NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE) {
+    THROW_ERR_INVALID_ARG_VALUE(env,
+                                "The maxPayloadSize option must be between "
+                                "%d and %d",
+                                NGTCP2_MAX_UDP_PAYLOAD_SIZE,
+                                NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE);
+    return Nothing<Options>();
+  }
+
   // RFC 9000 Section 10.2 requires the draining period to be at least 3x PTO.
   static const uint8_t kMinDrainingPeriodMultiplier = 3;
   options.draining_period_multiplier = std::max(
@@ -1167,17 +1181,26 @@ struct Session::Impl final : public MemoryRetainer {
     }
 
     DCHECK(args[0]->IsUint32());
+    DCHECK(args[1]->IsBoolean());
+
+    auto direction = FromV8Value<Direction>(args[0]);
+    if (!args[1].As<v8::Boolean>()->Value()) {
+      // This is waitUntilAvailable
+      if (!session->CanImmediatelyOpenStream(direction)) {
+        return THROW_ERR_INVALID_STATE(
+            env, "No new stream available within flow control");
+      }
+    }
 
     // GetDataQueueFromSource handles type validation.
     std::shared_ptr<DataQueue> data_source;
-    if (!Stream::GetDataQueueFromSource(env, args[1]).To(&data_source))
+    if (!Stream::GetDataQueueFromSource(env, args[2]).To(&data_source))
         [[unlikely]] {
       return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid data source");
     }
 
     session->impl_->handshake_deferred_ = false;
     SendPendingDataScope send_scope(session);
-    auto direction = FromV8Value<Direction>(args[0]);
     Local<Object> stream;
     if (session->OpenStream(direction, std::move(data_source)).ToLocal(&stream))
         [[likely]] {
@@ -2775,6 +2798,24 @@ void Session::SetLastError(QuicError&& error) {
   impl_->last_error_ = std::move(error);
 }
 
+bool Session::IsNoError(const QuicError& error) const {
+  switch (error.type()) {
+    case QuicError::Type::TRANSPORT:
+      return error.code() == NGTCP2_NO_ERROR;
+    case QuicError::Type::APPLICATION:
+      return has_application() && application().IsNoErrorCode(error.code());
+    case QuicError::Type::IDLE_CLOSE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+MaybeLocal<Value> Session::ToV8ErrorValue(const QuicError& error) const {
+  if (IsNoError(error)) return Undefined(env()->isolate());
+  return error.ToV8Value(env());
+}
+
 bool Session::Receive(const uint8_t* data,
                       size_t len,
                       const SocketAddress& local_address,
@@ -3207,6 +3248,14 @@ BaseObjectPtr<Stream> Session::CreateStream(
   return {};
 }
 
+bool Session::CanImmediatelyOpenStream(Direction direction) {
+  if (direction == Direction::BIDIRECTIONAL) {
+    return max_local_streams_bidi() > 0;
+  } else {
+    return max_local_streams_uni() > 0;
+  }
+}
+
 MaybeLocal<Object> Session::OpenStream(Direction direction,
                                        std::shared_ptr<DataQueue> data_source) {
   // If can_create_streams() returns false, we are not able to open a stream
@@ -3512,13 +3561,12 @@ void Session::SetApplicationError(error_code app_error_code) {
 
 uint64_t Session::max_local_streams_uni() const {
   DCHECK(!is_destroyed());
-  return ngtcp2_conn_get_streams_uni_left(*this);
+  return ngtcp2_conn_get_streams_uni_left2(*this);
 }
 
 uint64_t Session::max_local_streams_bidi() const {
   DCHECK(!is_destroyed());
-  return ngtcp2_conn_get_local_transport_params(*this)
-      ->initial_max_streams_bidi;
+  return ngtcp2_conn_get_streams_bidi_left2(*this);
 }
 
 void Session::set_wrapped() {
@@ -4017,27 +4065,9 @@ void Session::EmitClose(const QuicError& error) {
 
   CallbackScope<Session> cb_scope(this);
 
-  Local<Value> argv[] = {
-      Integer::New(env()->isolate(), static_cast<int>(error.type())),
-      BigInt::NewFromUnsigned(env()->isolate(), error.code()),
-      Undefined(env()->isolate()),
-      Undefined(env()->isolate()),
-  };
-  if (error.reason().length() > 0 &&
-      !ToV8Value(env()->context(), error.reason()).ToLocal(&argv[2])) {
-    return;
-  }
-
-  // Attach a human-readable name for known wire codes (RFC 9000 sec. 20.1
-  // names and OpenSSL TLS alert descriptions for CRYPTO_ERROR). Unknown
-  // codes leave the slot as undefined. See QuicError::name() for the
-  // matching path on stream-level errors.
-  if (const char* n = error.name()) {
-    argv[3] = BindingData::Get(env()).error_name_string(n);
-  }
-
-  MakeCallback(
-      BindingData::Get(env()).session_close_callback(), arraysize(argv), argv);
+  Local<Value> err;
+  if (!ToV8ErrorValue(error).ToLocal(&err)) return;
+  MakeCallback(BindingData::Get(env()).session_close_callback(), 1, &err);
 
   // Importantly, the session instance itself should have been destroyed!
   CHECK(is_destroyed());

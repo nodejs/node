@@ -42,7 +42,6 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/js-atomics-synchronization.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-disposable-stack.h"
 #include "src/objects/js-generator-inl.h"
@@ -84,7 +83,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT
@@ -198,7 +197,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
         // Special handling for AccessorInfo, which behaves like a data
         // property.
         if (allow_allocation && IsAccessorInfo(*accessors)) {
-          auto info = Cast<AccessorInfo>(*accessors);
+          auto info = Cast<AccessorInfo>(accessors);
           if (info->getter_side_effect_type() ==
               SideEffectType::kHasNoSideEffect) {
             v8::TryCatch try_catch(
@@ -206,7 +205,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
             try_catch.SetVerbose(false);
             try_catch.SetCaptureMessage(false);
             Handle<Object> result;
-            if (Object::GetPropertyWithAccessor(it).ToHandle(&result)) {
+            if (Object::GetPropertyWithAccessor(it, info).ToHandle(&result)) {
               return result;
             }
           }
@@ -229,6 +228,55 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
         }
         continue;
       }
+    }
+    UNREACHABLE();
+  }
+}
+
+// static
+MaybeHandle<Object> JSReceiver::TryGetDataProperty(LookupIterator* it) {
+  for (;; it->Next()) {
+    switch (it->state()) {
+      case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
+      case LookupIterator::ACCESS_CHECK:
+        if (it->HasAccess()) continue;
+        return {};
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::JSPROXY:
+        return {};
+      case LookupIterator::WASM_OBJECT:
+        continue;  // Continue to the prototype, if present.
+      case LookupIterator::MODULE_NAMESPACE:
+        if (JSDeferredModuleNamespace::TriggersEvaluation(it)) return {};
+        continue;
+      case LookupIterator::ACCESSOR: {
+        // Only AccessorInfos can behave like data properties. Getters of
+        // AccessorPairs are never called, not even API functions declared
+        // side-effect free, as script can install them on arbitrary objects.
+        DirectHandle<Object> accessors = it->GetAccessors();
+        if (!IsAccessorInfo(*accessors)) return {};
+        DirectHandle<AccessorInfo> info = Cast<AccessorInfo>(accessors);
+        if (info->getter_side_effect_type() !=
+            SideEffectType::kHasNoSideEffect) {
+          return {};
+        }
+        v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(it->isolate()));
+        try_catch.SetVerbose(false);
+        try_catch.SetCaptureMessage(false);
+        Handle<Object> result;
+        if (!Object::GetPropertyWithAccessor(it, info).ToHandle(&result)) {
+          return {};
+        }
+        return result;
+      }
+      case LookupIterator::DATA:
+        // Unlike GetDataValue(), this also instantiates lazy closures.
+        return Object::GetProperty(it);
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+      case LookupIterator::NOT_FOUND:
+        return {};
     }
     UNREACHABLE();
   }
@@ -282,7 +330,7 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
                   : MessageTemplate::kInvalidPrivateFieldReinitialization;
           RETURN_FAILURE(isolate,
                          GetShouldThrow(isolate, Nothing<ShouldThrow>()),
-                         NewTypeError(message, name_string, it->GetReceiver()));
+                         NewTypeError(message, name_string));
         }
         return Just(true);
       case LookupIterator::WASM_OBJECT:
@@ -293,7 +341,7 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
           RETURN_FAILURE(
               isolate, GetShouldThrow(isolate, Nothing<ShouldThrow>()),
               NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,
-                           name_string, it->GetReceiver()));
+                           name_string));
 
         } else if (it->ExtendingNonExtensible(
                        it->GetStoreTarget<JSReceiver>())) {
@@ -597,8 +645,6 @@ Tagged<String> JSReceiver::class_name() {
   if (IsShared(this)) {
     if (Is<JSSharedStruct>(this)) return roots.SharedStruct_string();
     if (Is<JSSharedArray>(this)) return roots.SharedArray_string();
-    if (Is<JSAtomicsMutex>(this)) return roots.AtomicsMutex_string();
-    if (Is<JSAtomicsCondition>(this)) return roots.AtomicsCondition_string();
 #if V8_ENABLE_WEBASSEMBLY
     if (Is<WasmObject>(this)) return roots.Object_string();
 #endif
@@ -720,6 +766,17 @@ DirectHandle<String> JSReceiver::GetConstructorName(
 }
 
 // static
+Tagged<NativeContext> JSReceiver::GetCreationContext_Slow(Tagged<Map> map) {
+  // Currently only WasmCustomMaps use this slow path.
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(IsWasmCustomMap(map));
+  return Cast<WasmCustomMap>(map)->native_context_for_wrapper();
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
+// static
 MaybeDirectHandle<NativeContext> JSReceiver::GetFunctionRealm(
     DirectHandle<JSReceiver> receiver) {
   Isolate* isolate = Isolate::Current();
@@ -735,7 +792,10 @@ MaybeDirectHandle<NativeContext> JSReceiver::GetFunctionRealm(
       Tagged<JSProxy> proxy = Cast<JSProxy>(current);
       if (proxy->IsRevoked()) {
         AllowGarbageCollection allow_allocating_errors;
-        THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyRevoked));
+        THROW_NEW_ERROR(
+            isolate, NewTypeError(MessageTemplate::kProxyRevoked,
+                                  isolate->factory()->NewStringFromAsciiChecked(
+                                      "GetFunctionRealm")));
       }
       current = Cast<JSReceiver>(proxy->target());
       continue;
@@ -2018,13 +2078,19 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
   // 3. Let D be a newly created Property Descriptor with no fields.
   DCHECK(desc->is_empty());
   // 4. Let X be O's own property whose key is P.
+  DirectHandle<Object> accessors;
+  if (it->state() == LookupIterator::ACCESSOR) {
+    accessors = it->GetAccessors();
+  }
   // 5. If X is a data property, then
-  bool is_accessor_pair = it->state() == LookupIterator::ACCESSOR &&
-                          IsAccessorPair(*it->GetAccessors());
-  if (!is_accessor_pair) {
+  if (accessors.is_null() || !IsAccessorPair(*accessors)) {
     // 5a. Set D.[[Value]] to the value of X's [[Value]] attribute.
+    MaybeHandle<JSAny> maybe_value =
+        accessors.is_null() ? Cast<JSAny>(Object::GetProperty(it))
+                            : Object::GetPropertyWithAccessor(
+                                  it, Cast<AccessorInfo>(accessors));
     DirectHandle<JSAny> value;
-    if (!Cast<JSAny>(Object::GetProperty(it)).ToHandle(&value)) {
+    if (!maybe_value.ToHandle(&value)) {
       DCHECK(isolate->has_exception());
       return Nothing<bool>();
     }
@@ -2033,15 +2099,15 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
     desc->set_writable((attrs & READ_ONLY) == 0);
   } else {
     // 6. Else X is an accessor property, so
-    auto accessors = Cast<AccessorPair>(it->GetAccessors());
+    auto accessor_pair = Cast<AccessorPair>(accessors);
     DirectHandle<NativeContext> holder_realm(
         it->GetHolder<JSReceiver>()->GetCreationContext().value(), isolate);
     // 6a. Set D.[[Get]] to the value of X's [[Get]] attribute.
-    desc->set_get(AccessorPair::GetComponent(isolate, holder_realm, accessors,
-                                             ACCESSOR_GETTER));
+    desc->set_get(AccessorPair::GetComponent(isolate, holder_realm,
+                                             accessor_pair, ACCESSOR_GETTER));
     // 6b. Set D.[[Set]] to the value of X's [[Set]] attribute.
-    desc->set_set(AccessorPair::GetComponent(isolate, holder_realm, accessors,
-                                             ACCESSOR_SETTER));
+    desc->set_set(AccessorPair::GetComponent(isolate, holder_realm,
+                                             accessor_pair, ACCESSOR_SETTER));
   }
 
   // 7. Set D.[[Enumerable]] to the value of X's [[Enumerable]] attribute.
@@ -2525,8 +2591,6 @@ MaybeDirectHandle<JSObject> JSObject::ObjectCreate(
     Isolate* isolate, DirectHandle<JSPrototype> prototype) {
   // Generate the map with the specified {prototype} based on the Object
   // function's initial map from the current native context.
-  // TODO(bmeurer): Use a dedicated cache for Object.create; think about
-  // slack tracking for Object.create.
   DirectHandle<Map> map = Map::GetObjectCreateMap(isolate, prototype);
 
   // Actually allocate the object.
@@ -2693,10 +2757,6 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSSharedArray::kHeaderSize;
     case JS_SHARED_STRUCT_TYPE:
       return JSSharedStruct::kHeaderSize;
-    case JS_ATOMICS_MUTEX_TYPE:
-      return JSAtomicsMutex::kHeaderSize;
-    case JS_ATOMICS_CONDITION_TYPE:
-      return JSAtomicsCondition::kHeaderSize;
 #ifdef V8_TEMPORAL_SUPPORT
     case JS_TEMPORAL_DURATION_TYPE:
       return sizeof(JSTemporalDuration);
@@ -3039,12 +3099,6 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     case JS_SHARED_STRUCT_TYPE:
       accumulator->Add("<JSSharedStruct>");
       break;
-    case JS_ATOMICS_MUTEX_TYPE:
-      accumulator->Add("<JSAtomicsMutex>");
-      break;
-    case JS_ATOMICS_CONDITION_TYPE:
-      accumulator->Add("<JSAtomicsCondition>");
-      break;
     case JS_MESSAGE_OBJECT_TYPE:
       accumulator->Add("<JSMessageObject>");
       break;
@@ -3176,6 +3230,17 @@ void JSObject::UpdatePrototypeUserRegistration(DirectHandle<Map> old_map,
   DCHECK(old_map->is_prototype_map());
   DCHECK(new_map->is_prototype_map());
   bool was_registered = JSObject::UnregisterPrototypeUser(old_map, isolate);
+  if (old_map->map() != new_map->map()) {
+    // Only JSGlobalProxy maps can change their meta_map (upon navigation,
+    // detachment, or remote context reinitialization). Clear the cached
+    // ObjectCreateMap so it is not reused across native contexts.
+    DCHECK(IsJSGlobalProxyMap(*old_map));
+    DCHECK(IsJSGlobalProxyMap(*new_map));
+    if (Tagged<PrototypeInfo> proto_info;
+        old_map->TryGetPrototypeInfo(&proto_info)) {
+      proto_info->ClearObjectCreateMap();
+    }
+  }
   new_map->set_prototype_info(old_map->prototype_info(), kReleaseStore);
   old_map->set_prototype_info(Smi::zero(), kReleaseStore);
   if (v8_flags.trace_prototype_users) {
@@ -3255,7 +3320,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
             object->property_array()->length().value()) {
       // Allocate HeapNumbers for double fields.
       if (index.is_double()) {
-        auto value = isolate->factory()->NewHeapNumberWithHoleNaN();
+        auto value = isolate->factory()->NewUninitializedHeapNumber();
         object->FastPropertyAtPut(index, *value);
       }
       object->set_map(isolate, *new_map, kReleaseStore);
@@ -3274,7 +3339,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     // Properly initialize newly added property.
     DirectHandle<Object> value;
     if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewHeapNumberWithHoleNaN();
+      value = isolate->factory()->NewUninitializedHeapNumber();
     } else {
       value = isolate->factory()->uninitialized_value();
     }
@@ -3335,14 +3400,14 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     PropertyDetails old_details = old_descriptors->GetDetails(i);
     Representation old_representation = old_details.representation();
     Representation representation = details.representation();
-    Handle<UnionOf<JSAny, Hole>> value;
+    Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>> value;
     if (old_details.location() == PropertyLocation::kDescriptor) {
       if (old_details.kind() == PropertyKind::kAccessor) {
         // In case of kAccessor -> kData property reconfiguration, the property
         // must already be prepared for data of certain type.
         DCHECK(!details.representation().IsNone());
         if (details.representation().IsDouble()) {
-          value = isolate->factory()->NewHeapNumberWithHoleNaN();
+          value = isolate->factory()->NewUninitializedHeapNumber();
         } else {
           value = isolate->factory()->uninitialized_value();
         }
@@ -3361,8 +3426,12 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
                        IsUninitializedHole(*value));
         value = Object::NewStorageFor(isolate, value, representation);
       } else if (old_representation.IsDouble() && !representation.IsDouble()) {
-        value = Object::WrapForRead(isolate, Cast<JSAny>(value),
-                                    old_representation);
+        if (IsUninitializedHeapNumber(*value)) {
+          value = isolate->factory()->uninitialized_value();
+        } else {
+          value = Object::WrapForRead(isolate, Cast<JSAny>(value),
+                                      old_representation);
+        }
       }
     }
     DCHECK(!(representation.IsDouble() && IsSmi(*value)));
@@ -3383,7 +3452,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     DCHECK_EQ(PropertyKind::kData, details.kind());
     DirectHandle<Object> value;
     if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewHeapNumberWithHoleNaN();
+      value = isolate->factory()->NewUninitializedHeapNumber();
     } else {
       value = isolate->factory()->uninitialized_value();
     }
@@ -3473,9 +3542,16 @@ void MigrateFastToSlow(Isolate* isolate, DirectHandle<JSObject> object,
       if (details.kind() == PropertyKind::kData) {
         value = direct_handle(object->RawFastPropertyAt(index), isolate);
         if (details.representation().IsDouble()) {
-          DCHECK(IsHeapNumber(*value));
-          double old_value = Cast<HeapNumber>(value)->value();
-          value = isolate->factory()->NewHeapNumber(old_value);
+          if (IsUninitializedHeapNumber(*value)) {
+            // This might happen when we are migrating a half-initialized
+            // object literal in order to replace this property with an
+            // accessor pair.
+            value = isolate->factory()->uninitialized_value();
+          } else {
+            DCHECK(IsHeapNumber(*value));
+            double old_value = Cast<HeapNumber>(value)->value();
+            value = isolate->factory()->NewHeapNumber(old_value);
+          }
         }
       } else {
         DCHECK_EQ(PropertyKind::kAccessor, details.kind());
@@ -3611,6 +3687,25 @@ void JSObject::ForceSetPrototype(Isolate* isolate,
   JSObject::MigrateToMap(isolate, object, new_map);
 }
 
+// static
+void JSGlobalProxy::MigrateToContextlessMap(
+    Isolate* isolate, DirectHandle<JSGlobalProxy> global_proxy,
+    DirectHandle<JSPrototype> prototype,
+    DirectHandle<UnionOf<FunctionTemplateInfo, Null>> constructor,
+    const char* reason) {
+  // NOTE: Turbofan's JSNativeContextSpecialization and Maglev depend on
+  // DetachGlobal or navigation causing a map change.
+  DirectHandle<Map> old_map(global_proxy->map(), isolate);
+  DirectHandle<Map> new_map = Map::Copy(isolate, old_map, reason);
+  // Detach the new map from the native context (by using the contextless
+  // meta_map) before migrating so UpdatePrototypeUserRegistration detects the
+  // context change and clears the cached ObjectCreateMap in PrototypeInfo.
+  new_map->set_map(isolate, ReadOnlyRoots(isolate).meta_map());
+  new_map->SetConstructor(*constructor);
+  Map::SetPrototype(isolate, new_map, prototype);
+  JSObject::MigrateToMap(isolate, global_proxy, new_map);
+}
+
 Maybe<InterceptorResult> JSObject::SetPropertyWithInterceptor(
     LookupIterator* it, Maybe<ShouldThrow> should_throw,
     DirectHandle<Object> value) {
@@ -3668,7 +3763,8 @@ void JSObject::AllocateStorageForMap(Isolate* isolate,
     Representation representation = details.representation();
     if (!representation.IsDouble()) continue;
     FieldIndex index = FieldIndex::ForDetails(*map, details);
-    auto box = isolate->factory()->NewHeapNumberWithHoleNaN();
+    auto box = isolate->factory()->NewUninitializedHeapNumber();
+
     if (index.is_inobject()) {
       storage->set(index.property_index(), *box);
     } else {
@@ -3749,12 +3845,6 @@ bool TryFastAddDataProperty(Isolate* isolate, DirectHandle<JSObject> object,
   // loaded in PrepareForDataProperty.
   PropertyDetails details =
       new_map->instance_descriptors()->GetDetails(descriptor);
-  if (details.representation().IsDouble()) {
-    if (Tagged<HeapNumber> heap_number;
-        TryCast(*value, &heap_number) && std::isnan(heap_number->value())) {
-      value = isolate->factory()->nan_value();
-    }
-  }
   object->WriteToField(descriptor, details, *value);
   return true;
 }
@@ -3913,7 +4003,8 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
                                                    accessors, attributes));
           }
 
-          return Object::SetPropertyWithAccessor(it, value, should_throw);
+          return Object::SetPropertyWithAccessor(
+              it, Cast<AccessorInfo>(accessors), value, should_throw);
         }
 
         it->ReconfigureDataProperty(value, attributes);
@@ -5209,7 +5300,7 @@ void JSObject::LazyRegisterPrototypeUser(DirectHandle<Map> user,
   // Contract: In line with InvalidatePrototypeChains()'s requirements,
   // leaf maps don't need to register as users, only prototypes do.
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK(user->is_prototype_map() || IsWasmObjectMap(*user));
+  DCHECK(user->is_prototype_map() || IsAnyWasmObjectMap(*user));
 #else
   DCHECK(user->is_prototype_map());
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -5285,7 +5376,7 @@ bool JSObject::UnregisterPrototypeUser(DirectHandle<Map> user,
   if (slot == PrototypeInfo::UNREGISTERED) return false;
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK(prototype->map()->is_prototype_map() ||
-         IsWasmObjectMap(prototype->map()));
+         IsAnyWasmObjectMap(prototype->map()));
 #else
   DCHECK(prototype->map()->is_prototype_map());
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -5314,7 +5405,7 @@ namespace {
 // before jumping here.
 void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK(map->is_prototype_map() || IsWasmObjectMap(map));
+  DCHECK(map->is_prototype_map() || IsAnyWasmObjectMap(map));
 #else
   DCHECK(map->is_prototype_map());
 #endif  // V8_ENABLE_WEBASSEMBLY

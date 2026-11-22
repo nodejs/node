@@ -148,6 +148,13 @@ public:
     lookup_table[entry_index] &= ~(uintptr_t(1) << bit_offset);
   }
 
+  LIBC_INLINE bool empty() const {
+    for (uintptr_t entry : lookup_table)
+      if (entry != 0)
+        return false;
+    return true;
+  }
+
   LIBC_INLINE bool is_occupied(size_t bin) const {
     size_t entry_index = bin / BITS_PER_ENTRY;
     size_t bit_offset = bin % BITS_PER_ENTRY;

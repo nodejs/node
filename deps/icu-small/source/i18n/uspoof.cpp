@@ -169,7 +169,7 @@ uspoof_clone(const USpoofChecker *sc, UErrorCode *status) {
     }
     if (U_FAILURE(*status)) {
         delete result;
-        result = nullptr;
+        return nullptr;
     }
     return result->asUSpoofChecker();
 }

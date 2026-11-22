@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-exec----1222">
+<h1 id="----npm-exec----1223">
     <span>npm-exec</span>
-    <span class="version">@12.2.2</span>
+    <span class="version">@12.2.3</span>
 </h1>
 <span class="description">Run a command from a local or remote npm package</span>
 </header>
@@ -341,6 +341,10 @@ setting.</p>
 <p>Optional dependencies that cannot be installed on the current platform or
 engine (a non-matching <code>os</code>, <code>cpu</code>, or <code>libc</code>) are not flagged, because
 their install scripts never run.</p>
+<p>Installation checks skip unused entries with no package parent or incoming
+links. Local link targets that installation can still rebuild remain subject
+to this check. <code>npm rebuild</code> and <code>npm install-scripts ls</code> still check unused
+packages on disk.</p>
 <h4 id="dangerously-allow-all-scripts"><code>dangerously-allow-all-scripts</code></h4>
 <ul>
 <li>Default: false</li>

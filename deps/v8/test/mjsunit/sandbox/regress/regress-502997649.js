@@ -14,9 +14,36 @@ const WASM_MODULE_OBJECT_TYPE = Sandbox.getInstanceTypeIdFor('WASM_MODULE_OBJECT
 const SCRIPT_TYPE = Sandbox.getInstanceTypeIdFor('SCRIPT_TYPE');
 
 const kWasmBytes = new Uint8Array([
-  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60, 0x01,
-  0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00,
-  0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x41, 0x01, 0x6a, 0x0b
+  0x00, 0x61, 0x73, 0x6d,  // wasm magic
+  0x01, 0x00, 0x00, 0x00,  // wasm version
+
+  0x01,                    // section kind: Type
+  0x06,                    // section length 6
+  0x01, 0x60,              // types count 1:  kind: func
+  0x01, 0x7f,              // param count 1:  i32
+  0x01, 0x7f,              // return count 1:  i32
+
+  0x03,                    // section kind: Function
+  0x02,                    // section length 2
+  0x01, 0x00,              // functions count 1: 0 $f (param i32) (result i32)
+
+  0x07,                    // section kind: Export
+  0x05,                    // section length 5
+  0x01,                    // exports count 1: export # 0
+  0x01,                    // field name length:  1
+  0x66,                    // field name: f
+  0x00, 0x00,              // kind: function index:  0
+
+  0x0a,                    // section kind: Code
+  0x09,                    // section length 9
+  0x01,                    // functions count 1
+                           // function #0 $f
+  0x07,                    // body size 7
+  0x00,                    // 0 entries in locals list
+  0x20, 0x00,              // local.get $var0
+  0x41, 0x01,              // i32.const 1
+  0x6a,                    // i32.add
+  0x0b,                    // end
 ]);
 
 let mod = new WebAssembly.Module(kWasmBytes);

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --fuzzing --allow-natives-syntax --array-destructure-bytecode --no-maglev --no-turbolev
+// Flags: --flag-processing-mode=ignore-contradictions --allow-natives-syntax
+// Flags: --array-destructure-bytecode --no-maglev --no-turbolev
 
 function test() {
   let a, b;

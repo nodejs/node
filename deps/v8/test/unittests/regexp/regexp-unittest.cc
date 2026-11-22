@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "src/regexp/regexp.h"
 
+#include <array>
 #include <cstdlib>
 #include <memory>
 #include <sstream>
@@ -594,13 +595,9 @@ static regexp::Node* Compile(const char* input, bool multiline, bool unicode,
     return nullptr;
   }
   DirectHandle<String> pattern =
-      isolate->factory()
-          ->NewStringFromUtf8(base::CStrVector(input))
-          .ToHandleChecked();
+      isolate->factory()->NewStringFromUtf8(input).ToHandleChecked();
   DirectHandle<String> sample_subject =
-      isolate->factory()
-          ->NewStringFromUtf8(base::CStrVector(""))
-          .ToHandleChecked();
+      isolate->factory()->NewStringFromUtf8("").ToHandleChecked();
   DirectHandle<IrRegExpData> re_data =
       TrustedCast<IrRegExpData>(isolate->factory()->NewIrRegExpData(
           pattern, pattern, JSRegExp::AsJSRegExpFlags(flags),
@@ -1512,6 +1509,31 @@ TEST_F(RegExpTest, NonUnicodeCaseEquivalence) {
     ASSERT_TRUE(expected == actual) << c;
   }
 }
+
+TEST_F(RegExpTest, SupplementaryCaseEquivalents) {
+  using CaseFolding = regexp::CaseFolding;
+  icu::UnicodeSet expected;
+  for (UChar32 c = 0; c <= 0xffff; ++c) {
+    icu::UnicodeSet closure(c, c);
+    closure.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
+    const bool has_supplementary = closure.containsSome(0x10000, 0x10ffff);
+    if (has_supplementary) expected.add(c);
+    const bool actual =
+        CaseFolding::HasSupplementaryEquivalents(static_cast<base::uc16>(c));
+    ASSERT_EQ(has_supplementary, actual) << c;
+
+    // Non-unicode closure must never yield supplementary code points.
+    icu::UnicodeSet non_unicode(c, c);
+    CaseFolding::CloseOver(non_unicode, CaseFolding::Mode::kNonUnicode);
+    ASSERT_FALSE(non_unicode.containsSome(0x10000, 0x10ffff)) << c;
+  }
+  // U+1DF95 LATIN SMALL LIGATURE LONG S WITH DESCENDER S (Unicode 18)
+  // case-folds to U+00DF LATIN SMALL LETTER SHARP S.
+  if (u_foldCase(0x1df95, U_FOLD_CASE_DEFAULT) == 0xdf) {
+    EXPECT_TRUE(expected.contains(0xdf));
+    EXPECT_TRUE(expected.contains(0x1e9e));
+  }
+}
 #endif  // !DEBUG
 
 TEST_F(RegExpTest, CaseClosureMixedSets) {
@@ -1524,6 +1546,10 @@ TEST_F(RegExpTest, CaseClosureMixedSets) {
     expected.add('A', 'C').add('K');
     if (mode == CaseFolding::Mode::kUnicode) {
       expected.add('s').add('S').add(0x212a).add(0x1e9e);
+      // Since Unicode 18, U+1DF95 case-folds to U+00DF.
+      if (u_foldCase(0x1df95, U_FOLD_CASE_DEFAULT) == 0xdf) {
+        expected.add(0x1df95);
+      }
       actual.add(0x10400);
       expected.add(0x10400).add(0x10428);
     }
@@ -1651,7 +1677,7 @@ static void TestRangeCaseIndependence(
 static void TestSimpleRangeCaseIndependence(Isolate* isolate,
                                             regexp::CharacterRange input,
                                             regexp::CharacterRange expected) {
-  base::EmbeddedVector<regexp::CharacterRange, 1> vector;
+  std::array<regexp::CharacterRange, 1> vector;
   vector[0] = expected;
   TestRangeCaseIndependence(isolate, input, vector);
 }

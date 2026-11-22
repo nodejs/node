@@ -8,6 +8,7 @@
 #include "node_buffer.h"
 #include "node_context_data.h"
 #include "node_contextify.h"
+#include "node_diagnostics_channel.h"
 #include "node_dotenv.h"
 #include "node_errors.h"
 #include "node_file_utils.h"
@@ -205,7 +206,6 @@ bool AsyncHooks::pop_async_context(double async_id) {
     } else {
       native_execution_async_resources_.resize(offset);
     }
-    native_execution_async_resources_.shrink_to_fit();
   }
 
   if (js_execution_async_resources()->Length() > offset) [[unlikely]] {
@@ -1320,6 +1320,30 @@ Environment::~Environment() {
   isolate_data_->RemoveEnvironment();
 }
 
+void Environment::InitializeThreadPoolWorkChannels() {
+  if (isolate_data()->is_building_snapshot()) return;
+
+  auto* binding =
+      principal_realm()->GetBindingData<diagnostics_channel::BindingData>();
+  CHECK_NOT_NULL(binding);
+  for (size_t i = 0; i < threadpool_work_channels_.size(); i++) {
+    ThreadPoolWorkChannel* entry = &threadpool_work_channels_[i];
+    if (entry->channel.get() != nullptr) continue;
+
+    std::string name = "uv.threadpool.work.";
+    name += kThreadPoolWorkNames[i];
+    BaseObjectPtr<diagnostics_channel::Channel> channel =
+        diagnostics_channel::Channel::Get(this, name);
+    if (!channel) continue;
+
+    binding->SetChannelStatusCallback(
+        channel->index(), [entry](bool active) { entry->active = active; });
+    entry->channel =
+        BaseObjectWeakPtr<diagnostics_channel::Channel>(channel.get());
+    entry->active = channel->HasSubscribers();
+  }
+}
+
 void Environment::InitializeLibuv() {
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
@@ -1399,10 +1423,20 @@ CompileCacheEnableResult Environment::EnableCompileCache(
     const std::string& key_root) {
   CompileCacheEnableResult result;
   std::string disable_env;
+  const char* disabled_reason = nullptr;
   if (credentials::SafeGetenv(
           "NODE_DISABLE_COMPILE_CACHE", &disable_env, this)) {
+    disabled_reason = "Disabled by NODE_DISABLE_COMPILE_CACHE";
+#if HAVE_INSPECTOR
+  } else if (coverage_connection() != nullptr) {
+    // V8 cannot collect block coverage for functions deserialized from the
+    // cache.
+    disabled_reason = "Disabled because V8 coverage is being collected";
+#endif  // HAVE_INSPECTOR
+  }
+  if (disabled_reason != nullptr) {
     result.status = CompileCacheEnableStatus::DISABLED;
-    result.message = "Disabled by NODE_DISABLE_COMPILE_CACHE";
+    result.message = disabled_reason;
     Debug(this,
           DebugCategory::COMPILE_CACHE,
           "[compile cache] %s.\n",

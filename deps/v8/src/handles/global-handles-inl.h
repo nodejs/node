@@ -20,7 +20,11 @@ IndirectHandle<T> GlobalHandles::Create(Tagged<T> value) {
   static_assert(is_subtype_v<T, Object>, "static type violation");
   // The compiler should only pick this method if T is not Object.
   static_assert(!std::is_same_v<Object, T>, "compiler error");
-  return TrustedCast<T>(Create(Tagged<Object>(value)));
+  if constexpr (is_subtype_v<T, TrustedObject>) {
+    return TrustedCast<T>(Create(Tagged<Object>(value)));
+  } else {
+    return Cast<T>(Create(Tagged<Object>(value)));
+  }
 }
 
 template <typename T>
@@ -36,6 +40,19 @@ GlobalHandleVector<T>::GlobalHandleVector(LocalHeap* local_heap)
 
 template <typename T>
 GlobalHandleVector<T>::GlobalHandleVector(Heap* heap)
+    : locations_(StrongRootAllocator<Address>(heap)) {}
+
+template <typename T>
+Tagged<T> GlobalHandleCircularQueue<T>::Dequeue() {
+  return Cast<T>(Tagged<Object>(locations_.Dequeue()));
+}
+
+template <typename T>
+GlobalHandleCircularQueue<T>::GlobalHandleCircularQueue(LocalHeap* local_heap)
+    : GlobalHandleCircularQueue(local_heap->AsHeap()) {}
+
+template <typename T>
+GlobalHandleCircularQueue<T>::GlobalHandleCircularQueue(Heap* heap)
     : locations_(StrongRootAllocator<Address>(heap)) {}
 
 }  // namespace internal

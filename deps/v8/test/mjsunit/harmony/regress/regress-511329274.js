@@ -42,12 +42,43 @@
   const callIntoWasm = sr.evaluate(`
     globalThis[Symbol.toStringTag] = "RealmGlobal";
     const bytes = new Uint8Array([
-      0x00,0x61,0x73,0x6d, 0x01,0x00,0x00,0x00,
-      0x01,0x04,0x01,0x60,0x00,0x00,
-      0x02,0x09,0x01,0x02,0x6a,0x73,0x02,0x63,0x62,0x00,0x00,
-      0x03,0x02,0x01,0x00,
-      0x07,0x07,0x01,0x03,0x72,0x75,0x6e,0x00,0x01,
-      0x0a,0x06,0x01,0x04,0x00,0x10,0x00,0x0b
+      0x00, 0x61, 0x73, 0x6d,  // wasm magic
+      0x01, 0x00, 0x00, 0x00,  // wasm version
+
+      0x01,                    // section kind: Type
+      0x04,                    // section length 4
+      0x01, 0x60,              // types count 1:  kind: func
+      0x00,                    // param count 0
+      0x00,                    // return count 0
+
+      0x02,                    // section kind: Import
+      0x09,                    // section length 9
+      0x01, 0x02,              // imports count 1: module name length:  2
+      0x6a, 0x73,              // module name: js
+      0x02,                    // field name length:  2
+      0x63, 0x62,              // field name: cb
+      0x00, 0x00,              // kind or compact flag: function
+                               // import #0
+
+      0x03,                    // section kind: Function
+      0x02,                    // section length 2
+      0x01, 0x00,              // functions count 1: 1 $run
+
+      0x07,                    // section kind: Export
+      0x07,                    // section length 7
+      0x01,                    // exports count 1: export # 0
+      0x03,                    // field name length:  3
+      0x72, 0x75, 0x6e,        // field name: run
+      0x00, 0x01,              // kind: function index:  1
+
+      0x0a,                    // section kind: Code
+      0x06,                    // section length 6
+      0x01,                    // functions count 1
+                               // function #1 $run
+      0x04,                    // body size 4
+      0x00,                    // 0 entries in locals list
+      0x10, 0x00,              // call $js.cb
+      0x0b,                    // end
     ]);
     const mod = new WebAssembly.Module(bytes);
     (function (cb) {

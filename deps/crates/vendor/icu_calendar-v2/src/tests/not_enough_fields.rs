@@ -2,10 +2,10 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+use crate::Date;
 use crate::error::DateFromFieldsError;
 use crate::options::{DateFromFieldsOptions, MissingFieldsStrategy, Overflow};
 use crate::types::DateFields;
-use crate::Date;
 
 #[test]
 fn test_from_fields_not_enough_fields() {

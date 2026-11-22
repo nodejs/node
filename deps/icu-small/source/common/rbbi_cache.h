@@ -64,6 +64,13 @@ class RuleBasedBreakIterator::DictionaryCache: public UMemory {
                                                 //    text segment being handled by the dictionary.
     int32_t             fFirstRuleStatusIndex;  // Rule status info for first boundary.
     int32_t             fOtherRuleStatusIndex;  // Rule status info for 2nd through last boundaries.
+
+    // If `this->isWordLike`, the status of dictionary breaks is equal to the status of the final
+    // break of the rule-based segment they refine (fOtherRuleStatusIndex); otherwise, dictionary
+    // breaks have status 0.
+    // For compatibility, this property is determined by the largest status value used by `*fBI`:
+    // rules that have a largest status greater than 100 are considered word-like.
+    bool isWordLike;
 };
 
 

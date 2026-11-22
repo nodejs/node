@@ -12,7 +12,7 @@ extern class Module extends HeapObject {
   status: Smi;
   module_namespace: Cell|Undefined;
   deferred_module_namespace: Cell|Undefined;
-  // The exception in the case {status} is kErrored.
+  // The exception in the case {status} is kEvaluatedError.
   exception: Object;
   // The top level promise capability of this module. Will only be defined
   // for cycle roots.

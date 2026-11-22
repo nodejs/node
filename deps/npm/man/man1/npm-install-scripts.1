@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL-SCRIPTS" "1" "November 2026" "NPM@12.2.2" ""
+.TH "NPM-INSTALL-SCRIPTS" "1" "November 2026" "NPM@12.2.3" ""
 .SH "NAME"
 \fBnpm-install-scripts\fR - Manage install-script approvals for dependencies
 .SS "Synopsis"
@@ -19,7 +19,7 @@ Note: This command is unaware of workspaces.
 .P
 Manages the \fBallowScripts\fR field in your project's \fBpackage.json\fR, which records which of your dependencies are permitted to run install scripts (\fBpreinstall\fR, \fBinstall\fR, \fBpostinstall\fR, and \fBprepare\fR for non-registry sources). This is the recommended way to maintain that field.
 .P
-Dependency install scripts are blocked by default. Install commands silently skip lifecycle scripts for any dependency that does not have a matching entry in \fBallowScripts\fR, and end with a list of the packages whose scripts were skipped so you can review them here.
+Dependency install scripts are blocked by default. Install commands silently skip lifecycle scripts for any dependency that does not have a matching entry in \fBallowScripts\fR, and end with a list of the packages whose scripts were skipped so you can review them here. These warnings omit disconnected unused entries that installation cannot build. Local link targets that can still be rebuilt remain subject to the policy.
 .P
 This command only works inside a project that has a \fBpackage.json\fR. Running it with \fB--global\fR (\fB-g\fR) fails with an \fBEGLOBAL\fR error, since global installs (\fBnpm install -g\fR) and one-off executions (\fBnpm exec\fR / \fBnpx\fR) have no project \fBpackage.json\fR to write to. To allow install scripts in those contexts, use the \fB--allow-scripts\fR flag at install time (for example \fBnpm install -g --allow-scripts=canvas,sharp\fR) or persist the setting with \fBnpm config set allow-scripts=canvas,sharp --location=user\fR.
 .P
@@ -40,7 +40,7 @@ npm install-scripts prune
 .P
 \fBdeny\fR records an explicit denial for the named packages (a name-only \fBfalse\fR entry), which survives \fBnpm install-scripts approve --all\fR and excludes the package from any future blanket approval. \fB--all\fR denies every package with unreviewed install scripts.
 .P
-\fBls\fR is read-only: it lists every package whose install scripts are not yet covered by \fBallowScripts\fR, without modifying \fBpackage.json\fR.
+\fBls\fR is read-only: it lists every package whose install scripts are not yet covered by \fBallowScripts\fR, without modifying \fBpackage.json\fR. This includes unreviewed extraneous packages, which are installed but not required by any dependency. These packages can still cause \fBnpm rebuild --strict-allow-scripts\fR to fail.
 .P
 \fBprune\fR removes \fBallowScripts\fR entries that no longer match an installed package with an install script, either because the package is no longer installed (a transitive dependency changed, or a pinned \fBpkg@1.2.3\fR was upgraded) or because it no longer has an install script. Both approvals (\fBtrue\fR) and denials (\fBfalse\fR) are removed. It edits only the \fBallowScripts\fR field in \fBpackage.json\fR, never \fB.npmrc\fR or \fB--allow-scripts\fR. Pass \fB--dry-run\fR to preview without writing. Unparseable keys are left alone.
 .P

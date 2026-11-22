@@ -44,7 +44,7 @@ namespace compiler {
 enum class RecordWriteMode {
   kValueIsMap,
   kValueIsPointer,
-  kValueIsIndirectPointer,
+  kValueIsTrustedPointer,
   kValueIsEphemeronKey,
   kValueIsAny,
 };
@@ -56,8 +56,8 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
       return RecordWriteMode::kValueIsMap;
     case kPointerWriteBarrier:
       return RecordWriteMode::kValueIsPointer;
-    case kIndirectPointerWriteBarrier:
-      return RecordWriteMode::kValueIsIndirectPointer;
+    case kTrustedPointerWriteBarrier:
+      return RecordWriteMode::kValueIsTrustedPointer;
     case kEphemeronKeyWriteBarrier:
       return RecordWriteMode::kValueIsEphemeronKey;
     case kFullWriteBarrier:
@@ -110,10 +110,10 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(AtomicXorWord32)                                       \
   V(ArchStoreWithWriteBarrier)                             \
   V(ArchAtomicStoreWithWriteBarrier)                       \
-  V(ArchStoreIndirectWithWriteBarrier)                     \
+  V(ArchStoreTrustedWithWriteBarrier)                      \
   V(ArchStoreSkippedWriteBarrier)                          \
   V(ArchAtomicStoreSkippedWriteBarrier)                    \
-  V(ArchStoreIndirectSkippedWriteBarrier)                  \
+  V(ArchStoreTrustedSkippedWriteBarrier)                   \
   V(AtomicLoadInt8)                                        \
   V(AtomicLoadUint8)                                       \
   V(AtomicLoadInt16)                                       \
@@ -389,7 +389,8 @@ using InstructionCode = uint32_t;
 // Field                        | Bits
 // Undefined                    | 5
 // AccessMode                   | 1
-// Undefined                    | 3
+// SharedBase                   | 1
+// Undefined                    | 2
 //
 // -- Vectors
 // Field                        | Bits
@@ -450,6 +451,10 @@ static_assert(AtomicMemoryOrderField::kLastUsedBit >=
 static_assert(AtomicMemoryOrderField::kLastUsedBit >=
               LaneSizeField::kLastUsedBit);
 #endif
+
+// Denotes that the a load has a shared tagged object as its base. Currently
+// only used for TSAN.
+using SharedBaseField = AccessModeField::Next<SharedFlag, 1>;
 
 // TODO(turbofan): {HasMemoryAccessMode} is currently only used to guard
 // decoding (in CodeGenerator and InstructionScheduler). Encoding (in

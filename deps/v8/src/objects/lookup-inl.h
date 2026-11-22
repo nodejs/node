@@ -296,7 +296,7 @@ bool LookupIterator::ExtendingNonExtensible(DirectHandle<JSReceiver> receiver) {
   }
 #if V8_ENABLE_WEBASSEMBLY
   // Wasm objects have a fixed layout and must never transition their map.
-  if (IsWasmObjectMap(receiver_map)) {
+  if (IsAnyWasmObjectMap(receiver_map)) {
     return true;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

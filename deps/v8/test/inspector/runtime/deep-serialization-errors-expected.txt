@@ -42,6 +42,27 @@ Runtime.callFunctionOn
     id : <messageId>
 }
 
+Running test: LargeSparseArray
+testing expression: (()=>{ const a = []; a.length = 0xFFFFFFFF; return a; })()
+Runtime.evaluate
+...no deepSerializedValue...
+{
+    error : {
+        code : -32000
+        message : Array length exceeds maximum limit for deep serialization
+    }
+    id : <messageId>
+}
+Runtime.callFunctionOn
+...no deepSerializedValue...
+{
+    error : {
+        code : -32000
+        message : Array length exceeds maximum limit for deep serialization
+    }
+    id : <messageId>
+}
+
 Running test: NestedThrowingGetter
 testing expression: ({ a: { b: [ { get c() { throw new Error('nested error'); } } ] } })
 Runtime.evaluate

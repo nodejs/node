@@ -133,6 +133,18 @@ namespace message2 {
         return result;
     }
 
+    template<typename T>
+    inline T* create(const T& node, UErrorCode& status) {
+        if (U_FAILURE(status)) {
+            return nullptr;
+        }
+        T* result = new T(node);
+        if (result == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+        }
+        return result;
+    }
+
 } // namespace message2
 
 U_NAMESPACE_END

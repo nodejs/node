@@ -120,3 +120,85 @@ const decoder = new TextDecoder();
   await clientSession.close();
   await serverEndpoint.close();
 }
+
+// RESET_STREAM with H3_NO_ERROR is a clean application-level reset. It does
+// not reject stream.closed, and truncatedReads: 'ignore' accepts the missing
+// FIN without turning the nonzero code back into an error.
+{
+  const H3_NO_ERROR = 0x100n;
+  const reset = Promise.withResolvers();
+
+  const serverEndpoint = await listen(mustCall(), {
+    sni: { '*': { keys: [key], certs: [cert] } },
+    onheaders: mustCall(function() {
+      this.resetStream(H3_NO_ERROR);
+    }),
+  });
+
+  const clientSession = await connect(serverEndpoint.address, {
+    servername: 'localhost',
+    verifyPeer: 'manual',
+    truncatedReads: 'ignore',
+  });
+  await clientSession.opened;
+
+  const stream = await clientSession.createBidirectionalStream({
+    headers: {
+      ':method': 'GET',
+      ':path': '/',
+      ':scheme': 'https',
+      ':authority': 'localhost',
+    },
+  });
+  stream.onreset = mustCall((error) => {
+    assert.strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
+    assert.strictEqual(error.errorCode, H3_NO_ERROR);
+    reset.resolve();
+  });
+  stream.writer.endSync();
+
+  const body = await bytes(stream);
+  assert.strictEqual(body.byteLength, 0);
+  await reset.promise;
+  await stream.closed;
+
+  await clientSession.close();
+  await serverEndpoint.close();
+}
+
+// A locally sent STOP_SENDING with H3_NO_ERROR is a clean application-level
+// truncation. With truncatedReads: 'ignore', the nonzero code does not fail
+// the read.
+{
+  const H3_NO_ERROR = 0x100n;
+
+  const serverEndpoint = await listen(mustCall(), {
+    sni: { '*': { keys: [key], certs: [cert] } },
+    onheaders: mustCall(),
+  });
+
+  const clientSession = await connect(serverEndpoint.address, {
+    servername: 'localhost',
+    verifyPeer: 'manual',
+    truncatedReads: 'ignore',
+  });
+  await clientSession.opened;
+
+  const stream = await clientSession.createBidirectionalStream({
+    headers: {
+      ':method': 'GET',
+      ':path': '/',
+      ':scheme': 'https',
+      ':authority': 'localhost',
+    },
+  });
+  stream.writer.endSync();
+
+  stream.stopSending(H3_NO_ERROR);
+  const body = await bytes(stream);
+  assert.strictEqual(body.byteLength, 0);
+  await stream.closed;
+
+  await clientSession.close();
+  await serverEndpoint.close();
+}

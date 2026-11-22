@@ -27,8 +27,8 @@ V8_OBJECT class JSFinalizationRegistry : public JSObject {
   inline void set_native_context(Tagged<NativeContext> value,
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<JSReceiver> cleanup() const;
-  inline void set_cleanup(Tagged<JSReceiver> value,
+  inline Tagged<JSCallable> cleanup() const;
+  inline void set_cleanup(Tagged<JSCallable> value,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<WeakCell, Undefined>> active_cells() const;
@@ -115,12 +115,12 @@ V8_OBJECT class JSFinalizationRegistry : public JSObject {
 
  public:
   TaggedMember<NativeContext> native_context_;
-  TaggedMember<JSReceiver> cleanup_;
+  TaggedMember<JSCallable> cleanup_;
   TaggedMember<UnionOf<WeakCell, Undefined>> active_cells_;
   TaggedMember<UnionOf<WeakCell, Undefined>> cleared_cells_;
   TaggedMember<Object> key_map_;
   TaggedMember<UnionOf<JSFinalizationRegistry, Undefined>> next_dirty_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<FinalizationRegistryFlags>);
 
   friend class Heap;
   friend class TorqueGeneratedJSFinalizationRegistryAsserts;

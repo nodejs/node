@@ -442,6 +442,7 @@
   V(lock_query_template, v8::DictionaryTemplate)                               \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(module_wrap_constructor_template, v8::FunctionTemplate)                    \
+  V(module_request_template, v8::DictionaryTemplate)                           \
   V(mx_record_template, v8::DictionaryTemplate)                                \
   V(naptr_record_template, v8::DictionaryTemplate)                             \
   V(object_stats_template, v8::DictionaryTemplate)                             \
@@ -465,6 +466,7 @@
   V(srv_record_template, v8::DictionaryTemplate)                               \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
+  V(threadpool_work_template, v8::DictionaryTemplate)                          \
   V(tlsa_record_template, v8::DictionaryTemplate)                              \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(txt_record_template, v8::DictionaryTemplate)                               \

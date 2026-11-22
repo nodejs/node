@@ -46,7 +46,7 @@ public:
 
     virtual Win32NumberFormat *clone() const;
 
-    Win32NumberFormat &operator=(const Win32NumberFormat &other);
+    Win32NumberFormat& operator=(const Win32NumberFormat& other) U_LIFETIME_BOUND;
 
     /**
      * Format a double number. Concrete subclasses must implement
@@ -60,7 +60,7 @@ public:
      * @return          Reference to 'appendTo' parameter.
      */
     virtual UnicodeString& format(double number,
-                                  UnicodeString& appendTo,
+                                  UnicodeString& appendTo U_LIFETIME_BOUND,
                                   FieldPosition& pos) const;
     /**
      * Format a long number. Concrete subclasses must implement
@@ -74,7 +74,7 @@ public:
      * @return          Reference to 'appendTo' parameter.
     */
     virtual UnicodeString& format(int32_t number,
-                                  UnicodeString& appendTo,
+                                  UnicodeString& appendTo U_LIFETIME_BOUND,
                                   FieldPosition& pos) const;
 
     /**
@@ -88,7 +88,7 @@ public:
      * @return          Reference to 'appendTo' parameter.
     */
     virtual UnicodeString& format(int64_t number,
-                                  UnicodeString& appendTo,
+                                  UnicodeString& appendTo U_LIFETIME_BOUND,
                                   FieldPosition& pos) const;
 
     using NumberFormat::format;
@@ -147,7 +147,9 @@ public:
     virtual UClassID getDynamicClassID() const;
 
 private:
-    UnicodeString &format(int32_t numDigits, UnicodeString &appendTo, const wchar_t *format, ...) const;
+    UnicodeString& format(int32_t numDigits,
+                          UnicodeString& appendTo U_LIFETIME_BOUND,
+                          const wchar_t* format, ...) const;
 
     UBool fCurrency;
     Locale fLocale;

@@ -178,10 +178,7 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  Realm* realm = Realm::GetCurrent(context);
-  HandleScope scope(realm->isolate());
-  BindingData* binding = realm->AddBindingData<BindingData>(holder, info);
-  CHECK_NOT_NULL(binding);
+  Realm::DeserializeBindingData<BindingData>(context, holder, info);
 }
 
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {
@@ -431,7 +428,7 @@ GlobRequest::GlobRequest(Environment* env,
                          const std::vector<CompiledPatternPtr>& excludes,
                          std::unique_ptr<JsExcludeFilter> filter)
     : AsyncWrap(env, object, AsyncWrap::PROVIDER_GLOBREQUEST),
-      ThreadPoolWork(env, "glob"),
+      ThreadPoolWork(env, ThreadPoolWorkType::kGlob),
       filter_(std::move(filter)),
       walk_(env, options, includes, excludes),
       with_file_types_(options.with_file_types) {

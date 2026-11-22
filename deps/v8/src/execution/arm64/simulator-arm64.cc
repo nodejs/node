@@ -2273,6 +2273,10 @@ void Simulator::VisitLoadStoreUnscaledOffset(Instruction* instr) {
   LoadStoreHelper(instr, instr->ImmLS(), Offset);
 }
 
+void Simulator::VisitLoadStoreRCpcUnscaledOffset(Instruction* instr) {
+  LoadStoreHelper(instr, instr->ImmLS(), Offset, AcquireRelease(true));
+}
+
 void Simulator::VisitLoadStorePreIndex(Instruction* instr) {
   LoadStoreHelper(instr, instr->ImmLS(), PreIndex);
 }
@@ -2291,7 +2295,9 @@ void Simulator::VisitLoadStoreRegisterOffset(Instruction* instr) {
 }
 
 void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
-                                AddrMode addrmode) {
+                                AddrMode addrmode,
+                                AcquireRelease acquire_release) {
+  DCHECK_IMPLIES(acquire_release, addrmode == Offset);
   unsigned srcdst = instr->Rt();
   unsigned addr_reg = instr->Rn();
   uintptr_t address = LoadStoreAddress(addr_reg, offset, addrmode);
@@ -2331,73 +2337,83 @@ void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
     // Use _no_log variants to suppress the register trace (LOG_REGS,
     // LOG_VREGS). We will print a more detailed log.
     case LDRB_w:
-      set_wreg_no_log(srcdst, MemoryRead<uint8_t>(address));
+      set_wreg_no_log(srcdst, MemoryRead<uint8_t>(address, acquire_release));
       break;
     case LDRH_w:
-      set_wreg_no_log(srcdst, MemoryRead<uint16_t>(address));
+      set_wreg_no_log(srcdst, MemoryRead<uint16_t>(address, acquire_release));
       break;
     case LDR_w:
-      set_wreg_no_log(srcdst, MemoryRead<uint32_t>(address));
+      set_wreg_no_log(srcdst, MemoryRead<uint32_t>(address, acquire_release));
       break;
     case LDR_x:
-      set_xreg_no_log(srcdst, MemoryRead<uint64_t>(address));
+      set_xreg_no_log(srcdst, MemoryRead<uint64_t>(address, acquire_release));
       break;
     case LDRSB_w:
-      set_wreg_no_log(srcdst, MemoryRead<int8_t>(address));
+      set_wreg_no_log(srcdst, MemoryRead<int8_t>(address, acquire_release));
       break;
     case LDRSH_w:
-      set_wreg_no_log(srcdst, MemoryRead<int16_t>(address));
+      set_wreg_no_log(srcdst, MemoryRead<int16_t>(address, acquire_release));
       break;
     case LDRSB_x:
-      set_xreg_no_log(srcdst, MemoryRead<int8_t>(address));
+      set_xreg_no_log(srcdst, MemoryRead<int8_t>(address, acquire_release));
       break;
     case LDRSH_x:
-      set_xreg_no_log(srcdst, MemoryRead<int16_t>(address));
+      set_xreg_no_log(srcdst, MemoryRead<int16_t>(address, acquire_release));
       break;
     case LDRSW_x:
-      set_xreg_no_log(srcdst, MemoryRead<int32_t>(address));
+      set_xreg_no_log(srcdst, MemoryRead<int32_t>(address, acquire_release));
       break;
     case LDR_b:
+      DCHECK(!acquire_release);
       set_breg_no_log(srcdst, MemoryRead<uint8_t>(address));
       break;
     case LDR_h:
+      DCHECK(!acquire_release);
       set_hreg_no_log(srcdst, MemoryRead<uint16_t>(address));
       break;
     case LDR_s:
+      DCHECK(!acquire_release);
       set_sreg_no_log(srcdst, MemoryRead<float>(address));
       break;
     case LDR_d:
+      DCHECK(!acquire_release);
       set_dreg_no_log(srcdst, MemoryRead<double>(address));
       break;
     case LDR_q:
+      DCHECK(!acquire_release);
       set_qreg_no_log(srcdst, MemoryRead<qreg_t>(address));
       break;
 
     case STRB_w:
-      MemoryWrite<uint8_t>(address, wreg(srcdst));
+      MemoryWrite<uint8_t>(address, wreg(srcdst), acquire_release);
       break;
     case STRH_w:
-      MemoryWrite<uint16_t>(address, wreg(srcdst));
+      MemoryWrite<uint16_t>(address, wreg(srcdst), acquire_release);
       break;
     case STR_w:
-      MemoryWrite<uint32_t>(address, wreg(srcdst));
+      MemoryWrite<uint32_t>(address, wreg(srcdst), acquire_release);
       break;
     case STR_x:
-      MemoryWrite<uint64_t>(address, xreg(srcdst));
+      MemoryWrite<uint64_t>(address, xreg(srcdst), acquire_release);
       break;
     case STR_b:
+      DCHECK(!acquire_release);
       MemoryWrite<uint8_t>(address, breg(srcdst));
       break;
     case STR_h:
+      DCHECK(!acquire_release);
       MemoryWrite<uint16_t>(address, hreg(srcdst));
       break;
     case STR_s:
+      DCHECK(!acquire_release);
       MemoryWrite<float>(address, sreg(srcdst));
       break;
     case STR_d:
+      DCHECK(!acquire_release);
       MemoryWrite<double>(address, dreg(srcdst));
       break;
     case STR_q:
+      DCHECK(!acquire_release);
       MemoryWrite<qreg_t>(address, qreg(srcdst));
       break;
 
@@ -6978,6 +6994,22 @@ void Simulator::VisitSVEBitPerm(Instruction* instr) {
 
   if (instr->Mask(SVEBitPermMask) == BEXT) {
     bgrp(vf, rd, rn, rm, true);
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
+void Simulator::VisitSVE2Mul(Instruction* instr) {
+  SimVRegister& rd = vreg(instr->Rd());
+  SimVRegister& rm = vreg(instr->Rm());
+  SimVRegister& rn = vreg(instr->Rn());
+  SVESizeDecoder ssd(instr);
+  VectorFormat vf = ssd.GetVectorFormat();
+
+  DCHECK_EQ(instr->Mask(SVE2MulFMask), SVE2MulFixed);
+
+  if (instr->Mask(SVE2MulMask) == SVE2_MUL) {
+    mul(vf, rd, rn, rm);
   } else {
     UNIMPLEMENTED();
   }
