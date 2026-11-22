@@ -84,6 +84,7 @@ jobs:
       CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} g++
       SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
       SCCACHE_IDLE_TIMEOUT: '0'
+      CARGO_BUILD_RUSTC_WRAPPER: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
