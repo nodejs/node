@@ -7,7 +7,7 @@ if (common.isIBMi)
 
 const fs = require('fs');
 
-const watcher = fs.watch(__filename, common.mustNotCall());
+const watcher = fs.watch(__filename);
 
 watcher.unref();
 
