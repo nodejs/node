@@ -664,6 +664,19 @@ class MapData : public HeapObjectData {
     CHECK(InstanceTypeChecker::IsJSObject(instance_type()));
     return in_object_properties_;
   }
+  uint8_t GetInObjectPropertiesStartInWords() const {
+    DCHECK(InstanceTypeChecker::IsJSObject(instance_type()));
+    return inobject_properties_start_or_constructor_function_index_;
+  }
+  int GetConstructorFunctionIndex() const {
+#if V8_ENABLE_WEBASSEMBLY
+    DCHECK(instance_type() <= LAST_PRIMITIVE_HEAP_OBJECT_TYPE ||
+           instance_type() == WASM_NULL_TYPE);
+#else
+    DCHECK(instance_type() <= LAST_PRIMITIVE_HEAP_OBJECT_TYPE);
+#endif
+    return inobject_properties_start_or_constructor_function_index_;
+  }
   int UnusedPropertyFields() const { return unused_property_fields_; }
   bool is_abandoned_prototype_map() const {
     return is_abandoned_prototype_map_;
@@ -676,6 +689,7 @@ class MapData : public HeapObjectData {
 
   InstanceType instance_type_;
   int instance_size_;
+  uint8_t inobject_properties_start_or_constructor_function_index_;
   Map::Bits2 bit_field2_;
   Map::Bits3 bit_field3_;
   int unused_property_fields_;
@@ -1014,12 +1028,11 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage,
   JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(broker);
 
   // When background serializing the map, we can perform a lite serialization
-  // since the MapRef will read some of the Map's fields can be read directly.
-
-  // Even though MapRefs can read {instance_type} directly, other classes depend
-  // on {instance_type} being serialized.
+  // since the MapRef will read some of the Map's fields directly.
   instance_type_ = object->instance_type();
   instance_size_ = object->instance_size();
+  inobject_properties_start_or_constructor_function_index_ =
+      object->inobject_properties_start_or_constructor_function_index();
 
   bit_field2_ = object->bit_field2();
 
@@ -1033,9 +1046,11 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage,
   // lock in more places.
   bit_field3_ = object->relaxed_bit_field3();
   is_abandoned_prototype_map_ = object->is_abandoned_prototype_map();
-  if (IsJSObjectMap(*object)) {
+  if (InstanceTypeChecker::IsJSObject(instance_type_)) {
     unused_property_fields_ = object->UnusedPropertyFields();
-    in_object_properties_ = object->GetInObjectProperties();
+    in_object_properties_ =
+        (instance_size_ >> kTaggedSizeLog2) -
+        inobject_properties_start_or_constructor_function_index_;
   } else {
     unused_property_fields_ = 0;
     in_object_properties_ = 0;
@@ -1335,11 +1350,11 @@ bool MapRef::IsStringWrapperMap() const {
 }
 
 bool MapRef::IsOneByteStringMap() const {
-  return InstanceTypeChecker::IsOneByteString(*object());
+  return InstanceTypeChecker::IsOneByteString(instance_type());
 }
 
 bool MapRef::IsTwoByteStringMap() const {
-  return InstanceTypeChecker::IsTwoByteString(*object());
+  return InstanceTypeChecker::IsTwoByteString(instance_type());
 }
 
 bool MapRef::CanInlineElementAccess() const {
@@ -1532,7 +1547,7 @@ FieldIndex MapRef::GetFieldIndexFor(InternalIndex descriptor_index) const {
 }
 
 int MapRef::GetInObjectPropertyOffset(int i) const {
-  return object()->GetInObjectPropertyOffset(i);
+  return (GetInObjectPropertiesStartInWords() + i) * kTaggedSize;
 }
 
 PropertyDetails MapRef::GetPropertyDetails(
@@ -2114,7 +2129,8 @@ bool MapRef::IsInobjectSlackTrackingInProgress() const {
 }
 
 int MapRef::constructor_function_index() const {
-  return object()->GetConstructorFunctionIndex();
+  IF_ACCESS_FROM_HEAP_C(GetConstructorFunctionIndex);
+  return data()->AsMap()->GetConstructorFunctionIndex();
 }
 
 bool MapRef::is_stable() const {
@@ -2124,10 +2140,15 @@ bool MapRef::is_stable() const {
 
 bool MapRef::CanBeDeprecated() const { return object()->CanBeDeprecated(); }
 
-bool MapRef::CanTransition() const { return object()->CanTransition(); }
+bool MapRef::CanTransition() const {
+  const InstanceType type = instance_type();
+  return InstanceTypeChecker::IsJSObject(type) &&
+         !InstanceTypeChecker::IsMaybeReadOnlyJSObject(type);
+}
 
 uint8_t MapRef::GetInObjectPropertiesStartInWords() const {
-  return object()->GetInObjectPropertiesStartInWords();
+  IF_ACCESS_FROM_HEAP_C(GetInObjectPropertiesStartInWords);
+  return data()->AsMap()->GetInObjectPropertiesStartInWords();
 }
 
 int MapRef::GetInObjectProperties() const {

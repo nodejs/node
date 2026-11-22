@@ -156,6 +156,10 @@ macro RefCast<To: type>(i: &intptr):
   return torque_internal::unsafe::NewReference<To>(i.object, i.offset);
 }
 
+macro LoadWasmRef(slot: &intptr): Object {
+  return LoadWasmRefFromSlot(slot.object, slot.offset);
+}
+
 macro TruncateBigIntToI64(context: Context, input: JSAny): intptr {
   // This is only safe to use on 64-bit platforms.
   dcheck(Is64());
@@ -953,10 +957,9 @@ builtin JSToWasmHandleReturns(
       }
     } else {
       check((retType & kValueTypeIsRefBit) != 0);
-      const ptr = %RawDownCast<RawPtr<uintptr>>(
-          wrapperBuffer + kWrapperBufferGPReturnRegister1);
-      const rawRef = *GetRefAt<uintptr>(ptr, 0);
-      const value = BitcastWordToTagged(rawRef);
+      const slot =
+          GetRefAt<intptr>(wrapperBuffer, kWrapperBufferGPReturnRegister1);
+      const value = LoadWasmRef(slot);
       return WasmToJSObject(jsContext, value);
     }
   }
@@ -1006,8 +1009,7 @@ builtin JSToWasmHandleReturns(
       const retType = *retTypes.UncheckedAtIndex(k);
       if ((retType & kValueTypeIsRefBit) != 0) {
         const slot = locationAllocator.GetGPSlot();
-        const rawRef = *slot;
-        const value: Object = BitcastWordToTagged(rawRef);
+        const value: Object = LoadWasmRef(slot);
         // Store the wasm object in the JSArray to make it GC safe. The
         // transformation will happen later in a second loop.
         fixedArray.objects[k] = value;

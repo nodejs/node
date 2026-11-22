@@ -130,7 +130,7 @@ class VirtualObject : public Dependable {
   Maybe<Variable> FieldAt(int offset) const {
     CHECK(IsAligned(offset, kTaggedSize));
     CHECK(!HasEscaped());
-    if (offset >= size()) {
+    if (offset < 0 || offset >= size()) {
       // TODO(turbofan): Reading out-of-bounds can only happen in unreachable
       // code. In this case, we have to mark the object as escaping to avoid
       // dead nodes in the graph. This is a workaround that should be removed

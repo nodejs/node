@@ -3248,6 +3248,17 @@ void InstructionSelector::VisitFloat64Ieee754Unop(OpIndex node,
 
 void InstructionSelector::EmitMoveParamToFPR(OpIndex node, int index) {}
 
+void InstructionSelector::EmitDecompressTaggedParam(
+    OpIndex node, InstructionOperand temp_op) {
+  X64OperandGenerator g(this);
+  InstructionOperand result_op = g.DefineAsRegister(node);
+  InstructionCode opcode =
+      Cast<ParameterOp>(node).rep == RegisterRepresentation::Compressed()
+          ? kX64Movl
+          : kX64MovqDecompressTagged;
+  Emit(opcode, 1, &result_op, 1, &temp_op);
+}
+
 void InstructionSelector::EmitMoveFPRToParam(InstructionOperand* op,
                                              LinkageLocation location) {}
 
@@ -3313,7 +3324,20 @@ void InstructionSelector::EmitPrepareResults(
     OpIndex node) {
   X64OperandGenerator g(this);
   for (PushParameter output : *results) {
+#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
+    if (!output.location.IsCallerFrameSlot()) {
+      if (!output.op.IsInvalid()) {
+        DCHECK(output.node.valid());
+        InstructionOperand result_op = g.DefineAsRegister(output.node);
+        InstructionCode opcode =
+            output.needs_decompression ? kX64MovqDecompressTagged : kX64Movl;
+        Emit(opcode, 1, &result_op, 1, &output.op);
+      }
+      continue;
+    }
+#else
     if (!output.location.IsCallerFrameSlot()) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
     // Skip any alignment holes in nodes.
     if (output.node.valid()) {
       DCHECK(!call_descriptor->IsCFunctionCall());
@@ -3324,10 +3348,24 @@ void InstructionSelector::EmitPrepareResults(
       } else if (output.location.GetType() == MachineType::Simd128()) {
         MarkAsSimd128(output.node);
       }
-      InstructionOperand result = g.DefineAsRegister(output.node);
       int offset = call_descriptor->GetOffsetToReturns();
       int reverse_slot = -output.location.GetLocation() - offset;
       InstructionOperand slot = g.UseImmediate(reverse_slot);
+#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
+      if (call_descriptor->IsAnyWasmFunctionCall() &&
+          output.location.GetType() == MachineType::AnyTagged() &&
+          IsReallyUsed(output.node)) {
+        InstructionOperand temp = g.TempRegister();
+        MarkAsRepresentation(MachineRepresentation::kTagged, temp);
+        Emit(kX64Peek, 1, &temp, 1, &slot);
+        InstructionOperand result = g.DefineAsRegister(output.node);
+        InstructionCode opcode =
+            output.needs_decompression ? kX64MovqDecompressTagged : kX64Movl;
+        Emit(opcode, 1, &result, 1, &temp);
+        continue;
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
+      InstructionOperand result = g.DefineAsRegister(output.node);
       Emit(kX64Peek, 1, &result, 1, &slot);
     }
   }

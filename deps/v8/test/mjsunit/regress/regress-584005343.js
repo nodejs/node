@@ -78,13 +78,28 @@
     }
   }
 
+  // Under --gc-stress (--verify-heap --stress-compaction), every StackOverflow
+  // triggers a full-heap GC and stack walk. Use 64 dummy parameters (~568 bytes
+  // per frame) to keep max recursion depth low, and only attempt compilation
+  // every 32 unwinding frames (~18 KB) so we hit the window where Outer.run
+  // compiles (~42 KB) while the inner <instance_members_initializer> overflows
+  // (>120 KB) in a handful of StackOverflow calls instead of hundreds.
   let compiled = false;
-  function probe() {
+  function probe(
+      d,
+      a00, a01, a02, a03, a04, a05, a06, a07,
+      a08, a09, a10, a11, a12, a13, a14, a15,
+      a16, a17, a18, a19, a20, a21, a22, a23,
+      a24, a25, a26, a27, a28, a29, a30, a31,
+      a32, a33, a34, a35, a36, a37, a38, a39,
+      a40, a41, a42, a43, a44, a45, a46, a47,
+      a48, a49, a50, a51, a52, a53, a54, a55,
+      a56, a57, a58, a59, a60, a61, a62, a63) {
     try {
-      probe();
+      probe(d + 1);
     } catch (e) {
     }
-    if (!compiled) {
+    if (!compiled && d % 32 === 0) {
       try {
         Outer.run(null);
         compiled = true;
@@ -92,7 +107,7 @@
       }
     }
   }
-  probe();
+  probe(0);
 
   assertEquals(42, Outer.run(new Outer()));
 }

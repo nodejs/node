@@ -8730,5 +8730,15 @@ void Isolate::PrintNumberStringCacheStats(const char* comment,
   PrintF("\n");
 }
 
+void Isolate::MarkContextSlotNotAssignedIsUnreliable() {
+  if (is_context_slot_not_assigned_unreliable()) return;
+  context_slot_not_assigned_is_unreliable_.store(true,
+                                                 std::memory_order_relaxed);
+  // Abort any in-flight concurrent compilations that may have relied on
+  // kNotAssigned and deoptimize existing optimized code.
+  AbortConcurrentOptimization(BlockingBehavior::kBlock);
+  Deoptimizer::DeoptimizeAll(this);
+}
+
 }  // namespace internal
 }  // namespace v8

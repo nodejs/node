@@ -406,12 +406,9 @@ class V8_EXPORT_PRIVATE Pipeline {
 
     RUN_MAYBE_ABORT(FrameElisionPhase);
 
-    // TODO(mtrofin): move this off to the register allocator.
-    bool generate_frame_at_start =
-        data_->sequence()->instruction_blocks().front()->must_construct_frame();
     // Optimimize jumps.
     if (v8_flags.turbo_jt) {
-      RUN_MAYBE_ABORT(JumpThreadingPhase, generate_frame_at_start);
+      RUN_MAYBE_ABORT(JumpThreadingPhase);
     }
 
     EndPhaseKind();

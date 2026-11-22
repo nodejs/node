@@ -312,33 +312,78 @@ TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithUnsigned32AndUnsigned32) {
 }
 
 // -----------------------------------------------------------------------------
+// JSHasContextExtension
+
+TEST_F(JSTypedLoweringTest, JSHasContextExtension) {
+  Node* const context = Parameter(Type::Any(), 0);
+  Node* const effect = graph()->start();
+  Node* const branch = graph()->NewNode(
+      common()->Branch(), Parameter(Type::Boolean(), 1), graph()->start());
+  Node* const control = graph()->NewNode(common()->IfTrue(), branch);
+
+  Node* const has_ext0 = graph()->NewNode(javascript()->HasContextExtension(0),
+                                          context, effect, control);
+  Node* const sentinel0 =
+      graph()->NewNode(common()->EffectPhi(1), has_ext0, control);
+  Reduction const r0 = Reduce(has_ext0);
+  ASSERT_TRUE(r0.Changed());
+  EXPECT_THAT(
+      NodeProperties::GetEffectInput(sentinel0),
+      IsLoadField(
+          AccessBuilder::ForScopeInfoFlags(),
+          IsLoadField(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX),
+                      context, effect, control),
+          _, control));
+
+  Node* const has_ext1 = graph()->NewNode(javascript()->HasContextExtension(1),
+                                          context, effect, control);
+  Node* const sentinel1 =
+      graph()->NewNode(common()->EffectPhi(1), has_ext1, control);
+  Reduction const r1 = Reduce(has_ext1);
+  ASSERT_TRUE(r1.Changed());
+  EXPECT_THAT(
+      NodeProperties::GetEffectInput(sentinel1),
+      IsLoadField(
+          AccessBuilder::ForScopeInfoFlags(),
+          IsLoadField(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX),
+                      IsLoadField(AccessBuilder::ForContextSlotKnownPointer(
+                                      Context::PREVIOUS_INDEX),
+                                  context, effect, control),
+                      _, control),
+          _, control));
+}
+
+// -----------------------------------------------------------------------------
 // JSLoadContextNoCell
 
 TEST_F(JSTypedLoweringTest, JSLoadContextNoCell) {
-  Node* const context = Parameter(Type::Any());
+  Node* const context = Parameter(Type::Any(), 0);
   Node* const effect = graph()->start();
+  Node* const branch = graph()->NewNode(
+      common()->Branch(), Parameter(Type::Boolean(), 1), graph()->start());
+  Node* const control = graph()->NewNode(common()->IfTrue(), branch);
   static bool kBooleans[] = {false, true};
   TRACED_FOREACH(size_t, index, kIndices) {
     TRACED_FOREACH(bool, immutable, kBooleans) {
       Reduction const r1 = Reduce(
           graph()->NewNode(javascript()->LoadContextNoCell(0, index, immutable),
-                           context, effect));
+                           context, effect, control));
       ASSERT_TRUE(r1.Changed());
       EXPECT_THAT(r1.replacement(),
                   IsLoadField(AccessBuilder::ForContextSlot(index), context,
-                              effect, graph()->start()));
+                              effect, control));
 
       Reduction const r2 = Reduce(
           graph()->NewNode(javascript()->LoadContextNoCell(1, index, immutable),
-                           context, effect));
+                           context, effect, control));
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(
           r2.replacement(),
           IsLoadField(AccessBuilder::ForContextSlot(index),
                       IsLoadField(AccessBuilder::ForContextSlotKnownPointer(
                                       Context::PREVIOUS_INDEX),
-                                  context, effect, graph()->start()),
-                      _, graph()->start()));
+                                  context, effect, control),
+                      _, control));
     }
   }
 }
@@ -347,9 +392,11 @@ TEST_F(JSTypedLoweringTest, JSLoadContextNoCell) {
 // JSStoreContextNoCell
 
 TEST_F(JSTypedLoweringTest, JSStoreContextNoCell) {
-  Node* const context = Parameter(Type::Any());
+  Node* const context = Parameter(Type::Any(), 0);
   Node* const effect = graph()->start();
-  Node* const control = graph()->start();
+  Node* const branch = graph()->NewNode(
+      common()->Branch(), Parameter(Type::Boolean(), 1), graph()->start());
+  Node* const control = graph()->NewNode(common()->IfTrue(), branch);
   TRACED_FOREACH(size_t, index, kIndices) {
     TRACED_FOREACH(Type, type, kJSTypes) {
       Node* const value = Parameter(type);
@@ -371,7 +418,7 @@ TEST_F(JSTypedLoweringTest, JSStoreContextNoCell) {
           IsStoreField(AccessBuilder::ForContextSlot(index),
                        IsLoadField(AccessBuilder::ForContextSlotKnownPointer(
                                        Context::PREVIOUS_INDEX),
-                                   context, effect, graph()->start()),
+                                   context, effect, control),
                        value, _, control));
     }
   }

@@ -23,14 +23,16 @@ namespace {
 struct DecompressionAnalyzer {
   const Graph& graph;
   Zone* phase_zone;
+  bool is_wasm;
   // We use `uint8_t` instead of `bool` here to avoid the bitvector optimization
   // of std::vector.
   FixedOpIndexSidetable<uint8_t> needs_decompression;
   ZoneVector<OpIndex> candidates;
 
-  DecompressionAnalyzer(const Graph& graph, Zone* phase_zone)
+  DecompressionAnalyzer(const Graph& graph, Zone* phase_zone, bool is_wasm)
       : graph(graph),
         phase_zone(phase_zone),
+        is_wasm(is_wasm),
         needs_decompression(graph.op_id_count(), phase_zone, &graph),
         candidates(phase_zone) {
     candidates.reserve(graph.op_id_count() / 8);
@@ -73,6 +75,23 @@ struct DecompressionAnalyzer {
   }
   void ProcessOperation(const Operation& op);
   void MarkAddressingBase(OpIndex base_idx);
+
+#ifdef V8_ENABLE_SANDBOX
+  const CallOp* TryGetWasmCall(OpIndex maybe_didnt_throw) const {
+#if V8_ENABLE_WEBASSEMBLY
+    if (const DidntThrowOp* didnt_throw =
+            graph.Get(maybe_didnt_throw).TryCast<DidntThrowOp>()) {
+      if (const CallOp* call =
+              graph.Get(didnt_throw->throwing_operation()).TryCast<CallOp>()) {
+        if (call->descriptor->descriptor->IsAnyWasmFunctionCall()) {
+          return call;
+        }
+      }
+    }
+#endif
+    return nullptr;
+  }
+#endif  // V8_ENABLE_SANDBOX
 };
 
 void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
@@ -90,6 +109,10 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
     }
     case Opcode::kFrameState:
       // The deopt code knows how to handle compressed inputs.
+      break;
+    case Opcode::kMakeTuple:
+      // MakeTupleOp is not a real user, so it shouldn't mark its inputs as
+      // needing decompression.
       break;
     case Opcode::kPhi: {
       // Replicate the phi's state for its inputs.
@@ -168,6 +191,47 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
       }
       break;
     }
+#ifdef V8_ENABLE_SANDBOX
+    case Opcode::kParameter: {
+      if (!is_wasm) break;
+      const ParameterOp& param = op.Cast<ParameterOp>();
+      // Parameter 0 is the Wasm instance data in trusted space, which uses a
+      // different cage base and must not be decompressed.
+      if (param.rep == RegisterRepresentation::Tagged() &&
+          param.parameter_index > 0 && !NeedsDecompression(op)) {
+        candidates.push_back(graph.Index(op));
+      }
+      break;
+    }
+    case Opcode::kDidntThrow: {
+      if (TryGetWasmCall(graph.Index(op)) != nullptr) {
+        if (op.outputs_rep().size() == 1 &&
+            op.outputs_rep()[0] == RegisterRepresentation::Tagged() &&
+            !NeedsDecompression(op)) {
+          candidates.push_back(graph.Index(op));
+        }
+        break;
+      }
+      for (OpIndex input : op.inputs()) {
+        MarkAsNeedsDecompression(input);
+      }
+      break;
+    }
+    case Opcode::kProjection: {
+      const ProjectionOp& proj = op.Cast<ProjectionOp>();
+      if (TryGetWasmCall(proj.input()) != nullptr) {
+        if (proj.rep == RegisterRepresentation::Tagged() &&
+            !NeedsDecompression(op)) {
+          candidates.push_back(graph.Index(op));
+        }
+        break;
+      }
+      for (OpIndex input : op.inputs()) {
+        MarkAsNeedsDecompression(input);
+      }
+      break;
+    }
+#endif  // V8_ENABLE_SANDBOX
     default:
       for (OpIndex input : op.inputs()) {
         MarkAsNeedsDecompression(input);
@@ -208,8 +272,9 @@ void DecompressionAnalyzer::MarkAddressingBase(OpIndex base_idx) {
 // Instead of using `CopyingPhase`, we directly mutate the operations after
 // the analysis. Doing it in-place is possible because we only modify operation
 // options.
-void RunDecompressionOptimization(Graph& graph, Zone* phase_zone) {
-  DecompressionAnalyzer analyzer(graph, phase_zone);
+void RunDecompressionOptimization(Graph& graph, Zone* phase_zone,
+                                  bool is_wasm) {
+  DecompressionAnalyzer analyzer(graph, phase_zone, is_wasm);
   analyzer.Run();
   for (OpIndex op_idx : analyzer.candidates) {
     Operation& op = graph.Get(op_idx);
@@ -249,6 +314,36 @@ void RunDecompressionOptimization(Graph& graph, Zone* phase_zone) {
         }
         break;
       }
+#ifdef V8_ENABLE_SANDBOX
+      case Opcode::kParameter: {
+        DCHECK(is_wasm);
+        auto& param = op.Cast<ParameterOp>();
+        DCHECK_EQ(param.rep, any_of(RegisterRepresentation::Tagged(),
+                                    RegisterRepresentation::Compressed()));
+        param.rep = RegisterRepresentation::Compressed();
+        break;
+      }
+      case Opcode::kDidntThrow: {
+        auto& didnt_throw = op.Cast<DidntThrowOp>();
+        DCHECK_EQ(didnt_throw.outputs_rep().size(), 1);
+        DCHECK_EQ(didnt_throw.outputs_rep()[0],
+                  any_of(RegisterRepresentation::Tagged(),
+                         RegisterRepresentation::Compressed()));
+        static constexpr RegisterRepresentation kCompressedRep =
+            RegisterRepresentation::Compressed();
+        static constexpr base::Vector<const RegisterRepresentation>
+            kCompressedReps(&kCompressedRep, 1);
+        didnt_throw.results_rep = &kCompressedReps;
+        break;
+      }
+      case Opcode::kProjection: {
+        auto& proj = op.Cast<ProjectionOp>();
+        DCHECK_EQ(proj.rep, any_of(RegisterRepresentation::Tagged(),
+                                   RegisterRepresentation::Compressed()));
+        proj.rep = RegisterRepresentation::Compressed();
+        break;
+      }
+#endif  // V8_ENABLE_SANDBOX
       default:
         break;
     }

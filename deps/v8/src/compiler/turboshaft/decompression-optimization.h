@@ -18,7 +18,8 @@ class Graph;
 // late in the pipeline, all the preceding phases can safely assume that
 // everything is decompressed and do not need to worry about the distinction
 // between compressed and uncompressed pointers.
-void RunDecompressionOptimization(Graph& graph, Zone* phase_zone);
+void RunDecompressionOptimization(Graph& graph, Zone* phase_zone,
+                                  bool is_wasm = false);
 
 }  // namespace v8::internal::compiler::turboshaft
 

@@ -1834,6 +1834,11 @@ void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
   continuation_outputs_.push_back(g->DefineAsRegister(node));
 }
 
+void InstructionSelector::EmitDecompressTaggedParam(
+    OpIndex node, InstructionOperand temp_op) {
+  UNREACHABLE();
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::VisitSetStackPointer(OpIndex node) {

@@ -125,8 +125,7 @@ struct GapJumpRecord {
 
 bool JumpThreading::ComputeForwarding(Zone* local_zone,
                                       ZoneVector<RpoNumber>* result,
-                                      InstructionSequence* code,
-                                      bool frame_at_start) {
+                                      InstructionSequence* code) {
   ZoneStack<RpoNumber> stack(local_zone);
   JumpThreadingState state = {false, *result, stack};
   state.Clear(code->InstructionBlockCount());
@@ -156,9 +155,13 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
           // can forward to a block with identical gap-moves.
           if (instr->arch_opcode() == kArchJmp) {
             TRACE(" jmp");
+            // Never record or forward a block that constructs or deconstructs a
+            // frame: skipping it drops the frame transition, and forwarding
+            // another block into it (e.g. a loop backedge into B0) re-executes
+            // frame construction.
             RpoNumber forward_to;
-            if ((frame_at_start || !(block->must_deconstruct_frame() ||
-                                     block->must_construct_frame())) &&
+            if (!(block->must_deconstruct_frame() ||
+                  block->must_construct_frame()) &&
                 record.CanForwardGapJump(instr, block->rpo_number(),
                                          code->InputRpo(instr, 0),
                                          &forward_to)) {
@@ -179,13 +182,10 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
         } else if (instr->arch_opcode() == kArchJmp) {
           // try to forward the jump instruction.
           TRACE("  jmp\n");
-          // if this block deconstructs the frame, we can't forward it.
-          // TODO(mtrofin): we can still forward if we end up building
-          // the frame at start. So we should move the decision of whether
-          // to build a frame or not in the register allocator, and trickle it
-          // here and to the code generator.
-          if (frame_at_start || !(block->must_deconstruct_frame() ||
-                                  block->must_construct_frame())) {
+          // If this block constructs or deconstructs the frame, we can't
+          // forward it.
+          if (!(block->must_deconstruct_frame() ||
+                block->must_construct_frame())) {
             fw = code->InputRpo(instr, 0);
           }
         } else if (instr->IsRet()) {

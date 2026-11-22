@@ -4036,6 +4036,11 @@ InstructionSelector::AlignmentRequirements() {
       FullUnalignedAccessSupport();
 }
 
+void InstructionSelector::EmitDecompressTaggedParam(
+    OpIndex node, InstructionOperand temp_op) {
+  UNREACHABLE();
+}
+
 #undef SIMD_BINOP_LIST
 #undef SIMD_SHIFT_OP_LIST
 #undef SIMD_UNOP_LIST

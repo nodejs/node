@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_REGISTER_ALLOCATION_PHASE_H_
 #define V8_COMPILER_TURBOSHAFT_REGISTER_ALLOCATION_PHASE_H_
 
+#include "src/common/synchronization-point-support.h"
 #ifdef BUILTIN_BLOCK_POSITION
 #include "src/compiler/backend/block-position.h"
 #endif
@@ -200,10 +201,10 @@ struct JumpThreadingPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS_WITH_LEGACY_NAME(JumpThreading)
   static constexpr bool kOutputIsTraceableGraph = false;
 
-  void Run(PipelineData* data, Zone* temp_zone, bool frame_at_start) {
+  void Run(PipelineData* data, Zone* temp_zone) {
     ZoneVector<RpoNumber> result(temp_zone);
-    if (JumpThreading::ComputeForwarding(temp_zone, &result, data->sequence(),
-                                         frame_at_start)) {
+    if (JumpThreading::ComputeForwarding(temp_zone, &result,
+                                         data->sequence())) {
       JumpThreading::ApplyForwarding(temp_zone, result, data->sequence());
     }
   }
@@ -220,6 +221,7 @@ struct AssembleCodePhase {
     if (data->broker() != nullptr) {
       code_generator->PrepareCodeOnBackground(data->broker()->local_isolate());
     }
+    SYNCHRONIZATION_POINT_TEST_ONLY("TurboshaftAfterAssembleCode");
   }
 };
 

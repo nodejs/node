@@ -81,7 +81,11 @@ class WasmStreaming::WasmStreamingImpl {
   void Finish(const WasmStreaming::ModuleCachingCallback& caching_callback) {
     // Finish can only be called on the main thread of the isolate.
     CHECK_EQ(i_isolate_->thread_id(), i::ThreadId::Current());
-    streaming_decoder_->Finish(caching_callback);
+    // Hold a local reference in case the embedder destroys `WasmStreaming`
+    // inside `caching_callback` or `OnCompilationSucceeded`.
+    std::shared_ptr<i::wasm::StreamingDecoder> streaming_decoder =
+        streaming_decoder_;
+    streaming_decoder->Finish(caching_callback);
   }
 
   void Abort(i::MaybeHandle<i::JSAny> exception) {
@@ -192,9 +196,14 @@ class WasmModuleCompilation::Impl {
     DCHECK_NULL(resolver_->callback_);
     resolver_->callback_ = resolution_callback;
 
-    streaming_decoder_->InitializeIsolateSpecificInfo(
+    // Hold a local reference in case the embedder destroys
+    // `WasmModuleCompilation` inside `caching_callback` or
+    // `resolution_callback`.
+    std::shared_ptr<i::wasm::StreamingDecoder> streaming_decoder =
+        streaming_decoder_;
+    streaming_decoder->InitializeIsolateSpecificInfo(
         reinterpret_cast<i::Isolate*>(isolate));
-    streaming_decoder_->Finish(caching_callback);
+    streaming_decoder->Finish(caching_callback);
   }
 
   void Abort() { streaming_decoder_->Abort(); }

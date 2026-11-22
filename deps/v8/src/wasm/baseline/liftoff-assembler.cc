@@ -896,6 +896,14 @@ void LiftoffAssembler::FinishCall(const ValueKindSig* sig,
       }
     }
     if (num_lowered_params == 1) {
+#if V8_ENABLE_SANDBOX
+      // For sandbox hardening, treat tagged return values from Wasm calls as
+      // compressed values and re-apply the pointer compression cage base.
+      if (is_reference(return_kind) &&
+          call_descriptor->IsAnyWasmFunctionCall()) {
+        DecompressTagged(reg_pair[0].gp(), reg_pair[0].gp());
+      }
+#endif
       PushRegister(return_kind, reg_pair[0]);
     } else {
       PushRegister(return_kind, LiftoffRegister::ForPair(reg_pair[0].gp(),

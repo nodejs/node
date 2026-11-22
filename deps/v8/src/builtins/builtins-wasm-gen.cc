@@ -257,6 +257,19 @@ TNode<BoolT> WasmBuiltinsAssembler::InSharedSpace(TNode<HeapObject> object) {
   return IsPageFlagSet(address, MemoryChunk::kInSharedHeap);
 }
 
+TNode<Object> WasmBuiltinsAssembler::LoadWasmRefFromSlot(
+    TNode<Object> object, TNode<IntPtrT> offset) {
+  TNode<IntPtrT> untagged_offset =
+      IntPtrSub(offset, IntPtrConstant(kHeapObjectTag));
+#if V8_ENABLE_SANDBOX
+  return CAST(
+      LoadFromObject(MachineType::AnyTagged(), object, untagged_offset));
+#else
+  return BitcastWordToTagged(UncheckedCast<IntPtrT>(
+      LoadFromObject(MachineType::IntPtr(), object, untagged_offset)));
+#endif
+}
+
 // Wasm uses private symbols (e.g. wasm_exception_tag_symbol) to stamp certain
 // objects. This builtin checks for presence of such symbols; it is a
 // specialization of "GetOwnProperty" behavior: if the object is not a plain

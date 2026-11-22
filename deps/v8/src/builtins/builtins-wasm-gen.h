@@ -36,6 +36,9 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
   TNode<Float64T> StringToFloat64(TNode<String>);
 
   TNode<BoolT> InSharedSpace(TNode<HeapObject>);
+
+  TNode<Object> LoadWasmRefFromSlot(TNode<Object> object,
+                                    TNode<IntPtrT> offset);
 };
 
 }  // namespace internal

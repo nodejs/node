@@ -1101,11 +1101,17 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
           // don't match (https://crbug.com/753338).
           // Skip the write if the context's ScopeInfo doesn't know anything
           // about this variable.
-          if (context_->scope_info()->ContextSlotIndex(*variable_name) !=
-              index) {
+          VariableLookupResult lookup_result;
+          if (context_->scope_info()->ContextSlotIndex(
+                  *variable_name, &lookup_result) != index) {
             return false;
           }
           Context::Set(context_, index, new_value, isolate_);
+          if (lookup_result.maybe_assigned_flag == kNotAssigned) {
+            // Mutating a kNotAssigned context slot via the debugger invalidates
+            // compiler assumptions that kNotAssigned slots are immutable.
+            isolate_->MarkContextSlotNotAssignedIsUnreliable();
+          }
           return true;
 
         case VariableLocation::MODULE:
@@ -1138,9 +1144,16 @@ bool ScopeIterator::SetContextExtensionValue(DirectHandle<String> variable_name,
 
 bool ScopeIterator::SetContextVariableValue(DirectHandle<String> variable_name,
                                             DirectHandle<Object> new_value) {
-  int slot_index = context_->scope_info()->ContextSlotIndex(*variable_name);
+  VariableLookupResult lookup_result;
+  int slot_index =
+      context_->scope_info()->ContextSlotIndex(*variable_name, &lookup_result);
   if (slot_index < 0) return false;
   Context::Set(context_, slot_index, new_value, isolate_);
+  if (lookup_result.maybe_assigned_flag == kNotAssigned) {
+    // Mutating a kNotAssigned context slot via the debugger invalidates
+    // compiler assumptions that kNotAssigned slots are immutable.
+    isolate_->MarkContextSlotNotAssignedIsUnreliable();
+  }
   return true;
 }
 
@@ -1174,6 +1187,11 @@ bool ScopeIterator::SetScriptVariableValue(DirectHandle<String> variable_name,
     DirectHandle<Context> script_context(
         script_contexts->get(lookup_result.context_index), isolate_);
     Context::Set(script_context, lookup_result.slot_index, new_value, isolate_);
+    if (lookup_result.maybe_assigned_flag == kNotAssigned) {
+      // Mutating a kNotAssigned context slot via the debugger invalidates
+      // compiler assumptions that kNotAssigned slots are immutable.
+      isolate_->MarkContextSlotNotAssignedIsUnreliable();
+    }
     return true;
   }
 
