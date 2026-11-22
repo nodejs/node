@@ -157,7 +157,6 @@ not ok 6 - after throws - no subtests
       stack: |-
         TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:94:28)
         <node-internal-frames>
-        async Promise.all (index 0)
       ...
     1..2
 not ok 7 - beforeEach throws
@@ -181,8 +180,6 @@ not ok 7 - beforeEach throws
       code: 'ERR_TEST_FAILURE'
       stack: |-
         TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:100:27)
-        <node-internal-frames>
-        async Promise.all (index 0)
         <node-internal-frames>
       ...
     # Subtest: 2
@@ -223,7 +220,6 @@ not ok 8 - afterEach throws
         <node-internal-frames>
         new Promise (<anonymous>)
         <node-internal-frames>
-        Array.map (<anonymous>)
       ...
     # Subtest: 2
     ok 2 - 2
@@ -256,7 +252,6 @@ not ok 9 - afterEach when test fails
         <node-internal-frames>
         new Promise (<anonymous>)
         <node-internal-frames>
-        Array.map (<anonymous>)
       ...
     # Subtest: 2
     not ok 2 - 2
