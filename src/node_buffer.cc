@@ -280,7 +280,6 @@ size_t Length(Local<Object> obj) {
   return ui->ByteLength();
 }
 
-
 MaybeLocal<Uint8Array> New(Environment* env,
                            Local<ArrayBufferBase> ab,
                            size_t byte_offset,
