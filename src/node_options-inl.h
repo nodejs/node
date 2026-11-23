@@ -33,6 +33,7 @@ namespace options_parser {
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
+                                       HelpSection help_section,
                                        bool (*getter)(Options*),
                                        void (*setter)(Options*, bool),
                                        OptionEnvvarSettings env_setting,
@@ -44,6 +45,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                  std::make_shared<BitFieldOptionField>(getter, setter),
                  env_setting,
                  help_text,
+                 help_section,
                  default_is_true,
                  NamespaceEnumToString(namespace_id)});
 }
@@ -51,6 +53,7 @@ void OptionsParser<Options>::AddOption(const char* name,
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
+                                       HelpSection help_section,
                                        uint64_t Options::*field,
                                        OptionEnvvarSettings env_setting,
                                        OptionNamespaces namespace_id,
@@ -61,6 +64,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                  std::make_shared<SimpleOptionField<uint64_t>>(field),
                  env_setting,
                  help_text,
+                 help_section,
                  false,
                  NamespaceEnumToString(namespace_id),
                  strict});
@@ -69,6 +73,7 @@ void OptionsParser<Options>::AddOption(const char* name,
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
+                                       HelpSection help_section,
                                        int64_t Options::*field,
                                        OptionEnvvarSettings env_setting,
                                        OptionNamespaces namespace_id) {
@@ -78,6 +83,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                  std::make_shared<SimpleOptionField<int64_t>>(field),
                  env_setting,
                  help_text,
+                 help_section,
                  false,
                  NamespaceEnumToString(namespace_id)});
 }
@@ -85,6 +91,7 @@ void OptionsParser<Options>::AddOption(const char* name,
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
+                                       HelpSection help_section,
                                        std::string Options::*field,
                                        OptionEnvvarSettings env_setting,
                                        OptionNamespaces namespace_id) {
@@ -94,6 +101,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                  std::make_shared<SimpleOptionField<std::string>>(field),
                  env_setting,
                  help_text,
+                 help_section,
                  false,
                  NamespaceEnumToString(namespace_id)});
 }
@@ -101,6 +109,7 @@ void OptionsParser<Options>::AddOption(const char* name,
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
+                                       HelpSection help_section,
                                        std::vector<std::string> Options::*field,
                                        OptionEnvvarSettings env_setting,
                                        OptionNamespaces namespace_id) {
@@ -111,6 +120,7 @@ void OptionsParser<Options>::AddOption(const char* name,
           std::make_shared<SimpleOptionField<std::vector<std::string>>>(field),
           env_setting,
           help_text,
+          help_section,
           false,
           NamespaceEnumToString(namespace_id)});
 }
@@ -118,6 +128,7 @@ void OptionsParser<Options>::AddOption(const char* name,
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
+                                       HelpSection help_section,
                                        HostPort Options::*field,
                                        OptionEnvvarSettings env_setting,
                                        OptionNamespaces namespace_id) {
@@ -127,6 +138,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                  std::make_shared<SimpleOptionField<HostPort>>(field),
                  env_setting,
                  help_text,
+                 help_section,
                  false,
                  NamespaceEnumToString(namespace_id)});
 }
@@ -134,6 +146,7 @@ void OptionsParser<Options>::AddOption(const char* name,
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
+                                       HelpSection help_section,
                                        NoOp no_op_tag,
                                        OptionEnvvarSettings env_setting,
                                        OptionNamespaces namespace_id) {
@@ -142,6 +155,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                               nullptr,
                               env_setting,
                               help_text,
+                              help_section,
                               false,
                               NamespaceEnumToString(namespace_id)});
 }
@@ -149,6 +163,7 @@ void OptionsParser<Options>::AddOption(const char* name,
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
+                                       HelpSection help_section,
                                        V8Option v8_option_tag,
                                        OptionEnvvarSettings env_setting,
                                        OptionNamespaces namespace_id) {
@@ -157,6 +172,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                               nullptr,
                               env_setting,
                               help_text,
+                              help_section,
                               false,
                               NamespaceEnumToString(namespace_id)});
 }
@@ -241,6 +257,7 @@ auto OptionsParser<Options>::Convert(
                     Convert(original.field, get_child),
                     original.env_setting,
                     original.help_text,
+                    original.help_section,
                     original.default_is_true,
                     original.namespace_id,
                     original.strict};
