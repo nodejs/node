@@ -8,8 +8,16 @@ const bench = common.createBenchmark(main, {
   values: ['static', 'dynamic'],
   // 'many' rotates through more unique names than the validation cache holds.
   names: ['fixed', 'many'],
+  // Also set headers carrying credentials, whose values are never cached.
+  credentials: ['none', 'static', 'dynamic'],
   duration: 5,
 });
+
+const credentialHeaders = [
+  ['Authorization', 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.c2lnbmF0dXJl'],
+  ['Cookie', 'sid=0123456789abcdef0123456789abcdef; theme=dark'],
+  ['Set-Cookie', 'sid=0123456789abcdef0123456789abcdef; Path=/; HttpOnly; Secure'],
+];
 
 const manyNames = [];
 for (let i = 0; i < 1024; i++) {
@@ -31,7 +39,7 @@ const restHeaders = [
   ['X-Request-Id', '00000000'],
 ];
 
-function main({ headers, values, names, duration }) {
+function main({ headers, values, names, credentials, duration }) {
   const list = restHeaders.slice(0, headers);
   const body = '{"ok":true}';
   let id = 0;
@@ -43,6 +51,11 @@ function main({ headers, values, names, duration }) {
         names === 'many' ? manyNames[next++ % manyNames.length] : name,
         values === 'dynamic' ? `${value}-${id}` : value,
       );
+    }
+    if (credentials !== 'none') {
+      for (const { 0: name, 1: value } of credentialHeaders) {
+        res.setHeader(name, credentials === 'dynamic' ? `${value}-${id}` : value);
+      }
     }
     id++;
     res.end(body);

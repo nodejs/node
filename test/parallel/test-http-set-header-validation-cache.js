@@ -25,6 +25,25 @@ const http = require('http');
   }, { code: 'ERR_INVALID_HTTP_TOKEN' });
 }
 
+{
+  // Values of headers carrying credentials are not cached, and are validated
+  // on every call.
+  for (const name of ['Authorization', 'Cookie', 'Set-Cookie', 'set-cookie']) {
+    const msg = new http.OutgoingMessage();
+    // Set the name often enough for it to be admitted to the name cache.
+    for (let i = 0; i < 16; i++) {
+      msg.setHeader(name, 'secret=1');
+    }
+    assert.throws(() => {
+      msg.setHeader(name, 'bad\u0007value');
+    }, { code: 'ERR_INVALID_CHAR' });
+    msg.setHeader(name, 'secret=1');
+    assert.strictEqual(msg.getHeader(name), 'secret=1');
+    msg.appendHeader(name, 'secret=2');
+    assert.deepStrictEqual(msg.getHeader(name), ['secret=1', 'secret=2']);
+  }
+}
+
 const server = http.createServer(common.mustCall((req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Test', 'valid-value');
