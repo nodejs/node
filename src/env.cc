@@ -53,18 +53,30 @@ using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::Boolean;
 using v8::Context;
+using v8::CppHeapPointerTag;
+using v8::CpuProfile;
+using v8::CpuProfiler;
+using v8::CpuProfilingMode;
+using v8::CpuProfilingOptions;
+using v8::CpuProfilingResult;
+using v8::CpuProfilingStatus;
 using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
 using v8::ExternalMemoryAccounter;
 using v8::Function;
+using v8::GCCallbackFlags;
+using v8::GCType;
 using v8::Global;
 using v8::HandleScope;
 using v8::HeapProfiler;
 using v8::HeapSpaceStatistics;
+using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
+using v8::Just;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::NewStringType;
@@ -73,6 +85,7 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Private;
+using v8::ProfilerId;
 using v8::Promise;
 using v8::PromiseHookType;
 using v8::Script;
@@ -103,7 +116,7 @@ void AsyncHooks::ResetPromiseHooks(Local<Function> init,
 }
 
 Local<Array> AsyncHooks::GetPromiseHooks(Isolate* isolate) const {
-  v8::LocalVector<Value> values(isolate, js_promise_hooks_.size());
+  LocalVector<Value> values(isolate, js_promise_hooks_.size());
   for (size_t i = 0; i < js_promise_hooks_.size(); ++i) {
     if (js_promise_hooks_[i].IsEmpty()) {
       values[i] = Undefined(isolate);
@@ -522,7 +535,7 @@ void IsolateData::CreateProperties() {
   // One byte because our strings are ASCII and we can safely skip V8's UTF-8
   // decoding step.
 
-  v8::Isolate::Scope isolate_scope(isolate_);
+  Isolate::Scope isolate_scope(isolate_);
   HandleScope handle_scope(isolate_);
 
 #define V(PropertyName, StringValue)                                           \
@@ -682,9 +695,8 @@ IsolateData::~IsolateData() {
 // Deprecated API, embedders should use v8::Object::Wrap() directly instead.
 void SetCppgcReference(Isolate* isolate,
                        Local<Object> object,
-                       v8::Object::Wrappable* wrappable) {
-  v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(
-      isolate, object, wrappable);
+                       Object::Wrappable* wrappable) {
+  Object::Wrap<CppHeapPointerTag::kDefaultTag>(isolate, object, wrappable);
 }
 
 void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
@@ -740,7 +752,7 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
   USE(cb->Call(env_->context(), Undefined(isolate), arraysize(args), args));
 }
 
-void Environment::AssignToContext(Local<v8::Context> context,
+void Environment::AssignToContext(Local<Context> context,
                                   Realm* realm,
                                   const ContextInfo& info) {
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
@@ -766,7 +778,7 @@ void Environment::AssignToContext(Local<v8::Context> context,
   TrackContext(context);
 }
 
-void Environment::UnassignFromContext(Local<v8::Context> context) {
+void Environment::UnassignFromContext(Local<Context> context) {
   if (!context.IsEmpty()) {
     context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
                                              nullptr,
@@ -1592,7 +1604,7 @@ MaybeLocal<Value> Environment::RunSnapshotSerializeCallback() const {
   if (!snapshot_serialize_callback().IsEmpty()) {
     Context::Scope context_scope(context());
     return handle_scope.EscapeMaybe(snapshot_serialize_callback()->Call(
-        context(), v8::Undefined(isolate()), 0, nullptr));
+        context(), Undefined(isolate()), 0, nullptr));
   }
   return handle_scope.Escape(Undefined(isolate()));
 }
@@ -1602,7 +1614,7 @@ MaybeLocal<Value> Environment::RunSnapshotDeserializeMain() const {
   if (!snapshot_deserialize_main().IsEmpty()) {
     Context::Scope context_scope(context());
     return handle_scope.EscapeMaybe(snapshot_deserialize_main()->Call(
-        context(), v8::Undefined(isolate()), 0, nullptr));
+        context(), Undefined(isolate()), 0, nullptr));
   }
   return handle_scope.Escape(Undefined(isolate()));
 }
@@ -1658,23 +1670,23 @@ Maybe<bool> Environment::CheckUnsettledTopLevelAwait() const {
   if (!ctx->Global()
            ->GetPrivate(ctx, entry_point_promise_private_symbol())
            .ToLocal(&entry_point_promise)) {
-    return v8::Nothing<bool>();
+    return Nothing<bool>();
   }
   if (!entry_point_promise->IsPromise()) {
-    return v8::Just(true);
+    return Just(true);
   }
   if (entry_point_promise.As<Promise>()->State() !=
       Promise::PromiseState::kPending) {
-    return v8::Just(true);
+    return Just(true);
   }
 
   if (!ctx->Global()
            ->GetPrivate(ctx, entry_point_module_private_symbol())
            .ToLocal(&value)) {
-    return v8::Nothing<bool>();
+    return Nothing<bool>();
   }
   if (!value->IsObject()) {
-    return v8::Just(true);
+    return Just(true);
   }
   Local<Object> object = value.As<Object>();
   CHECK(BaseObject::IsBaseObject(isolate_data_, object));
@@ -2409,8 +2421,9 @@ void Environment::AddPointerCompressionHeapWarningCallback() {
   pointer_compression_heap_warning_callback_added_ = true;
   // Only full GCs: the heap that survives a mark-compact is the closest
   // approximation of the live heap, and young-generation GCs are frequent.
-  isolate_->AddGCEpilogueCallback(
-      PointerCompressionHeapWarningCallback, this, v8::kGCTypeMarkSweepCompact);
+  isolate_->AddGCEpilogueCallback(PointerCompressionHeapWarningCallback,
+                                  this,
+                                  GCType::kGCTypeMarkSweepCompact);
 }
 
 void Environment::RemovePointerCompressionHeapWarningCallback() {
@@ -2420,12 +2433,14 @@ void Environment::RemovePointerCompressionHeapWarningCallback() {
                                      this);
 }
 
-void Environment::PointerCompressionHeapWarningCallback(
-    Isolate* isolate, v8::GCType type, v8::GCCallbackFlags flags, void* data) {
+void Environment::PointerCompressionHeapWarningCallback(Isolate* isolate,
+                                                        GCType type,
+                                                        GCCallbackFlags flags,
+                                                        void* data) {
   Environment* env = static_cast<Environment*>(data);
   if (env->pointer_compression_heap_warning_scheduled_) return;
 
-  v8::HeapStatistics stats;
+  HeapStatistics stats;
   isolate->GetHeapStatistics(&stats);
   const uint64_t used = stats.used_heap_size();
   if (used < env->pointer_compression_heap_likely_threshold_ &&
@@ -2757,25 +2772,23 @@ void Environment::RunWeakRefCleanup() {
   isolate()->ClearKeptObjects();
 }
 
-v8::CpuProfilingResult Environment::StartCpuProfile(
+CpuProfilingResult Environment::StartCpuProfile(
     const CpuProfileOptions& options) {
   HandleScope handle_scope(isolate());
   if (!cpu_profiler_) {
-    cpu_profiler_ = v8::CpuProfiler::New(isolate());
+    cpu_profiler_ = CpuProfiler::New(isolate());
   }
-  v8::CpuProfilingOptions start_options(
-      v8::CpuProfilingMode::kLeafNodeLineNumbers,
-      options.max_samples,
-      options.sampling_interval_us);
-  v8::CpuProfilingResult result =
-      cpu_profiler_->Start(std::move(start_options));
-  if (result.status == v8::CpuProfilingStatus::kStarted) {
+  CpuProfilingOptions start_options(CpuProfilingMode::kLeafNodeLineNumbers,
+                                    options.max_samples,
+                                    options.sampling_interval_us);
+  CpuProfilingResult result = cpu_profiler_->Start(std::move(start_options));
+  if (result.status == CpuProfilingStatus::kStarted) {
     pending_profiles_.push_back(result.id);
   }
   return result;
 }
 
-v8::CpuProfile* Environment::StopCpuProfile(v8::ProfilerId profile_id) {
+CpuProfile* Environment::StopCpuProfile(ProfilerId profile_id) {
   if (!cpu_profiler_) {
     return nullptr;
   }
@@ -2784,7 +2797,7 @@ v8::CpuProfile* Environment::StopCpuProfile(v8::ProfilerId profile_id) {
   if (it == pending_profiles_.end()) {
     return nullptr;
   }
-  v8::CpuProfile* profile = cpu_profiler_->Stop(*it);
+  CpuProfile* profile = cpu_profiler_->Stop(*it);
   pending_profiles_.erase(it);
   return profile;
 }

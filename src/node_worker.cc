@@ -22,6 +22,7 @@
 
 using node::kAllowedInEnvvar;
 using node::kDisallowedInEnvvar;
+using v8::AccessorNameGetterCallback;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
@@ -34,6 +35,7 @@ using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::HeapProfiler;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
@@ -41,11 +43,13 @@ using v8::Local;
 using v8::Locker;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Name;
 using v8::NewStringType;
 using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::PropertyCallbackInfo;
 using v8::ResourceConstraints;
 using v8::SealHandleScope;
 using v8::String;
@@ -1077,7 +1081,7 @@ void Worker::StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
 
   bool scheduled = w->RequestInterrupt([taker = std::move(taker), env, options](
                                            Environment* worker_env) mutable {
-    v8::HeapProfiler* profiler = worker_env->isolate()->GetHeapProfiler();
+    HeapProfiler* profiler = worker_env->isolate()->GetHeapProfiler();
     bool success = profiler->StartSamplingHeapProfiler(
         options.sample_interval, options.stack_depth, options.flags);
     env->SetImmediateThreadsafe(
@@ -1434,14 +1438,12 @@ void GetEnvMessagePort(const FunctionCallbackInfo<Value>& args) {
 // Per-thread values of the `worker` binding are lazy properties of the
 // per-isolate template, so that a bootstrapped context carries none of them
 // and can be deserialized by any thread.
-void ThreadIdGetter(Local<v8::Name>,
-                    const v8::PropertyCallbackInfo<Value>& info) {
+void ThreadIdGetter(Local<Name>, const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   info.GetReturnValue().Set(static_cast<double>(env->thread_id()));
 }
 
-void ThreadNameGetter(Local<v8::Name>,
-                      const v8::PropertyCallbackInfo<Value>& info) {
+void ThreadNameGetter(Local<Name>, const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   Local<String> name;
   if (String::NewFromUtf8(info.GetIsolate(),
@@ -1453,19 +1455,18 @@ void ThreadNameGetter(Local<v8::Name>,
   }
 }
 
-void IsMainThreadGetter(Local<v8::Name>,
-                        const v8::PropertyCallbackInfo<Value>& info) {
+void IsMainThreadGetter(Local<Name>, const PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(Environment::GetCurrent(info)->is_main_thread());
 }
 
-void OwnsProcessStateGetter(Local<v8::Name>,
-                            const v8::PropertyCallbackInfo<Value>& info) {
+void OwnsProcessStateGetter(Local<Name>,
+                            const PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(
       Environment::GetCurrent(info)->owns_process_state());
 }
 
-void ResourceLimitsGetter(Local<v8::Name>,
-                          const v8::PropertyCallbackInfo<Value>& info) {
+void ResourceLimitsGetter(Local<Name>,
+                          const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   if (env->worker_context() != nullptr) {
     info.GetReturnValue().Set(
@@ -1477,7 +1478,7 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
                                       Local<ObjectTemplate> target) {
   {
     Isolate* isolate = isolate_data->isolate();
-    auto lazy = [&](const char* name, v8::AccessorNameGetterCallback getter) {
+    auto lazy = [&](const char* name, AccessorNameGetterCallback getter) {
       target->SetLazyDataProperty(OneByteString(isolate, name), getter);
     };
     lazy("threadId", ThreadIdGetter);

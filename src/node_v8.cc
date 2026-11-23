@@ -44,8 +44,11 @@ using v8::CpuProfilingStatus;
 using v8::DictionaryTemplate;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::GCCallbackFlags;
+using v8::GCType;
 using v8::HandleScope;
 using v8::HeapCodeStatistics;
+using v8::HeapProfiler;
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
 using v8::Integer;
@@ -56,6 +59,7 @@ using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
 using v8::ScriptCompiler;
+using v8::SnapshotCreator;
 using v8::String;
 using v8::Uint32;
 using v8::V8;
@@ -147,7 +151,7 @@ BindingData::BindingData(Realm* realm,
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
-                                          v8::SnapshotCreator* creator) {
+                                          SnapshotCreator* creator) {
   DCHECK_NULL(internal_field_info_);
   internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
   internal_field_info_->heap_statistics_buffer =
@@ -191,7 +195,7 @@ void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
 void SetHeapSnapshotNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsUint32());
   Environment* env = Environment::GetCurrent(args);
-  uint32_t limit = args[0].As<v8::Uint32>()->Value();
+  uint32_t limit = args[0].As<Uint32>()->Value();
   CHECK_GT(limit, 0);
 
   std::string dir = env->options()->diagnostic_dir;
@@ -208,7 +212,7 @@ void SetHeapSnapshotNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
 void SetHeapProfileNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsUint32());
   Environment* env = Environment::GetCurrent(args);
-  uint32_t limit = args[0].As<v8::Uint32>()->Value();
+  uint32_t limit = args[0].As<Uint32>()->Value();
   CHECK_GT(limit, 0);
 
   std::string dir = env->options()->diagnostic_dir;
@@ -230,8 +234,8 @@ void SetPointerCompressionHeapWarningThresholds(
   CHECK(args[0]->IsNumber());
   CHECK(args[1]->IsNumber());
   Environment* env = Environment::GetCurrent(args);
-  double likely = args[0].As<v8::Number>()->Value();
-  double certain = args[1].As<v8::Number>()->Value();
+  double likely = args[0].As<Number>()->Value();
+  double certain = args[1].As<Number>()->Value();
   CHECK_GE(likely, 0);
   CHECK_GE(certain, 0);
   env->set_pointer_compression_heap_warning_thresholds(
@@ -254,7 +258,7 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   HeapSpaceStatistics s;
   Isolate* const isolate = args.GetIsolate();
   CHECK(args[0]->IsUint32());
-  size_t space_index = static_cast<size_t>(args[0].As<v8::Uint32>()->Value());
+  size_t space_index = static_cast<size_t>(args[0].As<Uint32>()->Value());
   isolate->GetHeapSpaceStatistics(&s, space_index);
 
   AliasedFloat64Array& buffer = data->heap_space_statistics_buffer;
@@ -367,17 +371,17 @@ void GetHashSeed(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(BigInt::NewFromUnsigned(isolate, hash_seed));
 }
 
-static const char* GetGCTypeName(v8::GCType gc_type) {
+static const char* GetGCTypeName(GCType gc_type) {
   switch (gc_type) {
-    case v8::GCType::kGCTypeScavenge:
+    case GCType::kGCTypeScavenge:
       return "Scavenge";
-    case v8::GCType::kGCTypeMinorMarkSweep:
+    case GCType::kGCTypeMinorMarkSweep:
       return "MinorMarkSweep";
-    case v8::GCType::kGCTypeMarkSweepCompact:
+    case GCType::kGCTypeMarkSweepCompact:
       return "MarkSweepCompact";
-    case v8::GCType::kGCTypeIncrementalMarking:
+    case GCType::kGCTypeIncrementalMarking:
       return "IncrementalMarking";
-    case v8::GCType::kGCTypeProcessWeakCallbacks:
+    case GCType::kGCTypeProcessWeakCallbacks:
       return "ProcessWeakCallbacks";
     default:
       return "Unknown";
@@ -620,8 +624,8 @@ static void GetCppHeapStatistics(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void BeforeGCCallback(Isolate* isolate,
-                             v8::GCType gc_type,
-                             v8::GCCallbackFlags flags,
+                             GCType gc_type,
+                             GCCallbackFlags flags,
                              void* data) {
   GCProfiler* profiler = static_cast<GCProfiler*>(data);
   if (profiler->current_gc_type != 0) {
@@ -638,8 +642,8 @@ static void BeforeGCCallback(Isolate* isolate,
 }
 
 static void AfterGCCallback(Isolate* isolate,
-                            v8::GCType gc_type,
-                            v8::GCCallbackFlags flags,
+                            GCType gc_type,
+                            GCCallbackFlags flags,
                             void* data) {
   GCProfiler* profiler = static_cast<GCProfiler*>(data);
   if (profiler->current_gc_type != gc_type) {
@@ -715,7 +719,7 @@ void GCProfiler::Start(const FunctionCallbackInfo<Value>& args) {
   profiler->state = GCProfiler::GCProfilerState::kStarted;
 }
 
-void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
+void GCProfiler::Stop(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   GCProfiler* profiler;
   ASSIGN_OR_RETURN_UNWRAP(&profiler, args.This());
@@ -818,16 +822,16 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "stopHeapProfile", StopHeapProfile);
 
   {
-    constexpr uint32_t kSamplingNoFlags = static_cast<uint32_t>(
-        v8::HeapProfiler::SamplingFlags::kSamplingNoFlags);
-    constexpr uint32_t kSamplingForceGC = static_cast<uint32_t>(
-        v8::HeapProfiler::SamplingFlags::kSamplingForceGC);
-    constexpr uint32_t kSamplingIncludeObjectsCollectedByMajorGC =
-        static_cast<uint32_t>(v8::HeapProfiler::SamplingFlags::
-                                  kSamplingIncludeObjectsCollectedByMajorGC);
-    constexpr uint32_t kSamplingIncludeObjectsCollectedByMinorGC =
-        static_cast<uint32_t>(v8::HeapProfiler::SamplingFlags::
-                                  kSamplingIncludeObjectsCollectedByMinorGC);
+    constexpr uint32_t kSamplingNoFlags =
+        static_cast<uint32_t>(HeapProfiler::SamplingFlags::kSamplingNoFlags);
+    constexpr uint32_t kSamplingForceGC =
+        static_cast<uint32_t>(HeapProfiler::SamplingFlags::kSamplingForceGC);
+    constexpr uint32_t kSamplingIncludeObjectsCollectedByMajorGC = static_cast<
+        uint32_t>(
+        HeapProfiler::SamplingFlags::kSamplingIncludeObjectsCollectedByMajorGC);
+    constexpr uint32_t kSamplingIncludeObjectsCollectedByMinorGC = static_cast<
+        uint32_t>(
+        HeapProfiler::SamplingFlags::kSamplingIncludeObjectsCollectedByMinorGC);
 
     NODE_DEFINE_CONSTANT(target, kSamplingNoFlags);
     NODE_DEFINE_CONSTANT(target, kSamplingForceGC);
