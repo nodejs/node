@@ -805,7 +805,7 @@ void CustomBufferJSListener::SetBuffer(Local<Object> object,
                                        Local<ArrayBufferView> view) {
   // Keep the view's lifetime tied to the wrapper without a strong global root.
   object->SetInternalField(StreamBase::kUserBufferField, view);
-  backing_store_ = view->Buffer()->GetBackingStore();
+  backing_store_ = view->GetBuffer()->GetBackingStore();
 }
 
 uv_buf_t CustomBufferJSListener::OnStreamAlloc(size_t suggested_size) {
@@ -826,7 +826,7 @@ uv_buf_t CustomBufferJSListener::OnStreamAlloc(size_t suggested_size) {
     const auto contents = view->GetContents({});
     // An attached empty backing store can also have a null data pointer.
     if (contents.data() != nullptr || (backing_store_->MaxByteLength() == 0 &&
-                                       !view->Buffer()->WasDetached())) {
+                                       !view->GetBuffer()->WasDetached())) {
       buffer_ = uv_buf_init(reinterpret_cast<char*>(contents.data()),
                             contents.size());
       return buffer_;
