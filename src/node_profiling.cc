@@ -9,9 +9,22 @@
 namespace node {
 
 using v8::AllocationProfile;
+using v8::Array;
+using v8::Boolean;
+using v8::Context;
+using v8::DictionaryTemplate;
+using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::HeapProfiler;
+using v8::Int32;
+using v8::Integer;
 using v8::Isolate;
+using v8::Local;
+using v8::LocalVector;
+using v8::MaybeLocal;
+using v8::Number;
+using v8::Object;
+using v8::Uint32;
 using v8::Value;
 
 static void BuildHeapProfileNode(Isolate* isolate,
@@ -78,9 +91,9 @@ bool SerializeHeapProfile(Isolate* isolate, std::string& out) {
   return true;
 }
 
-v8::MaybeLocal<v8::Array> HeapProfileSamplesToV8Value(
+MaybeLocal<Array> HeapProfileSamplesToV8Value(
     Isolate* isolate,
-    v8::Local<v8::Context> context,
+    Local<Context> context,
     const std::vector<AllocationProfile::Sample>& samples) {
   static constexpr std::string_view names[] = {
       "size",
@@ -91,61 +104,61 @@ v8::MaybeLocal<v8::Array> HeapProfileSamplesToV8Value(
       "isLive",
       "sampleInterval",
   };
-  auto tmpl = v8::DictionaryTemplate::New(isolate, names);
-  v8::LocalVector<Value> result(isolate);
+  auto tmpl = DictionaryTemplate::New(isolate, names);
+  LocalVector<Value> result(isolate);
   result.reserve(samples.size());
   for (const auto& sample : samples) {
-    v8::MaybeLocal<Value> values[] = {
-        v8::Number::New(isolate, sample.size * sample.count),
-        v8::Number::New(isolate, sample.size),
-        v8::Integer::NewFromUnsigned(isolate, sample.count),
-        v8::Integer::NewFromUnsigned(isolate, sample.node_id),
-        v8::Number::New(isolate, static_cast<double>(sample.sample_id)),
-        v8::Boolean::New(isolate, sample.is_live),
-        v8::Number::New(isolate, static_cast<double>(sample.sample_interval)),
+    MaybeLocal<Value> values[] = {
+        Number::New(isolate, sample.size * sample.count),
+        Number::New(isolate, sample.size),
+        Integer::NewFromUnsigned(isolate, sample.count),
+        Integer::NewFromUnsigned(isolate, sample.node_id),
+        Number::New(isolate, static_cast<double>(sample.sample_id)),
+        Boolean::New(isolate, sample.is_live),
+        Number::New(isolate, static_cast<double>(sample.sample_interval)),
     };
-    v8::Local<v8::Object> object;
+    Local<Object> object;
     if (!NewDictionaryInstanceNullProto(context, tmpl, values)
              .ToLocal(&object)) {
       return {};
     }
     result.emplace_back(object);
   }
-  return v8::Array::New(isolate, result.data(), result.size());
+  return Array::New(isolate, result.data(), result.size());
 }
 
 HeapProfileOptions ParseHeapProfileOptions(
-    const v8::FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& args) {
   HeapProfileOptions options;
   CHECK_LE(args.Length(), 3);
   if (args.Length() > 0) {
     CHECK(args[0]->IsNumber());
     options.sample_interval =
-        static_cast<uint64_t>(args[0].As<v8::Number>()->Value());
+        static_cast<uint64_t>(args[0].As<Number>()->Value());
   }
   if (args.Length() > 1) {
     CHECK(args[1]->IsInt32());
-    options.stack_depth = args[1].As<v8::Int32>()->Value();
+    options.stack_depth = args[1].As<Int32>()->Value();
   }
   if (args.Length() > 2) {
     CHECK(args[2]->IsUint32());
-    options.flags = static_cast<v8::HeapProfiler::SamplingFlags>(
-        args[2].As<v8::Uint32>()->Value());
+    options.flags = static_cast<HeapProfiler::SamplingFlags>(
+        args[2].As<Uint32>()->Value());
   }
   return options;
 }
 
 CpuProfileOptions ParseCpuProfileOptions(
-    const v8::FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& args) {
   CpuProfileOptions options;
   CHECK_LE(args.Length(), 2);
   if (args.Length() > 0) {
     CHECK(args[0]->IsInt32());
-    options.sampling_interval_us = args[0].As<v8::Int32>()->Value();
+    options.sampling_interval_us = args[0].As<Int32>()->Value();
   }
   if (args.Length() > 1) {
     CHECK(args[1]->IsUint32());
-    options.max_samples = args[1].As<v8::Uint32>()->Value();
+    options.max_samples = args[1].As<Uint32>()->Value();
   }
   return options;
 }

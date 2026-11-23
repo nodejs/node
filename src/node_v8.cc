@@ -347,10 +347,11 @@ void StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
 void SetHeapProfileSampleInterval(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsNumber());
-  uint64_t sample_interval =
-      static_cast<uint64_t>(args[0].As<Number>()->Value());
+  double sample_interval = args[0].As<Number>()->Value();
+  CHECK_GE(sample_interval, 1);
+  CHECK_LE(sample_interval, kMaxSafeJsInteger);
   args.GetIsolate()->GetHeapProfiler()->SetSamplingHeapProfilerInterval(
-      sample_interval);
+      static_cast<uint64_t>(sample_interval));
 }
 
 void GetHeapProfileSamples(const FunctionCallbackInfo<Value>& args) {

@@ -1065,7 +1065,9 @@ void Worker::SetHeapProfileSampleInterval(
   Environment* env = w->env();
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsNumber());
-  uint64_t interval = static_cast<uint64_t>(args[0].As<Number>()->Value());
+  double interval = args[0].As<Number>()->Value();
+  CHECK_GE(interval, 1);
+  CHECK_LE(interval, kMaxSafeJsInteger);
 
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
   Local<Object> wrap;
@@ -1079,7 +1081,7 @@ void Worker::SetHeapProfileSampleInterval(
   bool queued = w->RequestInterrupt([taker = std::move(taker), env, interval](
                                         Environment* worker_env) mutable {
     auto* profiler = worker_env->isolate()->GetHeapProfiler();
-    profiler->SetSamplingHeapProfilerInterval(interval);
+    profiler->SetSamplingHeapProfilerInterval(static_cast<uint64_t>(interval));
     env->SetImmediateThreadsafe(
         [taker = std::move(taker)](Environment* env) mutable {
           Isolate* isolate = env->isolate();
