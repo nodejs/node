@@ -21,7 +21,7 @@ const bench = common.createBenchmark(main, {
   // '#rotating' cycles through kHexColorCount distinct colors to simulate
   // the high-miss-rate / large-cache scenario (e.g. user-randomised colors).
   format: ['red', 'italic', 'invalid', '#ff0000', '#rotating'],
-  validateStream: [1, 0],
+  validateStream: [true, false],
   n: [1e3],
 });
 
