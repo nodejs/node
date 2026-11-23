@@ -149,7 +149,7 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
     const [, depth, heading] = /^(###|####) (.+)$/.exec(line) ?? [];
     if (depth === undefined) continue;
     if (depth === '###') {
-      const yaml = optionsLines.slice(index + 1, index + 5).join('\n');
+      const yaml = optionsLines.slice(index + 1, index + 7).join('\n');
       const label = /^<!-- YAML\nhelp-section: (.+)\n-->/m.exec(yaml)?.[1];
       assert.strictEqual(label, heading,
                          `doc/api/cli.md section "${heading}" needs help-section: ${heading} YAML`);

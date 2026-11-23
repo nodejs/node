@@ -11,15 +11,25 @@ To view this documentation as a manual page in a terminal, run `man node`.
 
 ## Synopsis
 
-`node [options] [V8 options] [<program-entry-point> | -e "script" | -] [--] [arguments]`
+`node [options] [V8 options] [<program-entry-point> | -e "script" | -p "script" | -] [--] [arguments]`
 
 `node inspect [<program-entry-point> | -e "script" | <host>:<port>] …`
+
+`node --run [<script>] [-- arguments]`
+
+`node --watch [options] <program-entry-point> [arguments]`
+
+`node --test [options] [<pattern> …]`
+
+`node --bench --experimental-bench [options] <pattern> …`
 
 `node --v8-options`
 
 Execute without arguments to start the [REPL][].
 
-For more info about `node inspect`, see the [debugger][] documentation.
+For more info about `node inspect`, see the [debugger][] documentation. For
+`node --test` and `node --bench`, see [running tests from the command line][]
+and the [benchmark runner][] documentation.
 
 ## Program entry point
 
@@ -66,6 +76,8 @@ environment variable.
 Options are grouped into the same sections as the output of `node --help`.
 
 ### General
+
+<!-- lint ignore nodejs-yaml-comments -->
 
 <!-- YAML
 help-section: General
@@ -689,6 +701,8 @@ Print node's version.
 
 ### Modules
 
+<!-- lint ignore nodejs-yaml-comments -->
+
 <!-- YAML
 help-section: Modules
 -->
@@ -1159,6 +1173,8 @@ $ node --vfs-load=app.zip
 
 ### Built-in APIs
 
+<!-- lint ignore nodejs-yaml-comments -->
+
 <!-- YAML
 help-section: Built-in APIs
 -->
@@ -1317,6 +1333,8 @@ Disable [`Web Storage`][] support.
 
 ### Watch mode
 
+<!-- lint ignore nodejs-yaml-comments -->
+
 <!-- YAML
 help-section: Watch mode
 -->
@@ -1419,6 +1437,8 @@ node --watch --watch-preserve-output test.js
 ```
 
 ### Test runner
+
+<!-- lint ignore nodejs-yaml-comments -->
 
 <!-- YAML
 help-section: Test runner
@@ -1845,6 +1865,8 @@ Regenerates the snapshot files used by the test runner for [snapshot testing][].
 
 ### Benchmark runner
 
+<!-- lint ignore nodejs-yaml-comments -->
+
 <!-- YAML
 help-section: Benchmark runner
 -->
@@ -1990,6 +2012,8 @@ added: v26.9.0
 Enable the experimental `node:bench` module and command-line benchmark runner.
 
 ### Debugging and inspector
+
+<!-- lint ignore nodejs-yaml-comments -->
 
 <!-- YAML
 help-section: Debugging and inspector
@@ -2150,6 +2174,8 @@ default) is not firewall-protected.**
 See the [debugging security implications][] section for more information.
 
 ### Diagnostics and profiling
+
+<!-- lint ignore nodejs-yaml-comments -->
 
 <!-- YAML
 help-section: Diagnostics and profiling
@@ -2728,6 +2754,8 @@ Track heap object allocations for heap snapshots.
 
 ### Errors and warnings
 
+<!-- lint ignore nodejs-yaml-comments -->
+
 <!-- YAML
 help-section: Errors and warnings
 -->
@@ -2983,6 +3011,8 @@ If a rejection happens during the command line entry point's ES module static
 loading phase, it will always raise it as an uncaught exception.
 
 ### Permissions
+
+<!-- lint ignore nodejs-yaml-comments -->
 
 <!-- YAML
 help-section: Permissions
@@ -3474,6 +3504,8 @@ If both [`--permission`](#--permission) and `--permission-audit` are specified,
 
 ### Security hardening
 
+<!-- lint ignore nodejs-yaml-comments -->
+
 <!-- YAML
 help-section: Security hardening
 -->
@@ -3526,6 +3558,8 @@ added: v6.0.0
 Automatically zero-fills all newly allocated [`Buffer`][] instances.
 
 ### Networking
+
+<!-- lint ignore nodejs-yaml-comments -->
 
 <!-- YAML
 help-section: Networking
@@ -3650,6 +3684,8 @@ This is equivalent to setting the [`NODE_USE_ENV_PROXY=1`][] environment variabl
 When both are set, `--use-env-proxy` takes precedence.
 
 ### TLS and crypto
+
+<!-- lint ignore nodejs-yaml-comments -->
 
 <!-- YAML
 help-section: TLS and crypto
@@ -3958,6 +3994,8 @@ not consistent with the system configuration that the users have for some reason
 
 ### Snapshots and single executables
 
+<!-- lint ignore nodejs-yaml-comments -->
+
 <!-- YAML
 help-section: Snapshots and single executables
 -->
@@ -4129,6 +4167,8 @@ If they don't match, Node.js refuses to load the snapshot and exits with
 status code 1.
 
 ### V8 and memory
+
+<!-- lint ignore nodejs-yaml-comments -->
 
 <!-- YAML
 help-section: V8 and memory
