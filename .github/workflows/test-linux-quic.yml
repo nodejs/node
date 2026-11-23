@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/test-linux-quic.yml
       - configure.py
+      - tools/configure.d/openssl.py
       - node.gyp
       - node.gypi
       - deps/v8/**

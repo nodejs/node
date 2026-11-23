@@ -9,6 +9,7 @@ on:
       - .github/workflows/test-linux-perfetto.yml
       - common.gypi
       - configure.py
+      - tools/configure.d/openssl.py
       - deps/perfetto/**
       - node.gyp
       - node.gypi
