@@ -235,7 +235,8 @@
             # frames otherwise, even with --call-graph dwarf.
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
-          ['OS=="linux" or OS=="openharmony"', {
+          # PGO settings are specific to Node, not addons built with node-gyp.
+          ['(OS=="linux" or OS=="openharmony") and configuring_node', {
             'conditions': [
               ['enable_pgo_generate=="true"', {
                 'cflags': ['<(pgo_generate)'],
@@ -247,7 +248,7 @@
               },],
             ],
           },],
-          ['OS=="mac"', {
+          ['OS=="mac" and configuring_node', {
             'conditions': [
               ['enable_pgo_generate=="true"', {
                 'xcode_settings': {
@@ -312,7 +313,7 @@
               },],
             ],
             'target_conditions': [
-              ['_toolset=="target"', {
+              ['_toolset=="target" and <(configuring_node)', {
                 'conditions': [
                   ['enable_pgo_generate=="true"', {
                     'msvs_settings': {
