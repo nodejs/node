@@ -566,7 +566,6 @@ const { AsyncLocalStorage } = require('async_hooks');
 
 // Test 19: bypass subscribers and stores run after regular ones, regardless of registration order (documented behavior)
 {
-  // Note: bypass subscribers and stores run after regular ones, regardless of registration order (documented behavior)
   const key = Symbol('ordering');
 
   // Subscribers
@@ -624,4 +623,21 @@ const { AsyncLocalStorage } = require('async_hooks');
     assert.strictEqual(ch.unbindStore(regularStore2), true);
     assert.strictEqual(ch.hasSubscribers, false);
   }
+}
+
+// Test 20: object keys work like symbol keys
+{
+  const key = {};
+  const ch = channel('test-bypass-object-key');
+  const als = new AsyncLocalStorage();
+  const handler = common.mustNotCall();
+  ch.subscribe(handler, { bypassId: key });
+  ch.bindStore(als, common.mustNotCall(), { bypassId: key });
+  bypass(key, common.mustCall(() => {
+    ch.publish({});
+    ch.runStores({}, common.mustCall());
+  }));
+  assert.strictEqual(ch.unsubscribe(handler), true);
+  assert.strictEqual(ch.unbindStore(als), true);
+  assert.strictEqual(ch.hasSubscribers, false);
 }
