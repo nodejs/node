@@ -58,13 +58,13 @@ jobs:
           extra_nix_config: sandbox = true
 
       - name: Build Cachix
-        if: ${{ inputs.runner == 'x86_64-darwin' }}
+        if: ${{ inputs.runner == 'macos-15-intel' }}
         id: build_cachix
         run: |
-          nix-build --no-out-link -I nixpkgs=tools/nix/pkgs.nix -E '(import <nixpkgs> {}).cachix'
+          nix-build --no-out-link -I "nixpkgs=$TAR_DIR/tools/nix/pkgs.nix" -E '(import <nixpkgs> {}).cachix'
           {
             printf "BIN="
-            nix-instantiate --eval --raw -I nixpkgs=tools/nix/pkgs.nix -E 'with (import <nixpkgs> {});lib.getExe cachix'
+            nix-instantiate --eval --raw -I "nixpkgs=$TAR_DIR/tools/nix/pkgs.nix" -E 'with (import <nixpkgs> {});lib.getExe cachix'
             printf '\n'
           } >> "$GITHUB_OUTPUT"
 
