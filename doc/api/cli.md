@@ -2359,20 +2359,6 @@ changes:
 
 Legacy alias for [`--no-require-module`][].
 
-### `--no-experimental-sqlite`
-
-<!-- YAML
-added: v22.5.0
-changes:
-  - version:
-    - v23.4.0
-    - v22.13.0
-    pr-url: https://github.com/nodejs/node/pull/55890
-    description: SQLite is unflagged but still experimental.
--->
-
-Disable the [`node:sqlite`][] module.
-
 ### `--no-experimental-vfs`
 
 <!-- YAML
@@ -4379,6 +4365,7 @@ one is included in the list below.
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
+* `--experimental-sqlite`
 * `--experimental-stream-iter`
 * `--experimental-strip-private-modules`
 * `--experimental-test-isolation`
@@ -4415,7 +4402,6 @@ one is included in the list below.
 * `--no-experimental-ffi`
 * `--no-experimental-global-navigator`
 * `--no-experimental-import-text`
-* `--no-experimental-sqlite`
 * `--no-experimental-strip-types`
 * `--no-experimental-vfs`
 * `--no-experimental-web-worker`
@@ -5061,7 +5047,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`module.setSourceMapsSupport()`]: module.md#modulesetsourcemapssupportenabled-options
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
-[`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
 [`node:vfs`]: vfs.md
 [`permission.drop()`]: permissions.md#permissiondropscope-reference

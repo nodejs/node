@@ -1,4 +1,3 @@
-// Flags: --experimental-sqlite
 'use strict';
 
 const { hasSQLite } = require('../common');

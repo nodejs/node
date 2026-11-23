@@ -383,10 +383,6 @@
               "type": "boolean",
               "description": ""
             },
-            "experimental-sqlite": {
-              "type": "boolean",
-              "description": "experimental node:sqlite module"
-            },
             "experimental-stream-iter": {
               "type": "boolean",
               "description": "experimental iterable streams API (node:stream/iter)"

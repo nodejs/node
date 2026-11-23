@@ -800,11 +800,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             true);
   AddOption("--experimental-websocket", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-global-customevent", "", NoOp{}, kAllowedInEnvvar);
-  AddOption("--experimental-sqlite",
-            "experimental node:sqlite module",
-            BOOL_FIELD(experimental_sqlite),
-            kAllowedInEnvvar,
-            HAVE_SQLITE);
+  AddOption("--experimental-sqlite", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-stream-iter",
             "experimental iterable streams API (node:stream/iter)",
             BOOL_FIELD(experimental_stream_iter),
