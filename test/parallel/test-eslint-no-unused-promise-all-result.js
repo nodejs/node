@@ -111,9 +111,7 @@ new RuleTester({
       code: 'async function f() { await SafePromisePrototypeFinally(SafePromiseAll(promises), cleanup); }',
       errors: [error(
         'SafePromiseAll',
-        `async function f() {
-          await SafePromisePrototypeFinally(SafePromiseAllReturnVoid(promises), cleanup);
-        }`
+        `async function f() { await SafePromisePrototypeFinally(SafePromiseAllReturnVoid(promises), cleanup); }`,
       )],
     },
     {
