@@ -28,7 +28,13 @@ const http = require('http');
 {
   // Values of headers carrying credentials are not cached, and are validated
   // on every call.
-  for (const name of ['Authorization', 'Cookie', 'Set-Cookie', 'set-cookie']) {
+  for (const name of [
+    'Authorization',
+    'Cookie',
+    'Proxy-Authorization',
+    'Set-Cookie',
+    'set-cookie',
+  ]) {
     const msg = new http.OutgoingMessage();
     // Set the name often enough for it to be admitted to the name cache.
     for (let i = 0; i < 16; i++) {
