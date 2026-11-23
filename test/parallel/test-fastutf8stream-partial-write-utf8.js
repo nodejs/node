@@ -30,13 +30,17 @@ function getTempFile() {
 
 // Returns write() and writeSync() replacements whose first calls are short
 // writes: call number i commits at most limits[i] bytes to the fd and reports
-// that count, the way a full pipe or disk does. Later calls write everything.
+// that count, the way a full pipe or disk does. A limit that is an Error makes
+// that call fail with it instead. Later calls write everything.
 function shortWrites(limits) {
   limits = [...limits];
 
   function commit(fd, data) {
     const bytes = Buffer.from(data);
     const limit = limits.length > 0 ? limits.shift() : bytes.length;
+    if (limit instanceof Error) {
+      throw limit;
+    }
     const chunk = bytes.subarray(0, limit);
     let written = 0;
     while (written < chunk.length) {
@@ -47,7 +51,15 @@ function shortWrites(limits) {
 
   return {
     write(fd, data, ...args) {
-      process.nextTick(args.at(-1), null, commit(fd, data));
+      const callback = args.at(-1);
+      let written;
+      try {
+        written = commit(fd, data);
+      } catch (err) {
+        process.nextTick(callback, err);
+        return;
+      }
+      process.nextTick(callback, null, written);
     },
     writeSync(fd, data) {
       return commit(fd, data);
@@ -114,5 +126,77 @@ for (const sync of [false, true]) {
         assert.strictEqual(readFileSync(dest, 'utf8'), text + text);
       }));
     }
+  }
+}
+
+for (const sync of [false, true]) {
+  // A 'write' listener queues more data and calls flushSync() while the rest
+  // of a split character is still to be written.
+  {
+    const dest = getTempFile();
+    const fd = openSync(dest, 'w');
+    const stream = new Utf8Stream({ fd, sync, minLength: 0, fs: shortWrites([1]) });
+
+    stream.on('ready', common.mustCall(() => {
+      stream.once('write', common.mustCall(() => {
+        stream.write('NEXT');
+        stream.flushSync();
+        assert.strictEqual(readFileSync(dest, 'utf8'), '中NEXT');
+      }));
+      stream.write('中');
+      stream.end();
+    }));
+
+    stream.on('finish', common.mustCall());
+    stream.on('close', common.mustCall(() => {
+      assert.strictEqual(readFileSync(dest, 'utf8'), '中NEXT');
+    }));
+  }
+
+  // Writing the rest of a split character fails once. The stream still has to
+  // write it before a flush succeeds or the stream finishes.
+  {
+    const dest = getTempFile();
+    const fd = openSync(dest, 'w');
+    const eio = Object.assign(new Error('EIO'), { code: 'EIO' });
+    const stream = new Utf8Stream({ fd, sync, minLength: 0, fs: shortWrites([1, eio]) });
+
+    stream.on('ready', common.mustCall(() => {
+      stream.once('error', common.mustCall((err) => {
+        assert.strictEqual(err, eio);
+        assert.deepStrictEqual(readFileSync(dest), Buffer.from([0xe4]));
+        stream.flush(common.mustSucceed(() => {
+          assert.strictEqual(readFileSync(dest, 'utf8'), '中');
+        }));
+        stream.end();
+      }));
+      stream.write('中');
+    }));
+
+    stream.on('finish', common.mustCall());
+    stream.on('close', common.mustCall(() => {
+      assert.strictEqual(readFileSync(dest, 'utf8'), '中');
+    }));
+  }
+
+  // flushSync() fails while writing the rest of a split character. A later
+  // flushSync() writes the rest of it and then the rest of the string, once.
+  {
+    const dest = getTempFile();
+    const fd = openSync(dest, 'w');
+    const eio = Object.assign(new Error('EIO'), { code: 'EIO' });
+    const stream = new Utf8Stream({ fd, sync, minLength: 4096, fs: shortWrites([4, eio]) });
+
+    stream.on('ready', common.mustCall(() => {
+      stream.write('abc中def');
+      assert.throws(() => stream.flushSync(), eio);
+      stream.flushSync();
+      assert.strictEqual(readFileSync(dest, 'utf8'), 'abc中def');
+      stream.end();
+    }));
+
+    stream.on('close', common.mustCall(() => {
+      assert.strictEqual(readFileSync(dest, 'utf8'), 'abc中def');
+    }));
   }
 }
