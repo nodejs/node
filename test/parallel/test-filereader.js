@@ -323,6 +323,40 @@ if (common.hasCrypto) {
 }
 
 {
+  // A comma ends the media type in the Fetch data URL processor, even inside
+  // a quoted parameter, so it must be escaped to round-trip.
+  const reader = new FileReader();
+  reader.onload = common.mustCall(async () => {
+    assert.strictEqual(
+      reader.result,
+      'data:text/plain;x="a%2Cb";base64,aGVsbG8=');
+    const response = await fetch(reader.result);
+    assert.strictEqual(await response.text(), 'hello');
+  });
+  reader.readAsDataURL(new Blob(['hello'], { type: 'text/plain;x="a,b"' }));
+}
+
+{
+  // A read started from promise jobs queued by onload suppresses the first
+  // read's loadend, as browsers do. Only the second read fires loadend.
+  const reader = new FileReader();
+  const events = [];
+  reader.onload = common.mustCall(async () => {
+    reader.onload = null;
+    await null;
+    await null;
+    await null;
+    events.push('second read');
+    reader.readAsText(new Blob(['second']));
+  });
+  reader.onloadend = common.mustCall(() => {
+    events.push('loadend');
+    assert.deepStrictEqual(events, ['second read', 'loadend']);
+  });
+  reader.readAsText(new Blob(['first']));
+}
+
+{
   const fs = require('node:fs');
   const os = require('node:os');
   const path = require('node:path');
