@@ -755,7 +755,7 @@ TEST_F(EnvironmentTest, BufferWithFreeCallbackIsDetached) {
 
   int callback_calls = 0;
 
-  v8::Local<v8::ArrayBuffer> ab;
+  v8::Local<v8::ArrayBufferBase> ab;
   {
     Env env {handle_scope, argv};
     v8::Local<v8::Object> buf_obj = node::Buffer::New(
@@ -768,7 +768,7 @@ TEST_F(EnvironmentTest, BufferWithFreeCallbackIsDetached) {
         },
         &callback_calls).ToLocalChecked();
     CHECK(buf_obj->IsUint8Array());
-    ab = buf_obj.As<v8::Uint8Array>()->Buffer();
+    ab = buf_obj.As<v8::Uint8Array>()->GetBuffer();
     CHECK_EQ(ab->ByteLength(), sizeof(hello));
   }
 

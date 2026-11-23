@@ -1025,7 +1025,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
 
   ScriptCompiler::CachedData* cached_data = nullptr;
   if (!cached_data_buf.IsEmpty()) {
-    uint8_t* data = static_cast<uint8_t*>(cached_data_buf->Buffer()->Data());
+    uint8_t* data = static_cast<uint8_t*>(cached_data_buf->GetBuffer()->Data());
     cached_data = new ScriptCompiler::CachedData(
         data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }
@@ -1436,7 +1436,7 @@ void ContextifyFunction::CompileFunction(
   // Read cache from cached data buffer
   ScriptCompiler::CachedData* cached_data = nullptr;
   if (!cached_data_buf.IsEmpty()) {
-    uint8_t* data = static_cast<uint8_t*>(cached_data_buf->Buffer()->Data());
+    uint8_t* data = static_cast<uint8_t*>(cached_data_buf->GetBuffer()->Data());
     cached_data = new ScriptCompiler::CachedData(
       data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }

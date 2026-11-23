@@ -1093,7 +1093,7 @@ MaybeLocal<Value> ToWebCryptoJobResult(Environment* env, Local<Value> value) {
   }
 
   if (Buffer::HasInstance(value)) {
-    return value.As<ArrayBufferView>()->Buffer();
+    return value.As<ArrayBufferView>()->GetBuffer();
   }
 
   CHECK(value->IsBoolean() || (value->IsObject() && !value->IsArray() &&

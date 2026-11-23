@@ -615,10 +615,10 @@ ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
 template <typename T, size_t S>
   requires(sizeof(T) == 1)
 void ArrayBufferViewContents<T, S>::Read(v8::Local<v8::ArrayBufferView> abv) {
-  was_detached_ = abv->Buffer()->WasDetached();
+  was_detached_ = abv->GetBuffer()->WasDetached();
   length_ = abv->ByteLength();
   if (length_ > sizeof(stack_storage_) || abv->HasBuffer()) {
-    auto buf_data = abv->Buffer()->Data();
+    auto buf_data = abv->GetBuffer()->Data();
     data_ = buf_data != nullptr ? static_cast<T*>(buf_data) + abv->ByteOffset()
                                 : stack_storage_;
   } else {

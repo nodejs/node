@@ -190,9 +190,9 @@ v8::MaybeLocal<v8::Object> New(Environment* env,
 v8::MaybeLocal<v8::Object> New(Environment* env,
                                char* data,
                                size_t length);
-// Creates a Buffer instance over an existing ArrayBuffer.
+// Creates a Buffer instance over an existing ArrayBuffer or SharedArrayBuffer.
 v8::MaybeLocal<v8::Uint8Array> New(Environment* env,
-                                   v8::Local<v8::ArrayBuffer> ab,
+                                   v8::Local<v8::ArrayBufferBase> ab,
                                    size_t byte_offset,
                                    size_t length);
 // Construct a Buffer from a MaybeStackBuffer (and also its subclasses like

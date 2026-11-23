@@ -58,7 +58,7 @@
 
 namespace node {
 
-using v8::ArrayBuffer;
+using v8::ArrayBufferBase;
 using v8::CFunction;
 using v8::Context;
 using v8::Function;
@@ -836,7 +836,7 @@ class ZlibStream final : public CompressionStream<ZlibContext> {
     CHECK(args[4]->IsUint32Array());
     Local<Uint32Array> array = args[4].As<Uint32Array>();
     CHECK_GE(array->Length(), 2);
-    Local<ArrayBuffer> ab = array->Buffer();
+    Local<ArrayBufferBase> ab = array->GetBuffer();
     uint32_t* write_result = static_cast<uint32_t*>(ab->Data());
 
     CHECK(args[5]->IsFunction());

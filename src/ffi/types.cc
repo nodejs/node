@@ -717,7 +717,7 @@ Maybe<FFIArgumentCategory> ToFFIArgument(Environment* env,
       // invalidating that backing store during the active FFI call is
       // unsupported and dangerous.
       Local<ArrayBufferView> view = arg.As<ArrayBufferView>();
-      if (view->Buffer()->WasDetached()) {
+      if (view->GetBuffer()->WasDetached()) {
         THROW_ERR_INVALID_ARG_VALUE(
             env,
             "Argument %u is an ArrayBufferView backed by a detached "
@@ -725,7 +725,8 @@ Maybe<FFIArgumentCategory> ToFFIArgument(Environment* env,
             index);
         return {};
       }
-      std::shared_ptr<BackingStore> store = view->Buffer()->GetBackingStore();
+      std::shared_ptr<BackingStore> store =
+          view->GetBuffer()->GetBackingStore();
 
       if (!store) {
         THROW_ERR_INVALID_ARG_VALUE(

@@ -695,7 +695,7 @@ class BufferValue : public MaybeStackBuffer<char> {
   const size_t name##_offset = name->ByteOffset();                             \
   const size_t name##_length = name->ByteLength();                             \
   char* const name##_data =                                                    \
-      static_cast<char*>(name->Buffer()->Data()) + name##_offset;              \
+      static_cast<char*>(name->GetBuffer()->Data()) + name##_offset;           \
   if (name##_length > 0) CHECK_NE(name##_data, nullptr);
 
 // Use this when a variable or parameter is unused in order to explicitly

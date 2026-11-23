@@ -3394,11 +3394,11 @@ napi_status NAPI_CDECL napi_get_typedarray_info(napi_env env,
     *length = array->Length();
   }
 
-  v8::Local<v8::ArrayBuffer> buffer;
+  v8::Local<v8::ArrayBufferBase> buffer;
   if (data != nullptr || arraybuffer != nullptr) {
-    // Calling Buffer() may have the side effect of allocating the buffer,
+    // Calling GetBuffer() may have the side effect of allocating the buffer,
     // so only do this when it’s needed.
-    buffer = array->Buffer();
+    buffer = array->GetBuffer();
   }
 
   if (data != nullptr) {
@@ -3483,11 +3483,11 @@ napi_status NAPI_CDECL napi_get_dataview_info(napi_env env,
     *byte_length = array->ByteLength();
   }
 
-  v8::Local<v8::ArrayBuffer> buffer;
+  v8::Local<v8::ArrayBufferBase> buffer;
   if (data != nullptr || arraybuffer != nullptr) {
-    // Calling Buffer() may have the side effect of allocating the buffer,
+    // Calling GetBuffer() may have the side effect of allocating the buffer,
     // so only do this when it’s needed.
-    buffer = array->Buffer();
+    buffer = array->GetBuffer();
   }
 
   if (data != nullptr) {

@@ -27,7 +27,7 @@ inline void Debug(const WASI& wasi, Args&&... args) {
   } while (0)
 
 using v8::Array;
-using v8::ArrayBuffer;
+using v8::ArrayBufferBase;
 using v8::BigInt;
 using v8::CFunction;
 using v8::Context;
@@ -282,7 +282,7 @@ R WASI::WasiFunction<FT, F, R, Args...>::FastCallback(
     THROW_ERR_WASI_NOT_STARTED(isolate);
     return EinvalError<R>();
   }
-  Local<ArrayBuffer> ab = wasi->memory_.Get(isolate)->Buffer();
+  Local<ArrayBufferBase> ab = wasi->memory_.Get(isolate)->GetBuffer();
   size_t mem_size = ab->ByteLength();
   char* mem_data = static_cast<char*>(ab->Data());
   CHECK_NOT_NULL(mem_data);
@@ -408,7 +408,7 @@ void WASI::WasiFunction<FT, F, R, Args...>::SlowCallback(
   }
 
   Local<WasmMemoryObject> memory = PersistentToLocal::Strong(wasi->memory_);
-  Local<ArrayBuffer> ab = memory->Buffer();
+  Local<ArrayBufferBase> ab = memory->GetBuffer();
   size_t mem_size = ab->ByteLength();
   char* mem_data = static_cast<char*>(ab->Data());
   CHECK_NOT_NULL(mem_data);

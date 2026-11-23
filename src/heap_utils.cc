@@ -429,7 +429,7 @@ HeapProfiler::HeapSnapshotOptions GetHeapSnapshotOptions(
   CHECK(options_value->IsUint8Array());
   Local<Uint8Array> arr = options_value.As<Uint8Array>();
   uint8_t* options =
-      static_cast<uint8_t*>(arr->Buffer()->Data()) + arr->ByteOffset();
+      static_cast<uint8_t*>(arr->GetBuffer()->Data()) + arr->ByteOffset();
   HeapProfiler::HeapSnapshotOptions result;
   result.snapshot_mode = options[0]
                              ? HeapProfiler::HeapSnapshotMode::kExposeInternals

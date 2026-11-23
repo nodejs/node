@@ -130,7 +130,7 @@ Maybe<Store> Store::From(Local<ArrayBufferView> view) {
   }
   if (length > 0) {
     memcpy(dest->Data(),
-           static_cast<const uint8_t*>(view->Buffer()->Data()) + offset,
+           static_cast<const uint8_t*>(view->GetBuffer()->Data()) + offset,
            length);
   }
   return Just(Store(std::move(dest), length, 0));
@@ -156,7 +156,7 @@ Store Store::CopyFrom(Local<ArrayBuffer> buffer) {
 
 Store Store::CopyFrom(Local<ArrayBufferView> view) {
   Isolate* isolate = Isolate::GetCurrent();
-  auto backing = view->Buffer()->GetBackingStore();
+  auto backing = view->GetBuffer()->GetBackingStore();
   auto length = view->ByteLength();
   auto offset = view->ByteOffset();
   auto dest = ArrayBuffer::NewBackingStore(

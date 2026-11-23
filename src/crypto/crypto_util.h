@@ -718,7 +718,7 @@ class ArrayBufferOrViewContents final {
       auto view = buf.As<v8::ArrayBufferView>();
       offset_ = view->ByteOffset();
       length_ = view->ByteLength();
-      data_ = view->Buffer()->Data();
+      data_ = view->GetBuffer()->Data();
     } else if (buf->IsArrayBuffer()) {
       auto ab = buf.As<v8::ArrayBuffer>();
       offset_ = 0;
