@@ -231,14 +231,14 @@ threshold is exceeded. The limits are configurable:
   in seconds. **Default:** `600` (10 minutes).
 
 The default renegotiation limits should not be modified without a full
-understanding of the implications and risks.
+understanding of the implications and risks. Reading or writing either
+property emits a deprecation warning (see [DEP0213][]).
 
 TLSv1.3 does not support renegotiation.
 
-Renegotiation is deprecated (see [DEP0213][]). A future version of Node.js will
-disable it by default, for servers and clients. The `allowRenegotiation` option
-of [`tls.createServer()`][] and [`tls.connect()`][] can be set to `false` to
-disable it now, or to `true` to keep it enabled when that default changes.
+Renegotiation is deprecated (see [DEP0213][]) and is disabled by default, for
+servers and clients. The `allowRenegotiation` option of [`tls.createServer()`][]
+and [`tls.connect()`][] can be set to `true` to enable it.
 
 ### Session resumption
 
@@ -907,6 +907,9 @@ connection is open.
 added: v0.11.4
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67618
+    description: The `allowRenegotiation` option now defaults to `false`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/67532
     description: The `allowRenegotiation` option is now supported.
   - version: v12.2.0
@@ -1136,9 +1139,9 @@ deprecated: REPLACEME
 Disables TLS renegotiation for this `TLSSocket` instance. Once called, attempts
 to renegotiate will trigger an `'error'` event on the `TLSSocket`.
 
-Set `allowRenegotiation: false` when creating the server or connection
-instead. This method has no effect on a connection created that way, where the
-peer's attempts to renegotiate are refused without an error.
+Renegotiation is disabled by default, and the peer's attempts to renegotiate
+are then refused without an error. This method only has an effect on a
+connection created with `allowRenegotiation: true`.
 
 ### `tlsSocket.enableTrace()`
 
@@ -1604,6 +1607,10 @@ Returns the numeric representation of the remote port. For example, `443`.
 added: v0.11.8
 deprecated: REPLACEME
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67618
+    description: Runtime deprecation. This method now fails unless the
+                 connection was created with the `allowRenegotiation` option.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -1641,11 +1648,9 @@ When running as the server, the socket will be destroyed with an error after
 For TLSv1.3, renegotiation cannot be initiated, it is not supported by the
 protocol.
 
-If the connection was created with `allowRenegotiation: false`, this method
+Unless the connection was created with `allowRenegotiation: true`, this method
 returns `false` and `callback` is called with an
-[`ERR_TLS_RENEGOTIATION_DISABLED`][] error. A future version of Node.js will
-disable renegotiation by default, and this method will then only work on
-connections created with `allowRenegotiation: true`.
+[`ERR_TLS_RENEGOTIATION_DISABLED`][] error.
 
 ### `tlsSocket.servername`
 
@@ -1766,6 +1771,9 @@ was present (see [CVE-2021-44531][]). Applications that wish to accept
 added: v0.11.3
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67618
+    description: The `allowRenegotiation` option now defaults to `false`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/67532
     description: The `allowRenegotiation` option is now supported.
   - version:
@@ -1866,8 +1874,8 @@ changes:
     than `minDHSize`, the TLS connection is destroyed and an error is thrown.
     **Default:** `1024`.
   * `allowRenegotiation` {boolean} If `true`, the client accepts renegotiation
-    requested by the server. A future version of Node.js will change this default
-    to `false` (see [DEP0213][]). **Default:** `true`.
+    requested by the server. Renegotiation is deprecated (see [DEP0213][]).
+    **Default:** `false`.
   * `highWaterMark` {number} Consistent with the readable stream `highWaterMark` parameter.
     **Default:** `16 * 1024`.
   * `timeout`: {number} If set and if a socket is created internally, will call
@@ -2241,6 +2249,9 @@ permissible, use 2048 bits or larger for stronger security.
 added: v0.3.2
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67618
+    description: The `allowRenegotiation` option now defaults to `false`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/67532
     description: The `allowRenegotiation` option is now supported.
   - version: v27.0.0-alpha.0.0.0
@@ -2283,10 +2294,10 @@ changes:
   * `allowRenegotiation` {boolean} If `true`, connections to the server may be
     renegotiated, either when requested by the client or through local calls to
     [`tlsSocket.renegotiate()`][]. Renegotiation is deprecated (see
-    [DEP0213][]) and future versions will set this default to `false`.
+    [DEP0213][]), and setting this to `true` emits a deprecation warning.
     Setting this to `true` throws [`ERR_TLS_RENEGOTIATION_UNSUPPORTED`][]
     where the TLS library does not support renegotiation on servers.
-    **Default:** `true`.
+    **Default:** `false`.
   * `ALPNProtocols` {string\[]|Buffer|TypedArray|DataView} An array of strings,
     or a single `Buffer`, `TypedArray`, or `DataView` containing the supported
     ALPN protocols. Buffers should have the format `[len][name][len][name]...`
