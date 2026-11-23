@@ -2548,6 +2548,17 @@ OpenSSL crypto support.
 An attempt was made to use features that require [ICU][], but Node.js was not
 compiled with ICU support.
 
+<a id="ERR_NO_SQLITE"></a>
+
+### `ERR_NO_SQLITE`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An attempt was made to use [`node:sqlite`][], but Node.js was not compiled with
+SQLite support.
+
 <a id="ERR_NO_TEMPORAL"></a>
 
 ### `ERR_NO_TEMPORAL`
@@ -4872,6 +4883,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`new URL(input)`]: url.md#new-urlinput-base
 [`new URLPattern(input)`]: url.md#new-urlpatternstring-baseurl-options
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
+[`node:sqlite`]: sqlite.md
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [`postMessageToThread()`]: worker_threads.md#worker_threadspostmessagetothreadthreadid-value-transferlist-timeout
