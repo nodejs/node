@@ -32,6 +32,16 @@ const deprecated = [
 ];
 
 
+const nodeOptionsH = fs.readFileSync(path.resolve(rootDir, 'src', 'node_options.h'), 'utf8');
+const helpSectionList = nodeOptionsH.slice(
+  nodeOptionsH.indexOf('#define OPTION_HELP_SECTION_LIST'),
+  nodeOptionsH.indexOf('enum class HelpSection'));
+const helpSectionTitles = new Map(
+  Array.from(helpSectionList.matchAll(/\bV\((k\w+), "([^"]+)"\)/g), (m) => [m[1], m[2]]));
+assert.ok(helpSectionTitles.size > 0);
+// Option name -> title of the --help section node_options.cc assigns it to.
+const optionHelpSections = new Map();
+
 const manPagesOptions = new Set();
 
 for (const [, envVar] of manPageText.matchAll(/\.It Fl (-[a-zA-Z0-9._-]+)/g)) {
@@ -43,6 +53,10 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
   const isInNodeOption = config.includes('kAllowedInEnvvar') && !config.includes('kDisallowedInEnvvar');
   const isV8Option = config.includes('V8Option{}');
   const isNoOp = config.includes('NoOp{}');
+  const helpSection = /HelpSection::(k\w+)/.exec(config)?.[1];
+  assert.ok(helpSectionTitles.has(helpSection),
+            `${envVar} has unknown help section ${helpSection}`);
+  optionHelpSections.set(envVar, helpSectionTitles.get(helpSection));
 
   if (
     envVar.startsWith('[') ||
@@ -106,8 +120,10 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
 }
 
 {
-  const sections = /^## (.+)$/mg;
-  const cliOptionPattern = /^### (?:`-\w.*`, )?`([^`]+)`/mg;
+  // Entries are sorted within each `##` section, and within each `###` group
+  // of entries (such as the option sections under `## Options`).
+  const sections = /^(?:## |### (?!`))(.+)$/mg;
+  const cliOptionPattern = /^####? (?:`-\w.*`, )?`([^`]+)`/mg;
   let match;
   let previousIndex = 0;
   do {
@@ -118,6 +134,41 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
     assert.deepStrictEqual(options, options.toSorted(), `doc/api/cli.md ${sectionTitle} subsections are not in alphabetical order`);
     previousIndex = match?.index;
   } while (match);
+}
+
+// Options under `## Options` are grouped into `###` sections that match the
+// --help sections node_options.cc assigns them to. Each section heading
+// carries its label as `help-section` YAML metadata.
+{
+  const lines = cliText.split('\n');
+  const optionsLines = lines.slice(lines.indexOf('## Options'),
+                                   lines.indexOf('## Environment variables'));
+  const knownTitles = new Set(helpSectionTitles.values());
+  let section;
+  for (const [index, line] of optionsLines.entries()) {
+    const [, depth, heading] = /^(###|####) (.+)$/.exec(line) ?? [];
+    if (depth === undefined) continue;
+    if (depth === '###') {
+      const yaml = optionsLines.slice(index + 1, index + 5).join('\n');
+      const label = /^<!-- YAML\nhelp-section: (.+)\n-->/m.exec(yaml)?.[1];
+      assert.strictEqual(label, heading,
+                         `doc/api/cli.md section "${heading}" needs help-section: ${heading} YAML`);
+      assert.ok(knownTitles.has(label),
+                `doc/api/cli.md section "${label}" is not a help section in src/node_options.h`);
+      section = label;
+      continue;
+    }
+    assert.ok(section, `doc/api/cli.md ${heading} is not inside a section`);
+    for (const [, flag] of heading.matchAll(/`(-[-\w.]*)/g)) {
+      const expected = optionHelpSections.get(flag) ??
+        optionHelpSections.get(flag.replace(/^--no-/, '--'));
+      if (expected === undefined) continue;
+      assert.strictEqual(section, expected,
+                         `doc/api/cli.md documents ${flag} under "${section}", ` +
+                         `but src/node_options.cc puts it in "${expected}"`);
+      break;
+    }
+  }
 }
 
 // add alias handling

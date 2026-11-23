@@ -23,7 +23,8 @@ const rl = createInterface({
   input: cliMdContentsStream,
 });
 
-const isOptionLineRegex = /^###(?: `[^`]*`,?)*$/;
+// Options are `####` entries inside the `###` help sections.
+const isOptionLineRegex = /^####(?: `[^`]*`,?)*$/;
 
 for await (const line of rl) {
   if (line.startsWith('## ')) {
