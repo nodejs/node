@@ -7,7 +7,9 @@
 #include "spawn_sync.h"
 #include "uv.h"
 
+#include <csignal>
 #include <filesystem>
+#include <iterator>
 #include <optional>
 #include <string_view>
 #include <tuple>
@@ -44,6 +46,16 @@ class ProcessRunner {
   std::unique_ptr<char* []> env_ {};  // memory for options_.env
   std::unique_ptr<char* []> arg_ {};  // memory for options_.args
   std::string cwd_;
+  // Signal that killed the child, or 0.
+  int term_signal_ = 0;
+
+#ifndef _WIN32
+  // Forwarded to the child, like npm.
+  static constexpr int kForwardedSignals[] = {SIGINT, SIGTERM};
+  uv_signal_t signal_handles_[std::size(kForwardedSignals)]{};
+
+  static void SignalCallback(uv_signal_t* handle, int signum);
+#endif  // _WIN32
 
   // OnExit is the callback function that is called when the process exits.
   void OnExit(int64_t exit_status, int term_signal);

@@ -199,16 +199,47 @@ void ProcessRunner::ExitCallback(uv_process_t* handle,
                                  int term_signal) {
   const auto self = static_cast<ProcessRunner*>(handle->data);
   uv_close(reinterpret_cast<uv_handle_t*>(handle), nullptr);
+#ifndef _WIN32
+  for (auto& signal_handle : self->signal_handles_) {
+    uv_close(reinterpret_cast<uv_handle_t*>(&signal_handle), nullptr);
+  }
+#endif  // _WIN32
   self->OnExit(exit_status, term_signal);
 }
 
 void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
-  if (exit_status > 0) {
-    init_result_->exit_code_ = ExitCode::kGenericUserError;
+  if (term_signal != 0) {
+    // Fallback if the signal can't be re-raised.
+    term_signal_ = term_signal;
+    init_result_->exit_code_ = static_cast<ExitCode>(128 + term_signal);
   } else {
-    init_result_->exit_code_ = ExitCode::kNoFailure;
+    init_result_->exit_code_ = static_cast<ExitCode>(exit_status);
   }
 }
+
+#ifndef _WIN32
+void ProcessRunner::SignalCallback(uv_signal_t* handle, int signum) {
+  const auto self = static_cast<ProcessRunner*>(handle->data);
+  USE(uv_process_kill(&self->process_, signum));
+}
+
+// Exit with the same signal as the child.
+static void ReraiseSignal(int signum) {
+  ResetStdio(true);
+
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = SIG_DFL;
+  CHECK_EQ(sigaction(signum, &sa, nullptr), 0);
+
+  sigset_t sigmask;
+  sigemptyset(&sigmask);
+  sigaddset(&sigmask, signum);
+  CHECK_EQ(pthread_sigmask(SIG_UNBLOCK, &sigmask, nullptr), 0);
+
+  raise(signum);
+}
+#endif  // _WIN32
 
 void ProcessRunner::Run() {
   // keeps the string alive until destructor
@@ -216,9 +247,27 @@ void ProcessRunner::Run() {
   options_.cwd = cwd_.c_str();
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));
+  } else {
+#ifndef _WIN32
+    // Closed in ExitCallback.
+    for (size_t i = 0; i < std::size(kForwardedSignals); i++) {
+      uv_signal_t* signal_handle = &signal_handles_[i];
+      CHECK_EQ(uv_signal_init(loop_, signal_handle), 0);
+      signal_handle->data = this;
+      CHECK_EQ(
+          uv_signal_start(signal_handle, SignalCallback, kForwardedSignals[i]),
+          0);
+    }
+#endif  // _WIN32
   }
 
   uv_run(loop_, UV_RUN_DEFAULT);
+
+#ifndef _WIN32
+  if (term_signal_ != 0) {
+    ReraiseSignal(term_signal_);
+  }
+#endif  // _WIN32
 }
 
 std::optional<std::tuple<std::filesystem::path, std::string, std::string>>
