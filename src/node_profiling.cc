@@ -142,8 +142,8 @@ HeapProfileOptions ParseHeapProfileOptions(
   }
   if (args.Length() > 2) {
     CHECK(args[2]->IsUint32());
-    options.flags = static_cast<HeapProfiler::SamplingFlags>(
-        args[2].As<Uint32>()->Value());
+    options.flags =
+        static_cast<HeapProfiler::SamplingFlags>(args[2].As<Uint32>()->Value());
   }
   return options;
 }
