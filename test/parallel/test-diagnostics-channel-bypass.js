@@ -563,3 +563,65 @@ const { AsyncLocalStorage } = require('async_hooks');
     assert.strictEqual(ch.hasSubscribers, false);
   }
 }
+
+// Test 19: bypass subscribers and stores run after regular ones, regardless of registration order (documented behavior)
+{
+  // Note: bypass subscribers and stores run after regular ones, regardless of registration order (documented behavior)
+  const key = Symbol('ordering');
+
+  // Subscribers
+  {
+    const ch = channel('test-bypass-order-subscribers');
+    const order = [];
+    const bypassHandler1 = common.mustCall(() => { order.push('bypass1'); });
+    const regular1 = common.mustCall(() => { order.push('regular1'); });
+    const bypassHandler2 = common.mustCall(() => { order.push('bypass2'); });
+    const regular2 = common.mustCall(() => { order.push('regular2'); });
+
+    ch.subscribe(bypassHandler1, { bypassId: key });
+    ch.subscribe(regular1);
+    ch.subscribe(bypassHandler2, { bypassId: key });
+    ch.subscribe(regular2);
+
+    ch.publish({});
+
+    assert.deepStrictEqual(order, ['regular1', 'regular2', 'bypass1', 'bypass2']);
+
+    assert.strictEqual(ch.unsubscribe(bypassHandler1), true);
+    assert.strictEqual(ch.unsubscribe(regular1), true);
+    assert.strictEqual(ch.unsubscribe(bypassHandler2), true);
+    assert.strictEqual(ch.unsubscribe(regular2), true);
+    assert.strictEqual(ch.hasSubscribers, false);
+  }
+
+  // Stores
+  {
+    const ch = channel('test-bypass-order-stores');
+    const order = [];
+    const bypassStore = new AsyncLocalStorage();
+    const regularStore1 = new AsyncLocalStorage();
+    const regularStore2 = new AsyncLocalStorage();
+
+    ch.bindStore(bypassStore, common.mustCall((data) => {
+      order.push('bypass');
+      return data;
+    }), { bypassId: key });
+    ch.bindStore(regularStore1, common.mustCall((data) => {
+      order.push('regular1');
+      return data;
+    }));
+    ch.bindStore(regularStore2, common.mustCall((data) => {
+      order.push('regular2');
+      return data;
+    }));
+
+    ch.runStores({}, common.mustCall());
+
+    assert.deepStrictEqual(order, ['regular1', 'regular2', 'bypass']);
+
+    assert.strictEqual(ch.unbindStore(bypassStore), true);
+    assert.strictEqual(ch.unbindStore(regularStore1), true);
+    assert.strictEqual(ch.unbindStore(regularStore2), true);
+    assert.strictEqual(ch.hasSubscribers, false);
+  }
+}
