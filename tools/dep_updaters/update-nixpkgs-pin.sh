@@ -7,6 +7,8 @@ BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 NIXPKGS_PIN_FILE="$BASE_DIR/tools/nix/pkgs.nix"
 NIXPKGS_COMPAT_PIN_FILE="$BASE_DIR/tools/nix/pkgs-26.05.nix"
 OPENSSL_MATRIX_FILE="$BASE_DIR/tools/nix/openssl-matrix.nix"
+TRACE_PROCESSOR_FILE_GENERATOR="$BASE_DIR/tools/nix/cross-compile-perfetto.nix"
+TRACE_PROCESSOR_FILE="$BASE_DIR/tools/perfetto/trace_processor_shell.json"
 
 NIXPKGS_REPO=$(grep -m 1 'repo =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
 CURRENT_VERSION_SHA1=$(grep -m 1 'rev =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
@@ -106,12 +108,22 @@ nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
   openssl_fips = import ./openssl-fips.nix { };
 }"' > "$OPENSSL_MATRIX_FILE"
 
+JSON=$(
+  nix-instantiate \
+    -I "nixpkgs=$NIXPKGS_PIN_FILE" \
+    --eval --strict --json \
+    --arg jsonFile "$TRACE_PROCESSOR_FILE" \
+    "$TRACE_PROCESSOR_FILE_GENERATOR" -A rawData \
+  | jq
+)
+echo "$JSON" > "$TRACE_PROCESSOR_FILE"
+
 cat -<<EOF
 All done!
 
 Please git add and commit the new version:
 
-$ git add $NIXPKGS_PIN_FILE $OPENSSL_MATRIX_FILE
+$ git add $NIXPKGS_PIN_FILE $OPENSSL_MATRIX_FILE $TRACE_PROCESSOR_FILE
 $ git commit -m 'tools: bump nixpkgs-unstable pin to $NEW_VERSION'
 EOF
 
