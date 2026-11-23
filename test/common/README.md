@@ -43,6 +43,7 @@ several other tasks:
 * [HTTP2 module](#http2-module)
 * [Internet module](#internet-module)
 * [ongc module](#ongc-module)
+* [pprof module](#pprof-module)
 * [process-exit-code-test-cases module](#process-exit-code-test-cases-module)
 * [Report module](#report-module)
 * [tick module](#tick-module)
@@ -1048,6 +1049,41 @@ a full `setImmediate()` invocation passes.
 
 `listener` is an object to make it easier to use a closure; the target object
 should not be in scope when `listener.ongc()` is created.
+
+## pprof module
+
+The `pprof` module provides a minimal decoder of the pprof profiles that
+`node:perf_hooks/pprof` encodes, independent of its encoder.
+
+### `decodeProfile(buffer)`
+
+* `buffer` [\<Buffer>][<Buffer>] An uncompressed pprof `Profile` message.
+* return [\<Object>][<Object>]
+
+Decodes the fields of a pprof `Profile` message. Strings are left as indices
+into its `stringTable`.
+
+### `decodeGzippedProfile(buffer)`
+
+* `buffer` [\<Buffer>][<Buffer>] A gzip-compressed pprof `Profile` message.
+* return [\<Object>][<Object>]
+
+Decodes a gzip-compressed pprof profile into `{ profile, strings, sampleTypes,
+samples }`, where each sample is `{ stack, values }`: `stack` lists its frames,
+leaf first, as `{ name, file, line }`, and `values` maps sample types to values.
+
+### `pprofTestBusyLoop(cpuMicros)`
+
+* `cpuMicros` [\<number>][<number>] The CPU time to use, in microseconds.
+* return [\<number>][<number>]
+
+Keeps the thread busy until it has used `cpuMicros` microseconds of CPU time,
+so that profiles have samples of a known function, named `pprofTestBusyLoop`,
+in `test/common/pprof.js`. The loop is bounded by CPU time so that it gets about
+as many samples on a loaded machine as on an idle one. Tests that use it should
+prevent its optimization with `--allow-natives-syntax` and
+`eval('%NeverOptimizeFunction(pprofTestBusyLoop)')`, since profiles lack the
+inlined frames of code that was optimized before the profiler started.
 
 ## process-exit-code-test-cases module
 

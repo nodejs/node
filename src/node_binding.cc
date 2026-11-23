@@ -88,6 +88,7 @@
   V(performance)                                                               \
   V(permission)                                                                \
   V(pipe_wrap)                                                                 \
+  V(pprof)                                                                     \
   V(process_wrap)                                                              \
   V(process_methods)                                                           \
   V(report)                                                                    \

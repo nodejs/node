@@ -17,6 +17,8 @@ Node.js supports the following [Web Performance APIs][]:
 * [User Timing][]
 * [Resource Timing][]
 
+The [`node:perf_hooks/pprof`][] module collects profiles in the pprof format.
+
 ```mjs
 import { performance, PerformanceObserver } from 'node:perf_hooks';
 
@@ -3051,6 +3053,292 @@ recorded or expired after this method returns do not change the returned
 histogram. Materialization allocates one histogram and merges every retained
 chunk.
 
+## pprof API
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+The `node:perf_hooks/pprof` module collects wall time profiles of the
+JavaScript code running on the current thread, and encodes them in the
+[pprof][] format, a common format for profiling data.
+
+```mjs
+import { time, encodeSync } from 'node:perf_hooks/pprof';
+import { writeFileSync } from 'node:fs';
+
+function fibonacci(n) {
+  return n < 2 ? n : fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+time.start();
+fibonacci(35);
+const profile = time.stop();
+writeFileSync('wall.pb.gz', encodeSync(profile));
+```
+
+```cjs
+const { time, encodeSync } = require('node:perf_hooks/pprof');
+const { writeFileSync } = require('node:fs');
+
+function fibonacci(n) {
+  return n < 2 ? n : fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+time.start();
+fibonacci(35);
+const profile = time.stop();
+writeFileSync('wall.pb.gz', encodeSync(profile));
+```
+
+The profile can then be viewed with the [`pprof`][pprof] command-line tool
+(see [installation instructions][pprof installation]):
+
+```bash
+pprof -http=: wall.pb.gz
+```
+
+The profiler samples the stack of the thread at a regular interval, using V8's
+CPU profiler. Each sample accounts for the wall time elapsed since the previous
+one. Time spent idle in the event loop is not reported as wall time, and time
+spent in garbage collection is reported under a `Node.js` frame, as
+[`pprof.time.constants.GARBAGE_COLLECTION_FUNCTION_NAME`][]. When
+`collectCpuTime` is enabled, the CPU time that the thread uses while idle is
+reported under an `(idle)` frame, whose samples have no wall time.
+
+Each thread has its own profiler: a profiler started in a [`Worker`][] profiles
+that worker. At most one profiler runs at a time on each thread.
+
+External modules that provide the same functionality, like `@datadog/pprof`,
+should not be used in conjunction with this API.
+
+### `pprof.time.start([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `intervalMicros` {integer} The average time between samples, in
+    microseconds. **Default:** `1000`.
+  * `durationMillis` {integer} The expected time between calls to
+    [`pprof.time.stop()`][], in milliseconds. It is used to size buffers upfront and
+    must not be shorter than `intervalMicros`. **Default:** `60000`.
+  * `lineNumbers` {boolean} When `true`, samples are aggregated by line rather
+    than by function: the line of a leaf frame is the line that was running,
+    and the line of other frames is the line of the call they made.
+    **Default:** `false`.
+  * `collectCpuTime` {boolean} When `true`, profiles also report the CPU time
+    of the thread, as a `cpu` sample type. Profiles collected on the main
+    thread additionally report the CPU time of the threads that do not run
+    JavaScript, as [`pprof.time.constants.NON_JS_THREADS_FUNCTION_NAME`][]. Not
+    supported on Windows, nor with `lineNumbers`. **Default:** `false`.
+  * `workaroundV8Bug` {boolean} When `true`, works around a V8 bug that can
+    make the profiler stop collecting samples when it is restarted. Has no
+    effect on Windows. **Default:** `true`.
+
+Starts profiling the current thread.
+
+Throws an `ERR_INVALID_STATE` error if the profiler is already started.
+
+### `pprof.time.stop([restart])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `restart` {boolean} When `true`, a new profile starts immediately, with the
+  same options, so that no sample is lost between consecutive profiles.
+  **Default:** `false`.
+* Returns: {pprof.Profile}
+
+Stops the current profile, and returns it.
+
+The profile is processed after the next profile starts, so that the cost of
+processing it is accounted for in the next profile.
+
+If the next profile cannot be started, the current profile is still returned,
+and the profiler is stopped: [`pprof.time.isStarted()`][] returns `false`.
+
+Throws an `ERR_INVALID_STATE` error if the profiler is not started.
+
+### `pprof.time.profile([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object} The options of [`pprof.time.start()`][], and:
+  * `signal` {AbortSignal} Stops profiling, without returning a profile.
+* Returns: {Promise} Fulfills with a {pprof.Profile}.
+
+Profiles the current thread for `options.durationMillis` milliseconds.
+
+The profile only contains the work that the thread does while the returned
+promise is pending, such as handling requests, since time spent idle in the
+event loop is not reported.
+
+```mjs
+import { createServer } from 'node:http';
+import { writeFileSync } from 'node:fs';
+import { time, encodeSync } from 'node:perf_hooks/pprof';
+
+function fibonacci(n) {
+  return n < 2 ? n : fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+createServer((req, res) => {
+  res.end(`${fibonacci(25)}\n`);
+}).listen(8080);
+
+// Profile the requests that the server handles in the next 10 seconds.
+const profile = await time.profile({ durationMillis: 10_000 });
+writeFileSync('wall.pb.gz', encodeSync(profile));
+```
+
+```cjs
+const { createServer } = require('node:http');
+const { writeFileSync } = require('node:fs');
+const { time, encodeSync } = require('node:perf_hooks/pprof');
+
+function fibonacci(n) {
+  return n < 2 ? n : fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+createServer((req, res) => {
+  res.end(`${fibonacci(25)}\n`);
+}).listen(8080);
+
+// Profile the requests that the server handles in the next 10 seconds.
+time.profile({ durationMillis: 10_000 }).then((profile) => {
+  writeFileSync('wall.pb.gz', encodeSync(profile));
+});
+```
+
+### `pprof.time.isStarted()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns whether the profiler is started on the current thread.
+
+### `pprof.time.v8ProfilerStuckEventLoopDetected()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {integer}
+
+Returns whether V8's CPU profiler was found to be stuck, and no longer
+collecting samples, the last time that [`pprof.time.stop(true)`][] restarted
+the profiler: `0` if it was not, `1` if it possibly was, or `2` if it certainly
+was.
+
+When V8's CPU profiler is found to be stuck, possibly or certainly, the
+profiler recovers on its own: it discards V8's CPU profiler and creates a new
+one before starting the next profile.
+
+Always returns `0` after the profiler is stopped without being restarted.
+
+### `pprof.time.constants`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
+  * `GARBAGE_COLLECTION_FUNCTION_NAME` {string} The name of the frame under
+    which garbage collection is reported: `'Garbage Collection'`.
+  * `NON_JS_THREADS_FUNCTION_NAME` {string} The name of the frame under which
+    the CPU time of the threads that do not run JavaScript is reported:
+    `'Non JS threads activity'`.
+
+Both frames are children of a `Node.js` frame.
+
+### `pprof.encode(profile)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `profile` {pprof.Profile}
+* Returns: {Promise} Fulfills with a {Buffer}.
+
+Encodes a profile as a gzip-compressed pprof protobuf message, yielding to the
+event loop while encoding. The profile must not be modified until the returned
+promise settles.
+
+### `pprof.encodeSync(profile)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `profile` {pprof.Profile}
+* Returns: {Buffer}
+
+Encodes a profile as a gzip-compressed pprof protobuf message.
+
+### Class: `pprof.Profile`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A profile returned by [`pprof.time.stop()`][] and [`pprof.time.profile()`][].
+
+Its structure follows the `Profile` message defined in pprof's
+[`profile.proto`][]: each field of the message is a property of the object,
+named in camel case, such as `sampleType`, `sample`, `location`, `function`,
+`stringTable`, `timeNanos`, `durationNanos`, `periodType` and `period`.
+
+`timeNanos` is the time at which the profile started, in nanoseconds since the
+Unix epoch.
+
+#### `profile.encode()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Buffer}
+
+Encodes the profile as an uncompressed pprof protobuf message.
+
+#### `profile.encodeAsync()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise} Fulfills with a {Buffer}.
+
+Encodes the profile as an uncompressed pprof protobuf message, yielding to the
+event loop while encoding. The profile must not be modified until the returned
+promise settles.
+
+### Caveats
+
+On POSIX systems, when `workaroundV8Bug` or `collectCpuTime` is enabled, the
+profiler installs its own `SIGPROF` signal handler, which runs before V8's
+sampler handles the signal. Using other `SIGPROF` handlers at the same time,
+such as a `process.on('SIGPROF')` listener, is not supported.
+
+V8 only records the source positions that attribute samples to inlined
+functions for code compiled while a CPU profiler exists. Samples of functions
+that were inlined into code optimized before the profiler started are
+attributed to the function they were inlined into.
+
+When `collectCpuTime` is enabled, CPU time is attributed to samples using a
+buffer sized after `durationMillis`. Samples taken after the buffer fills up,
+because [`pprof.time.stop()`][] was called later than expected, are dropped.
+
 ## Histogram analysis examples
 
 The `Histogram` class provides statistical analysis methods useful for
@@ -3479,10 +3767,12 @@ dns.promises.resolve('localhost');
 [Welch's t-test]: https://en.wikipedia.org/wiki/Welch%27s_t-test
 [Worker threads]: worker_threads.md#worker-threads
 [`'exit'`]: process.md#event-exit
+[`Worker`]: worker_threads.md#class-worker
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
 [`histogram.diff()`]: #histogramdiffother
 [`histogram.exceeds`]: #histogramexceeds
 [`histogram.export()`]: #histogramexport
+[`node:perf_hooks/pprof`]: #pprof-api
 [`perf_hooks.createHistogram()`]: #perf_hookscreatehistogramoptions
 [`perf_hooks.createSlidingWindowHistogram()`]: #perf_hookscreateslidingwindowhistogramoptions
 [`perf_hooks.eventLoopUtilization()`]: #perf_hookseventlooputilizationutilization1-utilization2
@@ -3491,8 +3781,18 @@ dns.promises.resolve('localhost');
 [`perf_hooks.timerify()`]: #perf_hookstimerifyfn-options
 [`performanceNodeTiming.uvMetricsInfoBigInt`]: #performancenodetiminguvmetricsinfobigint
 [`performanceNodeTiming.uvMetricsInfo`]: #performancenodetiminguvmetricsinfo
+[`pprof.time.constants.GARBAGE_COLLECTION_FUNCTION_NAME`]: #pproftimeconstants
+[`pprof.time.constants.NON_JS_THREADS_FUNCTION_NAME`]: #pproftimeconstants
+[`pprof.time.isStarted()`]: #pproftimeisstarted
+[`pprof.time.profile()`]: #pproftimeprofileoptions
+[`pprof.time.start()`]: #pproftimestartoptions
+[`pprof.time.stop()`]: #pproftimestoprestart
+[`pprof.time.stop(true)`]: #pproftimestoprestart
 [`process.hrtime()`]: process.md#processhrtimetime
+[`profile.proto`]: https://github.com/google/pprof/blob/084b33a85f63291f0513dc6a6284e5dfa66c8e3a/proto/profile.proto
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
 [`window.performance.toJSON`]: https://developer.mozilla.org/en-US/docs/Web/API/Performance/toJSON
 [`window.performance`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/performance
 [histogram export format compatibility]: #histogram-export-format-compatibility
+[pprof]: https://github.com/google/pprof/tree/084b33a85f63291f0513dc6a6284e5dfa66c8e3a
+[pprof installation]: https://github.com/google/pprof/blob/084b33a85f63291f0513dc6a6284e5dfa66c8e3a/README.md#building-pprof

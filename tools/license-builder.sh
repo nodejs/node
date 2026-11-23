@@ -154,4 +154,13 @@ addlicense "on-exit-leak-free" "lib/internal/process/finalization" "$licenseText
 licenseText="$(curl -sL https://raw.githubusercontent.com/pinojs/sonic-boom/refs/heads/master/LICENSE)"
 addlicense "sonic-boom" "lib/internal/streams/fast-utf8-stream.js" "$licenseText"
 
+licenseText="$(curl -sL https://raw.githubusercontent.com/DataDog/pprof-nodejs/3905f382723fc2554284e1abbba2df0f2dc6f82b/LICENSE)"
+addlicense "pprof-nodejs" "src/node_pprof.cc, src/node_pprof.h, src/pprof, lib/internal/perf/pprof" "$licenseText"
+
+# The LICENSE file of pprof-format ends with a stray "Footer" line.
+licenseText="$(curl -sL https://raw.githubusercontent.com/DataDog/pprof-format/53548398f38b16eb096cc04a75927316a68a9b54/LICENSE | sed '/^Footer$/d')
+
+$(curl -sL https://raw.githubusercontent.com/DataDog/pprof-format/53548398f38b16eb096cc04a75927316a68a9b54/NOTICE)"
+addlicense "pprof-format" "lib/internal/perf/pprof/profile.js, lib/internal/perf/pprof/protobuf.js, lib/internal/perf/pprof/string_table.js" "$licenseText"
+
 mv "$tmplicense" "$licensefile"
