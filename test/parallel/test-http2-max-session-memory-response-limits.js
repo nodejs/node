@@ -16,6 +16,10 @@ async function test(kind, bodySize = 4 * 1024 * 1024) {
   server.on('session', (session) => sessions.add(session));
   server.on('stream', (stream) => {
     stream.on('error', () => {});
+    // Leave the response open. Ending it before the request body arrives
+    // makes the server send RST_STREAM(NO_ERROR), which can reach the client
+    // together with the rejected headers and close the stream before the
+    // client's own reset does.
     switch (kind) {
       case 'repeated-informational':
         for (let i = 0; i < 80; i++) {
@@ -25,15 +29,12 @@ async function test(kind, bodySize = 4 * 1024 * 1024) {
         break;
       case 'pairs':
         stream.respond({ ':status': 413, 'a': '1', 'b': '2', 'c': '3', 'd': '4' });
-        stream.end();
         return;
       case 'size':
         stream.respond({ ':status': 413, 'x-large': 'x'.repeat(2048) });
-        stream.end();
         return;
     }
     stream.respond({ ':status': 413 });
-    stream.end();
   });
   server.listen(0);
   await once(server, 'listening');
