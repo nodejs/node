@@ -111,8 +111,7 @@ void AsyncWrap::EmitPromiseResolve(Environment* env, double async_id) {
 }
 
 void AsyncWrap::EmitTraceAsyncStart() const {
-  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-          TRACING_CATEGORY_NODE1(async_hooks))) {
+  if (TRACE_EVENT_CATEGORY_ENABLED(TRACING_CATEGORY_NODE1(async_hooks))) {
     tracing::AsyncWrapArgs data(env()->execution_async_id(),
                                 get_trigger_async_id());
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE1(async_hooks),
