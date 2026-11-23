@@ -374,7 +374,7 @@ The externally maintained libraries used by Node.js are:
 
     COPYRIGHT AND PERMISSION NOTICE
 
-    Copyright © 2016-2025 Unicode, Inc.
+    Copyright © 1991-2026 Unicode, Inc.
 
     NOTICE TO USER: Carefully read the following legal agreement. BY
     DOWNLOADING, INSTALLING, COPYING OR OTHERWISE USING DATA FILES, AND/OR
@@ -1785,7 +1785,7 @@ The externally maintained libraries used by Node.js are:
 - zlib, located at deps/zlib, is licensed as follows:
   """
     zlib.h -- interface of the 'zlib' general purpose compression library
-    version 1.3.2.1, February xxth, 2026
+    version 1.4, November 4th, 2026
 
     Copyright (C) 1995-2026 Jean-loup Gailly and Mark Adler
 
