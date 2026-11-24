@@ -49,7 +49,7 @@ await clientSession.opened;
 
 // Create a bidi stream with the message as the body.
 // For DefaultApplication, the server's onstream fires when data arrives.
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: body,
 });
 

@@ -37,7 +37,7 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 
 // Send data to trigger onstream on the server.
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: encoder.encode('trigger onstream'),
 });
 

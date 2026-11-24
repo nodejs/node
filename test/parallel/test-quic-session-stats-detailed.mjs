@@ -33,7 +33,7 @@ await clientSession.opened;
 
 // Send enough data to generate meaningful stats.
 const data = new Uint8Array(8192);
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.setBody(data);
 
 await dump(stream);

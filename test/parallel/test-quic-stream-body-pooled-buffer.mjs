@@ -41,7 +41,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Send the pooled buffer as body via setBody.
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.setBody(expected);
 
 await dump(stream);

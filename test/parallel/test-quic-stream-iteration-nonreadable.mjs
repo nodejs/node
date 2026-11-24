@@ -30,7 +30,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
-const stream = await clientSession.createUnidirectionalStream({
+const stream = clientSession.createUnidirectionalStream({
   body: encoder.encode('uni data'),
 });
 

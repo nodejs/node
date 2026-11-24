@@ -41,7 +41,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 const body = encoder.encode(message);
-const stream = await clientSession.createBidirectionalStream({ body });
+const stream = clientSession.createBidirectionalStream({ body });
 
 // Read the echoed response from the server.
 const echoed = await bytes(stream);

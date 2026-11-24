@@ -40,7 +40,7 @@ await clientSession.opened;
 
 // setBody() after writer accessed throws.
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   // Access the writer — this initializes the streaming source.
   const w = stream.writer;
   assert.ok(w);
@@ -55,7 +55,7 @@ await clientSession.opened;
 
 // Writer after setBody() throws.
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody(encoder.encode('body set'));
   assert.throws(() => {
     stream.writer; // eslint-disable-line no-unused-expressions
@@ -67,7 +67,7 @@ await clientSession.opened;
 
 // setBody() on destroyed stream throws.
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.destroy();
   assert.throws(() => {
     stream.setBody(encoder.encode('destroyed'));

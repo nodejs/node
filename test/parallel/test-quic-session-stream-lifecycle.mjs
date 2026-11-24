@@ -72,7 +72,7 @@ assert.ok(cStats.bytesSent > 0n, 'Expected bytesSent > 0 after handshake');
 await serverDone.promise;
 
 // Open a bidirectional stream.
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 
 assert.strictEqual(stream.destroyed, false);
 assert.strictEqual(stream.direction, 'bidi');

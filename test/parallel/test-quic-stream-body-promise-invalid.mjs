@@ -23,11 +23,11 @@ const clientSession = await connect(serverEndpoint.address, {
 });
 await clientSession.opened;
 
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 
 assert.throws(() => stream.setBody(42), { code: 'ERR_INVALID_ARG_TYPE' });
 
-const stream2 = await clientSession.createBidirectionalStream();
+const stream2 = clientSession.createBidirectionalStream();
 
 const closedPromise = assert.rejects(stream2.closed, {
   code: 'ERR_INVALID_ARG_TYPE',

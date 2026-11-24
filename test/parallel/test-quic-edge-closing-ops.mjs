@@ -27,14 +27,14 @@ await clientSession.opened;
 // Initiate graceful close.
 clientSession.close();
 
-// Creating a stream on a closing session rejects.
-await assert.rejects(
-  clientSession.createBidirectionalStream(),
+// Creating a stream on a closing session throws.
+assert.throws(
+  () => clientSession.createBidirectionalStream(),
   { code: 'ERR_INVALID_STATE' },
 );
 
-await assert.rejects(
-  clientSession.createUnidirectionalStream(),
+assert.throws(
+  () => clientSession.createUnidirectionalStream(),
   { code: 'ERR_INVALID_STATE' },
 );
 

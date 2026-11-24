@@ -37,7 +37,7 @@ await clientSession.opened;
 let opened = 0;
 
 // First uni stream opens immediately.
-const s1 = await clientSession.createUnidirectionalStream({
+const s1 = clientSession.createUnidirectionalStream({
   body: encoder.encode('uni 1'),
   waitUntilAvailable: false,
 });
@@ -48,7 +48,7 @@ s1.opened.then(() => {
 });
 
 // Second uni stream is pending (limit = 1).
-const s2 = await clientSession.createUnidirectionalStream({
+const s2 = clientSession.createUnidirectionalStream({
   body: encoder.encode('uni 2'),
 });
 
@@ -56,9 +56,10 @@ const s2 = await clientSession.createUnidirectionalStream({
 s2.opened.then(() => {
   opened++;
 });
-assert.strictEqual(opened, 1);
-
 assert.strictEqual(s2.pending, true);
+
+await s1.opened;
+assert.strictEqual(opened, 1);
 
 // Wait for both to complete.
 await s1.closed;

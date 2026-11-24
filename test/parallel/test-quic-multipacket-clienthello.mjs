@@ -52,7 +52,7 @@ const session = await connect(endpoint.address, {
 });
 
 await session.opened;
-const stream = await session.createBidirectionalStream({
+const stream = session.createBidirectionalStream({
   body: 'application event survived',
 });
 await Promise.all([stream.closed, streamReceived.promise]);

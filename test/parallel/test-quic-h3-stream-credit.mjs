@@ -59,7 +59,7 @@ assert.strictEqual(info.protocol, 'h3');
 // pending and fire as the max-stream credit is returned.
 const streams = [];
 for (let i = 0; i < kRequests; i++) {
-  streams.push(await clientSession.createBidirectionalStream({
+  streams.push(clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': `/${i}`,

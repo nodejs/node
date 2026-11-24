@@ -25,7 +25,7 @@ const done = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   await serverSession.opened;
 
-  const stream = await serverSession.createUnidirectionalStream({
+  const stream = serverSession.createUnidirectionalStream({
     body: encoder.encode(message),
   });
 

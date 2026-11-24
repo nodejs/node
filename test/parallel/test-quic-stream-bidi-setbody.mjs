@@ -40,7 +40,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Create a stream with no body.
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 
 // Attach a body after creation.
 stream.setBody(encoder.encode(message));

@@ -38,7 +38,7 @@ const cs1 = await connect(serverEndpoint.address, {
 await Promise.all([cs1.opened, gotToken.promise]);
 
 // Signal the server to close this session.
-const s1 = await cs1.createBidirectionalStream();
+const s1 = cs1.createBidirectionalStream();
 s1.writer.endSync();
 for await (const _ of s1) { /* drain */ } // eslint-disable-line no-unused-vars
 await Promise.all([s1.closed, cs1.closed]);
@@ -50,7 +50,7 @@ const cs2 = await connect(serverEndpoint.address, {
 await cs2.opened;
 
 // Verify data transfer works on the second connection.
-const s2 = await cs2.createBidirectionalStream();
+const s2 = cs2.createBidirectionalStream();
 s2.writer.endSync();
 for await (const _ of s2) { /* drain */ } // eslint-disable-line no-unused-vars
 await s2.closed;

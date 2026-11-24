@@ -75,7 +75,7 @@ const windowCaps = {
   const clientSession = await connect(serverEndpoint.address);
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
 
   // Assert the sender actually hit the window. Without this the test could
   // pass trivially if the windows were silently widened, and we would lose
@@ -111,7 +111,7 @@ const windowCaps = {
   const clientSession = await connect(serverEndpoint.address);
   await clientSession.opened;
 
-  const stream = await clientSession.createUnidirectionalStream();
+  const stream = clientSession.createUnidirectionalStream();
   stream.onblocked = mustCallAtLeast(1);
   stream.setBody(payload);
 

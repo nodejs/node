@@ -27,7 +27,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Signal server to close via stream first (before we close).
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.writer.endSync();
 for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
 await stream.closed;

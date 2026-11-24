@@ -116,7 +116,7 @@ assert.ok(clientRemoteParams.initialSCID.length > 0,
           'remote initialSCID should be non-empty');
 
 // Cross-validation: server's remote matches client's local and vice versa.
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.writer.endSync();
 
 await dump(stream);

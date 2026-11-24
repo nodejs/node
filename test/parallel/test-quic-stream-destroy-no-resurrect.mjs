@@ -60,7 +60,7 @@ clientSession.onstream = mustNotCall(
 await clientSession.opened;
 
 for (let i = 0; i < kStreams; i++) {
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: new Uint8Array(8),
   });
 

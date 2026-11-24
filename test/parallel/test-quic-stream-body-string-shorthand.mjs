@@ -35,7 +35,7 @@ const decoder = new TextDecoder();
   await clientSession.opened;
 
   // Body provided as a string — should be UTF-8 encoded automatically.
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: 'hello from string body',
   });
 
@@ -64,7 +64,7 @@ const decoder = new TextDecoder();
   const clientSession = await connect(serverEndpoint.address);
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody('setBody string');
 
   const response = await bytes(stream);
@@ -93,7 +93,7 @@ const decoder = new TextDecoder();
   const clientSession = await connect(serverEndpoint.address);
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: testString,
   });
 

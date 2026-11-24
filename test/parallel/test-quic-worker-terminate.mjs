@@ -29,7 +29,7 @@ if (!isMainThread) {
   const clientSession = await connect(serverEndpoint.address);
   clientSession.closed.catch(() => {});
   await clientSession.opened;
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: new Uint8Array(1),
   });
   stream.closed.catch(() => {});

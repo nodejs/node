@@ -60,7 +60,7 @@ const decoder = new TextDecoder();
   });
   await cs1.opened;
   await Promise.all([gotTicket.promise, gotToken.promise]);
-  const s1 = await cs1.createBidirectionalStream({
+  const s1 = cs1.createBidirectionalStream({
     headers: request,
     onheaders: mustCall(),
   });
@@ -76,7 +76,7 @@ const decoder = new TextDecoder();
   });
 
   // Send a 0RTT request immediately, before the handshake completes:
-  const s2 = await cs2.createBidirectionalStream({
+  const s2 = cs2.createBidirectionalStream({
     headers: request,
     onheaders: mustCall(),
   });

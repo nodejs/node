@@ -106,7 +106,7 @@ await clientSession.opened;
 // for the shared connection window rather than running one after another.
 const streams = [];
 for (let i = 0; i < kStreams; i++) {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody(payloads[i]);
   streams.push(stream);
 }

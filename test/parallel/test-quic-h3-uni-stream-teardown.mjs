@@ -27,7 +27,7 @@ const session = await connect(endpoint.address, {
   verifyPeer: 'manual',
 });
 
-const stream = await session.createUnidirectionalStream();
+const stream = session.createUnidirectionalStream();
 stream.writer.writeSync('x');
 
 endpoint.destroy();

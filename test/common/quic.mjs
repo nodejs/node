@@ -145,7 +145,7 @@ async function readStream(serverBody, options = {}) {
   await session.opened;
   session.closed.catch(() => {});
 
-  const stream = await session.createBidirectionalStream();
+  const stream = session.createBidirectionalStream();
   await stream.writer.write(new Uint8Array([1]));
 
   let closedError;

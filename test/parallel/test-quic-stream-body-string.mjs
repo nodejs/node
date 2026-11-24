@@ -33,7 +33,7 @@ await clientSession.opened;
 
 // setBody with a string — configureOutbound handles this via
 // Buffer.from(body, 'utf8').
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.setBody(message);
 
 await dump(stream);

@@ -67,7 +67,7 @@ for (const [label, abandon] of cases) {
   await clientSession.opened;
 
   // The first request is abandoned with H3_REQUEST_CANCELLED.
-  const abandoned = await request(clientSession, '/abandon');
+  const abandoned = request(clientSession, '/abandon');
   abandoned.onerror = () => {};
   const reset = Promise.withResolvers();
   abandoned.onreset = mustCall((error) => reset.resolve(error));
@@ -75,7 +75,7 @@ for (const [label, abandon] of cases) {
   assert.strictEqual(error?.errorCode, H3_REQUEST_CANCELLED, label);
 
   // The session still works: a second request gets a response.
-  const ok = await request(clientSession, '/ok');
+  const ok = request(clientSession, '/ok');
   const status = Promise.withResolvers();
   ok.onheaders = mustCall((headers) => status.resolve(headers[':status']));
   assert.strictEqual(await status.promise, 200, label);

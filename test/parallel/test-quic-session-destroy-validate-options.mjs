@@ -54,7 +54,7 @@ await serverSessionReady.promise;
 // validation hoist regresses and side effects run before the throw,
 // this stream will be destroyed by the failed destroy() and the
 // `mustNotCall` handler will fire.
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.onerror = mustNotCall(
   'stream.onerror must not fire when destroy() throws on bad options');
 

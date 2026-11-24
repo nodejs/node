@@ -75,7 +75,7 @@ assert.strictEqual(info1.earlyDataAccepted, false);
 
 await Promise.all([gotTicket.promise, gotToken.promise]);
 
-const s1 = await cs1.createBidirectionalStream({
+const s1 = cs1.createBidirectionalStream({
   headers: {
     ':method': 'GET',
     ':path': '/first',
@@ -103,7 +103,7 @@ const cs2 = await connect(serverEndpoint.address, {
 });
 
 // Send H3 request BEFORE handshake completes — true 0-RTT.
-const s2 = await cs2.createBidirectionalStream({
+const s2 = cs2.createBidirectionalStream({
   headers: {
     ':method': 'GET',
     ':path': '/early',

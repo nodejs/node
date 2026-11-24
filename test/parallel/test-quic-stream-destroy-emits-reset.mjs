@@ -50,7 +50,7 @@ await clientSession.opened;
 // streaming source. Pre-B13, calling destroy() on this stream would
 // not emit RESET_STREAM because the writer.fail path was the only
 // emission site.
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: 'hello world',
 });
 

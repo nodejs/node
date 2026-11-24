@@ -38,7 +38,7 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 
 const reset = Promise.withResolvers();
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   headers: {
     ':method': 'GET',
     ':path': '/test',

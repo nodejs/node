@@ -43,7 +43,7 @@ await clientSession.opened;
 
 // Send a small body — it will be sent quickly (including FIN),
 // putting the stream in "Data Sent" state.
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: encoder.encode('small payload'),
 });
 

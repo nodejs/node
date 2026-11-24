@@ -84,7 +84,7 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
     }
   }, 2);
 
-  const stream1 = await clientSession.createBidirectionalStream({
+  const stream1 = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/first',
@@ -94,7 +94,7 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
     onheaders: onClientHeaders,
   });
 
-  const stream2 = await clientSession.createBidirectionalStream({
+  const stream2 = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/second',
@@ -121,8 +121,8 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
   await goawayReceived.promise;
 
   // After GOAWAY, new stream creation should fail.
-  await assert.rejects(
-    clientSession.createBidirectionalStream({
+  assert.throws(
+    () => clientSession.createBidirectionalStream({
       headers: {
         ':method': 'GET',
         ':path': '/new',

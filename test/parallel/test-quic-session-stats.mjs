@@ -47,7 +47,7 @@ await clientSession.opened;
 const bytesSentBefore = clientSession.stats.bytesSent;
 assert.ok(bytesSentBefore > 0n, 'handshake bytes should be counted');
 
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: payload,
 });
 

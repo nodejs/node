@@ -42,7 +42,7 @@ const { listen, connect } = await import('../common/quic.mjs');
 
   // Open a stream and send one byte so the server creates the
   // peer-initiated stream, then stop sending.
-  const clientStream = await clientSession.createUnidirectionalStream();
+  const clientStream = clientSession.createUnidirectionalStream();
   const writer = clientStream.writer;
   writer.writeSync('x');
 
@@ -83,7 +83,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   await clientSession.opened;
 
   // Open a stream and send data immediately.
-  const clientStrema = await clientSession.createUnidirectionalStream();
+  const clientStrema = clientSession.createUnidirectionalStream();
   const writer = clientStrema.writer;
   writer.writeSync(encoder.encode('x'));
 
@@ -123,7 +123,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   await clientSession.opened;
 
   // Send one byte so the server creates the stream, then stop.
-  const clientStream = await clientSession.createUnidirectionalStream();
+  const clientStream = clientSession.createUnidirectionalStream();
   const writer = clientStream.writer;
   writer.writeSync('x');
 

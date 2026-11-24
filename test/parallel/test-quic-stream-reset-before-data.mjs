@@ -58,7 +58,7 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 
 // Create a bidi stream but do NOT write any data.
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 
 // Reset immediately — no data was ever written. This sends
 // RESET_STREAM to the server which implicitly creates the bidi

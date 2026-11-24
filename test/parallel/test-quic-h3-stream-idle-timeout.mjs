@@ -56,7 +56,7 @@ const encoder = new TextEncoder();
 
   // Send a POST request with a body byte so the server creates the
   // stream, then stop sending (don't end the write side).
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'POST',
       ':path': '/',
@@ -109,7 +109,7 @@ const encoder = new TextEncoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     onheaders() {},
   });
   stream.sendHeaders({
@@ -159,7 +159,7 @@ const encoder = new TextEncoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     onheaders() {},
   });
   stream.sendHeaders({

@@ -81,7 +81,7 @@ await clientSession.opened;
 const clientInfoReceived = Promise.withResolvers();
 const clientHeadersReceived = Promise.withResolvers();
 
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   headers: {
     ':method': 'GET',
     ':path': '/page',

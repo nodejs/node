@@ -166,7 +166,7 @@ for (const truncatedReads of ['error', 'ignore']) {
   await session.opened;
   session.closed.catch(() => {});
 
-  const stream = await session.createBidirectionalStream();
+  const stream = session.createBidirectionalStream();
   stream.closed.catch(() => {});
   await writeAndAwaitAck(stream, 100);
   stream.resetStream(0n);
