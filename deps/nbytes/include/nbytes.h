@@ -109,6 +109,15 @@ bool SwapBytes64(char *data, size_t nbytes);
 
 extern const int8_t unbase64_table[256];
 
+// Code units above 0xFF are never base64 digits; do not truncate them.
+template <typename TypeName>
+inline int8_t Unbase64(TypeName c) {
+  if constexpr (sizeof(TypeName) > 1) {
+    if (c > 0xFF) return -1;
+  }
+  return unbase64_table[static_cast<uint8_t>(c)];
+}
+
 template <typename TypeName>
 bool Base64DecodeGroupSlow(char *const dst, const size_t dstlen,
                            const TypeName *const src, const size_t srclen,
@@ -117,8 +126,8 @@ bool Base64DecodeGroupSlow(char *const dst, const size_t dstlen,
   uint8_t lo;
 #define V(expr)                                                        \
   for (;;) {                                                           \
-    const uint8_t c = static_cast<uint8_t>(src[*i]);                   \
-    lo = unbase64_table[c];                                            \
+    const TypeName c = src[*i];                                        \
+    lo = Unbase64(c);                                                  \
     *i += 1;                                                           \
     if (lo < 64) break;                         /* Legal character. */ \
     if (c == '=' || *i >= srclen) return false; /* Stop decoding. */   \
@@ -179,14 +188,10 @@ size_t Base64DecodeFast(char *const dst, const size_t dstlen,
   size_t k = 0;
   while (i < max_i && k < max_k) {
     const unsigned char txt[] = {
-        static_cast<unsigned char>(
-            unbase64_table[static_cast<uint8_t>(src[i + 0])]),
-        static_cast<unsigned char>(
-            unbase64_table[static_cast<uint8_t>(src[i + 1])]),
-        static_cast<unsigned char>(
-            unbase64_table[static_cast<uint8_t>(src[i + 2])]),
-        static_cast<unsigned char>(
-            unbase64_table[static_cast<uint8_t>(src[i + 3])]),
+        static_cast<unsigned char>(Unbase64(src[i + 0])),
+        static_cast<unsigned char>(Unbase64(src[i + 1])),
+        static_cast<unsigned char>(Unbase64(src[i + 2])),
+        static_cast<unsigned char>(Unbase64(src[i + 3])),
     };
 
     const uint32_t v = ReadUint32BE(txt);
@@ -224,13 +229,22 @@ size_t Base64Decode(char *const dst, const size_t dstlen,
 
 extern const int8_t unhex_table[256];
 
+// Code units above 0xFF are never hex digits; do not truncate them.
+template <typename TypeName>
+inline int8_t Unhex(TypeName c) {
+  if constexpr (sizeof(TypeName) > 1) {
+    if (c > 0xFF) return -1;
+  }
+  return unhex_table[static_cast<uint8_t>(c)];
+}
+
 template <typename TypeName>
 static size_t HexDecode(char *buf, size_t len, const TypeName *src,
                         const size_t srcLen) {
   size_t i;
   for (i = 0; i < len && i * 2 + 1 < srcLen; ++i) {
-    unsigned a = unhex_table[static_cast<uint8_t>(src[i * 2 + 0])];
-    unsigned b = unhex_table[static_cast<uint8_t>(src[i * 2 + 1])];
+    unsigned a = Unhex(src[i * 2 + 0]);
+    unsigned b = Unhex(src[i * 2 + 1]);
     if (!~a || !~b) return i;
     buf[i] = (a << 4) | b;
   }
@@ -836,12 +850,12 @@ size_t SearchString(const char *haystack, size_t haystack_length,
 
 // ============================================================================
 // Version metadata
-#define NBYTES_VERSION "0.1.4"  // x-release-please-version
+#define NBYTES_VERSION "0.1.5"  // x-release-please-version
 
 enum {
   NBYTES_VERSION_MAJOR = 0,     // x-release-please-major
   NBYTES_VERSION_MINOR = 1,     // x-release-please-minor
-  NBYTES_VERSION_REVISION = 4,  // x-release-please-patch
+  NBYTES_VERSION_REVISION = 5,  // x-release-please-patch
 };
 
 }  // namespace nbytes

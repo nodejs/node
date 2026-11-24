@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/nodejs/nbytes/compare/v0.1.4...v0.1.5) (2026-11-16)
+
+
+### Bug Fixes
+
+* **base64, hex:** enhance decoding to ignore non-Latin1 characters ([#17](https://github.com/nodejs/nbytes/issues/17)) ([c0328e6](https://github.com/nodejs/nbytes/commit/c0328e6cc55b1aaae982d626c2f5a01f51cd2134))
+
 ## [0.1.4](https://github.com/nodejs/nbytes/compare/v0.1.3...v0.1.4) (2026-04-09)
 
 
