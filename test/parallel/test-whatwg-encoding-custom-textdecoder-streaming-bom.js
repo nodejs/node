@@ -9,7 +9,7 @@ const common = require('../common');
 
 const assert = require('assert');
 
-const BOM = '﻿';
+const BOM = '\uFEFF';
 
 // [held-over bytes, next chunk, expected output of the next chunk]
 const cases = [
