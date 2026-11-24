@@ -2577,11 +2577,14 @@ Returns `true` if the entire data was flushed successfully to the kernel
 buffer. Returns `false` if all or part of the data was queued in user memory.
 `'drain'` will be emitted when the buffer is free again.
 
-### `response.writeContinue()`
+### `response.writeContinue([callback])`
 
 <!-- YAML
 added: v0.3.0
 -->
+
+* `callback` {Function} Optional, called once the message has been written
+  to the socket.
 
 Sends an HTTP/1.1 100 Continue message to the client, indicating that
 the request body should be sent. See the [`'checkContinue'`][] event on
@@ -2744,14 +2747,18 @@ event on `http.ClientRequest`.
 response.writeInformation(110, { 'X-Progress': '50%' });
 ```
 
-### `response.writeProcessing()`
+### `response.writeProcessing([callback])`
 
 <!-- YAML
 added: v10.0.0
 -->
 
+* `callback` {Function} Optional, called once the message has been written
+  to the socket.
+
 Sends an HTTP/1.1 102 Processing message to the client, indicating that
-the request body should be sent.
+the request has been received and is still being processed. This is
+equivalent to `response.writeInformation(102, null, callback)`.
 
 ## Class: `http.IncomingMessage`
 
@@ -5018,10 +5025,10 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`response.writableFinished`]: #responsewritablefinished
 [`response.write()`]: #responsewritechunk-encoding-callback
 [`response.write(data, encoding)`]: #responsewritechunk-encoding-callback
-[`response.writeContinue()`]: #responsewritecontinue
+[`response.writeContinue()`]: #responsewritecontinuecallback
 [`response.writeEarlyHints()`]: #responsewriteearlyhintshints-callback
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
-[`response.writeProcessing()`]: #responsewriteprocessing
+[`response.writeProcessing()`]: #responsewriteprocessingcallback
 [`server.close()`]: #serverclosecallback
 [`server.headersTimeout`]: #serverheaderstimeout
 [`server.keepAliveTimeoutBuffer`]: #serverkeepalivetimeoutbuffer
