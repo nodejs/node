@@ -291,3 +291,84 @@ const kArrayBuffer =
     writer.close(),
   ]).then(common.mustCall());
 }
+
+{
+  arrayBuffer(Readable.from([])).then(common.mustCall((ab) => {
+    assert(ab instanceof ArrayBuffer);
+    assert.strictEqual(ab.byteLength, 0);
+  }));
+}
+
+{
+  const a = new Uint8Array([1, 2, 3]);
+  const b = new Uint8Array([4, 5]);
+  arrayBuffer(Readable.from([a, new Uint8Array(0), b])).then(common.mustCall((ab) => {
+    a.fill(0);
+    b.fill(0);
+    assert.deepStrictEqual(new Uint8Array(ab), new Uint8Array([1, 2, 3, 4, 5]));
+  }));
+}
+
+{
+  const detached = new ArrayBuffer(4);
+  const detachedView = new Uint8Array(detached);
+  detachedView.set([9, 8, 7, 6]);
+  detached.transfer();
+  arrayBuffer(Readable.from([new Uint8Array([1, 2]), detachedView, new Uint8Array([3])]))
+    .then(common.mustCall((ab) => {
+      assert.deepStrictEqual(new Uint8Array(ab), new Uint8Array([1, 2, 3]));
+    }));
+}
+
+{
+  const resizable = new ArrayBuffer(4, { maxByteLength: 16 });
+  assert.rejects(
+    arrayBuffer(Readable.from([Buffer.from('a'), new Uint8Array(resizable)])),
+    {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /resizable ArrayBuffer/,
+    },
+  ).then(common.mustCall());
+}
+
+{
+  const sab = new SharedArrayBuffer(4);
+  assert.rejects(
+    arrayBuffer(Readable.from([Buffer.from('a'), new Uint8Array(sab)])),
+    {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /SharedArrayBuffer/,
+    },
+  ).then(common.mustCall());
+}
+
+{
+  buffer(Readable.from([Buffer.from('hello '), 'world'])).then(common.mustCall((buf) => {
+    assert.strictEqual(buf.toString(), 'hello world');
+  }));
+}
+
+{
+  const u16 = new Uint16Array([0x0201]);
+  const dvBuf = new ArrayBuffer(4);
+  new Uint8Array(dvBuf).set([10, 20, 30, 40]);
+  const rawAb = new Uint8Array([50, 60]).buffer;
+  const clamped = new Uint8ClampedArray([70, 80]);
+  const mixed = [
+    Buffer.from([0]),
+    u16,
+    new DataView(dvBuf, 1, 2),
+    rawAb,
+    clamped,
+  ];
+  const expected = Buffer.concat([
+    Buffer.from([0]),
+    Buffer.from(u16.buffer, u16.byteOffset, u16.byteLength),
+    Buffer.from([20, 30, 50, 60, 70, 80]),
+  ]);
+  buffer(Readable.from(mixed)).then(common.mustCall((buf) => {
+    assert.deepStrictEqual(buf, expected);
+  }));
+}
