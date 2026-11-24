@@ -57,10 +57,22 @@ jobs:
         with:
           extra_nix_config: sandbox = true
 
+      - name: Build Cachix
+        if: ${{ inputs.runner == 'macos-15-intel' }}
+        id: build_cachix
+        run: |
+          nix-build --no-out-link -I "nixpkgs=$TAR_DIR/tools/nix/pkgs.nix" -E '(import <nixpkgs> {}).cachix'
+          {
+            printf "BIN="
+            nix-instantiate --eval --raw -I "nixpkgs=$TAR_DIR/tools/nix/pkgs.nix" -E 'with (import <nixpkgs> {});lib.getExe cachix'
+            printf '\n'
+          } >> "$GITHUB_OUTPUT"
+
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
         with:
           name: nodejs
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          cachixBin: ${{ steps.build_cachix.outputs.BIN || '' }}
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         if: inputs.v8-nar
