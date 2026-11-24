@@ -28,8 +28,25 @@ function validateMisc(misc) {
   assert.strictEqual(typeof misc.textRaw, 'string');
 }
 
+// Counts of `deprecated` and `removed` metadata found in the current file's
+// JSON output. Reset for each file and compared against the Markdown source.
 let numberOfDeprecatedSections = 0;
 let numberOfRemovedAPIs = 0;
+let totalDeprecatedSections = 0;
+let totalRemovedAPIs = 0;
+
+// Counts the YAML metadata blocks in a Markdown source file that declare
+// `deprecated` or `removed`, so the JSON output can be checked against them.
+const yamlBlockRe = /<!--\s*YAML\r?\n([\s\S]*?)-->/g;
+function countSourceMeta(markdown) {
+  let deprecated = 0;
+  let removed = 0;
+  for (const { 1: body } of markdown.matchAll(yamlBlockRe)) {
+    if (/^\s*deprecated:/m.test(body)) deprecated++;
+    if (/^\s*removed:/m.test(body)) removed++;
+  }
+  return { deprecated, removed };
+}
 
 const metaExpectedKeys = new Set([
   'added',
@@ -155,8 +172,22 @@ for await (const dirent of await fs.opendir(new URL('../../out/doc/api/', import
     'report.md': ['introduced_in', 'meta', 'stability', 'stabilityText', 'miscs'],
   }[dirent.name] ?? ['modules'])]);
 
+  numberOfDeprecatedSections = 0;
+  numberOfRemovedAPIs = 0;
   assert.partialDeepStrictEqual(allExpectedKeys, findAllKeys(json));
+
+  const markdown = await fs.readFile(
+    new URL(`../../${expectedSource}`, import.meta.url), 'utf8');
+  assert.deepStrictEqual(
+    { deprecated: numberOfDeprecatedSections, removed: numberOfRemovedAPIs },
+    countSourceMeta(markdown),
+    `deprecated/removed metadata in ${jsonPath} does not match ${expectedSource}`,
+  );
+  totalDeprecatedSections += numberOfDeprecatedSections;
+  totalRemovedAPIs += numberOfRemovedAPIs;
 }
 
-assert.strictEqual(numberOfDeprecatedSections, 52); // Increase this number every time a new API is deprecated.
-assert.strictEqual(numberOfRemovedAPIs, 47); // Increase this number every time a section is marked as removed.
+// Guard against the source scan and the JSON output both silently finding
+// nothing (e.g. if the YAML metadata format changes).
+assert.ok(totalDeprecatedSections > 0);
+assert.ok(totalRemovedAPIs > 0);
