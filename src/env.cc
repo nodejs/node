@@ -2671,8 +2671,8 @@ size_t Environment::HeapProfileNearHeapLimitCallback(
 
   Debug(env, DebugCategory::DIAGNOSTICS, "Writing %s...\n", *name);
 
-  std::ostringstream out;
-  if (!node::SerializeHeapProfile(env->isolate(), out)) {
+  std::string profile;
+  if (!node::SerializeHeapProfile(env->isolate(), profile)) {
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "No sampling heap profile active; uninstalling callback.\n");
@@ -2680,7 +2680,6 @@ size_t Environment::HeapProfileNearHeapLimitCallback(
     return new_limit;
   }
 
-  std::string profile = std::move(out).str();
   uv_buf_t buffer = uv_buf_init(profile.data(), profile.size());
   const int err = WriteFileSync(filename.c_str(), buffer);
   if (err != 0) {
