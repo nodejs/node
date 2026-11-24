@@ -4,20 +4,12 @@
 
 #include "src/objects/js-array-buffer.h"
 
-#include <cstddef>
-#include <new>
-
 #include "src/api/api-inl.h"
-#include "src/api/node-copy-batch.h"
-#include "src/base/platform/memory.h"
-#include "src/base/platform/mutex.h"
 #include "src/common/synchronization-point-support.h"
 #include "src/execution/protectors-inl.h"
-#include "src/heap/array-buffer-sweeper.h"
 #include "src/logging/counters.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/node-copy-extension-batch.h"
 #include "src/objects/property-descriptor.h"
 #include "src/sandbox/check.h"
 
@@ -341,168 +333,6 @@ JSArrayBuffer::GetResizableBackingStorePageConfigurationImpl(
     return MessageTemplate::kInvalidArrayBufferMaxLength;
   }
   return {};
-}
-
-struct PublishedNodeCopyStore final {
-  explicit PublishedNodeCopyStore(
-      const std::shared_ptr<NodeCopyStoreRecycler>& recycler)
-      : recycler(recycler) {}
-  ~PublishedNodeCopyStore() {
-    if (store) recycler->Return(std::move(store));
-  }
-  const std::shared_ptr<NodeCopyStoreRecycler> recycler;
-  std::unique_ptr<v8::BackingStore> store;
-};
-
-static std::shared_ptr<BackingStore> PublishNodeCopyStore(
-    std::unique_ptr<v8::BackingStore>& store,
-    const std::shared_ptr<NodeCopyStoreRecycler>& recycler) {
-  auto owner = std::make_shared<PublishedNodeCopyStore>(recycler);
-  BackingStoreBase* base = store.get();
-  owner->store = std::move(store);
-  return std::shared_ptr<BackingStore>(owner, static_cast<BackingStore*>(base));
-}
-
-class NodeCopyExtension final : public ArrayBufferExtension {
- public:
-  NodeCopyExtension(std::unique_ptr<v8::BackingStore> store, size_t bytes,
-                    Age age, NodeCopyExtensionGroup* group)
-      : ArrayBufferExtension(bytes, age, SharedFlag{false},
-                             ResizableFlag{false}, true),
-        private_store_(std::move(store)), group_(group) {}
-
-  void Destroy();
-  void Promote();
-
- private:
-  std::unique_ptr<v8::BackingStore> private_store_;
-  NodeCopyExtensionGroup* const group_;
-};
-
-struct NodeCopyExtensionGroup {
-  static constexpr unsigned kCapacity = 16;
-  struct alignas(NodeCopyExtension) Slot {
-    unsigned char bytes[sizeof(NodeCopyExtension)];
-  };
-
-  explicit NodeCopyExtensionGroup(
-      const std::shared_ptr<NodeCopyStoreRecycler>& target) : recycler(target) {}
-
-  static NodeCopyExtensionGroup* TryNew(
-      const std::shared_ptr<NodeCopyStoreRecycler>& recycler) {
-    if constexpr (alignof(NodeCopyExtensionGroup) > alignof(std::max_align_t)) {
-      return nullptr;
-    }
-    void* memory = base::Malloc(sizeof(NodeCopyExtensionGroup));
-    if (!memory) return nullptr;
-    return ::new (memory) NodeCopyExtensionGroup(recycler);
-  }
-
-  void Release(unsigned count) {
-    DCHECK_GT(count, 0u);
-    const unsigned before =
-        outstanding.fetch_sub(count, std::memory_order_acq_rel);
-    DCHECK_GE(before, count);
-    if (before == count) {
-      this->~NodeCopyExtensionGroup();
-      base::Free(this);
-    }
-  }
-
-  const std::shared_ptr<NodeCopyStoreRecycler> recycler;
-  std::atomic<unsigned> outstanding{kCapacity};
-  static_assert(kCapacity <= 32);
-  std::atomic<uint32_t> promoted{0};
-  Slot slots[kCapacity];
-};
-
-void NodeCopyExtension::Promote() {
-  const uintptr_t offset = reinterpret_cast<uintptr_t>(this) -
-                           reinterpret_cast<uintptr_t>(group_->slots);
-  DCHECK_EQ(offset % sizeof(NodeCopyExtensionGroup::Slot), 0u);
-  const size_t index = offset / sizeof(NodeCopyExtensionGroup::Slot);
-  DCHECK_LT(index, NodeCopyExtensionGroup::kCapacity);
-  const uint32_t bit = uint32_t{1} << index;
-  if (group_->promoted.load(std::memory_order_acquire) & bit) return;
-  static base::LazyMutex mutex = LAZY_MUTEX_INITIALIZER;
-  base::MutexGuard guard(mutex.Pointer());
-  const uint32_t promoted = group_->promoted.load(std::memory_order_relaxed);
-  if (promoted & bit) return;
-  backing_store_ = PublishNodeCopyStore(private_store_, group_->recycler);
-  group_->promoted.store(promoted | bit, std::memory_order_release);
-}
-
-NodeCopyExtensionBatch::~NodeCopyExtensionBatch() {
-  if (group_) group_->Release(NodeCopyExtensionGroup::kCapacity - used_);
-}
-
-void NodeCopyExtension::Destroy() {
-  auto* group = group_;
-  if (private_store_) group->recycler->Return(std::move(private_store_));
-  this->~NodeCopyExtension();
-  group->Release(1);
-}
-
-void ArrayBufferExtension::PromoteNodeCopyStore() {
-  static_cast<NodeCopyExtension*>(this)->Promote();
-}
-
-void ArrayBufferExtension::DeleteNodeCopy() {
-  static_cast<NodeCopyExtension*>(this)->Destroy();
-}
-
-ArrayBufferExtension* NodeCopyExtensionBatch::Install(
-    Tagged<JSArrayBuffer> shell, Isolate* isolate,
-    std::unique_ptr<v8::BackingStore> public_store,
-    const std::shared_ptr<NodeCopyStoreRecycler>& recycler,
-    const DisallowGarbageCollection&, unsigned remaining) {
-  DCHECK_NULL(shell->extension());
-  DCHECK_EQ(shell->byte_length(), 0);
-  BackingStoreBase* base = public_store.get();
-  auto* store = static_cast<BackingStore*>(base);
-  const size_t size = store->byte_length();
-  CHECK_GT(size, 64u);
-  CHECK_LE(size, 8192u);
-  CHECK_EQ(size, store->max_byte_length());
-  CHECK_EQ(size, store->PerIsolateAccountingLength());
-  CHECK(!store->is_shared() && !store->is_resizable_by_js() &&
-        !store->is_wasm_memory() && !store->is_immutable());
-  const auto age = TrustedHeapLayout::InYoungGeneration(shell)
-                       ? ArrayBufferExtension::Age::kYoung
-                       : ArrayBufferExtension::Age::kOld;
-  constexpr unsigned capacity = NodeCopyExtensionGroup::kCapacity;
-  if (!group_ && !allocation_failed_ && remaining >= capacity) {
-    group_ = NodeCopyExtensionGroup::TryNew(recycler);
-    used_ = 0;
-    allocation_failed_ = group_ == nullptr;
-  }
-  ArrayBufferExtension* ext;
-  if (group_) {
-    ext = ::new (group_->slots[used_].bytes)
-        NodeCopyExtension(std::move(public_store), size, age, group_);
-    if (++used_ == capacity) group_ = nullptr;
-  } else {
-    ext = new ArrayBufferExtension(PublishNodeCopyStore(public_store, recycler),
-                                   age, SharedFlag{false}, ResizableFlag{false});
-  }
-  shell->set_backing_store(isolate, store->buffer_start());
-  shell->set_byte_length(size);
-  shell->set_max_byte_length(size);
-  shell->set_extension(ext);
-  return ext;
-}
-
-void JSArrayBuffer::AttachNodeCopyStore(
-    Isolate* isolate, std::unique_ptr<v8::BackingStore> public_store,
-    const std::shared_ptr<NodeCopyStoreRecycler>& recycler) {
-  ArrayBufferExtension* extension;
-  {
-    DisallowGarbageCollection no_gc;
-    NodeCopyExtensionBatch batch;
-    extension = batch.Install(Tagged<JSArrayBuffer>(this), isolate,
-                              std::move(public_store), recycler, no_gc, 1);
-  }
-  isolate->heap()->AppendArrayBufferExtension(extension);
 }
 
 ArrayBufferExtension* JSArrayBuffer::CreateExtension(

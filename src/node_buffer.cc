@@ -36,11 +36,6 @@
 #include "v8-fast-api-calls.h"
 #include "v8.h"
 
-#ifdef NODE_PRIVATE_INLINE_BACKING_STORE
-#include "../deps/v8/src/api/node-copy-batch.h"
-#include "../deps/v8/src/api/node-inline-backing-store.h"
-#endif
-
 #include <stdint.h>
 #include <algorithm>
 #include <array>
@@ -1966,43 +1961,6 @@ namespace {
 
 constexpr uint32_t kMaxCopyBatchCount = 64;
 
-#ifdef V8_NODE_CAN_INLINE_BACKING_STORE
-class CopyStoreRecycler final : public v8::internal::NodeCopyStoreRecycler {
- public:
-  CopyStoreRecycler(const std::shared_ptr<CopyStorePool>& pool,
-                    unsigned index,
-                    uint64_t generation)
-      : pool_(pool), index_(index), generation_(generation) {}
-
-  void Return(CopyStorePool::Store store) override {
-    if (auto pool = pool_.lock())
-      pool->Return(index_, generation_, std::move(store));
-  }
-
- private:
-  const std::weak_ptr<CopyStorePool> pool_;
-  const unsigned index_;
-  const uint64_t generation_;
-};
-
-static void AccountInlineStore(v8::ArrayBuffer::Allocator* allocator,
-                               void* data,
-                               size_t length,
-                               bool allocated) noexcept {
-  auto* owner = static_cast<NodeArrayBufferAllocator*>(allocator);
-  if (allocated) {
-    owner->RegisterPointer(data, length);
-  } else {
-    owner->UnregisterPointer(data, length);
-  }
-}
-
-static void ReleaseRawInlineStore(void* data, size_t length, void* context) {
-  auto* allocator = static_cast<v8::ArrayBuffer::Allocator*>(context);
-  AccountInlineStore(allocator, data, length, false);
-}
-#endif
-
 static void RefillCopyStorePool(const FunctionCallbackInfo<Value>& args,
                                 const std::shared_ptr<CopyStorePool>& pool,
                                 unsigned index,
@@ -2013,41 +1971,14 @@ static void RefillCopyStorePool(const FunctionCallbackInfo<Value>& args,
   uint64_t generation;
   const size_t reused =
       pool->Take(index, size, stores.data(), count, &generation);
-#ifdef V8_NODE_CAN_INLINE_BACKING_STORE
-  auto* allocator =
-      Environment::GetCurrent(args)->isolate_data()->node_allocator();
-  const bool use_inline = allocator->SupportsInlineBackingStore() &&
-                          v8::internal::NodeInlineBackingStore::IsSupported();
-  if (use_inline) {
-    if (!v8::internal::NodeInlineBackingStore::NewMany(isolate,
-                                                       size,
-                                                       AccountInlineStore,
-                                                       ReleaseRawInlineStore,
-                                                       stores.data() + reused,
-                                                       count - reused)) {
-      return;
-    }
-  } else
-#endif
-  {
-    for (size_t i = reused; i < count; ++i) {
-      stores[i] = ArrayBuffer::NewBackingStore(
-          isolate,
-          size,
-          BackingStoreInitializationMode::kZeroInitialized,
-          BackingStoreOnFailureMode::kReturnNull);
-      if (!stores[i]) return;
-    }
+  for (size_t i = reused; i < count; ++i) {
+    stores[i] = ArrayBuffer::NewBackingStore(
+        isolate,
+        size,
+        BackingStoreInitializationMode::kZeroInitialized,
+        BackingStoreOnFailureMode::kReturnNull);
+    if (!stores[i]) return;
   }
-#ifdef V8_NODE_CAN_INLINE_BACKING_STORE
-  if (use_inline && v8::internal::NodeInlineBackingStore::IsSupported()) {
-    std::shared_ptr<v8::internal::NodeCopyStoreRecycler> recycler =
-        std::make_shared<CopyStoreRecycler>(pool, index, generation);
-    args.GetReturnValue().Set(v8::internal::NewNodeCopyBatch(
-        isolate, stores.data(), count, size, recycler));
-    return;
-  }
-#endif
   std::array<Local<Value>, kMaxCopyBatchCount> buffers;
   std::weak_ptr<CopyStorePool> target = pool;
   for (unsigned i = 0; i < count; ++i) {
@@ -2061,26 +1992,6 @@ static void RefillCopyStorePool(const FunctionCallbackInfo<Value>& args,
     buffers[i] = ArrayBuffer::New(isolate, std::move(publication));
   }
   args.GetReturnValue().Set(v8::Array::New(isolate, buffers.data(), count));
-}
-
-static void GetCopyNodeByteView(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  auto* isolate_data = env->isolate_data();
-  auto* allocator = isolate_data->node_allocator();
-  if (isolate_data->is_building_snapshot() || allocator == nullptr ||
-      allocator != args.GetIsolate()->GetArrayBufferAllocator() ||
-      !allocator->SupportsInlineBackingStore()) {
-    return;
-  }
-  Local<Context> context = env->context();
-  Local<Value> function;
-  if (context->GetExtrasBindingObject()
-          ->Get(context,
-                FIXED_ONE_BYTE_STRING(args.GetIsolate(), "copyNodeByteView"))
-          .ToLocal(&function) &&
-      function->IsFunction()) {
-    args.GetReturnValue().Set(function);
-  }
 }
 
 static void TrimCopyStorePool(const FunctionCallbackInfo<Value>& args) {
@@ -2306,8 +2217,6 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "createArrayBufferBatch", CreateArrayBufferBatch);
   SetMethod(context, target, "trimCopyStorePool", TrimCopyStorePool);
   SetMethodNoSideEffect(
-      context, target, "getCopyNodeByteView", GetCopyNodeByteView);
-  SetMethodNoSideEffect(
       context, target, "arrayBufferAlignedOffset", ArrayBufferAlignedOffset);
 
   SetFastMethod(context, target, "swap16", Swap16, &fast_swap16);
@@ -2434,7 +2343,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_copy_array_buffer);
   registry->Register(CreateUnsafeArrayBuffer);
   registry->Register(CreateArrayBufferBatch);
-  registry->Register(GetCopyNodeByteView);
   registry->Register(TrimCopyStorePool);
   registry->Register(ArrayBufferAlignedOffset);
 

@@ -4020,22 +4020,12 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
       isolate()->native_context()->array_buffer_fun()->initial_map(),
       isolate());
   ResizableFlag resizable_by_js = ResizableFlag{false};
-  if (backing_store && backing_store->is_resizable_by_js()) {
+  if (backing_store->is_resizable_by_js()) {
     resizable_by_js = ResizableFlag{true};
   }
-  Handle<JSArrayBuffer> result;
-  if (map->instance_size() == JSArrayBuffer::kSizeWithEmbedderFields &&
-      map->GetInObjectProperties() == 0 &&
-      !map->IsInobjectSlackTrackingInProgress()) {
-    result = handle(Cast<JSArrayBuffer>(New(map, allocation)), isolate());
-    DisallowGarbageCollection no_gc;
-    result->set_raw_properties_or_hash(*empty_fixed_array(), SKIP_WRITE_BARRIER);
-    result->initialize_elements();
-  } else {
-    result = Cast<JSArrayBuffer>(
-        NewJSObjectFromMap(map, allocation, DirectHandle<AllocationSite>::null(),
-                           NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper));
-  }
+  auto result = Cast<JSArrayBuffer>(
+      NewJSObjectFromMap(map, allocation, DirectHandle<AllocationSite>::null(),
+                         NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper));
   result->Setup(SharedFlag{false}, resizable_by_js, std::move(backing_store),
                 isolate());
   return result;

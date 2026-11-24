@@ -37,8 +37,6 @@
 #include "src/api/api-arguments.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
-#include "src/api/node-copy-batch.h"
-#include "src/api/node-inline-backing-store.h"
 #include "src/base/bit-field.h"
 #include "src/base/hashing.h"
 #include "src/base/logging.h"
@@ -78,12 +76,9 @@
 #include "src/handles/persistent-handles.h"
 #include "src/handles/shared-object-conveyor-handles.h"
 #include "src/handles/traced-handles-inl.h"
-#include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
-#include "src/heap/incremental-marking.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/visit-object.h"
 #include "src/init/bootstrapper.h"
@@ -9278,126 +9273,9 @@ size_t v8::ArrayBufferBase::CopyArrayBufferBytes(size_t source_start,
 namespace {
 std::shared_ptr<i::BackingStore> ToInternal(
     std::shared_ptr<i::BackingStoreBase> backing_store) {
-  return std::static_pointer_cast<i::BackingStore>(std::move(backing_store));
+  return std::static_pointer_cast<i::BackingStore>(backing_store);
 }
-
-bool TryAllocateNodeCopyShells(i::Isolate* isolate,
-                               i::DirectHandle<i::FixedArray> wrappers,
-                               unsigned count) {
-#if defined(V8_NODE_CAN_INLINE_BACKING_STORE) && !V8_VERIFY_WRITE_BARRIERS && \
-    !defined(V8_USE_MEMORY_SANITIZER) && !defined(THREAD_SANITIZER) && \
-    !defined(V8_IS_TSAN) && !defined(V8_COMPRESS_POINTERS)
-  using Buffer = i::JSArrayBuffer;
-  constexpr int size = Buffer::kSizeWithEmbedderFields;
-  static_assert(size > 0 && size == ALIGN_TO_ALLOCATION_ALIGNMENT(size));
-  static_assert(64 * size <= i::kMaxRegularHeapObjectSize);
-
-  auto* heap = isolate->heap();
-  if (!heap->CanSafepoint()) return false;
-  heap->main_thread_local_heap()->Safepoint();
-  if (!i::v8_flags.enable_allocation_folding || isolate->serializer_enabled() ||
-      !heap->new_space() || heap->IsInGC() || heap->force_oom() ||
-      !heap->IsInlineAllocationEnabled() ||
-      heap->has_heap_object_allocation_tracker() ||
-      heap->incremental_marking()->IsMarking() ||
-      i::v8_flags.single_generation || i::v8_flags.sticky_mark_bits ||
-      i::v8_flags.enable_unconditional_write_barriers) {
-    return false;
-  }
-#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  if (heap->allocator()->get_allocation_timeout_for_testing().has_value()) {
-    return false;
-  }
-#endif
-  const auto map =
-      isolate->raw_native_context()->array_buffer_fun()->initial_map();
-  if (map->instance_type() != i::JS_ARRAY_BUFFER_TYPE ||
-      map->instance_size() != size || map->GetInObjectProperties() != 0 ||
-      map->IsInobjectSlackTrackingInProgress() || map->is_deprecated()) {
-    return false;
-  }
-
-  const unsigned bytes = count * size;
-  auto* lab = heap->allocator()->new_space_allocator();
-  if (!i::HeapLayout::InYoungGeneration(*wrappers) ||
-      !lab->allocation_info().CanIncrementTop(bytes)) {
-    return false;
-  }
-
-  CHECK(i::AllowHeapAllocationInRelease::IsAllowed());
-  i::DisallowGarbageCollectionInRelease no_gc;
-  auto allocation = lab->AllocateRaw(i::SafeHeapObjectSize(bytes),
-                                     i::kTaggedAligned,
-                                     i::AllocationOrigin::kRuntime,
-                                     i::AllocationHint());
-  CHECK(!allocation.IsFailure());
-  const i::Address first = allocation.ToAddress();
-  const auto raw = i::HeapObject::FromAddress(first);
-  raw->set_map_after_allocation(isolate, map, i::SKIP_WRITE_BARRIER);
-  auto shell = i::Cast<Buffer>(raw);
-  shell->set_raw_properties_or_hash(
-      i::ReadOnlyRoots(isolate).empty_fixed_array(), i::SKIP_WRITE_BARRIER);
-  shell->initialize_elements();
-  shell->Setup(i::SharedFlag{false}, i::ResizableFlag{false}, nullptr, isolate);
-
-  for (unsigned filled = 1; filled < count;) {
-    const unsigned copies = std::min(filled, count - filled);
-    i::Heap::CopyBlock(first + filled * size, first,
-                       i::SafeHeapObjectSize(copies * size));
-    filled += copies;
-  }
-  for (unsigned i = 0; i < count; ++i) {
-    wrappers->set(i, i::HeapObject::FromAddress(first + i * size),
-                  i::SKIP_WRITE_BARRIER);
-  }
-  return true;
-#else
-  return false;
-#endif
-}
-
 }  // namespace
-
-Local<v8::Array> internal::NewNodeCopyBatch(
-    v8::Isolate* isolate, std::unique_ptr<v8::BackingStore>* stores,
-    unsigned count, size_t size,
-    const std::shared_ptr<NodeCopyStoreRecycler>& recycler) {
-  CHECK_GE(count, 2u);
-  CHECK_LE(count, 64u);
-  CHECK_GT(size, 64u);
-  CHECK_LE(size, 8192u);
-  CHECK_LE(size, 65536 / count);
-  auto* engine = reinterpret_cast<i::Isolate*>(isolate);
-  ApiRuntimeCallStatsScope rcs_scope(engine, RCCId::kAPI_ArrayBuffer_New);
-  EnterV8NoScriptNoExceptionScope api_scope(engine);
-  i::Factory* factory = engine->factory();
-  i::DirectHandle<i::FixedArray> wrappers = factory->NewFixedArray(count);
-  for (unsigned i = 0; i < count; ++i) {
-    CHECK_NOT_NULL(stores[i].get());
-    CHECK_EQ(stores[i]->ByteLength(), size);
-  }
-  if (!TryAllocateNodeCopyShells(engine, wrappers, count)) {
-    for (unsigned i = 0; i < count; ++i) {
-      auto shell = factory->NewJSArrayBuffer(nullptr);
-      wrappers->set(i, *shell);
-    }
-  }
-  unsigned installed = 0;
-  if (NodeInlineBackingStore::IsSupported()) {
-    installed = engine->heap()->array_buffer_sweeper()->AttachPreparedNodeCopies(
-        wrappers, stores, count, size, recycler);
-  }
-  for (unsigned i = installed; i < count; ++i) {
-    auto return_store = [recycler](v8::BackingStore* value) {
-      recycler->Return(std::unique_ptr<v8::BackingStore>(value));
-    };
-    std::shared_ptr<v8::BackingStore> owner(stores[i].release(), return_store);
-    auto buffer = v8::ArrayBuffer::New(isolate, std::move(owner));
-    wrappers->set(i, *Utils::OpenDirectHandle(*buffer));
-  }
-  return Utils::ToLocal(factory->NewJSArrayWithElements(
-      wrappers, i::PACKED_ELEMENTS, count));
-}
 
 Maybe<bool> v8::ArrayBuffer::Detach(v8::Local<v8::Value> key) {
   auto obj = Utils::OpenDirectHandle(this);
@@ -9508,10 +9386,11 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
   Utils::ApiCheck(
       !i_backing_store->is_shared(), "v8_ArrayBuffer_New",
       "Cannot construct ArrayBuffer with a BackingStore of SharedArrayBuffer");
-  const i::BackingStore* store = i_backing_store.get();
   i::DirectHandle<i::JSArrayBuffer> obj =
       i_isolate->factory()->NewJSArrayBuffer(std::move(i_backing_store));
-  if (obj->backing_store() && store->is_immutable()) {
+  if (obj->backing_store() &&
+      static_cast<i::BackingStore*>(obj->GetBackingStore().get())
+          ->is_immutable()) {
     obj->MakeImmutable(i_isolate);
   }
   return Utils::ToLocalUnshared(obj);

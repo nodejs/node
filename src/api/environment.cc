@@ -192,22 +192,11 @@ void DebuggingArrayBufferAllocator::RegisterPointerInternal(void* data,
   allocations_[data] = size;
 }
 
-namespace {
-#ifdef NODE_PRIVATE_INLINE_BACKING_STORE
-class DefaultArrayBufferAllocator final : public NodeArrayBufferAllocator {
- public:
-  bool SupportsInlineBackingStore() const override { return true; }
-};
-#else
-using DefaultArrayBufferAllocator = NodeArrayBufferAllocator;
-#endif
-}  // namespace
-
 std::unique_ptr<ArrayBufferAllocator> ArrayBufferAllocator::Create(bool debug) {
   if (debug || per_process::cli_options->debug_arraybuffer_allocations)
     return std::make_unique<DebuggingArrayBufferAllocator>();
   else
-    return std::make_unique<DefaultArrayBufferAllocator>();
+    return std::make_unique<NodeArrayBufferAllocator>();
 }
 
 ArrayBufferAllocator* CreateArrayBufferAllocator() {

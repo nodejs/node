@@ -3,15 +3,8 @@
 // found in the LICENSE file.
 
 #include 'src/builtins/builtins-constructor-gen.h'
-#include 'src/builtins/small-byte-copy-gen.h'
 
 namespace typed_array {
-extern macro SmallByteCopyAssembler::TryAllocatePrivateByteView(
-    implicit context: Context)(Map, uintptr): JSTypedArray labels Generic;
-
-extern macro SmallByteCopyAssembler::TryAllocateExternalByteView(
-    Map, JSArrayBuffer, uintptr): JSTypedArray labels Generic;
-
 extern builtin IterableToListConvertHoles(Context, Object, Callable): JSArray;
 
 extern macro TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
@@ -516,84 +509,6 @@ transitioning builtin CreateTypedArray(
     ThrowTypeError(
         MessageTemplate::kFirstArgumentIteratorSymbolNonCallable,
         'TypedArray\'s constructor');
-  }
-}
-
-macro TakeNodeCopyBuffer(implicit context: Context)(destination: JSAny):
-    JSArrayBuffer labels Miss {
-  typeswitch (destination) {
-    case (buffer: JSArrayBuffer): {
-      return buffer;
-    }
-    case (batch: FastJSArray): {
-      if (batch.length == 0) goto Miss;
-      let witness = NewFastJSArrayWitness(batch);
-      witness.EnsureArrayPushable() otherwise Miss;
-      const last = batch.length - 1;
-      const entry = witness.LoadElementNoHole(last) otherwise Miss;
-      const buffer = Cast<JSArrayBuffer>(entry) otherwise Miss;
-      witness.ChangeLength(last);
-      witness.StoreHole(last);
-      return buffer;
-    }
-    case (JSAny): {
-      goto Miss;
-    }
-  }
-}
-
-transitioning javascript builtin CopyNodeByteView(
-    js-implicit context: NativeContext)(
-    constructor: JSAny, source: JSAny, destination: JSAny): JSAny {
-  try {
-    const newTarget = Cast<JSFunction>(constructor) otherwise Miss;
-    if (!IsConstructor(newTarget)) goto Miss;
-    const src = Cast<JSTypedArray>(source) otherwise Miss;
-    if (src.elements_kind != ElementsKind::UINT8_ELEMENTS ||
-        IsSharedArrayBuffer(src.buffer) || IsResizableArrayBuffer(src.buffer)) {
-      goto Miss;
-    }
-    const target =
-        *NativeContextSlot(context, ContextSlot::UINT8_ARRAY_FUN_INDEX);
-    const map = GetDerivedMap(target, newTarget);
-    const info = GetTypedArrayElementsInfo(map);
-    if (info.kind != ElementsKind::UINT8_ELEMENTS) goto Miss;
-    if (IsDetachedBuffer(src.buffer)) goto Miss;
-    const length = src.byte_length;
-    if (length <= 64 || length > 1024) goto Miss;
-
-    let copy: JSTypedArray;
-    if (destination == Undefined) {
-      try {
-        if (length > kMaxTypedArrayInHeap) goto Generic;
-        copy = TryAllocatePrivateByteView(map, length) otherwise Generic;
-        AttachView(copy.buffer, copy);
-      } label Generic {
-        return ConstructByArrayLike(map, src, length, info);
-      }
-    } else {
-      const buffer = TakeNodeCopyBuffer(destination) otherwise Miss;
-      if (IsSharedArrayBuffer(buffer) || IsResizableArrayBuffer(buffer) ||
-          IsDetachedBuffer(buffer) || IsImmutableArrayBuffer(buffer) ||
-          src.buffer == buffer || length != buffer.byte_length) goto Miss;
-      try {
-        copy = TryAllocateExternalByteView(map, buffer, length) otherwise Generic;
-        AttachView(buffer, copy);
-      } label Generic {
-        copy = AllocateTypedArray(false, map, buffer, 0, length, false);
-      }
-    }
-
-    if (IsDetachedBuffer(src.buffer) || IsDetachedBuffer(copy.buffer)) goto Miss;
-    if (IsImmutableArrayBuffer(copy.buffer)) goto Miss;
-    const sourceLength = src.byte_length;
-    const targetLength = copy.byte_length;
-    if (sourceLength != length || targetLength != length) goto Miss;
-
-    typed_array::CallCMemmove(copy.data_ptr, src.data_ptr, length);
-    return copy;
-  } label Miss {
-    return Undefined;
   }
 }
 

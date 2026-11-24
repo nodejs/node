@@ -849,13 +849,6 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
-        ['node_use_bundled_v8=="true" and component=="static_library" and asan==0 and v8_enable_sandbox==0', {
-          'configurations': {
-            'Release': {
-              'defines': ['NODE_PRIVATE_INLINE_BACKING_STORE'],
-            },
-          },
-        }],
         [ 'openssl_default_cipher_list!=""', {
           'defines': [
             'NODE_OPENSSL_DEFAULT_CIPHER_LIST="<(openssl_default_cipher_list)"'

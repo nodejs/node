@@ -147,7 +147,6 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
     total_mem_usage_.fetch_sub(size, std::memory_order_relaxed);
   }
 
-  virtual bool SupportsInlineBackingStore() const { return false; }
   NodeArrayBufferAllocator* GetImpl() final { return this; }
   inline uint64_t total_mem_usage() const {
     return total_mem_usage_.load(std::memory_order_relaxed);

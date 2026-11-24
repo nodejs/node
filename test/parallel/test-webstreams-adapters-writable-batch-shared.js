@@ -1,11 +1,21 @@
+// Flags: --expose-internals
 'use strict';
 require('../common');
 const assert = require('node:assert/strict');
 const { Writable } = require('node:stream');
 const { test } = require('node:test');
+const { internalBinding } = require('internal/test/binding');
 
-test('buffered writes copy shared inputs into separate SharedArrayBuffers', async () => {
-  const warmup = 1200;
+test('buffered shared writes preserve reserved buffers for ordinary writes', async (t) => {
+  const binding = internalBinding('buffer');
+  const { createArrayBufferBatch } = binding;
+  let batch;
+  t.mock.method(binding, 'createArrayBufferBatch', (...args) => {
+    batch = createArrayBufferBatch(...args);
+    return batch;
+  });
+
+  let warmup = 1200;
   const size = 1024;
   const regular = Buffer.alloc(size);
   const shared = new Uint8Array(new SharedArrayBuffer(size + 8), 8, size);
@@ -27,15 +37,25 @@ test('buffered writes copy shared inputs into separate SharedArrayBuffers', asyn
   })).getWriter();
 
   for (let i = 0; i < warmup; i++) await writer.write(regular);
+  // If the last warmup write emptied the batch, start a fresh one.
+  if (batch?.length === 0) {
+    warmup++;
+    await writer.write(regular);
+  }
+  assert.ok(batch?.length > 0);
+  const nextBuffer = batch.at(-1);
   const sources = [shared, regular, shared];
   for (const [index, source] of sources.entries()) {
+    const available = batch.length;
     source.fill(index + 1);
     await writer.write(source);
+    assert.strictEqual(batch.length, source === shared ? available : available - 1);
     source.fill(255);
   }
   await writer.close();
 
   assert.strictEqual(seen, warmup + sources.length);
+  assert.strictEqual(retained[1].buffer, nextBuffer);
   assert.strictEqual(new Set(retained.map((chunk) => chunk.buffer)).size, sources.length);
   for (const [index, chunk] of retained.entries()) {
     assert(Buffer.isBuffer(chunk));

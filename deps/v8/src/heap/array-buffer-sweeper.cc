@@ -8,7 +8,6 @@
 #include <memory>
 #include <utility>
 
-#include "src/api/node-inline-backing-store.h"
 #include "src/base/logging.h"
 #include "src/common/synchronization-point-support.h"
 #include "src/execution/isolate-inl.h"
@@ -17,28 +16,12 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
-#include "src/objects/fixed-array-inl.h"
-#include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/node-copy-extension-batch.h"
+#include "src/objects/js-array-buffer.h"
 
 namespace v8 {
 namespace internal {
 
 size_t ArrayBufferList::Append(ArrayBufferExtension* extension) {
-  const size_t accounting_length = [&] {
-    if (age_ == ArrayBufferExtension::Age::kOld) {
-      return extension->SetOld().accounting_length();
-    } else {
-      return extension->SetYoung().accounting_length();
-    }
-  }();
-  AppendWithKnownAge(extension, accounting_length);
-  return accounting_length;
-}
-
-void ArrayBufferList::AppendWithKnownAge(ArrayBufferExtension* extension,
-                                         size_t bytes) {
-  DCHECK_EQ(age_, extension->age());
   if (head_ == nullptr) {
     DCHECK_NULL(tail_);
     head_ = tail_ = extension;
@@ -46,11 +29,20 @@ void ArrayBufferList::AppendWithKnownAge(ArrayBufferExtension* extension,
     tail_->set_next(extension);
     tail_ = extension;
   }
+
+  const size_t accounting_length = [&] {
+    if (age_ == ArrayBufferExtension::Age::kOld) {
+      return extension->SetOld().accounting_length();
+    } else {
+      return extension->SetYoung().accounting_length();
+    }
+  }();
   // On 32-bit this addition can overflow. This is okay because it changes at
   // most GC scheduling and the counter will be re-computed from scratch in the
   // next GC cycle.
-  bytes_ += bytes;
+  bytes_ += accounting_length;
   extension->set_next(nullptr);
+  return accounting_length;
 }
 
 void ArrayBufferList::Append(ArrayBufferList& list) {
@@ -367,74 +359,17 @@ void ArrayBufferSweeper::Append(ArrayBufferExtension* extension) {
   size_t bytes = extension->accounting_length();
 
   FinishIfDone();
-  AppendToList(extension, bytes);
-  IncrementExternalMemoryCounters(bytes);
-}
 
-void ArrayBufferSweeper::AppendToList(ArrayBufferExtension* extension,
-                                      size_t bytes) {
   switch (extension->age()) {
     case ArrayBufferExtension::Age::kYoung:
-      young_.AppendWithKnownAge(extension, bytes);
+      young_.Append(extension);
       break;
-    case ArrayBufferExtension::Age::kOld:
-      old_.AppendWithKnownAge(extension, bytes);
+    case v8::internal::ArrayBufferExtension::Age::kOld:
+      old_.Append(extension);
       break;
   }
-}
 
-unsigned ArrayBufferSweeper::AttachPreparedNodeCopies(
-    DirectHandle<FixedArray> wrappers,
-    std::unique_ptr<v8::BackingStore>* stores, unsigned count, size_t size,
-    const std::shared_ptr<NodeCopyStoreRecycler>& recycler) {
-  CHECK_LE(count, 64u);
-  CHECK_GE(count, 2u);
-  CHECK_LE(size, 65536 / count);
-  const size_t bytes = size * count;
-  Isolate* isolate = heap_->isolate();
-  auto* api_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  FinishIfDone();
-  const auto epoch = heap_->gc_count();
-  const uint64_t external = heap_->external_memory();
-  const uint64_t limit = heap_->external_memory_limit_for_interrupt();
-  NodeCopyExtensionBatch batch;
-  if (external < limit && bytes < limit - external) {
-    external_memory_accounter_.Increase(api_isolate, bytes);
-    if (heap_->gc_count() == epoch &&
-        NodeInlineBackingStore::IsSupported()) {
-      DisallowGarbageCollection no_gc;
-      auto* young_tail = young_.tail_;
-      size_t young_bytes = 0;
-      for (unsigned i = 0; i < count; ++i) {
-        auto shell = Cast<JSArrayBuffer>(wrappers->get(i));
-        auto* ext = batch.Install(shell, isolate, std::move(stores[i]),
-                                  recycler, no_gc, count - i);
-        if (ext->age() == ArrayBufferExtension::Age::kOld) {
-          old_.AppendWithKnownAge(ext, size);
-          continue;
-        }
-        DCHECK_NULL(ext->next());
-        if (young_tail) {
-          young_tail->set_next(ext);
-        } else {
-          young_.head_ = ext;
-        }
-        young_tail = ext;
-        young_bytes += size;
-      }
-      young_.tail_ = young_tail;
-      young_.bytes_ += young_bytes;
-      total_bytes_ += bytes;
-      return count;
-    }
-    external_memory_accounter_.Decrease(api_isolate, bytes);
-  }
-  for (unsigned i = 0; i < count; ++i) {
-    if (!NodeInlineBackingStore::IsSupported()) return i;
-    Cast<JSArrayBuffer>(wrappers->get(i))->AttachNodeCopyStore(
-        isolate, std::move(stores[i]), recycler);
-  }
-  return count;
+  IncrementExternalMemoryCounters(bytes);
 }
 
 void ArrayBufferSweeper::Resize(ArrayBufferExtension* extension,
@@ -507,11 +442,7 @@ void ArrayBufferSweeper::FinalizeAndDelete(ArrayBufferExtension* extension) {
 #ifdef V8_COMPRESS_POINTERS
   extension->ZapExternalPointerTableEntry();
 #endif  // V8_COMPRESS_POINTERS
-  if (V8_UNLIKELY(extension->is_node_copy())) {
-    extension->DeleteNodeCopy();
-  } else {
-    delete extension;
-  }
+  delete extension;
 }
 
 void ArrayBufferSweeper::SweepingState::SweepingJob::Sweep(
