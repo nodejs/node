@@ -362,6 +362,8 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   base::TimeDelta sampling_interval() const { return base_sampling_interval_; }
   void set_sampling_interval(base::TimeDelta value);
   void set_use_precise_sampling(bool);
+  void set_sample_context_extractor(
+      ProfilerEventsProcessor::SampleContextExtractor extractor);
   void CollectSample(const std::optional<uint64_t> trace_id = std::nullopt);
   size_t GetEstimatedMemoryUsage() const;
   CpuProfilingResult StartProfiling(
@@ -398,8 +400,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   }
 
  private:
-  void StartProcessorIfNotStarted(
-      ProfilerEventsProcessor::SampleContextExtractor sample_context_extractor);
+  void StartProcessorIfNotStarted();
   void StopProcessor();
   void ResetProfiles();
 
@@ -416,6 +417,8 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   const NamingMode naming_mode_;
   const LoggingMode logging_mode_;
   bool use_precise_sampling_ = true;
+  ProfilerEventsProcessor::SampleContextExtractor sample_context_extractor_ =
+      nullptr;
   // Sampling interval to which per-profile sampling intervals will be clamped
   // to a multiple of, or used as the default if unspecified.
   base::TimeDelta base_sampling_interval_;

@@ -627,9 +627,8 @@ v8::CpuProfile* ProfilerHelper::Run(
   v8::Local<v8::String> profile_name = v8_str("my_profile");
 
   profiler_->SetSamplingInterval(20);
-  profiler_->StartProfiling(profile_name, {mode, max_samples, 0, context,
-                                           v8::CpuProfileSource::kUnspecified,
-                                           sample_context_extractor});
+  profiler_->SetSampleContextExtractor(sample_context_extractor);
+  profiler_->StartProfiling(profile_name, {mode, max_samples, 0, context});
 
   v8::internal::CpuProfiler* iprofiler =
       reinterpret_cast<v8::internal::CpuProfiler*>(profiler_);
@@ -4352,8 +4351,8 @@ const char* sample_context_extractor_test_source =
 }  // namespace
 
 // Tests that an embedder SampleContextExtractor installed via
-// CpuProfilingOptions is invoked for each sample and its return value is
-// retrievable through CpuProfile::GetSampleContext.
+// CpuProfiler::SetSampleContextExtractor is invoked for each sample and its
+// return value is retrievable through CpuProfile::GetSampleContext.
 TEST(SampleContextExtractor) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -4389,7 +4388,7 @@ TEST(SampleContextExtractor) {
   profile->Delete();
 }
 
-// Tests that when no extractor is installed on CpuProfilingOptions, every
+// Tests that when no extractor is installed on the CpuProfiler, every
 // sample's GetSampleContext() returns nullptr (i.e. the default carries
 // through, no spurious writes).
 TEST(SampleContextExtractorAbsent) {
@@ -4401,7 +4400,7 @@ TEST(SampleContextExtractorAbsent) {
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
 
   ProfilerHelper helper(env.local());
-  // helper.Run() builds CpuProfilingOptions without an extractor.
+  // helper.Run() installs no extractor by default.
   v8::CpuProfile* profile = helper.Run(function, nullptr, 0);
 
   CHECK_GE(profile->GetSamplesCount(), kCollectSampleCount);
@@ -4436,21 +4435,15 @@ TEST(SampleContextExtractorPerProfilerIsolation) {
 
   v8::CpuProfiler* profiler_a = v8::CpuProfiler::New(env.isolate());
   v8::CpuProfiler* profiler_b = v8::CpuProfiler::New(env.isolate());
+  profiler_a->SetSampleContextExtractor(&ExtractorA);
+  profiler_b->SetSampleContextExtractor(&ExtractorB);
 
   v8::Local<v8::String> name_a = v8_str("profile_a");
   v8::Local<v8::String> name_b = v8_str("profile_b");
-  v8::CpuProfilingResult result_a = profiler_a->Start(
-      name_a,
-      v8::CpuProfilingOptions(v8::CpuProfilingMode::kLeafNodeLineNumbers,
-                              v8::CpuProfilingOptions::kNoSampleLimit, 0,
-                              v8::MaybeLocal<v8::Context>(),
-                              v8::CpuProfileSource::kUnspecified, &ExtractorA));
-  v8::CpuProfilingResult result_b = profiler_b->Start(
-      name_b,
-      v8::CpuProfilingOptions(v8::CpuProfilingMode::kLeafNodeLineNumbers,
-                              v8::CpuProfilingOptions::kNoSampleLimit, 0,
-                              v8::MaybeLocal<v8::Context>(),
-                              v8::CpuProfileSource::kUnspecified, &ExtractorB));
+  v8::CpuProfilingResult result_a =
+      profiler_a->Start(name_a, /* record_samples */ true);
+  v8::CpuProfilingResult result_b =
+      profiler_b->Start(name_b, /* record_samples */ true);
   CHECK(result_a.status == v8::CpuProfilingStatus::kStarted);
   CHECK(result_b.status == v8::CpuProfilingStatus::kStarted);
 
@@ -4479,6 +4472,74 @@ TEST(SampleContextExtractorPerProfilerIsolation) {
   profile_b->Delete();
   profiler_a->Dispose();
   profiler_b->Dispose();
+}
+
+// Tests that the extractor installed on a CpuProfiler is read anew each time
+// it starts profiling, so it can be replaced or removed between sessions.
+TEST(SampleContextExtractorReplaced) {
+  LocalContext env;
+  v8::HandleScope scope(env.isolate());
+
+  InstallCollectSampleFunction(env.local());
+  CompileRun(sample_context_extractor_test_source);
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+
+  ProfilerHelper helper(env.local());
+  struct {
+    v8::SampleContextExtractor extractor;
+    void* expected;
+  } const sessions[] = {
+      {&ExtractorA, kExtractorASentinel},
+      {&ExtractorB, kExtractorBSentinel},
+      {nullptr, nullptr},
+  };
+  for (const auto& session : sessions) {
+    v8::CpuProfile* profile = helper.Run(
+        function, nullptr, 0, 0, 0, v8::CpuProfilingMode::kLeafNodeLineNumbers,
+        v8::CpuProfilingOptions::kNoSampleLimit, v8::Local<v8::Context>(),
+        session.extractor);
+    CHECK_GE(profile->GetSamplesCount(), kCollectSampleCount);
+    for (int i = 0; i < profile->GetSamplesCount(); ++i) {
+      CHECK_EQ(session.expected, profile->GetSampleContext(i));
+    }
+    profile->Delete();
+  }
+}
+
+// Tests that the extractor keeps being invoked for as long as the CpuProfiler
+// records any profile, including after the profile that was active when it
+// started profiling has stopped.
+TEST(SampleContextExtractorOutlivesFirstProfile) {
+  LocalContext env;
+  v8::HandleScope scope(env.isolate());
+
+  InstallCollectSampleFunction(env.local());
+  CompileRun(sample_context_extractor_test_source);
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+
+  v8::CpuProfiler* profiler = v8::CpuProfiler::New(env.isolate());
+  profiler->SetSampleContextExtractor(&ExtractorA);
+
+  v8::Local<v8::String> first = v8_str("first");
+  v8::Local<v8::String> second = v8_str("second");
+  CHECK(profiler->Start(first, /* record_samples */ true).status ==
+        v8::CpuProfilingStatus::kStarted);
+  CHECK(profiler->Start(second, /* record_samples */ true).status ==
+        v8::CpuProfilingStatus::kStarted);
+  profiler->StopProfiling(first)->Delete();
+
+  function->Call(env.local(), env.local()->Global(), 0, nullptr)
+      .ToLocalChecked();
+
+  // Stopping the last profile drains all samples still queued for it.
+  v8::CpuProfile* profile = profiler->StopProfiling(second);
+  CHECK(profile);
+  CHECK_GE(profile->GetSamplesCount(), kCollectSampleCount);
+  for (int i = 0; i < profile->GetSamplesCount(); ++i) {
+    CHECK_EQ(kExtractorASentinel, profile->GetSampleContext(i));
+  }
+  profile->Delete();
+  profiler->Dispose();
 }
 
 // Tests that when a native context that's being filtered is moved, we continue
