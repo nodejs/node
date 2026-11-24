@@ -100,10 +100,22 @@ jobs:
         with:
           extra_nix_config: sandbox = true
 
+      - name: Build Cachix
+        if: ${{ matrix.runner == 'macos-15-intel' }}
+        id: build_cachix
+        run: |
+          nix-build --no-out-link -I "nixpkgs=tools/nix/pkgs.nix" -E '(import <nixpkgs> {}).cachix'
+          {
+            printf "BIN="
+            nix-instantiate --eval --raw -I "nixpkgs=tools/nix/pkgs.nix" -E 'with (import <nixpkgs> {});lib.getExe cachix'
+            printf '\n'
+          } >> "$GITHUB_OUTPUT"
+
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
         with:
           # We do not pass any `authToken` to avoid polluting the cache with potentially untrusted code.
           name: nodejs
+          cachixBin: ${{ steps.build_cachix.outputs.BIN || '' }}
 
       - name: Configure sccache
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
@@ -119,7 +131,7 @@ jobs:
         run: |
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
-            --pure --keep TAR_DIR --keep FLAKY_TESTS \
+            --pure \
             --keep SCCACHE_GHA_ENABLED --keep SCCACHE_GHA_RW_MODE \
             --keep ACTIONS_CACHE_SERVICE_V2 --keep ACTIONS_RESULTS_URL --keep ACTIONS_RUNTIME_TOKEN \
             --arg withPerfetto ${{ matrix.perfetto || false }} \

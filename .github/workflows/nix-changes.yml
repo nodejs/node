@@ -61,10 +61,23 @@ jobs:
         with:
           extra_nix_config: sandbox = true
 
+      - name: Build Cachix
+        if: ${{ matrix.runner == 'macos-15-intel' }}
+        id: build_cachix
+        run: |
+          nix-build --no-out-link -I "nixpkgs=tools/nix/pkgs.nix" -E '(import <nixpkgs> {}).cachix'
+          {
+            printf "BIN="
+            nix-instantiate --eval --raw -I "nixpkgs=tools/nix/pkgs.nix" -E 'with (import <nixpkgs> {});lib.getExe cachix'
+            printf '\n'
+          } >> "$GITHUB_OUTPUT"
+
+
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
         with:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
           name: nodejs
+          cachixBin: ${{ steps.build_cachix.outputs.BIN || '' }}
 
       - name: Compute requisites after change
         run: ./tools/nix/list-requisites.sh > requisites-${{ matrix.system }}-after.list
