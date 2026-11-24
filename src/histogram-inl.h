@@ -98,8 +98,7 @@ uint64_t Histogram::ResetCount() const {
 
 int64_t Histogram::Min() const {
   RwLock::ScopedReadLock lock(mutex_);
-  if (histogram_->total_count == 0)
-    return std::numeric_limits<int64_t>::max();
+  if (histogram_->total_count == 0) return std::numeric_limits<int64_t>::max();
   return hdr_min(histogram_.get());
 }
 
