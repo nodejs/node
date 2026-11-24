@@ -560,7 +560,7 @@ function stripURLForReferrer (url, originOnly = false) {
   return url
 }
 
-const isPotentialleTrustworthyIPv4 = RegExp.prototype.test
+const isPotentiallyTrustworthyIPv4 = RegExp.prototype.test
   .bind(/^127\.(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)\.){2}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)$/)
 
 const isPotentiallyTrustworthyIPv6 = RegExp.prototype.test
@@ -583,7 +583,7 @@ function isOriginIPPotentiallyTrustworthy (origin) {
   }
 
   // IPv4
-  return isPotentialleTrustworthyIPv4(origin)
+  return isPotentiallyTrustworthyIPv4(origin)
 }
 
 /**

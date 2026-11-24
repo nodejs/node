@@ -650,7 +650,7 @@ function isInvalidOrWildcardVaryHeader (varyHeader) {
 
 /**
  * Note: this deviates from the spec a little. Empty etags ("", W/"") are valid,
- *  however, including them in cached resposnes serves little to no purpose.
+ *  however, including them in cached responses serves little to no purpose.
  *
  * @see https://www.rfc-editor.org/rfc/rfc9110.html#name-etag
  *

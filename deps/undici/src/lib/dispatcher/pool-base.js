@@ -4,7 +4,8 @@ const { AsyncResource } = require('node:async_hooks')
 const { PoolStats } = require('../util/stats.js')
 const DispatcherBase = require('./dispatcher-base')
 const FixedQueue = require('./fixed-queue')
-const { kConnected, kSize, kRunning, kPending, kQueued, kBusy, kFree, kUrl, kClose, kDestroy, kDispatch } = require('../core/symbols')
+const { kConnected, kSize, kRunning, kPending, kQueued, kBusy, kFree, kUrl, kClose, kDestroy, kDispatch, kQueuedAbort } = require('../core/symbols')
+const { createAbortedController } = require('../core/request')
 
 const kClients = Symbol('clients')
 const kNeedDrain = Symbol('needDrain')
@@ -23,6 +24,8 @@ const kAddClient = Symbol('add client')
 const kRemoveClient = Symbol('remove client')
 const kRetireClient = Symbol('retire client')
 const kRetiring = Symbol('retiring clients')
+const kShiftQueue = Symbol('shift queue')
+const kAbortQueued = Symbol('abort queued')
 
 // Closes every live client, including clients that have been
 // taken out of rotation but are still finishing their own
@@ -36,6 +39,8 @@ class QueuedRequest extends AsyncResource {
     super('UNDICI_POOL_QUEUED_REQUEST')
     this.opts = opts
     this.handler = handler
+    // Cleared once the request leaves the queue, so a late abort is ignored.
+    this.queued = true
   }
 
   dispatch (dispatcher) {
@@ -75,17 +80,15 @@ class PoolBase extends DispatcherBase {
       return
     }
 
-    const queue = this[kQueue]
     let needDrain = false
 
     this[kOnClientDrain](client)
 
     while (!needDrain) {
-      const item = queue.shift()
+      const item = this[kShiftQueue]()
       if (!item) {
         break
       }
-      this[kQueued]--
       needDrain = !item.dispatch(client)
     }
 
@@ -98,7 +101,7 @@ class PoolBase extends DispatcherBase {
       // negotiated and hit maxConcurrentStreams. Hand the rest to other
       // clients, creating new ones up to the connection limit, instead of
       // leaving them for this client to drain one batch at a time.
-      if (!queue.isEmpty()) {
+      if (this[kQueued] > 0) {
         return this[kDrainQueue](origin, targets)
       }
     }
@@ -108,7 +111,7 @@ class PoolBase extends DispatcherBase {
       this.emit('drain', origin, [this, ...targets])
     }
 
-    if (this[kClosedResolve] && queue.isEmpty()) {
+    if (this[kClosedResolve] && this[kQueued] === 0) {
       return closeClients(this).then(this[kClosedResolve])
     }
   }
@@ -118,23 +121,31 @@ class PoolBase extends DispatcherBase {
   [kOnClientDrain] () {}
 
   [kDrainQueue] (origin, targets) {
-    const queue = this[kQueue]
     let hasDispatcher = true
 
-    while (!queue.isEmpty()) {
-      const dispatcher = this[kGetDispatcher]()
+    while (this[kQueued] > 0) {
+      let dispatcher
+      try {
+        dispatcher = this[kGetDispatcher]()
+      } catch (err) {
+        // Selection failed before a dispatcher took ownership of this item.
+        const item = this[kShiftQueue]()
+        item.runInAsyncScope(item.handler.onResponseError, item.handler, null, err)
+        // The error handler may synchronously dispatch and consume capacity.
+        hasDispatcher = !this.destroyed && this[kHasDispatcher](false)
+        continue
+      }
       if (!dispatcher) {
         hasDispatcher = false
         break
       }
 
-      const item = queue.shift()
-      this[kQueued]--
+      const item = this[kShiftQueue]()
 
       if (!item.dispatch(dispatcher)) {
         dispatcher[kNeedDrain] = true
         this[kOnClientBusy](dispatcher)
-        hasDispatcher = this[kHasDispatcher]()
+        hasDispatcher = this[kHasDispatcher](false)
         if (!hasDispatcher) {
           break
         }
@@ -146,8 +157,45 @@ class PoolBase extends DispatcherBase {
       this.emit('drain', origin, [this, ...targets])
     }
 
-    if (this[kClosedResolve] && queue.isEmpty()) {
+    if (this[kClosedResolve] && this[kQueued] === 0) {
       return closeClients(this).then(this[kClosedResolve])
+    }
+  }
+
+  // Aborted requests stay in the queue as tombstones (queued === false) and
+  // are skipped here; kQueued only counts the live ones.
+  [kShiftQueue] () {
+    const queue = this[kQueue]
+    let item = queue.shift()
+    while (item !== null && item.queued === false) {
+      item = queue.shift()
+    }
+
+    if (item !== null) {
+      this[kQueued]--
+      item.queued = false
+    }
+
+    return item
+  }
+
+  // Called through the handler's kQueuedAbort hook when a queued request is
+  // aborted.
+  [kAbortQueued] (item, reason) {
+    if (!item.queued) {
+      return
+    }
+
+    const { handler } = item
+    item.queued = false
+    item.opts = null
+    item.handler = null
+    this[kQueued]--
+
+    item.runInAsyncScope(handler.onResponseError, handler, createAbortedController(reason), reason)
+
+    if (this[kClosedResolve] && this[kQueued] === 0) {
+      closeClients(this).then(this[kClosedResolve])
     }
   }
 
@@ -212,7 +260,7 @@ class PoolBase extends DispatcherBase {
   }
 
   [kClose] () {
-    if (this[kQueue].isEmpty()) {
+    if (this[kQueued] === 0) {
       return closeClients(this)
     } else {
       return new Promise((resolve) => {
@@ -223,7 +271,7 @@ class PoolBase extends DispatcherBase {
 
   [kDestroy] (err) {
     while (true) {
-      const item = this[kQueue].shift()
+      const item = this[kShiftQueue]()
       if (!item) {
         break
       }
@@ -244,9 +292,17 @@ class PoolBase extends DispatcherBase {
     const dispatcher = this[kGetDispatcher]()
 
     if (!dispatcher) {
+      const item = new QueuedRequest(opts, handler)
       this[kNeedDrain] = true
-      this[kQueue].push(new QueuedRequest(opts, handler))
+      this[kQueue].push(item)
       this[kQueued]++
+
+      const onQueued = opts[kQueuedAbort]
+      if (onQueued !== undefined) {
+        // Give the handler a way to remove the request from the queue as soon
+        // as it is aborted.
+        onQueued((reason) => this[kAbortQueued](item, reason))
+      }
     } else if (!dispatcher.dispatch(opts, handler)) {
       dispatcher[kNeedDrain] = true
       this[kOnClientBusy](dispatcher)

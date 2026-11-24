@@ -36,6 +36,29 @@ issue.
 
 Undici is an HTTP client library for Node.js. Its threat model is derived from
 and aligned with the [Node.js threat model](https://github.com/nodejs/node/blob/HEAD/SECURITY.md#the-nodejs-threat-model).
+The Node.js policy is authoritative for the copy of undici bundled with
+Node.js. This section applies the same boundaries to the standalone undici
+package.
+
+### Security triage dispositions
+
+Security reports are classified using the same dispositions as Node.js:
+
+* **Vulnerability**: An undici defect that is exploitable across an
+  undici-owned security boundary and meets the criteria under
+  [What constitutes a vulnerability](#what-constitutes-a-vulnerability),
+  including any applicable DoS criteria.
+* **Security-interest bug**: A real undici defect, or an API behavior likely to
+  cause security bugs in applications, that is not itself a vulnerability
+  under this threat model. These are fixed as regular bugs and do not
+  automatically receive a CVE, but should still be reported privately first
+  when they affect a common security control such as protocol interpretation,
+  certificate validation, or TLS decisions.
+* **Common bug**: A correctness, robustness, or crash issue without an
+  undici-owned security boundary or a realistic cross-boundary attacker
+  benefit.
+* **Invalid / out of scope**: A report that cannot be reproduced, is not an
+  undici defect, or concerns behavior excluded by this policy.
 
 ### What constitutes a vulnerability
 
@@ -53,27 +76,40 @@ For a behavior to be considered a DoS vulnerability, the proof of concept must
 meet the following criteria:
 
 * The API is being correctly used.
-* The API is public and documented.
-* The behavior is significant enough to cause a denial of service quickly
-  or in a context not controlled by the application developer (for example,
-  HTTP parsing).
+* The API does not have a warning against its use in production.
+* The API is public and documented. For standards-based APIs, the behavior
+  must be well-defined by the applicable specification.
+* The API is stable. For APIs bundled in Node.js, it must have stable (2.0)
+  status.
+* The behavior is significant enough to cause a denial of service quickly or
+  in a context not controlled by the application developer, such as protocol
+  parsing.
 * The behavior is directly exploitable by an untrusted source without requiring
   application mistakes.
 * The behavior cannot be reasonably mitigated through standard operational
-  practices (like process recycling).
+  practices, such as process recycling.
+* The behavior occurs deterministically under normal usage patterns rather than
+  only in edge cases.
+* The behavior occurs at a rate that would cause practical resource exhaustion
+  within a practical timeframe under typical workloads.
 * The attack demonstrates
   [asymmetric resource consumption](https://cwe.mitre.org/data/definitions/405.html),
-  where the attacker expends significantly fewer resources than what is required
-  by the client to process the attack.
+  where the attacker expends significantly fewer resources than the client
+  must expend to process the attack. Attacks requiring comparable resources on
+  the attacker's side, which can be mitigated through practices such as rate
+  limiting, may not qualify.
 
 **Undici does NOT trust**:
 
-* Data received from the remote end of HTTP connections (both inbound responses
-  and server-sent data) that is parsed or transformed by undici before being
-  passed to the application. This includes:
+* Data received from the remote end of outbound network connections created
+  through undici APIs and transformed or validated by undici before being
+  passed to the application, **except with respect to payload length**. Undici
+  trusts applications to make connections and requests that avoid payload
+  sizes that would result in a denial of service. Subject to that exception,
+  untrusted data includes:
   * HTTP response headers and status lines.
-  * HTTP response bodies when processed by undici (e.g., chunked transfer
-    decoding, content-encoding).
+  * HTTP response bodies processed by undici, such as chunked transfer decoding
+    and content-encoding.
   * WebSocket frames received from a server.
   * Server-Sent Events (EventSource) data received from a server.
 * TLS certificate validation performed by undici on behalf of the application.
@@ -81,7 +117,8 @@ meet the following criteria:
 **Undici trusts**:
 
 * The application code that uses its APIs, including all configuration,
-  options, callbacks, and decisions about which body-consuming APIs to call.
+  options, callbacks, connection and request decisions, and decisions about
+  which body-consuming APIs to call.
 * The operating system and its network stack.
 * The Node.js runtime undici is running on.
 * Dependencies installed by the application.
@@ -99,19 +136,19 @@ meet the following criteria:
   bypass organizational, regulatory, or legal controls. Untrusted proxies are
   outside the supported threat model.
 
-In other words, if untrusted data passing through undici to the application
-can trigger actions other than those documented for the APIs, there is likely
-a security vulnerability. Examples of unwanted actions are polluting globals,
-causing an unrecoverable crash, or any other unexpected side effects that can
-lead to a loss of confidentiality, integrity, or availability.
+In other words, if untrusted data passing through undici to the application can
+trigger actions other than those documented for the APIs, there is likely a
+security vulnerability. Examples include polluting globals, causing an
+unrecoverable crash, or other unexpected side effects that can lead to a loss
+of confidentiality, integrity, or availability.
 
 ### Examples of vulnerabilities
 
 #### Improper Certificate Validation (CWE-295)
 
 * Undici provides TLS connections to HTTPS endpoints. If certificates can be
-  crafted that result in incorrect validation by undici, that is considered
-  a vulnerability.
+  crafted that result in incorrect validation by undici, that is considered a
+  vulnerability.
 
 #### Inconsistent Interpretation of HTTP Responses (CWE-444)
 
@@ -127,11 +164,18 @@ lead to a loss of confidentiality, integrity, or availability.
 
 #### CRLF Injection in Request Headers (CWE-93)
 
-* If untrusted input passed to undici APIs (such as header values or URLs)
-  can inject additional headers or corrupt the HTTP request stream, that is
+* If untrusted input passed to undici APIs, such as header values or URLs, can
+  inject additional headers or corrupt the HTTP request stream, that is
   considered a vulnerability.
 
 ### Examples of non-vulnerabilities
+
+#### Defense-in-depth issues
+
+* Bugs whose fixes only improve resilience after another security boundary has
+  already failed, or reduce the impact of behavior outside this threat model,
+  are defense-in-depth issues. They are fixed as regular bugs and do not
+  receive CVEs.
 
 #### Malicious Third-Party Modules (CWE-1357)
 
@@ -141,17 +185,17 @@ lead to a loss of confidentiality, integrity, or availability.
 
 #### Prototype Pollution Attacks (CWE-1321)
 
-* Undici trusts the inputs provided to it by application code. It is up to the
-  application to sanitize appropriately. Any scenario that requires control
-  over user input passed directly by the application is not considered a
-  vulnerability in undici.
+* Undici trusts inputs provided by application code. The application must
+  sanitize them appropriately. A scenario that requires control over user input
+  passed directly by the application is not a vulnerability in undici.
 
 #### Uncontrolled Resource Consumption on Outbound Connections (CWE-400)
 
-* If undici is asked to connect to a remote site and the response payload is
-  large enough to impact performance or cause the runtime to run out of
-  resources, that is not considered a vulnerability. Applications are
-  responsible for setting appropriate limits on response sizes.
+* If undici is asked to connect to a remote site and return an artifact, it is
+  not a vulnerability if the size of that artifact is large enough to impact
+  performance or cause the runtime to run out of resources. Applications are
+  responsible for choosing suitable response-processing APIs and enforcing
+  limits appropriate for their workloads.
 
 #### Calling body-consuming methods on untrusted responses
 
@@ -188,9 +232,9 @@ lead to a loss of confidentiality, integrity, or availability.
 
 #### Application Misconfiguration
 
-* Issues arising from incorrect or insecure use of undici APIs (such as
+* Issues arising from incorrect or insecure use of undici APIs, such as
   disabling TLS verification, ignoring errors, or passing unsanitized user
-  input to request options) are the application's responsibility, not
+  input to request options, are the application's responsibility and not
   vulnerabilities in undici.
 
 #### Unauthorized or untrusted proxy use

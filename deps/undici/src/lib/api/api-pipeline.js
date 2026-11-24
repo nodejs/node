@@ -14,7 +14,7 @@ const {
 } = require('../core/errors')
 const util = require('../core/util')
 const { kBodyUsed } = require('../core/symbols')
-const { addSignal, removeSignal } = require('./abort-signal')
+const { addSignal, removeSignal, dispatchWithSignal } = require('./abort-signal')
 
 function noop () {}
 
@@ -126,7 +126,7 @@ class PipelineHandler extends AsyncResource {
           err = new RequestAbortedError()
         }
 
-        if (abort && err) {
+        if (abort && (err || !res?.readableEnded)) {
           abort()
         }
 
@@ -255,7 +255,12 @@ class PipelineHandler extends AsyncResource {
 function pipeline (opts, handler) {
   try {
     const pipelineHandler = new PipelineHandler(opts, handler)
-    this.dispatch({ ...opts, body: pipelineHandler.req }, pipelineHandler)
+    const pipelineOpts = { ...opts, body: pipelineHandler.req }
+    if (opts.signal == null) {
+      this.dispatch(pipelineOpts, pipelineHandler)
+    } else {
+      dispatchWithSignal(this, pipelineOpts, pipelineHandler)
+    }
     return pipelineHandler.ret
   } catch (err) {
     return new PassThrough().destroy(err)

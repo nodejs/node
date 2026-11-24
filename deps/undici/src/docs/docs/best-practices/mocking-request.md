@@ -61,7 +61,7 @@ const success = await bankTransfer('1234567890', '100')
 
 assert.deepEqual(success, { message: 'transaction processed' })
 
-// if you dont want to check whether the body or the headers contain the same value
+// if you don't want to check whether the body or the headers contain the same value
 // just remove it from interceptor
 mockPool.intercept({
   path: '/bank-transfer',

@@ -91,6 +91,7 @@ const {
     HTTP2_HEADER_STATUS,
     HTTP2_HEADER_PROTOCOL,
     NGHTTP2_NO_ERROR,
+    NGHTTP2_PROTOCOL_ERROR,
     NGHTTP2_REFUSED_STREAM
   }
 } = http2
@@ -300,7 +301,9 @@ function connectH2 (client, socket) {
     // refH2Session/unrefH2Session.
     refed: true,
     ping: {
-      interval: client[kHTTP2Options].pingInterval === 0 ? null : setInterval(onHttp2SendPing, client[kHTTP2Options].pingInterval, session).unref()
+      interval: client[kHTTP2Options].pingInterval === 0 ? null : setInterval(onHttp2SendPing, client[kHTTP2Options].pingInterval, session).unref(),
+      // Set while a periodic PING waits for its ack.
+      pending: false
     }
   }
   session[kReceivedGoAway] = false
@@ -565,6 +568,10 @@ function onHttp2ProbeTimeout (session) {
     return
   }
 
+  resetUnresponsiveHttp2Session(session)
+}
+
+function resetUnresponsiveHttp2Session (session) {
   const err = new SocketError('HTTP/2: connection unresponsive', util.getSocketInfo(session[kSocket]))
   session[kError] = err
   resetHttp2Session(session, err)
@@ -658,16 +665,27 @@ function onHttp2SendPing (session) {
     return
   }
 
-  // If no ping sent, do nothing
+  // An unacked PING never calls back, so a connection that silently died
+  // (dropped by a NAT or load balancer, a hung peer) would be kept forever when
+  // no stream times out on it, e.g. when every request is aborted first.
+  if (state.ping.pending) {
+    resetUnresponsiveHttp2Session(session)
+    return
+  }
+
+  state.ping.pending = true
   session.ping(onPing.bind(session))
 
   function onPing (err, duration) {
+    state.ping.pending = false
+
     const client = this[kClient]
     const socket = this[kSocket]
 
     if (err != null) {
       const error = new InformationalError(`HTTP/2: "PING" errored - type ${err.message}`)
-      socket[kError] = error
+      // Keep the reason the session was torn down if that is what cancelled the PING.
+      socket[kError] ??= error
       client[kOnError](error)
     } else {
       client.emit('ping', duration)
@@ -1684,11 +1702,16 @@ function onError (err) {
   // noop error sink so that re-delivery cannot go unhandled.
   stream.on('error', noop)
 
-  // Node's HTTP/2 implementation can turn an incomplete Content-Length body
-  // into a protocol stream error instead of emitting 'end'. Prefer the
-  // content-length mismatch error when the received byte count proves it.
-  if (state.responseContentLength != null && state.bytesRead !== state.responseContentLength) {
-    err = new ResponseContentLengthMismatchError()
+  // Node may report Content-Length violations as protocol errors.
+  if (
+    (err.code === 'ERR_HTTP2_ERROR' ||
+      (err.code === 'ERR_HTTP2_STREAM_ERROR' && stream.rstCode === NGHTTP2_PROTOCOL_ERROR)) &&
+    state.responseContentLength != null &&
+    state.bytesRead !== state.responseContentLength
+  ) {
+    const mismatch = new ResponseContentLengthMismatchError()
+    mismatch.cause = err
+    err = mismatch
   }
 
   if (typeof stream.rstCode === 'number' && stream.rstCode !== NGHTTP2_NO_ERROR) {

@@ -5,7 +5,7 @@ const { AsyncResource } = require('node:async_hooks')
 const assert = require('node:assert')
 const util = require('../core/util')
 const { kHTTP2Stream } = require('../core/symbols')
-const { addSignal, removeSignal } = require('./abort-signal')
+const { addSignal, removeSignal, dispatchWithSignal } = require('./abort-signal')
 
 class UpgradeHandler extends AsyncResource {
   constructor (opts, callback) {
@@ -108,7 +108,11 @@ function upgrade (opts, callback) {
       method: opts.method || 'GET',
       upgrade: opts.protocol || 'Websocket'
     }
-    this.dispatch(upgradeOpts, upgradeHandler)
+    if (opts.signal == null) {
+      this.dispatch(upgradeOpts, upgradeHandler)
+    } else {
+      dispatchWithSignal(this, upgradeOpts, upgradeHandler)
+    }
   } catch (err) {
     if (typeof callback !== 'function') {
       throw err

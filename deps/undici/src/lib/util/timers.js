@@ -194,7 +194,7 @@ function refreshTimeout () {
   // method (e.g. mocked timers in tests).
   if (fastNowTimeout?.refresh) {
     fastNowTimeout.refresh()
-    // fastNowTimeout is not instantiated yet or refresh is not availabe,
+    // fastNowTimeout is not instantiated yet or refresh is not available,
     // create a new Timer.
   } else {
     clearTimeout(fastNowTimeout)

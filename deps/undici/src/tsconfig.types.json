@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "typeRoots": ["./types"]
+  },
+  "include": ["types/**/*.d.ts"]
+}

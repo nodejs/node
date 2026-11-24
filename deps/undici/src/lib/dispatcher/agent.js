@@ -96,7 +96,7 @@ class Agent extends DispatcherBase {
         ? { ...this[kOptions], allowH2: false }
         : this[kOptions])
 
-      const closeClientIfUnused = () => {
+      const closeClientIfUnused = (deferred = false) => {
         if (this[kClients].get(key) !== dispatcher) {
           return
         }
@@ -106,7 +106,16 @@ class Agent extends DispatcherBase {
         // no connected clients and is not busy, but it still has pending work.
         // Closing it here lets the replacement Client finish those requests
         // and then destroys that new connection with ClientDestroyedError.
-        if (dispatcher[kConnected] > 0 || dispatcher[kBusy] || dispatcher[kPending] > 0) {
+        if (dispatcher[kConnected] > 0 || dispatcher[kBusy]) {
+          return
+        }
+
+        if (dispatcher[kPending] > 0) {
+          if (!deferred) {
+            queueMicrotask(() => {
+              closeClientIfUnused(true)
+            })
+          }
           return
         }
 
