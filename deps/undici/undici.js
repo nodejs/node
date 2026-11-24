@@ -615,6 +615,7 @@ var require_symbols = __commonJS({
       kMaxResponseSize: /* @__PURE__ */ Symbol("max response size"),
       kHTTP2Session: /* @__PURE__ */ Symbol("http2Session"),
       kHTTP2Options: /* @__PURE__ */ Symbol("http2 options"),
+      kQueuedAbort: /* @__PURE__ */ Symbol("queued abort"),
       kHTTP2SessionState: /* @__PURE__ */ Symbol("http2Session state"),
       kRetryHandlerDefaultRetry: /* @__PURE__ */ Symbol("retry agent default retry"),
       kConstruct: /* @__PURE__ */ Symbol("constructable"),
@@ -632,7 +633,8 @@ var require_symbols = __commonJS({
       kNoProxyAgent: /* @__PURE__ */ Symbol("no proxy agent"),
       kHttpProxyAgent: /* @__PURE__ */ Symbol("http proxy agent"),
       kHttpsProxyAgent: /* @__PURE__ */ Symbol("https proxy agent"),
-      kSocks5ProxyAgent: /* @__PURE__ */ Symbol("socks5 proxy agent")
+      kSocks5ProxyAgent: /* @__PURE__ */ Symbol("socks5 proxy agent"),
+      kInterceptorKind: /* @__PURE__ */ Symbol("interceptor kind")
     };
   }
 });
@@ -642,7 +644,8 @@ var require_dispatcher = __commonJS({
   "lib/dispatcher/dispatcher.js"(exports2, module2) {
     "use strict";
     var EventEmitter = require("node:events");
-    var { kOriginless, kUrl } = require_symbols();
+    var { InvalidArgumentError } = require_errors();
+    var { kOriginless, kUrl, kInterceptorKind } = require_symbols();
     var Dispatcher2 = class extends EventEmitter {
       static {
         __name(this, "Dispatcher");
@@ -660,6 +663,7 @@ var require_dispatcher = __commonJS({
         const interceptors = Array.isArray(args[0]) ? args[0] : args;
         const interceptorOrigin = this[kOriginless] === true ? null : this[kUrl]?.origin;
         let dispatch = this.dispatch.bind(this);
+        const orderSensitiveKinds = [];
         for (const interceptor of interceptors) {
           if (interceptor == null) {
             continue;
@@ -667,10 +671,18 @@ var require_dispatcher = __commonJS({
           if (typeof interceptor !== "function") {
             throw new TypeError(`invalid interceptor, expected function received ${typeof interceptor}`);
           }
+          if (interceptor[kInterceptorKind] != null) {
+            orderSensitiveKinds.push(interceptor[kInterceptorKind]);
+          }
           dispatch = interceptor(dispatch, interceptorOrigin);
           if (dispatch == null || typeof dispatch !== "function" || dispatch.length !== 2) {
             throw new TypeError("invalid interceptor");
           }
+        }
+        const cacheIndex = orderSensitiveKinds.indexOf("cache");
+        const redirectIndex = orderSensitiveKinds.indexOf("redirect");
+        if (cacheIndex !== -1 && redirectIndex !== -1 && cacheIndex < redirectIndex) {
+          throw new InvalidArgumentError("the cache interceptor must be composed after the redirect interceptor; composing the cache before the redirect disables the cache's cross-origin and credential redirect guards (GHSA-75VM-9G8F-99J4, GHSA-MQG3-3V4R-CM32, GHSA-4W7W-5XRC-9H26, GHSA-7XG3-FPHP-28HG)");
         }
         const originalDispatch = dispatch;
         const self = this;
@@ -970,7 +982,7 @@ var require_dispatcher_base = __commonJS({
             throw err;
           }
           handler.onResponseError(null, err);
-          return false;
+          return true;
         }
       }
     };
@@ -1091,289 +1103,6 @@ var require_fixed_queue = __commonJS({
         }
         return next;
       }
-    };
-  }
-});
-
-// lib/dispatcher/pool-base.js
-var require_pool_base = __commonJS({
-  "lib/dispatcher/pool-base.js"(exports2, module2) {
-    "use strict";
-    var { AsyncResource } = require("node:async_hooks");
-    var { PoolStats } = require_stats();
-    var DispatcherBase = require_dispatcher_base();
-    var FixedQueue = require_fixed_queue();
-    var { kConnected, kSize, kRunning, kPending, kQueued, kBusy, kFree, kUrl, kClose, kDestroy, kDispatch } = require_symbols();
-    var kClients = /* @__PURE__ */ Symbol("clients");
-    var kNeedDrain = /* @__PURE__ */ Symbol("needDrain");
-    var kQueue = /* @__PURE__ */ Symbol("queue");
-    var kClosedResolve = /* @__PURE__ */ Symbol("closed resolve");
-    var kOnDrain = /* @__PURE__ */ Symbol("onDrain");
-    var kOnConnect = /* @__PURE__ */ Symbol("onConnect");
-    var kOnDisconnect = /* @__PURE__ */ Symbol("onDisconnect");
-    var kOnConnectionError = /* @__PURE__ */ Symbol("onConnectionError");
-    var kOnClientBusy = /* @__PURE__ */ Symbol("on client busy");
-    var kOnClientDrain = /* @__PURE__ */ Symbol("on client drain");
-    var kDrainQueue = /* @__PURE__ */ Symbol("drain queue");
-    var kGetDispatcher = /* @__PURE__ */ Symbol("get dispatcher");
-    var kHasDispatcher = /* @__PURE__ */ Symbol("has dispatcher");
-    var kAddClient = /* @__PURE__ */ Symbol("add client");
-    var kRemoveClient = /* @__PURE__ */ Symbol("remove client");
-    var kRetireClient = /* @__PURE__ */ Symbol("retire client");
-    var kRetiring = /* @__PURE__ */ Symbol("retiring clients");
-    var QueuedRequest = class extends AsyncResource {
-      static {
-        __name(this, "QueuedRequest");
-      }
-      constructor(opts, handler) {
-        super("UNDICI_POOL_QUEUED_REQUEST");
-        this.opts = opts;
-        this.handler = handler;
-      }
-      dispatch(dispatcher) {
-        return this.runInAsyncScope(dispatcher.dispatch, dispatcher, this.opts, this.handler);
-      }
-    };
-    function closeClients(pool) {
-      const closeAll = [];
-      for (let i = 0; i < pool[kClients].length; i++) {
-        const client = pool[kClients][i];
-        if (!client.destroyed) {
-          closeAll.push(client.close());
-        }
-      }
-      for (const closed of pool[kRetiring].values()) {
-        closeAll.push(closed);
-      }
-      return Promise.all(closeAll);
-    }
-    __name(closeClients, "closeClients");
-    var PoolBase = class extends DispatcherBase {
-      static {
-        __name(this, "PoolBase");
-      }
-      [kQueue] = new FixedQueue();
-      [kQueued] = 0;
-      [kClients] = [];
-      // Clients removed from kClients that have not finished closing,
-      // mapped to a promise that settles once they have.
-      [kRetiring] = /* @__PURE__ */ new Map();
-      [kNeedDrain] = false;
-      [kOnDrain](client, origin, targets) {
-        if (client.closed || client.destroyed) {
-          return;
-        }
-        const queue = this[kQueue];
-        let needDrain = false;
-        this[kOnClientDrain](client);
-        while (!needDrain) {
-          const item = queue.shift();
-          if (!item) {
-            break;
-          }
-          this[kQueued]--;
-          needDrain = !item.dispatch(client);
-        }
-        client[kNeedDrain] = needDrain;
-        if (needDrain) {
-          this[kOnClientBusy](client);
-          if (!queue.isEmpty()) {
-            return this[kDrainQueue](origin, targets);
-          }
-        }
-        if (!needDrain && this[kNeedDrain]) {
-          this[kNeedDrain] = false;
-          this.emit("drain", origin, [this, ...targets]);
-        }
-        if (this[kClosedResolve] && queue.isEmpty()) {
-          return closeClients(this).then(this[kClosedResolve]);
-        }
-      }
-      [kOnClientBusy]() {
-      }
-      [kOnClientDrain]() {
-      }
-      [kDrainQueue](origin, targets) {
-        const queue = this[kQueue];
-        let hasDispatcher = true;
-        while (!queue.isEmpty()) {
-          const dispatcher = this[kGetDispatcher]();
-          if (!dispatcher) {
-            hasDispatcher = false;
-            break;
-          }
-          const item = queue.shift();
-          this[kQueued]--;
-          if (!item.dispatch(dispatcher)) {
-            dispatcher[kNeedDrain] = true;
-            this[kOnClientBusy](dispatcher);
-            hasDispatcher = this[kHasDispatcher]();
-            if (!hasDispatcher) {
-              break;
-            }
-          }
-        }
-        if (hasDispatcher && this[kNeedDrain]) {
-          this[kNeedDrain] = false;
-          this.emit("drain", origin, [this, ...targets]);
-        }
-        if (this[kClosedResolve] && queue.isEmpty()) {
-          return closeClients(this).then(this[kClosedResolve]);
-        }
-      }
-      [kOnConnect] = (origin, targets) => {
-        this.emit("connect", origin, [this, ...targets]);
-      };
-      [kOnDisconnect] = (origin, targets, err) => {
-        this.emit("disconnect", origin, [this, ...targets], err);
-      };
-      [kOnConnectionError] = (origin, targets, err) => {
-        this.emit("connectionError", origin, [this, ...targets], err);
-      };
-      get [kBusy]() {
-        return this[kNeedDrain];
-      }
-      get [kConnected]() {
-        let ret = 0;
-        for (const { [kConnected]: connected } of this[kClients]) {
-          ret += connected;
-        }
-        return ret;
-      }
-      get [kFree]() {
-        let ret = 0;
-        for (const { [kConnected]: connected, [kNeedDrain]: needDrain } of this[kClients]) {
-          ret += connected && !needDrain;
-        }
-        return ret;
-      }
-      get [kPending]() {
-        let ret = this[kQueued];
-        for (const { [kPending]: pending } of this[kClients]) {
-          ret += pending;
-        }
-        return ret;
-      }
-      get [kRunning]() {
-        let ret = 0;
-        for (const { [kRunning]: running } of this[kClients]) {
-          ret += running;
-        }
-        return ret;
-      }
-      get [kSize]() {
-        let ret = this[kQueued];
-        for (const { [kSize]: size } of this[kClients]) {
-          ret += size;
-        }
-        return ret;
-      }
-      get stats() {
-        return new PoolStats(this);
-      }
-      [kClose]() {
-        if (this[kQueue].isEmpty()) {
-          return closeClients(this);
-        } else {
-          return new Promise((resolve) => {
-            this[kClosedResolve] = resolve;
-          });
-        }
-      }
-      [kDestroy](err) {
-        while (true) {
-          const item = this[kQueue].shift();
-          if (!item) {
-            break;
-          }
-          item.handler.onResponseError(null, err);
-        }
-        const destroyAll = new Array(this[kClients].length);
-        for (let i = 0; i < this[kClients].length; i++) {
-          destroyAll[i] = this[kClients][i].destroy(err);
-        }
-        for (const client of this[kRetiring].keys()) {
-          destroyAll.push(client.destroy(err));
-        }
-        return Promise.all(destroyAll);
-      }
-      [kDispatch](opts, handler) {
-        const dispatcher = this[kGetDispatcher]();
-        if (!dispatcher) {
-          this[kNeedDrain] = true;
-          this[kQueue].push(new QueuedRequest(opts, handler));
-          this[kQueued]++;
-        } else if (!dispatcher.dispatch(opts, handler)) {
-          dispatcher[kNeedDrain] = true;
-          this[kOnClientBusy](dispatcher);
-          this[kNeedDrain] = !this[kHasDispatcher]();
-        }
-        return !this[kNeedDrain];
-      }
-      [kHasDispatcher]() {
-        for (let i = 0; i < this[kClients].length; i++) {
-          const dispatcher = this[kClients][i];
-          if (!dispatcher[kNeedDrain] && dispatcher.closed !== true && dispatcher.destroyed !== true) {
-            return true;
-          }
-        }
-        return false;
-      }
-      [kAddClient](client) {
-        client.on("drain", this[kOnDrain].bind(this, client)).on("connect", this[kOnConnect]).on("disconnect", this[kOnDisconnect]).on("connectionError", this[kOnConnectionError]);
-        this[kClients].push(client);
-        if (this[kNeedDrain]) {
-          queueMicrotask(() => {
-            if (this[kNeedDrain] && !client[kNeedDrain]) {
-              this[kOnDrain](client, client[kUrl], [client, this]);
-            }
-          });
-        }
-        return this;
-      }
-      // Takes a client out of rotation. A closed client no longer takes requests
-      // from the pool queue (see kOnDrain), but it finishes the requests it
-      // already has. Until it has, pool.close() waits for it and pool.destroy()
-      // destroys it.
-      [kRetireClient](client) {
-        const idx = this[kClients].indexOf(client);
-        if (idx !== -1) {
-          this[kClients].splice(idx, 1);
-        }
-        if (client.destroyed || this[kRetiring].has(client)) {
-          return;
-        }
-        let done = false;
-        let resolveClosed;
-        const closed = new Promise((resolve) => {
-          resolveClosed = resolve;
-        });
-        this[kRetiring].set(client, closed);
-        client.close(() => {
-          if (!done) {
-            done = true;
-            this[kRetiring].delete(client);
-            resolveClosed();
-          }
-        });
-      }
-      [kRemoveClient](client) {
-        this[kRetireClient](client);
-        this[kNeedDrain] = !this[kClients].some((dispatcher) => !dispatcher[kNeedDrain] && dispatcher.closed !== true && dispatcher.destroyed !== true);
-      }
-    };
-    module2.exports = {
-      PoolBase,
-      kClients,
-      kNeedDrain,
-      kAddClient,
-      kRemoveClient,
-      kRetireClient,
-      kDrainQueue,
-      kOnClientBusy,
-      kOnClientDrain,
-      kGetDispatcher,
-      kHasDispatcher
     };
   }
 });
@@ -4460,7 +4189,7 @@ var require_util2 = __commonJS({
       return url;
     }
     __name(stripURLForReferrer, "stripURLForReferrer");
-    var isPotentialleTrustworthyIPv4 = RegExp.prototype.test.bind(/^127\.(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)\.){2}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)$/);
+    var isPotentiallyTrustworthyIPv4 = RegExp.prototype.test.bind(/^127\.(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)\.){2}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)$/);
     var isPotentiallyTrustworthyIPv6 = RegExp.prototype.test.bind(/^(?:(?:0{1,4}:){7}|(?:0{1,4}:){1,6}:|::)0{0,3}1$/);
     function isOriginIPPotentiallyTrustworthy(origin) {
       if (origin.includes(":")) {
@@ -4469,7 +4198,7 @@ var require_util2 = __commonJS({
         }
         return isPotentiallyTrustworthyIPv6(origin);
       }
-      return isPotentialleTrustworthyIPv4(origin);
+      return isPotentiallyTrustworthyIPv4(origin);
     }
     __name(isOriginIPPotentiallyTrustworthy, "isOriginIPPotentiallyTrustworthy");
     function isOriginPotentiallyTrustworthy(origin) {
@@ -5176,18 +4905,10 @@ var require_formdata = __commonJS({
         }
       }
       [nodeUtil.inspect.custom](depth, options) {
-        const state = this.#state.reduce((a, b) => {
-          if (a[b.name]) {
-            if (Array.isArray(a[b.name])) {
-              a[b.name].push(b.value);
-            } else {
-              a[b.name] = [a[b.name], b.value];
-            }
-          } else {
-            a[b.name] = b.value;
-          }
-          return a;
-        }, { __proto__: null });
+        const state = Object.groupBy(this.#state, ({ name }) => name);
+        for (const [name, entries] of Object.entries(state)) {
+          state[name] = entries.length === 1 ? entries[0].value : entries.map(({ value }) => value);
+        }
         options.depth ??= depth;
         options.colors ??= true;
         const output = nodeUtil.formatWithOptions(options, state);
@@ -5285,6 +5006,9 @@ var require_request = __commonJS({
     var kHandler = /* @__PURE__ */ Symbol("handler");
     var kController = /* @__PURE__ */ Symbol("controller");
     var kResume = /* @__PURE__ */ Symbol("resume");
+    function noop() {
+    }
+    __name(noop, "noop");
     var RequestController = class {
       static {
         __name(this, "RequestController");
@@ -5614,11 +5338,24 @@ var require_request = __commonJS({
           this.endHandler = null;
         }
       }
+      // Fails a request that was aborted before it reached a connection. The
+      // handler gets an aborted controller, so wrappers such as RetryHandler can
+      // tell a caller abort apart from a retryable connection failure.
+      onQueuedAbort(reason) {
+        this[kController] = createAbortedController(reason);
+        return this.onResponseError(reason);
+      }
       addHeader(key, value) {
         processHeader(this, key, value);
         return this;
       }
     };
+    function createAbortedController(reason) {
+      const controller = new RequestController(noop);
+      controller.abort(reason);
+      return controller;
+    }
+    __name(createAbortedController, "createAbortedController");
     function processHeader(request, key, val) {
       if (val && (typeof val === "object" && !Array.isArray(val))) {
         throw new InvalidArgumentError(`invalid ${key} header`);
@@ -5717,6 +5454,333 @@ var require_request = __commonJS({
     }
     __name(isUndiciFormData, "isUndiciFormData");
     module2.exports = Request;
+    module2.exports.createAbortedController = createAbortedController;
+  }
+});
+
+// lib/dispatcher/pool-base.js
+var require_pool_base = __commonJS({
+  "lib/dispatcher/pool-base.js"(exports2, module2) {
+    "use strict";
+    var { AsyncResource } = require("node:async_hooks");
+    var { PoolStats } = require_stats();
+    var DispatcherBase = require_dispatcher_base();
+    var FixedQueue = require_fixed_queue();
+    var { kConnected, kSize, kRunning, kPending, kQueued, kBusy, kFree, kUrl, kClose, kDestroy, kDispatch, kQueuedAbort } = require_symbols();
+    var { createAbortedController } = require_request();
+    var kClients = /* @__PURE__ */ Symbol("clients");
+    var kNeedDrain = /* @__PURE__ */ Symbol("needDrain");
+    var kQueue = /* @__PURE__ */ Symbol("queue");
+    var kClosedResolve = /* @__PURE__ */ Symbol("closed resolve");
+    var kOnDrain = /* @__PURE__ */ Symbol("onDrain");
+    var kOnConnect = /* @__PURE__ */ Symbol("onConnect");
+    var kOnDisconnect = /* @__PURE__ */ Symbol("onDisconnect");
+    var kOnConnectionError = /* @__PURE__ */ Symbol("onConnectionError");
+    var kOnClientBusy = /* @__PURE__ */ Symbol("on client busy");
+    var kOnClientDrain = /* @__PURE__ */ Symbol("on client drain");
+    var kDrainQueue = /* @__PURE__ */ Symbol("drain queue");
+    var kGetDispatcher = /* @__PURE__ */ Symbol("get dispatcher");
+    var kHasDispatcher = /* @__PURE__ */ Symbol("has dispatcher");
+    var kAddClient = /* @__PURE__ */ Symbol("add client");
+    var kRemoveClient = /* @__PURE__ */ Symbol("remove client");
+    var kRetireClient = /* @__PURE__ */ Symbol("retire client");
+    var kRetiring = /* @__PURE__ */ Symbol("retiring clients");
+    var kShiftQueue = /* @__PURE__ */ Symbol("shift queue");
+    var kAbortQueued = /* @__PURE__ */ Symbol("abort queued");
+    var QueuedRequest = class extends AsyncResource {
+      static {
+        __name(this, "QueuedRequest");
+      }
+      constructor(opts, handler) {
+        super("UNDICI_POOL_QUEUED_REQUEST");
+        this.opts = opts;
+        this.handler = handler;
+        this.queued = true;
+      }
+      dispatch(dispatcher) {
+        return this.runInAsyncScope(dispatcher.dispatch, dispatcher, this.opts, this.handler);
+      }
+    };
+    function closeClients(pool) {
+      const closeAll = [];
+      for (let i = 0; i < pool[kClients].length; i++) {
+        const client = pool[kClients][i];
+        if (!client.destroyed) {
+          closeAll.push(client.close());
+        }
+      }
+      for (const closed of pool[kRetiring].values()) {
+        closeAll.push(closed);
+      }
+      return Promise.all(closeAll);
+    }
+    __name(closeClients, "closeClients");
+    var PoolBase = class extends DispatcherBase {
+      static {
+        __name(this, "PoolBase");
+      }
+      [kQueue] = new FixedQueue();
+      [kQueued] = 0;
+      [kClients] = [];
+      // Clients removed from kClients that have not finished closing,
+      // mapped to a promise that settles once they have.
+      [kRetiring] = /* @__PURE__ */ new Map();
+      [kNeedDrain] = false;
+      [kOnDrain](client, origin, targets) {
+        if (client.closed || client.destroyed) {
+          return;
+        }
+        let needDrain = false;
+        this[kOnClientDrain](client);
+        while (!needDrain) {
+          const item = this[kShiftQueue]();
+          if (!item) {
+            break;
+          }
+          needDrain = !item.dispatch(client);
+        }
+        client[kNeedDrain] = needDrain;
+        if (needDrain) {
+          this[kOnClientBusy](client);
+          if (this[kQueued] > 0) {
+            return this[kDrainQueue](origin, targets);
+          }
+        }
+        if (!needDrain && this[kNeedDrain]) {
+          this[kNeedDrain] = false;
+          this.emit("drain", origin, [this, ...targets]);
+        }
+        if (this[kClosedResolve] && this[kQueued] === 0) {
+          return closeClients(this).then(this[kClosedResolve]);
+        }
+      }
+      [kOnClientBusy]() {
+      }
+      [kOnClientDrain]() {
+      }
+      [kDrainQueue](origin, targets) {
+        let hasDispatcher = true;
+        while (this[kQueued] > 0) {
+          let dispatcher;
+          try {
+            dispatcher = this[kGetDispatcher]();
+          } catch (err) {
+            const item2 = this[kShiftQueue]();
+            item2.runInAsyncScope(item2.handler.onResponseError, item2.handler, null, err);
+            hasDispatcher = !this.destroyed && this[kHasDispatcher](false);
+            continue;
+          }
+          if (!dispatcher) {
+            hasDispatcher = false;
+            break;
+          }
+          const item = this[kShiftQueue]();
+          if (!item.dispatch(dispatcher)) {
+            dispatcher[kNeedDrain] = true;
+            this[kOnClientBusy](dispatcher);
+            hasDispatcher = this[kHasDispatcher](false);
+            if (!hasDispatcher) {
+              break;
+            }
+          }
+        }
+        if (hasDispatcher && this[kNeedDrain]) {
+          this[kNeedDrain] = false;
+          this.emit("drain", origin, [this, ...targets]);
+        }
+        if (this[kClosedResolve] && this[kQueued] === 0) {
+          return closeClients(this).then(this[kClosedResolve]);
+        }
+      }
+      // Aborted requests stay in the queue as tombstones (queued === false) and
+      // are skipped here; kQueued only counts the live ones.
+      [kShiftQueue]() {
+        const queue = this[kQueue];
+        let item = queue.shift();
+        while (item !== null && item.queued === false) {
+          item = queue.shift();
+        }
+        if (item !== null) {
+          this[kQueued]--;
+          item.queued = false;
+        }
+        return item;
+      }
+      // Called through the handler's kQueuedAbort hook when a queued request is
+      // aborted.
+      [kAbortQueued](item, reason) {
+        if (!item.queued) {
+          return;
+        }
+        const { handler } = item;
+        item.queued = false;
+        item.opts = null;
+        item.handler = null;
+        this[kQueued]--;
+        item.runInAsyncScope(handler.onResponseError, handler, createAbortedController(reason), reason);
+        if (this[kClosedResolve] && this[kQueued] === 0) {
+          closeClients(this).then(this[kClosedResolve]);
+        }
+      }
+      [kOnConnect] = (origin, targets) => {
+        this.emit("connect", origin, [this, ...targets]);
+      };
+      [kOnDisconnect] = (origin, targets, err) => {
+        this.emit("disconnect", origin, [this, ...targets], err);
+      };
+      [kOnConnectionError] = (origin, targets, err) => {
+        this.emit("connectionError", origin, [this, ...targets], err);
+      };
+      get [kBusy]() {
+        return this[kNeedDrain];
+      }
+      get [kConnected]() {
+        let ret = 0;
+        for (const { [kConnected]: connected } of this[kClients]) {
+          ret += connected;
+        }
+        return ret;
+      }
+      get [kFree]() {
+        let ret = 0;
+        for (const { [kConnected]: connected, [kNeedDrain]: needDrain } of this[kClients]) {
+          ret += connected && !needDrain;
+        }
+        return ret;
+      }
+      get [kPending]() {
+        let ret = this[kQueued];
+        for (const { [kPending]: pending } of this[kClients]) {
+          ret += pending;
+        }
+        return ret;
+      }
+      get [kRunning]() {
+        let ret = 0;
+        for (const { [kRunning]: running } of this[kClients]) {
+          ret += running;
+        }
+        return ret;
+      }
+      get [kSize]() {
+        let ret = this[kQueued];
+        for (const { [kSize]: size } of this[kClients]) {
+          ret += size;
+        }
+        return ret;
+      }
+      get stats() {
+        return new PoolStats(this);
+      }
+      [kClose]() {
+        if (this[kQueued] === 0) {
+          return closeClients(this);
+        } else {
+          return new Promise((resolve) => {
+            this[kClosedResolve] = resolve;
+          });
+        }
+      }
+      [kDestroy](err) {
+        while (true) {
+          const item = this[kShiftQueue]();
+          if (!item) {
+            break;
+          }
+          item.handler.onResponseError(null, err);
+        }
+        const destroyAll = new Array(this[kClients].length);
+        for (let i = 0; i < this[kClients].length; i++) {
+          destroyAll[i] = this[kClients][i].destroy(err);
+        }
+        for (const client of this[kRetiring].keys()) {
+          destroyAll.push(client.destroy(err));
+        }
+        return Promise.all(destroyAll);
+      }
+      [kDispatch](opts, handler) {
+        const dispatcher = this[kGetDispatcher]();
+        if (!dispatcher) {
+          const item = new QueuedRequest(opts, handler);
+          this[kNeedDrain] = true;
+          this[kQueue].push(item);
+          this[kQueued]++;
+          const onQueued = opts[kQueuedAbort];
+          if (onQueued !== void 0) {
+            onQueued((reason) => this[kAbortQueued](item, reason));
+          }
+        } else if (!dispatcher.dispatch(opts, handler)) {
+          dispatcher[kNeedDrain] = true;
+          this[kOnClientBusy](dispatcher);
+          this[kNeedDrain] = !this[kHasDispatcher]();
+        }
+        return !this[kNeedDrain];
+      }
+      [kHasDispatcher]() {
+        for (let i = 0; i < this[kClients].length; i++) {
+          const dispatcher = this[kClients][i];
+          if (!dispatcher[kNeedDrain] && dispatcher.closed !== true && dispatcher.destroyed !== true) {
+            return true;
+          }
+        }
+        return false;
+      }
+      [kAddClient](client) {
+        client.on("drain", this[kOnDrain].bind(this, client)).on("connect", this[kOnConnect]).on("disconnect", this[kOnDisconnect]).on("connectionError", this[kOnConnectionError]);
+        this[kClients].push(client);
+        if (this[kNeedDrain]) {
+          queueMicrotask(() => {
+            if (this[kNeedDrain] && !client[kNeedDrain]) {
+              this[kOnDrain](client, client[kUrl], [client, this]);
+            }
+          });
+        }
+        return this;
+      }
+      // Takes a client out of rotation. A closed client no longer takes requests
+      // from the pool queue (see kOnDrain), but it finishes the requests it
+      // already has. Until it has, pool.close() waits for it and pool.destroy()
+      // destroys it.
+      [kRetireClient](client) {
+        const idx = this[kClients].indexOf(client);
+        if (idx !== -1) {
+          this[kClients].splice(idx, 1);
+        }
+        if (client.destroyed || this[kRetiring].has(client)) {
+          return;
+        }
+        let done = false;
+        let resolveClosed;
+        const closed = new Promise((resolve) => {
+          resolveClosed = resolve;
+        });
+        this[kRetiring].set(client, closed);
+        client.close(() => {
+          if (!done) {
+            done = true;
+            this[kRetiring].delete(client);
+            resolveClosed();
+          }
+        });
+      }
+      [kRemoveClient](client) {
+        this[kRetireClient](client);
+        this[kNeedDrain] = !this[kClients].some((dispatcher) => !dispatcher[kNeedDrain] && dispatcher.closed !== true && dispatcher.destroyed !== true);
+      }
+    };
+    module2.exports = {
+      PoolBase,
+      kClients,
+      kNeedDrain,
+      kAddClient,
+      kRemoveClient,
+      kRetireClient,
+      kDrainQueue,
+      kOnClientBusy,
+      kOnClientDrain,
+      kGetDispatcher,
+      kHasDispatcher
+    };
   }
 });
 
@@ -7304,6 +7368,7 @@ var require_client_h1 = __commonJS({
     var kIdleSocketValidation = /* @__PURE__ */ Symbol("kIdleSocketValidation");
     var kIdleSocketValidationTimeout = /* @__PURE__ */ Symbol("kIdleSocketValidationTimeout");
     var kSocketUsed = /* @__PURE__ */ Symbol("kSocketUsed");
+    var kIdleSince = /* @__PURE__ */ Symbol("kIdleSince");
     var kTypeOfService = /* @__PURE__ */ Symbol("kTypeOfService");
     var extractBody;
     function lazyllhttp() {
@@ -8088,6 +8153,11 @@ var require_client_h1 = __commonJS({
       });
     }
     __name(scheduleIdleSocketValidation, "scheduleIdleSocketValidation");
+    function isIdleSocketExpired(socket) {
+      const parser = socket[kParser];
+      return parser.timeoutType === TIMEOUT_KEEP_ALIVE && parser.timeoutValue > 0 && performance.now() - socket[kIdleSince] >= parser.timeoutValue;
+    }
+    __name(isIdleSocketExpired, "isIdleSocketExpired");
     function resumeH1(client) {
       const socket = client[kSocket];
       if (socket && !socket.destroyed) {
@@ -8099,6 +8169,10 @@ var require_client_h1 = __commonJS({
         } else if (socket[kNoRef] && socket.ref) {
           socket.ref();
           socket[kNoRef] = false;
+        }
+        if (client[kRunning] === 0 && client[kPending] > 0 && isIdleSocketExpired(socket)) {
+          util.destroy(socket, new InformationalError("socket idle timeout"));
+          return;
         }
         if (client[kRunning] === 0 && client[kPending] > 0 && socket[kSocketUsed]) {
           if (socket[kIdleSocketValidation] === 0) {
@@ -8125,6 +8199,7 @@ var require_client_h1 = __commonJS({
         }
         if (client[kSize] === 0) {
           if (socket[kParser].timeoutType !== TIMEOUT_KEEP_ALIVE) {
+            socket[kIdleSince] = performance.now();
             socket[kParser].setTimeout(client[kKeepAliveTimeoutValue], TIMEOUT_KEEP_ALIVE);
           }
         } else if (client[kRunning] > 0 && socket[kParser].statusCode < 200) {
@@ -8688,6 +8763,7 @@ var require_client_h2 = __commonJS({
         HTTP2_HEADER_STATUS,
         HTTP2_HEADER_PROTOCOL,
         NGHTTP2_NO_ERROR,
+        NGHTTP2_PROTOCOL_ERROR,
         NGHTTP2_REFUSED_STREAM
       }
     } = http2;
@@ -8853,7 +8929,9 @@ var require_client_h2 = __commonJS({
         // refH2Session/unrefH2Session.
         refed: true,
         ping: {
-          interval: client[kHTTP2Options].pingInterval === 0 ? null : setInterval(onHttp2SendPing, client[kHTTP2Options].pingInterval, session).unref()
+          interval: client[kHTTP2Options].pingInterval === 0 ? null : setInterval(onHttp2SendPing, client[kHTTP2Options].pingInterval, session).unref(),
+          // Set while a periodic PING waits for its ack.
+          pending: false
         }
       };
       session[kReceivedGoAway] = false;
@@ -9044,11 +9122,15 @@ var require_client_h2 = __commonJS({
       if (session.closed || session.destroyed) {
         return;
       }
+      resetUnresponsiveHttp2Session(session);
+    }
+    __name(onHttp2ProbeTimeout, "onHttp2ProbeTimeout");
+    function resetUnresponsiveHttp2Session(session) {
       const err = new SocketError("HTTP/2: connection unresponsive", util.getSocketInfo(session[kSocket]));
       session[kError] = err;
       resetHttp2Session(session, err);
     }
-    __name(onHttp2ProbeTimeout, "onHttp2ProbeTimeout");
+    __name(resetUnresponsiveHttp2Session, "resetUnresponsiveHttp2Session");
     function clearHttp2IdleTimeout(session) {
       const state = session[kHTTP2SessionState];
       if (state?.idleTimeout != null) {
@@ -9117,13 +9199,19 @@ var require_client_h2 = __commonJS({
         state.ping.interval = null;
         return;
       }
+      if (state.ping.pending) {
+        resetUnresponsiveHttp2Session(session);
+        return;
+      }
+      state.ping.pending = true;
       session.ping(onPing.bind(session));
       function onPing(err, duration) {
+        state.ping.pending = false;
         const client = this[kClient];
         const socket = this[kSocket];
         if (err != null) {
           const error = new InformationalError(`HTTP/2: "PING" errored - type ${err.message}`);
-          socket[kError] = error;
+          socket[kError] ??= error;
           client[kOnError](error);
         } else {
           client.emit("ping", duration);
@@ -9813,8 +9901,10 @@ var require_client_h2 = __commonJS({
       }
       stream.off("error", onError);
       stream.on("error", noop);
-      if (state.responseContentLength != null && state.bytesRead !== state.responseContentLength) {
-        err = new ResponseContentLengthMismatchError();
+      if ((err.code === "ERR_HTTP2_ERROR" || err.code === "ERR_HTTP2_STREAM_ERROR" && stream.rstCode === NGHTTP2_PROTOCOL_ERROR) && state.responseContentLength != null && state.bytesRead !== state.responseContentLength) {
+        const mismatch = new ResponseContentLengthMismatchError();
+        mismatch.cause = err;
+        err = mismatch;
       }
       if (typeof stream.rstCode === "number" && stream.rstCode !== NGHTTP2_NO_ERROR) {
         err.http2ErrorCode = stream.rstCode;
@@ -10122,11 +10212,13 @@ var require_client = __commonJS({
       kHostAuthority,
       kResume,
       kHTTP2Options,
-      kUseMilo
+      kUseMilo,
+      kQueuedAbort
     } = require_symbols();
     var connectH1 = require_client_h1();
     var connectH2 = require_client_h2();
     var kClosedResolve = /* @__PURE__ */ Symbol("kClosedResolve");
+    var kCancelConnect = /* @__PURE__ */ Symbol("kCancelConnect");
     var getDefaultNodeMaxHeaderSize = http && http.maxHeaderSize && Number.isInteger(http.maxHeaderSize) && http.maxHeaderSize > 0 ? () => http.maxHeaderSize : () => {
       throw new InvalidArgumentError("http module not available or http.maxHeaderSize invalid");
     };
@@ -10340,6 +10432,7 @@ var require_client = __commonJS({
         this[kClosedResolve] = null;
         this[kMaxResponseSize] = maxResponseSize > -1 ? maxResponseSize : -1;
         this[kHTTPContext] = null;
+        this[kCancelConnect] = null;
         this[kHTTP2Options] = {
           pingInterval: h2Options?.pingInterval ?? pingInterval ?? 6e4,
           connectionWindowSize: h2Options?.connectionWindowSize ?? connectionWindowSize ?? 524288,
@@ -10392,6 +10485,7 @@ var require_client = __commonJS({
       }
       [kConnect](cb) {
         connect(this);
+        this[kCancelConnect] = null;
         this.once("connect", cb);
       }
       [kDispatch](opts, handler) {
@@ -10403,6 +10497,12 @@ var require_client = __commonJS({
           queueMicrotask(() => resume(this));
         } else {
           this[kResume](true);
+        }
+        if (request.abort === null && !request.aborted) {
+          const onQueued = opts[kQueuedAbort];
+          if (onQueued !== void 0) {
+            onQueued((reason) => abortPendingRequest(this, request, reason));
+          }
         }
         if (this[kResuming] && this[kNeedDrain] !== 2 && this[kBusy]) {
           this[kNeedDrain] = 2;
@@ -10444,6 +10544,42 @@ var require_client = __commonJS({
         });
       }
     };
+    function failQueuedRequest(client, request, reason) {
+      try {
+        request.onQueuedAbort(reason);
+        assert(request.aborted);
+      } catch (err) {
+        client.emit("error", err);
+      }
+    }
+    __name(failQueuedRequest, "failQueuedRequest");
+    function abortPendingRequest(client, request, reason) {
+      if (request.aborted || request.abort !== null) {
+        return;
+      }
+      const queue = client[kQueue];
+      const idx = queue.indexOf(request, client[kPendingIdx]);
+      if (idx === -1) {
+        return;
+      }
+      if (idx === client[kPendingIdx] && client[kResuming] === 2) {
+        return;
+      }
+      queue.splice(idx, 1);
+      failQueuedRequest(client, request, reason);
+      client[kResume](true);
+      if (client[kCancelConnect] !== null && client[kSize] === 0) {
+        queueMicrotask(() => cancelUnusedConnect(client));
+      }
+    }
+    __name(abortPendingRequest, "abortPendingRequest");
+    function cancelUnusedConnect(client) {
+      const cancel = client[kCancelConnect];
+      if (cancel !== null && client[kSize] === 0) {
+        cancel(new InformationalError("no request waits for this connection"));
+      }
+    }
+    __name(cancelUnusedConnect, "cancelUnusedConnect");
     function onError(client, err) {
       if (client[kRunning] === 0 && err.code !== "UND_ERR_INFO" && err.code !== "UND_ERR_SOCKET") {
         assert(client[kPendingIdx] === client[kRunningIdx]);
@@ -10470,6 +10606,28 @@ var require_client = __commonJS({
         hostname = ip;
       }
       client[kConnecting] = true;
+      const servername = client[kServerName];
+      let calledBack = false;
+      let cancelled = false;
+      const abandon = /* @__PURE__ */ __name((socket, err) => {
+        client[kConnecting] = false;
+        if (channels.connectError.hasSubscribers) {
+          channels.connectError.publish({
+            connectParams: {
+              host,
+              hostname,
+              protocol,
+              port,
+              version: client[kHTTPContext]?.version,
+              servername,
+              localAddress: client[kLocalAddress]
+            },
+            connector: client[kConnector],
+            error: err
+          });
+        }
+        util.destroy(socket.on("error", noop), err);
+      }, "abandon");
       if (channels.beforeConnect.hasSubscribers) {
         channels.beforeConnect.publish({
           connectParams: {
@@ -10478,23 +10636,31 @@ var require_client = __commonJS({
             protocol,
             port,
             version: client[kHTTPContext]?.version,
-            servername: client[kServerName],
+            servername,
             localAddress: client[kLocalAddress]
           },
           connector: client[kConnector]
         });
       }
       try {
-        client[kConnector]({
+        const connecting = client[kConnector]({
           host,
           hostname,
           protocol,
           port,
-          servername: client[kServerName],
+          servername,
           localAddress: client[kLocalAddress]
         }, (err, socket) => {
+          calledBack = true;
+          if (cancelled) {
+            if (socket) {
+              util.destroy(socket.on("error", noop));
+            }
+            return;
+          }
+          client[kCancelConnect] = null;
           if (err) {
-            handleConnectError(client, err, { host, hostname, protocol, port });
+            handleConnectError(client, err, { host, hostname, protocol, port, servername });
             client[kResume]();
             return;
           }
@@ -10504,11 +10670,16 @@ var require_client = __commonJS({
             return;
           }
           assert(socket);
+          if (client[kServerName] !== servername) {
+            abandon(socket, new InformationalError("servername changed"));
+            client[kResume]();
+            return;
+          }
           try {
             client[kHTTPContext] = socket.alpnProtocol === "h2" ? connectH2(client, socket) : connectH1(client, socket);
           } catch (err2) {
             socket.destroy().on("error", noop);
-            handleConnectError(client, err2, { host, hostname, protocol, port });
+            handleConnectError(client, err2, { host, hostname, protocol, port, servername });
             client[kResume]();
             return;
           }
@@ -10525,7 +10696,7 @@ var require_client = __commonJS({
                 protocol,
                 port,
                 version: client[kHTTPContext]?.version,
-                servername: client[kServerName],
+                servername,
                 localAddress: client[kLocalAddress]
               },
               connector: client[kConnector],
@@ -10535,13 +10706,20 @@ var require_client = __commonJS({
           client.emit("connect", client[kUrl], [client]);
           client[kResume]();
         });
+        if (!calledBack && util.isStream(connecting)) {
+          client[kCancelConnect] = (err) => {
+            cancelled = true;
+            client[kCancelConnect] = null;
+            abandon(connecting, err);
+          };
+        }
       } catch (err) {
-        handleConnectError(client, err, { host, hostname, protocol, port });
+        handleConnectError(client, err, { host, hostname, protocol, port, servername });
         client[kResume]();
       }
     }
     __name(connect, "connect");
-    function handleConnectError(client, err, { host, hostname, protocol, port }) {
+    function handleConnectError(client, err, { host, hostname, protocol, port, servername }) {
       if (client.destroyed) {
         return;
       }
@@ -10554,7 +10732,7 @@ var require_client = __commonJS({
             protocol,
             port,
             version: client[kHTTPContext]?.version,
-            servername: client[kServerName],
+            servername,
             localAddress: client[kLocalAddress]
           },
           connector: client[kConnector],
@@ -10567,7 +10745,7 @@ var require_client = __commonJS({
         for (let i = 0; i < running.length; i++) {
           util.errorRequest(client, running[i], err);
         }
-        while (client[kPending] > 0 && client[kQueue][client[kPendingIdx]].servername === client[kServerName]) {
+        while (client[kPending] > 0 && client[kQueue][client[kPendingIdx]].servername === servername) {
           const request = client[kQueue].splice(client[kPendingIdx], 1)[0];
           util.errorRequest(client, request, err);
         }
@@ -10644,6 +10822,7 @@ var require_client = __commonJS({
             client[kHTTPContext] = null;
             resume(client);
           });
+          client[kCancelConnect]?.(new InformationalError("servername changed"));
         }
         if (client[kConnecting]) {
           return;
@@ -10693,7 +10872,7 @@ var require_pool = __commonJS({
       InvalidArgumentError
     } = require_errors();
     var util = require_util();
-    var { kConnecting, kHTTPContext, kUrl, kQueued } = require_symbols();
+    var { kConnecting, kHTTPContext, kHTTP2Session, kRemoteSettings, kUrl, kQueued } = require_symbols();
     var buildConnector = require_connect();
     var kOptions = /* @__PURE__ */ Symbol("options");
     var kConnections = /* @__PURE__ */ Symbol("connections");
@@ -10775,9 +10954,19 @@ var require_pool = __commonJS({
             this[kProtocol] = client[kHTTPContext]?.version;
           }
           if (client === this[kProtocolProbe]) {
-            if (this[kProtocol] !== "h2") {
-              this[kProtocolProbe] = null;
-              this[kDrainQueue](origin2, targets.slice(1));
+            const releaseProbe = /* @__PURE__ */ __name(() => {
+              if (client === this[kProtocolProbe]) {
+                this[kProtocolProbe] = null;
+                if (!this.destroyed && (this[kQueued] > 0 || !this.closed && this[kHasDispatcher](false))) {
+                  this[kDrainQueue](origin2, targets.slice(1));
+                }
+              }
+            }, "releaseProbe");
+            const session = client[kHTTP2Session];
+            if (this[kProtocol] !== "h2" || session[kRemoteSettings]) {
+              releaseProbe();
+            } else {
+              session.once("remoteSettings", releaseProbe);
             }
           }
         });
@@ -10831,7 +11020,7 @@ var require_pool = __commonJS({
           return createClient(this);
         }
       }
-      [kHasDispatcher]() {
+      [kHasDispatcher](create = true) {
         const clientTtlOption = this[kOptions].clientTtl;
         for (let i = 0; i < this[kClients].length; i++) {
           const client = this[kClients][i];
@@ -10846,7 +11035,7 @@ var require_pool = __commonJS({
           return false;
         }
         if (!this[kConnections] || this[kClients].length < this[kConnections]) {
-          createClient(this);
+          if (create) createClient(this);
           return true;
         }
         return false;
@@ -10937,11 +11126,19 @@ var require_agent = __commonJS({
         let dispatcher = this[kClients].get(key);
         if (!dispatcher) {
           dispatcher = this[kFactory](opts.origin, allowH2 === false ? { ...this[kOptions], allowH2: false } : this[kOptions]);
-          const closeClientIfUnused = /* @__PURE__ */ __name(() => {
+          const closeClientIfUnused = /* @__PURE__ */ __name((deferred = false) => {
             if (this[kClients].get(key) !== dispatcher) {
               return;
             }
-            if (dispatcher[kConnected] > 0 || dispatcher[kBusy] || dispatcher[kPending] > 0) {
+            if (dispatcher[kConnected] > 0 || dispatcher[kBusy]) {
+              return;
+            }
+            if (dispatcher[kPending] > 0) {
+              if (!deferred) {
+                queueMicrotask(() => {
+                  closeClientIfUnused(true);
+                });
+              }
               return;
             }
             this[kClients].delete(key);
@@ -12094,8 +12291,10 @@ var require_proxy_agent = __commonJS({
               headers: this[kProxyHeaders],
               connect,
               factory: agentFactory,
-              username: opts.username || username,
-              password: opts.password || password,
+              // Socks5ProxyAgent decodes the credentials embedded in the URI;
+              // the URL getters return them still percent-encoded.
+              username: opts.username,
+              password: opts.password,
               connectTimeout,
               proxyTls: opts.proxyTls,
               requestTls: opts.requestTls
@@ -14274,7 +14473,7 @@ var require_fetch = __commonJS({
     var EE = require("node:events");
     var { Readable, pipeline, finished, isErrored, isReadable } = require("node:stream");
     var { addAbortListener, bufferToLowerCasedHeaderName } = require_util();
-    var { SocketError } = require_errors();
+    var { SocketError, InformationalError } = require_errors();
     var { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require_data_url();
     var { getGlobalDispatcher: getGlobalDispatcher2 } = require_global2();
     var { webidl } = require_webidl();
@@ -15312,6 +15511,7 @@ var require_fetch = __commonJS({
                     }
                   }
                 }
+                this.nullBodyStatus = nullBodyStatus.includes(status);
                 this.body = new Readable({ read: /* @__PURE__ */ __name(() => controller.resume(), "read") });
                 const onError = /* @__PURE__ */ __name((err) => this.onResponseError(controller, err), "onError");
                 resolve({
@@ -15326,6 +15526,10 @@ var require_fetch = __commonJS({
                 });
               },
               onResponseData(controller, chunk) {
+                if (this.nullBodyStatus) {
+                  controller.abort(new InformationalError("response with null body status has content"));
+                  return;
+                }
                 if (fetchParams.controller.dump) {
                   return;
                 }
@@ -15345,6 +15549,10 @@ var require_fetch = __commonJS({
               onResponseError(controller, error) {
                 if (this.abort) {
                   fetchParams.controller.off("terminated", this.abort);
+                }
+                if (this.nullBodyStatus) {
+                  this.body?.destroy();
+                  return;
                 }
                 if (request.mode === "websocket" && allowH2 !== false && error?.code === "UND_ERR_INFO" && error?.message === "HTTP/2: Extended CONNECT protocol not supported by server") {
                   resolve(dispatchWithProtocolPreference(body2, false));
@@ -18488,6 +18696,94 @@ var require_readable = __commonJS({
   }
 });
 
+// lib/api/abort-signal.js
+var require_abort_signal = __commonJS({
+  "lib/api/abort-signal.js"(exports2, module2) {
+    "use strict";
+    var { addAbortListener } = require_util();
+    var { RequestAbortedError } = require_errors();
+    var { kQueuedAbort } = require_symbols();
+    var kListener = /* @__PURE__ */ Symbol("kListener");
+    var kSignal = /* @__PURE__ */ Symbol("kSignal");
+    function abort(self) {
+      self.reason = self[kSignal]?.reason ?? new RequestAbortedError();
+      if (self.abort) {
+        self.abort(self.reason);
+      }
+      removeSignal(self);
+    }
+    __name(abort, "abort");
+    function addSignal(self, signal) {
+      self.reason = null;
+      self[kSignal] = null;
+      self[kListener] = null;
+      if (!signal) {
+        return;
+      }
+      if (signal.aborted) {
+        self.reason = signal.reason ?? new RequestAbortedError();
+        return;
+      }
+      self[kSignal] = signal;
+      self[kListener] = () => {
+        abort(self);
+      };
+      addAbortListener(self[kSignal], self[kListener]);
+    }
+    __name(addSignal, "addSignal");
+    function removeSignal(self) {
+      if (!self[kSignal]) {
+        return;
+      }
+      if ("removeEventListener" in self[kSignal]) {
+        self[kSignal].removeEventListener("abort", self[kListener]);
+      } else {
+        self[kSignal].removeListener("abort", self[kListener]);
+      }
+      self[kSignal] = null;
+      self[kListener] = null;
+    }
+    __name(removeSignal, "removeSignal");
+    function queuedAbortHook(handler) {
+      let started = null;
+      let installed = null;
+      return (cancel) => {
+        if (handler.reason) {
+          cancel(handler.reason);
+          return;
+        }
+        if (handler.abort !== installed) {
+          started = handler.abort;
+        }
+        if (started === null) {
+          installed = cancel;
+        } else {
+          const abortStarted = started;
+          installed = /* @__PURE__ */ __name((reason) => {
+            abortStarted(reason);
+            cancel(reason);
+          }, "installed");
+        }
+        handler.abort = installed;
+      };
+    }
+    __name(queuedAbortHook, "queuedAbortHook");
+    function dispatchWithSignal(dispatcher, opts, handler) {
+      if (handler.reason) {
+        handler.onResponseError(null, handler.reason);
+        return;
+      }
+      dispatcher.dispatch({ ...opts, [kQueuedAbort]: queuedAbortHook(handler) }, handler);
+    }
+    __name(dispatchWithSignal, "dispatchWithSignal");
+    module2.exports = {
+      addSignal,
+      removeSignal,
+      dispatchWithSignal
+    };
+  }
+});
+
 // lib/api/api-request.js
 var require_api_request = __commonJS({
   "lib/api/api-request.js"(exports2, module2) {
@@ -18497,6 +18793,7 @@ var require_api_request = __commonJS({
     var { Readable } = require_readable();
     var { InvalidArgumentError, RequestAbortedError } = require_errors();
     var util = require_util();
+    var { dispatchWithSignal } = require_abort_signal();
     function noop() {
     }
     __name(noop, "noop");
@@ -18525,6 +18822,9 @@ var require_api_request = __commonJS({
           if (onInfo && typeof onInfo !== "function") {
             throw new InvalidArgumentError("invalid onInfo callback");
           }
+          if (signal?.aborted) {
+            throw signal.reason ?? new RequestAbortedError();
+          }
           super("UNDICI_REQUEST");
         } catch (err) {
           if (util.isStream(body)) {
@@ -18546,9 +18846,7 @@ var require_api_request = __commonJS({
         this.highWaterMark = highWaterMark;
         this.reason = null;
         this.removeAbortListener = null;
-        if (signal?.aborted) {
-          this.reason = signal.reason ?? new RequestAbortedError();
-        } else if (signal) {
+        if (signal) {
           this.removeAbortListener = util.addAbortListener(signal, () => {
             this.reason = signal.reason ?? new RequestAbortedError();
             if (this.res) {
@@ -18577,7 +18875,7 @@ var require_api_request = __commonJS({
         const responseHeaderData = responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : headers;
         if (statusCode < 200) {
           if (this.onInfo) {
-            this.onInfo({ statusCode, headers: responseHeaderData });
+            this.runInAsyncScope(this.onInfo, null, { statusCode, headers: responseHeaderData });
           }
           return;
         }
@@ -18679,7 +18977,11 @@ var require_api_request = __commonJS({
       }
       try {
         const handler = new RequestHandler(opts, callback);
-        this.dispatch(opts, handler);
+        if (opts.signal == null) {
+          this.dispatch(opts, handler);
+        } else {
+          dispatchWithSignal(this, opts, handler);
+        }
       } catch (err) {
         if (typeof callback !== "function") {
           throw err;
@@ -18694,61 +18996,6 @@ var require_api_request = __commonJS({
   }
 });
 
-// lib/api/abort-signal.js
-var require_abort_signal = __commonJS({
-  "lib/api/abort-signal.js"(exports2, module2) {
-    "use strict";
-    var { addAbortListener } = require_util();
-    var { RequestAbortedError } = require_errors();
-    var kListener = /* @__PURE__ */ Symbol("kListener");
-    var kSignal = /* @__PURE__ */ Symbol("kSignal");
-    function abort(self) {
-      if (self.abort) {
-        self.abort(self[kSignal]?.reason);
-      } else {
-        self.reason = self[kSignal]?.reason ?? new RequestAbortedError();
-      }
-      removeSignal(self);
-    }
-    __name(abort, "abort");
-    function addSignal(self, signal) {
-      self.reason = null;
-      self[kSignal] = null;
-      self[kListener] = null;
-      if (!signal) {
-        return;
-      }
-      if (signal.aborted) {
-        abort(self);
-        return;
-      }
-      self[kSignal] = signal;
-      self[kListener] = () => {
-        abort(self);
-      };
-      addAbortListener(self[kSignal], self[kListener]);
-    }
-    __name(addSignal, "addSignal");
-    function removeSignal(self) {
-      if (!self[kSignal]) {
-        return;
-      }
-      if ("removeEventListener" in self[kSignal]) {
-        self[kSignal].removeEventListener("abort", self[kListener]);
-      } else {
-        self[kSignal].removeListener("abort", self[kListener]);
-      }
-      self[kSignal] = null;
-      self[kListener] = null;
-    }
-    __name(removeSignal, "removeSignal");
-    module2.exports = {
-      addSignal,
-      removeSignal
-    };
-  }
-});
-
 // lib/api/api-stream.js
 var require_api_stream = __commonJS({
   "lib/api/api-stream.js"(exports2, module2) {
@@ -18757,7 +19004,7 @@ var require_api_stream = __commonJS({
     var { AsyncResource } = require("node:async_hooks");
     var { InvalidArgumentError, InvalidReturnValueError } = require_errors();
     var util = require_util();
-    var { addSignal, removeSignal } = require_abort_signal();
+    var { addSignal, removeSignal, dispatchWithSignal } = require_abort_signal();
     function noop() {
     }
     __name(noop, "noop");
@@ -18953,7 +19200,11 @@ var require_api_stream = __commonJS({
       }
       try {
         const handler = new StreamHandler(opts, factory, callback);
-        this.dispatch(opts, handler);
+        if (opts.signal == null) {
+          this.dispatch(opts, handler);
+        } else {
+          dispatchWithSignal(this, opts, handler);
+        }
       } catch (err) {
         if (typeof callback !== "function") {
           throw err;
@@ -18985,7 +19236,7 @@ var require_api_pipeline = __commonJS({
     } = require_errors();
     var util = require_util();
     var { kBodyUsed } = require_symbols();
-    var { addSignal, removeSignal } = require_abort_signal();
+    var { addSignal, removeSignal, dispatchWithSignal } = require_abort_signal();
     function noop() {
     }
     __name(noop, "noop");
@@ -19080,7 +19331,7 @@ var require_api_pipeline = __commonJS({
             if (!err && !ret._readableState.endEmitted) {
               err = new RequestAbortedError();
             }
-            if (abort && err) {
+            if (abort && (err || !res?.readableEnded)) {
               abort();
             }
             util.destroy(body, err);
@@ -19174,7 +19425,12 @@ var require_api_pipeline = __commonJS({
     function pipeline(opts, handler) {
       try {
         const pipelineHandler = new PipelineHandler(opts, handler);
-        this.dispatch({ ...opts, body: pipelineHandler.req }, pipelineHandler);
+        const pipelineOpts = { ...opts, body: pipelineHandler.req };
+        if (opts.signal == null) {
+          this.dispatch(pipelineOpts, pipelineHandler);
+        } else {
+          dispatchWithSignal(this, pipelineOpts, pipelineHandler);
+        }
         return pipelineHandler.ret;
       } catch (err) {
         return new PassThrough().destroy(err);
@@ -19194,7 +19450,7 @@ var require_api_upgrade = __commonJS({
     var assert = require("node:assert");
     var util = require_util();
     var { kHTTP2Stream } = require_symbols();
-    var { addSignal, removeSignal } = require_abort_signal();
+    var { addSignal, removeSignal, dispatchWithSignal } = require_abort_signal();
     var UpgradeHandler = class extends AsyncResource {
       static {
         __name(this, "UpgradeHandler");
@@ -19275,7 +19531,11 @@ var require_api_upgrade = __commonJS({
           method: opts.method || "GET",
           upgrade: opts.protocol || "Websocket"
         };
-        this.dispatch(upgradeOpts, upgradeHandler);
+        if (opts.signal == null) {
+          this.dispatch(upgradeOpts, upgradeHandler);
+        } else {
+          dispatchWithSignal(this, upgradeOpts, upgradeHandler);
+        }
       } catch (err) {
         if (typeof callback !== "function") {
           throw err;
@@ -19297,7 +19557,7 @@ var require_api_connect = __commonJS({
     var { AsyncResource } = require("node:async_hooks");
     var { InvalidArgumentError, SocketError } = require_errors();
     var util = require_util();
-    var { addSignal, removeSignal } = require_abort_signal();
+    var { addSignal, removeSignal, dispatchWithSignal } = require_abort_signal();
     var ConnectHandler = class extends AsyncResource {
       static {
         __name(this, "ConnectHandler");
@@ -19371,7 +19631,11 @@ var require_api_connect = __commonJS({
       try {
         const connectHandler = new ConnectHandler(opts, callback);
         const connectOptions = { ...opts, method: "CONNECT" };
-        this.dispatch(connectOptions, connectHandler);
+        if (opts.signal == null) {
+          this.dispatch(connectOptions, connectHandler);
+        } else {
+          dispatchWithSignal(this, connectOptions, connectHandler);
+        }
       } catch (err) {
         if (typeof callback !== "function") {
           throw err;

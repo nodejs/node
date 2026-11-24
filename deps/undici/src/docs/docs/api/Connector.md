@@ -78,7 +78,7 @@ const connector = buildConnector({ rejectUnauthorized: false })
 
 const client = new Client('https://localhost:3000', {
   connect (opts, cb) {
-    connector(opts, (err, socket) => {
+    return connector(opts, (err, socket) => {
       if (err) {
         cb(err)
       } else if (/* assertion */ false) {
@@ -124,6 +124,13 @@ targets or a [`tls.TLSSocket`][] for `https:` targets, applies TCP keep-alive an
 the connect timeout, and invokes `callback` once the socket connects or errors.
 The socket is also returned synchronously.
 
+undici uses the returned socket to cancel a connection attempt that no request
+needs any more: once every request waiting for it is aborted, the socket is
+destroyed and the next request opens a new connection instead of waiting for
+it. A connector that wraps another one should return the socket it gets back,
+as the examples on this page do. If it returns nothing, the attempt runs until
+it connects or fails.
+
 When connecting over TLS, established sessions are cached (subject to
 `maxCachedSessions`) and reused for subsequent connections to the same
 `servername` or `hostname`.
@@ -141,7 +148,7 @@ const connector = buildConnector({ rejectUnauthorized: false })
 
 const client = new Client('https://localhost:3000', {
   connect (opts, cb) {
-    connector(opts, (err, socket) => {
+    return connector(opts, (err, socket) => {
       if (err) {
         cb(err)
       } else if (getIssuerCertificate(socket).fingerprint256 !== caFingerprint) {

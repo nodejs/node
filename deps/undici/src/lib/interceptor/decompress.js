@@ -105,8 +105,6 @@ function createMaxSizeLimiter (maxSize) {
   })
 }
 
-let warningEmitted = /** @type {boolean} */ (false)
-
 /**
  * @typedef {Object} DecompressHandlerOptions
  * @property {number[]|Readonly<number[]>} [skipStatusCodes=[204, 304]] - List of status codes to skip decompression for
@@ -550,15 +548,6 @@ class DecompressHandler extends DecoratorHandler {
  * @returns {Function} - Interceptor function
  */
 function createDecompressInterceptor (options = {}) {
-  // Emit experimental warning only once
-  if (!warningEmitted) {
-    process.emitWarning(
-      'DecompressInterceptor is experimental and subject to change',
-      'ExperimentalWarning'
-    )
-    warningEmitted = true
-  }
-
   return (dispatch) => {
     return (opts, handler) => {
       if (opts.method === 'HEAD') {

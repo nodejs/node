@@ -18,7 +18,7 @@ const {
   InvalidArgumentError
 } = require('../core/errors')
 const util = require('../core/util')
-const { kConnecting, kHTTPContext, kUrl, kQueued } = require('../core/symbols')
+const { kConnecting, kHTTPContext, kHTTP2Session, kRemoteSettings, kUrl, kQueued } = require('../core/symbols')
 const buildConnector = require('../core/connect')
 
 const kOptions = Symbol('options')
@@ -116,12 +116,25 @@ class Pool extends PoolBase {
       }
 
       if (client === this[kProtocolProbe]) {
-        // An h2 Client's drain event releases the requests accumulated during
-        // negotiation onto that Client. If ALPN selected h1, release the probe
-        // immediately and restore normal Pool fan-out instead.
-        if (this[kProtocol] !== 'h2') {
-          this[kProtocolProbe] = null
-          this[kDrainQueue](origin, targets.slice(1))
+        const releaseProbe = () => {
+          if (client === this[kProtocolProbe]) {
+            this[kProtocolProbe] = null
+            // An empty queue must not release backpressure when this client
+            // is still saturated and the connection limit prevents fan-out.
+            // Check capacity without invoking a factory for unused capacity.
+            if (!this.destroyed && (this[kQueued] > 0 || (!this.closed && this[kHasDispatcher](false)))) {
+              this[kDrainQueue](origin, targets.slice(1))
+            }
+          }
+        }
+        const session = client[kHTTP2Session]
+        // A peer's stream limit can keep the probe busy indefinitely. Once
+        // SETTINGS arrive, queued work may need another connection without
+        // waiting for this client's drain event.
+        if (this[kProtocol] !== 'h2' || session[kRemoteSettings]) {
+          releaseProbe()
+        } else {
+          session.once('remoteSettings', releaseProbe)
         }
       }
     })
@@ -200,7 +213,7 @@ class Pool extends PoolBase {
     }
   }
 
-  [kHasDispatcher] () {
+  [kHasDispatcher] (create = true) {
     const clientTtlOption = this[kOptions].clientTtl
     for (let i = 0; i < this[kClients].length; i++) {
       const client = this[kClients][i]
@@ -218,7 +231,7 @@ class Pool extends PoolBase {
     }
 
     if (!this[kConnections] || this[kClients].length < this[kConnections]) {
-      createClient(this)
+      if (create) createClient(this)
       return true
     }
 

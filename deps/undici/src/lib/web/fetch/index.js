@@ -59,7 +59,7 @@ const {
 const EE = require('node:events')
 const { Readable, pipeline, finished, isErrored, isReadable } = require('node:stream')
 const { addAbortListener, bufferToLowerCasedHeaderName } = require('../../core/util')
-const { SocketError } = require('../../core/errors')
+const { SocketError, InformationalError } = require('../../core/errors')
 const { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require('./data-url')
 const { getGlobalDispatcher } = require('../../global')
 const { webidl } = require('../webidl')
@@ -2333,6 +2333,10 @@ async function httpNetworkFetch (
               }
             }
 
+            // The response will be exposed without a body, so any content the
+            // server sends is disregarded (see main fetch step 19).
+            this.nullBodyStatus = nullBodyStatus.includes(status)
+
             this.body = new Readable({ read: () => controller.resume() })
 
             const onError = (err) => this.onResponseError(controller, err)
@@ -2352,6 +2356,14 @@ async function httpNetworkFetch (
           },
 
           onResponseData (controller, chunk) {
+            if (this.nullBodyStatus) {
+              // The server sent content in a response that must not have any.
+              // Nobody can read it, so close the connection instead of waiting
+              // for the server to finish sending it.
+              controller.abort(new InformationalError('response with null body status has content'))
+              return
+            }
+
             if (fetchParams.controller.dump) {
               return
             }
@@ -2389,6 +2401,13 @@ async function httpNetworkFetch (
           onResponseError (controller, error) {
             if (this.abort) {
               fetchParams.controller.off('terminated', this.abort)
+            }
+
+            if (this.nullBodyStatus) {
+              // The response has no body, so a failure while receiving the
+              // disregarded content must not turn it into a network error.
+              this.body?.destroy()
+              return
             }
 
             if (

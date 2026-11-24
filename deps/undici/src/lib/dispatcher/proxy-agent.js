@@ -159,8 +159,10 @@ class ProxyAgent extends DispatcherBase {
           headers: this[kProxyHeaders],
           connect,
           factory: agentFactory,
-          username: opts.username || username,
-          password: opts.password || password,
+          // Socks5ProxyAgent decodes the credentials embedded in the URI;
+          // the URL getters return them still percent-encoded.
+          username: opts.username,
+          password: opts.password,
           connectTimeout,
           proxyTls: opts.proxyTls,
           requestTls: opts.requestTls

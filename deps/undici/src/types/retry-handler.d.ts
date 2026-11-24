@@ -78,7 +78,7 @@ declare namespace RetryHandler {
      */
     minTimeout?: number;
     /**
-     * Factior to multiply the timeout factor between retries.
+     * Factor to multiply the timeout factor between retries.
      *
      * @type {number}
      * @memberof RetryOptions

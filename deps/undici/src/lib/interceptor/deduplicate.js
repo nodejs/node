@@ -4,6 +4,7 @@ const diagnosticsChannel = require('node:diagnostics_channel')
 const util = require('../core/util')
 const DeduplicationHandler = require('../handler/deduplication-handler')
 const { getInterceptorOrigin, normalizeHeaders, makeCacheKey, makeDeduplicationKey } = require('../util/cache.js')
+const { kInterceptorKind } = require('../core/symbols.js')
 
 const pendingRequestsChannel = diagnosticsChannel.channel('undici:request:pending-requests')
 
@@ -57,7 +58,7 @@ module.exports = (opts = {}) => {
    */
   const pendingRequests = new Map()
 
-  return (dispatch, interceptorOrigin) => {
+  const interceptor = (dispatch, interceptorOrigin) => {
     return (opts, handler) => {
       const requestOrigin = getInterceptorOrigin(opts, interceptorOrigin)
       if (!requestOrigin || opts.upgrade || methods.includes(opts.method) === false) {
@@ -115,4 +116,6 @@ module.exports = (opts = {}) => {
       return dispatch(opts, deduplicationHandler)
     }
   }
+  interceptor[kInterceptorKind] = 'deduplicate'
+  return interceptor
 }

@@ -203,6 +203,16 @@ added: v7.0.0
 integers; a `TypeError` is thrown otherwise, or if `maxEntrySize` is greater
 than 2 GB.
 
+The database is not encrypted, and nothing in it is hashed. The request URL
+(including the query string), the response headers and body, and the values of
+any request headers named in the response's `Vary` header (for example
+`Authorization` or `Cookie`) are written as plain text to `location`. Protect
+that file like any other sensitive data, or use `':memory:'`. A response to a
+request that carries `Authorization` is only stored when the response allows it
+with `public`, `s-maxage`, or `must-revalidate` (see [RFC 9111, Section 3.5][]);
+servers can send `Cache-Control: no-store` to keep a response out of the cache
+entirely.
+
 ### `sqliteCacheStore.close()`
 
 <!-- YAML
@@ -372,4 +382,5 @@ The value returned by `get`. It contains every field of
   body. (optional)
 
 [RFC&nbsp;9111]: https://www.rfc-editor.org/rfc/rfc9111.html
+[RFC 9111, Section 3.5]: https://www.rfc-editor.org/rfc/rfc9111.html#section-3.5
 [`node:sqlite`]: https://nodejs.org/api/sqlite.html

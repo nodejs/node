@@ -190,7 +190,12 @@ class DispatcherBase extends Dispatcher {
 
       handler.onResponseError(null, err)
 
-      return false
+      // The request failed synchronously: no work was queued on this
+      // dispatcher, no capacity was consumed and no 'drain' event will
+      // ever follow. Returning false would make callers (e.g. Pool)
+      // mark this dispatcher as busy waiting for a drain that never
+      // comes, permanently taking it out of rotation.
+      return true
     }
   }
 }
