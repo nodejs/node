@@ -1136,15 +1136,14 @@ void Worker::StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
 
   bool scheduled = w->RequestInterrupt([taker = std::move(taker),
                                         env](Environment* worker_env) mutable {
-    std::ostringstream out_stream;
-    bool success =
-        node::SerializeHeapProfile(worker_env->isolate(), out_stream);
+    std::string profile;
+    bool success = node::SerializeHeapProfile(worker_env->isolate(), profile);
     if (success) {
       worker_env->isolate()->GetHeapProfiler()->StopSamplingHeapProfiler();
     }
     env->SetImmediateThreadsafe(
         [taker = std::move(taker),
-         out_stream = std::move(out_stream),
+         profile = std::move(profile),
          success = success](Environment* env) mutable {
           Isolate* isolate = env->isolate();
           HandleScope handle_scope(isolate);
@@ -1156,8 +1155,7 @@ void Worker::StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
           };
           if (success) {
             Local<Value> result;
-            if (!ToV8Value(env->context(), out_stream.str(), isolate)
-                     .ToLocal(&result)) {
+            if (!ToV8Value(env->context(), profile, isolate).ToLocal(&result)) {
               return;
             }
             argv[1] = result;

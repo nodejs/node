@@ -45,14 +45,14 @@ static void BuildHeapProfileNode(Isolate* isolate,
   writer->json_arrayend();
 }
 
-bool SerializeHeapProfile(Isolate* isolate, std::ostringstream& out_stream) {
+bool SerializeHeapProfile(Isolate* isolate, std::string& out) {
   HandleScope scope(isolate);
   HeapProfiler* profiler = isolate->GetHeapProfiler();
   std::unique_ptr<AllocationProfile> profile(profiler->GetAllocationProfile());
   if (!profile) {
     return false;
   }
-  JSONWriter writer(out_stream, true);
+  JSONWriter writer(out, true);
   writer.json_start();
 
   writer.json_arraystart("samples");
