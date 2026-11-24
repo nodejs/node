@@ -548,9 +548,8 @@ class TruncationProcessor {
     node->OverwriteWith<Int32Add>();
   }
 
-  template <typename NodeT>
-
-  void ProcessFloat64BinaryOp(ValueNode* node) {
+  template <typename NodeT, typename InputNodeT>
+  void ProcessFloat64BinaryOp(InputNodeT* node) {
     if (!node->can_truncate_to_int32()) return;
 
     switch (NonInt32InputCount(node)) {
@@ -560,14 +559,20 @@ class TruncationProcessor {
         TRACE_TRUNCATION("truncating "
                          << PrintNodeBrief{node} << " to "
                          << OpcodeToString(Node::opcode_of<NodeT>));
-        node->OverwriteWith<NodeT>();
+        node->template OverwriteWith<NodeT>();
         break;
       case 1:
         // Convert nodes back to float64 and don't truncate.
         ConvertInputsToFloat64(node);
-        break;
+        [[fallthrough]];
       case 2:
-        // Don't truncate.
+        // Don't truncate. Either a direct input (case 1) or a transitive
+        // descendant of a Float64 input that hit case 1 (case 2) may have been
+        // truncated to Int32, shifting its value by multiples of 2^32 and
+        // invalidating the pre-truncation range cached on this node during
+        // graph building. Since at least one input is not Int32, the new static
+        // range would be wider than Int32 anyway, so reset it.
+        node->set_range(Range::All());
         break;
       default:
         UNREACHABLE();

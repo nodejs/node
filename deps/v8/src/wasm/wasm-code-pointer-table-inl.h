@@ -123,6 +123,13 @@ WasmCodePointer WasmCodePointerTable::AllocateUninitializedEntry() {
 
     // Freelist is (still) empty so extend this space by another segment.
     auto [segment, freelist] = AllocateAndInitializeSegment();
+    // Do not allocate the last segment, as `kInvalidWasmCodePointer` (-1) masks
+    // to its last entry (`kIndexSpaceSize - 1`) and must remain unmapped so
+    // calls to invalid code pointers reliably crash.
+    if (segment.last_entry() == WasmCodePointer::kIndexSpaceSize - 1) {
+      V8::FatalProcessOutOfMemory(
+          nullptr, "WasmCodePointerTable::AllocateUninitializedEntry");
+    }
 
     // Take out the first entry before we link it to the freelist_head.
     allocated_entry = AllocateEntryFromFreelistNonAtomic(&freelist);

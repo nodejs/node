@@ -178,8 +178,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
       const paramType = paramIt.NextNotEmpty();
       if ((paramType & kValueTypeIsRefBit) != 0) {
         const slot = locationAllocator.GetGPSlot();
-        const rawRef = *slot;
-        const value = BitcastWordToTagged(rawRef);
+        const value = LoadWasmRef(slot);
         outParams.objects[nextIndex] =
             WasmToJSObject(data.native_context, value);
       }

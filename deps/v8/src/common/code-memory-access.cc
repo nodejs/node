@@ -472,14 +472,14 @@ void ThreadIsolation::JitPageReference::UnregisterAllocationsExcept(
 
 std::optional<base::Address>
 ThreadIsolation::JitPageReference::StartOfAllocationAt(
-    base::Address inner_pointer) {
+    base::Address inner_pointer, JitAllocationType type) {
   auto it = jit_page_->allocations_.upper_bound(inner_pointer);
   if (it == jit_page_->allocations_.begin()) {
     return {};
   }
   it--;
   size_t offset = inner_pointer - it->first;
-  if (it->second.Size() <= offset) {
+  if (it->second.Size() <= offset || it->second.Type() != type) {
     return {};
   }
   return it->first;
@@ -617,9 +617,9 @@ void ThreadIsolation::RegisterJitAllocations(Address start,
   }
 }
 
-void ThreadIsolation::RegisterJitAllocationForTesting(Address obj,
-                                                      size_t size) {
-  RegisterJitAllocation(obj, size, JitAllocationType::kInstructionStream);
+void ThreadIsolation::RegisterJitAllocationForTesting(Address obj, size_t size,
+                                                      JitAllocationType type) {
+  RegisterJitAllocation(obj, size, type);
 }
 
 // static
@@ -685,13 +685,13 @@ ThreadIsolation::SplitJitPages(Address addr1, size_t size1, Address addr2,
 
 // static
 std::optional<Address> ThreadIsolation::StartOfJitAllocationAt(
-    Address inner_pointer) {
+    Address inner_pointer, JitAllocationType type) {
   CFIMetadataWriteScope write_scope("StartOfJitAllocationAt");
   std::optional<JitPageReference> page = TryLookupJitPage(inner_pointer, 1);
   if (!page) {
     return {};
   }
-  return page->StartOfAllocationAt(inner_pointer);
+  return page->StartOfAllocationAt(inner_pointer, type);
 }
 
 // static
@@ -711,14 +711,14 @@ bool ThreadIsolation::WriteProtectMemory(
 
 // static
 std::optional<Address> ThreadIsolation::TryLookupStartOfJitAllocationAt(
-    Address inner_pointer) {
+    Address inner_pointer, JitAllocationType type) {
   CFIMetadataWriteScope write_scope("TryLookupStartOfJitAllocationAt");
   std::optional<JitPageReference> page =
       TryLookupJitPageWithoutBlocking(inner_pointer);
   if (!page) {
     return {};
   }
-  return page->StartOfAllocationAt(inner_pointer);
+  return page->StartOfAllocationAt(inner_pointer, type);
 }
 
 // static

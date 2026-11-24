@@ -54,6 +54,9 @@ struct JSDispatchEntry {
 
   // Returns true if this entry is a freelist entry.
   inline bool IsFreelistEntry() const;
+  // Returns true if this entry is a freelist entry or an uninitialized
+  // (zero-filled) entry.
+  inline bool IsFreelistOrUninitializedEntry() const;
 #ifdef V8_TARGET_ARCH_64_BIT
   // Helper to check if an entry is a freelist entry using an already-loaded
   // entrypoint value.

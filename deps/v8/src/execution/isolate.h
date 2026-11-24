@@ -2471,6 +2471,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     memory_saver_mode_enabled_ = memory_saver_mode_enabled;
   }
 
+  // Returns true if the debugger has mutated a context slot marked as
+  // kNotAssigned in ScopeInfo, making the kNotAssigned flag unreliable for
+  // constant-folding optimizations in this isolate.
+  bool is_context_slot_not_assigned_unreliable() const {
+    return context_slot_not_assigned_is_unreliable_.load(
+        std::memory_order_relaxed);
+  }
+
+  void MarkContextSlotNotAssignedIsUnreliable();
+
   void ReportExceptionFunctionCallback(
       DirectHandle<JSReceiver> receiver,
       DirectHandle<FunctionTemplateInfo> function,
@@ -2695,6 +2705,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::atomic<bool> battery_saver_mode_enabled_ = false;
   std::atomic<bool> memory_saver_mode_enabled_ = false;
+  std::atomic<bool> context_slot_not_assigned_is_unreliable_ = false;
 
   // Helper function for RunHostImportModuleDynamicallyCallback.
   // Unpacks import attributes, if present, from the second argument to dynamic

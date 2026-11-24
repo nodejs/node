@@ -3482,12 +3482,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64MovqDecompressTagged: {
       CHECK(instr->HasOutput());
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      Operand address(i.MemoryOperand());
-      __ DecompressTagged(i.OutputRegister(), address);
-      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address,
-                                     MakeSharedBaseTsanArgument(instr, i), i,
-                                     DetermineStubCallMode(), kTaggedSize);
+      if (HasAddressingMode(instr)) {
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        Operand address(i.MemoryOperand());
+        __ DecompressTagged(i.OutputRegister(), address);
+        EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address,
+                                       MakeSharedBaseTsanArgument(instr, i), i,
+                                       DetermineStubCallMode(), kTaggedSize);
+      } else if (instr->InputAt(0)->IsRegister()) {
+        __ DecompressTagged(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ DecompressTagged(i.OutputRegister(), i.InputOperand(0));
+      }
       break;
     }
     case kX64MovqCompressTagged: {

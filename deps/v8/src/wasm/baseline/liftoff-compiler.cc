@@ -1079,6 +1079,13 @@ class LiftoffCompiler {
           compiler_->asm_.clear_i32_upper_half(reg.gp());
         }
 #endif
+#if V8_ENABLE_SANDBOX
+        // For sandbox hardening, treat tagged parameters as compressed values
+        // and re-apply the pointer compression cage base on function entry.
+        if (is_reference(kind_)) {
+          compiler_->asm_.DecompressTagged(reg.gp(), reg.gp());
+        }
+#endif
         if (needs_gp_pair_) {
           NextLocation();
           LiftoffRegister reg2 = LoadToReg(param_regs_ | LiftoffRegList{reg});

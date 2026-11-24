@@ -9,7 +9,6 @@
 #include <ostream>
 
 #include "src/base/logging.h"
-#include "src/builtins/accessors.h"
 #include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/heap-refs.h"
@@ -24,6 +23,7 @@
 #include "src/objects/field-index-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/js-array.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-details.h"
@@ -53,7 +53,7 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
   static_assert(ODDBALL_TYPE == LAST_PRIMITIVE_HEAP_OBJECT_TYPE);
   if (IsBooleanMap(*map.object())) return true;
   if (map.instance_type() < LAST_PRIMITIVE_HEAP_OBJECT_TYPE) return true;
-  if (IsJSObjectMap(*map.object())) {
+  if (map.IsJSObjectMap()) {
     if (map.is_dictionary_map()) {
       if (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return false;
       return access_mode == AccessMode::kLoad && map.is_prototype_map();
@@ -63,7 +63,7 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
            !map.is_access_check_needed();
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (IsAnyWasmObjectMap(*map.object())) {
+  if (map.IsAnyWasmObjectMap()) {
     DCHECK(!map.has_named_interceptor());
     DCHECK(!map.is_access_check_needed());
     // Accesses to Wasm objects all go through the prototype chain, but
@@ -118,7 +118,7 @@ ElementAccessInfo::ElementAccessInfo(
 ElementAccessInfo::ElementAccessInfo(MapRef map, ObjectRef accessor,
                                      ObjectRef target, bool string_keys,
                                      Zone* zone)
-    : elements_kind_(map.elements_kind()),
+    : elements_kind_(NO_ELEMENTS),
       string_keys_(string_keys),
       lookup_start_object_maps_({map}, zone),
       transition_sources_(zone),
@@ -1020,7 +1020,7 @@ PropertyAccessInfo TryComputeDictionaryDataFieldAccessInfo(
   // Receiver map must be a standard JSObject without access checks or
   // interceptors.
   if (!map.is_dictionary_map() || !map.IsJSObjectMap() ||
-      IsJSGlobalObjectMap(*map.object()) || map.is_access_check_needed() ||
+      map.IsJSGlobalObjectMap() || map.is_access_check_needed() ||
       map.has_named_interceptor()) {
     return PropertyAccessInfo::Invalid(zone);
   }
@@ -1061,7 +1061,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
   }
 
-  if (access_mode == AccessMode::kHas && !IsJSReceiverMap(*map.object())) {
+  if (access_mode == AccessMode::kHas && !map.IsJSReceiverMap()) {
     return Invalid();
   }
 
@@ -1198,7 +1198,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     // Don't search on the prototype chain for special indices in case of
     // integer indexed exotic objects (see ES6 section 9.4.5).
-    if (IsJSTypedArrayMap(*map.object()) && name.IsString()) {
+    if (map.IsJSTypedArrayMap() && name.IsString()) {
       StringRef name_str = name.AsString();
       SharedStringAccessGuardIfNeeded access_guard(
           *name_str.object(), broker()->local_isolate_or_isolate());
@@ -1240,11 +1240,11 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     HeapObjectRef prototype = map.prototype(broker());
 
     MapRef map_prototype_map = prototype.map(broker());
-    if (!IsJSObjectMap(*map_prototype_map.object())) {
+    if (!map_prototype_map.IsJSObjectMap()) {
       // Don't allow proxies on the prototype chain.
       if (!prototype.IsNull()) {
-        DCHECK(IsJSProxy(*prototype.object()) ||
-               IsWasmObject(*prototype.object()));
+        DCHECK(map_prototype_map.IsJSProxyMap() ||
+               map_prototype_map.IsAnyWasmObjectMap());
         return Invalid();
       }
 
@@ -1403,14 +1403,14 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
 PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
     MapRef map, NameRef name) const {
   // Check for String::length field accessor.
-  if (IsStringMap(*map.object())) {
+  if (map.IsStringMap()) {
     if (Name::Equals(isolate(), name.object(),
                      isolate()->factory()->length_string())) {
       return PropertyAccessInfo::StringLength(zone(), map);
     }
     return Invalid();
   }
-  if (IsJSPrimitiveWrapperMap(*map.object()) &&
+  if (map.IsJSPrimitiveWrapperMap() &&
       (map.elements_kind() == FAST_STRING_WRAPPER_ELEMENTS ||
        map.elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS)) {
     if (Name::Equals(isolate(), name.object(),
@@ -1418,29 +1418,29 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
       return PropertyAccessInfo::StringWrapperLength(zone(), map);
     }
   }
-  // Check for special JSObject field accessors.
-  FieldIndex field_index;
-  if (Accessors::IsJSObjectFieldAccessor(isolate(), map.object(), name.object(),
-                                         &field_index)) {
+  // Check for special JSObject field accessors. Mirrors
+  // Accessors::IsJSObjectFieldAccessor, inlined here to use the snapshotted
+  // MapRef instance type rather than reading the live Map.
+  if (map.IsJSArrayMap() && !map.is_dictionary_map() &&
+      Name::Equals(isolate(), name.object(),
+                   isolate()->factory()->length_string())) {
+    FieldIndex field_index = FieldIndex::ForInObjectOffset(
+        offsetof(JSArray, length_), FieldIndex::kTagged);
     Type field_type = Type::NonInternal();
     Representation field_representation = Representation::Tagged();
-    if (IsJSArrayMap(*map.object())) {
-      DCHECK(Name::Equals(isolate(), isolate()->factory()->length_string(),
-                          name.object()));
-      // The JSArray::length property is a smi in the range
-      // [0, FixedDoubleArray::kMaxLength] in case of fast double
-      // elements, a smi in the range [0, FixedArray::kMaxLength]
-      // in case of other fast elements, and [0, kMaxUInt32] in
-      // case of other arrays.
-      if (IsDoubleElementsKind(map.elements_kind())) {
-        field_type = type_cache_->kFixedDoubleArrayLengthType;
-        field_representation = Representation::Smi();
-      } else if (IsFastElementsKind(map.elements_kind())) {
-        field_type = type_cache_->kFixedArrayLengthType;
-        field_representation = Representation::Smi();
-      } else {
-        field_type = type_cache_->kJSArrayLengthType;
-      }
+    // The JSArray::length property is a smi in the range
+    // [0, FixedDoubleArray::kMaxLength] in case of fast double
+    // elements, a smi in the range [0, FixedArray::kMaxLength]
+    // in case of other fast elements, and [0, kMaxUInt32] in
+    // case of other arrays.
+    if (IsDoubleElementsKind(map.elements_kind())) {
+      field_type = type_cache_->kFixedDoubleArrayLengthType;
+      field_representation = Representation::Smi();
+    } else if (IsFastElementsKind(map.elements_kind())) {
+      field_type = type_cache_->kFixedArrayLengthType;
+      field_representation = Representation::Smi();
+    } else {
+      field_type = type_cache_->kJSArrayLengthType;
     }
     // Special fields are always mutable.
     return PropertyAccessInfo::DataField(broker(), zone(), map, {{}, zone()},
@@ -1455,9 +1455,8 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessorInHolder(
     PropertyDetails details, InternalIndex index) const {
   // Check whether we're accessing the `length` property in a TypedArray
   // prototype.
-  if (v8_flags.typed_array_length_loading &&
-      IsJSTypedArrayMap(*receiver_map.object()) &&
-      !IsJSDetachedTypedArrayMap(*receiver_map.object()) &&
+  if (v8_flags.typed_array_length_loading && receiver_map.IsJSTypedArrayMap() &&
+      !receiver_map.IsJSDetachedTypedArrayMap() &&
       !IsRabGsabTypedArrayElementsKind(receiver_map.elements_kind()) &&
       Name::Equals(isolate(), name.object(),
                    isolate()->factory()->length_string()) &&

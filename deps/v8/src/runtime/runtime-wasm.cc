@@ -862,7 +862,8 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
   // We only use the runtime call for lazily initialized function references.
-  DCHECK(table->unsafe_type().ref_type_kind() == wasm::RefTypeKind::kFunction);
+  DCHECK(trusted_instance_data->dispatch_table(table_index) !=
+         *isolate->factory()->empty_wasm_dispatch_table());
 
   if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
@@ -884,7 +885,8 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
   // We only use the runtime call for lazily initialized function references.
-  DCHECK(table->unsafe_type().ref_type_kind() == wasm::RefTypeKind::kFunction);
+  DCHECK(trusted_instance_data->dispatch_table(table_index) !=
+         *isolate->factory()->empty_wasm_dispatch_table());
 
   if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
