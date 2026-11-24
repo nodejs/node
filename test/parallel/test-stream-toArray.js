@@ -91,3 +91,15 @@ const assert = require('assert');
     });
   }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
 }
+
+{
+  // Already aborted AbortSignal on an empty stream
+  const reason = new Error('aborted');
+  const stream = Readable.from([]);
+  assert.rejects(stream.toArray({ signal: AbortSignal.abort(reason) }), {
+    name: 'AbortError',
+    cause: reason,
+  }).then(common.mustCall(() => {
+    assert.strictEqual(stream.destroyed, true);
+  }));
+}

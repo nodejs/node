@@ -137,3 +137,12 @@ const { once } = require('events');
   // Check that map isn't getting called.
   stream.forEach(() => true);
 }
+
+{
+  // Already aborted AbortSignal on an empty stream
+  assert.rejects(Readable.from([]).forEach(common.mustNotCall(), {
+    signal: AbortSignal.abort(),
+  }), {
+    name: 'AbortError',
+  }).then(common.mustCall());
+}

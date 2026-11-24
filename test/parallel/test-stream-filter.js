@@ -174,3 +174,13 @@ const { setTimeout } = require('timers/promises');
   // Check that map isn't getting called.
   stream.filter(() => true);
 }
+
+{
+  // Already aborted AbortSignal on an empty stream
+  const stream = Readable.from([]).filter(common.mustNotCall(), {
+    signal: AbortSignal.abort(),
+  });
+  assert.rejects(stream.toArray(), {
+    name: 'AbortError',
+  }).then(common.mustCall());
+}
