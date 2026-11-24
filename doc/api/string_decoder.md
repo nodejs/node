@@ -92,9 +92,11 @@ added: v0.9.3
 * `buffer` {string|Buffer|TypedArray|DataView} The bytes to decode.
 * Returns: {string}
 
-Returns any remaining input stored in the internal buffer as a string. Bytes
-representing incomplete UTF-8 and UTF-16 characters will be replaced with
-substitution characters appropriate for the character encoding.
+Returns any remaining input stored in the internal buffer as a string.
+An incomplete UTF-8 sequence at the end of the input is decoded as the
+replacement character (`U+FFFD`). For UTF-16LE, a trailing byte that does not form
+a complete code unit is discarded, and a trailing unpaired high surrogate is
+returned as a single code unit.
 
 If the `buffer` argument is provided, one final call to `stringDecoder.write()`
 is performed before returning the remaining input.
