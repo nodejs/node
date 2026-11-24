@@ -299,3 +299,26 @@ const values = [
     assert.match(stack[1], /at process\.processTicksAndRejections/);
   }));
 }
+
+{
+  // Test that deleting the `length` or `name` property of the original
+  // function does not throw (https://github.com/nodejs/node/issues/67745).
+  async function asyncFn() {
+    return 42;
+  }
+  delete asyncFn.length;
+  delete asyncFn.name;
+  const cbAsyncFn = callbackify(asyncFn);
+  cbAsyncFn(common.mustSucceed((ret) => {
+    assert.strictEqual(ret, 42);
+  }));
+
+  function promiseFn() {
+    return Promise.resolve(42);
+  }
+  delete promiseFn.length;
+  const cbPromiseFn = callbackify(promiseFn);
+  cbPromiseFn(common.mustSucceed((ret) => {
+    assert.strictEqual(ret, 42);
+  }));
+}
