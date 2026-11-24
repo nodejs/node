@@ -1201,7 +1201,7 @@ class Http3ApplicationImpl final : public Session::Application {
     NgHttp3CallbackScope scope(&app.session());
     if (stream_user_data == nullptr) {
       // stream is gone on js side, we exit silently
-      *pflags |= NGHTTP3_DATA_FLAG_EOF
+      *pflags |= NGHTTP3_DATA_FLAG_EOF;
       return 0;
     }
 
