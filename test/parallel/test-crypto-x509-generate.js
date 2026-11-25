@@ -71,6 +71,19 @@ function assertSigned(certificate, publicKey, privateKey) {
     assert.strictEqual(certificate.checkPrivateKey(privateKey), true);
 }
 
+function assertPss(keys, signature, expectedSaltLength) {
+  const certificate = generateX509CertificateSync(
+    baseOptions(keys, { signature }));
+  assertSigned(certificate, keys.publicKey, keys.privateKey);
+  assert.strictEqual(certificate.signatureAlgorithmOid,
+                     '1.2.840.113549.1.1.10');
+  // RSASSA-PSS-params saltLength: [2] EXPLICIT INTEGER
+  const encodedSaltLength =
+    Buffer.from([0xa2, 0x03, 0x02, 0x01, expectedSaltLength]);
+  const { parameters } = certificate.signature.algorithm;
+  assert(parameters.includes(encodedSaltLength), parameters.toString('hex'));
+}
+
 function assertSynchronousFailure(options, expected) {
   assert.throws(() => generateX509CertificateSync(options), expected);
   assert.throws(() => generateX509Certificate(
@@ -459,30 +472,23 @@ assertSigned(generateX509CertificateSync(baseOptions(leafKeys, {
 })), leafKeys.publicKey, leafKeys.privateKey);
 
 {
-  const certificate = generateX509CertificateSync(baseOptions(leafKeys, {
-    signature: {
-      key: {
-        key: leafKeys.privateKey,
-        padding: constants.RSA_PKCS1_PSS_PADDING,
-        saltLength: 32,
-      },
-      digest: 'sha256',
+  assertPss(leafKeys, {
+    key: {
+      key: leafKeys.privateKey,
+      padding: constants.RSA_PKCS1_PSS_PADDING,
     },
-  }));
-  assertSigned(certificate, leafKeys.publicKey, leafKeys.privateKey);
-  assert.strictEqual(certificate.signatureAlgorithmOid, '1.2.840.113549.1.1.10');
-}
+    digest: 'sha256',
+  }, 32);
 
-if (!isBoringSSL) {
-  const keys = generateKeyPairSync('rsa-pss', {
-    modulusLength: 2048,
-    hashAlgorithm: 'sha256',
-    mgf1HashAlgorithm: 'sha256',
-    saltLength: 64,
-  });
-  const certificate = generateX509CertificateSync(baseOptions(keys));
-  assertSigned(certificate, keys.publicKey, keys.privateKey);
-  assert.strictEqual(certificate.signatureAlgorithmOid, '1.2.840.113549.1.1.10');
+  if (!isBoringSSL) {
+    const restricted = generateKeyPairSync('rsa-pss', {
+      modulusLength: 2048,
+      hashAlgorithm: 'sha256',
+      mgf1HashAlgorithm: 'sha256',
+      saltLength: 64,
+    });
+    assertPss(restricted, { key: restricted.privateKey, digest: 'sha256' }, 64);
+  }
 }
 
 assert.strictEqual(generateX509Certificate.length, 2);
