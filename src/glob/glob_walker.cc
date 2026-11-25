@@ -1474,7 +1474,9 @@ class WalkerState {
     if (is_first && IsLiteral(first_part) && first_part->literal == u"..") {
       IndexSet next;
       next.Add(1);
-      ctx.AddChildRedirect("../", pattern.Child(std::move(next)));
+      // Platform separator, as above ('../a\b' otherwise).
+      ctx.AddChildRedirect(kWindows ? "..\\" : "../",
+                           pattern.Child(std::move(next)));
       return;
     }
     if (is_first && IsLiteral(first_part) && first_part->literal == u".") {
