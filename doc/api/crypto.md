@@ -5346,7 +5346,8 @@ OID or one of `commonName`/`CN`,
 `countryName`/`C`, `localityName`/`L`, `stateOrProvinceName`/`ST`,
 `organizationName`/`O`, `organizationalUnitName`/`OU`, `serialNumber`,
 `streetAddress`, `postalCode`, `domainComponent`/`DC`, `userId`/`UID`,
-`emailAddress`/`E`, `title`, `surname`/`SN`, or `givenName`/`GN`.
+`emailAddress`/`E`, `title`, `surname`/`SN`, or `givenName`/`GN`. `value` must
+not contain NUL characters.
 
 ```js
 const subject = [
