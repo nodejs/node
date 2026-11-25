@@ -379,7 +379,7 @@ test('Test assertion messages', () => {
   testAssertionMessage(/a/, '/a/');
   testAssertionMessage(/abc/gim, '/abc/gim');
   testLongAssertionMessage(function f() {}, '[Function: f]');
-  testLongAssertionMessage(function() {}, '[Function (anonymous)]');
+  testLongAssertionMessage(function() {}, '[Function (anon...');
 
   assert.throws(
     () => assert.strictEqual([1, 2, 3], ''),
@@ -536,7 +536,7 @@ test('Long values should be truncated for display', () => {
     assert.strictEqual(err.code, 'ERR_ASSERTION');
     assert.strictEqual(err.message,
                        `${strictEqualMessageStart}+ actual - expected\n\n` +
-                      `+ '${'A'.repeat(1000)}'\n- ''\n`);
+                      `+ '${'A'.repeat(15)}...\n- ''\n`);
     assert.strictEqual(err.actual.length, 1000);
     assert.ok(inspect(err).includes(`actual: '${'A'.repeat(488)}...'`));
     return true;
