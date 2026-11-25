@@ -28,12 +28,8 @@ LIB_BINDIR ?= $(LIB_SRCDIR)
 # configures a bunch of other variables to space-optimized defaults.
 ZSTD_LIB_MINIFY ?= 0
 
-# Legacy support
-ifneq ($(ZSTD_LIB_MINIFY), 0)
-  ZSTD_LEGACY_SUPPORT ?= 0
-else
-  ZSTD_LEGACY_SUPPORT ?= 5
-endif
+# Legacy support disabled by default
+ZSTD_LEGACY_SUPPORT ?= 0
 ZSTD_LEGACY_MULTITHREADED_API ?= 0
 
 # Build size optimizations
@@ -138,6 +134,8 @@ endif
 ifeq ($(shell echo "int main(int argc, char* argv[]) { (void)argc; (void)argv; return 0; }" | $(CC) $(FLAGS) -z cet-report=error -x c -Werror - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
 LDFLAGS += -z cet-report=error
 endif
+# 32-bit system objects usually have no CET properties: 32-bit targets link with LDFLAGS_32
+LDFLAGS_32 = $(subst -z cet-report=error,,$(LDFLAGS))
 
 HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 GREP_OPTIONS ?=
@@ -206,7 +204,10 @@ endif
 endif
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
-UNAME := $(shell sh -c 'MSYSTEM="MSYS" uname')
+# Include install_oses.mk from the same directory
+include $(dir $(lastword $(MAKEFILE_LIST)))/install_oses.mk
+LN ?= ln
+CP ?= cp -f
 
 ifndef BUILD_DIR
 ifeq ($(UNAME), Darwin)

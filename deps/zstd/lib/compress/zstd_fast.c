@@ -532,8 +532,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     /* init */
     DEBUGLOG(5, "ZSTD_compressBlock_fast_dictMatchState_generic");
     ip0 += (dictAndPrefixLength == 0);
-    /* dictMatchState repCode checks don't currently handle repCode == 0
-     * disabling. */
+    /* Dictionary repcodes are validated when the CDict is attached.
+     * dictMatchState repCode checks don't handle repCode == 0 disabling. */
     assert(offset_1 <= dictAndPrefixLength);
     assert(offset_2 <= dictAndPrefixLength);
 

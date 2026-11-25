@@ -1111,7 +1111,7 @@ static unsigned FSE_isError(size_t code) { return ERR_isError(code); }
 ****************************************************************/
 static short FSE_abs(short a)
 {
-    return a<0 ? -a : a;
+    return a<0 ? (short)-a : a;
 }
 
 static size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
@@ -2408,6 +2408,7 @@ static size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockPropertie
     bpPtr->origSize = (bpPtr->blockType == bt_rle) ? cSize : 0;
 
     if (bpPtr->blockType == bt_end) return 0;
+    if (cSize > BLOCKSIZE) return ERROR(corruption_detected);
     if (bpPtr->blockType == bt_rle) return 1;
     return cSize;
 }
@@ -2472,7 +2473,7 @@ static size_t ZSTD_decodeLiteralsBlock(void* ctx,
             {
                 if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
                 if (litSize > srcSize-3) return ERROR(corruption_detected);
-                memcpy(dctx->litBuffer, istart, litSize);
+                memcpy(dctx->litBuffer, istart+3, litSize);
                 dctx->litPtr = dctx->litBuffer;
                 dctx->litSize = litSize;
                 memset(dctx->litBuffer + dctx->litSize, 0, 8);
@@ -2699,7 +2700,7 @@ static size_t ZSTD_execSequence(BYTE* op,
     if (sequence.litLength > (size_t)(litLimit - *litPtr)) return ERROR(corruption_detected);
     /* Now we know there are no overflow in literal nor match lengths, can use pointer checks */
     if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);
-    if (sequence.offset > (U32)(oLitEnd - base)) return ERROR(corruption_detected);
+    if (sequence.offset > (size_t)(oLitEnd - base)) return ERROR(corruption_detected);
 
     if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
     if (litEnd > litLimit) return ERROR(corruption_detected);   /* overRead beyond lit buffer */
@@ -2713,8 +2714,6 @@ static size_t ZSTD_execSequence(BYTE* op,
     {   const BYTE* match = op - sequence.offset;
 
         /* check */
-        if (sequence.offset > (size_t)op) return ERROR(corruption_detected);   /* address space overflow test (this test seems kept by clang optimizer) */
-        //if (match > op) return ERROR(corruption_detected);   /* address space overflow test (is clang optimizer removing this test ?) */
         if (match < base) return ERROR(corruption_detected);
 
         /* close range match, overlap */

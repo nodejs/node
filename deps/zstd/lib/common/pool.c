@@ -142,19 +142,17 @@ POOL_ctx* POOL_create_advanced(size_t numThreads, size_t queueSize,
     /* Allocate space for the thread handles */
     ctx->threads = (ZSTD_pthread_t*)ZSTD_customCalloc(numThreads * sizeof(ZSTD_pthread_t), customMem);
     ctx->threadCapacity = 0;
+    ctx->threadLimit = numThreads;
     ctx->customMem = customMem;
     /* Check for errors */
     if (!ctx->threads || !ctx->queue) { POOL_free(ctx); return NULL; }
     /* Initialize the threads */
-    {   size_t i;
-        for (i = 0; i < numThreads; ++i) {
-            if (ZSTD_pthread_create(&ctx->threads[i], NULL, &POOL_thread, ctx)) {
-                ctx->threadCapacity = i;
-                POOL_free(ctx);
-                return NULL;
-        }   }
-        ctx->threadCapacity = numThreads;
-        ctx->threadLimit = numThreads;
+    while (ctx->threadCapacity < numThreads) {
+        if (ZSTD_pthread_create(&ctx->threads[ctx->threadCapacity++], NULL, &POOL_thread, ctx)) {
+            --ctx->threadCapacity;
+            POOL_free(ctx);
+            return NULL;
+        }
     }
     return ctx;
 }
@@ -220,23 +218,22 @@ static int POOL_resize_internal(POOL_ctx* ctx, size_t numThreads)
         return 0;
     }
     /* numThreads > threadCapacity */
+    ctx->threadLimit = numThreads;
     {   ZSTD_pthread_t* const threadPool = (ZSTD_pthread_t*)ZSTD_customCalloc(numThreads * sizeof(ZSTD_pthread_t), ctx->customMem);
         if (!threadPool) return 1;
-        /* replace existing thread pool */
+        /* extend existing thread pool */
         ZSTD_memcpy(threadPool, ctx->threads, ctx->threadCapacity * sizeof(ZSTD_pthread_t));
         ZSTD_customFree(ctx->threads, ctx->customMem);
         ctx->threads = threadPool;
         /* Initialize additional threads */
-        {   size_t threadId;
-            for (threadId = ctx->threadCapacity; threadId < numThreads; ++threadId) {
-                if (ZSTD_pthread_create(&threadPool[threadId], NULL, &POOL_thread, ctx)) {
-                    ctx->threadCapacity = threadId;
-                    return 1;
-            }   }
-    }   }
+        while (ctx->threadCapacity < numThreads) {
+            if (ZSTD_pthread_create(&threadPool[ctx->threadCapacity++], NULL, &POOL_thread, ctx)) {
+                --ctx->threadCapacity;
+                return 1;
+            }
+        }
+    }
     /* successfully expanded */
-    ctx->threadCapacity = numThreads;
-    ctx->threadLimit = numThreads;
     return 0;
 }
 

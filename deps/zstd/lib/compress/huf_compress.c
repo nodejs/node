@@ -24,6 +24,7 @@
 *  Includes
 ****************************************************************/
 #include "../common/zstd_deps.h"     /* ZSTD_memcpy, ZSTD_memset */
+#include "../common/bmi2.h"
 #include "../common/compiler.h"
 #include "../common/bitstream.h"
 #include "hist.h"
@@ -425,6 +426,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 targetNbBits
                  * gain back half the rank.
                  */
                 U32 nBitsToDecrease = ZSTD_highbit32((U32)totalCost) + 1;
+                assert(nBitsToDecrease <= HUF_TABLELOG_MAX+1);
                 for ( ; nBitsToDecrease > 1; nBitsToDecrease--) {
                     U32 const highPos = rankLast[nBitsToDecrease];
                     U32 const lowPos = rankLast[nBitsToDecrease-1];
@@ -1140,9 +1142,10 @@ HUF_compress1X_usingCTable_internal(void* dst, size_t dstSize,
                               const void* src, size_t srcSize,
                               const HUF_CElt* CTable, const int flags)
 {
-    if (flags & HUF_flags_bmi2) {
+    if (ZSTD_USE_BMI2(flags & HUF_flags_bmi2)) {
         return HUF_compress1X_usingCTable_internal_bmi2(dst, dstSize, src, srcSize, CTable);
     }
+    (void)flags;
     return HUF_compress1X_usingCTable_internal_default(dst, dstSize, src, srcSize, CTable);
 }
 

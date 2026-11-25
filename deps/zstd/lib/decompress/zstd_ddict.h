@@ -34,10 +34,21 @@
  * ZSTD_getDictID_fromDict()
  */
 
+/* The complete dictionary blob, including its header. Legacy decoders need
+ * the original bytes; ZSTD_copyDDictParameters() excludes the header from
+ * modern match history. */
 const void* ZSTD_DDict_dictContent(const ZSTD_DDict* ddict);
 size_t ZSTD_DDict_dictSize(const ZSTD_DDict* ddict);
 
 void ZSTD_copyDDictParameters(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
+
+/* Same as ZSTD_createDDict_advanced(), but returns the error code on failure,
+ * in which case *ddictPtr is set to NULL. */
+size_t ZSTD_createDDict_advanced_internal(ZSTD_DDict** ddictPtr,
+                                          const void* dict, size_t dictSize,
+                                          ZSTD_dictLoadMethod_e dictLoadMethod,
+                                          ZSTD_dictContentType_e dictContentType,
+                                          ZSTD_customMem customMem);
 
 
 
