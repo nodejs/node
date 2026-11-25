@@ -9,6 +9,8 @@ const common = require('../common');
 const assert = require('assert');
 const { exec, spawn } = require('child_process');
 const { once } = require('events');
+const { stripVTControlCharacters } = require('util');
+const { internalBinding } = require('internal/test/binding');
 let stdOut;
 
 function startPrintHelpTest() {
@@ -37,6 +39,26 @@ function validateNodePrintHelp() {
   ];
 
   cliHelpOptions.forEach(testForSubstring);
+
+  // Environment variables are listed at the start of a line in their own
+  // section. Matching on line starts avoids false positives from option help
+  // text that mentions them (e.g. --icu-data-dir mentions NODE_ICU_DATA).
+  const envSection = stripVTControlCharacters(
+    stdOut.slice(stdOut.indexOf('Environment variables:')));
+  const { hasNodeOptions } = internalBinding('config');
+  const envVars = [
+    { compileConstant: HAVE_OPENSSL,
+      names: [ 'OPENSSL_CONF', 'SSL_CERT_DIR', 'SSL_CERT_FILE' ] },
+    { compileConstant: NODE_HAVE_I18N_SUPPORT, names: [ 'NODE_ICU_DATA' ] },
+    { compileConstant: hasNodeOptions, names: [ 'NODE_OPTIONS' ] },
+  ];
+  for (const { compileConstant, names } of envVars) {
+    for (const name of names) {
+      const listed = new RegExp(`^${name}\\s`, 'm').test(envSection);
+      assert.strictEqual(listed, Boolean(compileConstant),
+                         `${name} listed: ${listed} in ${envSection}`);
+    }
+  }
 }
 
 function testForSubstring(options) {
