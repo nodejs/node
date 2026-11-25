@@ -1,4 +1,5 @@
 import { ConstantsBinding } from './constants';
+import type { HandleWrap } from './handle_wrap';
 
 interface ReadFileContext {
   fd: number | undefined;
@@ -49,12 +50,10 @@ declare namespace InternalFSBinding {
     constructor(useBigint: boolean);
     initialized: boolean;
     start(path: string, interval: number): number;
-    getAsyncId(): number;
-    close(): void;
-    ref(): void;
-    unref(): void;
     onchange: (status: number, eventType: string, filename: string | Buffer) => void;
   }
+
+  interface StatWatcher extends HandleWrap {}
 
   function access(path: StringOrBuffer, mode: number, req: FSReqCallback): void;
   function access(path: StringOrBuffer, mode: number): void;
