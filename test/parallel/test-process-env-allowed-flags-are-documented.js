@@ -139,8 +139,6 @@ assert(undocumented.delete('--node-snapshot'));
 assert(undocumented.delete('--no-node-snapshot'));
 assert(undocumented.delete('--verify-base-objects'));
 assert(undocumented.delete('--no-verify-base-objects'));
-assert(undocumented.delete('--trace-promises'));
-assert(undocumented.delete('--no-trace-promises'));
 
 // Remove negated versions of the flags.
 for (const flag of undocumented) {
