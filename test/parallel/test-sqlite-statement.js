@@ -553,6 +553,60 @@ suite('Statement.prototype.expandedSQL', () => {
   });
 });
 
+suite('Statement.prototype.columnCount', () => {
+  test('returns the number of result columns', (t) => {
+    using db = new Database(':memory:');
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    t.assert.strictEqual(db.prepare('SELECT * FROM storage').columnCount, 2);
+    t.assert.strictEqual(db.prepare('SELECT 1').columnCount, 1);
+    t.assert.strictEqual(db.prepare('SELECT 1, 2, 3').columnCount, 3);
+    t.assert.strictEqual(db.prepare('PRAGMA user_version').columnCount, 1);
+    t.assert.strictEqual(
+      db.prepare('INSERT INTO storage VALUES (?, ?) RETURNING key').columnCount,
+      1,
+    );
+    t.assert.strictEqual(
+      db.prepare('UPDATE storage SET val = ? RETURNING *').columnCount,
+      2,
+    );
+    t.assert.strictEqual(
+      db.prepare('DELETE FROM storage RETURNING val').columnCount,
+      1,
+    );
+  });
+
+  test('returns 0 for statements that do not return data', (t) => {
+    using db = new Database(':memory:');
+    t.assert.strictEqual(
+      db.prepare('CREATE TABLE storage(key TEXT, val TEXT)').columnCount,
+      0,
+    );
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    t.assert.strictEqual(
+      db.prepare('INSERT INTO storage VALUES (?, ?)').columnCount,
+      0,
+    );
+    t.assert.strictEqual(
+      db.prepare('UPDATE storage SET val = ?').columnCount,
+      0,
+    );
+    t.assert.strictEqual(
+      db.prepare('DELETE FROM storage').columnCount,
+      0,
+    );
+  });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new Database(':memory:');
+    const stmt = db.prepare('SELECT 1');
+    stmt.close();
+    t.assert.throws(() => stmt.columnCount, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+});
+
 suite('Statement.prototype.stat()', () => {
   const counters = [
     'fullscanStep', 'sort', 'autoindex', 'vmStep', 'reprepare',
