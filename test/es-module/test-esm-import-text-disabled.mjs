@@ -11,3 +11,8 @@ await assert.rejects(
   import('data:text/plain,hello%20world', { with: { type: 'text' } }),
   { code: 'ERR_UNKNOWN_MODULE_FORMAT' },
 );
+
+await assert.rejects(
+  import('data:text/javascript,export{}', { with: { type: 'text' } }),
+  { code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED' },
+);
