@@ -17,6 +17,7 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
+#include <algorithm>
 #include <array>
 #include <limits>
 #include <string>
@@ -765,6 +766,21 @@ bool RequestVerificationFailed(CryptoErrorStore* errors) {
   return false;
 }
 
+// Verifiers commonly reject certificate signatures whose salt is not
+// digest-sized (RFC 8446 section 4.2.3).
+int DefaultPssSaltLength(const EVPKeyPointer& key,
+                         const ncrypto::Digest& digest) {
+  int salt_length = static_cast<int>(digest.size());
+  if (key.isA(ncrypto::KeyAlgorithm::RSA_PSS)) {
+    const auto pss_params = ncrypto::Rsa::PublicOnly(key).getPssParams();
+    if (pss_params.has_value()) {
+      salt_length =
+          std::max(salt_length, static_cast<int>(pss_params->salt_length));
+    }
+  }
+  return salt_length;
+}
+
 }  // namespace
 
 X509GenerateConfig::X509GenerateConfig(X509GenerateConfig&& other) noexcept
@@ -895,9 +911,16 @@ Maybe<void> X509GenerateTraits::AdditionalConfig(
     params->padding = args[padding_offset].As<v8::Int32>()->Value();
   }
 
+  const EVPKeyPointer& native_signing_key = signing_key.GetAsymmetricKey();
+  if (native_signing_key.isRsaVariant() && !params->salt_length.has_value() &&
+      params->padding.value_or(native_signing_key.getDefaultSignPadding()) ==
+          RSA_PKCS1_PSS_PADDING) {
+    params->salt_length =
+        DefaultPssSaltLength(native_signing_key, params->digest);
+  }
+
   // BoringSSL's X.509 signer supports only restricted RSA-PSS parameters.
 #if NCRYPTO_USE_BORINGSSL
-  const EVPKeyPointer& native_signing_key = signing_key.GetAsymmetricKey();
   if (native_signing_key.isRsaVariant()) {
     const int padding =
         params->padding.value_or(native_signing_key.getDefaultSignPadding());
