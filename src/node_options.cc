@@ -869,7 +869,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental support for importing source as text with import "
             "attributes",
             BOOL_FIELD(experimental_import_text),
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            true);
   AddOption("--experimental-import-meta-resolve",
             "experimental ES Module import.meta.resolve() parentURL support",
             BOOL_FIELD(experimental_import_meta_resolve),

@@ -1,3 +1,4 @@
+// Flags: --no-experimental-import-text
 import '../common/index.mjs';
 import assert from 'assert';
 
