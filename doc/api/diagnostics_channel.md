@@ -2076,7 +2076,7 @@ statement, since both are still in use while the event is being delivered; see
 #### libuv Thread Pool
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 > Stability: 1 - Experimental

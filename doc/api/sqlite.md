@@ -5,7 +5,7 @@
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67654
     description: SQLite is now stable.
   - version:
@@ -1329,7 +1329,7 @@ wrapper around [`sqlite3_finalize()`][].
 ### `statement.columnCount`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 * Type: {number} The number of columns in the result set returned by the

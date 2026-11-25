@@ -237,7 +237,7 @@ added:
   - v26.1.0
   - v24.16.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67201
     description: Add `--pid <pid>` and `--host <host>`/`--port <port>` to probe a process that's
         already running. The report now includes a top-level `target` field to describe what was

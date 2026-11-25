@@ -5147,7 +5147,7 @@ the second attempt is `1`, and so on. This property is useful in conjunction wit
 ### `context.tags`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 > Stability: 1.0 - Early development
@@ -5161,7 +5161,7 @@ suite has no tags. See [Test tags][].
 ### `context.workerId`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 * Type: {number|undefined}

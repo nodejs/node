@@ -557,7 +557,7 @@ This flag cannot be combined with `--test`, `--watch`, `--watch-path`,
 ### `--bench-gc=mode`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 > Stability: 1 - Experimental
@@ -2740,7 +2740,7 @@ Identical to `-e` but prints the result.
 ### `--process-timeout-worker-stacks`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 > Stability: 1.1 - Active development
@@ -2784,7 +2784,7 @@ resources. Requires
 <!-- YAML
 added: v26.11.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67506
     description: The flag is no longer experimental.
 -->
@@ -2970,7 +2970,7 @@ error.
 <!-- YAML
 added: v26.11.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67506
     description: The flag is no longer experimental.
 -->

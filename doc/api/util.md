@@ -2928,7 +2928,7 @@ The full list of formats can be found in [modifiers][].
 
 <!-- YAML
 added: v8.3.0
-deprecated: REPLACEME
+deprecated: v27.0.0-alpha.0.2.0
 changes:
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22281
@@ -2941,7 +2941,7 @@ Deprecated alias for global [`TextDecoder`][].
 
 <!-- YAML
 added: v8.3.0
-deprecated: REPLACEME
+deprecated: v27.0.0-alpha.0.2.0
 changes:
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22281
