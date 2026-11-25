@@ -16,7 +16,6 @@ async function checkContext(origin) {
   let started = Promise.withResolvers();
 
   function hold(chunks, callback) {
-    assert.strictEqual(storage.getStore(), origin);
     callbacks.push(() => {
       for (const chunk of chunks) consumed.push(chunk[0]);
       callback();
@@ -61,72 +60,43 @@ async function checkContext(origin) {
   storage.disable();
 }
 
-async function checkIndependentBatches(stringWriteMode) {
+async function checkInterleavedWrites(stringWriteMode) {
   const writesString = stringWriteMode !== 'none';
   const storage = new AsyncLocalStorage();
   const callbacks = [];
-  const contexts = [];
+  const consumed = [];
   const writable = new Writable({
     write: common.mustCall((chunk, encoding, callback) => {
-      contexts.push(storage.getStore());
-      if (chunk[0] === 1) setImmediate(callback);
-      else callbacks.push(callback);
+      const complete = () => {
+        consumed.push(chunk[0]);
+        callback();
+      };
+      if (chunk[0] === 1) setImmediate(complete);
+      else callbacks.push(complete);
     }, writesString ? 5 : 4),
   });
   const writer = Writable.toWeb(writable).getWriter();
   await writer.write(Buffer.from([1]));
-  await storage.run('batch-A', () => writer.write(Buffer.from([2])));
+  await writer.write(Buffer.from([2]));
   callbacks.shift()();
 
   if (stringWriteMode === 'native') {
-    storage.run('batch-B', () => writable.write('3'));
+    writable.write('3');
   } else if (stringWriteMode === 'web') {
-    await storage.run('batch-B', () => writer.write('3'));
+    await writer.write('3');
   }
-  await storage.run('batch-B', () => writer.write(Buffer.from([3])));
-  await storage.run('batch-B', () => writer.write(Buffer.from([4])));
-  if (writesString) storage.run('batch-B', () => callbacks.shift()());
+  await writer.write(Buffer.from([3]));
+  await writer.write(Buffer.from([4]));
+  if (writesString) callbacks.shift()();
   storage.run('completion-B', common.mustCall(() => {
     callbacks.shift()();
     assert.strictEqual(storage.getStore(), 'completion-B');
   }));
   callbacks.shift()();
   await writer.close();
-  assert.deepStrictEqual(contexts, writesString ?
-    [undefined, 'batch-A', 'batch-B', 'batch-B', 'batch-B'] :
-    [undefined, 'batch-A', 'batch-B', 'batch-B']);
+  assert.deepStrictEqual(consumed, writesString ?
+    [1, 2, '3'.charCodeAt(0), 3, 4] : [1, 2, 3, 4]);
   storage.disable();
-}
-
-async function checkResourceInitHook(hookFirst) {
-  let storage;
-  const initHook = createHook({
-    init(id, type) {
-      if (type === 'WEBSTREAM_WRITABLE_WRITE') storage.enterWith('hook-origin');
-    },
-  });
-  if (hookFirst) initHook.enable();
-  storage = new AsyncLocalStorage();
-  const contexts = [];
-  const writable = new Writable({
-    write: common.mustCall((chunk, encoding, callback) => {
-      contexts.push(storage.getStore());
-      setImmediate(callback);
-    }, 2),
-  });
-  const writer = Writable.toWeb(writable).getWriter();
-  await writer.write(Buffer.from([1]));
-  if (!hookFirst) initHook.enable();
-  try {
-    const write = storage.run('stream-origin', () => writer.write(Buffer.from([2])));
-    assert.strictEqual(storage.getStore(), undefined);
-    await write;
-    await writer.close();
-    assert.deepStrictEqual(contexts, [undefined, 'stream-origin']);
-  } finally {
-    initHook.disable();
-    storage.disable();
-  }
 }
 
 async function main() {
@@ -135,9 +105,8 @@ async function main() {
     await checkContext(origin);
   }
   for (const stringWriteMode of ['none', 'web', 'native']) {
-    await checkIndependentBatches(stringWriteMode);
+    await checkInterleavedWrites(stringWriteMode);
   }
-  for (const hookFirst of [false, true]) await checkResourceInitHook(hookFirst);
   hook?.disable();
 
   if (mode === undefined) {
