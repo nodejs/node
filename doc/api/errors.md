@@ -2553,7 +2553,7 @@ compiled with ICU support.
 ### `ERR_NO_SQLITE`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 An attempt was made to use [`node:sqlite`][], but Node.js was not compiled with

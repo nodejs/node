@@ -909,7 +909,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/67618
     description: The `allowRenegotiation` option now defaults to `false`.
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67532
     description: The `allowRenegotiation` option is now supported.
   - version: v12.2.0
@@ -1131,7 +1131,7 @@ certificate at all.
 
 <!-- YAML
 added: v8.4.0
-deprecated: REPLACEME
+deprecated: v27.0.0-alpha.0.2.0
 -->
 
 > Stability: 0 - Deprecated. See [DEP0213][].
@@ -1605,7 +1605,7 @@ Returns the numeric representation of the remote port. For example, `443`.
 
 <!-- YAML
 added: v0.11.8
-deprecated: REPLACEME
+deprecated: v27.0.0-alpha.0.2.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/67618
@@ -1773,7 +1773,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/67618
     description: The `allowRenegotiation` option now defaults to `false`.
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67532
     description: The `allowRenegotiation` option is now supported.
   - version:
@@ -2251,7 +2251,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/67618
     description: The `allowRenegotiation` option now defaults to `false`.
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67532
     description: The `allowRenegotiation` option is now supported.
   - version: v27.0.0-alpha.0.0.0

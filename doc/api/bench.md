@@ -500,7 +500,7 @@ Alias for `suite()`.
 ## `doNotOptimize(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 * `value` {any} A value produced by measured work.

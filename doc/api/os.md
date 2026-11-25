@@ -507,7 +507,7 @@ available, `GetVersionExW()` will be used. See
 ## `os.guessFileDescriptorType(fd)`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 * `fd` {integer} The file descriptor number to try and guess the type of.

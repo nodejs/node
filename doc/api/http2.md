@@ -1823,7 +1823,7 @@ provide additional methods such as `http2stream.pushStream()` and
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67470
     description: Added the `callback` argument.
 -->
@@ -4914,7 +4914,7 @@ const server = http2.createServer((req, res) => {
 #### `response.setHeaders(headers)`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 * `headers` {Headers|Map}
@@ -5108,7 +5108,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67470
     description: Added the `callback` argument.
 -->
@@ -5127,7 +5127,7 @@ should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 <!-- YAML
 added: v18.11.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67470
     description: Added the `callback` argument.
 -->
@@ -5167,7 +5167,7 @@ added:
   - v26.2.0
   - v24.18.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67470
     description: Added the `callback` argument.
 -->
@@ -5263,7 +5263,7 @@ will result in a [`TypeError`][] being thrown.
 #### `response.writeProcessing([callback])`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 * `callback` {Function} Optional, called once the informational headers

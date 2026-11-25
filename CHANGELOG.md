@@ -43,7 +43,8 @@ release.
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V27.md#27.0.0-alpha.0.1.1">27.0.0-alpha.0.1.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V27.md#27.0.0-alpha.0.2.0">27.0.0-alpha.0.2.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V27.md#27.0.0-alpha.0.1.1">27.0.0-alpha.0.1.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V27.md#27.0.0-alpha.0.1.0">27.0.0-alpha.0.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V27.md#27.0.0-alpha.0.0.0">27.0.0-alpha.0.0.0</a><br/>
   </td>

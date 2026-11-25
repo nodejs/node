@@ -4871,7 +4871,7 @@ Type: Documentation-only
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67461
     description: Documentation-only deprecation.
 -->
@@ -4888,7 +4888,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/67618
     description: Runtime deprecation. Renegotiation is disabled by default.
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67532
     description: Documentation-only deprecation
                  with `--pending-deprecation` support.

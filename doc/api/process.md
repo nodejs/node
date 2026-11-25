@@ -601,7 +601,7 @@ A few of the warning types that are most common include:
 #### Heap size and pointer compression
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 When Node.js is built with V8 pointer compression enabled, the V8 heap of each
