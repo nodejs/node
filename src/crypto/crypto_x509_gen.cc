@@ -298,7 +298,8 @@ X509NamePointer BuildName(Environment* env, Local<Array> spec) {
       if (!oid) return {};
 
       const std::string text = ReadString(env, content_value);
-      if (text.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+      if (text.size() > static_cast<size_t>(std::numeric_limits<int>::max()) ||
+          text.find('\0') != std::string::npos) {
         return {};
       }
       const auto* bytes = reinterpret_cast<const unsigned char*>(text.data());
