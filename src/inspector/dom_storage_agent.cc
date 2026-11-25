@@ -5,6 +5,9 @@
 #include "util.h"
 #include "v8-exception.h"
 #include "v8-isolate.h"
+#if HAVE_SQLITE
+#include "node_webstorage.h"
+#endif  // HAVE_SQLITE
 
 namespace node {
 namespace inspector {
@@ -98,6 +101,7 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
   bool is_local_storage = storageId->getIsLocalStorage();
   const StorageMap* storage_map =
       is_local_storage ? &local_storage_map_ : &session_storage_map_;
+#if HAVE_SQLITE
   std::optional<StorageMap> storage_map_fallback;
   if (storage_map->empty()) {
     auto web_storage_obj = getWebStorage(is_local_storage);
@@ -139,6 +143,12 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
     }
     storage_map = &storage_map_fallback.value();
   }
+#else
+  if (storage_map->empty()) {
+    return protocol::DispatchResponse::ServerError(
+        "Could not read DOM storage items: storage is unavailable");
+  }
+#endif  // HAVE_SQLITE
 
   auto result =
       std::make_unique<protocol::Array<protocol::Array<protocol::String>>>();
@@ -317,6 +327,7 @@ void DOMStorageAgent::registerStorage(Local<Context> context,
   }
 }
 
+#if HAVE_SQLITE
 std::optional<node::webstorage::Storage*> DOMStorageAgent::getWebStorage(
     bool is_local_storage) {
   v8::Isolate* isolate = env_->isolate();
@@ -339,6 +350,7 @@ std::optional<node::webstorage::Storage*> DOMStorageAgent::getWebStorage(
     return storage;
   }
 }
+#endif  // HAVE_SQLITE
 
 bool DOMStorageAgent::canEmit(const std::string& domain) {
   return domain == "DOMStorage";

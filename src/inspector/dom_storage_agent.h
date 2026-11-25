@@ -5,11 +5,14 @@
 #include <string>
 #include "env.h"
 #include "node/inspector/protocol/DOMStorage.h"
-#include "node_webstorage.h"
 #include "notification_emitter.h"
 #include "v8.h"
 
 namespace node {
+namespace webstorage {
+class Storage;
+}  // namespace webstorage
+
 namespace inspector {
 
 class DOMStorageAgent : public protocol::DOMStorage::Backend,
