@@ -35,6 +35,7 @@ fs.writeFileSync(tmpdir.resolve('package.json'), JSON.stringify({
   scripts: {
     'exit-code': 'exit 42',
     'self-terminate': 'kill -TERM $$',
+    'self-kill': 'kill -KILL $$',
     // `exec` so signals reach node, not the shell.
     'handle-signals': `exec ${node} handle-signals.js`,
     'no-signal-handlers':
@@ -91,6 +92,12 @@ describe('node --run signal handling', () => {
     const child = await run('self-terminate');
     assert.strictEqual(child.code, null);
     assert.strictEqual(child.signal, 'SIGTERM');
+  });
+
+  it('terminates with SIGKILL if the script was killed', async () => {
+    const child = await run('self-kill');
+    assert.strictEqual(child.code, null);
+    assert.strictEqual(child.signal, 'SIGKILL');
   });
 
   for (const signal of forwardedSignals) {

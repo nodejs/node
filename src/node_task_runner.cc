@@ -227,10 +227,13 @@ void ProcessRunner::SignalCallback(uv_signal_t* handle, int signum) {
 static void ReraiseSignal(int signum) {
   ResetStdio(true);
 
-  struct sigaction sa;
-  memset(&sa, 0, sizeof(sa));
-  sa.sa_handler = SIG_DFL;
-  CHECK_EQ(sigaction(signum, &sa, nullptr), 0);
+  // SIGKILL and SIGSTOP can't be caught, so they're always SIG_DFL.
+  if (signum != SIGKILL && signum != SIGSTOP) {
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = SIG_DFL;
+    CHECK_EQ(sigaction(signum, &sa, nullptr), 0);
+  }
 
   sigset_t sigmask;
   sigemptyset(&sigmask);
