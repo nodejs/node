@@ -18,8 +18,9 @@ CFLAGS  += -Wall -Wextra -Wundef -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum
            -Wdeclaration-after-statement -Wstrict-prototypes \
            -Wpointer-arith -Wstrict-aliasing=1
 CFLAGS  += $(MOREFLAGS)
-CPPFLAGS:= -I$(ZSTDDIR) -DXXH_NAMESPACE=ZSTD_
+CPPFLAGS:= -I$(ZSTDDIR) -Ilib/common -Iprograms -DXXH_NAMESPACE=ZSTD_
 FLAGS   := $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
+SRCS    := tests/fullbench.c programs/datagen.c programs/lorem.c programs/util.c programs/timefn.c programs/benchfn.c
 
 
 # Define *.exe as extension for Windows systems
@@ -37,10 +38,10 @@ default: all
 all: fullbench-dll fullbench-lib
 
 
-fullbench-lib: fullbench.c datagen.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LIBDIR)/libzstd_static.lib
+fullbench-lib: $(SRCS)
+	$(CC) $(FLAGS) $^ -o $@$(EXT) -DZSTD_DLL_IMPORT=0 $(LIBDIR)/libzstd_static.lib
 
-fullbench-dll: fullbench.c datagen.c
+fullbench-dll: $(SRCS)
 	$(CC) $(FLAGS) $^ -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(DLLDIR)/libzstd.dll
 
 clean:

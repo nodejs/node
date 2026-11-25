@@ -141,6 +141,10 @@ MEM_STATIC ZSTD_SequenceLength ZSTD_getSequenceLength(SeqStore_t const* seqStore
 
 const SeqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);   /* compress & dictBuilder */
 int ZSTD_seqToCodes(const SeqStore_t* seqStorePtr);   /* compress, dictBuilder, decodeCorpus (shouldn't get its definition from here) */
+/* Derives the half-open sequence range [startIdx, endIdx). */
+void ZSTD_deriveSeqStoreChunk(SeqStore_t* resultSeqStore,
+                             const SeqStore_t* originalSeqStore,
+                             size_t startIdx, size_t endIdx);
 
 
 /***********************************************
@@ -465,14 +469,19 @@ typedef struct {
     SeqStore_t currSeqStore;
     SeqStore_t nextSeqStore;
 
-    U32 partitions[ZSTD_MAX_NB_BLOCK_SPLITS];
+    U32 partitions[ZSTD_MAX_NB_BLOCK_SPLITS + 1]; /* splits, followed by the end of the block */
     ZSTD_entropyCTablesMetadata_t entropyMetadata;
 } ZSTD_blockSplitCtx;
 
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
     int cParamsChanged;                  /* == 1 if cParams(except wlog) or compression level are changed in requestedParams. Triggers transmission of new params to ZSTDMT (if available) then reset to 0. */
-    int bmi2;                            /* == 1 if the CPU supports BMI2 and 0 otherwise. CPU support is determined dynamically once per context lifetime. */
+#if DYNAMIC_BMI2
+    int bmi2;                            /* == 1 if the CPU supports BMI2 and 0 otherwise when CPU state
+                                          * is cached per context. Never read this directly: use ZSTD_CCtx_get_bmi2(),
+                                          * which also handles builds
+                                          * where cached CPU state is not used. */
+#endif
     ZSTD_CCtx_params requestedParams;
     ZSTD_CCtx_params appliedParams;
     ZSTD_CCtx_params simpleApiParams;    /* Param storage used by the simple API - not sticky. Must only be used in top-level simple API functions for storage. */
@@ -544,6 +553,26 @@ struct ZSTD_CCtx_s {
     ZSTD_Sequence* extSeqBuf;
     size_t extSeqBufCapacity;
 };
+
+/**
+ * @returns the cached per-context BMI2 dispatch hint, or 0 when the build does
+ *          not use cached CPU state.
+ *
+ * Beware: this is *not* a "does the CPU support BMI2" test. When BMI2 is enabled
+ * at compile time, DYNAMIC_BMI2 is 0: the whole library is already compiled with
+ * BMI2, no separate variant exists, and this returns 0 even though the CPU does
+ * support BMI2. Only use the result as a dispatch hint passed to a lower-level
+ * BMI2/default selector. Integrations may ignore the cached hint and consult
+ * their own CPU-feature policy at that selector.
+ */
+MEM_STATIC int ZSTD_CCtx_get_bmi2(const struct ZSTD_CCtx_s* cctx) {
+#if DYNAMIC_BMI2
+    return cctx->bmi2;
+#else
+    (void)cctx;
+    return 0;
+#endif
+}
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;
 typedef enum { ZSTD_tfp_forCCtx, ZSTD_tfp_forCDict } ZSTD_tableFillPurpose_e;
@@ -707,7 +736,7 @@ ZSTD_safecopyLiterals(BYTE* op, BYTE const* ip, BYTE const* const iend, BYTE con
 {
     assert(iend > ilimit_w);
     if (ip <= ilimit_w) {
-        ZSTD_wildcopy(op, ip, ilimit_w - ip, ZSTD_no_overlap);
+        ZSTD_wildcopy(op, ip, (size_t)(ilimit_w - ip), ZSTD_no_overlap);
         op += ilimit_w - ip;
         ip = ilimit_w;
     }
@@ -800,7 +829,7 @@ ZSTD_storeSeq(SeqStore_t* seqStorePtr,
         ZSTD_STATIC_ASSERT(WILDCOPY_OVERLENGTH >= 16);
         ZSTD_copy16(seqStorePtr->lit, literals);
         if (litLength > 16) {
-            ZSTD_wildcopy(seqStorePtr->lit+16, literals+16, (ptrdiff_t)litLength-16, ZSTD_no_overlap);
+            ZSTD_wildcopy(seqStorePtr->lit+16, literals+16, litLength-16, ZSTD_no_overlap);
         }
     } else {
         ZSTD_safecopyLiterals(seqStorePtr->lit, literals, litEnd, litLimit_w);
@@ -1516,14 +1545,14 @@ void ZSTD_reset_compressedBlockState(ZSTD_compressedBlockState_t* bs);
 
 typedef struct {
     U32 idx;            /* Index in array of ZSTD_Sequence */
-    U32 posInSequence;  /* Position within sequence at idx */
+    U64 posInSequence;  /* Position within sequence at idx. The sum of its lengths may exceed U32. */
     size_t posInSrc;    /* Number of bytes given by sequences provided so far */
 } ZSTD_SequencePosition;
 
 /* for benchmark */
 size_t ZSTD_convertBlockSequences(ZSTD_CCtx* cctx,
                         const ZSTD_Sequence* const inSeqs, size_t nbSequences,
-                        int const repcodeResolution);
+                        int repcodeResolution);
 
 typedef struct {
     size_t nbSequences;

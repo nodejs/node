@@ -1094,7 +1094,7 @@ static unsigned FSE_isError(size_t code) { return ERR_isError(code); }
 ****************************************************************/
 static short FSE_abs(short a)
 {
-    return a<0 ? -a : a;
+    return a<0 ? (short)-a : a;
 }
 
 static size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
@@ -2540,6 +2540,7 @@ static size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockPropertie
     bpPtr->origSize = (bpPtr->blockType == bt_rle) ? cSize : 0;
 
     if (bpPtr->blockType == bt_end) return 0;
+    if (cSize > BLOCKSIZE) return ERROR(corruption_detected);
     if (bpPtr->blockType == bt_rle) return 1;
     return cSize;
 }
@@ -2603,7 +2604,7 @@ static size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             {
                 if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
                 if (litSize > srcSize-3) return ERROR(corruption_detected);
-                memcpy(dctx->litBuffer, istart, litSize);
+                memcpy(dctx->litBuffer, istart+3, litSize);
                 dctx->litPtr = dctx->litBuffer;
                 dctx->litSize = litSize;
                 memset(dctx->litBuffer + dctx->litSize, 0, 8);
@@ -3424,7 +3425,10 @@ static size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDs
 
         case ZBUFFds_decodeHeader:
                 /* apply header to create / resize buffers */
-                {   size_t const neededOutSize = (size_t)1 << zbc->params.windowLog;
+                /* note : also provide space for one full block, so that the
+                 * output buffer never needs to wrap while a block decodes,
+                 * keeping match sources valid (see v0.6 decoder). */
+                {   size_t const neededOutSize = ((size_t)1 << zbc->params.windowLog) + BLOCKSIZE;
                     size_t const neededInSize = BLOCKSIZE;   /* a block is never > BLOCKSIZE */
                     if (zbc->inBuffSize < neededInSize) {
                         free(zbc->inBuff);

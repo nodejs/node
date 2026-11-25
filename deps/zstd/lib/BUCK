@@ -32,7 +32,6 @@ cxx_library(
     srcs=glob(['decompress/zstd*.c']),
     deps=[
         ':common',
-        ':legacy',
     ],
 )
 
@@ -47,6 +46,14 @@ cxx_library(
     deps=[':common'],
 )
 
+# Decoders for formats older than v0.8. Not a dependency of :decompress,
+# because ZSTD_LEGACY_SUPPORT is 0 (see .buckconfig), which makes them
+# unreachable.
+# Enabling legacy formats means two edits, which only make sense together :
+# raise the level in .buckconfig, AND add ':legacy' to :decompress deps.
+# Raising the level alone fails to link, which is easy to notice. Adding the
+# dep alone is silent : these decoders get compiled back in, while
+# ZSTD_isLegacy() remains compiled out, so legacy frames are still rejected.
 cxx_library(
     name='legacy',
     header_namespace='',
@@ -56,9 +63,6 @@ cxx_library(
     ]),
     srcs=glob(['legacy/*.c']),
     deps=[':common'],
-    exported_preprocessor_flags=[
-        '-DZSTD_LEGACY_SUPPORT=4',
-    ],
 )
 
 cxx_library(
@@ -79,6 +83,7 @@ cxx_library(
     header_namespace='',
     visibility=['PUBLIC'],
     exported_headers=subdir_glob([
+        ('common', 'bmi2.h'),
         ('common', 'compiler.h'),
     ]),
 )
@@ -132,7 +137,7 @@ cxx_library(
     exported_headers=[
         'zstd_errors.h',
         'common/error_private.h',
-    ]
+    ],
     srcs=['common/error_private.c'],
 )
 

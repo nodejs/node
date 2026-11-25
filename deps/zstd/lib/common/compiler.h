@@ -54,7 +54,7 @@
 #endif
 
 /* UNUSED_ATTR tells the compiler it is okay if the function is unused. */
-#if defined(__GNUC__) || defined(__IAR_SYSTEMS_ICC__)
+#if defined(__GNUC__) || defined(__clang__) || defined(__IAR_SYSTEMS_ICC__)  /* clang-cl defines __clang__ but not __GNUC__ */
 #  define UNUSED_ATTR __attribute__((unused))
 #else
 #  define UNUSED_ATTR
@@ -98,9 +98,9 @@
 #elif defined(__IAR_SYSTEMS_ICC__)
 #  define MEM_STATIC static inline UNUSED_ATTR
 #elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-#  define MEM_STATIC static inline
+#  define MEM_STATIC static inline UNUSED_ATTR
 #elif defined(_MSC_VER)
-#  define MEM_STATIC static __inline
+#  define MEM_STATIC static __inline UNUSED_ATTR
 #else
 #  define MEM_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
 #endif
@@ -132,6 +132,10 @@
 #define BMI2_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("lzcnt,bmi,bmi2")
 
 /* prefetch
+ * PREFETCH_L1(ptr) / PREFETCH_L2(ptr) take a `const void*`.
+ * `ptr` is only used as an address hint: it may point anywhere,
+ * including invalid or out-of-bounds memory, and is never accessed.
+ * Each variant below must therefore accept a `const void*` argument.
  * can be disabled, by declaring NO_PREFETCH build macro */
 #if defined(NO_PREFETCH)
 #  define PREFETCH_L1(ptr)  do { (void)(ptr); } while (0)  /* disabled */
@@ -145,8 +149,12 @@
 #    define PREFETCH_L1(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 3 /* locality */)
 #    define PREFETCH_L2(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 2 /* locality */)
 #  elif defined(__aarch64__)
-#    define PREFETCH_L1(ptr)  do { __asm__ __volatile__("prfm pldl1keep, %0" ::"Q"(*(ptr))); } while (0)
-#    define PREFETCH_L2(ptr)  do { __asm__ __volatile__("prfm pldl2keep, %0" ::"Q"(*(ptr))); } while (0)
+     /* The "Q" operand needs an lvalue, so cast to `const char*` before
+      * dereferencing: dereferencing a `const void*` is ill-formed in C
+      * (-Wvoid-ptr-dereference). The `prfm` instruction is only a hint and
+      * never faults, whatever the address. */
+#    define PREFETCH_L1(ptr)  do { __asm__ __volatile__("prfm pldl1keep, %0" ::"Q"(*(const char*)(ptr))); } while (0)
+#    define PREFETCH_L2(ptr)  do { __asm__ __volatile__("prfm pldl2keep, %0" ::"Q"(*(const char*)(ptr))); } while (0)
 #  else
 #    define PREFETCH_L1(ptr) do { (void)(ptr); } while (0)  /* disabled */
 #    define PREFETCH_L2(ptr) do { (void)(ptr); } while (0)  /* disabled */
@@ -218,6 +226,18 @@
 #  if defined(__ARM_NEON) || defined(_M_ARM64)
 #    define ZSTD_ARCH_ARM_NEON
 #  endif
+#  if defined(__ARM_FEATURE_SVE)
+#    define ZSTD_ARCH_ARM_SVE
+#  endif
+#  if defined(__ARM_FEATURE_SVE2)
+#    define ZSTD_ARCH_ARM_SVE2
+#  endif
+#  if defined(__riscv) && defined(__riscv_vector)
+#    if ((defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 14) || \
+        (defined(__clang__) && __clang_major__ >= 19))
+        #define ZSTD_ARCH_RISCV_RVV
+#  endif
+#endif
 #
 #  if defined(ZSTD_ARCH_X86_AVX2)
 #    include <immintrin.h>
@@ -226,6 +246,12 @@
 #    include <emmintrin.h>
 #  elif defined(ZSTD_ARCH_ARM_NEON)
 #    include <arm_neon.h>
+#  endif
+#  if defined(ZSTD_ARCH_ARM_SVE) || defined(ZSTD_ARCH_ARM_SVE2)
+#    include <arm_sve.h>
+#  endif
+#  if defined(ZSTD_ARCH_RISCV_RVV)
+#    include <riscv_vector.h>
 #  endif
 #endif
 
@@ -357,9 +383,9 @@ ptrdiff_t ZSTD_wrappedPtrDiff(unsigned char const* lhs, unsigned char const* rhs
  */
 MEM_STATIC
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
-unsigned char const* ZSTD_wrappedPtrAdd(unsigned char const* ptr, ptrdiff_t add)
+const void* ZSTD_wrappedPtrAdd(const void* ptr, ptrdiff_t add)
 {
-    return ptr + add;
+    return (const char*)ptr + add;
 }
 
 /**
@@ -370,9 +396,9 @@ unsigned char const* ZSTD_wrappedPtrAdd(unsigned char const* ptr, ptrdiff_t add)
  */
 MEM_STATIC
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
-unsigned char const* ZSTD_wrappedPtrSub(unsigned char const* ptr, ptrdiff_t sub)
+const void* ZSTD_wrappedPtrSub(const void* ptr, ptrdiff_t sub)
 {
-    return ptr - sub;
+    return (const char*)ptr - sub;
 }
 
 /**
@@ -382,9 +408,9 @@ unsigned char const* ZSTD_wrappedPtrSub(unsigned char const* ptr, ptrdiff_t sub)
  * @returns `ptr + add` except it defines `NULL + 0 == NULL`.
  */
 MEM_STATIC
-unsigned char* ZSTD_maybeNullPtrAdd(unsigned char* ptr, ptrdiff_t add)
+void* ZSTD_maybeNullPtrAdd(void* ptr, ptrdiff_t add)
 {
-    return add > 0 ? ptr + add : ptr;
+    return add > 0 ? (char*)ptr + add : ptr;
 }
 
 /* Issue #3240 reports an ASAN failure on an llvm-mingw build. Out of an

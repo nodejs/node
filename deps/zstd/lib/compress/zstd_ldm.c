@@ -20,11 +20,6 @@
 #define LDM_MIN_MATCH_LENGTH 64
 #define LDM_HASH_RLOG 7
 
-typedef struct {
-    U64 rolling;
-    U64 stopMask;
-} ldmRollingHashState_t;
-
 /** ZSTD_ldm_gear_init():
  *
  * Initializes the rolling hash state such that it will honor the
@@ -62,8 +57,8 @@ static void ZSTD_ldm_gear_init(ldmRollingHashState_t* state, ldmParams_t const* 
  * splits. This effectively resets the hash state. This is used when skipping
  * over data, either at the beginning of a block, or skipping sections.
  */
-static void ZSTD_ldm_gear_reset(ldmRollingHashState_t* state,
-                                BYTE const* data, size_t minMatchLength)
+void ZSTD_ldm_gear_reset(ldmRollingHashState_t* state,
+                        BYTE const* data, size_t minMatchLength)
 {
     U64 hash = state->rolling;
     size_t n = 0;
@@ -82,6 +77,7 @@ static void ZSTD_ldm_gear_reset(ldmRollingHashState_t* state,
         GEAR_ITER_ONCE();
     }
 #undef GEAR_ITER_ONCE
+    state->rolling = hash;
 }
 
 /** ZSTD_ldm_gear_feed():
@@ -93,9 +89,9 @@ static void ZSTD_ldm_gear_reset(ldmRollingHashState_t* state,
  *
  * Precondition: The splits array must not be full.
  * Returns: The number of bytes processed. */
-static size_t ZSTD_ldm_gear_feed(ldmRollingHashState_t* state,
-                                 BYTE const* data, size_t size,
-                                 size_t* splits, unsigned* numSplits)
+size_t ZSTD_ldm_gear_feed(ldmRollingHashState_t* state,
+                         BYTE const* data, size_t size,
+                         size_t* splits, unsigned* numSplits)
 {
     size_t n;
     U64 hash, mask;
@@ -152,7 +148,11 @@ void ZSTD_ldm_adjustParameters(ldmParams_t* params,
         }
     }
     if (params->hashLog == 0) {
-        params->hashLog = BOUNDED(ZSTD_HASHLOG_MIN, params->windowLog - params->hashRateLog, ZSTD_HASHLOG_MAX);
+        if (params->windowLog <= params->hashRateLog) {
+            params->hashLog = ZSTD_HASHLOG_MIN;
+        } else {
+            params->hashLog = BOUNDED(ZSTD_HASHLOG_MIN, params->windowLog - params->hashRateLog, ZSTD_HASHLOG_MAX);
+        }
     }
     if (params->minMatchLength == 0) {
         params->minMatchLength = LDM_MIN_MATCH_LENGTH;

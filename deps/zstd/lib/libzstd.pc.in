@@ -14,3 +14,4 @@ Version: @VERSION@
 Libs: -L${libdir} -lzstd @LIBS_MT@
 Libs.private: @LIBS_PRIVATE@
 Cflags: -I${includedir} @LIBS_MT@
+License: BSD-3-Clause OR GPL-2.0-only

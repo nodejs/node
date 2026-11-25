@@ -168,7 +168,7 @@ static void ZDICT_initDictItem(dictItem* d)
 #define MINMATCHLENGTH 7   /* heuristic determined experimentally */
 static dictItem ZDICT_analyzePos(
                        BYTE* doneMarks,
-                       const int* suffix, U32 start,
+                       const unsigned* suffix, U32 start,
                        const void* buffer, U32 minRatio, U32 notificationLevel)
 {
     U32 lengthList[LLIMIT] = {0};
@@ -293,8 +293,10 @@ static dictItem ZDICT_analyzePos(
         for (i=(int)(maxLength-2); i>=0; i--)
             cumulLength[i] = cumulLength[i+1] + lengthList[i];
 
-        for (i=LLIMIT-1; i>=MINMATCHLENGTH; i--) if (cumulLength[i]>=minRatio) break;
-        maxLength = i;
+        {   unsigned u;
+            for (u=LLIMIT-1; u>=MINMATCHLENGTH; u--) if (cumulLength[u]>=minRatio) break;
+            maxLength = u;
+        }
 
         /* reduce maxLength in case of final into repetitive data */
         {   U32 l = (U32)maxLength;
@@ -306,8 +308,10 @@ static dictItem ZDICT_analyzePos(
 
         /* calculate savings */
         savings[5] = 0;
-        for (i=MINMATCHLENGTH; i<=(int)maxLength; i++)
-            savings[i] = savings[i-1] + (lengthList[i] * (i-3));
+        {   unsigned u;
+            for (u=MINMATCHLENGTH; u<=maxLength; u++)
+                savings[u] = savings[u-1] + (lengthList[u] * (u-3));
+        }
 
         DISPLAYLEVEL(4, "Selected dict at position %u, of length %u : saves %u (ratio: %.2f)  \n",
                      (unsigned)pos, (unsigned)maxLength, (unsigned)savings[maxLength], (double)savings[maxLength] / (double)maxLength);
@@ -383,11 +387,11 @@ static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const 
 
         if ((table[u].pos + table[u].length >= elt.pos) && (table[u].pos < elt.pos)) {  /* overlap, existing < new */
             /* append */
-            int const addedLength = (int)eltEnd - (int)(table[u].pos + table[u].length);
+            int const addedLength = (int)eltEnd - (int)(table[u].pos + table[u].length); /* note: can be negative */
             table[u].savings += elt.length / 8;    /* rough approx bonus */
             if (addedLength > 0) {   /* otherwise, elt fully included into existing */
-                table[u].length += addedLength;
-                table[u].savings += elt.savings * addedLength / elt.length;   /* rough approx */
+                table[u].length += (unsigned)addedLength;
+                table[u].savings += elt.savings * (unsigned)addedLength / elt.length;   /* rough approx */
             }
             /* sort : improve rank */
             elt = table[u];
@@ -399,7 +403,7 @@ static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const 
 
         if (MEM_read64(buf + table[u].pos) == MEM_read64(buf + elt.pos + 1)) {
             if (isIncluded(buf + table[u].pos, buf + elt.pos + 1, table[u].length)) {
-                size_t const addedLength = MAX( (int)elt.length - (int)table[u].length , 1 );
+                size_t const addedLength = MAX( elt.length - table[u].length , 1 );
                 table[u].pos = elt.pos;
                 table[u].savings += (U32)(elt.savings * addedLength / elt.length);
                 table[u].length = MIN(elt.length, table[u].length + 1);
@@ -467,8 +471,8 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
                             const size_t* fileSizes, unsigned nbFiles,
                             unsigned minRatio, U32 notificationLevel)
 {
-    int* const suffix0 = (int*)malloc((bufferSize+2)*sizeof(*suffix0));
-    int* const suffix = suffix0+1;
+    unsigned* const suffix0 = (unsigned*)malloc((bufferSize+2)*sizeof(*suffix0));
+    unsigned* const suffix = suffix0+1;
     U32* reverseSuffix = (U32*)malloc((bufferSize)*sizeof(*reverseSuffix));
     BYTE* doneMarks = (BYTE*)malloc((bufferSize+16)*sizeof(*doneMarks));   /* +16 for overflow security */
     U32* filePos = (U32*)malloc(nbFiles * sizeof(*filePos));
@@ -503,11 +507,11 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
 
     /* sort */
     DISPLAYLEVEL(2, "sorting %u files of total size %u MB ...\n", nbFiles, (unsigned)(bufferSize>>20));
-    {   int const divSuftSortResult = divsufsort((const unsigned char*)buffer, suffix, (int)bufferSize, 0);
+    {   int const divSuftSortResult = divsufsort((const unsigned char*)buffer, (int*)suffix, (int)bufferSize, 0);
         if (divSuftSortResult != 0) { result = ERROR(GENERIC); goto _cleanup; }
     }
-    suffix[bufferSize] = (int)bufferSize;   /* leads into noise */
-    suffix0[0] = (int)bufferSize;           /* leads into noise */
+    suffix[bufferSize] = (unsigned)bufferSize;   /* leads into noise */
+    suffix0[0] = (unsigned)bufferSize;           /* leads into noise */
     /* build reverse suffix sort */
     {   size_t pos;
         for (pos=0; pos < bufferSize; pos++)
