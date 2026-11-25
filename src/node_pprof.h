@@ -81,6 +81,10 @@ class WallProfiler final : public BaseObject, public SignalSampleSink {
   SET_MEMORY_INFO_NAME(WallProfiler)
   SET_SELF_SIZE(WallProfiler)
 
+  // A profiler that is still started at exit is held strongly on purpose,
+  // until it is stopped or the realm is cleaned up.
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override { return true; }
+
 #ifndef _WIN32
   void OnProfilerSignal(int sig, siginfo_t* info, void* context) override;
 #endif

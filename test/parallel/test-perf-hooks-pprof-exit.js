@@ -24,6 +24,9 @@ for (const exit of [
       ${exit}
     `;
     spawnSyncAndExitWithoutError(process.execPath, [
+      // A profiler that is still started at exit is not a leak. Debug builds
+      // always verify this, and release builds only with this flag.
+      '--verify-base-objects',
       '--no-warnings',
       '-e',
       script,
