@@ -322,3 +322,24 @@ const values = [
     assert.strictEqual(ret, 42);
   }));
 }
+
+{
+  // Test that a `length` or `name` descriptor with a null value does not
+  // throw (https://github.com/nodejs/node/pull/67754#pullrequestreview-6063276391).
+  async function asyncFn() {
+    return 42;
+  }
+  const proxyFn = new Proxy(asyncFn, {
+    getOwnPropertyDescriptor(target, property) {
+      const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
+      if (property === 'length' || property === 'name') {
+        return { ...descriptor, value: null };
+      }
+      return descriptor;
+    },
+  });
+  const cbProxyFn = callbackify(proxyFn);
+  cbProxyFn(common.mustSucceed((ret) => {
+    assert.strictEqual(ret, 42);
+  }));
+}
