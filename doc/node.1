@@ -1415,6 +1415,39 @@ See \fB--preserve-symlinks\fR for more information.
 .It Fl p , Fl -print Ar "script"
 Identical to \fB-e\fR but prints the result.
 .
+.It Fl -process-timeout-worker-stacks
+When \fB--process-timeout\fR expires, also prints what each \fBWorker\fR thread,
+including Workers created by other Workers, was doing and which resources were
+keeping its event loop alive to stderr, after the summary for the main thread:
+.Bd -literal
+$ node --process-timeout=5s --process-timeout-worker-stacks app.js
+(node:25418) Process timed out after 5s (--process-timeout). Exiting with code 124.
+Main thread was not executing JavaScript.
+Resources keeping the event loop alive:
+    Worker (thread 2, name 'WorkerThread')
+    Worker (thread 1, name 'compute')
+Worker thread 1 (name 'compute') was executing JavaScript:
+    at spin (/home/user/compute.js:3:3)
+    at /home/user/compute.js:6:1
+    at node:internal/modules/cjs/loader:1989:14
+    at node:internal/modules/cjs/loader:2129:10
+    at node:internal/modules/cjs/loader:1711:32
+    at node:internal/modules/cjs/loader:1501:12
+    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+    at executeUserEntryPoint (node:internal/modules/run_main:166:5)
+    at node:internal/main/worker_thread:247:26
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:876:20)
+No resources keeping its event loop alive were found.
+Worker thread 2 (name 'WorkerThread') was not executing JavaScript.
+Resources keeping its event loop alive:
+    Timeout (next due in 28ms)
+.Ed
+Worker threads that do not respond within two seconds, for example because
+they are blocked in a synchronous operation such as
+\fBchild_process.execSync()\fR, are listed without a stack trace or
+resources. Requires
+\fB--process-timeout\fR.
+.
 .It Fl -process-timeout Ns = Ns Ar duration
 Exits the process with code \fB124\fR if it is still running after \fBduration\fR,
 measured from the start of the process. \fBduration\fR is a positive integer
@@ -1431,7 +1464,9 @@ Resources keeping the event loop alive:
     Timeout x2 (next due in 2931ms)
 .Ed
 If the main thread was executing JavaScript, its stack trace is printed instead.
-Use \fB--report-on-process-timeout\fR to also generate a diagnostic report.
+Use \fB--process-timeout-worker-stacks\fR to also print the stack traces of
+Worker threads, and \fB--report-on-process-timeout\fR to also generate a
+diagnostic report.
 The process exits without emitting the \fB'beforeExit'\fR and \fB'exit'\fR events, as
 the JavaScript code may be what keeps the process running. Code coverage and
 profiles, such as those enabled with \fBNODE_V8_COVERAGE=dir\fR or
