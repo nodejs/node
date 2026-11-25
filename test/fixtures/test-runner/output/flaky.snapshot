@@ -1,0 +1,61 @@
+TAP version 13
+# Subtest: eventually passes
+ok 1 - eventually passes # FLAKY 2 re-tries
+  ---
+  duration_ms: *
+  type: 'test'
+  ...
+# Subtest: flaky passes first try
+ok 2 - flaky passes first try
+  ---
+  duration_ms: *
+  type: 'test'
+  ...
+# Subtest: flaky suite
+    # Subtest: member retried then passes
+    ok 1 - member retried then passes # FLAKY 1 re-try
+      ---
+      duration_ms: *
+      type: 'test'
+      ...
+    # Subtest: member passes immediately
+    ok 2 - member passes immediately
+      ---
+      duration_ms: *
+      type: 'test'
+      ...
+    1..2
+ok 3 - flaky suite
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: shorthand retried
+ok 4 - shorthand retried # FLAKY 1 re-try
+  ---
+  duration_ms: *
+  type: 'test'
+  ...
+# Subtest: exhausts and fails
+not ok 5 - exhausts and fails # FLAKY failed after 2 re-tries
+  ---
+  duration_ms: *
+  type: 'test'
+  location: '<project-root>/test/fixtures/test-runner/output/flaky.js:38:1'
+  failureType: 'testCodeFailure'
+  error: 'always boom'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/flaky.js:39:9)
+    <node-internal-frames>
+  ...
+1..5
+# tests 6
+# suites 1
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# flaky 6
+# duration_ms *
