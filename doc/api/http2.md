@@ -5187,8 +5187,8 @@ Sends an arbitrary HTTP 1xx informational response, equivalent in HTTP/2 to a
 multiple times before the final response. After the final response headers
 have been sent, this method is a no-op and returns `false`.
 
-This is the generic equivalent of [`response.writeContinue()`][] and
-[`response.writeEarlyHints()`][].
+This is the generic equivalent of [`response.writeContinue()`][],
+[`response.writeProcessing()`][] and [`response.writeEarlyHints()`][].
 
 ```js
 response.writeInformation(110, { 'X-Progress': '50%' });
@@ -5259,6 +5259,20 @@ const server = http2.createServer((req, res) => {
 
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
+
+#### `response.writeProcessing([callback])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callback` {Function} Optional, called once the informational headers
+  have been written to the socket, or with an error if they could not be
+  written. It is not called if nothing is sent.
+  * `err` {Error|null}
+
+Sends a status `102 Processing` to the client, indicating that the request
+has been received and is still being processed.
 
 ## Collecting HTTP/2 performance metrics
 
@@ -5410,6 +5424,7 @@ you need to implement any fall-back behavior yourself.
 [`response.writeContinue()`]: #responsewritecontinuecallback
 [`response.writeEarlyHints()`]: #responsewriteearlyhintshints-callback
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
+[`response.writeProcessing()`]: #responsewriteprocessingcallback
 [`server.close()`]: #serverclosecallback
 [`server.maxHeadersCount`]: http.md#servermaxheaderscount
 [`tls.Server.close()`]: tls.md#serverclosecallback
