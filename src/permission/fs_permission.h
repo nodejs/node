@@ -167,7 +167,23 @@ class FSPermission final : public PermissionBase {
         if (children.empty()) {
           return true;
         }
-        return is_leaf;
+        if (is_leaf) {
+          return true;
+        }
+        // Granting `<dir>/*` also grants `<dir>`, but a sibling that shares
+        // a prefix can split the tree and detach the wildcard child from
+        // the end node. Treat the node as an end node when a direct child
+        // is the remaining wildcard suffix (`*` or `/*`).
+        for (const auto& [c, child] : children) {
+          if (child->wildcard_child == nullptr) continue;
+          if (child->prefix == "*" ||
+              (child->prefix.size() == 2 &&
+               child->prefix[0] == node::kPathSeparator &&
+               child->prefix[1] == '*')) {
+            return true;
+          }
+        }
+        return false;
       }
     };
 
