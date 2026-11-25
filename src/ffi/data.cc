@@ -793,7 +793,7 @@ void GetRawPointer(const FunctionCallbackInfo<Value>& args) {
     store = args[0].As<SharedArrayBuffer>()->GetBackingStore();
   } else if (args[0]->IsArrayBufferView()) {
     Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
-    if (view->Buffer()->WasDetached()) {
+    if (view->GetBuffer()->WasDetached()) {
       THROW_ERR_INVALID_ARG_VALUE(
           env, "ArrayBufferView is backed by a detached ArrayBuffer");
       return;
@@ -801,7 +801,7 @@ void GetRawPointer(const FunctionCallbackInfo<Value>& args) {
     // Access the store here to ensure that it exists. Small typed arrays
     // may not have a store until this point and can instead be stored
     // entirely in-heap.
-    store = view->Buffer()->GetBackingStore();
+    store = view->GetBuffer()->GetBackingStore();
     offset = view->ByteOffset();
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
