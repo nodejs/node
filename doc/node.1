@@ -777,6 +777,8 @@ When using a transpiler, such as TypeScript, stack traces thrown by an
 application reference the transpiled code, not the original source position.
 \fB--enable-source-maps\fR enables caching of Source Maps and makes a best
 effort to report stack traces relative to the original source file.
+Source maps of files in \fBnode_modules\fR are skipped. Use
+\fBmodule.setSourceMapsSupport()\fR to enable source maps for them.
 Overriding \fBError.prepareStackTrace\fR may prevent \fB--enable-source-maps\fR from
 modifying the stack trace. Call and return the results of the original
 \fBError.prepareStackTrace\fR in the overriding function to modify the stack trace

@@ -1273,6 +1273,9 @@ is permitted.
 <!-- YAML
 added: v12.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67627
+    description: Source maps in `node_modules` are skipped by default.
   - version:
       - v15.11.0
       - v14.18.0
@@ -1286,6 +1289,9 @@ When using a transpiler, such as TypeScript, stack traces thrown by an
 application reference the transpiled code, not the original source position.
 `--enable-source-maps` enables caching of Source Maps and makes a best
 effort to report stack traces relative to the original source file.
+
+Source maps of files in `node_modules` are skipped. Use
+[`module.setSourceMapsSupport()`][] to enable source maps for them.
 
 Overriding `Error.prepareStackTrace` may prevent `--enable-source-maps` from
 modifying the stack trace. Call and return the results of the original
@@ -5051,6 +5057,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`import.meta.url`]: esm.md#importmetaurl
 [`inspector.open()`]: inspector.md#inspectoropenport-host-wait
+[`module.setSourceMapsSupport()`]: module.md#modulesetsourcemapssupportenabled-options
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
 [`node:sqlite`]: sqlite.md
