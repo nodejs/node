@@ -440,11 +440,11 @@ bool ReadKeyIdentifierSpec(Environment* env,
   if (!IsAnyBufferSource(identifier_value)) return false;
 
   ArrayBufferOrViewContents<unsigned char> contents(identifier_value);
-  if (!contents.CheckSizeInt32()) return false;
+  if (!contents.CheckSizeInt32() || contents.size() == 0) return false;
   identifier->reset(ASN1_OCTET_STRING_new());
   return *identifier &&
          ASN1_OCTET_STRING_set(identifier->get(),
-                               contents.size() == 0 ? nullptr : contents.data(),
+                               contents.data(),
                                static_cast<int>(contents.size())) == 1;
 }
 

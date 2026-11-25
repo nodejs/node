@@ -5418,13 +5418,14 @@ const extensions = [
   ASCII strings without NUL and are not otherwise validated.
 * Subject Key Identifier: `type: 'subjectKeyIdentifier'` and `value: 'auto'` or
   `value` {ArrayBuffer|TypedArray|Buffer|DataView}. A binary value contains the
-  key identifier bytes, not DER. `'auto'` uses [RFC 7093][] method 1: the
-  leftmost 160 bits of the SHA-256 digest of the `subjectPublicKey` BIT STRING
-  contents. This typed form is always noncritical.
+  nonempty key identifier bytes, not DER. `'auto'` uses [RFC 7093][] method 1:
+  the leftmost 160 bits of the SHA-256 digest of the `subjectPublicKey` BIT
+  STRING contents. This typed form is always noncritical.
 * Authority Key Identifier: `type: 'authorityKeyIdentifier'` and
   `value: 'auto'` or `value`
-  {ArrayBuffer|TypedArray|Buffer|DataView}. A binary value contains the key
-  identifier bytes and populates only the extension's `keyIdentifier` field.
+  {ArrayBuffer|TypedArray|Buffer|DataView}. A binary value contains the
+  nonempty key identifier bytes and populates only the extension's
+  `keyIdentifier` field.
   When `options.issuer` is supplied, `'auto'` asks the configured crypto backend
   to decode and copy its Subject Key Identifier. If the extension is absent,
   the identifier is instead derived from the issuer public key using

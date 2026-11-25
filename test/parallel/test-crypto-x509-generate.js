@@ -619,6 +619,12 @@ const invalidOptions = [
     subject: [{ name: 'CN', value: 'example.com\0.example' }],
   })],
   ['ERR_INVALID_ARG_VALUE', baseOptions(leafKeys, {
+    extensions: [{ type: 'subjectKeyIdentifier', value: Buffer.alloc(0) }],
+  })],
+  ['ERR_INVALID_ARG_VALUE', baseOptions(leafKeys, {
+    extensions: [{ type: 'authorityKeyIdentifier', value: Buffer.alloc(0) }],
+  })],
+  ['ERR_INVALID_ARG_VALUE', baseOptions(leafKeys, {
     subject: [
       { name: 'CN', value: 'example.com' },
       [{ name: 'O', value: 'Node.js' }, { name: '2.5.4.11', value: '\0' }],
