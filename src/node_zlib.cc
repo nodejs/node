@@ -523,7 +523,7 @@ class CompressionStream : public AsyncWrap,
 
     pending_close_ = false;
     closed_ = true;
-    CHECK(init_done_ && "close before init");
+    if (!init_done_) return;
 
     AllocScope alloc_scope(this);
     ctx_.Close();
