@@ -786,6 +786,10 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
     _exports = init(env, v8impl::JsValueFromV8LocalValue(exports));
   });
 
+  // Setting module.exports below would clear an exception thrown by the
+  // module's init function, so return and let it reach the caller.
+  if (env->isolate->HasPendingException()) return;
+
   // If register function returned a non-null exports object different from
   // the exports object we passed it, set that as the "exports" property of
   // the module.

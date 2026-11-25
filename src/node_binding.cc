@@ -1090,6 +1090,10 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
         env, "Linked binding has no declared entry point.");
   }
 
+  // Reading module.exports below would clear an exception thrown by the
+  // binding's initializer, so return and let it reach the caller.
+  if (env->isolate()->HasPendingException()) return;
+
   Local<Value> effective_exports;
   if (module->Get(env->context(), env->exports_string())
           .ToLocal(&effective_exports)) {
