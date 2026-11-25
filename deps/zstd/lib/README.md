@@ -7,15 +7,30 @@ in order to make it easier to select or exclude features.
 
 #### Building
 
-`Makefile` script is provided, supporting [Makefile conventions](https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html#Makefile-Conventions),
+A `Makefile` script is provided, supporting [Makefile conventions](https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html#Makefile-Conventions),
 including commands variables, staged install, directory variables and standard targets.
 - `make` : generates both static and dynamic libraries
-- `make install` : install libraries and headers in target system directories
+- `make install` : install libraries, headers and pkg-config in local system directories
 
-`libzstd` default scope is pretty large, including compression, decompression, dictionary builder,
-and support for decoding legacy formats >= v0.5.0.
+`libzstd` default scope includes compression, decompression, and dictionary builder.
+Note: starting v1.6.0, support for decoding legacy formats is disabled by default.
+See _modular build_ below to learn how to enable it.
 The scope can be reduced on demand (see paragraph _modular build_).
 
+#### Multiarch Support
+
+For multiarch systems (like Debian/Ubuntu), libraries should be installed to architecture-specific directories.
+When creating packages for such systems, use the `LIBDIR` variable to specify the correct multiarch path:
+
+```bash
+# For x86_64 systems on Ubuntu/Debian:
+make install PREFIX=/usr LIBDIR=/usr/lib/x86_64-linux-gnu
+
+# For ARM64 systems on Ubuntu/Debian:
+make install PREFIX=/usr LIBDIR=/usr/lib/aarch64-linux-gnu
+```
+
+This will not only install the files in the correct directories, but also generate the correct paths for `pkg-config`.
 
 #### Multithreading support
 
@@ -85,7 +100,7 @@ The file structure is designed to make this selection manually achievable for an
         Specifying a number limits versions supported to that version onward.
         For example, `ZSTD_LEGACY_SUPPORT=2` means : "support legacy formats >= v0.2.0".
         Conversely, `ZSTD_LEGACY_SUPPORT=0` means "do __not__ support legacy formats".
-        By default, this build macro is set as `ZSTD_LEGACY_SUPPORT=5`.
+        By default, this build macro is set as `ZSTD_LEGACY_SUPPORT=0` (disabled).
         Decoding supported legacy format is a transparent capability triggered within decompression functions.
         It's also allowed to invoke legacy API directly, exposed in `lib/legacy/zstd_legacy.h`.
         Each version does also provide its own set of advanced API.
@@ -192,6 +207,11 @@ The file structure is designed to make this selection manually achievable for an
 - The C compiler macro `HUF_DISABLE_FAST_DECODE` disables the newer Huffman fast C
   and assembly decoding loops. You may want to use this macro if these loops are
   slower on your platform.
+
+- The macro `ZDICT_QSORT` can enforce selection of a specific sorting variant,
+  which is useful when autodetection fails, for example with older versions of `musl`.
+  For this scenario, it can be set as `ZDICT_QSORT=ZDICT_QSORT_C90`.
+  Other selectable suffixes are `_GNU`, `_APPLE`, `_MSVC` and `_C11`.
 
 #### Windows : using MinGW+MSYS to create DLL
 

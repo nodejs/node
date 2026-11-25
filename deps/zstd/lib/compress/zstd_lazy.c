@@ -1050,6 +1050,44 @@ ZSTD_row_getNEONMask(const U32 rowEntries, const BYTE* const src, const BYTE tag
     }
 }
 #endif
+#if defined(ZSTD_ARCH_RISCV_RVV) && (__riscv_xlen == 64)
+FORCE_INLINE_TEMPLATE ZSTD_VecMask
+ZSTD_row_getRVVMask(int rowEntries, const BYTE* const src, const BYTE tag, const U32 head)
+{
+    ZSTD_VecMask matches;
+    size_t vl;
+
+    if (rowEntries == 16) {
+        vl = __riscv_vsetvl_e8m1(16);
+        {
+            vuint8m1_t chunk = __riscv_vle8_v_u8m1(src, vl);
+            vbool8_t mask = __riscv_vmseq_vx_u8m1_b8(chunk, tag, vl);
+            vuint16m1_t mask_u16 = __riscv_vreinterpret_v_b8_u16m1(mask);
+            matches = __riscv_vmv_x_s_u16m1_u16(mask_u16);
+            return ZSTD_rotateRight_U16((U16)matches, head);
+        }
+
+    } else if (rowEntries == 32) {
+        vl = __riscv_vsetvl_e8m2(32);
+        {
+            vuint8m2_t chunk = __riscv_vle8_v_u8m2(src, vl);
+            vbool4_t mask = __riscv_vmseq_vx_u8m2_b4(chunk, tag, vl);
+            vuint32m1_t mask_u32 = __riscv_vreinterpret_v_b4_u32m1(mask);
+            matches = __riscv_vmv_x_s_u32m1_u32(mask_u32);
+            return ZSTD_rotateRight_U32((U32)matches, head);
+        }
+    } else { // rowEntries = 64
+        vl = __riscv_vsetvl_e8m4(64);
+        {
+            vuint8m4_t chunk = __riscv_vle8_v_u8m4(src, vl);
+            vbool2_t mask = __riscv_vmseq_vx_u8m4_b2(chunk, tag, vl);
+            vuint64m1_t mask_u64 = __riscv_vreinterpret_v_b2_u64m1(mask);
+            matches = __riscv_vmv_x_s_u64m1_u64(mask_u64);
+            return ZSTD_rotateRight_U64(matches, head);
+        }
+    }
+}
+#endif
 
 /* Returns a ZSTD_VecMask (U64) that has the nth group (determined by
  * ZSTD_row_matchMaskGroupWidth) of bits set to 1 if the newly-computed "tag"
@@ -1069,14 +1107,20 @@ ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, const U32 headGr
 
     return ZSTD_row_getSSEMask(rowEntries / 16, src, tag, headGrouped);
 
-#else /* SW or NEON-LE */
+#elif defined(ZSTD_ARCH_RISCV_RVV) && (__riscv_xlen == 64)
 
-# if defined(ZSTD_ARCH_ARM_NEON)
+    return ZSTD_row_getRVVMask(rowEntries, src, tag, headGrouped);
+
+#else
+
+#if defined(ZSTD_ARCH_ARM_NEON)
   /* This NEON path only works for little endian - otherwise use SWAR below */
     if (MEM_isLittleEndian()) {
         return ZSTD_row_getNEONMask(rowEntries, src, tag, headGrouped);
     }
-# endif /* ZSTD_ARCH_ARM_NEON */
+
+
+#endif
     /* SWAR */
     {   const int chunkSize = sizeof(size_t);
         const size_t shiftAmount = ((chunkSize * 8) - chunkSize);
@@ -1557,8 +1601,8 @@ size_t ZSTD_compressBlock_lazy_generic(
         if (offset_1 > maxRep) offsetSaved1 = offset_1, offset_1 = 0;
     }
     if (isDxS) {
-        /* dictMatchState repCode checks don't currently handle repCode == 0
-         * disabling. */
+        /* Dictionary repcodes are validated when the CDict is attached.
+         * dictMatchState repCode checks don't handle repCode == 0 disabling. */
         assert(offset_1 <= dictAndPrefixLength);
         assert(offset_2 <= dictAndPrefixLength);
     }

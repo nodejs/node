@@ -1224,7 +1224,7 @@ const char* FSEv05_getErrorName(size_t code) { return ERR_getErrorName(code); }
 /*-**************************************************************
 *  FSEv05 NCount encoding-decoding
 ****************************************************************/
-static short FSEv05_abs(short a) { return a<0 ? -a : a; }
+static short FSEv05_abs(short a) { return a<0 ? (short)-a : a; }
 
 
 size_t FSEv05_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
@@ -2791,6 +2791,7 @@ static size_t ZSTDv05_getcBlockSize(const void* src, size_t srcSize, blockProper
     bpPtr->origSize = (bpPtr->blockType == bt_rle) ? cSize : 0;
 
     if (bpPtr->blockType == bt_end) return 0;
+    if (cSize > BLOCKSIZE) return ERROR(corruption_detected);
     if (bpPtr->blockType == bt_rle) return 1;
     return cSize;
 }
@@ -3650,8 +3651,8 @@ static size_t ZSTDv05_loadEntropy(ZSTDv05_DCtx* dctx, const void* dict, size_t d
     dictSize -= matchlengthHeaderSize;
 
     litlengthHeaderSize = FSEv05_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dict, dictSize);
-    if (litlengthLog > LLFSEv05Log) return ERROR(dictionary_corrupted);
     if (FSEv05_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
+    if (litlengthLog > LLFSEv05Log) return ERROR(dictionary_corrupted);
     errorCode = FSEv05_buildDTable(dctx->LLTable, litlengthNCount, litlengthMaxValue, litlengthLog);
     if (FSEv05_isError(errorCode)) return ERROR(dictionary_corrupted);
 
@@ -3662,8 +3663,7 @@ static size_t ZSTDv05_loadEntropy(ZSTDv05_DCtx* dctx, const void* dict, size_t d
 static size_t ZSTDv05_decompress_insertDictionary(ZSTDv05_DCtx* dctx, const void* dict, size_t dictSize)
 {
     size_t eSize;
-    U32 magic = MEM_readLE32(dict);
-    if (magic != ZSTDv05_DICT_MAGIC) {
+    if (dictSize < 4 || MEM_readLE32(dict) != ZSTDv05_DICT_MAGIC) {
         /* pure content mode */
         ZSTDv05_refDictContent(dctx, dict, dictSize);
         return 0;
@@ -3893,7 +3893,10 @@ size_t ZBUFFv05_decompressContinue(ZBUFFv05_DCtx* zbc, void* dst, size_t* maxDst
         case ZBUFFv05ds_decodeHeader:
                 /* apply header to create / resize buffers */
                 {
-                    size_t neededOutSize = (size_t)1 << zbc->params.windowLog;
+                    /* note : also provide space for one full block, so that the
+                     * history preserved at wrap time never fills the whole buffer
+                     * and the next block always has room to decode into. */
+                    size_t neededOutSize = ((size_t)1 << zbc->params.windowLog) + BLOCKSIZE;
                     size_t neededInSize = BLOCKSIZE;   /* a block is never > BLOCKSIZE */
                     if (zbc->inBuffSize < neededInSize) {
                         free(zbc->inBuff);

@@ -11,6 +11,7 @@
  /*-*************************************
  *  Dependencies
  ***************************************/
+#include "../common/bmi2.h"
 #include "zstd_compress_sequences.h"
 
 /**
@@ -300,6 +301,7 @@ ZSTD_encodeSequences_body(
     FSE_CState_t  stateOffsetBits;
     FSE_CState_t  stateLitLength;
 
+    assert(MEM_32bits() || !longOffsets);
     RETURN_ERROR_IF(
         ERR_isError(BIT_initCStream(&blockStream, dst, dstCapacity)),
         dstSize_tooSmall, "not enough space remaining");
@@ -315,7 +317,7 @@ ZSTD_encodeSequences_body(
     if (MEM_32bits()) BIT_flushBits(&blockStream);
     BIT_addBits(&blockStream, sequences[nbSeq-1].mlBase, ML_bits[mlCodeTable[nbSeq-1]]);
     if (MEM_32bits()) BIT_flushBits(&blockStream);
-    if (longOffsets) {
+    if (MEM_32bits() && longOffsets) {
         U32 const ofBits = ofCodeTable[nbSeq-1];
         unsigned const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
         if (extraBits) {
@@ -353,7 +355,7 @@ ZSTD_encodeSequences_body(
             if (MEM_32bits() && ((llBits+mlBits)>24)) BIT_flushBits(&blockStream);
             BIT_addBits(&blockStream, sequences[n].mlBase, mlBits);
             if (MEM_32bits() || (ofBits+mlBits+llBits > 56)) BIT_flushBits(&blockStream);
-            if (longOffsets) {
+            if (MEM_32bits() && longOffsets) {
                 unsigned const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
                 if (extraBits) {
                     BIT_addBits(&blockStream, sequences[n].offBase, extraBits);
@@ -414,6 +416,10 @@ ZSTD_encodeSequences_bmi2(
                                     sequences, nbSeq, longOffsets);
 }
 
+#else
+
+#define ZSTD_encodeSequences_bmi2 ZSTD_encodeSequences_default
+
 #endif
 
 size_t ZSTD_encodeSequences(
@@ -424,15 +430,13 @@ size_t ZSTD_encodeSequences(
             SeqDef const* sequences, size_t nbSeq, int longOffsets, int bmi2)
 {
     DEBUGLOG(5, "ZSTD_encodeSequences: dstCapacity = %u", (unsigned)dstCapacity);
-#if DYNAMIC_BMI2
-    if (bmi2) {
+    if (ZSTD_USE_BMI2(bmi2)) {
         return ZSTD_encodeSequences_bmi2(dst, dstCapacity,
                                          CTable_MatchLength, mlCodeTable,
                                          CTable_OffsetBits, ofCodeTable,
                                          CTable_LitLength, llCodeTable,
                                          sequences, nbSeq, longOffsets);
     }
-#endif
     (void)bmi2;
     return ZSTD_encodeSequences_default(dst, dstCapacity,
                                         CTable_MatchLength, mlCodeTable,

@@ -1202,7 +1202,7 @@ static unsigned HUFv06_isError(size_t code) { return ERR_isError(code); }
 /*-**************************************************************
 *  FSE NCount encoding-decoding
 ****************************************************************/
-static short FSEv06_abs(short a) { return a<0 ? -a : a; }
+static short FSEv06_abs(short a) { return a<0 ? (short)-a : a; }
 
 size_t FSEv06_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
                  const void* headerBuffer, size_t hbSize)
@@ -2979,6 +2979,7 @@ static size_t ZSTDv06_getcBlockSize(const void* src, size_t srcSize, blockProper
     bpPtr->origSize = (bpPtr->blockType == bt_rle) ? cSize : 0;
 
     if (bpPtr->blockType == bt_end) return 0;
+    if (cSize > ZSTDv06_BLOCKSIZE_MAX) return ERROR(corruption_detected);
     if (bpPtr->blockType == bt_rle) return 1;
     return cSize;
 }
@@ -3802,8 +3803,7 @@ static size_t ZSTDv06_loadEntropy(ZSTDv06_DCtx* dctx, const void* dict, size_t d
 static size_t ZSTDv06_decompress_insertDictionary(ZSTDv06_DCtx* dctx, const void* dict, size_t dictSize)
 {
     size_t eSize;
-    U32 const magic = MEM_readLE32(dict);
-    if (magic != ZSTDv06_DICT_MAGIC) {
+    if (dictSize < 4 || MEM_readLE32(dict) != ZSTDv06_DICT_MAGIC) {
         /* pure content mode */
         ZSTDv06_refDictContent(dctx, dict, dictSize);
         return 0;

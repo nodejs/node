@@ -155,12 +155,15 @@ struct ZSTD_DCtx_s
     size_t staticSize;
     int isFrameDecompression;
 #if DYNAMIC_BMI2
-    int bmi2;                     /* == 1 if the CPU supports BMI2 and 0 otherwise. CPU support is determined dynamically once per context lifetime. */
+    int bmi2;                     /* == 1 if the CPU supports BMI2 and 0 otherwise when CPU state
+                                   * is cached per context. Never read this directly: use ZSTD_DCtx_get_bmi2(),
+                                   * which also handles builds
+                                   * where cached CPU state is not used. */
 #endif
 
     /* dictionary */
     ZSTD_DDict* ddictLocal;
-    const ZSTD_DDict* ddict;     /* set by ZSTD_initDStream_usingDDict(), or ZSTD_DCtx_refDDict() */
+    const ZSTD_DDict* ddict;     /* single-DDict state; NULL while ddictSet exists */
     U32 dictID;
     int ddictIsCold;             /* if == 1 : dictionary is "new" for working context, and presumed "cold" (not in cpu cache) */
     ZSTD_dictUses_e dictUses;
@@ -207,9 +210,21 @@ struct ZSTD_DCtx_s
     /* Tracing */
 #if ZSTD_TRACE
     ZSTD_TraceCtx traceCtx;
+    size_t traceDictSize;       /* size of the dictionary installed for this frame */
 #endif
 };  /* typedef'd to ZSTD_DCtx within "zstd.h" */
 
+/**
+ * @returns the cached per-context BMI2 dispatch hint, or 0 when the build does
+ *          not use cached CPU state.
+ *
+ * Beware: this is *not* a "does the CPU support BMI2" test. When BMI2 is enabled
+ * at compile time, DYNAMIC_BMI2 is 0: the whole library is already compiled with
+ * BMI2, no separate variant exists, and this returns 0 even though the CPU does
+ * support BMI2. Only use the result as a dispatch hint passed to a lower-level
+ * BMI2/default selector. Integrations may ignore the cached hint and consult
+ * their own CPU-feature policy at that selector.
+ */
 MEM_STATIC int ZSTD_DCtx_get_bmi2(const struct ZSTD_DCtx_s *dctx) {
 #if DYNAMIC_BMI2
     return dctx->bmi2;
@@ -233,6 +248,8 @@ size_t ZSTD_loadDEntropy(ZSTD_entropyDTables_t* entropy,
  *  check if next `dst` follows previous position, where decompression ended.
  *  If yes, do nothing (continue on current segment).
  *  If not, classify previous segment as "external dictionary", and start a new segment.
+ *  A zero dstSize leaves history unchanged. Callers must only advance
+ *  previousDstEnd when bytes are actually produced or inserted.
  *  This function cannot fail. */
 void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst, size_t dstSize);
 

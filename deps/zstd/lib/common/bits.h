@@ -21,7 +21,7 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros32_fallback(U32 val)
                                                 30, 22, 20, 15, 25, 17, 4, 8,
                                                 31, 27, 13, 23, 21, 19, 16, 7,
                                                 26, 12, 18, 6, 11, 5, 10, 9};
-        return DeBruijnBytePos[((U32) ((val & -(S32) val) * 0x077CB531U)) >> 27];
+        return DeBruijnBytePos[((U32) ((val & (0-val)) * 0x077CB531U)) >> 27];
     }
 }
 
