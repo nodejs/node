@@ -142,3 +142,37 @@ const http2 = require('node:http2');
     }));
   }));
 }
+
+// Nothing is sent, and the callback is not called, once the stream has
+// closed before the response headers were sent.
+{
+  const server = http2.createServer();
+
+  server.on('request', common.mustCall((req, res) => {
+    res.stream.on('close', common.mustCall(() => {
+      assert.strictEqual(res.stream.headersSent, false);
+      assert.strictEqual(res.writeContinue(common.mustNotCall()), false);
+      assert.strictEqual(res.writeProcessing(common.mustNotCall()), false);
+      assert.strictEqual(res.writeEarlyHints({
+        link: '</styles.css>; rel=preload; as=style',
+      }, common.mustNotCall()), false);
+      assert.strictEqual(
+        res.writeInformation(110, undefined, common.mustNotCall()), false);
+    }));
+    res.stream.close();
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    const client = http2.connect(`http://localhost:${server.address().port}`);
+    const req = client.request();
+    req.on('headers', common.mustNotCall());
+    req.on('response', common.mustNotCall());
+    // The server reset the stream before sending END_STREAM.
+    req.on('error', common.expectsError({ code: 'ERR_HTTP2_STREAM_ABORTED' }));
+    req.resume();
+    req.on('close', common.mustCall(() => {
+      client.close();
+      server.close();
+    }));
+  }));
+}
