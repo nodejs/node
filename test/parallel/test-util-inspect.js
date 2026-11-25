@@ -4107,3 +4107,18 @@ ${error.stack.split('\n').slice(1).join('\n')}`,
   assert.strictEqual(inspect(new Class()), 'Namespaced.Class {}');
   assert.strictEqual(inspect(new DerivedClass()), 'DerivedClass [Namespaced.Class] {}');
 }
+
+// LINE SEPARATOR (U+2028) and PARAGRAPH SEPARATOR (U+2029) must be recognized as line terminators
+{
+  for (const lineTerminator of ['\u2028', '\u2029']) {
+    const blockCommentClass = vm.runInThisContext(
+      `(class Blep /* (${lineTerminator}) */ {})`,
+    );
+    const lineCommentClass = vm.runInThisContext(
+      `(class Blop // (${lineTerminator}{})`,
+    );
+
+    assert.strictEqual(inspect(blockCommentClass), '[class Blep]');
+    assert.strictEqual(inspect(lineCommentClass), '[class Blop]');
+  }
+}
