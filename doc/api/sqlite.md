@@ -921,6 +921,68 @@ console.log(allUsers);
 // ]
 ```
 
+### `database.createCollation(name, compare)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string} The name of the collation. Like other SQLite names, it is not
+  case-sensitive.
+* `compare` {Function} The function to call to compare two strings. It
+  receives the two strings and returns a negative number if the first string
+  sorts before the second, a positive number if it sorts after, and zero if
+  they are equal. The result is converted to a number, as with the compare
+  function of [`Array.prototype.sort()`][], and `NaN` means equal.
+
+Creates a collation, or replaces an existing one with the same name. SQL can
+then use it in `COLLATE` clauses and in table and index definitions. This
+method is a wrapper around [`sqlite3_create_collation_v2()`][].
+
+`compare` must always return the same result for the same two strings, as
+SQLite relies on that to keep indexes consistent.
+
+SQLite has no way for a collation to report an error. If `compare` throws, the
+statement that called it is stopped with [`sqlite3_interrupt()`][], and the
+exception is thrown from the method that ran the statement. As with any
+interrupted statement, if it was changing the database, its changes are rolled
+back, along with the open transaction if there is one. Interrupting also stops
+any other statement that is running on the same connection at the time.
+
+```cjs
+const { Database } = require('node:sqlite');
+
+const db = new Database(':memory:');
+
+db.createCollation('locale', (a, b) => a.localeCompare(b));
+db.exec(`
+  CREATE TABLE artists (name TEXT);
+  INSERT INTO artists VALUES ('Zebra'), ('Ágætis'), ('apple');
+`);
+
+console.log(
+  db.prepare('SELECT name FROM artists ORDER BY name COLLATE locale').all(),
+);
+// Prints: [ { name: 'Ágætis' }, { name: 'apple' }, { name: 'Zebra' } ]
+```
+
+```mjs
+import { Database } from 'node:sqlite';
+
+const db = new Database(':memory:');
+
+db.createCollation('locale', (a, b) => a.localeCompare(b));
+db.exec(`
+  CREATE TABLE artists (name TEXT);
+  INSERT INTO artists VALUES ('Zebra'), ('Ágætis'), ('apple');
+`);
+
+console.log(
+  db.prepare('SELECT name FROM artists ORDER BY name COLLATE locale').all(),
+);
+// Prints: [ { name: 'Ágætis' }, { name: 'apple' }, { name: 'Zebra' } ]
+```
+
 ### `database.createModule(name, options)`
 
 <!-- YAML
@@ -2166,6 +2228,7 @@ callback function to indicate what type of operation is being authorized.
 [Writing numbers and BigInts]: #writing-numbers-and-bigints
 [`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
+[`Array.prototype.sort()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [`ERR_INVALID_STATE`]: errors.md#err_invalid_state
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
 [`SQLITE_DBCONFIG_DEFENSIVE`]: https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfigdefensive
@@ -2191,6 +2254,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_column_name()`]: https://www.sqlite.org/c3ref/column_name.html
 [`sqlite3_column_origin_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
 [`sqlite3_column_table_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
+[`sqlite3_create_collation_v2()`]: https://www.sqlite.org/c3ref/create_collation.html
 [`sqlite3_create_function_v2()`]: https://www.sqlite.org/c3ref/create_function.html
 [`sqlite3_create_module_v2()`]: https://www.sqlite.org/c3ref/create_module.html
 [`sqlite3_create_window_function()`]: https://www.sqlite.org/c3ref/create_function.html
@@ -2200,6 +2264,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [`sqlite3_finalize()`]: https://www.sqlite.org/c3ref/finalize.html
 [`sqlite3_get_autocommit()`]: https://sqlite.org/c3ref/get_autocommit.html
+[`sqlite3_interrupt()`]: https://www.sqlite.org/c3ref/interrupt.html
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_load_extension()`]: https://www.sqlite.org/c3ref/load_extension.html
 [`sqlite3_prepare_v3()`]: https://www.sqlite.org/c3ref/prepare.html
