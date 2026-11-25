@@ -3180,6 +3180,10 @@ The profile only contains the work that the thread does while the returned
 promise is pending, such as handling requests, since time spent idle in the
 event loop is not reported.
 
+If [`pprof.time.stop()`][] stops the profiler without restarting it before
+`options.durationMillis` elapses, the returned promise rejects with
+[`ERR_INVALID_STATE`][], and a profiler started in the meantime keeps running.
+
 ```mjs
 import { createServer } from 'node:http';
 import { writeFileSync } from 'node:fs';
@@ -3767,6 +3771,7 @@ dns.promises.resolve('localhost');
 [Welch's t-test]: https://en.wikipedia.org/wiki/Welch%27s_t-test
 [Worker threads]: worker_threads.md#worker-threads
 [`'exit'`]: process.md#event-exit
+[`ERR_INVALID_STATE`]: errors.md#err_invalid_state
 [`Worker`]: worker_threads.md#class-worker
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
 [`histogram.diff()`]: #histogramdiffother

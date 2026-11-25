@@ -8,7 +8,10 @@ const assert = require('node:assert');
 const { decodeProfile } = require('../common/pprof');
 const {
   encodeNumber,
+  encodeTag,
+  kTypeLengthDelim,
   measureNumber,
+  measureTag,
   varintLength,
 } = require('internal/perf/pprof/protobuf');
 const {
@@ -35,6 +38,7 @@ function hex(bytes) {
 // Varints.
 for (const { number, encoded } of [
   { number: 0, encoded: '00' },
+  { number: 0n, encoded: '00' },
   { number: 1, encoded: '01' },
   { number: 127, encoded: '7f' },
   { number: 128, encoded: '8001' },
@@ -49,13 +53,31 @@ for (const { number, encoded } of [
   { number: -1, encoded: 'ffffffffffffffffff01' },
   { number: -1n, encoded: 'ffffffffffffffffff01' },
   { number: -2, encoded: 'feffffffffffffffff01' },
+  // The low 32 bits of the negation of 2 ** 32 are zero, so negating carries
+  // into the high 32 bits.
+  { number: -(2 ** 32), encoded: '80808080f0ffffffff01' },
+  { number: -(2n ** 32n), encoded: '80808080f0ffffffff01' },
 ]) {
   const buffer = new Uint8Array(10);
   const end = encodeNumber(buffer, 0, number);
   assert.strictEqual(hex(buffer.subarray(0, end)), encoded, `${number}`);
   assert.strictEqual(varintLength(number), encoded.length / 2, `${number}`);
-  const isZero = number === 0;
+  const isZero = number === 0 || number === 0n;
   assert.strictEqual(measureNumber(number), isZero ? 0 : encoded.length / 2);
+}
+
+// Tags of fields 1 to 15 take one byte, and larger field numbers are varints.
+for (const { field, encoded } of [
+  { field: 1, encoded: '0a' },
+  { field: 15, encoded: '7a' },
+  { field: 16, encoded: '8201' },
+  { field: 2047, encoded: 'fa7f' },
+  { field: 2048, encoded: '828001' },
+]) {
+  const buffer = new Uint8Array(3);
+  const end = encodeTag(buffer, 0, field, kTypeLengthDelim);
+  assert.strictEqual(hex(buffer.subarray(0, end)), encoded, `${field}`);
+  assert.strictEqual(measureTag(field), encoded.length / 2, `${field}`);
 }
 
 // Default values are omitted.
@@ -75,6 +97,20 @@ assert.strictEqual(hex(new ValueType({ type: 1, unit: 2 }).encode()),
                    '08011002');
 assert.strictEqual(hex(new Mapping({ id: 1, hasFunctions: true }).encode()),
                    '08013801');
+// Messages and plain objects can be mixed in the fields of other messages.
+for (const MessageClass of [Label, Mapping]) {
+  const message = new MessageClass({ id: 1, key: 1 });
+  assert.strictEqual(MessageClass.create(message), message);
+  const created = MessageClass.create({ id: 1, key: 1 });
+  assert.ok(created instanceof MessageClass);
+  assert.deepStrictEqual(created.encode(), message.encode());
+}
+assert.strictEqual(
+  hex(new Sample({ label: [new Label({ key: 1, str: 2 })] }).encode()),
+  '1a0408011002');
+assert.strictEqual(
+  hex(new Profile({ mapping: [{ id: 1, filename: 2 }] }).encode()),
+  '1a04080128023200');
 // Packed repeated fields keep zeros, to preserve indices.
 const locationId = [
   1,
@@ -89,6 +125,11 @@ assert.strictEqual(
 
 // The string table starts with the empty string, and deduplicates strings.
 {
+  // A profile without a string table gets an empty one.
+  const profile = new Profile({});
+  assert.ok(profile.stringTable instanceof StringTable);
+  assert.strictEqual(hex(profile.encode()), '3200');
+
   const table = new StringTable();
   assert.strictEqual(table.dedup(''), 0);
   assert.strictEqual(table.dedup('a'), 1);
