@@ -1298,6 +1298,7 @@ int VirtualTableModule::xOpen(sqlite3_vtab* pVTab,
   cursor->hidden_values.assign(vtab->module->num_columns_, nullptr);
   cursor->rowid = 0;
   cursor->done = true;
+  cursor->closing = false;
   *ppCursor = &cursor->base;
   return SQLITE_OK;
 }
@@ -1305,6 +1306,15 @@ int VirtualTableModule::xOpen(sqlite3_vtab* pVTab,
 int VirtualTableModule::xClose(sqlite3_vtab_cursor* pCursor) {
   NodeVTabCursor* cursor = reinterpret_cast<NodeVTabCursor*>(pCursor);
   VirtualTableModule* mod = cursor->module;
+
+  // sqlite3_reset() from the iterator's return() can halt this VM again
+  // before the cursor slot is cleared, so xClose would run twice and free
+  // the cursor twice. The stepping guard rejects that re-entry; ignore a
+  // second close here as well.
+  if (cursor->closing) {
+    return SQLITE_OK;
+  }
+  cursor->closing = true;
 
   // Close the iterator so generator `finally` blocks still run when SQLite
   // stops stepping early, as it does for LIMIT or a `break` out of a for...of
@@ -4467,6 +4477,10 @@ bool SQLTagStore::ResetAndBindStatement(
     Statement* stmt,
     const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
+  // sqlite3_reset() closes an open virtual-table cursor, and xClose runs the
+  // generator's return() in JavaScript. Hold the stepping guard so a nested
+  // reset of this same statement fails instead of freeing that cursor twice.
+  SteppingStatementGuard stepping(stmt->db_.get(), stmt->statement_.get());
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, false);
 
@@ -4566,6 +4580,11 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Environment* env = Environment::GetCurrent(args);
+
+  // PrepareForExecution() holds the guard for its own reset, but this one
+  // also spans the reset below, which runs on the error path and can close
+  // a virtual-table cursor as well.
+  SteppingStatementGuard stepping(stmt->db_.get(), stmt->statement_.get());
 
   Isolate* isolate = env->isolate();
   bool needs_reset = true;
@@ -4889,6 +4908,11 @@ void StatementIterator::Return(const FunctionCallbackInfo<Value>& args) {
     // is invoked by the language during abrupt completion (e.g. a `throw`
     // inside a `for...of` body), and throwing on a deferred SQLite error
     // would discard the caller's already-pending exception.
+    // sqlite3_reset() closes an open virtual-table cursor and runs its
+    // generator's return() in JavaScript. The guard makes a nested reset of
+    // this same statement fail instead of freeing that cursor twice.
+    SteppingStatementGuard stepping(iter->stmt_->db_.get(),
+                                    iter->stmt_->statement_.get());
     sqlite3_reset(iter->stmt_->statement_.get());
   }
   iter->done_ = true;
