@@ -158,9 +158,11 @@ licenseText="$(curl -sL https://raw.githubusercontent.com/DataDog/pprof-nodejs/3
 addlicense "pprof-nodejs" "src/node_pprof.cc, src/node_pprof.h, src/pprof, lib/internal/perf/pprof" "$licenseText"
 
 # The LICENSE file of pprof-format ends with a stray "Footer" line.
-licenseText="$(curl -sL https://raw.githubusercontent.com/DataDog/pprof-format/53548398f38b16eb096cc04a75927316a68a9b54/LICENSE | sed '/^Footer$/d')
+pprofFormatLicense="$(curl -sL https://raw.githubusercontent.com/DataDog/pprof-format/53548398f38b16eb096cc04a75927316a68a9b54/LICENSE | sed '/^Footer$/d')"
+pprofFormatNotice="$(curl -sL https://raw.githubusercontent.com/DataDog/pprof-format/53548398f38b16eb096cc04a75927316a68a9b54/NOTICE)"
+licenseText="$pprofFormatLicense
 
-$(curl -sL https://raw.githubusercontent.com/DataDog/pprof-format/53548398f38b16eb096cc04a75927316a68a9b54/NOTICE)"
+$pprofFormatNotice"
 addlicense "pprof-format" "lib/internal/perf/pprof/profile.js, lib/internal/perf/pprof/protobuf.js, lib/internal/perf/pprof/string_table.js" "$licenseText"
 
 mv "$tmplicense" "$licensefile"
