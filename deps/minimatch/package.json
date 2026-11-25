@@ -2,10 +2,10 @@
   "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me)",
   "name": "minimatch",
   "description": "a glob matcher in javascript",
-  "version": "10.2.6",
+  "version": "11.0.9",
   "repository": {
     "type": "git",
-    "url": "git@github.com:isaacs/minimatch"
+    "url": "git+ssh://git@github.com/isaacs/minimatch.git"
   },
   "main": "./dist/commonjs/index.js",
   "types": "./dist/commonjs/index.d.ts",
@@ -27,8 +27,7 @@
   ],
   "scripts": {
     "preversion": "npm test",
-    "postversion": "npm publish",
-    "prepublishOnly": "git push origin --follow-tags",
+    "postversion": "git push origin --follow-tags",
     "prepare": "tshy",
     "pretest": "npm run prepare",
     "presnap": "npm run prepare",
@@ -43,13 +42,13 @@
     "node-build": "esbuild ./dist/commonjs/index.js --bundle --platform=node --outfile=index.js"
   },
   "engines": {
-    "node": "18 || 20 || >=22"
+    "node": "20 || >=22"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2",
-    "esbuild": "^0.28.1",
+    "@types/node": "^26.6.5",
+    "esbuild": "^0.28.2",
     "mkdirp": "^3.0.1",
-    "oxlint": "^1.76.0",
+    "oxlint": "^1.90.0",
     "oxlint-tsgolint": "^7.0.2001",
     "prettier": "^3.9.6",
     "tap": "^21.7.5",
@@ -70,6 +69,7 @@
   "type": "module",
   "module": "./dist/esm/index.js",
   "dependencies": {
-    "brace-expansion": "^5.0.8"
+    "@isaacs/nonrecursive-glob-match": "^1.1.0",
+    "brace-expansion": "^5.0.12"
   }
 }
