@@ -1324,6 +1324,19 @@ aggregate function, or a [`'sqlite.db.query'`][] subscriber. Idle statements
 on the same connection can be finalized from such a callback. This method is a
 wrapper around [`sqlite3_finalize()`][].
 
+### `statement.columnCount`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number} The number of columns in the result set returned by the
+  prepared statement.
+
+This property is `0` for statements that do not return data, such as `INSERT`,
+`UPDATE`, and `DELETE` statements without a `RETURNING` clause. This property
+is a wrapper around [`sqlite3_column_count()`][].
+
 ### `statement.columns()`
 
 <!-- YAML
@@ -2172,6 +2185,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
+[`sqlite3_column_count()`]: https://www.sqlite.org/c3ref/column_count.html
 [`sqlite3_column_database_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
 [`sqlite3_column_decltype()`]: https://www.sqlite.org/c3ref/column_decltype.html
 [`sqlite3_column_name()`]: https://www.sqlite.org/c3ref/column_name.html

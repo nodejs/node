@@ -4169,6 +4169,15 @@ void Statement::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void Statement::ColumnCountGetter(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+  args.GetReturnValue().Set(sqlite3_column_count(stmt->statement_.get()));
+}
+
 void Statement::Stat(const FunctionCallbackInfo<Value>& args) {
   Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
@@ -4624,6 +4633,10 @@ Local<FunctionTemplate> Statement::GetConstructorTemplate(Environment* env) {
                             tmpl,
                             FIXED_ONE_BYTE_STRING(isolate, "expandedSQL"),
                             Statement::ExpandedSQLGetter);
+    SetSideEffectFreeGetter(isolate,
+                            tmpl,
+                            FIXED_ONE_BYTE_STRING(isolate, "columnCount"),
+                            Statement::ColumnCountGetter);
     SetProtoMethodNoSideEffect(isolate, tmpl, "stat", Statement::Stat);
     SetProtoMethod(isolate, tmpl, "resetStats", Statement::ResetStats);
     SetProtoMethod(isolate,
