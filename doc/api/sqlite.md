@@ -218,7 +218,9 @@ changes:
 * `path` {string | Buffer | URL} The path of the database. A SQLite database can be
   stored in a file or completely [in memory][]. To use a file-backed database,
   the path should be a file path. To use an in-memory database, the path
-  should be the special name `':memory:'`.
+  should be the special name `':memory:'`. When the [Permission Model][] is
+  enabled, {URL} objects and [URI filenames][] (paths starting with `file:`)
+  are not supported and an exception is thrown.
 * `options` {Object} Configuration options for the database connection. The
   following options are supported:
   * `open` {boolean} If `true`, the database is opened by the constructor. When
@@ -1856,7 +1858,8 @@ changes:
 
 * `sourceDb` {Database} The database to backup. The source database must be open.
 * `path` {string | Buffer | URL} The path where the backup will be created. If the file already exists,
-  the contents will be overwritten.
+  the contents will be overwritten. When the [Permission Model][] is enabled, {URL} objects and
+  [URI filenames][] (paths starting with `file:`) are not supported and an exception is thrown.
 * `options` {Object} Optional configuration for the backup. The
   following properties are supported:
   * `source` {string} Name of the source database. This can be `'main'` (the default primary database) or any other
@@ -2160,9 +2163,11 @@ callback function to indicate what type of operation is being authorized.
 [Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
 [Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
 [Limit Constants]: https://www.sqlite.org/c3ref/c_limit_attached.html
+[Permission Model]: permissions.md#permission-model
 [Run-Time Limits]: https://www.sqlite.org/c3ref/limit.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
+[URI filenames]: https://www.sqlite.org/uri.html
 [Writing numbers and BigInts]: #writing-numbers-and-bigints
 [`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html

@@ -517,6 +517,9 @@ There are constraints you need to know before using this system:
   than vulnerabilities. Please report them through the regular issue tracker.
 * Run-Time Loadable Extensions cannot be loaded when the Permission Model is
   enabled, affecting the sqlite module.
+* SQLite [URI filenames][] are disabled when the Permission Model is enabled.
+  The `node:sqlite` module rejects {URL} objects and paths starting with
+  `file:`, and `ATTACH DATABASE` treats such names as plain file paths.
 * Using existing file descriptors via the `node:fs` module bypasses the
   Permission Model.
 
@@ -553,6 +556,7 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
   been granted contain relative symbolic links.
 
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
+[URI filenames]: https://www.sqlite.org/uri.html
 [`--allow-addons`]: cli.md#--allow-addons
 [`--allow-child-process`]: cli.md#--allow-child-process
 [`--allow-env`]: cli.md#--allow-env
