@@ -661,8 +661,9 @@ GCProfiler::GCProfiler(Environment* env, Local<Object> object)
 //    JS land does not keep the object anymore.
 // 2. StartGCProfile is called then the env exits before
 //    StopGCProfile is called.
+// Stop() has already removed the GC callbacks in the first case.
 GCProfiler::~GCProfiler() {
-  if (state != GCProfiler::GCProfilerState::kInitialized) {
+  if (state == GCProfiler::GCProfilerState::kStarted) {
     env()->isolate()->RemoveGCPrologueCallback(BeforeGCCallback, this);
     env()->isolate()->RemoveGCEpilogueCallback(AfterGCCallback, this);
   }
@@ -714,6 +715,8 @@ void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
   if (profiler->state != GCProfiler::GCProfilerState::kStarted) {
     return;
   }
+  env->isolate()->RemoveGCPrologueCallback(BeforeGCCallback, profiler);
+  env->isolate()->RemoveGCEpilogueCallback(AfterGCCallback, profiler);
   profiler->writer()->json_arrayend();
   uv_timeval64_t ts;
   if (uv_gettimeofday(&ts) == 0) {
