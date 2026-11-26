@@ -213,6 +213,10 @@ OR:
 #define BROTLI_TARGET_MIPS64
 #endif
 
+#if defined(__ia64__) || defined(_M_IA64)
+#define BROTLI_TARGET_IA64
+#endif
+
 #if defined(BROTLI_TARGET_X64) || defined(BROTLI_TARGET_ARMV8_64) || \
     defined(BROTLI_TARGET_POWERPC64) || defined(BROTLI_TARGET_RISCV64) || \
     defined(BROTLI_TARGET_LOONGARCH64) || defined(BROTLI_TARGET_MIPS64)
@@ -665,13 +669,14 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
 #undef BROTLI_TEST
 #endif
 
-#if BROTLI_GNUC_HAS_ATTRIBUTE(model, 3, 0, 3)
+#if !defined(BROTLI_MODEL) && BROTLI_GNUC_HAS_ATTRIBUTE(model, 3, 0, 3) && \
+    !defined(BROTLI_TARGET_IA64) && !defined(BROTLI_TARGET_LOONGARCH64)
 #define BROTLI_MODEL(M) __attribute__((model(M)))
 #else
 #define BROTLI_MODEL(M) /* M */
 #endif
 
-#if BROTLI_GNUC_HAS_ATTRIBUTE(cold, 4, 3, 0)
+#if !defined(BROTLI_COLD) && BROTLI_GNUC_HAS_ATTRIBUTE(cold, 4, 3, 0)
 #define BROTLI_COLD __attribute__((cold))
 #else
 #define BROTLI_COLD /* cold */
