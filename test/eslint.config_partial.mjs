@@ -125,6 +125,10 @@ export default [
           selector: 'CallExpression[callee.object.name="os"][callee.property.name="tmpdir"], CallExpression[callee.name="tmpdir"]',
           message: 'Do not use `os.tmpdir`, prefer the `common/tmpdir` module.',
         },
+        {
+          selector: 'CallExpression[arguments.0.object.name="tmpdir"][arguments.0.property.name="path"]:matches([callee.object.name="path"][callee.property.name="join"], [callee.name="join"])',
+          message: 'Use `tmpdir.resolve()` instead of `tmpdir.resolve( ...)`.',
+        },
         ...((fixturesSpecifier) => [
           {
             selector: `ImportDeclaration[source.value=${fixturesSpecifier.toString().replace('(\\.js)?', '\\.mjs')}]:not(${[
