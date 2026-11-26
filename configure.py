@@ -600,6 +600,13 @@ shared_optgroup.add_argument('--shared-zlib-libpath',
     dest='shared_zlib_libpath',
     help='a directory to search for the shared zlib DLL')
 
+shared_optgroup.add_argument('--shared-v8-zlib',
+    action=argparse.BooleanOptionalAction,
+    dest='shared_v8_zlib',
+    default=None,
+    help='in addition to Node.js internals, link V8 to the shared zlib, '
+         'requires --shared-zlib, by default it follows --shared-zlib')
+
 shared_optgroup.add_argument('--shared-simdjson',
     action='store_true',
     dest='shared_simdjson',
@@ -2283,6 +2290,13 @@ def configure_library(lib, output, pkgname=None, libraries_key='libraries', with
       libraries += [f'-l{l}' for l in pkg] if isinstance(pkg, list) else f'-l${pkg}'
 
 
+def configure_v8_zlib(o):
+  if options.shared_v8_zlib is None:
+    options.shared_v8_zlib = bool(options.shared_zlib)
+  elif options.shared_v8_zlib and not options.shared_zlib:
+    error('--shared-v8-zlib requires --shared-zlib')
+  o['variables']['node_shared_v8_zlib'] = b(options.shared_v8_zlib)
+
 def configure_v8(o, configs):
   set_configuration_variable(configs, 'v8_enable_v8_checks', release=0, debug=1)
 
@@ -2972,6 +2986,7 @@ configure_node_lib_files(output)
 configure_node_cctest_sources(output)
 configure_napi(output)
 configure_library('zlib', output, with_separate_include_var=True)
+configure_v8_zlib(output)
 configure_library('http_parser', output, pkgname='libllhttp')
 configure_library('libuv', output, with_separate_include_var=True)
 configure_library('abseil', output, pkgname=[

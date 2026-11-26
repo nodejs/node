@@ -34,6 +34,7 @@
     'node_shared_ffi%': 'false',
     'node_shared_temporal_capi%': 'false',
     'node_shared_uvwasi%': 'false',
+    'node_shared_v8_zlib%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_zstd%': 'false',
     'node_shared%': 'false',
