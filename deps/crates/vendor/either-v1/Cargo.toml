@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.63.0"
 name = "either"
-version = "1.18.0"
+version = "1.19.0"
 build = false
 autolib = false
 autobins = false

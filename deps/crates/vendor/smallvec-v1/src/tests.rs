@@ -1,7 +1,9 @@
+#![allow(deprecated)]
+
 use {
     crate::{smallvec, SmallVec},
     alloc::{borrow::ToOwned, boxed::Box, rc::Rc, vec, vec::Vec},
-    std::iter::FromIterator,
+    std::{iter::FromIterator, usize},
 };
 
 #[test]
@@ -437,11 +439,13 @@ mod insert_many_panic {
 }
 
 #[test]
-#[should_panic]
 fn test_invalid_grow() {
     let mut v: SmallVec<[u8; 8]> = SmallVec::new();
     v.extend(0..8);
+    let cap = v.capacity();
     v.grow(5);
+    assert_eq!(v.capacity(), cap);
+    assert_eq!(v.len(), 8);
 }
 
 #[test]
@@ -1105,28 +1109,6 @@ fn test_clone_from() {
 
     b.clone_from(&c);
     assert_eq!(&*b, &[20, 21, 22]);
-}
-
-#[test]
-fn test_size() {
-    use core::mem::size_of;
-    const PTR_SIZE: usize = size_of::<usize>();
-    #[cfg(feature = "union")]
-    {
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; 0]>>());
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; 1]>>());
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; PTR_SIZE]>>());
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; PTR_SIZE + 1]>>());
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; 2 * PTR_SIZE]>>());
-        assert_eq!(4 * PTR_SIZE, size_of::<SmallVec<[u8; 2 * PTR_SIZE + 1]>>());
-    }
-    #[cfg(not(feature = "union"))]
-    {
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; 0]>>());
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; 1]>>());
-        assert_eq!(3 * PTR_SIZE, size_of::<SmallVec<[u8; PTR_SIZE]>>());
-        assert_eq!(4 * PTR_SIZE, size_of::<SmallVec<[u8; PTR_SIZE + 1]>>());
-    }
 }
 
 #[cfg(feature = "drain_filter")]

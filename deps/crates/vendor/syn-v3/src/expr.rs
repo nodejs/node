@@ -1486,6 +1486,8 @@ pub(crate) mod parsing {
                     as_token,
                     ty: Box::new(ty),
                 });
+            } else if input.peek(Token![<-]) {
+                return Err(input.error("unexpected operator `<-`, if this is intended to be a comparison against a negative then a space is required: `< -`"));
             } else {
                 break;
             }
@@ -1529,6 +1531,8 @@ pub(crate) mod parsing {
                     as_token,
                     ty: Box::new(ty),
                 });
+            } else if input.peek(Token![<-]) {
+                return Err(input.error("unexpected operator `<-`, if this is intended to be a comparison against a negative then a space is required: `< -`"));
             } else {
                 break;
             }
@@ -2833,7 +2837,7 @@ pub(crate) mod parsing {
         let ahead = input.fork();
         let label_begin = ahead.cursor();
         let label = Lifetime::parse_optional_any(&ahead);
-        if label.is_some() && ahead.peek(Token![:]) {
+        if label.is_some() && ahead.peek(Token![:]) && !ahead.peek(Token![::]) {
             // Not allowed: `break 'label: loop {...}`
             // Parentheses are required. `break ('label: loop {...})`
             let _: Expr = input.parse()?;
