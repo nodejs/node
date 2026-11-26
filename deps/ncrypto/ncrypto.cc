@@ -1578,6 +1578,19 @@ std::optional<std::string> X509View::getSignatureAlgorithmOID() const {
   return ObjectToText(obj, true);
 }
 
+std::optional<std::string_view> X509View::getSignatureHashAlgorithm() const {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (cert_ == nullptr) return std::nullopt;
+  int mdnid = NID_undef;
+  if (X509_get_signature_info(get(), &mdnid, nullptr, nullptr, nullptr) != 1) {
+    return std::nullopt;
+  }
+  if (mdnid == NID_undef) return std::nullopt;
+  const char* name = OBJ_nid2ln(mdnid);
+  if (name == nullptr) return std::nullopt;
+  return std::string_view(name);
+}
+
 std::optional<int64_t> X509View::getValidToTime() const {
   MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr) return std::nullopt;

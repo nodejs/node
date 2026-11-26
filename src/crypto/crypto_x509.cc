@@ -454,6 +454,16 @@ MaybeLocal<Value> GetSignatureAlgorithmOID(
   return ret;
 }
 
+MaybeLocal<Value> GetSignatureHashAlgorithm(
+    Environment* env,
+    const X509View& view) {
+  auto hash = view.getSignatureHashAlgorithm();
+  if (!hash.has_value()) {
+    return Undefined(env->isolate());
+  }
+  return ToV8Value(env, hash.value());
+}
+
 MaybeLocal<Value> GetSerialNumber(
     Environment* env,
     const X509View& view,
@@ -990,6 +1000,17 @@ void SignatureAlgorithmOID(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
   if (GetSignatureAlgorithmOID(env, cert->view(), GetConversionMode(args))
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void SignatureHashAlgorithm(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  Local<Value> ret;
+  if (GetSignatureHashAlgorithm(env, cert->view())
           .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
@@ -1550,6 +1571,8 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     SetProtoMethodNoSideEffect(
         isolate, tmpl, "signatureAlgorithmOid", SignatureAlgorithmOID);
     SetProtoMethodNoSideEffect(
+        isolate, tmpl, "signatureHashAlgorithm", SignatureHashAlgorithm);
+    SetProtoMethodNoSideEffect(
         isolate, tmpl, "fingerprint", Fingerprint<Digest::SHA1>);
     SetProtoMethodNoSideEffect(
         isolate, tmpl, "fingerprint256", Fingerprint<Digest::SHA256>);
@@ -1999,6 +2022,7 @@ void X509Certificate::RegisterExternalReferences(
   registry->Register(ValidFromDate);
   registry->Register(SignatureAlgorithm);
   registry->Register(SignatureAlgorithmOID);
+  registry->Register(SignatureHashAlgorithm);
   registry->Register(Fingerprint<Digest::SHA1>);
   registry->Register(Fingerprint<Digest::SHA256>);
   registry->Register(Fingerprint<Digest::SHA512>);
