@@ -23,7 +23,7 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 
 const testError = new Error('promise body rejected');
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 
 // Attach the closed handler BEFORE setBody so the rejection from
 // stream.destroy(err) is caught before it becomes unhandled.

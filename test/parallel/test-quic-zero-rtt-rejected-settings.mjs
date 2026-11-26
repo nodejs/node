@@ -95,7 +95,7 @@ const cs2 = await connect(ep2.address, {
 
 // Trigger the deferred handshake.
 const encoder = new TextEncoder();
-await cs2.createBidirectionalStream({
+cs2.createBidirectionalStream({
   body: encoder.encode('test'),
 });
 

@@ -48,7 +48,7 @@ const encoder = new TextEncoder();
   const clientSession = await connect(serverEndpoint.address);
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     budget: 512,
   });
   const w = stream.writer;

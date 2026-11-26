@@ -44,7 +44,7 @@ await clientSession.opened;
 
 // Send a large body — with the 256-byte flow control window, the
 // transfer will be in progress when we reset.
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.setBody(new Uint8Array(8192));
 
 // Wait for the server to receive the stream (first STREAM frames).

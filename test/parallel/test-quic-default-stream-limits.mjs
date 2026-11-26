@@ -34,11 +34,11 @@ assert.ok(info, 'handshake info should be available');
 // Check that the session has reasonable default stream limits by
 // verifying we can create at least one bidirectional and one
 // unidirectional stream.
-const bidiStream = await clientSession.createBidirectionalStream();
+const bidiStream = clientSession.createBidirectionalStream();
 assert.ok(bidiStream, 'should be able to create a bidi stream');
 bidiStream.destroy();
 
-const uniStream = await clientSession.createUnidirectionalStream();
+const uniStream = clientSession.createUnidirectionalStream();
 assert.ok(uniStream, 'should be able to create a uni stream');
 uniStream.destroy();
 

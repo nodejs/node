@@ -69,7 +69,7 @@ await clientSession.opened;
 
 // 1. Plain Error -> session.internalErrorCode (0x1n for non-h3).
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   const writer = stream.writer;
   // Write a tiny chunk to guarantee the server-side stream is
   // created via onstream before the RESET_STREAM frame arrives.
@@ -79,7 +79,7 @@ await clientSession.opened;
 
 // 2. QuicError with explicit code -> peer sees that exact code.
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   const writer = stream.writer;
   writer.writeSync('y');
   writer.fail(new QuicError('explicit code', { errorCode: 0x42n }));

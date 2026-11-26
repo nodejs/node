@@ -44,7 +44,7 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 
 for (const expected of codes) {
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/',

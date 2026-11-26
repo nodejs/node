@@ -29,7 +29,7 @@ await clientSession.opened;
 
 // Test 1: setBody after setBody throws.
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody(encoder.encode('first'));
 
   assert.throws(() => stream.setBody(encoder.encode('second')), {
@@ -43,7 +43,7 @@ await clientSession.opened;
 
 // Test 2: setBody after writer accessed throws.
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   // Access the writer — this prevents setBody from being used.
   const w = stream.writer;
   w.endSync();

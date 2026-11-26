@@ -27,7 +27,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
-const stream = await clientSession.createBidirectionalStream({ budget: 1024 });
+const stream = clientSession.createBidirectionalStream({ budget: 1024 });
 const w = stream.writer;
 
 // Create an already-aborted signal.

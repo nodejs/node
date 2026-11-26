@@ -29,7 +29,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Open a stream so the server session has work, then close from both sides.
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.writer.endSync();
 for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
 await stream.closed;

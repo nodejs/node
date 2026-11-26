@@ -51,7 +51,7 @@ await clientSession.opened;
 
 // Promise<string>
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody(Promise.resolve('resolved string'));
   await dump(stream);
   await stream.closed;
@@ -59,7 +59,7 @@ await clientSession.opened;
 
 // Promise<null>
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody(Promise.resolve(null));
   await dump(stream);
   await stream.closed;

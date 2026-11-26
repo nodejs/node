@@ -35,7 +35,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Write a byte to open the stream:
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 await stream.writer.write(new Uint8Array([1]));
 
 // Wait until the sender has filled the window and blocked.

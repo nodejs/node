@@ -28,7 +28,7 @@ const clientSession = await connect(serverEndpoint.address, {
 });
 await clientSession.opened;
 
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 const w = stream.writer;
 
 // Writer is active — canWrite should be a boolean (not null).

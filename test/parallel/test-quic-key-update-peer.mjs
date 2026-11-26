@@ -39,7 +39,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Send data after the server's key update — should work transparently.
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: encoder.encode('after key update'),
 });
 await dump(stream);

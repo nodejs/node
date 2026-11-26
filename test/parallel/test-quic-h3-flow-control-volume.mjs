@@ -94,7 +94,7 @@ assert.strictEqual(info.protocol, 'h3');
 
 const headersReceived = Promise.withResolvers();
 
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   headers: {
     ':method': 'POST',
     ':path': '/upload',

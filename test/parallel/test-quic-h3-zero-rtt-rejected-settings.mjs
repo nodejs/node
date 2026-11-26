@@ -66,7 +66,7 @@ async function getTicket(endpointOptions) {
   await cs.opened;
   await Promise.all([gotTicket.promise, gotToken.promise]);
 
-  const s = await cs.createBidirectionalStream({
+  const s = cs.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/ticket',
@@ -111,7 +111,7 @@ async function attemptRejected0RTT(endpointOptions, ticket, token) {
   // or datagram is sent. When 0-RTT is rejected, the stream is
   // destroyed by EarlyDataRejected — its closed promise rejects
   // with an application error.
-  const s = await cs.createBidirectionalStream({
+  const s = cs.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/rejected',

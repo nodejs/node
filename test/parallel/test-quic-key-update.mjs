@@ -40,7 +40,7 @@ await clientSession.opened;
 clientSession.updateKey();
 
 // Open a stream and send data — should work with new keys.
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.setBody(data);
 
 await dump(stream);

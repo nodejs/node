@@ -75,7 +75,7 @@ const clientHeadersReceived = Promise.withResolvers();
 
 // Send a POST request with body. When body is provided, terminal is NOT
 // set on the HEADERS frame (body follows).
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   headers: {
     ':method': 'POST',
     ':path': '/submit',

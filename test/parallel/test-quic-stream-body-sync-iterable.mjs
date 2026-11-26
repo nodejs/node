@@ -35,7 +35,7 @@ await clientSession.opened;
 
 // Create an array of Uint8Arrays as a sync iterable body.
 const bodyChunks = chunks.map((c) => encoder.encode(c));
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.setBody(bodyChunks);
 
 await dump(stream);

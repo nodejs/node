@@ -78,7 +78,7 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       // Mixed-case names — should be lowercased by buildNgHeaderString.
       ':method': 'GET',
@@ -140,7 +140,7 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'POST',
       ':path': '/api/data',

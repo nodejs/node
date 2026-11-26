@@ -40,7 +40,7 @@ await clientSession.opened;
 // Open 50 streams rapidly, each with a small body.
 const streams = [];
 for (let i = 0; i < streamCount; i++) {
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: encoder.encode('hello'),
   });
   streams.push(stream);

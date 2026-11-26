@@ -40,7 +40,7 @@ await clientSession.opened;
 
 // write() async
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   const w = stream.writer;
   await w.write(encoder.encode('async write'));
   const n = w.endSync();
@@ -51,7 +51,7 @@ await clientSession.opened;
 
 // writevSync() vectored write
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   const w = stream.writer;
   const result = w.writevSync([
     encoder.encode('hello '),
@@ -66,7 +66,7 @@ await clientSession.opened;
 
 // writev() async vectored write
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   const w = stream.writer;
   await w.writev([
     encoder.encode('async '),
@@ -80,7 +80,7 @@ await clientSession.opened;
 
 // end() async close
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   const w = stream.writer;
   w.writeSync(encoder.encode('end async'));
   const n = await w.end();
@@ -91,7 +91,7 @@ await clientSession.opened;
 
 // Web IDL Writer argument conversion
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   const w = stream.writer;
   await w.write(42, null);
   await w.writev(new Set([true, { toString: () => 'object' }]));
@@ -114,7 +114,7 @@ await clientSession.opened;
 }
 
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   const w = stream.writer;
   // canWrite should be a boolean (false initially before flow
   // control window opens, or true if the window is already open).
@@ -134,7 +134,7 @@ await clientSession.opened;
 
 // Return null when errored.
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   const w = stream.writer;
   const reason = null;
   w.fail(reason);

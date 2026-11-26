@@ -39,7 +39,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 {
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: encoder.encode('will error'),
   });
 
@@ -65,7 +65,7 @@ await clientSession.opened;
 // Create a stream with no body — use the writer API so the server sees
 // it and can close cleanly.
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   const w = stream.writer;
 
   stream.onerror = mustNotCall('stream.onerror should not be called');

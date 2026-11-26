@@ -64,7 +64,7 @@ const paths = Array.from({ length: REQUEST_COUNT }, (_, i) => `/path/${i}`);
 const requests = paths.map(mustCall(async (path) => {
   const headersReceived = Promise.withResolvers();
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': path,

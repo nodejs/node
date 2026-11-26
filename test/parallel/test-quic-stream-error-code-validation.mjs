@@ -13,7 +13,7 @@ const serverEndpoint = await listen(mustCall(() => true));
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 
 const invalidTypes = ['1', true, null];
 const invalidCodes = [

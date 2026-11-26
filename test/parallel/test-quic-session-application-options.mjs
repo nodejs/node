@@ -90,7 +90,7 @@ assert.strictEqual(clientOpts.enableConnectProtocol,
 assert.strictEqual(clientOpts.enableDatagrams, customAppOptions.enableDatagrams);
 
 // Exchange data to let the server side run its assertions.
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.writer.endSync();
 
 await dump(stream);

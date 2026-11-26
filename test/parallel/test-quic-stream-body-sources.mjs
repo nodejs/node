@@ -45,7 +45,7 @@ await clientSession.opened;
 {
   const buf = encoder.encode(message);
   const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-  const stream = await clientSession.createBidirectionalStream({ body: ab });
+  const stream = clientSession.createBidirectionalStream({ body: ab });
   await dump(stream);
   await stream.closed;
 }
@@ -57,7 +57,7 @@ await clientSession.opened;
   const offset = 10;
   fullView.set(expectedBytes, offset);
   const view = new Uint8Array(backing, offset, expectedBytes.byteLength);
-  const stream = await clientSession.createBidirectionalStream({ body: view });
+  const stream = clientSession.createBidirectionalStream({ body: view });
   await dump(stream);
   await stream.closed;
 }
@@ -67,7 +67,7 @@ await clientSession.opened;
   const sab = new SharedArrayBuffer(expectedBytes.byteLength);
   const sabView = new Uint8Array(sab);
   sabView.set(expectedBytes);
-  const stream = await clientSession.createBidirectionalStream({ body: sabView });
+  const stream = clientSession.createBidirectionalStream({ body: sabView });
   // The SharedArrayBuffer should still be usable (copied, not transferred).
   assert.strictEqual(sab.byteLength, expectedBytes.byteLength);
   await dump(stream);
@@ -77,7 +77,7 @@ await clientSession.opened;
 // Test 4: Blob body
 {
   const blob = new Blob([expectedBytes]);
-  const stream = await clientSession.createBidirectionalStream({ body: blob });
+  const stream = clientSession.createBidirectionalStream({ body: blob });
   await dump(stream);
   await stream.closed;
 }

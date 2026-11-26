@@ -54,7 +54,7 @@ const session = await connect(endpoint.address, {
 await session.opened;
 
 // Budget well above the window, so the window is what stops the writer.
-const stream = await session.createBidirectionalStream({ budget: 1024 * 1024 });
+const stream = session.createBidirectionalStream({ budget: 1024 * 1024 });
 
 const writer = stream.writer;
 writer.writeSync(new Uint8Array(BODY));

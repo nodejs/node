@@ -32,7 +32,7 @@ const { bytes } = await import('stream/iter');
   const clientSession = await connect(serverEndpoint.address);
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody(null);
 
   await dump(stream);
@@ -61,7 +61,7 @@ const { bytes } = await import('stream/iter');
   await clientSession.opened;
 
   const stream =
-    await clientSession.createBidirectionalStream({ body: null });
+    clientSession.createBidirectionalStream({ body: null });
 
   await dump(stream);
 

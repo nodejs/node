@@ -54,7 +54,7 @@ assert.strictEqual(typeof clientStatsJson.createdAt, 'string');
 const clientStatsInspect = inspect(clientSession.stats);
 assert.ok(clientStatsInspect.includes('QuicSessionStats'));
 
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: new TextEncoder().encode('test'),
 });
 for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars

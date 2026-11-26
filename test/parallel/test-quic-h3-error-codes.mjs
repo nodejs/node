@@ -47,7 +47,7 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/',
@@ -98,7 +98,7 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/',
@@ -142,7 +142,7 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/',
@@ -184,7 +184,7 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/',

@@ -57,7 +57,7 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 
 for (let i = 0; i < kStreamCount; i++) {
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: encoder.encode('request'),
   });
 
@@ -80,7 +80,7 @@ for (let i = 0; i < kStreamCount; i++) {
 // above. Verify the session is still healthy and able to move data, which
 // confirms the window was replenished rather than merely limping along.
 {
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: encoder.encode('request'),
   });
   let received = 0;

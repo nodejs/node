@@ -34,7 +34,7 @@ const clientSession = await connect(serverEndpoint.address);
 
 // Create a stream BEFORE awaiting opened — the handshake may not have
 // completed yet. The stream should be created in a pending state.
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: encoder.encode('pending stream'),
 });
 

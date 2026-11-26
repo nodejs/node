@@ -32,7 +32,7 @@ await clientSession.opened;
 
 const ids = [];
 for (let i = 0; i < 10; i++) {
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: encoder.encode(`stream ${i}`),
   });
   ids.push(stream.id);

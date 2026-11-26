@@ -33,7 +33,7 @@ async function* slowSource() {
   }
 }
 
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.setBody(slowSource());
 
 // Destroy the stream after a short delay.

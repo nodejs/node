@@ -44,7 +44,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Create a stream with a body -- this sends FIN after the body.
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: encoder.encode(clientMessage),
 });
 

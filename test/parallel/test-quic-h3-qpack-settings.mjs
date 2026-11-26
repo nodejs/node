@@ -27,7 +27,7 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 async function makeRequest(clientSession, path) {
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': path,

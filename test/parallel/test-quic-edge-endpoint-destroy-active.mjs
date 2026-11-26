@@ -32,7 +32,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Create a stream so there's active work.
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: encoder.encode('hello'),
 });
 for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars

@@ -34,7 +34,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 const clientClosed = stream.closed.catch(() => {});
 const writer = stream.writer;
 writer.writeSync(new Uint8Array([1]));

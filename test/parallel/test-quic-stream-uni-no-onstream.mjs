@@ -34,7 +34,7 @@ const clientSession = await connect(serverEndpoint.address, {
 
 await clientSession.opened;
 
-await clientSession.createUnidirectionalStream({
+clientSession.createUnidirectionalStream({
   body: 'something something darkside',
 });
 

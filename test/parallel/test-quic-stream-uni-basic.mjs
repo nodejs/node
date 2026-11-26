@@ -46,7 +46,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
-const stream = await clientSession.createUnidirectionalStream({ body });
+const stream = clientSession.createUnidirectionalStream({ body });
 assert.strictEqual(stream.direction, 'uni');
 
 // The client-side uni stream is write-only — async iteration yields nothing.

@@ -491,7 +491,7 @@ import { Buffer } from 'node:buffer';
 const enc = new TextEncoder();
 const alpn = 'foo';
 const client = await connect('123.123.123.123:8888', { alpn });
-await client.createUnidirectionalStream({
+client.createUnidirectionalStream({
   body: enc.encode('hello world'),
 });
 ```
@@ -1365,11 +1365,11 @@ added: v23.8.0
     will buffer before `writeSync()` returns `false`. When the buffered
     data exceeds this limit, the caller should wait for drain before
     writing more. **Default:** `65536` (64 KB).
-  * `waitUntilAvailable` {boolean} When true the promise will wait until flow
-    control will allow to open the stream. If set to false, the function
-    will return a rejected promise, if flow control will not allow to
-    open the stream immediately.
-    **Default:** `true`
+  * `waitUntilAvailable` {boolean} When `true`, a stream that cannot be
+    opened immediately (because the handshake has not yet completed or the
+    peer's stream limit has been reached) is returned as a pending stream,
+    and is opened once that becomes possible. When `false`, an error is
+    thrown instead of creating a pending stream. **Default:** `true`.
   * `onheaders` {Function} Callback for received initial response headers.
     Called with `(headers)`.
   * `ontrailers` {Function} Callback for received trailing headers.
@@ -1379,7 +1379,7 @@ added: v23.8.0
   * `onwanttrailers` {Function} Callback when trailers should be sent.
     Called with no arguments; use [`stream.sendTrailers()`][] within the
     callback.
-* Returns: {Promise} for a {quic.QuicStream}
+* Returns: {quic.QuicStream}
 
 Open a new bidirectional stream. If the `body` option is not specified,
 the stream's outgoing side remains writable and no FIN is sent
@@ -1387,6 +1387,10 @@ immediately. The `priority` and `incremental`
 options are only used when the session supports priority (e.g. HTTP/3).
 The `headers`, `onheaders`, `ontrailers`, `oninfo`, and `onwanttrailers`
 options are only used when the session supports headers (e.g. HTTP/3).
+
+The stream is returned synchronously. If it cannot be opened immediately, it
+is returned as a pending stream, with further operations queued until the
+stream opens. See [`stream.pending`][].
 
 ### `session.createUnidirectionalStream([options])`
 
@@ -1411,11 +1415,11 @@ added: v23.8.0
     will buffer before `writeSync()` returns `false`. When the buffered
     data exceeds this limit, the caller should wait for drain before
     writing more. **Default:** `65536` (64 KB).
-  * `waitUntilAvailable` {boolean} When true the promise will wait until flow
-    control will allow to open the stream. If set to false, the function
-    will return a rejected promise, if flow control will not allow
-    to open the stream immediately.
-    **Default:** `true`
+  * `waitUntilAvailable` {boolean} When `true`, a stream that cannot be
+    opened immediately (because the handshake has not yet completed or the
+    peer's stream limit has been reached) is returned as a pending stream,
+    and is opened once that becomes possible. When `false`, an error is
+    thrown instead of creating a pending stream. **Default:** `true`.
   * `onheaders` {Function} Callback for received initial response headers.
     Called with `(headers)`.
   * `ontrailers` {Function} Callback for received trailing headers.
@@ -1423,12 +1427,15 @@ added: v23.8.0
   * `oninfo` {Function} Callback for received informational (1xx) headers.
     Called with `(headers)`.
   * `onwanttrailers` {Function} Callback when trailers should be sent.
-* Returns: {Promise} for a {quic.QuicStream}
+* Returns: {quic.QuicStream}
 
 Open a new unidirectional stream. If the `body` option is not specified,
 the stream's outgoing side remains writable and no FIN is sent
 immediately. The `priority` and `incremental`
 options are only used when the session supports priority (e.g. HTTP/3).
+
+As with [`session.createBidirectionalStream()`][], the stream is returned
+synchronously and may be pending.
 
 ### `session.path`
 
@@ -1956,9 +1963,25 @@ added: v26.10.0
 * Type: {Promise}
 
 A promise that is immediately fulfilled, if the stream fits within
-flow control limits or fulfilled when the pending stream is created.
+flow control limits or fulfilled when the pending stream is opened.
 It rejects, if a pending stream is closed with an error before being
-created.
+opened.
+
+### `stream.pending`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {boolean}
+
+`true` if the stream has been created locally but not yet opened, either
+because the handshake has not yet completed or because the peer's stream limit
+has been reached. Read only.
+
+While a stream is pending, [`stream.id`][] is `null`. Once it is opened,
+[`stream.opened`][] is fulfilled. A pending stream can be used like any other
+stream; its body and headers are queued until it is opened.
 
 ### `stream.closed`
 
@@ -4213,7 +4236,7 @@ const session = await connect('example.com:443', {
 });
 await session.opened;
 
-const stream = await session.createBidirectionalStream({
+const stream = session.createBidirectionalStream({
   headers: {
     ':method': 'GET',
     ':path': '/',
@@ -4909,9 +4932,12 @@ throughput issues caused by flow control.
 [`sessionOptions.truncatedReads`]: #sessionoptionstruncatedreads
 [`stream.destroy()`]: #streamdestroyerror-options
 [`stream.headers`]: #streamheaders
+[`stream.id`]: #streamid
 [`stream.onerror`]: #streamonerror
 [`stream.onwanttrailers`]: #streamonwanttrailers
+[`stream.opened`]: #streamopened
 [`stream.pendingTrailers`]: #streampendingtrailers
+[`stream.pending`]: #streampending
 [`stream.priority`]: #streampriority
 [`stream.resetStream()`]: #streamresetstreamcode
 [`stream.sendHeaders()`]: #streamsendheadersheaders-options

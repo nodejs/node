@@ -38,7 +38,7 @@ const encoder = new TextEncoder();
   await clientSession.opened;
 
   // Open a stream and send data.
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: encoder.encode('hello'),
   });
 
@@ -74,9 +74,9 @@ const encoder = new TextEncoder();
 
   clientSession.close();
 
-  // Attempting to create a stream after close() should reject.
-  await assert.rejects(
-    clientSession.createBidirectionalStream({
+  // Attempting to create a stream after close() should throw.
+  assert.throws(
+    () => clientSession.createBidirectionalStream({
       body: encoder.encode('too late'),
     }),
     {

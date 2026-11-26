@@ -36,7 +36,7 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 
 // Create a stream with headers, then immediately destroy it.
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   headers: {
     ':method': 'GET',
     ':path': '/destroyed',
