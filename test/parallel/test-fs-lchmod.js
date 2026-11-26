@@ -53,12 +53,12 @@ assert.throws(() => fs.lchmodSync(f, '123x'), {
   code: 'ERR_INVALID_ARG_VALUE'
 });
 
-[-1, 2 ** 32].forEach((input) => {
+[-1, 2 ** 31].forEach((input) => {
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "mode" is out of range. It must be >= 0 && <= ' +
-             `4294967295. Received ${input}`
+             `2147483647. Received ${input}`
   };
 
   assert.rejects(promises.lchmod(f, input, () => {}), errObj).then(common.mustCall());
