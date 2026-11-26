@@ -11,8 +11,8 @@ const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-// Single-quote for /bin/sh; the path may contain shell metacharacters.
-const node = `'${process.execPath.replaceAll("'", `'\\''`)}'`;
+// Passed via the env, as the path may contain shell metacharacters.
+const env = { ...process.env, NODE: process.execPath };
 const forwardedSignals = ['SIGINT', 'SIGTERM'];
 
 fs.writeFileSync(tmpdir.resolve('handle-signals.js'), `
@@ -34,15 +34,16 @@ fs.writeFileSync(tmpdir.resolve('package.json'), JSON.stringify({
     'self-kill': 'kill -KILL $$',
     'self-abort': 'ulimit -c 0; kill -ABRT $$',
     // `exec` so signals reach node, not the shell.
-    'handle-signals': `exec ${node} handle-signals.js`,
+    'handle-signals': 'exec "$NODE" handle-signals.js',
     'no-signal-handlers':
-      `exec ${node} -e "console.log('ready', process.pid); setInterval(() => {}, 1000)"`,
+      `exec "$NODE" -e "console.log('ready', process.pid); setInterval(() => {}, 1000)"`,
   },
 }));
 
 function run(script) {
   return common.spawnPromisified(process.execPath, ['--run', script], {
     cwd: tmpdir.path,
+    env,
   });
 }
 
@@ -50,6 +51,7 @@ function run(script) {
 async function runAndSignal(script, signal) {
   const child = spawn(process.execPath, ['--run', script], {
     cwd: tmpdir.path,
+    env,
     stdio: ['ignore', 'pipe', 'inherit'],
   });
   const exited = once(child, 'exit');
