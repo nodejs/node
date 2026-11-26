@@ -1305,8 +1305,8 @@ Creates a new `sourceMap` instance.
 
 * `file` {string}
 * `version` {number}
-* `sources` {(string|null)\[]}
-* `sourcesContent` {(string|null)\[]}
+* `sources` {string\[]|null\[]}
+* `sourcesContent` {string\[]|null\[]}
 * `names` {string\[]}
 * `mappings` {string}
 * `sourceRoot` {string}
