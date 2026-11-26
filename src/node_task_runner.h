@@ -55,6 +55,8 @@ class ProcessRunner {
   uv_signal_t signal_handles_[std::size(kForwardedSignals)]{};
 
   static void SignalCallback(uv_signal_t* handle, int signum);
+  void StartForwardingSignals();
+  void StopForwardingSignals();
 #endif  // _WIN32
 
   // OnExit is the callback function that is called when the process exits.

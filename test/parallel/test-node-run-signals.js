@@ -1,11 +1,6 @@
 'use strict';
 
 const common = require('../common');
-
-if (common.isWindows) {
-  common.skip('POSIX signals are not supported on Windows');
-}
-
 const assert = require('node:assert');
 const { spawn } = require('node:child_process');
 const { once } = require('node:events');
@@ -36,6 +31,7 @@ fs.writeFileSync(tmpdir.resolve('package.json'), JSON.stringify({
     'exit-code': 'exit 42',
     'self-terminate': 'kill -TERM $$',
     'self-kill': 'kill -KILL $$',
+    'self-abort': 'ulimit -c 0; kill -ABRT $$',
     // `exec` so signals reach node, not the shell.
     'handle-signals': `exec ${node} handle-signals.js`,
     'no-signal-handlers':
@@ -81,13 +77,17 @@ async function runAndSignal(script, signal) {
   return { code, signal: exitSignal, stdout };
 }
 
-describe('node --run signal handling', () => {
+describe('node --run exit codes', () => {
   it('uses the exit code of the script', async () => {
     const child = await run('exit-code');
     assert.strictEqual(child.code, 42);
     assert.strictEqual(child.signal, null);
   });
+});
 
+describe('node --run signal handling', {
+  skip: common.isWindows && 'POSIX signals are not supported on Windows',
+}, () => {
   it('terminates with the signal that terminated the script', async () => {
     const child = await run('self-terminate');
     assert.strictEqual(child.code, null);
@@ -99,6 +99,13 @@ describe('node --run signal handling', () => {
     assert.strictEqual(child.code, null);
     assert.strictEqual(child.signal, 'SIGKILL');
   });
+
+  it('exits with 128 + signal instead of re-raising a core-dumping signal',
+     async () => {
+       const child = await run('self-abort');
+       assert.strictEqual(child.code, 128 + 6);  // SIGABRT
+       assert.strictEqual(child.signal, null);
+     });
 
   for (const signal of forwardedSignals) {
     it(`forwards ${signal} and waits for the script to exit`, async () => {

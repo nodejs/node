@@ -3006,7 +3006,7 @@ forked processes, or clustered processes.
 added: v22.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67736
     description: Forwards signals to the script and propagates its exit status.
   - version:
     - v26.9.0
@@ -3089,11 +3089,18 @@ to the command executed by `--run`.
 #### Signals and exit codes
 
 `node --run` exits with the exit code of the script, or with the signal that
-terminated it.
+terminated it. If the script was terminated by a signal whose default action
+dumps core (such as `SIGSEGV` or `SIGABRT`), `node --run` instead exits with
+code 128 plus the signal number.
 
 On POSIX, `SIGINT` and `SIGTERM` are forwarded to the script. If the shell
 stays running (e.g. `build && start`), the signal reaches the shell instead;
 use `exec` to avoid this.
+
+In an interactive terminal, <kbd>Ctrl</kbd>+<kbd>C</kbd> sends `SIGINT` to
+every process in the foreground process group, including the script. The script
+therefore receives `SIGINT` twice: once from the terminal and once forwarded by
+`node --run`.
 
 ### `--secure-heap-min=n`
 

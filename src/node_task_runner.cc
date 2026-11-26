@@ -200,9 +200,7 @@ void ProcessRunner::ExitCallback(uv_process_t* handle,
   const auto self = static_cast<ProcessRunner*>(handle->data);
   uv_close(reinterpret_cast<uv_handle_t*>(handle), nullptr);
 #ifndef _WIN32
-  for (auto& signal_handle : self->signal_handles_) {
-    uv_close(reinterpret_cast<uv_handle_t*>(&signal_handle), nullptr);
-  }
+  self->StopForwardingSignals();
 #endif  // _WIN32
   self->OnExit(exit_status, term_signal);
 }
@@ -221,6 +219,44 @@ void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
 void ProcessRunner::SignalCallback(uv_signal_t* handle, int signum) {
   const auto self = static_cast<ProcessRunner*>(handle->data);
   USE(uv_process_kill(&self->process_, signum));
+}
+
+void ProcessRunner::StartForwardingSignals() {
+  for (size_t i = 0; i < std::size(kForwardedSignals); i++) {
+    uv_signal_t* signal_handle = &signal_handles_[i];
+    CHECK_EQ(uv_signal_init(loop_, signal_handle), 0);
+    signal_handle->data = this;
+    CHECK_EQ(
+        uv_signal_start(signal_handle, SignalCallback, kForwardedSignals[i]),
+        0);
+  }
+}
+
+void ProcessRunner::StopForwardingSignals() {
+  for (size_t i = 0; i < std::size(kForwardedSignals); i++) {
+    uv_close(reinterpret_cast<uv_handle_t*>(&signal_handles_[i]), nullptr);
+    // uv_close resets the disposition to SIG_DFL.
+    RegisterSignalHandler(kForwardedSignals[i], SignalExit, true);
+  }
+}
+
+// Re-raising these would make the runner dump core too.
+static bool IsCoreDumpSignal(int signum) {
+  switch (signum) {
+    case SIGABRT:
+    case SIGBUS:
+    case SIGFPE:
+    case SIGILL:
+    case SIGQUIT:
+    case SIGSEGV:
+    case SIGSYS:
+    case SIGTRAP:
+    case SIGXCPU:
+    case SIGXFSZ:
+      return true;
+    default:
+      return false;
+  }
 }
 
 // Exit with the same signal as the child.
@@ -248,26 +284,22 @@ void ProcessRunner::Run() {
   // keeps the string alive until destructor
   cwd_ = ConvertPathToUTF8(package_json_path_.parent_path());
   options_.cwd = cwd_.c_str();
+#ifndef _WIN32
+  // Stopped in ExitCallback.
+  StartForwardingSignals();
+#endif  // _WIN32
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));
-  } else {
+    init_result_->exit_code_ = ExitCode::kGenericUserError;
 #ifndef _WIN32
-    // Closed in ExitCallback.
-    for (size_t i = 0; i < std::size(kForwardedSignals); i++) {
-      uv_signal_t* signal_handle = &signal_handles_[i];
-      CHECK_EQ(uv_signal_init(loop_, signal_handle), 0);
-      signal_handle->data = this;
-      CHECK_EQ(
-          uv_signal_start(signal_handle, SignalCallback, kForwardedSignals[i]),
-          0);
-    }
+    StopForwardingSignals();
 #endif  // _WIN32
   }
 
   uv_run(loop_, UV_RUN_DEFAULT);
 
 #ifndef _WIN32
-  if (term_signal_ != 0) {
+  if (term_signal_ != 0 && !IsCoreDumpSignal(term_signal_)) {
     ReraiseSignal(term_signal_);
   }
 #endif  // _WIN32
