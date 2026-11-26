@@ -11,7 +11,8 @@ const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const node = JSON.stringify(process.execPath);
+// Single-quote for /bin/sh; the path may contain shell metacharacters.
+const node = `'${process.execPath.replaceAll("'", `'\\''`)}'`;
 const forwardedSignals = ['SIGINT', 'SIGTERM'];
 
 fs.writeFileSync(tmpdir.resolve('handle-signals.js'), `
