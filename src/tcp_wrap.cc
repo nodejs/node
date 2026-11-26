@@ -624,8 +624,11 @@ int TCPWrap::Reset(Local<Value> close_callback) {
   if (state_ != kInitialized) return 0;
 
   int err = uv_tcp_close_reset(&handle_, OnClose);
+  // The handle is not closing on failure.
+  if (err != 0) return err;
+
   state_ = kClosing;
-  if (!err & !close_callback.IsEmpty() && close_callback->IsFunction() &&
+  if (!close_callback.IsEmpty() && close_callback->IsFunction() &&
       !persistent().IsEmpty()) {
     object()
         ->Set(env()->context(), env()->handle_onclose_symbol(), close_callback)
