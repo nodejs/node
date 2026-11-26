@@ -15,7 +15,7 @@ const path = require('path');
 
 tmpdir.refresh();
 
-const dir = path.join(tmpdir.path, 'granted-dir');
+const dir = tmpdir.resolve('granted-dir');
 fs.mkdirSync(dir);
 fs.writeFileSync(path.join(dir, 'item1.txt'), 'aaa');
 fs.writeFileSync(path.join(dir, 'item2.txt'), 'bbb');
@@ -72,7 +72,7 @@ fs.writeFileSync(path.join(dir, 'item2.txt'), 'bbb');
 
 // Grant two directories, drop one - the other remains accessible
 {
-  const dir2 = path.join(tmpdir.path, 'other-dir');
+  const dir2 = tmpdir.resolve('other-dir');
   fs.mkdirSync(dir2);
   fs.writeFileSync(path.join(dir2, 'other.txt'), 'ccc');
 
@@ -170,7 +170,7 @@ for (const files of [
 // Grant a path that does not exist yet, then create it as a directory
 // dropping it still revokes the grant
 {
-  const later = path.join(tmpdir.path, 'later-dir');
+  const later = tmpdir.resolve('later-dir');
   const child = spawnSync(process.execPath, [
     '--permission',
     `--allow-fs-read=${later}`,
@@ -200,7 +200,7 @@ for (const files of [
 
 // Grant a directory, then remove it - dropping it still revokes the grant
 {
-  const gone = path.join(tmpdir.path, 'gone-dir');
+  const gone = tmpdir.resolve('gone-dir');
   fs.mkdirSync(gone);
   const child = spawnSync(process.execPath, [
     '--permission',

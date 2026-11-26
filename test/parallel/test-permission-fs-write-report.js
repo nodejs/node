@@ -50,7 +50,7 @@ tmpdir.refresh();
 }
 
 {
-  const reportPath = path.join(tmpdir.path, 'report.json');
+  const reportPath = tmpdir.resolve('report.json');
   spawnSyncAndExitWithoutError(
     process.execPath,
     [
@@ -76,8 +76,8 @@ spawnSyncAndExitWithoutError(
 );
 
 {
-  const allowedDir = path.join(tmpdir.path, 'report-allowed');
-  const deniedDir = path.join(tmpdir.path, 'report-denied');
+  const allowedDir = tmpdir.resolve('report-allowed');
+  const deniedDir = tmpdir.resolve('report-denied');
   fs.mkdirSync(allowedDir);
   fs.mkdirSync(deniedDir);
 
@@ -108,8 +108,8 @@ spawnSyncAndExitWithoutError(
 }
 
 {
-  const allowedDir = path.join(tmpdir.path, 'report-filename-allowed');
-  const deniedDir = path.join(tmpdir.path, 'report-filename-denied');
+  const allowedDir = tmpdir.resolve('report-filename-allowed');
+  const deniedDir = tmpdir.resolve('report-filename-denied');
   fs.mkdirSync(allowedDir);
   fs.mkdirSync(deniedDir);
 

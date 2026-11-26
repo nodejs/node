@@ -30,9 +30,9 @@ const commonPath = path.join(__filename, '../../common');
 }
 
 {
-  const boundaryFile = path.join(tmpdir.path, 'secret');
+  const boundaryFile = tmpdir.resolve('secret');
   const grantedFiles = ['secret1', 'secret2', 'secret3']
-    .map((file) => path.join(tmpdir.path, file));
+    .map((file) => tmpdir.resolve(file));
 
   fs.writeFileSync(boundaryFile, 'protected');
   for (const file of grantedFiles) {

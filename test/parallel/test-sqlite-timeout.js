@@ -2,7 +2,6 @@
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
-const { join } = require('node:path');
 const { Database } = require('node:sqlite');
 const { test } = require('node:test');
 const { once } = require('node:events');
@@ -12,7 +11,7 @@ let cnt = 0;
 tmpdir.refresh();
 
 function nextDb() {
-  return join(tmpdir.path, `database-${cnt++}.db`);
+  return tmpdir.resolve(`database-${cnt++}.db`);
 }
 
 test('waits to acquire lock', async (t) => {

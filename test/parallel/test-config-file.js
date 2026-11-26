@@ -11,7 +11,6 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const { test, it, describe } = require('node:test');
 const { chmodSync, writeFileSync, constants } = require('node:fs');
-const { join } = require('node:path');
 
 const onlyIfNodeOptionsSupport = { skip: process.config.variables.node_without_node_options };
 const onlyWithAmaro = { skip: !process.config.variables.node_use_amaro };
@@ -60,7 +59,7 @@ describe('runtime version checks', () => {
 
   async function runConfig(config, filename = 'version-config.json') {
     tmpdir.refresh();
-    const configPath = join(tmpdir.path, filename);
+    const configPath = tmpdir.resolve(filename);
     writeFileSync(configPath, JSON.stringify(config));
 
     return spawnPromisified(process.execPath, [
@@ -775,7 +774,7 @@ test('should throw an error when the file is non readable', {
   skip: isWindows || process.getuid() === 0,
 }, async () => {
   tmpdir.refresh();
-  const dest = join(tmpdir.path, 'node.config.json');
+  const dest = tmpdir.resolve('node.config.json');
   writeFileSync(dest, JSON.stringify({
     nodeOptions: { 'max-http-header-size': 10 }
   }));

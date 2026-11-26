@@ -3,13 +3,12 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
 async function main() {
-  const file = path.join(tmpdir.path, 'write-invalid-encoding');
+  const file = tmpdir.resolve('write-invalid-encoding');
   const handle = await fs.promises.open(file, 'w+');
   try {
     for (const encoding of ['bad', 16]) {

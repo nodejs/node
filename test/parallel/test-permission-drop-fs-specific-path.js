@@ -15,8 +15,8 @@ const path = require('path');
 
 tmpdir.refresh();
 
-const dirA = path.join(tmpdir.path, 'dir-a');
-const dirB = path.join(tmpdir.path, 'dir-b');
+const dirA = tmpdir.resolve('dir-a');
+const dirB = tmpdir.resolve('dir-b');
 fs.mkdirSync(dirA);
 fs.mkdirSync(dirB);
 fs.writeFileSync(path.join(dirA, 'a.txt'), 'aaa');

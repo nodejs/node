@@ -2,7 +2,6 @@
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
-const { join } = require('node:path');
 const { backup, Database } = require('node:sqlite');
 const { suite, test } = require('node:test');
 
@@ -166,7 +165,7 @@ suite('closing the database from an options getter', () => {
   test('backup() throws instead of using a closed connection', (t) => {
     const db = new Database(':memory:');
     t.assert.throws(() => {
-      backup(db, join(tmpdir.path, 'getter-backup.db'), {
+      backup(db, tmpdir.resolve('getter-backup.db'), {
         get rate() {
           db.close();
           return 1;
@@ -194,7 +193,7 @@ test('options getters do not run on an already-closed database', (t) => {
     createSession: (db, options) => db.createSession(options),
     applyChangeset: (db, options) => db.applyChangeset(changeset, options),
     backup: (db, options) =>
-      backup(db, join(tmpdir.path, 'closed-backup.db'), options),
+      backup(db, tmpdir.resolve('closed-backup.db'), options),
   };
 
   // The property each method reads first, and a valid value for it, so that a

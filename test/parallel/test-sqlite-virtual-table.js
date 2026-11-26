@@ -3,7 +3,6 @@
 const { skipIfSQLiteMissing, mustCallAtLeast } = require('../common');
 skipIfSQLiteMissing();
 const assert = require('node:assert');
-const { join } = require('node:path');
 const { Database } = require('node:sqlite');
 const { suite, test } = require('node:test');
 const tmpdir = require('../common/tmpdir');
@@ -992,7 +991,7 @@ suite('Database.prototype.createModule()', () => {
   suite('statements prepared while a cursor is closing', () => {
     test('finalizes statements prepared from a generator finally', () => {
       tmpdir.refresh();
-      const filename = join(tmpdir.path, 'vtab-close.db');
+      const filename = tmpdir.resolve('vtab-close.db');
       const db = new Database(filename);
       db.exec('CREATE TABLE log (m TEXT)');
       let late;

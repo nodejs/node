@@ -3,12 +3,11 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const testFilePath = path.join(tmpdir.path, 'fchown-test-file.txt');
+const testFilePath = tmpdir.resolve('fchown-test-file.txt');
 
 fs.writeFileSync(testFilePath, 'test content for fchown');
 

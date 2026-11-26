@@ -7,7 +7,6 @@ import {
 } from '../common/index.mjs';
 import fixtures from '../common/fixtures.js';
 import tmpdir from '../common/tmpdir.js';
-import { join } from 'node:path';
 import { describe, test } from 'node:test';
 import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -21,7 +20,7 @@ let cnt = 0;
 tmpdir.refresh();
 
 function nextDb() {
-  return join(tmpdir.path, `database-${cnt++}.db`);
+  return tmpdir.resolve(`database-${cnt++}.db`);
 }
 
 function makeSourceDb(dbPath = ':memory:') {

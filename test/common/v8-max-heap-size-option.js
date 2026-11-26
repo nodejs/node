@@ -2,7 +2,6 @@
 
 const assert = require('assert');
 const { spawnSync } = require('child_process');
-const path = require('path');
 const fs = require('fs');
 const tmpdir = require('./tmpdir');
 
@@ -14,7 +13,7 @@ const testScript = `
 `;
 
 tmpdir.refresh();
-const scriptPath = path.join(tmpdir.path, 'heap-limit-test.js');
+const scriptPath = tmpdir.resolve('heap-limit-test.js');
 fs.writeFileSync(scriptPath, testScript);
 
 const child = spawnSync(

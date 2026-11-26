@@ -20,9 +20,9 @@ const {
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const pathA = join(tmpdir.path, 'a');
+const pathA = tmpdir.resolve('a');
 const pathAC = join(pathA, 'c');
-const pathB = join(tmpdir.path, 'b');
+const pathB = tmpdir.resolve('b');
 mkdirSync(pathAC, { recursive: true });
 
 cpSync(Buffer.from(pathA), Buffer.from(pathB), {

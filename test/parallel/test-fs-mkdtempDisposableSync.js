@@ -48,8 +48,8 @@ if (isMainThread) {
   const first = fs.mkdtempDisposableSync('first.');
   const second = fs.mkdtempDisposableSync('second.');
 
-  const fullFirstPath = path.join(tmpdir.path, first.path);
-  const fullSecondPath = path.join(tmpdir.path, second.path);
+  const fullFirstPath = tmpdir.resolve(first.path);
+  const fullSecondPath = tmpdir.resolve(second.path);
 
   assert(fs.existsSync(fullFirstPath));
   assert(fs.existsSync(fullSecondPath));

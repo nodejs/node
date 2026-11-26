@@ -17,19 +17,15 @@ const {
   statSync
 } = require('fs');
 
-const {
-  join,
-} = require('path');
-
 const assert = require('assert');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const pathA = join(tmpdir.path, 'a'); // file
-const pathB = join(tmpdir.path, 'b'); // directory
-const pathC = join(tmpdir.path, 'c'); // c -> b
-const pathD = join(tmpdir.path, 'd'); // d -> b
+const pathA = tmpdir.resolve('a'); // file
+const pathB = tmpdir.resolve('b'); // directory
+const pathC = tmpdir.resolve('c'); // c -> b
+const pathD = tmpdir.resolve('d'); // d -> b
 
 writeFileSync(pathA, 'file a');
 mkdirSync(pathB);
