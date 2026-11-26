@@ -231,6 +231,13 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 }
 
 {
+  const { GreenThread } = internalBinding('green_thread');
+  const handle = new GreenThread('', 'green-thread.js', 0, 0, 0);
+  testInitialized(handle, 'GreenThread');
+  handle.close();
+}
+
+{
   async function openTest() {
     const fd = await fsPromises.open(__filename, 'r');
     testInitialized(fd, 'FileHandle');

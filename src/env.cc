@@ -1,6 +1,7 @@
 #include "env.h"
 #include "async_wrap.h"
 #include "base_object-inl.h"
+#include "cppgc_helpers.h"
 #include "debug_utils-inl.h"
 #include "diagnosticfilename-inl.h"
 #include "memory_tracker-inl.h"
@@ -683,8 +684,7 @@ IsolateData::~IsolateData() {
 void SetCppgcReference(Isolate* isolate,
                        Local<Object> object,
                        v8::Object::Wrappable* wrappable) {
-  v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(
-      isolate, object, wrappable);
+  v8::Object::Wrap<kCppgcWrappableTag>(isolate, object, wrappable);
 }
 
 void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
@@ -1162,6 +1162,10 @@ Environment::Environment(IsolateData* isolate_data,
     }
     if (!options_->allow_wasi) {
       permission()->Apply(this, args, permission::PermissionScope::kWASI);
+    }
+    if (!options_->allow_green_threads) {
+      permission()->Apply(
+          this, args, permission::PermissionScope::kGreenThreads);
     }
 
     {

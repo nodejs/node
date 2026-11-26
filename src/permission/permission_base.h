@@ -41,6 +41,9 @@ namespace permission {
 
 #define ENV_PERMISSIONS(V) V(Env, "env", PermissionsRoot, "--allow-env")
 
+#define GREEN_THREADS_PERMISSIONS(V)                                           \
+  V(GreenThreads, "green-thread", PermissionsRoot, "--allow-green-threads")
+
 #define PERMISSIONS(V)                                                         \
   FILESYSTEM_PERMISSIONS(V)                                                    \
   CHILD_PROCESS_PERMISSIONS(V)                                                 \
@@ -51,7 +54,8 @@ namespace permission {
   ADDON_PERMISSIONS(V)                                                         \
   FFI_PERMISSIONS(V)                                                           \
   OPENSSL_STORE_PERMISSIONS(V)                                                 \
-  ENV_PERMISSIONS(V)
+  ENV_PERMISSIONS(V)                                                           \
+  GREEN_THREADS_PERMISSIONS(V)
 
 #define V(name, _, __, ___) k##name,
 enum class PermissionScope {
